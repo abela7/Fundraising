@@ -62,6 +62,13 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
         </span>
         <span class="nav-label">Payments</span>
       </a>
+      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'donations' ? './' : '../donations/'; ?>" 
+         class="nav-link <?php echo $current_dir === 'donations' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-donate"></i>
+        </span>
+        <span class="nav-label">Donations Management</span>
+      </a>
     </div>
     
     <!-- Operations Section -->
