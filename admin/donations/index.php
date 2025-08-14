@@ -215,7 +215,7 @@ UNION ALL
     dp2.label as package_label,
     dp2.sqm_meters as package_sqm
  FROM pledges pl
- LEFT JOIN users u2 ON pl.approved_by_user_id = u2.id
+ LEFT JOIN users u2 ON pl.created_by_user_id = u2.id
  LEFT JOIN donation_packages dp2 ON pl.package_id = dp2.id)";
 
 // Apply filters
@@ -272,25 +272,71 @@ $offset = ($page - 1) * $perPage;
 // Get total count
 $countSql = "SELECT COUNT(*) as total FROM ($baseQuery) as combined_donations $whereClause";
 $countStmt = $db->prepare($countSql);
-if (!empty($params)) {
-    $countStmt->bind_param($types, ...$params);
+if (!$countStmt) {
+    // If prepare fails, use simpler count
+    $paymentsCount = $db->query("SELECT COUNT(*) as total FROM payments")->fetch_assoc();
+    $pledgesCount = $db->query("SELECT COUNT(*) as total FROM pledges")->fetch_assoc();
+    $totalRecords = (int)($paymentsCount['total'] ?? 0) + (int)($pledgesCount['total'] ?? 0);
+} else {
+    if (!empty($params)) {
+        $countStmt->bind_param($types, ...$params);
+    }
+    $countStmt->execute();
+    $result = $countStmt->get_result();
+    if ($result) {
+        $totalRecords = (int)($result->fetch_assoc()['total'] ?? 0);
+    } else {
+        $totalRecords = 0;
+    }
 }
-$countStmt->execute();
-$totalRecords = (int)($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
 $totalPages = (int)ceil($totalRecords / $perPage);
 
 // Get paginated results
 $sql = "SELECT * FROM ($baseQuery) as combined_donations $whereClause ORDER BY created_at DESC LIMIT ? OFFSET ?";
 $stmt = $db->prepare($sql);
-if (!empty($params)) {
-    $allParams = array_merge($params, [$perPage, $offset]);
-    $allTypes = $types . 'ii';
-    $stmt->bind_param($allTypes, ...$allParams);
+if (!$stmt) {
+    // If prepare fails, try a simpler approach
+    $donations = [];
+    
+    // Get payments
+    $paymentsQuery = "SELECT p.id, 'payment' as donation_type, p.donor_name, p.donor_phone, p.donor_email, p.amount, p.method, p.reference as notes, p.status, 0 as anonymous, p.created_at, p.received_at as processed_at, u.name as processed_by, dp.label as package_label, dp.sqm_meters as package_sqm FROM payments p LEFT JOIN users u ON p.received_by_user_id = u.id LEFT JOIN donation_packages dp ON p.package_id = dp.id ORDER BY p.created_at DESC LIMIT 10";
+    $paymentsResult = $db->query($paymentsQuery);
+    if ($paymentsResult) {
+        $payments = $paymentsResult->fetch_all(MYSQLI_ASSOC);
+        $donations = array_merge($donations, $payments);
+    }
+    
+    // Get pledges
+    $pledgesQuery = "SELECT pl.id, 'pledge' as donation_type, pl.donor_name, pl.donor_phone, pl.donor_email, pl.amount, NULL as method, pl.notes, pl.status, pl.anonymous, pl.created_at, pl.approved_at as processed_at, u.name as processed_by, dp.label as package_label, dp.sqm_meters as package_sqm FROM pledges pl LEFT JOIN users u ON pl.created_by_user_id = u.id LEFT JOIN donation_packages dp ON pl.package_id = dp.id ORDER BY pl.created_at DESC LIMIT 10";
+    $pledgesResult = $db->query($pledgesQuery);
+    if ($pledgesResult) {
+        $pledges = $pledgesResult->fetch_all(MYSQLI_ASSOC);
+        $donations = array_merge($donations, $pledges);
+    }
+    
+    // Sort by created_at
+    usort($donations, function($a, $b) {
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
+    });
+    
+    // Limit results
+    $donations = array_slice($donations, 0, $perPage);
 } else {
-    $stmt->bind_param('ii', $perPage, $offset);
+    if (!empty($params)) {
+        $allParams = array_merge($params, [$perPage, $offset]);
+        $allTypes = $types . 'ii';
+        $stmt->bind_param($allTypes, ...$allParams);
+    } else {
+        $stmt->bind_param('ii', $perPage, $offset);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result) {
+        $donations = $result->fetch_all(MYSQLI_ASSOC);
+    } else {
+        $donations = [];
+    }
 }
-$stmt->execute();
-$donations = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Get statistics
 $statsQuery = "SELECT 
@@ -303,7 +349,24 @@ $statsQuery = "SELECT
     SUM(CASE WHEN status = 'approved' AND donation_type = 'pledge' THEN amount ELSE 0 END) as pledged_amount
     FROM ($baseQuery) as stats_donations";
 
-$statsResult = $db->query($statsQuery)->fetch_assoc();
+$statsResult = $db->query($statsQuery);
+if (!$statsResult) {
+    // If there's an error with the complex query, fall back to simpler queries
+    $paymentsStats = $db->query("SELECT COUNT(*) as count, SUM(CASE WHEN status='approved' THEN amount ELSE 0 END) as approved, SUM(CASE WHEN status='pending' THEN amount ELSE 0 END) as pending FROM payments")->fetch_assoc();
+    $pledgesStats = $db->query("SELECT COUNT(*) as count, SUM(CASE WHEN status='approved' THEN amount ELSE 0 END) as approved, SUM(CASE WHEN status='pending' THEN amount ELSE 0 END) as pending FROM pledges")->fetch_assoc();
+    
+    $statsResult = [
+        'total_count' => (int)$paymentsStats['count'] + (int)$pledgesStats['count'],
+        'payment_count' => (int)$paymentsStats['count'],
+        'pledge_count' => (int)$pledgesStats['count'],
+        'approved_amount' => (float)$paymentsStats['approved'] + (float)$pledgesStats['approved'],
+        'pending_amount' => (float)$paymentsStats['pending'] + (float)$pledgesStats['pending'],
+        'paid_amount' => (float)$paymentsStats['approved'],
+        'pledged_amount' => (float)$pledgesStats['approved']
+    ];
+} else {
+    $statsResult = $statsResult->fetch_assoc();
+}
 $stats = [
     'total_count' => (int)($statsResult['total_count'] ?? 0),
     'payment_count' => (int)($statsResult['payment_count'] ?? 0),
@@ -344,6 +407,17 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 <i class="fas fa-info-circle me-2"></i>
                 <?php echo htmlspecialchars($_GET['msg']); ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Debug Info (remove in production) -->
+            <?php if (isset($_GET['debug']) && $_GET['debug'] === '1'): ?>
+            <div class="alert alert-warning">
+                <strong>Debug Info:</strong><br>
+                Total Records: <?php echo $totalRecords; ?><br>
+                Donations Count: <?php echo count($donations); ?><br>
+                SQL Error: <?php echo $db->error ?: 'None'; ?><br>
+                Base Query Length: <?php echo strlen($baseQuery); ?> chars
             </div>
             <?php endif; ?>
 
@@ -776,5 +850,23 @@ $currency = $settings['currency_code'] ?? 'GBP';
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script src="assets/donations.js"></script>
+
+<script>
+// Fallback for sidebar toggle if admin.js failed to attach for any reason
+if (typeof window.toggleSidebar !== 'function') {
+  window.toggleSidebar = function() {
+    var body = document.body;
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.querySelector('.sidebar-overlay');
+    if (window.innerWidth <= 991.98) {
+      if (sidebar) sidebar.classList.toggle('active');
+      if (overlay) overlay.classList.toggle('active');
+      body.style.overflow = (sidebar && sidebar.classList.contains('active')) ? 'hidden' : '';
+    } else {
+      body.classList.toggle('sidebar-collapsed');
+    }
+  };
+}
+</script>
 </body>
 </html>
