@@ -85,7 +85,7 @@ function updateSettings() {
 
 // Open Projector View
 function openProjectorView() {
-    const url = `/fundraising/public/projector/`;
+    const url = `/public/projector/`;
     
     // Open in new window with fullscreen
     const projectorWindow = window.open(url, 'projectorView', 'fullscreen=yes');

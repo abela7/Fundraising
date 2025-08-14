@@ -109,7 +109,7 @@ function initRegistrationForm() {
         // Duplicate check via API (only if we have a phone to check)
         if (normalized) {
             try {
-                const res = await fetch(`/fundraising/api/check_donor.php?phone=${encodeURIComponent(normalized)}`);
+                const res = await fetch(`../../api/check_donor.php?phone=${encodeURIComponent(normalized)}`);
                 const data = await res.json();
                 if (data && (data.pledges?.pending > 0 || data.pledges?.approved > 0)) {
                     alert('This donor already has a registered pledge. Please review existing records instead of creating duplicates.');
@@ -302,7 +302,7 @@ window.registrarUtils = {
 (function() {
     if (!window.location.pathname.includes('/messages/')) {
         const script = document.createElement('script');
-        script.src = '/fundraising/shared/js/message-notifications.js?v=' + Date.now();
+        script.src = '../shared/js/message-notifications.js?v=' + Date.now();
         script.async = true;
         document.head.appendChild(script);
     }

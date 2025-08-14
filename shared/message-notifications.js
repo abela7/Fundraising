@@ -8,9 +8,9 @@
         // Determine the correct API path based on current location
         let apiPath;
         if (window.location.pathname.includes('/admin/')) {
-            apiPath = '/fundraising/admin/messages/?action=unread-count';
+            apiPath = '../messages/?action=unread-count';
         } else if (window.location.pathname.includes('/registrar/')) {
-            apiPath = '/fundraising/registrar/messages/?action=conversations';
+            apiPath = './messages/?action=conversations';
         } else {
             return; // Not on admin or registrar pages
         }

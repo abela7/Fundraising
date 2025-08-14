@@ -373,7 +373,7 @@ function executeCommand(command) {
 (function() {
     if (!window.location.pathname.includes('/messages/')) {
         const script = document.createElement('script');
-        script.src = '/fundraising/shared/js/message-notifications.js?v=' + Date.now();
+        script.src = '../../shared/js/message-notifications.js?v=' + Date.now();
         script.async = true;
         document.head.appendChild(script);
     }

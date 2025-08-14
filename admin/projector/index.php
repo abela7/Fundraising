@@ -601,12 +601,12 @@ $current_display_mode = $current_settings['projector_display_mode'] ?? 'amount';
         
         // Open projector view
         function openProjectorView() {
-            window.open('/fundraising/public/projector/', '_blank');
+            window.open('/public/projector/', '_blank');
         }
         
         // Open fullscreen
         function openFullscreen() {
-            const url = '/fundraising/public/projector/';
+            const url = '/public/projector/';
             const win = window.open(url, '_blank');
             if (win) {
                 setTimeout(() => {

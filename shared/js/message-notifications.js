@@ -13,9 +13,9 @@
         // Determine API endpoint based on current location
         let apiUrl;
         if (window.location.pathname.includes('/admin/')) {
-            apiUrl = '/fundraising/admin/messages/?action=unread-count';
+            apiUrl = '../../admin/messages/?action=unread-count';
         } else if (window.location.pathname.includes('/registrar/')) {
-            apiUrl = '/fundraising/registrar/messages/?action=unread-count';
+            apiUrl = './messages/?action=unread-count';
         } else {
             return;
         }

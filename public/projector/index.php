@@ -26,7 +26,7 @@ $target = (float)$settings['target_amount'];
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/fundraising/public/projector/assets/projector-live.css">
+    <link rel="stylesheet" href="./assets/projector-live.css">
 </head>
 <body>
     <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle Fullscreen (F)">
@@ -396,7 +396,7 @@ $target = (float)$settings['target_amount'];
             console.log('🔢 Using sqm/both mode - fetching calculation...');
             try {
                 // Get square meter calculation from API
-                const apiUrl = `/fundraising/api/calculate_sqm.php?amount=${amount}`;
+                const apiUrl = `../../api/calculate_sqm.php?amount=${amount}`;
                 console.log('📡 Fetching:', apiUrl);
                 const response = await fetch(apiUrl);
                 console.log('📥 API Response status:', response.status);
@@ -532,7 +532,7 @@ $target = (float)$settings['target_amount'];
         state.isUpdating = true;
         
         try {
-            const response = await fetch(`/fundraising/api/totals.php`);
+            const response = await fetch(`../../api/totals.php`);
             if (response.ok) {
                 const data = await response.json();
                 updateTotals(data);
@@ -547,7 +547,7 @@ $target = (float)$settings['target_amount'];
     // Fetch recent contributions
     async function fetchRecent() {
         try {
-            const response = await fetch(`/fundraising/api/recent.php`);
+            const response = await fetch(`../../api/recent.php`);
             if (response.ok) {
                 const data = await response.json();
                 console.log('Recent API response:', data);
@@ -563,7 +563,7 @@ $target = (float)$settings['target_amount'];
     // Fetch footer message and visibility from database
     async function fetchFooterMessage() {
         try {
-            const response = await fetch(`/fundraising/api/footer.php`);
+            const response = await fetch(`../../api/footer.php`);
             if (response.ok) {
                 const data = await response.json();
                 const footer = document.getElementById('messageFooter');
