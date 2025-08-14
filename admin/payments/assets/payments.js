@@ -11,6 +11,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize auto-refresh
     initializeAutoRefresh();
+
+    // Ensure modal/backdrop cleanup for safety
+    const modalEl = document.getElementById('paymentDetailsModal');
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            // Remove any stray backdrops and modal-open class
+            document.body.classList.remove('modal-open');
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(el => el.parentNode && el.parentNode.removeChild(el));
+        });
+    }
 });
 
 // Initialize Bootstrap tooltips
@@ -79,7 +90,8 @@ function showLoadingModal() {
                 <p class="mt-2 text-muted">Loading payment details...</p>
             </div>
         `;
-        new bootstrap.Modal(modal).show();
+        const instance = bootstrap.Modal.getOrCreateInstance(modal);
+        instance.show();
     }
 }
 
@@ -168,7 +180,8 @@ function populatePaymentDetailsModal(payment) {
 function showPaymentDetailsModal() {
     const modal = document.getElementById('paymentDetailsModal');
     if (modal) {
-        new bootstrap.Modal(modal).show();
+        const instance = bootstrap.Modal.getOrCreateInstance(modal);
+        instance.show();
     }
 }
 
