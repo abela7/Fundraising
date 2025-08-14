@@ -12,16 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize auto-refresh
     initializeAutoRefresh();
 
-    // Ensure modal/backdrop cleanup for safety
-    const modalEl = document.getElementById('paymentDetailsModal');
-    if (modalEl) {
-        modalEl.addEventListener('hidden.bs.modal', function() {
-            // Remove any stray backdrops and modal-open class
-            document.body.classList.remove('modal-open');
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(el => el.parentNode && el.parentNode.removeChild(el));
-        });
-    }
+    // Ensure modal/backdrop cleanup for safety (any modal)
+    document.addEventListener('hidden.bs.modal', function() {
+        document.body.classList.remove('modal-open');
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(el => el.parentNode && el.parentNode.removeChild(el));
+    });
 });
 
 // Initialize Bootstrap tooltips
@@ -66,15 +62,15 @@ function viewPaymentDetails(paymentId) {
                 showPaymentDetailsModal();
             } else {
                 alert('Error loading payment details: ' + (data.error || 'Unknown error'));
+                hideModalById('paymentDetailsModal');
             }
         })
         .catch(error => {
             console.error('Error fetching payment details:', error);
             alert('Failed to load payment details. Please try again.');
+            hideModalById('paymentDetailsModal');
         })
-        .finally(() => {
-            hideLoadingModal();
-        });
+        ;
 }
 
 // Show loading modal
@@ -97,7 +93,14 @@ function showLoadingModal() {
 
 // Hide loading modal
 function hideLoadingModal() {
-    // This function can be used to hide loading states if needed
+    // No-op: we reuse the same modal and replace its content
+}
+
+function hideModalById(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const instance = bootstrap.Modal.getOrCreateInstance(el);
+    instance.hide();
 }
 
 // Populate payment details modal
