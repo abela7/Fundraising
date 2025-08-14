@@ -38,12 +38,23 @@ if (!defined('DB_NAME')) {
 
 date_default_timezone_set(env('APP_TZ', 'Europe/London'));
 
-// Development error reporting (can be tuned per environment)
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
+// Environment mode: development by default unless overridden
+$appEnv = env('APP_ENV', 'development');
+if ($appEnv === 'production') {
+	// Production: no error display, stricter reporting
+	ini_set('display_errors', '0');
+	// Show all except notices/strict/deprecated to keep logs useful
+	error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED);
+} else {
+	// Development defaults
+	error_reporting(E_ALL);
+	ini_set('display_errors', '1');
+}
 
 // Session hardening
 ini_set('session.use_strict_mode', '1');
 ini_set('session.cookie_httponly', '1');
-// Uncomment on HTTPS deployments
-// ini_set('session.cookie_secure', '1');
+// Enable secure cookies automatically if HTTPS is detected
+if ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') || env('APP_HTTPS', '0') === '1') {
+	ini_set('session.cookie_secure', '1');
+}
