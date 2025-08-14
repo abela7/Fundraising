@@ -27,6 +27,8 @@ $target = (float)$settings['target_amount'];
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./assets/projector-live.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+    <link rel="alternate icon" href="../../favicon.ico">
 </head>
 <body>
     <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle Fullscreen (F)">
