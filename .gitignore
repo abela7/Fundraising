@@ -1,0 +1,22 @@
+# System
+.DS_Store
+Thumbs.db
+
+# Dependencies / caches
+vendor/
+node_modules/
+.cache/
+
+# Logs & dumps
+*.log
+*.sql
+storage/
+
+# Local environment overrides (do not commit secrets)
+config/env.local.php
+
+# Misc
+.idea/
+.vscode/
+
+
