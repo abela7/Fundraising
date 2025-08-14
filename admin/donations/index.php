@@ -160,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get filter parameters
-$allowedStatuses = ['all','pending','approved','rejected','voided'];
+$allowedStatuses = ['all','pending','approved','rejected','voided', 'cancelled'];
 $allowedTypes = ['all','payment','pledge'];
 $allowedMethods = ['all','cash','bank','card','other'];
 
@@ -171,12 +171,7 @@ $search = trim($_GET['search'] ?? '');
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 
-// Build the combined query for payments and pledges
-$where_conditions = [];
-$params = [];
-$types = '';
-
-// Base union query for all donations
+// Corrected Base UNION Query
 $baseQuery = "
 (SELECT 
     p.id,
@@ -189,6 +184,7 @@ $baseQuery = "
     p.reference as notes,
     p.status,
     0 as anonymous,
+    NULL as pledge_type,
     p.created_at,
     p.received_at as processed_at,
     u.name as processed_by,
@@ -209,17 +205,21 @@ UNION ALL
     pl.notes,
     pl.status,
     pl.anonymous,
+    pl.type as pledge_type,
     pl.created_at,
     pl.approved_at as processed_at,
     u2.name as processed_by,
     dp2.label as package_label,
     dp2.sqm_meters as package_sqm
  FROM pledges pl
- LEFT JOIN users u2 ON pl.created_by_user_id = u2.id
+ LEFT JOIN users u2 ON pl.approved_by_user_id = u2.id
  LEFT JOIN donation_packages dp2 ON pl.package_id = dp2.id)";
 
-// Apply filters
-$whereClause = '';
+// Build WHERE clause
+$where_conditions = [];
+$params = [];
+$types = '';
+
 if ($typeFilter !== 'all') {
     $where_conditions[] = "donation_type = ?";
     $params[] = $typeFilter;
@@ -232,7 +232,7 @@ if ($statusFilter !== 'all') {
     $types .= 's';
 }
 
-if ($methodFilter !== 'all') {
+if ($methodFilter !== 'all' && $typeFilter !== 'pledge') {
     $where_conditions[] = "method = ?";
     $params[] = $methodFilter;
     $types .= 's';
@@ -241,10 +241,7 @@ if ($methodFilter !== 'all') {
 if ($search !== '') {
     $where_conditions[] = "(donor_name LIKE ? OR donor_phone LIKE ? OR donor_email LIKE ? OR notes LIKE ?)";
     $searchTerm = '%' . $search . '%';
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
+    array_push($params, $searchTerm, $searchTerm, $searchTerm, $searchTerm);
     $types .= 'ssss';
 }
 
@@ -260,113 +257,60 @@ if ($dateTo !== '') {
     $types .= 's';
 }
 
-if (!empty($where_conditions)) {
-    $whereClause = 'WHERE ' . implode(' AND ', $where_conditions);
-}
+$whereClause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 // Pagination
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 25;
 $offset = ($page - 1) * $perPage;
 
-// Get total count
+// Get total count with error handling
+$totalRecords = 0;
 $countSql = "SELECT COUNT(*) as total FROM ($baseQuery) as combined_donations $whereClause";
 $countStmt = $db->prepare($countSql);
-if (!$countStmt) {
-    // If prepare fails, use simpler count
-    $paymentsCount = $db->query("SELECT COUNT(*) as total FROM payments")->fetch_assoc();
-    $pledgesCount = $db->query("SELECT COUNT(*) as total FROM pledges")->fetch_assoc();
-    $totalRecords = (int)($paymentsCount['total'] ?? 0) + (int)($pledgesCount['total'] ?? 0);
-} else {
+if ($countStmt) {
     if (!empty($params)) {
         $countStmt->bind_param($types, ...$params);
     }
     $countStmt->execute();
     $result = $countStmt->get_result();
-    if ($result) {
+    if($result) {
         $totalRecords = (int)($result->fetch_assoc()['total'] ?? 0);
-    } else {
-        $totalRecords = 0;
     }
+    $countStmt->close();
 }
 $totalPages = (int)ceil($totalRecords / $perPage);
 
-// Get paginated results
+// Get paginated results with error handling
+$donations = [];
 $sql = "SELECT * FROM ($baseQuery) as combined_donations $whereClause ORDER BY created_at DESC LIMIT ? OFFSET ?";
 $stmt = $db->prepare($sql);
-if (!$stmt) {
-    // If prepare fails, try a simpler approach
-    $donations = [];
+if ($stmt) {
+    $allParams = $params;
+    array_push($allParams, $perPage, $offset);
+    $allTypes = $types . 'ii';
     
-    // Get payments
-    $paymentsQuery = "SELECT p.id, 'payment' as donation_type, p.donor_name, p.donor_phone, p.donor_email, p.amount, p.method, p.reference as notes, p.status, 0 as anonymous, p.created_at, p.received_at as processed_at, u.name as processed_by, dp.label as package_label, dp.sqm_meters as package_sqm FROM payments p LEFT JOIN users u ON p.received_by_user_id = u.id LEFT JOIN donation_packages dp ON p.package_id = dp.id ORDER BY p.created_at DESC LIMIT 10";
-    $paymentsResult = $db->query($paymentsQuery);
-    if ($paymentsResult) {
-        $payments = $paymentsResult->fetch_all(MYSQLI_ASSOC);
-        $donations = array_merge($donations, $payments);
-    }
-    
-    // Get pledges
-    $pledgesQuery = "SELECT pl.id, 'pledge' as donation_type, pl.donor_name, pl.donor_phone, pl.donor_email, pl.amount, NULL as method, pl.notes, pl.status, pl.anonymous, pl.created_at, pl.approved_at as processed_at, u.name as processed_by, dp.label as package_label, dp.sqm_meters as package_sqm FROM pledges pl LEFT JOIN users u ON pl.created_by_user_id = u.id LEFT JOIN donation_packages dp ON pl.package_id = dp.id ORDER BY pl.created_at DESC LIMIT 10";
-    $pledgesResult = $db->query($pledgesQuery);
-    if ($pledgesResult) {
-        $pledges = $pledgesResult->fetch_all(MYSQLI_ASSOC);
-        $donations = array_merge($donations, $pledges);
-    }
-    
-    // Sort by created_at
-    usort($donations, function($a, $b) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    });
-    
-    // Limit results
-    $donations = array_slice($donations, 0, $perPage);
-} else {
-    if (!empty($params)) {
-        $allParams = array_merge($params, [$perPage, $offset]);
-        $allTypes = $types . 'ii';
-        $stmt->bind_param($allTypes, ...$allParams);
-    } else {
-        $stmt->bind_param('ii', $perPage, $offset);
-    }
+    $stmt->bind_param($allTypes, ...$allParams);
     $stmt->execute();
     $result = $stmt->get_result();
     if ($result) {
         $donations = $result->fetch_all(MYSQLI_ASSOC);
-    } else {
-        $donations = [];
     }
+    $stmt->close();
 }
 
 // Get statistics
-$statsQuery = "SELECT 
-    COUNT(*) as total_count,
-    SUM(CASE WHEN donation_type = 'payment' THEN 1 ELSE 0 END) as payment_count,
-    SUM(CASE WHEN donation_type = 'pledge' THEN 1 ELSE 0 END) as pledge_count,
-    SUM(CASE WHEN status = 'approved' THEN amount ELSE 0 END) as approved_amount,
-    SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as pending_amount,
-    SUM(CASE WHEN status = 'approved' AND donation_type = 'payment' THEN amount ELSE 0 END) as paid_amount,
-    SUM(CASE WHEN status = 'approved' AND donation_type = 'pledge' THEN amount ELSE 0 END) as pledged_amount
-    FROM ($baseQuery) as stats_donations";
+$statsResult = $db->query("
+    SELECT 
+        (SELECT COUNT(*) FROM payments) + (SELECT COUNT(*) FROM pledges) as total_count,
+        (SELECT COUNT(*) FROM payments) as payment_count,
+        (SELECT COUNT(*) FROM pledges) as pledge_count,
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='approved') + (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='approved') as approved_amount,
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='pending') + (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='pending') as pending_amount,
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='approved') as paid_amount,
+        (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='approved') as pledged_amount
+")->fetch_assoc();
 
-$statsResult = $db->query($statsQuery);
-if (!$statsResult) {
-    // If there's an error with the complex query, fall back to simpler queries
-    $paymentsStats = $db->query("SELECT COUNT(*) as count, SUM(CASE WHEN status='approved' THEN amount ELSE 0 END) as approved, SUM(CASE WHEN status='pending' THEN amount ELSE 0 END) as pending FROM payments")->fetch_assoc();
-    $pledgesStats = $db->query("SELECT COUNT(*) as count, SUM(CASE WHEN status='approved' THEN amount ELSE 0 END) as approved, SUM(CASE WHEN status='pending' THEN amount ELSE 0 END) as pending FROM pledges")->fetch_assoc();
-    
-    $statsResult = [
-        'total_count' => (int)$paymentsStats['count'] + (int)$pledgesStats['count'],
-        'payment_count' => (int)$paymentsStats['count'],
-        'pledge_count' => (int)$pledgesStats['count'],
-        'approved_amount' => (float)$paymentsStats['approved'] + (float)$pledgesStats['approved'],
-        'pending_amount' => (float)$paymentsStats['pending'] + (float)$pledgesStats['pending'],
-        'paid_amount' => (float)$paymentsStats['approved'],
-        'pledged_amount' => (float)$pledgesStats['approved']
-    ];
-} else {
-    $statsResult = $statsResult->fetch_assoc();
-}
 $stats = [
     'total_count' => (int)($statsResult['total_count'] ?? 0),
     'payment_count' => (int)($statsResult['payment_count'] ?? 0),
@@ -407,17 +351,6 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 <i class="fas fa-info-circle me-2"></i>
                 <?php echo htmlspecialchars($_GET['msg']); ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php endif; ?>
-            
-            <!-- Debug Info (remove in production) -->
-            <?php if (isset($_GET['debug']) && $_GET['debug'] === '1'): ?>
-            <div class="alert alert-warning">
-                <strong>Debug Info:</strong><br>
-                Total Records: <?php echo $totalRecords; ?><br>
-                Donations Count: <?php echo count($donations); ?><br>
-                SQL Error: <?php echo $db->error ?: 'None'; ?><br>
-                Base Query Length: <?php echo strlen($baseQuery); ?> chars
             </div>
             <?php endif; ?>
 
@@ -490,7 +423,8 @@ $currency = $settings['currency_code'] ?? 'GBP';
                         </div>
                         <div class="stat-content">
                             <div class="stat-value"><?php 
-                                $approvalRate = $stats['total_count'] > 0 ? round((($stats['approved_amount'] / ($stats['approved_amount'] + $stats['pending_amount'])) * 100), 1) : 0;
+                                $total_raised = $stats['approved_amount'] + $stats['pending_amount'];
+                                $approvalRate = $total_raised > 0 ? round(($stats['approved_amount'] / $total_raised) * 100, 1) : 0;
                                 echo $approvalRate; ?>%</div>
                             <div class="stat-label">Approval Rate</div>
                             <div class="stat-detail">Of total submitted</div>
@@ -528,11 +462,12 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                     <option value="approved" <?php echo $statusFilter === 'approved' ? 'selected' : ''; ?>>Approved</option>
                                     <option value="rejected" <?php echo $statusFilter === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
                                     <option value="voided" <?php echo $statusFilter === 'voided' ? 'selected' : ''; ?>>Voided</option>
+                                    <option value="cancelled" <?php echo $statusFilter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                                 </select>
                             </div>
                             <div class="col-lg-2 col-md-4 col-sm-6">
                                 <label class="form-label">Payment Method</label>
-                                <select name="method" class="form-select" onchange="submitFilters()">
+                                <select name="method" class="form-select" onchange="submitFilters()" <?php if ($typeFilter === 'pledge') echo 'disabled'; ?>>
                                     <option value="all" <?php echo $methodFilter === 'all' ? 'selected' : ''; ?>>All Methods</option>
                                     <option value="cash" <?php echo $methodFilter === 'cash' ? 'selected' : ''; ?>>Cash</option>
                                     <option value="bank" <?php echo $methodFilter === 'bank' ? 'selected' : ''; ?>>Bank Transfer</option>
@@ -630,6 +565,11 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                         <span class="badge bg-warning">
                                             <i class="fas fa-handshake me-1"></i>Pledge
                                         </span>
+                                        <?php if ($donation['pledge_type'] === 'paid'): ?>
+                                        <span class="badge bg-info mt-1">
+                                            <i class="fas fa-check me-1"></i>Paid at Reg.
+                                        </span>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -647,7 +587,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="fw-bold text-success"><?php echo $currency; ?> <?php echo number_format($donation['amount'], 2); ?></span>
+                                        <span class="fw-bold text-success"><?php echo $currency; ?> <?php echo number_format((float)$donation['amount'], 2); ?></span>
                                     </td>
                                     <td>
                                         <?php if ($donation['method']): ?>
@@ -673,13 +613,15 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                             'pending' => 'warning',
                                             'approved' => 'success',
                                             'rejected' => 'danger',
-                                            'voided' => 'secondary'
+                                            'voided' => 'secondary',
+                                            'cancelled' => 'dark'
                                         ];
                                         $statusIcons = [
                                             'pending' => 'fas fa-clock',
                                             'approved' => 'fas fa-check-circle',
                                             'rejected' => 'fas fa-times-circle',
-                                            'voided' => 'fas fa-ban'
+                                            'voided' => 'fas fa-ban',
+                                            'cancelled' => 'fas fa-minus-circle'
                                         ];
                                         $status = $donation['status'];
                                         $color = $statusColors[$status] ?? 'secondary';
@@ -694,7 +636,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                         <span class="badge bg-light text-dark border">
                                             <?php echo htmlspecialchars($donation['package_label']); ?>
                                             <?php if ($donation['package_sqm']): ?>
-                                            <br><small>(<?php echo number_format($donation['package_sqm'], 2); ?> m²)</small>
+                                            <br><small>(<?php echo number_format((float)$donation['package_sqm'], 2); ?> m²)</small>
                                             <?php endif; ?>
                                         </span>
                                         <?php else: ?>
@@ -717,7 +659,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger" 
-                                                    onclick="deleteDonation('<?php echo $donation['donation_type']; ?>', <?php echo $donation['id']; ?>, '<?php echo htmlspecialchars($donation['donor_name']); ?>')" 
+                                                    onclick="deleteDonation('<?php echo $donation['donation_type']; ?>', <?php echo $donation['id']; ?>, '<?php echo htmlspecialchars($donation['donor_name'] ?: 'Anonymous'); ?>')" 
                                                     title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -748,13 +690,32 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                         <i class="fas fa-chevron-left"></i>
                                     </a>
                                 </li>
-                                <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
+                                <?php 
+                                    $start = max(1, $page - 2);
+                                    $end = min($totalPages, $page + 2);
+
+                                    if ($start > 1) {
+                                        echo '<li class="page-item"><a class="page-link" href="?'.($queryString ? $queryString.'&' : '').'page=1">1</a></li>';
+                                        if ($start > 2) {
+                                            echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
+                                        }
+                                    }
+
+                                    for ($i = $start; $i <= $end; $i++): ?>
                                 <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
                                     <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo $i; ?>">
                                         <?php echo $i; ?>
                                     </a>
                                 </li>
-                                <?php endfor; ?>
+                                <?php endfor; 
+                                
+                                    if ($end < $totalPages) {
+                                        if ($end < $totalPages - 1) {
+                                            echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
+                                        }
+                                        echo '<li class="page-item"><a class="page-link" href="?'.($queryString ? $queryString.'&' : '').'page='.$totalPages.'">'.$totalPages.'</a></li>';
+                                    }
+                                ?>
                                 <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
                                     <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo min($totalPages, $page + 1); ?>">
                                         <i class="fas fa-chevron-right"></i>
@@ -850,7 +811,6 @@ $currency = $settings['currency_code'] ?? 'GBP';
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script src="assets/donations.js"></script>
-
 <script>
 // Fallback for sidebar toggle if admin.js failed to attach for any reason
 if (typeof window.toggleSidebar !== 'function') {
