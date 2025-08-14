@@ -1,0 +1,197 @@
+/* Pledges Page Specific Styles */
+
+/* Mini Stat Cards */
+.stat-mini-card {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--gray-100);
+  transition: all var(--transition);
+  height: 100%;
+}
+
+.stat-mini-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.stat-mini-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--white);
+  flex-shrink: 0;
+}
+
+.stat-mini-content {
+  flex: 1;
+}
+
+.stat-mini-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--gray-900);
+}
+
+.stat-mini-label {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+/* Table Enhancements */
+.table th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--gray-600);
+  border-bottom: 2px solid var(--gray-200);
+  padding: 1rem 1.5rem;
+}
+
+.table td {
+  padding: 1rem 1.5rem;
+  vertical-align: middle;
+}
+
+.table tbody tr {
+  transition: all var(--transition-fast);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.table tbody tr:hover {
+  background-color: var(--gray-50);
+}
+
+/* Badge Styles */
+.badge {
+  padding: 0.375rem 0.625rem;
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.025em;
+}
+
+/* Action Buttons */
+.btn-group .btn-light {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  color: var(--gray-700);
+  padding: 0.375rem 0.625rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-group .btn-light:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-300);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-group .btn-light.text-success:hover {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--white);
+}
+
+.btn-group .btn-light.text-danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--white);
+}
+
+/* Filters Card */
+.card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+}
+
+/* Pagination */
+.pagination {
+  gap: 0.25rem;
+}
+
+.page-link {
+  border: 1px solid var(--gray-200);
+  color: var(--gray-700);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  transition: all var(--transition-fast);
+}
+
+.page-link:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-300);
+  color: var(--gray-900);
+}
+
+.page-item.active .page-link {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--white);
+}
+
+.page-item.disabled .page-link {
+  background: var(--gray-50);
+  border-color: var(--gray-200);
+  color: var(--gray-400);
+}
+
+/* Modal Styles */
+.pledge-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.pledge-detail-row:last-child {
+  border-bottom: none;
+}
+
+.pledge-detail-label {
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.pledge-detail-value {
+  color: var(--gray-900);
+}
+
+/* Responsive */
+@media (max-width: 767.98px) {
+  .stat-mini-card {
+    padding: 0.75rem;
+  }
+  
+  .stat-mini-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+  
+  .stat-mini-value {
+    font-size: 1.25rem;
+  }
+  
+  .table {
+    font-size: 0.875rem;
+  }
+  
+  .table th,
+  .table td {
+    padding: 0.75rem;
+  }
+}

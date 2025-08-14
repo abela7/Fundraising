@@ -1,0 +1,60 @@
+/* Global theme using provided palette */
+:root {
+  /* Brand */
+  --primary-blue: #0a6286; /* Deep Blue */
+  --primary-gold: #e2ca18; /* Golden Yellow */
+
+  /* Neutral grayscale */
+  --gray-50:  #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1f2937;
+  --gray-900: #0f172a;
+
+  /* Text + backgrounds */
+  --base-bg: #ffffff; /* Off-white */
+  --text-primary: #222222;
+  --text-on-dark: #ffffff;
+  --text-on-accent: #0a6286;
+
+  /* Shared gradients */
+  --gradient-primary: linear-gradient(135deg, #0a6286 0%, #0b78a6 60%, rgba(226, 202, 24, 0.85) 100%);
+}
+
+/* Base */
+body { background: var(--base-bg); color: var(--text-primary); }
+
+/* Buttons */
+.btn-primary {
+  background: var(--primary-blue) !important;
+  border-color: var(--primary-blue) !important;
+  color: var(--text-on-dark) !important;
+}
+.btn-primary:hover {
+  background: var(--primary-gold) !important;
+  border-color: var(--primary-gold) !important;
+  color: var(--text-on-accent) !important;
+}
+.btn-accent {
+  background: var(--primary-gold) !important;
+  border-color: var(--primary-gold) !important;
+  color: var(--text-on-accent) !important;
+}
+.btn-accent:hover { filter: brightness(.95); }
+
+/* Typography */
+h1,h2,h3,h4,h5 { color: var(--primary-blue); }
+
+/* Cards */
+.card { background: var(--base-bg); border: 1px solid var(--gray-200); }
+
+/* Utilities */
+.bg-brand { background: var(--primary-blue) !important; color: var(--text-on-dark) !important; }
+.bg-brand a { color: var(--text-on-dark) !important; }
+.link-underline:hover { text-decoration: underline; text-decoration-color: var(--primary-gold); }
+.progress .progress-bar { background: var(--primary-gold); }

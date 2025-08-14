@@ -1,0 +1,242 @@
+/* Modern Reports Page Styles */
+
+/* Icon Circles */
+.icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+/* Stats Cards Animations */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+/* Report Cards */
+.report-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.report-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+}
+
+.report-card .card-body {
+    position: relative;
+    overflow: hidden;
+}
+
+.report-card:hover .icon-circle {
+    transform: scale(1.1);
+}
+
+/* Progress Bars */
+.progress {
+    background-color: #e9ecef;
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+/* List Group Enhancements */
+.list-group-item {
+    transition: background-color 0.2s ease;
+    border-radius: 8px !important;
+    margin-bottom: 4px;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Button Enhancements */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-outline-primary:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-success:hover {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.btn-outline-info:hover {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    color: #000;
+}
+
+/* Card Headers */
+.card-header.bg-transparent {
+    background-color: rgba(0,0,0,0.02) !important;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Empty State */
+.text-center .fas.fa-inbox {
+    opacity: 0.5;
+}
+
+/* Quick Date Range Buttons */
+.btn-outline-primary.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .icon-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .h5 {
+        font-size: 1.1rem;
+    }
+    
+    .d-flex.justify-content-between .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .row.g-3 {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .row.g-3 > * {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .col-6 .btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.3rem;
+    }
+    
+    .icon-circle {
+        width: 35px;
+        height: 35px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Loading States */
+.btn.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.btn.loading::after {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 0.5rem;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Card Shadows */
+.shadow-sm {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+
+/* Text Colors */
+.text-gray-800 {
+    color: #343a40 !important;
+}
+
+/* Hover Effects for Icons */
+.icon-circle {
+    transition: all 0.3s ease;
+}
+
+/* Modal Enhancements */
+.modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-footer {
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Form Controls */
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+}
+
+/* Additional spacing */
+.mb-4 {
+    margin-bottom: 2rem !important;
+}
+
+/* Print optimizations */
+@media print {
+    .btn, .modal, .sidebar, .topbar {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+}
