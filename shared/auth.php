@@ -17,12 +17,27 @@ function is_admin(): bool {
 
 function require_login(): void {
     if (!current_user()) {
-        // Compute app base by trimming before '/admin'
+        // Compute app base and correct login target based on area (admin vs registrar)
         $script = $_SERVER['SCRIPT_NAME'] ?? '';
-        $pos = strpos($script, '/admin');
-        $appBase = $pos !== false ? substr($script, 0, $pos) : '';
-        $location = $appBase . '/admin/login.php';
-        header('Location: ' . $location);
+        $appBase = '';
+        $loginPath = '/admin/login.php';
+
+        if (($pos = strpos($script, '/admin/')) !== false) {
+            $appBase = substr($script, 0, $pos);
+            $loginPath = '/admin/login.php';
+        } elseif (($pos = strpos($script, '/registrar/')) !== false) {
+            $appBase = substr($script, 0, $pos);
+            $loginPath = '/registrar/login.php';
+        } else {
+            // Fallback to same directory as the current script
+            $dir = rtrim(str_replace('\\', '/', dirname($script)), '/');
+            $appBase = ($dir === '/' ? '' : $dir);
+            if (substr($dir, -9) === '/registrar') {
+                $loginPath = '/registrar/login.php';
+            }
+        }
+
+        header('Location: ' . $appBase . $loginPath);
         exit;
     }
 }

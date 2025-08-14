@@ -65,7 +65,7 @@ if ($current_user_id > 0) {
                     $current_uri = $_SERVER['REQUEST_URI'] ?? '';
                     $messagesHref = (strpos($current_uri, '/registrar/messages/') !== false)
                         ? '#'
-                        : '/fundraising/registrar/messages/';
+                        : './messages/';
                 ?>
                 <a href="<?php echo $messagesHref; ?>" 
                    class="btn btn-light border position-relative text-decoration-none" 
@@ -92,18 +92,18 @@ if ($current_user_id > 0) {
                 
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <a class="dropdown-item" href="/fundraising/admin/profile/">
+                        <a class="dropdown-item" href="../admin/profile/">
                             <i class="fas fa-user me-2"></i>My Profile
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="/fundraising/registrar/statistics.php">
+                        <a class="dropdown-item" href="./statistics.php">
                             <i class="fas fa-chart-bar me-2"></i>My Stats
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <a class="dropdown-item text-danger" href="/fundraising/registrar/logout.php">
+                        <a class="dropdown-item text-danger" href="./logout.php">
                             <i class="fas fa-sign-out-alt me-2"></i>Logout
                         </a>
                     </li>
