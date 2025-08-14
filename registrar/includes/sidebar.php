@@ -28,7 +28,7 @@ if ($is_messages) { $current_page = 'messages'; }
         <div class="nav-section">
             <div class="nav-section-title">Main</div>
 			<div class="nav-item">
-				<a href="./index.php" class="nav-link <?php echo ($current_page === 'index' && !$is_messages) ? 'active' : ''; ?>">
+				<a href="/registrar/index.php" class="nav-link <?php echo ($current_page === 'index' && !$is_messages) ? 'active' : ''; ?>">
                     <i class="fas fa-plus-circle"></i>
                     <span class="nav-link-text">New Registration</span>
                 </a>
@@ -39,19 +39,19 @@ if ($is_messages) { $current_page = 'messages'; }
         <div class="nav-section">
             <div class="nav-section-title">Records</div>
 			<div class="nav-item">
-				<a href="./my-registrations.php" class="nav-link <?php echo $current_page === 'my-registrations' ? 'active' : ''; ?>">
+				<a href="/registrar/my-registrations.php" class="nav-link <?php echo $current_page === 'my-registrations' ? 'active' : ''; ?>">
                     <i class="fas fa-list"></i>
                     <span class="nav-link-text">My Registrations</span>
                 </a>
             </div>
             <div class="nav-item">
-				<a href="./statistics.php" class="nav-link <?php echo $current_page === 'statistics' ? 'active' : ''; ?>">
+				<a href="/registrar/statistics.php" class="nav-link <?php echo $current_page === 'statistics' ? 'active' : ''; ?>">
                     <i class="fas fa-chart-line"></i>
                     <span class="nav-link-text">Statistics</span>
                 </a>
             </div>
             <div class="nav-item">
-				<a href="./messages/" class="nav-link <?php echo $is_messages ? 'active' : ''; ?>">
+				<a href="/registrar/messages/" class="nav-link <?php echo $is_messages ? 'active' : ''; ?>">
                     <i class="fas fa-comments"></i>
                     <span class="nav-link-text">Messages</span>
                 </a>
@@ -62,7 +62,7 @@ if ($is_messages) { $current_page = 'messages'; }
 			<div class="nav-section">
             <div class="nav-section-title">Quick Links</div>
 			<div class="nav-item">
-				<a href="../public/projector/" target="_blank" class="nav-link">
+				<a href="/public/projector/" target="_blank" class="nav-link">
                     <i class="fas fa-tv"></i>
                     <span class="nav-link-text">Projector View</span>
                 </a>
