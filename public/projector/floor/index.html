@@ -3,159 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Church Building - Live Floor Plan Tracker</title>
+    <title>Church Floor Plan - Upper Level</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <!-- Header Section -->
-        <header class="header">
-            <h1>⛪ Church Building Fundraising Campaign</h1>
-            <p>Live Floor Plan Progress Tracker</p>
-        </header>
-
-        <!-- Statistics Bar -->
-        <div class="stats-container">
-            <div class="stat-card">
-                <div class="stat-value">£<span id="totalRaised">0</span></div>
-                <div class="stat-label">Total Raised</div>
+        <h1>Church Floor Plan - Upper Level (513 m²)</h1>
+        
+        <div class="floor-plan">
+            <!-- Block A: Top right, wide and thin -->
+            <div class="block block-a" data-block="A">
+                <span class="label">A</span>
+                <span class="dimensions">1151 × 223 cm</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">£410,400</div>
-                <div class="stat-label">Campaign Goal</div>
+            
+            <!-- Block B: Left side, tall and wide -->
+            <div class="block block-b" data-block="B">
+                <span class="label">B</span>
+                <span class="dimensions">1536 × 554 cm</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value"><span id="percentComplete">0</span>%</div>
-                <div class="stat-label">Complete</div>
+            
+            <!-- Block C: Very wide bridge connecting A & B -->
+            <div class="block block-c" data-block="C">
+                <span class="label">C</span>
+                <span class="dimensions">1704 × 174 cm</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value"><span id="totalArea">0</span>m²</div>
-                <div class="stat-label">Area Funded</div>
+            
+            <!-- Block D: Wide and tall below C -->
+            <div class="block block-d" data-block="D">
+                <span class="label">D</span>
+                <span class="dimensions">1569 × 814 cm</span>
             </div>
-        </div>
-
-        <!-- Grid View Toggle -->
-        <div class="grid-toggle">
-            <h3>📐 Select Grid View</h3>
-            <div class="toggle-buttons">
-                <button class="toggle-btn active" data-view="1x1">
-                    <span class="size">1m × 1m</span>
-                    <span class="price">£400 per square</span>
-                </button>
-                <button class="toggle-btn" data-view="0.5x1">
-                    <span class="size">0.5m × 1m</span>
-                    <span class="price">£200 per rectangle</span>
-                </button>
-                <button class="toggle-btn" data-view="0.5x0.5">
-                    <span class="size">0.5m × 0.5m</span>
-                    <span class="price">£100 per square</span>
-                </button>
+            
+            <!-- Block E: Wide and tall below D -->
+            <div class="block block-e" data-block="E">
+                <span class="label">E</span>
+                <span class="dimensions">1238 × 863 cm</span>
             </div>
-        </div>
-
-        <!-- Main Floor Plan Display -->
-        <div class="floor-plan-container">
-            <div class="floor-plan-card">
-                <div class="floor-header">
-                    <h2>Upper Level</h2>
-                    <div class="floor-info">
-                        <span class="area">513 m²</span>
-                        <span class="price">£200 per m²</span>
-                    </div>
-                </div>
-                
-                <div class="floor-plan-display">
-                    <svg id="floorPlanSVG" viewBox="0 0 600 700" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Building Outline -->
-                        <g id="buildingOutline">
-                            <!-- Main building shape - exact copy from your floor plan -->
-                            <path id="buildingPath" d="
-                                M 120 180
-                                L 120 120
-                                L 100 120
-                                L 100 80
-                                L 150 80
-                                L 150 40
-                                L 200 40
-                                L 200 20
-                                L 300 20
-                                L 300 40
-                                L 350 40
-                                L 350 80
-                                L 400 80
-                                L 400 120
-                                L 380 120
-                                L 380 180
-                                L 380 480
-                                L 400 480
-                                L 400 520
-                                L 350 520
-                                L 350 540
-                                L 300 540
-                                L 300 560
-                                L 200 560
-                                L 200 540
-                                L 150 540
-                                L 150 520
-                                L 100 520
-                                L 100 480
-                                L 120 480
-                                Z
-                            " fill="#e8f5e9" stroke="#2e7d32" stroke-width="3"/>
-                            
-                            <!-- Grid overlay will be added here -->
-                            <g id="gridOverlay"></g>
-                        </g>
-                    </svg>
-                </div>
-
-                <!-- Progress Section -->
-                <div class="progress-section">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill">
-                            <span id="progressText">0%</span>
-                        </div>
-                    </div>
-                    <div class="progress-stats">
-                        <span>Funded: <strong id="fundedArea">0</strong> m²</span>
-                        <span>Available: <strong id="availableArea">513</strong> m²</span>
-                    </div>
-                </div>
+            
+            <!-- Block F: Wide and thin below E -->
+            <div class="block block-f" data-block="F">
+                <span class="label">F</span>
+                <span class="dimensions">1346 × 119 cm</span>
+            </div>
+            
+            <!-- Block G: Wide and thin below F -->
+            <div class="block block-g" data-block="G">
+                <span class="label">G</span>
+                <span class="dimensions">1569 × 271 cm</span>
+            </div>
+            
+            <!-- Block H: Wide and tall at bottom -->
+            <div class="block block-h" data-block="H">
+                <span class="label">H</span>
+                <span class="dimensions">1704 × 537 cm</span>
             </div>
         </div>
-
-        <!-- Legend -->
-        <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color available"></div>
-                <span>Available for Sponsorship</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color funded"></div>
-                <span>Fully Funded</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color pending"></div>
-                <span>Pending Payment</span>
-            </div>
+        
+        <div class="info">
+            <p>Total Area: 513 m²</p>
+            <p>Click any block to see details</p>
         </div>
     </div>
-
-    <!-- Info Popup -->
-    <div class="popup-overlay" id="popupOverlay"></div>
-    <div class="info-popup" id="infoPopup">
-        <div class="popup-header">
-            <span class="popup-icon" id="popupIcon">📍</span>
-            <h3 id="popupTitle">Area Information</h3>
-        </div>
-        <div class="popup-content" id="popupContent"></div>
-        <button class="popup-close" onclick="closePopup()">Close</button>
-    </div>
-
-    <!-- Celebration Animation -->
-    <div class="celebration" id="celebration">🎉</div>
-
-    <script src="script.js"></script>
 </body>
 </html>
