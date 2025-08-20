@@ -1230,5 +1230,9 @@ document.addEventListener('DOMContentLoaded', function() {
   console.log('Church floor map loaded with complete grid system for all shapes A, B, C, D, E, F, and G');
 });
 </script>
+
+<!-- Advanced Grid Synchronization -->
+<script src="advanced-grid-sync.js"></script>
+
 </body>
 </html>
