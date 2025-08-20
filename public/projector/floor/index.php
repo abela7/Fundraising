@@ -22,12 +22,16 @@
   @media (max-width: 480px)  { :root { --m: min(1.4vw, 1.4vh, 16px); } }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body{
-    display: flex; align-items: center; justify-content: center;
-    padding: 0; margin: 0; min-height: 100vh;
-    background: #131A2D; /* Dark blue background */
-    font-family: system-ui, -apple-system, sans-serif;
-    overflow: hidden;
+  html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #0a0f1b; /* Dark Navy Blueprint Background */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
   .game-container{
@@ -49,25 +53,22 @@
             display: grid;
             grid-template-columns: repeat(28, 1fr);
             grid-template-rows: repeat(44, 1fr);
-            gap: 0; /* Remove gap to use borders instead */
-            padding: 0;
-            background-color: #FFFFFF; /* Clean white background */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            border: 1px solid #CCCCCC; /* A single outer border */
+            gap: 1px; /* Fine grid lines */
+            padding: 1px;
+            background-color: #38bdf8; /* Glowing Cyan Blueprint Grid */
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.3); /* Soft glow for the entire map */
+            border: 1px solid #38bdf8;
         }
 
         /* Base style for all cell types */
         .meter-container, .half-tile, .grid-tile-quarter {
-            background-color: #F5F5F5; /* Default light grey for empty cells */
-            border-right: 1px solid #D0D0D0; /* Thin, dark grey vertical line */
-            border-bottom: 1px solid #D0D0D0; /* Thin, dark grey horizontal line */
-            box-sizing: border-box;
+            background-color: #1e293b; /* Matte Black/Grey for unfunded cells */
         }
         
-        /* Interactive hover effect only on the smallest, selectable cells */
+        /* Interactive hover effect */
         .grid-tile-quarter:hover {
-            background-color: #FFFFFF; /* Brighten on hover */
-            transition: background-color 0.2s ease-in-out;
+            box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.7);
+            transition: box-shadow 0.2s ease-in-out;
         }
   }
 
