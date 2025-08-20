@@ -7,7 +7,7 @@
 
 class AdvancedGridSync {
     constructor() {
-        this.apiUrl = '/api/grid_status.php';
+        this.apiUrl = '/Fundraising/api/grid_status.php';
         this.cellIdToElementMap = new Map();
         this.elementToCellIdMap = new Map();
         this.statusUpdateQueue = [];
