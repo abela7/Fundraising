@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Figma Frame Design - Responsive</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: #1e293b; /* Dark slate background */
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #f1f5f9;
+  }
+
+  .main-section {
+    width: 90vw;
+    max-width: 517px;
+    aspect-ratio: 517 / 319;
+    background: transparent;
+    position: relative;
+    display: grid;
+    justify-items: center;
+    align-items: center;
+  }
+
+  .frame-container {
+    position: relative;
+    width: clamp(150px, 25vw, 350px);
+    aspect-ratio: 208 / 388;
+    top: 0;
+    left: 0;
+    transform: rotate(90deg);
+    transition: width 0.4s ease;
+    margin: 0 auto;
+  }
+
+  .shape {
+    position: absolute;
+    border-radius: 0;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+
+  /* Rotate only the text inside shapes to keep upright */
+  .shape > span {
+    display: inline-block;
+    transform: rotate(-90deg);
+  }
+
+  /* Hover effects for interactivity */
+  .shape:hover {
+    filter: brightness(1.2);
+    z-index: 10;
+  }
+
+  /* Shape 1 - Engine Block */
+  .shape-1 {
+    background-color: #b91c1c; /* Darker red */
+    width: calc(183 / 208 * 100%);
+    height: calc(73 / 388 * 100%);
+    top: calc(315 / 388 * 100%);
+    left: 0;
+  }
+
+  /* Shape 2 - Exhaust */
+  .shape-2 {
+    background-color: #ea580c; /* Orange */
+    width: calc(20 / 208 * 100%);
+    height: calc(55 / 388 * 100%);
+    top: calc(333 / 388 * 100%);
+    left: calc(183 / 208 * 100%);
+  }
+
+  /* Shape 3 - Bumper */
+  .shape-3 {
+    background-color: #ca8a04; /* Yellow */
+    width: calc(162 / 208 * 100%);
+    height: calc(19 / 388 * 100%);
+    top: calc(296 / 388 * 100%);
+    left: calc(21 / 208 * 100%);
+  }
+
+  /* Container for grouped shapes */
+  .shape-group {
+    position: absolute;
+    width: calc(183 / 208 * 100%);
+    height: calc(206 / 388 * 100%);
+    top: calc(90 / 388 * 100%);
+    left: 0;
+  }
+
+  /* Shape 4 - Cabin */
+  .shape-4 {
+    background-color: #2563eb; /* Blue */
+    width: 100%;
+    height: calc(105 / 206 * 100%);
+    top: 0;
+    left: 0;
+  }
+
+  /* Shape 5 - Cargo */
+  .shape-5 {
+    background-color: #16a34a; /* Green */
+    width: calc(137 / 183 * 100%);
+    height: calc(104 / 206 * 100%);
+    top: calc(102 / 206 * 100%);
+    left: calc(46 / 183 * 100%);
+  }
+
+  /* Shape 6 - Hood */
+  .shape-6 {
+    background-color: #7c3aed; /* Purple */
+    width: calc(51 / 208 * 100%);
+    height: calc(60 / 388 * 100%);
+    top: calc(30 / 388 * 100%);
+    left: calc(15 / 208 * 100%);
+  }
+
+  /* Shape 7 - Windshield */
+  .shape-7 {
+    background-color: #0891b2; /* Cyan */
+    width: calc(137 / 208 * 100%);
+    height: calc(90 / 388 * 100%);
+    top: 0;
+    left: calc(66 / 208 * 100%);
+  }
+
+  /* Responsive font scaling */
+  @media (max-width: 768px) {
+    .main-section {
+      width: 95vw;
+    }
+    
+    .frame-container {
+      width: clamp(120px, 30vw, 180px);
+    }
+    
+    .shape {
+      font-size: 0.7rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .main-section {
+      width: 98vw;
+    }
+    
+    .frame-container {
+      width: clamp(100px, 40vw, 150px);
+    }
+    
+    .shape {
+      font-size: 0.6rem;
+    }
+  }
+
+  @media (max-width: 320px) {
+    .main-section {
+      width: 100vw;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .frame-container {
+      width: clamp(80px, 50vw, 120px);
+      margin: 0 auto;
+    }
+    
+    .shape {
+      font-size: 0.5rem;
+    }
+  }
+
+  /* High DPI displays */
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .shape {
+      border-radius: 1px;
+    }
+  }
+
+  /* Landscape orientation on mobile */
+  @media (max-height: 500px) and (orientation: landscape) {
+    body {
+      align-items: flex-start;
+      padding: 1rem 0;
+    }
+    
+    .main-section {
+      margin: 1rem auto;
+    }
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    body {
+      background-color: #0f172a;
+    }
+  }
+
+  /* Reduced motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .shape {
+      transition: none;
+    }
+    
+    .shape:hover {
+      filter: none;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    body {
+      background-color: white;
+    }
+    
+    .main-section {
+      box-shadow: none;
+      border: 1px solid #000;
+    }
+  }
+</style>
+</head>
+<body>
+  <section class="main-section">
+    <div class="frame-container">
+      <!-- First 3 shapes -->
+      <div class="shape shape-1"><span>A</span></div>
+      <div class="shape shape-2"><span>B</span></div>
+      <div class="shape shape-3"><span>C</span></div>
+      
+      <!-- Grouped shapes 4 and 5 -->
+      <div class="shape-group">
+        <div class="shape shape-4"><span>D</span></div>
+        <div class="shape shape-5"><span>E</span></div>
+      </div>
+      
+      <!-- Remaining shapes -->
+      <div class="shape shape-6"><span>F</span></div>
+      <div class="shape shape-7"><span>G</span></div>
+    </div>
+  </section>
+</body>
+</html>

@@ -239,33 +239,36 @@ body {
     pointer-events: none;
 }
 
+/* Styles for SVG grid cells */
 .grid-cell {
-    position: absolute;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    fill: rgba(0, 255, 255, 0.1); /* Light cyan for available */
+    stroke: rgba(0, 255, 255, 0.2);
+    stroke-width: 1;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: auto;
+    transition: all 0.1s ease-out;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
 }
 
 .grid-cell:hover {
-    transform: scale(1.05);
-    z-index: 10;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    fill: rgba(0, 255, 255, 0.3);
+    stroke: rgba(0, 255, 255, 0.5);
 }
 
+/* Status-specific styles */
 .grid-cell.funded {
-    background: rgba(16, 185, 129, 0.8);
-    border-color: var(--success-color);
+    fill: var(--color-funded-bg);
+    stroke: var(--color-funded-border);
 }
 
 .grid-cell.pending {
-    background: rgba(245, 158, 11, 0.8);
-    border-color: var(--warning-color);
+    fill: var(--color-pending-bg);
+    stroke: var(--color-pending-border);
 }
 
 .grid-cell.available {
-    background: rgba(59, 130, 246, 0.3);
-    border-color: var(--accent-color);
+    fill: var(--color-available-bg);
+    stroke: var(--color-available-border);
 }
 
 /* Info Panel */

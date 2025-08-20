@@ -1,135 +1,283 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Church Floor Plan - Live Coverage Map</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Church Fundraising Floor Map - UI/UX Prototype</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: #1e293b; /* Dark slate background */
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #f1f5f9;
+  }
+
+  .main-section {
+    width: 90vw;
+    max-width: 517px;
+    aspect-ratio: 517 / 319;
+    position: relative;
+    display: grid;
+    justify-items: center;
+    align-items: center;
+  }
+
+  .frame-container {
+    position: relative;
+    width: clamp(150px, 25vw, 350px);
+    aspect-ratio: 208 / 388;
+    transform: rotate(90deg);
+    margin: 0 auto;
+  }
+
+  /* Base shapes */
+  .shape {
+    position: relative; /* changed from absolute to relative */
+    background-color: #27354a;
+    border-radius: 0;
+    border: none;
+  }
+
+  /* Positions and sizes from your CSS */
+  .shape-1 {
+    width: calc(183 / 208 * 100%);
+    height: calc(73 / 388 * 100%);
+    top: calc(315 / 388 * 100%);
+    left: 0;
+    position: absolute;
+  }
+
+  .shape-2 {
+    width: calc(20 / 208 * 100%);
+    height: calc(55 / 388 * 100%);
+    top: calc(333 / 388 * 100%);
+    left: calc(183 / 208 * 100%);
+    position: absolute;
+  }
+
+  .shape-3 {
+    width: calc(162 / 208 * 100%);
+    height: calc(19 / 388 * 100%);
+    top: calc(296 / 388 * 100%);
+    left: calc(21 / 208 * 100%);
+    position: absolute;
+  }
+
+  .shape-group {
+    position: absolute;
+    width: calc(183 / 208 * 100%);
+    height: calc(206 / 388 * 100%);
+    top: calc(90 / 388 * 100%);
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .shape-4 {
+    width: 100%;
+    height: calc(105 / 206 * 100%);
+    background-color: #27354a;
+    position: relative;
+  }
+
+  .shape-5 {
+    width: calc(137 / 183 * 100%);
+    height: calc(104 / 206 * 100%);
+    background-color: #27354a;
+    position: relative;
+    margin-left: calc(46 / 183 * 100%);
+  }
+
+  .shape-6 {
+    width: calc(51 / 208 * 100%);
+    height: calc(60 / 388 * 100%);
+    top: calc(30 / 388 * 100%);
+    left: calc(15 / 208 * 100%);
+    position: absolute;
+  }
+
+  .shape-7 {
+    width: calc(137 / 208 * 100%);
+    height: calc(90 / 388 * 100%);
+    top: 0;
+    left: calc(66 / 208 * 100%);
+    position: absolute;
+  }
+
+  /* Grid overlay container - fills parent shape */
+  .grid-overlay {
+    position: absolute;
+    inset: 0; /* top:0; right:0; bottom:0; left:0; */
+    display: grid;
+    gap: 1px;
+    pointer-events: none; /* disable pointer events on container */
+  }
+
+  /* Grid cells - 1m² squares */
+  .grid-cell {
+    background-color: transparent; /* no blue background */
+    border: 1px solid #94a3b8; /* lighter muted gray grid lines */
+    box-sizing: border-box;
+    pointer-events: auto; /* enable pointer events on cells */
+    position: relative;
+  }
+
+  /* Subdivide each 1m² cell into 4 quarter squares */
+  .grid-cell::before,
+  .grid-cell::after {
+    content: "";
+    position: absolute;
+    background-color: #94a3b8; /* lighter grid lines */
+  }
+
+  /* vertical line */
+  .grid-cell::before {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+  }
+
+  /* horizontal line */
+  .grid-cell::after {
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+  }
+
+  /* Status colors */
+  .available {
+    background-color: #0b78a6; /* primary blue */
+  }
+
+  .pending {
+    background-color: #ff8c00; /* orange */
+  }
+
+  .funded {
+    background-color: #22c55e; /* success green */
+  }
+
+  /* Hover effect */
+  .grid-cell:hover {
+    filter: brightness(1.2);
+    cursor: pointer;
+    z-index: 10;
+  }
+
+  /* Tooltip */
+  .grid-cell[data-id]:hover::after {
+    content: attr(data-id);
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2563eb;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 20;
+  }
+</style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header Section -->
-        <header class="header">
-            <div class="header-content">
-                <h1 class="title">Church Floor Plan</h1>
-                <div class="subtitle">Upper Level - Live Coverage Map</div>
-                <div class="stats-bar">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Area</span>
-                        <span class="stat-value">513 m²</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Funded</span>
-                        <span class="stat-value" id="fundedArea">0 m²</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Progress</span>
-                        <span class="stat-value" id="progressPercent">0%</span>
-                    </div>
-                </div>
-            </div>
-        </header>
+  <section class="main-section">
+    <div class="frame-container">
+      <!-- Shape 1 with grid overlay inside -->
+      <div class="shape shape-1" id="shape-1">
+        <div class="grid-overlay" id="grid-1"></div>
+      </div>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Controls Panel -->
-            <div class="controls-panel">
-                <div class="grid-controls">
-                    <h3>Grid View</h3>
-                    <div class="grid-buttons">
-                        <button class="grid-btn active" data-grid="1x1">1m × 1m</button>
-                        <button class="grid-btn" data-grid="0.5x1">0.5m × 1m</button>
-                        <button class="grid-btn" data-grid="0.5x0.5">0.5m × 0.5m</button>
-                    </div>
-                </div>
-                
-                <div class="legend">
-                    <h3>Legend</h3>
-                    <div class="legend-items">
-                        <div class="legend-item">
-                            <div class="legend-color funded"></div>
-                            <span>Funded</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color pending"></div>
-                            <span>Pending</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color available"></div>
-                            <span>Available</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <!-- Shape 2 with grid overlay inside -->
+      <div class="shape shape-2" id="shape-2">
+        <div class="grid-overlay" id="grid-2"></div>
+      </div>
 
-            <!-- Floor Plan Container -->
-            <div class="floor-plan-container">
-                <div class="floor-plan-wrapper">
-                    <!-- SVG Background with Church Shape -->
-                    <svg id="churchSVG" viewBox="0 0 1000 800" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Church Floor Plan Shape (traced from your image) -->
-                        <path id="churchOutline" d="
-                            M 100 100
-                            L 900 100
-                            L 900 150
-                            L 850 150
-                            L 850 200
-                            L 800 200
-                            L 800 250
-                            L 750 250
-                            L 750 300
-                            L 700 300
-                            L 700 350
-                            L 650 350
-                            L 650 400
-                            L 600 400
-                            L 600 450
-                            L 550 450
-                            L 550 500
-                            L 500 500
-                            L 500 450
-                            L 450 450
-                            L 450 400
-                            L 400 400
-                            L 400 350
-                            L 350 350
-                            L 350 300
-                            L 300 300
-                            L 300 250
-                            L 250 250
-                            L 250 200
-                            L 200 200
-                            L 200 150
-                            L 150 150
-                            L 150 100
-                            Z
-                        " fill="#1a1a1a" stroke="#333" stroke-width="2"/>
-                    </svg>
-                    
-                    <!-- Interactive Grid Overlay -->
-                    <div id="gridOverlay" class="grid-overlay"></div>
-                </div>
-            </div>
+      <!-- Shape 3 with grid overlay inside -->
+      <div class="shape shape-3" id="shape-3">
+        <div class="grid-overlay" id="grid-3"></div>
+      </div>
 
-            <!-- Info Panel -->
-            <div class="info-panel" id="infoPanel">
-                <div class="info-content">
-                    <h3 id="infoTitle">Click on a grid area</h3>
-                    <div class="info-details">
-                        <p id="infoArea">Area: --</p>
-                        <p id="infoStatus">Status: --</p>
-                        <p id="infoPrice">Price: --</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+      <!-- Shape group -->
+      <div class="shape-group">
+        <div class="shape shape-4" id="shape-4">
+          <div class="grid-overlay" id="grid-4"></div>
+        </div>
+        <div class="shape shape-5" id="shape-5">
+          <div class="grid-overlay" id="grid-5"></div>
+        </div>
+      </div>
+
+      <div class="shape shape-6" id="shape-6">
+        <div class="grid-overlay" id="grid-6"></div>
+      </div>
+
+      <div class="shape shape-7" id="shape-7">
+        <div class="grid-overlay" id="grid-7"></div>
+      </div>
     </div>
+  </section>
 
-    <!-- JavaScript Libraries -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="script.js"></script>
+<script>
+  // Approximate 1m² squares count per shape (from previous estimation)
+  const squaresCount = {
+    'grid-1': 85,
+    'grid-2': 10,
+    'grid-3': 7,
+    'grid-4': 30,
+    'grid-5': 25,
+    'grid-6': 12,
+    'grid-7': 20
+  };
+
+  // Generate grid cells inside each grid overlay
+  Object.entries(squaresCount).forEach(([gridId, count]) => {
+    const container = document.getElementById(gridId);
+    if (!container) return;
+
+    // Calculate rows and columns for grid (approximate square root)
+    const cols = Math.ceil(Math.sqrt(count));
+    const rows = Math.ceil(count / cols);
+
+    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    container.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    for (let i = 1; i <= count; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('grid-cell', 'available');
+      cell.setAttribute('data-id', `${gridId}-m²-${i}`);
+      cell.id = `${gridId}-cell-${i}`;
+
+      // Click handler to toggle status: available -> pending -> funded -> available
+      cell.addEventListener('click', () => {
+        if (cell.classList.contains('available')) {
+          cell.classList.remove('available');
+          cell.classList.add('pending');
+        } else if (cell.classList.contains('pending')) {
+          cell.classList.remove('pending');
+          cell.classList.add('funded');
+        } else if (cell.classList.contains('funded')) {
+          cell.classList.remove('funded');
+          cell.classList.add('available');
+        }
+      });
+
+      container.appendChild(cell);
+    }
+  });
+</script>
 </body>
 </html>

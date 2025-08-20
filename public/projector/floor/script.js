@@ -1,5 +1,5 @@
 // Church Floor Plan - Interactive Grid System
-// Using modern libraries: jQuery, Fabric.js, GSAP
+// Using modern libraries: jQuery, GSAP
 
 class ChurchFloorPlan {
     constructor() {
@@ -62,81 +62,101 @@ class ChurchFloorPlan {
         const containerWidth = container.width();
         const containerHeight = container.height();
 
-        // Clear existing grid
-        $('#gridOverlay').empty();
+        // Get SVG element and church outline path
+        const svg = document.getElementById('churchSVG');
+        const churchOutline = document.getElementById('churchOutline');
+        if (!svg || !churchOutline) {
+            console.error('SVG or churchOutline not found.');
+            return;
+        }
 
-        // Calculate grid dimensions based on current size
-        let cellWidth, cellHeight;
+        // Clear existing grid cells from SVG
+        $(svg).find('.grid-cell').remove();
+
+        // Get SVG viewBox dimensions
+        const viewBox = svg.viewBox.baseVal;
+        const svgWidth = viewBox.width;
+        const svgHeight = viewBox.height;
+
+        // Calculate grid dimensions based on current size (50px = 1m)
+        let cellPxWidth, cellPxHeight;
         switch (this.currentGridSize) {
             case '1x1':
-                cellWidth = 50; // 1m = 50px
-                cellHeight = 50;
+                cellPxWidth = 50;
+                cellPxHeight = 50;
                 break;
             case '0.5x1':
-                cellWidth = 25; // 0.5m = 25px
-                cellHeight = 50; // 1m = 50px
+                cellPxWidth = 25;
+                cellPxHeight = 50;
                 break;
             case '0.5x0.5':
-                cellWidth = 25; // 0.5m = 25px
-                cellHeight = 25; // 0.5m = 25px
+                cellPxWidth = 25;
+                cellPxHeight = 25;
                 break;
         }
 
-        // Calculate number of cells
-        const cols = Math.ceil(containerWidth / cellWidth);
-        const rows = Math.ceil(containerHeight / cellHeight);
+        // Calculate number of cells based on SVG dimensions
+        const cols = Math.ceil(svgWidth / cellPxWidth);
+        const rows = Math.ceil(svgHeight / cellPxHeight);
+
+        // Store grid info
+        this.gridInfo = {
+            cellPxWidth,
+            cellPxHeight,
+            cols,
+            rows,
+            svgWidth,
+            svgHeight
+        };
 
         // Generate grid cells
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
-                const cell = this.createGridCell(col, row, cellWidth, cellHeight);
-                $('#gridOverlay').append(cell);
+                const x = col * cellPxWidth;
+                const y = row * cellPxHeight;
+                const cellId = `cell_${col}_${row}`;
+
+                // Check if the center of the cell is within the church outline
+                const centerX = x + cellPxWidth / 2;
+                const centerY = y + cellPxHeight / 2;
+                const svgPoint = svg.createSVGPoint();
+                svgPoint.x = centerX;
+                svgPoint.y = centerY;
+
+                if (churchOutline.isPointInFill(svgPoint)) {
+                    const cell = this.createGridCell(x, y, cellPxWidth, cellPxHeight, col, row, cellId);
+                    svg.appendChild(cell);
+                }
             }
         }
-
-        // Store grid info
-        this.gridInfo = {
-            cellWidth,
-            cellHeight,
-            cols,
-            rows,
-            containerWidth,
-            containerHeight
-        };
     }
 
-    createGridCell(col, row, width, height) {
-        const cell = $(`<div class="grid-cell"></div>`);
-        
-        // Position the cell
-        cell.css({
-            left: col * width + 'px',
-            top: row * height + 'px',
-            width: width + 'px',
-            height: height + 'px'
-        });
+    createGridCell(x, y, width, height, col, row, id) {
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', width);
+        rect.setAttribute('height', height);
+        rect.setAttribute('class', 'grid-cell');
+        rect.setAttribute('id', id);
+        rect.setAttribute('data-col', col);
+        rect.setAttribute('data-row', row);
 
         // Add click event
-        cell.on('click', () => {
-            this.handleCellClick(col, row, cell);
+        rect.addEventListener('click', () => {
+            this.handleCellClick(col, row, $(rect));
         });
 
         // Add hover effects
-        cell.on('mouseenter', () => {
-            this.handleCellHover(cell, true);
+        rect.addEventListener('mouseenter', () => {
+            this.handleCellHover($(rect), true);
         });
 
-        cell.on('mouseleave', () => {
-            this.handleCellHover(cell, false);
+        rect.addEventListener('mouseleave', () => {
+            this.handleCellHover($(rect), false);
         });
 
-        // Generate unique ID
-        const cellId = `cell_${col}_${row}`;
-        cell.attr('id', cellId);
-        cell.attr('data-col', col);
-        cell.attr('data-row', row);
-
-        return cell;
+        return rect;
     }
 
     handleCellClick(col, row, cell) {
