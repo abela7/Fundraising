@@ -58,6 +58,10 @@
             background-color: #38bdf8; /* Glowing Cyan Blueprint Grid */
             box-shadow: 0 0 25px rgba(56, 189, 248, 0.3); /* Soft glow for the entire map */
             border: 1px solid #38bdf8;
+            /* New Scaling Logic for Projector View */
+            height: 90vh; /* Make the map 90% of the screen height */
+            aspect-ratio: 28 / 44; /* Maintain the exact grid aspect ratio */
+            max-width: 90vw; /* Ensure it doesn't get too wide on unusual screens */
         }
 
         /* Base style for all cell types */
