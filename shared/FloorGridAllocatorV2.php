@@ -275,7 +275,7 @@ class FloorGridAllocatorV2 {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
         );
         
-        $stmt->bind_param('sisiddss s', $allocationType, $recordId, $donorName, $packageId, $amount, $areaSize, $gridCellsJson, $cellIdsJson, $currentStatus);
+        $stmt->bind_param('sisiddsss', $allocationType, $recordId, $donorName, $packageId, $amount, $areaSize, $gridCellsJson, $cellIdsJson, $currentStatus);
         $stmt->execute();
     }
     

@@ -9,14 +9,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/auth.php';
-require_once __DIR__ . '/../../shared/FloorGridAllocator.php';
+require_once __DIR__ . '/../../shared/FloorGridAllocatorV2.php';
 
 // Only allow admin access
 require_login();
 require_admin();
 
 $db = db();
-$gridAllocator = new FloorGridAllocator($db);
+$gridAllocator = new FloorGridAllocatorV2($db);
 $testResult = null;
 
 // Handle test allocation
