@@ -90,6 +90,17 @@
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
   /* All UI elements removed for clean game design */
+  .meter-container {
+            position: relative;
+            box-sizing: border-box;
+            border: 1px solid #333; /* Thinner, darker border */
+        }
+
+        .grid-tile-quarter, .half-tile {
+            box-sizing: border-box;
+            border: 1px solid #333; /* Thinner, darker border */
+            position: absolute;
+        }
 </style>
 </head>
 <body>
