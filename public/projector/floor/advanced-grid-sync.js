@@ -59,11 +59,8 @@ class AdvancedGridSync {
     }
     
     setupCellElement(element, cellId) {
-        // Add CSS classes for easy styling (NO status-available)
-        element.classList.add('grid-cell');
-        
         // Add transition for smooth color changes
-        element.style.transition = 'all 0.3s ease';
+        element.style.transition = 'background-color 0.3s ease';
         
         // Add click handler for debugging
         element.addEventListener('click', (e) => {
@@ -72,7 +69,7 @@ class AdvancedGridSync {
             this.showCellInfo(cellId);
         });
         
-        // Set default title (no styling, just info)
+        // Set default title
         element.title = `Cell ${cellId}`;
     }
     
@@ -179,27 +176,19 @@ class AdvancedGridSync {
             return;
         }
         
-        // Remove all status classes
-        element.classList.remove('status-available', 'status-pledged', 'status-paid');
-        
-        // Apply new status
+        // Apply status directly to the DOM element's background
         switch (status) {
             case 'paid':
-                element.classList.add('status-paid');
-                element.style.backgroundColor = '#22c55e'; // Green
-                element.style.border = '2px solid #16a34a';
+                element.style.backgroundColor = '#22c55e !important'; // Green
                 break;
                 
             case 'pledged':
-                element.classList.add('status-pledged');
-                element.style.backgroundColor = '#ff8c00'; // Orange
-                element.style.border = '2px solid #ea580c';
+                element.style.backgroundColor = '#ff8c00 !important'; // Orange
                 break;
                 
-                            default:
-                // For available cells, don't add any styling - keep default
+            default:
+                // Reset to original - no background color
                 element.style.backgroundColor = '';
-                element.style.border = '';
                 break;
         }
         
@@ -207,16 +196,14 @@ class AdvancedGridSync {
         const donor = cellData.donor || 'Unknown';
         const amount = cellData.amount || 0;
         element.title = status === 'available' 
-            ? `Cell ${cellId} - Available`
+            ? `Cell ${cellId}`
             : `Cell ${cellId} - ${status.toUpperCase()} by ${donor} (£${amount})`;
     }
     
     resetAllCells() {
         this.cellIdToElementMap.forEach((element, cellId) => {
-            // Remove any status classes and styling, return to default
-            element.classList.remove('status-available', 'status-pledged', 'status-paid');
+            // Reset to original state - no background styling
             element.style.backgroundColor = '';
-            element.style.border = '';
             element.title = `Cell ${cellId}`;
         });
     }
