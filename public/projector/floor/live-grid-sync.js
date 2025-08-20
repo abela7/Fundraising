@@ -17,8 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Configuration
         apiUrl: '/api/grid_status.php',
         pollInterval: 5000, // Fetch updates every 5 seconds
-        pledgedColor: '#ff8c00', // Orange for pledged
-        paidColor: '#22c55e',   // Green for paid
+        allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
         // State
         gridReady: false,
@@ -107,12 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Add a smooth transition effect
                             cellElement.style.transition = 'background-color 0.5s ease';
                             
-                            if (cellData.status === 'pledged') {
-                                cellElement.style.backgroundColor = this.pledgedColor;
-                                cellElement.classList.add('cell-pledged');
-                            } else if (cellData.status === 'paid') {
-                                cellElement.style.backgroundColor = this.paidColor;
-                                cellElement.classList.add('cell-paid');
+                            if (cellData.status === 'pledged' || cellData.status === 'paid') {
+                                cellElement.style.backgroundColor = this.allocationColor;
+                                cellElement.classList.add('cell-allocated');
                             }
                         } else {
                             // This warning is expected if a rectangle has no allocated cells yet.

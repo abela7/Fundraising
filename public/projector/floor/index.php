@@ -43,6 +43,18 @@
     position: relative;
     max-width: 90vw; max-height: 90vh;
     width: fit-content; height: fit-content;
+    .main-section {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(28, 1fr);
+            grid-template-rows: repeat(44, 1fr);
+            gap: 2px; /* Uniform gap */
+            padding: 2px;
+            background-color: #F5F5F5; /* Brighter, whitish background */
+            border-radius: 8px; /* Optional: slightly rounded corners for the whole map */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+        }
   }
 
   /* Clean floor map - removed all UI elements */
