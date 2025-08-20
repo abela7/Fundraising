@@ -49,15 +49,19 @@
             display: grid;
             grid-template-columns: repeat(28, 1fr);
             grid-template-rows: repeat(44, 1fr);
-            gap: 2px; /* This creates the subtle border effect */
-            padding: 5px; /* A little space around the edge */
-            background-color: #E0E0E0; /* A slightly darker grey for the "grout" */
+            gap: 0; /* Remove gap to use borders instead */
+            padding: 0;
+            background-color: #FFFFFF; /* Clean white background */
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid #CCCCCC; /* A single outer border */
         }
 
         /* Base style for all cell types */
         .meter-container, .half-tile, .grid-tile-quarter {
-            background-color: #F5F5F5; /* The default, bright whiteish color for cells */
+            background-color: #F5F5F5; /* Default light grey for empty cells */
+            border-right: 1px solid #D0D0D0; /* Thin, dark grey vertical line */
+            border-bottom: 1px solid #D0D0D0; /* Thin, dark grey horizontal line */
+            box-sizing: border-box;
         }
         
         /* Interactive hover effect only on the smallest, selectable cells */
