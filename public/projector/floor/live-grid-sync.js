@@ -71,11 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const data = await response.json();
                 
-                if (data.success && data.data) {
-                    console.log(`GridSync: Received ${Object.keys(data.data).length} rectangles with allocations.`);
-                    this.updateGrid(data.data);
+                if (data.success && data.data && data.data.grid_cells) {
+                    const cellData = data.data.grid_cells;
+                    console.log(`GridSync: Received ${Object.keys(cellData).length} rectangles with allocations.`);
+                    this.updateGrid(cellData);
                 } else {
-                    console.error('GridSync: API response was not successful.', data);
+                    console.error('GridSync: API response was not successful or "grid_cells" data is missing.', data);
                 }
             } catch (error) {
                 console.error('GridSync: Error fetching or parsing data:', error);
@@ -84,13 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         /**
          * Updates the DOM based on the fetched grid data.
-         * @param {object} allocatedData - The data object from the API.
+         * @param {object} allocatedData - The grid_cells object from the API.
          */
         updateGrid(allocatedData) {
             console.time('GridSync: Update Duration');
             
             // First, reset all cells that might have a status
-            // This is more efficient than clearing all 3,591 cells every time.
             const styledCells = document.querySelectorAll('.cell-pledged, .cell-paid');
             styledCells.forEach(cell => {
                 cell.style.backgroundColor = '';
@@ -100,23 +100,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply new statuses
             for (const rectangleId in allocatedData) {
                 const cells = allocatedData[rectangleId];
-                cells.forEach(cellData => {
-                    const cellElement = document.getElementById(cellData.cell_id);
-                    if (cellElement) {
-                        // Add a smooth transition effect
-                        cellElement.style.transition = 'background-color 0.5s ease';
-                        
-                        if (cellData.status === 'pledged') {
-                            cellElement.style.backgroundColor = this.pledgedColor;
-                            cellElement.classList.add('cell-pledged');
-                        } else if (cellData.status === 'paid') {
-                            cellElement.style.backgroundColor = this.paidColor;
-                            cellElement.classList.add('cell-paid');
+                if (Array.isArray(cells)) {
+                    cells.forEach(cellData => {
+                        const cellElement = document.getElementById(cellData.cell_id);
+                        if (cellElement) {
+                            // Add a smooth transition effect
+                            cellElement.style.transition = 'background-color 0.5s ease';
+                            
+                            if (cellData.status === 'pledged') {
+                                cellElement.style.backgroundColor = this.pledgedColor;
+                                cellElement.classList.add('cell-pledged');
+                            } else if (cellData.status === 'paid') {
+                                cellElement.style.backgroundColor = this.paidColor;
+                                cellElement.classList.add('cell-paid');
+                            }
+                        } else {
+                            // This warning is expected if a rectangle has no allocated cells yet.
+                            // console.warn(`GridSync: Cell ID "${cellData.cell_id}" found in data but not in DOM.`);
                         }
-                    } else {
-                        console.warn(`GridSync: Cell ID "${cellData.cell_id}" found in data but not in DOM.`);
-                    }
-                });
+                    });
+                }
             }
             console.timeEnd('GridSync: Update Duration');
         }
