@@ -1,8 +1,8 @@
 <?php
+declare(strict_types=1);
+
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-
-declare(strict_types=1);
 
 require_once __DIR__ . '/../../../config/db.php';
 
@@ -242,14 +242,14 @@ $progress = $totalCells > 0 ? (($pledgedCells + $paidCells) / $totalCells) * 100
                      id="rectangle-<?= $rectId ?>"
                      style="
                          width: <?= ($rectConfig['width'] / 522) * 100 ?>%;
-                         height: <?= ($rectConfig['height'] / 820) * 100 %>%;
+                         height: <?= ($rectConfig['height'] / 820) * 100 ?>%;
                          top: <?= ($rectConfig['top'] / 820) * 100 ?>%;
                          left: <?= ($rectConfig['left'] / 522) * 100 ?>%;
-                         background: <?= $rectId === 'A' ? '#bfa500' : 
-                                          ($rectId === 'B' ? '#0b78a6' : 
-                                          ($rectId === 'C' ? '#141b2d' : 
-                                          ($rectId === 'D' ? '#ffcc00' : 
-                                          ($rectId === 'E' ? '#22c55e' : 
+                         background: <?= $rectId === 'A' ? '#bfa500' :
+                                          ($rectId === 'B' ? '#0b78a6' :
+                                          ($rectId === 'C' ? '#141b2d' :
+                                          ($rectId === 'D' ? '#ffcc00' :
+                                          ($rectId === 'E' ? '#22c55e' :
                                           ($rectId === 'F' ? '#1e2a3e' : '#0d8fc4'))))) ?>;
                      ">
                     
