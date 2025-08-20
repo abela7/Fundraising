@@ -52,14 +52,12 @@
             gap: 2px; /* This creates the subtle border effect */
             padding: 5px; /* A little space around the edge */
             background-color: #E0E0E0; /* A slightly darker grey for the "grout" */
-            border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         /* Base style for all cell types */
         .meter-container, .half-tile, .grid-tile-quarter {
             background-color: #F5F5F5; /* The default, bright whiteish color for cells */
-            border-radius: 2px; /* Slightly rounded cells */
         }
         
         /* Interactive hover effect only on the smallest, selectable cells */
