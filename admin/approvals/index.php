@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/FloorGridAllocator.php';
 require_login();
 require_admin();
 
@@ -56,11 +57,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
+                // Allocate floor grid cells
+                $gridAllocator = new FloorGridAllocator($db);
+                $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
+                $packageId = isset($pledge['package_id']) ? (int)$pledge['package_id'] : null;
+                $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
+                
+                $allocationResult = $gridAllocator->allocateGridCells(
+                    $pledgeId,     // pledge_id
+                    null,          // payment_id
+                    (float)$pledge['amount'],
+                    $packageId,
+                    $donorName,
+                    $status
+                );
+                
                 // Audit log
                 $ip = $_SERVER['REMOTE_ADDR'] ?? null;
                 $ipBin = $ip ? @inet_pton($ip) : null;
                 $before = json_encode(['status' => 'pending', 'type' => $pledge['type'], 'amount' => (float)$pledge['amount']], JSON_UNESCAPED_SLASHES);
-                $after  = json_encode(['status' => 'approved'], JSON_UNESCAPED_SLASHES);
+                $after  = json_encode([
+                    'status' => 'approved',
+                    'grid_allocation' => $allocationResult
+                ], JSON_UNESCAPED_SLASHES);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, ip_address, source) VALUES(?, 'pledge', ?, 'approve', ?, ?, ?, 'admin')");
                 $log->bind_param('iisss', $uid, $pledgeId, $before, $after, $ipBin);
                 // Workaround: mysqli doesn't support 'b' bind natively well; fallback to send as NULL/escaped string
@@ -70,7 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
                     $log->execute();
                 }
-                $actionMsg = 'Approved';
+                
+                $actionMsg = $allocationResult['success'] 
+                    ? "Approved & {$allocationResult['area_allocated']}m² allocated" 
+                    : "Approved (Grid allocation failed: {$allocationResult['error']})";
             } elseif ($action === 'reject') {
                 $uid = (int)current_user()['id'];
                 $rej = $db->prepare("UPDATE pledges SET status='rejected' WHERE id = ?");
@@ -191,14 +213,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ctr->bind_param('dd', $amt, $grandDelta);
                     $ctr->execute();
 
+                    // Allocate floor grid cells for payment
+                    $gridAllocator = new FloorGridAllocator($db);
+                    
+                    // Get payment details for allocation
+                    $paymentDetails = $db->prepare("SELECT donor_name, amount, package_id FROM payments WHERE id = ?");
+                    $paymentDetails->bind_param('i', $paymentId);
+                    $paymentDetails->execute();
+                    $paymentData = $paymentDetails->get_result()->fetch_assoc();
+                    
+                    if ($paymentData) {
+                        $donorName = (string)($paymentData['donor_name'] ?? 'Anonymous');
+                        $packageId = isset($paymentData['package_id']) ? (int)$paymentData['package_id'] : null;
+                        
+                        $allocationResult = $gridAllocator->allocateGridCells(
+                            null,              // pledge_id
+                            $paymentId,        // payment_id
+                            (float)$paymentData['amount'],
+                            $packageId,
+                            $donorName,
+                            'paid'             // status
+                        );
+                    } else {
+                        $allocationResult = ['success' => false, 'error' => 'Payment details not found'];
+                    }
+                    
                     // Audit
                     $uid = (int)current_user()['id'];
                     $before = json_encode(['status'=>'pending'], JSON_UNESCAPED_SLASHES);
-                    $after  = json_encode(['status'=>'approved'], JSON_UNESCAPED_SLASHES);
+                    $after  = json_encode([
+                        'status'=>'approved',
+                        'grid_allocation' => $allocationResult
+                    ], JSON_UNESCAPED_SLASHES);
                     $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'approve', ?, ?, 'admin')");
                     $log->bind_param('iiss', $uid, $paymentId, $before, $after);
                     $log->execute();
-                    $actionMsg = 'Payment approved';
+                    
+                    $actionMsg = $allocationResult['success'] 
+                        ? "Payment approved & {$allocationResult['area_allocated']}m² allocated" 
+                        : "Payment approved (Grid allocation failed: {$allocationResult['error']})";
                 } else if ($action === 'reject_payment') {
                     // Mark as voided. No counter change.
                     if ((string)$pay['status'] !== 'pending') { throw new RuntimeException('Payment not pending'); }
