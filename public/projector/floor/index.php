@@ -49,11 +49,23 @@
             display: grid;
             grid-template-columns: repeat(28, 1fr);
             grid-template-rows: repeat(44, 1fr);
-            gap: 2px; /* Uniform gap */
-            padding: 2px;
-            background-color: #F5F5F5; /* Brighter, whitish background */
-            border-radius: 8px; /* Optional: slightly rounded corners for the whole map */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+            gap: 2px; /* This creates the subtle border effect */
+            padding: 5px; /* A little space around the edge */
+            background-color: #E0E0E0; /* A slightly darker grey for the "grout" */
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Base style for all cell types */
+        .meter-container, .half-tile, .grid-tile-quarter {
+            background-color: #F5F5F5; /* The default, bright whiteish color for cells */
+            border-radius: 2px; /* Slightly rounded cells */
+        }
+        
+        /* Interactive hover effect only on the smallest, selectable cells */
+        .grid-tile-quarter:hover {
+            background-color: #FFFFFF; /* Brighten on hover */
+            transition: background-color 0.2s ease-in-out;
         }
   }
 
@@ -90,19 +102,7 @@
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
   /* All UI elements removed for clean game design */
-
-        .shape {
-            position: absolute;
-        }
-
-        /* Unified border style for all grid cells */
-        .meter-container,
-        .half-tile,
-        .grid-tile-quarter {
-            border: 0.5px solid #333 !important; /* Thin, dark border */
-            box-sizing: border-box; /* Ensures border is inside the element */
-        }
-    </style>
+</style>
 </head>
 <body>
   <div class="game-container">
