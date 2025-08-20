@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../../config/db.php';
@@ -55,9 +58,9 @@ $progress = $totalCells > 0 ? (($pledgedCells + $paidCells) / $totalCells) * 100
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Church Floor Plan - Live Progress</title>
-    <style>
+<style>
         /* Professional floor plan styling matching projector theme */
-        :root {
+  :root { 
             --bg-primary: #0a0f1b;
             --bg-secondary: #141b2d;
             --bg-card: #1e2a3e;
@@ -85,11 +88,11 @@ $progress = $totalCells > 0 ? (($pledgedCells + $paidCells) / $totalCells) * 100
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-        }
+    overflow: hidden;
+  }
 
         .floor-container {
-            position: relative;
+    position: relative;
             width: 90vw;
             max-width: 522px;
             aspect-ratio: 522 / 820;
@@ -100,7 +103,7 @@ $progress = $totalCells > 0 ? (($pledgedCells + $paidCells) / $totalCells) * 100
         }
 
         .floor-plan {
-            position: relative;
+    position: relative;
             width: 100%;
             height: 100%;
             background: #f8f9fa;
@@ -436,7 +439,7 @@ $progress = $totalCells > 0 ? (($pledgedCells + $paidCells) / $totalCells) * 100
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             window.floorPlanController = new FloorPlanController();
-        });
-    </script>
+});
+</script>
 </body>
 </html>
