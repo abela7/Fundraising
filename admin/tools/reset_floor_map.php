@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Generate a new CSRF token for the form
-$csrf_token = create_csrf_token();
+$csrf_token = csrf_token();
 
 ?>
 
