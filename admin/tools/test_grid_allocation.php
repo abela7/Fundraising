@@ -131,18 +131,18 @@ $packages = $db->query("SELECT id, label, sqm_meters, price FROM donation_packag
                                 <thead>
                                     <tr>
                                         <th>Rectangle</th>
-                                        <th>Position (X,Y)</th>
-                                        <th>Size</th>
                                         <th>Cell ID</th>
+                                        <th>Cell Type</th>
+                                        <th>Area</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($testResult['allocated_cells'] as $cell): ?>
                                     <tr>
                                         <td><span class="badge bg-primary"><?= $cell['rectangle_id'] ?></span></td>
-                                        <td>(<?= $cell['grid_x'] ?>, <?= $cell['grid_y'] ?>)</td>
-                                        <td><?= $cell['cell_size'] ?></td>
-                                        <td>#<?= $cell['id'] ?></td>
+                                        <td><?= htmlspecialchars($cell['cell_id']) ?></td>
+                                        <td><?= $cell['cell_type'] ?></td>
+                                        <td><?= $cell['area_size'] ?>m²</td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
