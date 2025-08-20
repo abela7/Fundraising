@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../../shared/SmartGridAllocator.php';
+require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
 require_login();
 require_admin();
 
@@ -57,15 +57,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
-                // Allocate floor grid cells with smart overlap management
-                $gridAllocator = new SmartGridAllocator($db);
+                // Allocate floor grid cells with the new intelligent allocator
+                $gridAllocator = new IntelligentGridAllocator($db);
                 $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
                 $packageId = isset($pledge['package_id']) ? (int)$pledge['package_id'] : null;
                 $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
                 
-                $allocationResult = $gridAllocator->allocateGridCells(
-                    $pledgeId,     // pledge_id
-                    null,          // payment_id
+                $allocationResult = $gridAllocator->allocate(
+                    $pledgeId,
+                    null, // No payment ID for a pledge
                     (float)$pledge['amount'],
                     $packageId,
                     $donorName,
@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 $actionMsg = $allocationResult['success'] 
-                    ? "Approved & {$allocationResult['area_allocated']}m² allocated" 
+                    ? "Approved & {$allocationResult['message']} (Grid allocation failed: {$allocationResult['error']})" 
                     : "Approved (Grid allocation failed: {$allocationResult['error']})";
             } elseif ($action === 'reject') {
                 $uid = (int)current_user()['id'];
@@ -213,45 +213,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ctr->bind_param('dd', $amt, $grandDelta);
                     $ctr->execute();
 
-                    // Allocate floor grid cells for payment with smart overlap management
-                    $gridAllocator = new SmartGridAllocator($db);
+                    // Allocate floor grid cells for payment with the new intelligent allocator
+                    $gridAllocator = new IntelligentGridAllocator($db);
                     
                     // Get payment details for allocation
                     $paymentDetails = $db->prepare("SELECT donor_name, amount, package_id FROM payments WHERE id = ?");
                     $paymentDetails->bind_param('i', $paymentId);
                     $paymentDetails->execute();
                     $paymentData = $paymentDetails->get_result()->fetch_assoc();
-                    
+
                     if ($paymentData) {
-                        $donorName = (string)($paymentData['donor_name'] ?? 'Anonymous');
-                        $packageId = isset($paymentData['package_id']) ? (int)$paymentData['package_id'] : null;
-                        
-                        $allocationResult = $gridAllocator->allocateGridCells(
-                            null,              // pledge_id
-                            $paymentId,        // payment_id
+                        $allocationResult = $gridAllocator->allocate(
+                            null, // No pledge ID for a direct payment
+                            $paymentId,
                             (float)$paymentData['amount'],
-                            $packageId,
-                            $donorName,
-                            'paid'             // status
+                            isset($paymentData['package_id']) ? (int)$paymentData['package_id'] : null,
+                            (string)$paymentData['donor_name'],
+                            'paid'
                         );
-                    } else {
-                        $allocationResult = ['success' => false, 'error' => 'Payment details not found'];
+                        $actionMsg .= " Grid allocation: " . ($allocationResult['success'] ? $allocationResult['message'] : $allocationResult['error']);
                     }
-                    
-                    // Audit
-                    $uid = (int)current_user()['id'];
-                    $before = json_encode(['status'=>'pending'], JSON_UNESCAPED_SLASHES);
-                    $after  = json_encode([
-                        'status'=>'approved',
-                        'grid_allocation' => $allocationResult
-                    ], JSON_UNESCAPED_SLASHES);
-                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'approve', ?, ?, 'admin')");
-                    $log->bind_param('iiss', $uid, $paymentId, $before, $after);
-                    $log->execute();
-                    
-                    $actionMsg = $allocationResult['success'] 
-                        ? "Payment approved & {$allocationResult['area_allocated']}m² allocated" 
-                        : "Payment approved (Grid allocation failed: {$allocationResult['error']})";
+                    // No need to update audit log here as it's handled separately for payments
                 } else if ($action === 'reject_payment') {
                     // Mark as voided. No counter change.
                     if ((string)$pay['status'] !== 'pending') { throw new RuntimeException('Payment not pending'); }
