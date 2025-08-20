@@ -142,15 +142,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-microchip me-2 text-info"></i>Test Smart Allocation</h5>
+                        <p class="card-text">Test the intelligent, space-filling allocation engine to see how it fills gaps sequentially.</p>
+                        <a href="test_smart_allocation.php" class="btn btn-info">Run Test</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 border-danger">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-power-off me-2 text-danger"></i>Reset Floor Map</h5>
+                        <p class="card-text">Wipe all allocation data from the floor map. <strong class="text-danger">This is irreversible.</strong></p>
+                        <a href="reset_floor_map.php" class="btn btn-danger">Reset Map</a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 </body>
 </html>
 
