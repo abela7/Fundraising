@@ -167,7 +167,7 @@ class FloorGridAllocatorV2 {
     }
     
     /**
-     * Find and allocate available cells of specified types
+     * Find and allocate available cells of specified types with smart ordering
      */
     private function findAndAllocateAvailableCells(
         array $cellsNeeded,
@@ -183,22 +183,8 @@ class FloorGridAllocatorV2 {
             $cellType = $cellSpec['type'];
             $quantity = $cellSpec['quantity'];
             
-            // Find available cells of this type
-            $stmt = $this->db->prepare(
-                "SELECT cell_id, rectangle_id, area_size 
-                 FROM floor_grid_cells 
-                 WHERE cell_type = ? AND status = 'available' 
-                 ORDER BY rectangle_id, cell_id 
-                 LIMIT ?"
-            );
-            $stmt->bind_param('si', $cellType, $quantity);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            $foundCells = [];
-            while ($row = $result->fetch_assoc()) {
-                $foundCells[] = $row;
-            }
+            // Find available cells with smart ordering
+            $foundCells = $this->findAvailableCellsSmartOrder($cellType, $quantity);
             
             if (count($foundCells) < $quantity) {
                 throw new RuntimeException("Insufficient {$cellType} cells available. Needed: {$quantity}, Found: " . count($foundCells));
@@ -225,6 +211,97 @@ class FloorGridAllocatorV2 {
         }
         
         return $allocatedCells;
+    }
+    
+    /**
+     * Find available cells with smart ordering - starting from A0505-185 and continuing in sequence
+     */
+    private function findAvailableCellsSmartOrder(string $cellType, int $quantity): array {
+        // Custom ordering for natural flow
+        $orderClause = $this->getSmartOrderClause($cellType);
+        
+        $stmt = $this->db->prepare(
+            "SELECT cell_id, rectangle_id, area_size 
+             FROM floor_grid_cells 
+             WHERE cell_type = ? AND status = 'available' 
+             ORDER BY {$orderClause}
+             LIMIT ?"
+        );
+        $stmt->bind_param('si', $cellType, $quantity);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $foundCells = [];
+        while ($row = $result->fetch_assoc()) {
+            $foundCells[] = $row;
+        }
+        
+        return $foundCells;
+    }
+    
+    /**
+     * Get smart ordering clause for natural cell allocation flow
+     */
+    private function getSmartOrderClause(string $cellType): string {
+        switch ($cellType) {
+            case '0.5x0.5':
+                // For 0.5x0.5 cells, start from A0505-185 onwards in natural sequence
+                return "
+                    CASE 
+                        WHEN rectangle_id = 'A' THEN 1
+                        WHEN rectangle_id = 'B' THEN 2  
+                        WHEN rectangle_id = 'C' THEN 3
+                        WHEN rectangle_id = 'D' THEN 4
+                        WHEN rectangle_id = 'E' THEN 5
+                        WHEN rectangle_id = 'F' THEN 6
+                        WHEN rectangle_id = 'G' THEN 7
+                        ELSE 8
+                    END,
+                    CASE 
+                        WHEN rectangle_id = 'A' AND CAST(SUBSTRING(cell_id, 7) AS UNSIGNED) >= 185 
+                        THEN CAST(SUBSTRING(cell_id, 7) AS UNSIGNED)
+                        WHEN rectangle_id = 'A' AND CAST(SUBSTRING(cell_id, 7) AS UNSIGNED) < 185 
+                        THEN CAST(SUBSTRING(cell_id, 7) AS UNSIGNED) + 1000
+                        ELSE CAST(SUBSTRING(cell_id, 7) AS UNSIGNED)
+                    END
+                ";
+                
+            case '1x0.5':
+                // For 1x0.5 cells, natural rectangle order then ID order
+                return "
+                    CASE 
+                        WHEN rectangle_id = 'A' THEN 1
+                        WHEN rectangle_id = 'B' THEN 2  
+                        WHEN rectangle_id = 'C' THEN 3
+                        WHEN rectangle_id = 'D' THEN 4
+                        WHEN rectangle_id = 'E' THEN 5
+                        WHEN rectangle_id = 'F' THEN 6
+                        WHEN rectangle_id = 'G' THEN 7
+                        ELSE 8
+                    END,
+                    CAST(SUBSTRING(cell_id, 7) AS UNSIGNED)
+                ";
+                
+            case '1x1':
+                // For 1x1 cells, natural rectangle order then ID order  
+                return "
+                    CASE 
+                        WHEN rectangle_id = 'A' THEN 1
+                        WHEN rectangle_id = 'B' THEN 2  
+                        WHEN rectangle_id = 'C' THEN 3
+                        WHEN rectangle_id = 'D' THEN 4
+                        WHEN rectangle_id = 'E' THEN 5
+                        WHEN rectangle_id = 'F' THEN 6
+                        WHEN rectangle_id = 'G' THEN 7
+                        ELSE 8
+                    END,
+                    CAST(SUBSTRING(cell_id, 7) AS UNSIGNED)
+                ";
+                
+            default:
+                // Fallback to simple ordering
+                return "rectangle_id, cell_id";
+        }
     }
     
     /**
@@ -296,7 +373,14 @@ class FloorGridAllocatorV2 {
             $types .= "s";
         }
         
-        $sql .= " ORDER BY rectangle_id, cell_id";
+        $sql .= " ORDER BY rectangle_id, 
+                  CASE 
+                      WHEN rectangle_id = 'A' AND cell_type = '0.5x0.5' AND CAST(SUBSTRING(cell_id, 7) AS UNSIGNED) >= 185 
+                      THEN CAST(SUBSTRING(cell_id, 7) AS UNSIGNED)
+                      WHEN rectangle_id = 'A' AND cell_type = '0.5x0.5' AND CAST(SUBSTRING(cell_id, 7) AS UNSIGNED) < 185 
+                      THEN CAST(SUBSTRING(cell_id, 7) AS UNSIGNED) + 1000
+                      ELSE CAST(SUBSTRING(cell_id, 7) AS UNSIGNED)
+                  END";
         
         $stmt = $this->db->prepare($sql);
         if (!empty($params)) {

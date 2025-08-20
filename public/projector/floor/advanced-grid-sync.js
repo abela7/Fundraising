@@ -59,8 +59,8 @@ class AdvancedGridSync {
     }
     
     setupCellElement(element, cellId) {
-        // Add CSS classes for easy styling
-        element.classList.add('grid-cell', 'status-available');
+        // Add CSS classes for easy styling (NO status-available)
+        element.classList.add('grid-cell');
         
         // Add transition for smooth color changes
         element.style.transition = 'all 0.3s ease';
@@ -72,8 +72,8 @@ class AdvancedGridSync {
             this.showCellInfo(cellId);
         });
         
-        // Set default title
-        element.title = `Cell ${cellId} - Available`;
+        // Set default title (no styling, just info)
+        element.title = `Cell ${cellId}`;
     }
     
     async startLiveSync() {
@@ -121,7 +121,7 @@ class AdvancedGridSync {
     }
     
     processGridData(apiData) {
-        // Reset all cells to available first
+        // Reset all cells to default first
         this.resetAllCells();
         
         const { grid_cells, statistics } = apiData;
@@ -130,9 +130,9 @@ class AdvancedGridSync {
         // Process each rectangle's allocated cells
         Object.entries(grid_cells).forEach(([rectangleId, cells]) => {
             cells.forEach(cellData => {
-                // For now, since we don't have exact cell ID mapping from API,
-                // we'll allocate the first available cell in the rectangle
-                const allocated = this.allocateFirstAvailableCell(rectangleId, cellData);
+                // Try to find the cell by actual cell ID if available in API data
+                const allocated = this.allocateSpecificCell(cellData) || 
+                                this.allocateFirstAvailableCell(rectangleId, cellData);
                 if (allocated) {
                     processedCells++;
                 }
@@ -143,6 +143,15 @@ class AdvancedGridSync {
         this.updateStatisticsDisplay(statistics);
         
         console.log(`✅ Processed ${processedCells} allocated cells`);
+    }
+    
+    allocateSpecificCell(cellData) {
+        // If the API provides the actual cell ID, use it directly
+        if (cellData.cell_id && this.cellIdToElementMap.has(cellData.cell_id)) {
+            this.setCellStatus(cellData.cell_id, cellData.status, cellData);
+            return true;
+        }
+        return false;
     }
     
     allocateFirstAvailableCell(rectangleId, cellData) {
@@ -187,8 +196,8 @@ class AdvancedGridSync {
                 element.style.border = '2px solid #ea580c';
                 break;
                 
-            default:
-                element.classList.add('status-available');
+                            default:
+                // For available cells, don't add any styling - keep default
                 element.style.backgroundColor = '';
                 element.style.border = '';
                 break;
@@ -204,7 +213,11 @@ class AdvancedGridSync {
     
     resetAllCells() {
         this.cellIdToElementMap.forEach((element, cellId) => {
-            this.setCellStatus(cellId, 'available');
+            // Remove any status classes and styling, return to default
+            element.classList.remove('status-available', 'status-pledged', 'status-paid');
+            element.style.backgroundColor = '';
+            element.style.border = '';
+            element.title = `Cell ${cellId}`;
         });
     }
     

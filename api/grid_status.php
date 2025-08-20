@@ -58,9 +58,9 @@ try {
             }
             
             $groupedData[$rectId][] = [
-                'x' => (int)$cell['grid_x'],
-                'y' => (int)$cell['grid_y'],
-                'size' => $cell['cell_size'],
+                'cell_id' => $cell['cell_id'],
+                'size' => $cell['cell_type'],
+                'area' => (float)$cell['area_size'],
                 'status' => $cell['status'],
                 'donor' => $cell['donor_name'],
                 'amount' => (float)$cell['amount'],
