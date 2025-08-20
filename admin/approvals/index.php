@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../../shared/FloorGridAllocatorV2.php';
+require_once __DIR__ . '/../../shared/SmartGridAllocator.php';
 require_login();
 require_admin();
 
@@ -57,8 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
-                // Allocate floor grid cells
-                $gridAllocator = new FloorGridAllocatorV2($db);
+                // Allocate floor grid cells with smart overlap management
+                $gridAllocator = new SmartGridAllocator($db);
                 $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
                 $packageId = isset($pledge['package_id']) ? (int)$pledge['package_id'] : null;
                 $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
@@ -213,8 +213,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ctr->bind_param('dd', $amt, $grandDelta);
                     $ctr->execute();
 
-                    // Allocate floor grid cells for payment
-                    $gridAllocator = new FloorGridAllocatorV2($db);
+                    // Allocate floor grid cells for payment with smart overlap management
+                    $gridAllocator = new SmartGridAllocator($db);
                     
                     // Get payment details for allocation
                     $paymentDetails = $db->prepare("SELECT donor_name, amount, package_id FROM payments WHERE id = ?");

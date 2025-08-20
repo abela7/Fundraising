@@ -18,11 +18,11 @@ header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
 require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../shared/FloorGridAllocatorV2.php';
+require_once __DIR__ . '/../shared/SmartGridAllocator.php';
 
 try {
     $db = db();
-    $gridAllocator = new FloorGridAllocatorV2($db);
+    $gridAllocator = new SmartGridAllocator($db);
     
     // Get request parameters
     $rectangle = $_GET['rectangle'] ?? null;
