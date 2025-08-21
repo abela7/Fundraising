@@ -331,18 +331,12 @@ if (isset($_SESSION['success_message'])) {
                                 <label for="name" class="form-label">Full Name</label>
                                 <input type="text" class="form-control" id="name" name="name" required
                                        placeholder="Enter full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
-                                <div class="invalid-feedback">
-                                    Please enter a valid name (at least 2 characters).
-                                </div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="phone" class="form-label">Phone Number</label>
                                 <input type="tel" class="form-control" id="phone" name="phone" required
                                        placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
-                                <div class="invalid-feedback">
-                                    Please enter a valid UK mobile number starting with 07.
-                                </div>
                             </div>
                             
                             <div class="mb-3">
