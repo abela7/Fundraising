@@ -26,24 +26,9 @@
   body{
     display: flex; align-items: center; justify-content: center;
     padding: 0; margin: 0; min-height: 100vh;
-    /* MUCH MORE VISIBLE animated gradient background */
-    background: linear-gradient(-45deg, #0f172a, #1e293b, #475569, #334155, #1e293b, #0f172a);
-    background-size: 600% 600%;
-    animation: dramaticGradientShift 8s ease infinite;
+    background: #131A2D; /* Dark blue background */
     font-family: system-ui, -apple-system, sans-serif;
-    overflow: hidden;
   }
-
-  /* Much more dramatic background animation */
-  @keyframes dramaticGradientShift {
-    0% { background-position: 0% 50%; }
-    25% { background-position: 100% 0%; }
-    50% { background-position: 100% 100%; }
-    75% { background-position: 0% 100%; }
-    100% { background-position: 0% 50%; }
-  }
-
-
 
   .game-container{
     display: flex; 
@@ -54,7 +39,6 @@
     position: relative;
     padding: 20px;
     box-sizing: border-box;
-    z-index: 10;
   }
 
   .floor-map{
@@ -64,75 +48,40 @@
     position: relative;
     max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
-
-    
     .main-section {
-      width: 100%;
-      height: 100%;
-      display: grid;
-      grid-template-columns: repeat(28, 1fr);
-      grid-template-rows: repeat(44, 1fr);
-      gap: 2px;
-      padding: 5px;
-      background-color: #E0E0E0;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(28, 1fr);
+            grid-template-rows: repeat(44, 1fr);
+            gap: 2px; /* This creates the subtle border effect */
+            padding: 5px; /* A little space around the edge */
+            background-color: #E0E0E0; /* A slightly darker grey for the "grout" */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
 
-    /* Base style for all cell types */
-    .meter-container, .half-tile, .grid-tile-quarter {
-      background-color: #F5F5F5;
-    }
-    
-    /* Interactive hover effect only on the smallest, selectable cells */
-    .grid-tile-quarter:hover {
-      background-color: #FFFFFF;
-      transition: background-color 0.2s ease-in-out;
-    }
+        /* Base style for all cell types */
+        .meter-container, .half-tile, .grid-tile-quarter {
+            background-color: #F5F5F5; /* The default, bright whiteish color for cells */
+        }
+        
+        /* Interactive hover effect only on the smallest, selectable cells */
+        .grid-tile-quarter:hover {
+            background-color: #FFFFFF; /* Brighten on hover */
+            transition: background-color 0.2s ease-in-out;
+        }
   }
-
-
 
   /* Clean floor map - removed all UI elements */
 
   .shape{ 
     display:flex; align-items:center; justify-content:center; 
-    font-weight:800; color:#fff; opacity:.9;
+    font-weight:800; color:#fff; opacity:.78;
     font-size: max(12px, min(1.2em, calc(var(--m) * 0.4)));
-    user-select: none;
-    /* Removed all animations and effects */
-    transition: all 0.5s ease;
-    position: relative;
-    overflow: hidden;
+    user-select: none; 
   }
-
-
-
-
-
-  /* Simple gradients for each section - no animations */
-  .A{ 
-    background: linear-gradient(135deg, #8B8680, #b8b3a8, #8B8680); 
-  }
-  .B{ 
-    background: linear-gradient(135deg, #8B8680, #a8a39e, #8B8680); 
-  }
-  .C{ 
-    background: linear-gradient(135deg, #8B8680, #9f9a95, #8B8680); 
-  }
-  .D{ 
-    background: linear-gradient(135deg, #8B8680, #b0ab96, #8B8680); 
-  }
-  .E{ 
-    background: linear-gradient(135deg, #8B8680, #a5a090, #8B8680); 
-  }
-  .F{ 
-    background: linear-gradient(135deg, #8B8680, #9a958a, #8B8680); 
-  }
-  .G{ 
-    background: linear-gradient(135deg, #8B8680, #b5b0a5, #8B8680); 
-  }
-
-
+  .A{ background:#8B8680 } .B{ background:#8B8680 } .C{ background:#8B8680 }
+  .D{ background:#8B8680 } .E{ background:#8B8680 } .F{ background:#8B8680 } .G{ background:#8B8680 }
 
   /* Totals: A=108, B=9, C=16, D=120, E=120, F=20, G=120 => 513 */
 
@@ -155,16 +104,15 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Stats card - removed all effects */
+  /* Stats card - positioned closer to floor map */
   .stats-card {
     position: absolute;
     bottom: calc(var(--m) * 0.5);
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(15px);
-    border: 2px solid rgba(255, 215, 0, 0.4);
-    border-radius: 15px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
     display: flex;
@@ -174,13 +122,11 @@
     padding: calc(var(--m) * 0.3) calc(var(--m) * 0.6);
     box-sizing: border-box;
     z-index: 100;
+    
+    /* Responsive width based on content */
     min-width: calc(var(--m) * 8);
     width: auto;
-    /* Removed floating animation */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   }
-
-
 
   /* Mobile positioning */
   @media (max-width: 768px) {
@@ -221,14 +167,11 @@
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #ffd700, #ffed4e, #ffa500, #ffd700);
+    background: #ffd700;
     border-radius: 0;
     transition: width 0.8s ease-in-out;
     width: 0%;
-    /* Removed shimmer animation */
   }
-
-
 
   .percentage {
     font-size: calc(var(--m) * 0.55);
@@ -286,8 +229,6 @@
       font-size: 0.9rem; 
     }
   }
-
-
 
   /* All UI elements removed for clean game design */
 </style>
