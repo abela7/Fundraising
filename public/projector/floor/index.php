@@ -44,20 +44,10 @@
     max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
     box-shadow: 
-      0 20px 40px rgba(0, 0, 0, 0.4),
-      0 10px 20px rgba(0, 0, 0, 0.3),
-      0 5px 10px rgba(0, 0, 0, 0.2);
+      0 25px 50px rgba(0, 0, 0, 0.5),
+      0 15px 30px rgba(0, 0, 0, 0.4),
+      0 8px 16px rgba(0, 0, 0, 0.3);
     border-radius: 8px;
-    background: 
-      linear-gradient(145deg, #E0E0E0, #D0D0D0),
-      repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 10px,
-        rgba(0, 0, 0, 0.02) 10px,
-        rgba(0, 0, 0, 0.02) 20px
-      );
-    padding: 15px;
     .main-section {
             width: 100%;
             height: 100%;
@@ -73,23 +63,12 @@
         /* Base style for all cell types */
         .meter-container, .half-tile, .grid-tile-quarter {
             background-color: #F5F5F5; /* The default, bright whiteish color for cells */
-            box-shadow: 
-              0 2px 4px rgba(0, 0, 0, 0.1),
-              0 1px 2px rgba(0, 0, 0, 0.05),
-              inset 0 1px 2px rgba(255, 255, 255, 0.3);
-            border-radius: 2px;
-            transition: all 0.2s ease;
         }
         
         /* Interactive hover effect only on the smallest, selectable cells */
         .grid-tile-quarter:hover {
             background-color: #FFFFFF; /* Brighten on hover */
-            transform: translateY(-1px) scale(1.02);
-            box-shadow: 
-              0 4px 8px rgba(0, 0, 0, 0.15),
-              0 2px 4px rgba(0, 0, 0, 0.1),
-              inset 0 1px 2px rgba(255, 255, 255, 0.4);
-            z-index: 10;
+            transition: background-color 0.2s ease-in-out;
         }
   }
 
@@ -99,22 +78,7 @@
     display:flex; align-items:center; justify-content:center; 
     font-weight:800; color:#fff; opacity:.78;
     font-size: max(12px, min(1.2em, calc(var(--m) * 0.4)));
-    user-select: none;
-    box-shadow: 
-      0 8px 16px rgba(0, 0, 0, 0.3),
-      0 4px 8px rgba(0, 0, 0, 0.2),
-      inset 0 2px 4px rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    position: relative;
-    transition: all 0.3s ease;
-  }
-  
-  .shape:hover {
-    transform: translateY(-2px);
-    box-shadow: 
-      0 12px 24px rgba(0, 0, 0, 0.4),
-      0 6px 12px rgba(0, 0, 0, 0.3),
-      inset 0 2px 4px rgba(255, 255, 255, 0.15);
+    user-select: none; 
   }
   .A{ background:#8B8680 } .B{ background:#8B8680 } .C{ background:#8B8680 }
   .D{ background:#8B8680 } .E{ background:#8B8680 } .F{ background:#8B8680 } .G{ background:#8B8680 }
