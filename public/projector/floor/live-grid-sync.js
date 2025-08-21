@@ -19,16 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
         pollInterval: 5000, // Fetch updates every 5 seconds
         allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
-        // DOM Elements
-        elements: {
-            allocatedArea: document.getElementById('allocated-area'),
-            progressBar: document.getElementById('progress-bar-fill'),
-            paidCells: document.getElementById('paid-cells'),
-            pledgedCells: document.getElementById('pledged-cells'),
-            totalAllocatedCells: document.getElementById('total-allocated-cells'),
-            availableCells: document.getElementById('available-cells')
-        },
-        
         // State
         gridReady: false,
         
@@ -64,62 +54,48 @@ document.addEventListener('DOMContentLoaded', () => {
          * Starts the polling process to fetch live data.
          */
         startPolling() {
-            this.fetchAndUpdate(); // Initial fetch
-            setInterval(() => this.fetchAndUpdate(), this.pollInterval);
+            this.fetchCellData(); // Initial fetch for the map
+            this.fetchSummaryData(); // Initial fetch for the info panel
+            setInterval(() => {
+                this.fetchCellData();
+                this.fetchSummaryData();
+            }, this.pollInterval);
         },
         
         /**
-         * Fetches data from the API and updates the grid visuals.
+         * Fetches the detailed cell allocation data for coloring the map.
          */
-        async fetchAndUpdate() {
-            console.log('GridSync: Fetching latest grid status...');
+        async fetchCellData() {
             try {
-                // Fetch both detailed and summary data in parallel for efficiency
-                const [detailResponse, summaryResponse] = await Promise.all([
-                    fetch(this.apiUrl),
-                    fetch(`${this.apiUrl}?format=summary`)
-                ]);
-
-                if (!detailResponse.ok || !summaryResponse.ok) {
-                    throw new Error('API request failed');
-                }
-
-                const detailData = await detailResponse.json();
-                const summaryData = await summaryResponse.json();
-
-                if (detailData.success && detailData.data.grid_cells) {
-                    this.updateGrid(detailData.data.grid_cells);
+                const response = await fetch(this.apiUrl);
+                if (!response.ok) throw new Error(`API error ${response.status}`);
+                const data = await response.json();
+                if (data.success && data.data && data.data.grid_cells) {
+                    this.updateGrid(data.data.grid_cells);
                 } else {
-                    console.error('GridSync: Detailed data response was not successful.', detailData);
+                    console.error('GridSync: Failed to get cell data.', data);
                 }
-                
-                if (summaryData.success && summaryData.data.statistics) {
-                    this.updateInfoPanel(summaryData.data.statistics);
-                } else {
-                    console.error('GridSync: Summary data response was not successful.', summaryData);
-                }
-
             } catch (error) {
-                console.error('GridSync: Error fetching or parsing data:', error);
+                console.error('GridSync: Error fetching cell data:', error);
             }
         },
-        
+
         /**
-         * Updates the info panel with the latest summary statistics.
-         * @param {object} stats - The statistics object from the API.
+         * Fetches the summary statistics to populate the info panel.
          */
-        updateInfoPanel(stats) {
-            const totalAllocated = stats.pledged_cells + stats.paid_cells;
-            
-            this.elements.allocatedArea.textContent = stats.allocated_area_sqm.toFixed(2);
-            this.elements.paidCells.textContent = stats.paid_cells;
-            this.elements.pledgedCells.textContent = stats.pledged_cells;
-            this.elements.totalAllocatedCells.textContent = totalAllocated;
-            this.elements.availableCells.textContent = stats.available_cells;
-            
-            // Update progress bar
-            const percentage = stats.progress_percentage || 0;
-            this.elements.progressBar.style.width = `${percentage}%`;
+        async fetchSummaryData() {
+            try {
+                const response = await fetch(`${this.apiUrl}?format=summary`);
+                if (!response.ok) throw new Error(`API error ${response.status}`);
+                const data = await response.json();
+                if (data.success && data.data && data.data.statistics) {
+                    this.updateInfoPanel(data.data.statistics);
+                } else {
+                    console.error('GridSync: Failed to get summary data.', data);
+                }
+            } catch (error) {
+                console.error('GridSync: Error fetching summary data:', error);
+            }
         },
 
         /**
@@ -158,6 +134,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             console.timeEnd('GridSync: Update Duration');
+        },
+
+        /**
+         * Updates the info panel with the latest statistics.
+         * @param {object} stats - The statistics object from the API.
+         */
+        updateInfoPanel(stats) {
+            document.getElementById('allocated-area').textContent = parseFloat(stats.allocated_area_sqm).toFixed(2);
+            document.getElementById('total-area').textContent = parseFloat(stats.total_area_sqm).toFixed(2);
+            
+            const progressBar = document.getElementById('progress-bar-fill');
+            if (progressBar) {
+                progressBar.style.width = `${stats.progress_percentage}%`;
+            }
+
+            document.getElementById('paid-cells').textContent = stats.paid_cells;
+            document.getElementById('pledged-cells').textContent = stats.pledged_cells;
+            document.getElementById('total-allocated-cells').textContent = stats.paid_cells + stats.pledged_cells;
+            document.getElementById('available-cells').textContent = stats.available_cells;
         }
     };
     

@@ -65,6 +65,102 @@
             background-color: #FFFFFF; /* Brighten on hover */
             transition: background-color 0.2s ease-in-out;
         }
+
+        /* Responsive container for map and info panel */
+        .container {
+            display: flex;
+            flex-wrap: wrap; /* Allows panel to stack on small screens */
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .floor-map-container {
+            flex-shrink: 0; /* Prevents the map from shrinking too much */
+        }
+
+        /* Info Panel Styles */
+        .info-panel {
+            background-color: #1e2a3e; /* Dark card background from your theme */
+            color: #ffffff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            width: 320px; /* Fixed width for the panel */
+            box-sizing: border-box;
+            border: 1px solid #334155;
+        }
+
+        .info-panel h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #cbd5e1; /* Lighter text for heading */
+            text-align: center;
+        }
+
+        .progress-display {
+            margin-bottom: 20px;
+        }
+
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .area {
+            font-weight: bold;
+            color: #e2ca18; /* The gold color you chose */
+        }
+
+        .total {
+            color: #94a3b8; /* Muted text color */
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 12px;
+            background-color: #334155; /* Darker grey for the bar background */
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        #progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, #e2ca18, #ffd700); /* Gold gradient */
+            border-radius: 6px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #334155;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .label {
+            font-size: 0.8em;
+            color: #94a3b8; /* Muted text color */
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
   }
 
   /* Clean floor map - removed all UI elements */
@@ -100,91 +196,6 @@
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
   /* All UI elements removed for clean game design */
-
-  /* Info Panel Styles */
-  .info-panel {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-    max-width: 350px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .info-panel h2 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    font-size: 1.8em;
-    color: #fff;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  }
-
-  .progress-display {
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .area {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #FFD700; /* Gold color for area */
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-  }
-
-  .total {
-    font-size: 1.2em;
-    color: #888;
-  }
-
-  .progress-bar-container {
-    width: 100%;
-    height: 10px;
-    background-color: #333;
-    border-radius: 5px;
-    overflow: hidden;
-  }
-
-  #progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(to right, #FFD700, #FFA500); /* Gold to Orange gradient */
-    border-radius: 5px;
-    transition: width 0.3s ease-in-out;
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 15px;
-    margin-top: 20px;
-  }
-
-  .stat-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .value {
-    font-size: 2em;
-    font-weight: bold;
-    color: #FFD700; /* Gold color for values */
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-  }
-
-  .label {
-    font-size: 0.9em;
-    color: #bbb;
-    margin-top: 5px;
-  }
 </style>
 </head>
 <body>
@@ -192,26 +203,35 @@
         <div class="floor-map-container">
             <div class="main-section">
                 <!-- Grid will be generated here by PHP -->
+                <?php
+                // This PHP logic just creates the containers for the JS to fill.
+                $shapes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+                foreach ($shapes as $shape) {
+                    echo "<div class='shape' id='shape-{$shape}'></div>\n";
+                }
+                ?>
             </div>
         </div>
         <div class="info-panel">
             <h2>Live Progress</h2>
             <div class="progress-display">
-                <div class="area"><span id="allocated-area">0.00</span>m²</div>
-                <div class="total">/ 513.00m²</div>
+                <div class="progress-labels">
+                    <div class="area"><span id="allocated-area">0.00</span>m²</div>
+                    <div class="total">/ <span id="total-area">...</span>m²</div>
+                </div>
                 <div class="progress-bar-container">
-                    <div id="progress-bar-fill"></div>
+                    <div id="progress-bar-fill" style="width: 0%;"></div>
                 </div>
             </div>
             
             <div class="stats-grid">
                 <div class="stat-item">
                     <div class="value" id="paid-cells">0</div>
-                    <div class="label">Paid Cells</div>
+                    <div class="label">Paid Blocks</div>
                 </div>
                 <div class="stat-item">
                     <div class="value" id="pledged-cells">0</div>
-                    <div class="label">Pledged Cells</div>
+                    <div class="label">Pledged Blocks</div>
                 </div>
                 <div class="stat-item">
                     <div class="value" id="total-allocated-cells">0</div>
@@ -219,31 +239,13 @@
                 </div>
                 <div class="stat-item">
                     <div class="value" id="available-cells">0</div>
-                    <div class="label">Available Cells</div>
+                    <div class="label">Available Blocks</div>
                 </div>
             </div>
         </div>
     </div>
     
-    <?php
-    // PHP Grid Generation Logic (A to G rectangles)
-    $shapes = [
-        'A' => ['grid-column' => '1 / 25', 'grid-row' => '19 / 32'],
-        'B' => ['grid-column' => '1 / 3', 'grid-row' => '17 / 19'],
-        'C' => ['grid-column' => '10 / 11', 'grid-row' => '9 / 16'],
-        'D' => ['grid-column' => '24 / 33', 'grid-row' => '5 / 16'],
-        'E' => ['grid-column' => '12 / 23', 'grid-row' => '7 / 16'],
-        'F' => ['grid-column' => '34 / 38', 'grid-row' => '2 / 5'],
-        'G' => ['grid-column' => '34 / 41', 'grid-row' => '6 / 20']
-    ];
-
-    // This part is just for layout, the JS will draw the actual cells inside these containers
-    foreach ($shapes as $shape => $style) {
-        echo "<div class='shape' id='shape-{$shape}' style='grid-column: {$style['grid-column']}; grid-row: {$style['grid-row']};'></div>\n";
-    }
-    ?>
-    
-<script>
+    <script>
 // Grid system for rectangle A - 0.5m x 0.5m subdivisions (maximum flexibility)
 function createGridForShapeA() {
   const shapeA = document.querySelector('.A');
