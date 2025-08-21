@@ -199,6 +199,12 @@
                 <input type="range" id="light-intensity" min="0.1" max="2" value="1" step="0.1">
                 <span id="light-value">1.0</span>
             </div>
+
+            <div class="control-group">
+                <label>Model Brightness:</label>
+                <input type="range" id="model-brightness" min="0.1" max="3" value="1.5" step="0.1">
+                <span id="brightness-value">1.5</span>
+            </div>
         </div>
 
         <div id="file-input">
@@ -248,14 +254,23 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.getElementById('container').appendChild(renderer.domElement);
 
-            // Add lights
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            // Add brighter lights for better visibility
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Much brighter ambient light
             scene.add(ambientLight);
 
-            directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Brighter directional light
             directionalLight.position.set(0, 100, 0); // Light from above
             directionalLight.castShadow = true;
             scene.add(directionalLight);
+
+            // Add additional lights for better coverage
+            const leftLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            leftLight.position.set(-50, 50, 0);
+            scene.add(leftLight);
+
+            const rightLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            rightLight.position.set(50, 50, 0);
+            scene.add(rightLight);
 
             // Add controls
             controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -264,9 +279,9 @@
             controls.autoRotate = autoRotate;
             controls.autoRotateSpeed = rotationSpeed;
             
-            // Limit vertical rotation to maintain top-down perspective
-            controls.minPolarAngle = 0; // 0 degrees (top)
-            controls.maxPolarAngle = Math.PI / 2.5; // ~72 degrees (slightly tilted)
+            // Remove rotation restrictions for full 365-degree control
+            // controls.minPolarAngle = 0; // Commented out for full rotation
+            // controls.maxPolarAngle = Math.PI / 2.5; // Commented out for full rotation
 
             // Handle window resize
             window.addEventListener('resize', onWindowResize, false);
@@ -357,7 +372,11 @@
                         transparent: true,
                         opacity: opacity,
                         side: THREE.DoubleSide,
-                        shininess: 30
+                        shininess: 100, // Increased shininess for better reflection
+                        specular: 0x444444, // Add specular highlights
+                        emissive: 0x222222, // Add slight glow for better visibility
+                        flatShading: false, // Smooth shading for better appearance
+                        emissiveIntensity: parseFloat(document.getElementById('model-brightness').value) // Apply model brightness
                     });
                 }
             });
@@ -421,6 +440,15 @@
                 document.getElementById('light-value').textContent = intensity.toFixed(1);
                 if (directionalLight) {
                     directionalLight.intensity = intensity;
+                }
+            });
+
+            // Model brightness control
+            document.getElementById('model-brightness').addEventListener('input', function(e) {
+                const brightness = parseFloat(e.target.value);
+                document.getElementById('brightness-value').textContent = brightness.toFixed(1);
+                if (currentModel) {
+                    applyMaterialSettings(currentModel);
                 }
             });
 
