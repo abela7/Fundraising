@@ -43,11 +43,6 @@
     position: relative;
     max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
-    box-shadow: 
-      0 25px 50px rgba(0, 0, 0, 0.5),
-      0 15px 30px rgba(0, 0, 0, 0.4),
-      0 8px 16px rgba(0, 0, 0, 0.3);
-    border-radius: 8px;
     .main-section {
             width: 100%;
             height: 100%;
@@ -104,6 +99,74 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
+  /* Stats card styling */
+  .stats-card {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(20, 27, 45, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 250px;
+    color: #ffffff;
+    font-family: system-ui, -apple-system, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+  }
+
+  .stats-card h3 {
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #cbd5e1;
+    text-align: center;
+  }
+
+  .coverage-display {
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
+  .coverage-numbers {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #e2ca18;
+    margin-bottom: 5px;
+  }
+
+  .coverage-label {
+    font-size: 0.9em;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #334155;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, #e2ca18, #ffd700);
+    border-radius: 4px;
+    transition: width 0.5s ease-in-out;
+    width: 0%;
+  }
+
+  .percentage {
+    font-size: 0.85em;
+    color: #cbd5e1;
+    margin-top: 8px;
+    text-align: center;
+  }
+
   /* All UI elements removed for clean game design */
 </style>
 </head>
@@ -117,6 +180,21 @@
       <div class="shape E">E</div>
       <div class="shape F">F</div>
       <div class="shape G">G</div>
+    </div>
+    
+    <!-- Live Coverage Stats Card -->
+    <div class="stats-card">
+      <h3>Coverage Progress</h3>
+      <div class="coverage-display">
+        <div class="coverage-numbers">
+          <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m²
+        </div>
+        <div class="coverage-label">Square Meters Covered</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="percentage" id="coverage-percentage">0.0%</div>
+      </div>
     </div>
   </div>
 

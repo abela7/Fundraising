@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cellData = data.data.grid_cells;
                     console.log(`GridSync: Received ${Object.keys(cellData).length} rectangles with allocations.`);
                     this.updateGrid(cellData);
+                    this.updateStatsCard(data.data.summary);
                 } else {
                     console.error('GridSync: API response was not successful or "grid_cells" data is missing.', data);
                 }
@@ -118,6 +119,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             console.timeEnd('GridSync: Update Duration');
+        },
+
+        /**
+         * Updates the stats card with live coverage data.
+         * @param {object} summary - The summary data from the API.
+         */
+        updateStatsCard(summary) {
+            if (!summary) return;
+
+            const coveredAreaElement = document.getElementById('covered-area');
+            const totalAreaElement = document.getElementById('total-area');
+            const progressFillElement = document.getElementById('progress-fill');
+            const percentageElement = document.getElementById('coverage-percentage');
+
+            if (coveredAreaElement && summary.allocated_area_sqm !== undefined) {
+                const coveredArea = parseFloat(summary.allocated_area_sqm).toFixed(2);
+                coveredAreaElement.textContent = coveredArea;
+            }
+
+            if (totalAreaElement && summary.total_area_sqm !== undefined) {
+                const totalArea = parseFloat(summary.total_area_sqm).toFixed(2);
+                totalAreaElement.textContent = totalArea;
+            }
+
+            if (progressFillElement && percentageElement && summary.allocated_area_sqm !== undefined && summary.total_area_sqm !== undefined) {
+                const coveredArea = parseFloat(summary.allocated_area_sqm);
+                const totalArea = parseFloat(summary.total_area_sqm);
+                const percentage = totalArea > 0 ? (coveredArea / totalArea) * 100 : 0;
+                
+                progressFillElement.style.width = `${percentage}%`;
+                percentageElement.textContent = `${percentage.toFixed(1)}%`;
+            }
+
+            console.log(`GridSync: Stats updated - ${summary.allocated_area_sqm}m² of ${summary.total_area_sqm}m² covered`);
         }
     };
     
