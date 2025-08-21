@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../shared/csrf.php';
 require_login();
 require_admin();
 
-$page_title = 'Reset Floor Map';
+$page_title = 'Reset Floor Map & Custom Amounts';
 $db = db();
 $message = '';
 $message_type = '';
@@ -17,6 +17,7 @@ $message_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         try {
+            // Reset floor grid cells
             $sql = "
                 UPDATE floor_grid_cells
                 SET
@@ -34,7 +35,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $affected_rows = $stmt->affected_rows;
             
-            $message = "✅ Success! Reset {$affected_rows} allocated/blocked cells back to 'available'. The floor map is now clean.";
+            // Reset custom amount tracking table to use single ID = 1
+            $customResetSql = "
+                TRUNCATE TABLE custom_amount_tracking;
+                ALTER TABLE custom_amount_tracking AUTO_INCREMENT = 1;
+                INSERT INTO custom_amount_tracking (
+                    id, donor_id, donor_name, total_amount, allocated_amount, remaining_amount, last_updated, created_at
+                ) VALUES (
+                    1, 0, 'Collective Custom', 0.00, 0.00, 0.00, NOW(), NOW()
+                );
+            ";
+            
+            // Execute each statement separately since TRUNCATE and ALTER can't be combined
+            $db->query("TRUNCATE TABLE custom_amount_tracking");
+            $db->query("ALTER TABLE custom_amount_tracking AUTO_INCREMENT = 1");
+            
+            $insertStmt = $db->prepare("
+                INSERT INTO custom_amount_tracking (
+                    id, donor_id, donor_name, total_amount, allocated_amount, remaining_amount, last_updated, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+            ");
+            $insertStmt->bind_param('iisddd', $id, $donorId, $donorName, $totalAmount, $allocatedAmount, $remainingAmount);
+            
+            $id = 1;
+            $donorId = 0;
+            $donorName = 'Collective Custom';
+            $totalAmount = 0.00;
+            $allocatedAmount = 0.00;
+            $remainingAmount = 0.00;
+            
+            $insertStmt->execute();
+            
+            $message = "✅ Success! Reset {$affected_rows} allocated/blocked cells back to 'available' AND reset custom amount tracking table. The floor map and custom amounts are now clean.";
             $message_type = 'success';
 
         } catch (Exception $e) {
@@ -80,7 +112,12 @@ $csrf_token = csrf_token();
 
                         <div class="alert alert-warning">
                             <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Warning!</h4>
-                            <p>This is a destructive action. Clicking this button will permanently reset all allocations on the floor map. All cells will be marked as 'available', and any links to pledges or payments will be removed from the grid.</p>
+                            <p>This is a destructive action. Clicking this button will permanently reset:</p>
+                            <ul>
+                                <li><strong>Floor Map:</strong> All allocated/blocked cells will be marked as 'available'</li>
+                                <li><strong>Custom Amount Tracking:</strong> All custom amount data will be reset to zero</li>
+                            </ul>
+                            <p>Any links to pledges or payments will be removed from the grid, and custom amount accumulation will start fresh.</p>
                             <hr>
                             <p class="mb-0">This cannot be undone. Use this tool only when you need a completely clean slate for testing.</p>
                         </div>
@@ -89,7 +126,7 @@ $csrf_token = csrf_token();
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-danger btn-lg">
-                                    <i class="fas fa-power-off me-2"></i>Reset All Floor Map Data
+                                    <i class="fas fa-power-off me-2"></i>Reset Floor Map & Custom Amounts
                                 </button>
                             </div>
                         </form>
