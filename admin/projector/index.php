@@ -47,6 +47,26 @@ if ($_POST && isset($_POST['action']) && $_POST['action'] === 'update_display_mo
     }
 }
 
+// Handle language update
+if ($_POST && isset($_POST['action']) && $_POST['action'] === 'update_language') {
+    $language = trim($_POST['projector_language'] ?? 'en');
+    
+    // Validate language
+    $valid_languages = ['en', 'am'];
+    if (in_array($language, $valid_languages)) {
+        $stmt = $db->prepare("UPDATE settings SET projector_language = ? WHERE id = 1");
+        $stmt->bind_param("s", $language);
+        
+        if ($stmt->execute()) {
+            $success_msg = "Projector language updated successfully!";
+        } else {
+            $error_msg = "Failed to update language.";
+        }
+    } else {
+        $error_msg = "Invalid language selected.";
+    }
+}
+
 // Get current footer message
 $result = $db->query("SELECT message, is_visible, updated_at FROM projector_footer WHERE id = 1");
 $current_footer = $result->fetch_assoc();
@@ -57,9 +77,10 @@ if (!$current_footer) {
 }
 
 // Get current settings including display mode
-$settings_result = $db->query("SELECT projector_display_mode FROM settings WHERE id = 1");
+$settings_result = $db->query("SELECT projector_display_mode, projector_language FROM settings WHERE id = 1");
 $current_settings = $settings_result->fetch_assoc();
 $current_display_mode = $current_settings['projector_display_mode'] ?? 'amount';
+$current_language = $current_settings['projector_language'] ?? 'en';
 ?>
 <!DOCTYPE html>
 <html lang="en">
