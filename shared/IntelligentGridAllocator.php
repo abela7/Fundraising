@@ -165,6 +165,136 @@ class IntelligentGridAllocator
     }
 
     /**
+     * Deallocates cells for a specific donation when it's unapproved.
+     * 
+     * @param int|null $pledgeId The pledge ID to deallocate (if pledge)
+     * @param int|null $paymentId The payment ID to deallocate (if payment)
+     * @return array Result of the deallocation
+     */
+    public function deallocate(?int $pledgeId, ?int $paymentId): array
+    {
+        try {
+            $this->db->begin_transaction();
+            
+            // Find all cells allocated to this donation
+            $allocatedCells = $this->findAllocatedCells($pledgeId, $paymentId);
+            
+            if (empty($allocatedCells)) {
+                $this->db->commit();
+                return ['success' => true, 'message' => 'No cells were allocated for this donation.', 'deallocated_cells' => []];
+            }
+            
+            // Free up the allocated cells
+            $this->freeCells($pledgeId, $paymentId);
+            
+            $this->db->commit();
+            
+            return [
+                'success' => true,
+                'message' => "Successfully deallocated " . count($allocatedCells) . " grid cell(s).",
+                'deallocated_cells' => array_column($allocatedCells, 'cell_id'),
+                'area_deallocated' => count($allocatedCells) * 0.25
+            ];
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            error_log("IntelligentGridAllocator Deallocation Error: " . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Finds all cells allocated to a specific donation.
+     */
+    private function findAllocatedCells(?int $pledgeId, ?int $paymentId): array
+    {
+        // Build the WHERE condition based on what IDs we have
+        $whereConditions = [];
+        $params = [];
+        $types = '';
+        
+        if ($pledgeId !== null) {
+            $whereConditions[] = "pledge_id = ?";
+            $params[] = $pledgeId;
+            $types .= 'i';
+        }
+        
+        if ($paymentId !== null) {
+            $whereConditions[] = "payment_id = ?";
+            $params[] = $paymentId;
+            $types .= 'i';
+        }
+        
+        if (empty($whereConditions)) {
+            return []; // No IDs provided
+        }
+        
+        $whereClause = implode(' OR ', $whereConditions);
+        
+        $sql = "
+            SELECT cell_id, status, pledge_id, payment_id, donor_name, amount
+            FROM floor_grid_cells
+            WHERE ($whereClause) AND status IN ('pledged', 'paid')
+            ORDER BY cell_id ASC
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+    
+    /**
+     * Frees up cells by resetting them to available status.
+     */
+    private function freeCells(?int $pledgeId, ?int $paymentId): void
+    {
+        // Build the WHERE condition based on what IDs we have
+        $whereConditions = [];
+        $params = [];
+        $types = '';
+        
+        if ($pledgeId !== null) {
+            $whereConditions[] = "pledge_id = ?";
+            $params[] = $pledgeId;
+            $types .= 'i';
+        }
+        
+        if ($paymentId !== null) {
+            $whereConditions[] = "payment_id = ?";
+            $params[] = $paymentId;
+            $types .= 'i';
+        }
+        
+        if (empty($whereConditions)) {
+            return; // No IDs provided
+        }
+        
+        $whereClause = implode(' OR ', $whereConditions);
+        
+        $sql = "
+            UPDATE floor_grid_cells
+            SET
+                status = 'available',
+                pledge_id = NULL,
+                payment_id = NULL,
+                donor_name = NULL,
+                amount = NULL,
+                assigned_date = NULL
+            WHERE ($whereClause) AND status IN ('pledged', 'paid')
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+    }
+
+    /**
      * Retrieves overall allocation statistics.
      */
     public function getAllocationStats(): array

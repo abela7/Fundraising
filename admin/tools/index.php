@@ -154,41 +154,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 border-warning">
                     <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-undo me-2 text-warning"></i>Test Floor Deallocation</h5>
-                        <p class="card-text">Test and monitor the floor cell deallocation system when donations are unapproved.</p>
-                        <a href="test_deallocation.php" class="btn btn-warning">Test Deallocation</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-play me-2 text-success"></i>Simple Deallocation Test</h5>
-                        <p class="card-text">Directly test the deallocation function with a pledge or payment.</p>
-                        <a href="simple_deallocation_test.php" class="btn btn-success">Test Function</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-bug me-2 text-secondary"></i>Debug Floor Table</h5>
-                        <p class="card-text">Check the database structure and sample data of the floor_grid_cells table.</p>
-                        <a href="debug_floor_table.php" class="btn btn-secondary">Debug Table</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-cogs me-2 text-info"></i>Test Deallocator Class</h5>
-                        <p class="card-text">Test if the IntelligentGridDeallocator class loads and works correctly.</p>
-                        <a href="test_deallocator_class.php" class="btn btn-info">Test Class</a>
+                        <h5 class="card-title"><i class="fas fa-undo me-2 text-warning"></i>Test Deallocation</h5>
+                        <p class="card-text">Test the robust deallocation system that frees up floor cells when donations are unapproved.</p>
+                        <a href="test_deallocation.php" class="btn btn-warning">Run Test</a>
                     </div>
                 </div>
             </div>

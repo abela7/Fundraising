@@ -1,317 +1,203 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
-require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../../shared/IntelligentGridDeallocator.php';
+require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
 require_login();
 require_admin();
 
-$page_title = 'Test Floor Deallocation';
 $db = db();
-$message = '';
-$error = '';
+$gridAllocator = new IntelligentGridAllocator($db);
 
-try {
-    // Get current floor allocation status - simplified query
-    $floorStatus = $db->query("
-        SELECT 
-            status,
-            COUNT(*) as count
-        FROM floor_grid_cells 
-        GROUP BY status
-    ")->fetch_all(MYSQLI_ASSOC);
-
-    // Get recent allocations - simplified query
-    $recentAllocations = $db->query("
-        SELECT 
-            cell_id,
-            status,
-            pledge_id,
-            payment_id,
-            donor_name,
-            amount
-        FROM floor_grid_cells 
-        WHERE status IN ('pledged', 'paid')
-        ORDER BY cell_id DESC
-        LIMIT 10
-    ")->fetch_all(MYSQLI_ASSOC);
-
-    // Get pledges that have floor allocations - simplified query
-    $allocatedPledges = $db->query("
-        SELECT DISTINCT
-            p.id,
-            p.amount,
-            p.donor_name,
-            p.status,
-            COUNT(fgc.cell_id) as allocated_cells
-        FROM pledges p
-        INNER JOIN floor_grid_cells fgc ON p.id = fgc.pledge_id
-        WHERE p.status = 'approved' AND fgc.status IN ('pledged', 'paid')
-        GROUP BY p.id
-        ORDER BY p.id DESC
-        LIMIT 10
-    ")->fetch_all(MYSQLI_ASSOC);
-
-    // Get payments that have floor allocations - simplified query
-    $allocatedPayments = $db->query("
-        SELECT DISTINCT
-            pay.id,
-            pay.amount,
-            pay.donor_name,
-            pay.status,
-            COUNT(fgc.cell_id) as allocated_cells
-        FROM payments pay
-        INNER JOIN floor_grid_cells fgc ON pay.id = fgc.payment_id
-        WHERE pay.status = 'approved' AND fgc.status IN ('pledged', 'paid')
-        GROUP BY pay.id
-        ORDER BY pay.id DESC
-        LIMIT 10
-    ")->fetch_all(MYSQLI_ASSOC);
-
-} catch (Exception $e) {
-    $error = 'Database Error: ' . $e->getMessage();
-    $floorStatus = [];
-    $recentAllocations = [];
-    $allocatedPledges = [];
-    $allocatedPayments = [];
+// Test the deallocation functionality
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    
+    if ($action === 'test_allocation') {
+        $amount = (float)($_POST['amount'] ?? 100);
+        $result = $gridAllocator->allocate(999999, null, $amount, null, 'Test Donor', 'pledged');
+        echo json_encode(['type' => 'allocation', 'result' => $result]);
+        exit;
+    }
+    
+    if ($action === 'test_deallocation') {
+        $pledgeId = (int)($_POST['pledge_id'] ?? 999999);
+        $result = $gridAllocator->deallocate($pledgeId, null);
+        echo json_encode(['type' => 'deallocation', 'result' => $result]);
+        exit;
+    }
+    
+    if ($action === 'get_stats') {
+        $stats = $gridAllocator->getAllocationStats();
+        echo json_encode(['type' => 'stats', 'result' => $stats]);
+        exit;
+    }
 }
-?>
 
+$page_title = 'Test Deallocation System';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($page_title) ?> - Fundraising System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title><?= htmlspecialchars($page_title) ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="../assets/admin.css" rel="stylesheet">
 </head>
-<body>
-    <div class="wrapper">
-        <?php include '../includes/sidebar.php'; ?>
+<body class="bg-light">
+    <?php include '../includes/sidebar.php'; ?>
+    
+    <div class="admin-content">
+        <?php include '../includes/topbar.php'; ?>
         
-        <div class="main">
-            <?php include '../includes/topbar.php'; ?>
-            
-            <main class="content">
-                <div class="container-fluid p-0">
-                    <h1 class="h3 mb-3"><?= htmlspecialchars($page_title) ?></h1>
-                    
-                    <?php if ($message): ?>
-                        <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
-                    <?php endif; ?>
-                    
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger">
-                            <strong>Error:</strong> <?= htmlspecialchars($error) ?>
-                            <br><br>
-                            <a href="debug_floor_table.php" class="btn btn-sm btn-secondary">
-                                <i class="fas fa-bug me-1"></i>Debug Database Structure
-                            </a>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Floor Status Overview -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-chart-pie me-2"></i>Floor Allocation Status
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <?php if (empty($floorStatus)): ?>
-                                        <p class="text-muted">No floor status data available.</p>
-                                    <?php else: ?>
-                                        <div class="row">
-                                            <?php foreach ($floorStatus as $status): ?>
-                                                <div class="col-md-3 mb-3">
-                                                    <div class="card bg-light">
-                                                        <div class="card-body text-center">
-                                                            <h4 class="text-primary"><?= $status['count'] ?></h4>
-                                                            <p class="mb-0 text-muted"><?= ucfirst($status['status']) ?></p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
+        <main class="main-content">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-flask me-2"></i>Test Deallocation System
+                                </h5>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Allocated Pledges -->
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-handshake me-2"></i>Pledges with Floor Allocations
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <?php if (empty($allocatedPledges)): ?>
-                                        <p class="text-muted">No pledges currently have floor allocations.</p>
-                                    <?php else: ?>
-                                        <div class="table-responsive">
-                                            <table class="table table-sm">
-                                                <thead>
-                                                    <tr>
-                                                        <th>ID</th>
-                                                        <th>Donor</th>
-                                                        <th>Amount</th>
-                                                        <th>Cells</th>
-                                                        <th>Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($allocatedPledges as $pledge): ?>
-                                                        <tr>
-                                                            <td><?= $pledge['id'] ?></td>
-                                                            <td><?= htmlspecialchars($pledge['donor_name']) ?></td>
-                                                            <td>£<?= number_format($pledge['amount'], 2) ?></td>
-                                                            <td><?= $pledge['allocated_cells'] ?></td>
-                                                            <td>
-                                                                <span class="badge bg-success"><?= ucfirst($pledge['status']) ?></span>
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Test Allocation</h6>
+                                        <div class="mb-3">
+                                            <label>Amount to Allocate:</label>
+                                            <input type="number" id="allocation-amount" value="100" class="form-control" step="25" min="25">
                                         </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Allocated Payments -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-credit-card me-2"></i>Payments with Floor Allocations
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <?php if (empty($allocatedPayments)): ?>
-                                        <p class="text-muted">No payments currently have floor allocations.</p>
-                                    <?php else: ?>
-                                        <div class="table-responsive">
-                                            <table class="table table-sm">
-                                                <thead>
-                                                    <tr>
-                                                        <th>ID</th>
-                                                        <th>Donor</th>
-                                                        <th>Amount</th>
-                                                        <th>Cells</th>
-                                                        <th>Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($allocatedPayments as $payment): ?>
-                                                        <tr>
-                                                            <td><?= $payment['id'] ?></td>
-                                                            <td><?= htmlspecialchars($payment['donor_name']) ?></td>
-                                                            <td>£<?= number_format($payment['amount'], 2) ?></td>
-                                                            <td><?= $payment['allocated_cells'] ?></td>
-                                                            <td>
-                                                                <span class="badge bg-success"><?= ucfirst($payment['status']) ?></span>
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
+                                        <button class="btn btn-success" onclick="testAllocation()">
+                                            <i class="fas fa-plus me-1"></i>Allocate Test Cells
+                                        </button>
+                                        
+                                        <hr>
+                                        
+                                        <h6>Test Deallocation</h6>
+                                        <div class="mb-3">
+                                            <label>Pledge ID to Deallocate:</label>
+                                            <input type="number" id="pledge-id" value="999999" class="form-control">
                                         </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Allocations -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-list me-2"></i>Recent Floor Allocations
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <?php if (empty($recentAllocations)): ?>
-                                        <p class="text-muted">No recent floor allocations found.</p>
-                                    <?php else: ?>
-                                        <div class="table-responsive">
-                                            <table class="table table-sm">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Cell ID</th>
-                                                        <th>Status</th>
-                                                        <th>Pledge ID</th>
-                                                        <th>Payment ID</th>
-                                                        <th>Donor</th>
-                                                        <th>Amount</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($recentAllocations as $allocation): ?>
-                                                        <tr>
-                                                            <td><code><?= htmlspecialchars($allocation['cell_id']) ?></code></td>
-                                                            <td>
-                                                                <span class="badge bg-<?= $allocation['status'] === 'paid' ? 'success' : 'warning' ?>">
-                                                                    <?= ucfirst($allocation['status']) ?>
-                                                                </span>
-                                                            </td>
-                                                            <td><?= $allocation['pledge_id'] ?: '-' ?></td>
-                                                            <td><?= $allocation['payment_id'] ?: '-' ?></td>
-                                                            <td><?= htmlspecialchars($allocation['donor_name'] ?? 'Unknown') ?></td>
-                                                            <td>£<?= number_format($allocation['amount'] ?? 0, 2) ?></td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
+                                        <button class="btn btn-danger" onclick="testDeallocation()">
+                                            <i class="fas fa-minus me-1"></i>Deallocate Test Cells
+                                        </button>
+                                        
+                                        <hr>
+                                        
+                                        <button class="btn btn-info" onclick="getStats()">
+                                            <i class="fas fa-chart-bar me-1"></i>Get Current Stats
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <h6>Results</h6>
+                                        <div id="results" class="bg-dark text-light p-3 rounded" style="height: 400px; overflow-y: auto; font-family: monospace;">
+                                            <div class="text-muted">Test results will appear here...</div>
                                         </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Test Deallocation -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-test-tube me-2"></i>Test Deallocation
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>How to test:</strong>
-                                        <ol class="mb-0 mt-2">
-                                            <li>Go to <a href="../approved/" target="_blank">Approved Items</a></li>
-                                            <li>Find a pledge or payment with floor allocations</li>
-                                            <li>Click the undo button (↶) to unapprove it</li>
-                                            <li>Check this page again to see the cells become available</li>
-                                            <li>Or check the <a href="../../public/projector/floor/" target="_blank">Floor Map</a></li>
-                                        </ol>
+                                        
+                                        <div class="mt-3">
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="clearResults()">
+                                                <i class="fas fa-eraser me-1"></i>Clear Results
+                                            </button>
+                                            <a href="../../public/projector/floor/" target="_blank" class="btn btn-outline-success btn-sm">
+                                                <i class="fas fa-eye me-1"></i>View Floor Map
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/admin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function logResult(message, data = null) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span class="text-warning">[${timestamp}]</span> ${message}`;
+            if (data) {
+                logEntry.innerHTML += `<pre class="mt-1 mb-1">${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            results.appendChild(logEntry);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function testAllocation() {
+            const amount = document.getElementById('allocation-amount').value;
+            logResult(`🔄 Testing allocation of £${amount}...`);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=test_allocation&amount=${amount}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result.success) {
+                    logResult(`✅ Allocation successful!`, data.result);
+                } else {
+                    logResult(`❌ Allocation failed!`, data.result);
+                }
+            })
+            .catch(error => {
+                logResult(`💥 Error: ${error.message}`);
+            });
+        }
+
+        function testDeallocation() {
+            const pledgeId = document.getElementById('pledge-id').value;
+            logResult(`🔄 Testing deallocation of pledge ID ${pledgeId}...`);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=test_deallocation&pledge_id=${pledgeId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result.success) {
+                    logResult(`✅ Deallocation successful!`, data.result);
+                } else {
+                    logResult(`❌ Deallocation failed!`, data.result);
+                }
+            })
+            .catch(error => {
+                logResult(`💥 Error: ${error.message}`);
+            });
+        }
+
+        function getStats() {
+            logResult(`🔄 Getting current allocation stats...`);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=get_stats`
+            })
+            .then(response => response.json())
+            .then(data => {
+                logResult(`📊 Current Statistics:`, data.result);
+            })
+            .catch(error => {
+                logResult(`💥 Error: ${error.message}`);
+            });
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '<div class="text-muted">Test results will appear here...</div>';
+        }
+
+        // Auto-load stats on page load
+        window.onload = function() {
+            setTimeout(getStats, 500);
+        };
+    </script>
 </body>
 </html>

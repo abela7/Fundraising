@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../../shared/IntelligentGridDeallocator.php';
+require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
 require_login();
 require_admin();
 
@@ -57,12 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
-                // Free up floor grid cells for this pledge
-                $gridDeallocator = new IntelligentGridDeallocator($db);
-                $deallocationResult = $gridDeallocator->deallocatePledge($pledgeId);
-                
+                // Deallocate floor grid cells for this pledge
+                $gridAllocator = new IntelligentGridAllocator($db);
+                $deallocationResult = $gridAllocator->deallocate($pledgeId, null);
                 if (!$deallocationResult['success']) {
-                    error_log("Floor deallocation failed for pledge {$pledgeId}: " . $deallocationResult['error']);
+                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
                 }
 
                 // Note: payments are standalone; no pledge_id linkage anymore
@@ -124,14 +123,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
-
-                // Free up floor grid cells for this pledge
-                $gridDeallocator = new IntelligentGridDeallocator($db);
-                $deallocationResult = $gridDeallocator->deallocatePledge($pledgeId);
-                
-                if (!$deallocationResult['success']) {
-                    error_log("Floor deallocation failed for pledge {$pledgeId}: " . $deallocationResult['error']);
-                }
 
                 // Prefer explicit package selection; fallback to sqm-meters match
                 $pkgId = $packageId;
@@ -204,14 +195,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
 
-                // Free up floor grid cells for this payment
-                $gridDeallocator = new IntelligentGridDeallocator($db);
-                $deallocationResult = $gridDeallocator->deallocatePayment($paymentId);
-                
-                if (!$deallocationResult['success']) {
-                    error_log("Floor deallocation failed for payment {$paymentId}: " . $deallocationResult['error']);
-                }
-
                 // Audit log
                 $uid = (int)(current_user()['id'] ?? 0);
                 $before = json_encode(['status' => 'approved', 'amount' => $amountOld], JSON_UNESCAPED_SLASHES);
@@ -259,6 +242,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $grandDelta = $delta;
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
+
+                // Deallocate floor grid cells for this payment
+                $gridAllocator = new IntelligentGridAllocator($db);
+                $deallocationResult = $gridAllocator->deallocate(null, $paymentId);
+                if (!$deallocationResult['success']) {
+                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                }
 
                 // Audit
                 $uid = (int)(current_user()['id'] ?? 0);
