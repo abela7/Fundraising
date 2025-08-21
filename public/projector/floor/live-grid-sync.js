@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const GridSync = {
         // Configuration
         apiUrl: '/api/grid_status.php',
-        pollInterval: 5000, // Fetch updates every 5 seconds
+        pollInterval: 2000, // Fetch updates every 2 seconds for faster response
         allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
         // State
@@ -90,14 +90,32 @@ document.addEventListener('DOMContentLoaded', () => {
         updateGrid(allocatedData) {
             console.time('GridSync: Update Duration');
             
-            // First, reset all cells that might have a status
-            const styledCells = document.querySelectorAll('.cell-pledged, .cell-paid');
-            styledCells.forEach(cell => {
+            // First, reset ALL previously allocated cells to their original state
+            const allAllocatedCells = document.querySelectorAll('.cell-allocated, .cell-pledged, .cell-paid, .cell-blocked');
+            allAllocatedCells.forEach(cell => {
                 cell.style.backgroundColor = '';
-                cell.classList.remove('cell-pledged', 'cell-paid');
+                cell.style.transition = '';
+                cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked');
             });
             
+            // Also reset any cells that might have inline background colors from previous allocations
+            const allCells = document.querySelectorAll('.grid-tile-quarter');
+            allCells.forEach(cell => {
+                if (cell.style.backgroundColor && cell.style.backgroundColor !== '') {
+                    // Only reset if it's not a natural hover/default state
+                    if (cell.style.backgroundColor === this.allocationColor || 
+                        cell.style.backgroundColor === 'rgb(226, 202, 24)') {
+                        cell.style.backgroundColor = '';
+                        cell.style.transition = '';
+                        cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked');
+                    }
+                }
+            });
+            
+            console.log(`GridSync: Reset all previously allocated cells`);
+            
             // Apply new statuses
+            let allocatedCount = 0;
             for (const rectangleId in allocatedData) {
                 const cells = allocatedData[rectangleId];
                 if (Array.isArray(cells)) {
@@ -110,14 +128,21 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (cellData.status === 'pledged' || cellData.status === 'paid') {
                                 cellElement.style.backgroundColor = this.allocationColor;
                                 cellElement.classList.add('cell-allocated');
+                                allocatedCount++;
+                            } else if (cellData.status === 'blocked') {
+                                // Handle blocked cells (same color but different class for debugging)
+                                cellElement.style.backgroundColor = this.allocationColor;
+                                cellElement.classList.add('cell-blocked');
+                                allocatedCount++;
                             }
                         } else {
-                            // This warning is expected if a rectangle has no allocated cells yet.
-                            // console.warn(`GridSync: Cell ID "${cellData.cell_id}" found in data but not in DOM.`);
+                            console.warn(`GridSync: Cell ID "${cellData.cell_id}" found in data but not in DOM.`);
                         }
                     });
                 }
             }
+            
+            console.log(`GridSync: Applied allocation styling to ${allocatedCount} cells`);
             console.timeEnd('GridSync: Update Duration');
         },
 

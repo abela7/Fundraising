@@ -156,7 +156,7 @@ class IntelligentGridAllocator
         $sql = "
             SELECT cell_id, rectangle_id, cell_type, area_size, status, donor_name, amount, assigned_date
             FROM floor_grid_cells 
-            WHERE status IN ('pledged', 'paid')
+            WHERE status IN ('pledged', 'paid', 'blocked')
             ORDER BY rectangle_id, assigned_date
         ";
         
@@ -234,7 +234,7 @@ class IntelligentGridAllocator
         $sql = "
             SELECT cell_id, status, pledge_id, payment_id, donor_name, amount
             FROM floor_grid_cells
-            WHERE ($whereClause) AND status IN ('pledged', 'paid')
+            WHERE ($whereClause) AND status IN ('pledged', 'paid', 'blocked')
             ORDER BY cell_id ASC
         ";
         
@@ -284,7 +284,7 @@ class IntelligentGridAllocator
                 donor_name = NULL,
                 amount = NULL,
                 assigned_date = NULL
-            WHERE ($whereClause) AND status IN ('pledged', 'paid')
+            WHERE ($whereClause) AND status IN ('pledged', 'paid', 'blocked')
         ";
         
         $stmt = $this->db->prepare($sql);

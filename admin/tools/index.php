@@ -164,6 +164,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 border-success">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-recycle me-2 text-success"></i>Test Full Cycle</h5>
+                        <p class="card-text">Test the complete allocation/deallocation cycle to verify the approve/unapprove system works perfectly.</p>
+                        <a href="test_allocation_cycle.php" class="btn btn-success">Run Test</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100 border-danger">
                     <div class="card-body">
                         <h5 class="card-title"><i class="fas fa-power-off me-2 text-danger"></i>Reset Floor Map</h5>
