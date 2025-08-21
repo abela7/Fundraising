@@ -1,265 +1,302 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../../config/db.php';
+require_once '../../config/db.php';
+require_once '../../config/env.php';
 
 // Fetch settings from the database
-$settings_query = db()->query('SELECT projector_names_mode, refresh_seconds, target_amount, currency_code, projector_language FROM settings WHERE id=1');
-$settings = $settings_query ? $settings_query->fetch_assoc() : null;
+$settings_query = "SELECT projector_language, refresh_rate, target_amount, currency FROM settings WHERE id = 1";
+$settings_stmt = $pdo->query($settings_query);
+$settings = $settings_stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$settings) {
-    // Use defaults if no settings found
-    $settings = [
-        'projector_names_mode' => 'full',
-        'refresh_seconds' => 10,
-        'target_amount' => 100000,
-        'currency_code' => 'GBP',
-        'projector_language' => 'en' // Default language
-    ];
-}
-
-$refresh = max(1, (int)$settings['refresh_seconds']);
-$currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
-$target = (float)$settings['target_amount'];
-$initial_lang = htmlspecialchars($settings['projector_language'] ?? 'en', ENT_QUOTES, 'UTF-8');
+$projector_language = $settings['projector_language'] ?? 'en';
+$refresh_rate = $settings['refresh_rate'] ?? 5000;
+$target_amount = $settings['target_amount'] ?? 100000;
+$currency = $settings['currency'] ?? 'GBP';
 
 // Load language files
-$lang_en_path = __DIR__ . '/lang/en.json';
-$lang_am_path = __DIR__ . '/lang/am.json';
+$lang_en = json_decode(file_get_contents('lang/en.json'), true);
+$lang_am = json_decode(file_get_contents('lang/am.json'), true);
 
-$translations = [
-    'en' => file_exists($lang_en_path) ? json_decode(file_get_contents($lang_en_path), true) : [],
-    'am' => file_exists($lang_am_path) ? json_decode(file_get_contents($lang_am_path), true) : []
-];
+$lang = ($projector_language === 'am') ? $lang_am : $lang_en;
+
 ?>
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title data-lang-key="live_fundraising_display">Live Fundraising Display</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./assets/projector-live.css">
-    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
-    <link rel="alternate icon" href="../../favicon.ico">
-    <style>
-        .lang-switcher { position: fixed; top: 15px; right: 80px; z-index: 1100; display: flex; gap: 5px; }
-        .lang-switcher button { background: rgba(0,0,0,0.4); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 14px; }
-        .lang-switcher button.active { background: #fff; color: #000; }
-    </style>
-</head>
-<body>
-    <div class="lang-switcher">
-        <button id="lang-en" data-lang="en">EN</button>
-        <button id="lang-am" data-lang="am">አማ</button>
-    </div>
+<html lang="<?php echo $projector_language; ?>">
 
-    <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle Fullscreen (F)">
-        <i class="fas fa-expand"></i>
-        <span class="label" data-lang-key="fullscreen">Fullscreen</span>
-    </button>
-    
-    <header class="progress-header">
-        <div class="progress-container">
-            <div class="progress-info">
-                <h1 class="campaign-title" data-lang-key="campaign_title">Live Fundraising Campaign</h1>
-                <div class="progress-stats">
-                    <span class="progress-current"><?= $currency ?> <span id="progressCurrent">0</span></span>
-                    <span class="progress-separator" data-lang-key="of">of</span>
-                    <span class="progress-target"><?= $currency ?> <?= number_format($target, 0) ?></span>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $lang['live_fundraising_display']; ?></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../../favicon.ico" type="image/x-icon">
+</head>
+
+<body>
+    <div class="container">
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="totals">
+                    <div class="total-card">
+                        <div class="icon"><i class="fas fa-check-circle"></i></div>
+                        <div>
+                            <div class="title" data-lang-key="total_paid"><?php echo $lang['total_paid']; ?></div>
+                            <div class="amount" id="total-paid">--</div>
+                        </div>
+                    </div>
+                    <div class="total-card">
+                        <div class="icon"><i class="fas fa-church"></i></div>
+                        <div>
+                            <div class="title" data-lang-key="total_pledged"><?php echo $lang['total_pledged']; ?></div>
+                            <div class="amount" id="total-pledged">--</div>
+                        </div>
+                    </div>
+                    <div class="total-card">
+                        <div class="icon"><i class="fas fa-trophy"></i></div>
+                        <div>
+                            <div class="title" data-lang-key="grand_total"><?php echo $lang['grand_total']; ?></div>
+                            <div class="amount" id="grand-total">--</div>
+                        </div>
+                    </div>
                 </div>
+                <div class="time-and-lang">
+                    <div id="live-clock" class="live-clock"></div>
+                    <div class="language-switcher">
+                        <button id="lang-en" class="lang-btn <?php echo ($projector_language === 'en') ? 'active' : ''; ?>" onclick="setLanguage('en')">EN</button>
+                        <button id="lang-am" class="lang-btn <?php echo ($projector_language === 'am') ? 'active' : ''; ?>" onclick="setLanguage('am')">አማ</button>
+                    </div>
+                </div>
+            </div>
+            <div class="right-panel">
+                <div id="live-updates" class="live-updates-container">
+                    <div id="waiting-message" data-lang-key="waiting_for_contributions">
+                        <?php echo $lang['waiting_for_contributions']; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="live-update-badge">
+                <span class="live-dot"></span> <span data-lang-key="live_update"><?php echo $lang['live_update']; ?></span>
             </div>
             <div class="progress-bar-container">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressBar"></div>
-                    <div class="progress-shimmer"></div>
+                <div id="progress-bar" class="progress-bar"></div>
+                <div id="loading-bar-text" class="loading-text" data-lang-key="loading">
+                    <?php echo $lang['loading']; ?>
                 </div>
-                <div class="progress-percentage" id="progressPercent">0%</div>
+                <div id="progress-percentage" class="progress-percentage">0%</div>
             </div>
-        </div>
-    </header>
-
-    <main class="main-content">
-        <aside class="totals-panel">
-            <div class="total-card paid-card">
-                <div class="card-header">
-                    <i class="fas fa-check-circle"></i>
-                    <h3 data-lang-key="total_paid">Total Paid</h3>
-                </div>
-                <div class="card-value">
-                    <span class="currency"><?= $currency ?></span>
-                    <span class="amount" id="paidTotal">0</span>
-                </div>
-            </div>
-
-            <div class="total-card pledged-card">
-                <div class="card-header">
-                    <i class="fas fa-church"></i>
-                    <h3 data-lang-key="total_pledged">Total Pledged</h3>
-                </div>
-                <div class="card-value">
-                    <span class="currency"><?= $currency ?></span>
-                    <span class="amount" id="pledgedTotal">0</span>
-                </div>
-            </div>
-
-            <div class="total-card grand-card">
-                <div class="card-header">
-                    <i class="fas fa-trophy"></i>
-                    <h3 data-lang-key="grand_total">Grand Total</h3>
-                </div>
-                <div class="card-value">
-                    <span class="currency"><?= $currency ?></span>
-                    <span class="amount" id="grandTotal">0</span>
-                </div>
-            </div>
-
-            <div class="live-info">
-                <div class="live-clock">
-                    <i class="fas fa-clock"></i>
-                    <span id="clock">00:00:00</span>
-                </div>
-                <div class="live-status">
-                    <span class="status-dot"></span>
-                    <span data-lang-key="live">LIVE</span>
-                </div>
-            </div>
-        </aside>
-
-        <section class="contributions-panel">
-            <div class="contributions-list" id="contributionsList">
-                <div class="loading-message">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span data-lang-key="waiting_for_contributions">Waiting for contributions...</span>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="message-footer" id="messageFooter">
-        <div class="footer-content">
-            <div class="ticker-content">
-                <i class="fas fa-info-circle"></i>
-                <span id="footerMessage" data-lang-key="loading">Loading...</span>
-            </div>
-        </div>
-    </footer>
-
-    <div class="effects-container" id="effectsContainer"></div>
-
-    <div class="announcement-overlay" id="announcementOverlay">
-        <div class="announcement-content">
-            <div class="announcement-icon"><i class="fas fa-bullhorn"></i></div>
-            <div class="announcement-text" id="announcementText"></div>
+            <div id="celebration" class="celebration">🎉 Target Reached! 🎉</div>
         </div>
     </div>
 
-<script>
-    const config = {
-        refresh: <?= (int)$refresh ?> * 1000,
-        currency: <?= json_encode($currency) ?>,
-        target: <?= $target ?>,
-        initialLang: <?= json_encode($initial_lang) ?>
-    };
+    <script>
+        const config = {
+            refreshRate: <?php echo $refresh_rate; ?>,
+            target: <?php echo $target_amount; ?>,
+            currency: '<?php echo $currency; ?>'
+        };
 
-    const translations = <?= json_encode($translations) ?>;
-    let currentLang = config.initialLang;
+        const translations = {
+            en: <?php echo json_encode($lang_en); ?>,
+            am: <?php echo json_encode($lang_am); ?>
+        };
 
-    function setLanguage(lang) {
-        if (!translations[lang]) return;
-        currentLang = lang;
-        
-        document.querySelectorAll('[data-lang-key]').forEach(el => {
-            const key = el.getAttribute('data-lang-key');
-            if (translations[lang][key]) {
-                el.textContent = translations[lang][key];
-            }
-        });
+        let currentLanguage = '<?php echo $projector_language; ?>';
 
-        // Update title tag
-        const titleKey = document.title.getAttribute('data-lang-key');
-        if (titleKey && translations[lang][titleKey]) {
-            document.title = translations[lang][titleKey];
+        const state = {
+            totalPaid: 0,
+            totalPledged: 0,
+            grandTotal: 0,
+            lastId: 0,
+            displayedIds: new Set()
+        };
+
+        const totalPaidElement = document.getElementById('total-paid');
+        const totalPledgedElement = document.getElementById('total-pledged');
+        const grandTotalElement = document.getElementById('grand-total');
+        const liveUpdatesContainer = document.getElementById('live-updates');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const loadingBarText = document.getElementById('loading-bar-text');
+        const celebrationElement = document.getElementById('celebration');
+
+        function formatCurrency(amount, currency) {
+            return `${currency} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
-        // Update button active state
-        document.getElementById('lang-en').classList.toggle('active', lang === 'en');
-        document.getElementById('lang-am').classList.toggle('active', lang === 'am');
+        function animateNumber(element, start, end, currency) {
+            const duration = 1000;
+            const range = end - start;
+            let startTime = null;
 
-        // Re-render contributions with new language
-        renderContributions(state.contributions);
-    }
+            function step(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                const current = start + range * progress;
+                element.textContent = formatCurrency(current, currency);
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    element.textContent = formatCurrency(end, currency);
+                }
+            }
+            requestAnimationFrame(step);
+        }
 
-    document.getElementById('lang-en').addEventListener('click', () => setLanguage('en'));
-    document.getElementById('lang-am').addEventListener('click', () => setLanguage('am'));
+        function updateLiveClock() {
+            const clockElement = document.getElementById('live-clock');
+            const now = new Date();
+            clockElement.textContent = now.toLocaleTimeString();
+        }
 
-    // ... (rest of your existing JavaScript)
+        function updateProgressBar(current, target) {
+            const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            progressBar.style.width = `${percentage}%`;
+            progressPercentage.textContent = `${Math.floor(percentage)}%`;
 
-    let state = {
-        paid: 0,
-        pledged: 0,
-        grand: 0,
-        progress: 0,
-        contributions: [],
-        userScrolled: false,
-        scrollTimeout: null,
-        isUpdating: false,
-        displayMode: null
-    };
+            if (percentage >= 100) {
+                celebrationElement.style.display = 'block';
+            } else {
+                celebrationElement.style.display = 'none';
+            }
+        }
 
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('en-US', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(amount);
-    }
+        function getAnonymousText() {
+            return translations[currentLanguage]['anonymous_contribution'];
+        }
 
-    function updateClock() {
-        const now = new Date();
-        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    }
+        function getStatusText(status) {
+            const key = status.toLowerCase();
+            return translations[currentLanguage][key] || status;
+        }
 
-    function animateNumber(element, start, end, duration = 1000) {
-        const startTime = performance.now();
-        const update = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easeOutCubic = 1 - Math.pow(1 - progress, 3);
-            const current = start + (end - start) * easeOutCubic;
-            element.textContent = formatCurrency(current);
-            if (progress < 1) requestAnimationFrame(update);
-        };
-        requestAnimationFrame(update);
-    }
-    
-    function renderContributions(contributions) {
-        const list = document.getElementById('contributionsList');
-        // ... (code to build contribution items)
-        // Inside the loop where you create a contribution item:
-        const statusText = item.type === 'pledge' ? translations[currentLang].pledged : translations[currentLang].paid;
-        // ... use statusText when creating the element
-    }
+        function createCard(name, amount, status, statusText, item) {
+            const card = document.createElement('div');
+            card.className = `live-update-card ${status}`;
+            
+            const nameElement = document.createElement('div');
+            nameElement.className = 'name';
+            if (!item.name) {
+                nameElement.dataset.langKey = 'anonymous_contribution';
+            }
+            nameElement.textContent = name;
 
-    // Initialize everything on page load
-    document.addEventListener('DOMContentLoaded', () => {
-        setLanguage(config.initialLang);
-        updateClock();
-        setInterval(updateClock, 1000);
-        // ... rest of your initialization code
-    });
+            const amountElement = document.createElement('div');
+            amountElement.className = 'amount';
+            amountElement.textContent = formatCurrency(parseFloat(amount), config.currency);
 
-    // Make sure to replace hardcoded text inside your other functions as well,
-    // for example, in the renderContributions function:
-    function getStatusText(type) {
-        return type === 'pledge' ? translations[currentLang].pledged : translations[currentLang].paid;
-    }
-    
-    function getAnonymousText() {
-        return translations[currentLang].anonymous;
-    }
+            const cardContent = document.createElement('div');
+            cardContent.className = 'card-content';
+            cardContent.appendChild(nameElement);
+            cardContent.appendChild(amountElement);
 
-</script>
+            const statusBadge = document.createElement('div');
+            statusBadge.className = 'status-badge';
+            statusBadge.dataset.langKey = status.toLowerCase();
+            statusBadge.textContent = statusText;
+
+            card.appendChild(cardContent);
+            card.appendChild(statusBadge);
+
+            return card;
+        }
+
+        function flashCard(card) {
+            card.classList.add('flash');
+            setTimeout(() => card.classList.remove('flash'), 1000);
+        }
+
+        function updateTotals(paid, pledged, grand) {
+            const currentPaid = parseFloat(paid);
+            const currentPledged = parseFloat(pledged);
+            const currentGrand = parseFloat(grand);
+
+            animateNumber(totalPaidElement, state.totalPaid, currentPaid, config.currency);
+            animateNumber(totalPledgedElement, state.totalPledged, currentPledged, config.currency);
+            animateNumber(grandTotalElement, state.grandTotal, currentGrand, config.currency);
+
+            state.totalPaid = currentPaid;
+            state.totalPledged = currentPledged;
+            state.grandTotal = currentGrand;
+
+            updateProgressBar(currentGrand, config.target);
+        }
+
+        async function fetchData() {
+            try {
+                // Fetch totals
+                const totalsResponse = await fetch('../../api/totals.php');
+                const totals = await totalsResponse.json();
+                updateTotals(totals.total_paid, totals.total_pledged, totals.grand_total);
+
+                // Fetch recent contributions
+                const response = await fetch(`../../api/recent.php?since=${state.lastId}`);
+                const result = await response.json();
+
+                if (loadingBarText.style.display !== 'none') {
+                    loadingBarText.style.display = 'none';
+                }
+
+                if (result.length > 0) {
+                    if (document.getElementById('waiting-message')) {
+                        document.getElementById('waiting-message').style.display = 'none';
+                    }
+                    state.lastId = result[0].id;
+                    result.reverse().forEach(item => {
+                        const isNew = !state.displayedIds.has(item.id);
+                        if (isNew) {
+                            const name = item.name ? item.name : getAnonymousText();
+                            const statusText = getStatusText(item.status);
+                            const card = createCard(name, item.amount, item.status, statusText, item);
+                            liveUpdatesContainer.prepend(card);
+                            state.displayedIds.add(item.id);
+                            flashCard(card);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            document.documentElement.lang = lang;
+
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+
+            // Update dynamically created cards
+            document.querySelectorAll('.live-update-card').forEach(card => {
+                const nameEl = card.querySelector('.name');
+                if (nameEl && nameEl.dataset.langKey === 'anonymous_contribution') {
+                    nameEl.textContent = getAnonymousText();
+                }
+
+                const statusEl = card.querySelector('.status-badge');
+                if (statusEl && statusEl.dataset.langKey) {
+                    const statusKey = statusEl.dataset.langKey;
+                    statusEl.textContent = getStatusText(statusKey);
+                }
+            });
+
+            document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+            document.getElementById('lang-am').classList.toggle('active', lang === 'am');
+        }
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            setInterval(fetchData, config.refreshRate);
+            updateLiveClock();
+            setInterval(updateLiveClock, 1000);
+        });
+    </script>
 </body>
+
 </html>
