@@ -431,8 +431,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <option value="">Select method...</option>
                                 <option value="cash">Cash</option>
                                 <option value="card">Card</option>
-                                <option value="transfer">Bank Transfer</option>
-                                <option value="cheque">Cheque</option>
+                                <option value="bank">Bank Transfer</option>
+                                <option value="other">Other</option>
                             </select>
                         </div>
                         

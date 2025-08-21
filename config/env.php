@@ -1,11 +1,16 @@
 <?php
 declare(strict_types=1);
 
-// Live production configuration (hardcoded)
-define('DB_HOST', 'localhost');
-define('DB_USER', 'abunetdg_abela');
-define('DB_PASS', '2424@Admin');
-define('DB_NAME', 'abunetdg_fundraising');
+// Check for local configuration first (for development)
+if (file_exists(__DIR__ . '/env.local.php')) {
+    require_once __DIR__ . '/env.local.php';
+} else {
+    // Live production configuration (hardcoded)
+    define('DB_HOST', 'localhost');
+    define('DB_USER', 'abunetdg_abela');
+    define('DB_PASS', '2424@Admin');
+    define('DB_NAME', 'abunetdg_fundraising');
+}
 
 date_default_timezone_set('Africa/Addis_Ababa');
 

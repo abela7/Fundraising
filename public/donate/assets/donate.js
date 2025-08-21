@@ -164,7 +164,7 @@ function setupSubmissionHandler() {
         // Duplicate check via API (only if we have a phone to check)
         if (normalized && /^07\d{9}$/.test(normalized)) {
             try {
-                const resp = await fetch('/api/check_donor.php?phone=' + encodeURIComponent(normalized));
+                const resp = await fetch('../../api/check_donor.php?phone=' + encodeURIComponent(normalized));
                 if (resp.ok) {
                     const data = await resp.json();
                     if (data.exists) {
