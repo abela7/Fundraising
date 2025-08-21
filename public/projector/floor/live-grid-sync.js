@@ -54,50 +54,34 @@ document.addEventListener('DOMContentLoaded', () => {
          * Starts the polling process to fetch live data.
          */
         startPolling() {
-            this.fetchCellData(); // Initial fetch for the map
-            this.fetchSummaryData(); // Initial fetch for the info panel
-            setInterval(() => {
-                this.fetchCellData();
-                this.fetchSummaryData();
-            }, this.pollInterval);
+            this.fetchAndUpdate(); // Initial fetch
+            setInterval(() => this.fetchAndUpdate(), this.pollInterval);
         },
         
         /**
-         * Fetches the detailed cell allocation data for coloring the map.
+         * Fetches data from the API and updates the grid visuals.
          */
-        async fetchCellData() {
+        async fetchAndUpdate() {
+            console.log('GridSync: Fetching latest grid status...');
             try {
                 const response = await fetch(this.apiUrl);
-                if (!response.ok) throw new Error(`API error ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
                 const data = await response.json();
+                
                 if (data.success && data.data && data.data.grid_cells) {
-                    this.updateGrid(data.data.grid_cells);
+                    const cellData = data.data.grid_cells;
+                    console.log(`GridSync: Received ${Object.keys(cellData).length} rectangles with allocations.`);
+                    this.updateGrid(cellData);
                 } else {
-                    console.error('GridSync: Failed to get cell data.', data);
+                    console.error('GridSync: API response was not successful or "grid_cells" data is missing.', data);
                 }
             } catch (error) {
-                console.error('GridSync: Error fetching cell data:', error);
+                console.error('GridSync: Error fetching or parsing data:', error);
             }
         },
-
-        /**
-         * Fetches the summary statistics to populate the info panel.
-         */
-        async fetchSummaryData() {
-            try {
-                const response = await fetch(`${this.apiUrl}?format=summary`);
-                if (!response.ok) throw new Error(`API error ${response.status}`);
-                const data = await response.json();
-                if (data.success && data.data && data.data.statistics) {
-                    this.updateInfoPanel(data.data.statistics);
-                } else {
-                    console.error('GridSync: Failed to get summary data.', data);
-                }
-            } catch (error) {
-                console.error('GridSync: Error fetching summary data:', error);
-            }
-        },
-
+        
         /**
          * Updates the DOM based on the fetched grid data.
          * @param {object} allocatedData - The grid_cells object from the API.
@@ -134,25 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             console.timeEnd('GridSync: Update Duration');
-        },
-
-        /**
-         * Updates the info panel with the latest statistics.
-         * @param {object} stats - The statistics object from the API.
-         */
-        updateInfoPanel(stats) {
-            document.getElementById('allocated-area').textContent = parseFloat(stats.allocated_area_sqm).toFixed(2);
-            document.getElementById('total-area').textContent = parseFloat(stats.total_area_sqm).toFixed(2);
-            
-            const progressBar = document.getElementById('progress-bar-fill');
-            if (progressBar) {
-                progressBar.style.width = `${stats.progress_percentage}%`;
-            }
-
-            document.getElementById('paid-cells').textContent = stats.paid_cells;
-            document.getElementById('pledged-cells').textContent = stats.pledged_cells;
-            document.getElementById('total-allocated-cells').textContent = stats.paid_cells + stats.pledged_cells;
-            document.getElementById('available-cells').textContent = stats.available_cells;
         }
     };
     
