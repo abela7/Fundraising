@@ -136,32 +136,32 @@
   }
 
   .coverage-numbers {
-    font-size: calc(var(--m) * 0.6);
+    font-size: calc(var(--m) * 0.8);
     font-weight: 700;
     color: #ffd700;
     line-height: 1;
     text-align: center;
-    margin-bottom: calc(var(--m) * 0.1);
+    margin-bottom: calc(var(--m) * 0.12);
     letter-spacing: 1px;
   }
 
   .coverage-label {
-    font-size: calc(var(--m) * 0.2);
+    font-size: calc(var(--m) * 0.28);
     color: #8b949e;
     text-transform: uppercase;
     letter-spacing: 2px;
     text-align: center;
-    margin-bottom: calc(var(--m) * 0.25);
-    font-weight: 400;
+    margin-bottom: calc(var(--m) * 0.3);
+    font-weight: 500;
   }
 
   .progress-bar {
     width: calc(var(--m) * 10);
-    height: calc(var(--m) * 0.12);
+    height: calc(var(--m) * 0.16);
     background: #334155;
     border-radius: 0;
     overflow: hidden;
-    margin-bottom: calc(var(--m) * 0.2);
+    margin-bottom: calc(var(--m) * 0.25);
   }
 
   .progress-fill {
@@ -173,12 +173,12 @@
   }
 
   .percentage {
-    font-size: calc(var(--m) * 0.4);
+    font-size: calc(var(--m) * 0.55);
     color: #ffffff;
     text-align: center;
     line-height: 1;
-    font-weight: 400;
-    margin-top: calc(var(--m) * 0.05);
+    font-weight: 500;
+    margin-top: calc(var(--m) * 0.08);
   }
 
   /* All UI elements removed for clean game design */
