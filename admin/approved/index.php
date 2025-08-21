@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/IntelligentGridDeallocator.php';
 require_login();
 require_admin();
 
@@ -58,16 +59,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Note: payments are standalone; no pledge_id linkage anymore
 
+                // Deallocate floor grid cells using the intelligent deallocator
+                $gridDeallocator = new IntelligentGridDeallocator($db);
+                $deallocationResult = $gridDeallocator->deallocatePledge($pledgeId);
+                
+                if (!$deallocationResult['success']) {
+                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                }
+
                 // Audit log
                 $uid = (int)(current_user()['id'] ?? 0);
-                $before = json_encode(['status' => 'approved'], JSON_UNESCAPED_SLASHES);
-                $after = json_encode(['status' => 'pending'], JSON_UNESCAPED_SLASHES);
+                $before = json_encode([
+                    'status' => 'approved',
+                    'floor_cells' => $deallocationResult['deallocated_cells'] ?? []
+                ], JSON_UNESCAPED_SLASHES);
+                $after = json_encode([
+                    'status' => 'pending',
+                    'deallocation_result' => $deallocationResult
+                ], JSON_UNESCAPED_SLASHES);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'undo_approve', ?, ?, 'admin')");
                 $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
                 $log->execute();
 
                 $db->commit();
-                $actionMsg = 'Approval undone';
+                $actionMsg = 'Approval undone' . ($deallocationResult['deallocated_count'] > 0 ? " - {$deallocationResult['deallocated_count']} floor cell(s) freed" : '');
             } catch (Throwable $e) {
                 $db->rollback();
                 $actionMsg = 'Error: ' . $e->getMessage();
@@ -115,6 +130,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
+
+                // Deallocate floor grid cells for the old amount
+                $gridDeallocator = new IntelligentGridDeallocator($db);
+                $deallocationResult = $gridDeallocator->deallocatePledge($pledgeId);
+                
+                if (!$deallocationResult['success']) {
+                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                }
 
                 // Prefer explicit package selection; fallback to sqm-meters match
                 $pkgId = $packageId;
@@ -187,6 +210,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
 
+                // Deallocate floor grid cells for the old payment amount
+                $gridDeallocator = new IntelligentGridDeallocator($db);
+                $deallocationResult = $gridDeallocator->deallocatePayment($paymentId);
+                
+                if (!$deallocationResult['success']) {
+                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                }
+
                 // Audit log
                 $uid = (int)(current_user()['id'] ?? 0);
                 $before = json_encode(['status' => 'approved', 'amount' => $amountOld], JSON_UNESCAPED_SLASHES);
@@ -234,6 +265,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $grandDelta = $delta;
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
+
+                // Deallocate floor grid cells for this payment
+                $gridDeallocator = new IntelligentGridDeallocator($db);
+                $deallocationResult = $gridDeallocator->deallocatePayment($paymentId);
+                
+                if (!$deallocationResult['success']) {
+                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                }
 
                 // Audit
                 $uid = (int)(current_user()['id'] ?? 0);
