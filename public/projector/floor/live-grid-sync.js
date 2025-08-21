@@ -16,8 +16,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const GridSync = {
         // Configuration
         apiUrl: '/api/grid_status.php',
-        pollInterval: 5000, // Fetch updates every 5 seconds
-        allocationColor: '#e2ca18', // Unified color for both pledged and paid
+        summaryApiUrl: '/api/grid_status.php?format=summary', // URL for summary stats
+        pollInterval: 5000,
+        allocationColor: '#e2ca18',
+        
+        // DOM Elements
+        elements: {
+            allocatedArea: document.getElementById('allocated-area'),
+            progressBar: document.getElementById('progress-bar-fill'),
+            paidCells: document.getElementById('paid-cells'),
+            pledgedCells: document.getElementById('pledged-cells'),
+            totalAllocatedCells: document.getElementById('total-allocated-cells'),
+            availableCells: document.getElementById('available-cells'),
+        },
         
         // State
         gridReady: false,
@@ -54,34 +65,43 @@ document.addEventListener('DOMContentLoaded', () => {
          * Starts the polling process to fetch live data.
          */
         startPolling() {
-            this.fetchAndUpdate(); // Initial fetch
-            setInterval(() => this.fetchAndUpdate(), this.pollInterval);
+            this.fetchAndUpdateGrid(); // Initial fetch for the grid
+            this.fetchAndUpdateStats(); // Initial fetch for the stats
+            
+            setInterval(() => this.fetchAndUpdateGrid(), this.pollInterval);
+            setInterval(() => this.fetchAndUpdateStats(), this.pollInterval);
         },
         
         /**
-         * Fetches data from the API and updates the grid visuals.
+         * Fetches and updates the grid visuals.
          */
-        async fetchAndUpdate() {
-            console.log('GridSync: Fetching latest grid status...');
+        async fetchAndUpdateGrid() {
             try {
                 const response = await fetch(this.apiUrl);
-                if (!response.ok) {
-                    throw new Error(`API request failed with status ${response.status}`);
-                }
                 const data = await response.json();
-                
                 if (data.success && data.data && data.data.grid_cells) {
-                    const cellData = data.data.grid_cells;
-                    console.log(`GridSync: Received ${Object.keys(cellData).length} rectangles with allocations.`);
-                    this.updateGrid(cellData);
-                } else {
-                    console.error('GridSync: API response was not successful or "grid_cells" data is missing.', data);
+                    this.updateGrid(data.data.grid_cells);
                 }
             } catch (error) {
-                console.error('GridSync: Error fetching or parsing data:', error);
+                console.error('GridSync: Error fetching grid data:', error);
             }
         },
-        
+
+        /**
+         * Fetches and updates the statistics panel.
+         */
+        async fetchAndUpdateStats() {
+            try {
+                const response = await fetch(this.summaryApiUrl);
+                const data = await response.json();
+                if (data.success && data.data && data.data.statistics) {
+                    this.updateStats(data.data.statistics);
+                }
+            } catch (error) {
+                console.error('GridSync: Error fetching stats data:', error);
+            }
+        },
+
         /**
          * Updates the DOM based on the fetched grid data.
          * @param {object} allocatedData - The grid_cells object from the API.
@@ -118,6 +138,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             console.timeEnd('GridSync: Update Duration');
+        },
+
+        /**
+         * Updates the statistics panel with live data.
+         * @param {object} stats - The statistics object from the API.
+         */
+        updateStats(stats) {
+            const totalAllocated = stats.pledged_cells + stats.paid_cells;
+            
+            this.elements.allocatedArea.textContent = stats.allocated_area_sqm.toFixed(2);
+            this.elements.progressBar.style.width = `${stats.progress_percentage}%`;
+            this.elements.paidCells.textContent = stats.paid_cells;
+            this.elements.pledgedCells.textContent = stats.pledged_cells;
+            this.elements.totalAllocatedCells.textContent = totalAllocated;
+            this.elements.availableCells.textContent = stats.available_cells;
         }
     };
     
