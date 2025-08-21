@@ -428,3 +428,119 @@ body {
 .text-muted {
   color: var(--gray-600) !important;
 }
+
+/* Navigation Section */
+.navigation-section {
+    margin-top: 3rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--gray-200);
+}
+
+.nav-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 1.5rem;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    text-decoration: none;
+}
+
+.nav-btn:active {
+    transform: translateY(0);
+}
+
+/* Home Button */
+.btn-home {
+    background: linear-gradient(135deg, var(--primary-blue), #2563eb);
+    color: white;
+}
+
+.btn-home:hover {
+    background: linear-gradient(135deg, #1d4ed8, var(--primary-blue));
+    color: white;
+}
+
+/* Projector Button */
+.btn-projector {
+    background: linear-gradient(135deg, var(--primary-gold), #f59e0b);
+    color: white;
+}
+
+.btn-projector:hover {
+    background: linear-gradient(135deg, #d97706, var(--primary-gold));
+    color: white;
+}
+
+/* Floor View Button */
+.btn-floor {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.btn-floor:hover {
+    background: linear-gradient(135deg, #047857, #10b981);
+    color: white;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+    .nav-buttons {
+        flex-direction: row;
+        max-width: 600px;
+        gap: 1.5rem;
+    }
+    
+    .nav-btn {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+@media (min-width: 1024px) {
+    .nav-buttons {
+        max-width: 700px;
+        gap: 2rem;
+    }
+    
+    .nav-btn {
+        padding: 1.25rem 2rem;
+        font-size: 1.1rem;
+    }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 767px) {
+    .navigation-section {
+        margin-top: 2rem;
+        padding: 1.5rem 0;
+    }
+    
+    .nav-btn {
+        padding: 1rem 1.25rem;
+        font-size: 0.95rem;
+    }
+    
+    .btn-text {
+        font-size: 0.9rem;
+    }
+}

@@ -283,30 +283,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="text-muted">Support our community with your generous contribution</p>
                 </div>
                 
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">
-                            <i class="fas fa-target me-1"></i>
-                            Fundraising Progress
-                        </div>
-                        <div class="stat-value"><?php echo number_format($progressPercent, 1); ?>%</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">
-                            <i class="fas fa-pound-sign me-1"></i>
-                            Current Total
-                        </div>
-                        <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($currentTotal, 0); ?></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">
-                            <i class="fas fa-flag-checkered me-1"></i>
-                            Target Amount
-                        </div>
-                        <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($targetAmount, 0); ?></div>
-                    </div>
-                </div>
+
                 
                 <!-- Progress Bar -->
                 <div class="card mb-4">
@@ -461,6 +438,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             Register Donation
                         </button>
                     </form>
+                </div>
+                
+                <!-- Navigation Buttons -->
+                <div class="navigation-section">
+                    <div class="nav-buttons">
+                        <a href="http://donate.abuneteklehaymanot.org/" class="nav-btn btn-home">
+                            <i class="fas fa-home me-2"></i>
+                            <span class="btn-text">Homepage</span>
+                        </a>
+                        
+                        <a href="../projector/" class="nav-btn btn-projector">
+                            <i class="fas fa-tv me-2"></i>
+                            <span class="btn-text">Projector View</span>
+                        </a>
+                        
+                        <a href="../projector/floor/" class="nav-btn btn-floor">
+                            <i class="fas fa-map me-2"></i>
+                            <span class="btn-text">Floor View</span>
+                        </a>
+                    </div>
                 </div>
                 
                 <!-- Mobile Action Button -->
