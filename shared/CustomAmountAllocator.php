@@ -157,15 +157,15 @@ class CustomAmountAllocator {
         
         error_log("CustomAmountAllocator: Found " . count($availableCells) . " available cells");
         
-        // Allocate cells using existing grid allocator
+        // Allocate cells using existing grid allocator with proper status
         $gridAllocator = new IntelligentGridAllocator($this->db);
         $allocationResult = $gridAllocator->allocate(
             null, // No specific pledge ID for accumulated amounts
             null, // No payment ID
             $allocatedAmount,
-            null, // No package ID
-            'Anonymous', // Use 'Anonymous' for collective allocations
-            'allocated' // Status for accumulated allocations
+            null, // No package ID - let it calculate based on amount
+            'Collective Custom Donors', // Use descriptive name for collective allocations
+            'pledged' // Status for accumulated allocations - use 'pledged' for custom amounts
         );
         
         // DEBUG: Log the allocation result
