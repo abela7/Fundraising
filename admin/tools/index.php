@@ -166,6 +166,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-play me-2 text-success"></i>Simple Deallocation Test</h5>
+                        <p class="card-text">Directly test the deallocation function with a pledge or payment.</p>
+                        <a href="simple_deallocation_test.php" class="btn btn-success">Test Function</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
                         <h5 class="card-title"><i class="fas fa-bug me-2 text-secondary"></i>Debug Floor Table</h5>
                         <p class="card-text">Check the database structure and sample data of the floor_grid_cells table.</p>
                         <a href="debug_floor_table.php" class="btn btn-secondary">Debug Table</a>
