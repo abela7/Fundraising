@@ -31,7 +31,6 @@
 
   .game-container{
     display: flex; 
-    flex-direction: row;
     align-items: center; 
     justify-content: center;
     width: 100vw; 
@@ -39,15 +38,6 @@
     position: relative;
     padding: 20px;
     box-sizing: border-box;
-    gap: 20px;
-  }
-
-  /* Mobile layout - stack vertically */
-  @media (max-width: 1024px) {
-    .game-container {
-      flex-direction: column;
-      gap: 10px;
-    }
   }
 
   .floor-map{
@@ -113,84 +103,83 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Stats card - sized and positioned like rectangle G */
+  /* Stats card - positioned in lower center of floor map */
   .stats-card {
-    position: relative;
-    background: rgba(20, 27, 45, 0.95);
-    border: 1px solid rgba(226, 202, 24, 0.4);
-    border-radius: 4px;
+    position: absolute;
+    bottom: calc(var(--m) * 2);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 15, 27, 0.9);
+    border: none;
+    border-radius: 0;
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: calc(var(--m) * 0.3);
+    padding: calc(var(--m) * 0.4) calc(var(--m) * 0.8);
     box-sizing: border-box;
+    z-index: 100;
     
-    /* Same dimensions as rectangle G: 8 wide × 15 tall */
-    width: calc(var(--m) * 8);
-    height: calc(var(--m) * 15);
-    flex-shrink: 0;
+    /* Responsive width based on content */
+    min-width: calc(var(--m) * 8);
+    width: auto;
   }
 
-  /* Mobile: position below floor map */
-  @media (max-width: 1024px) {
+  /* Mobile positioning */
+  @media (max-width: 768px) {
     .stats-card {
-      width: calc(var(--m) * 12);
-      height: calc(var(--m) * 6);
-      margin: 0 auto;
+      bottom: calc(var(--m) * 1);
+      padding: calc(var(--m) * 0.3) calc(var(--m) * 0.6);
     }
   }
 
   .coverage-numbers {
-    font-size: calc(var(--m) * 0.35);
-    font-weight: bold;
-    color: #e2ca18;
-    line-height: 1.1;
+    font-size: calc(var(--m) * 0.6);
+    font-weight: 700;
+    color: #ffd700;
+    line-height: 1;
     text-align: center;
     margin-bottom: calc(var(--m) * 0.1);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    letter-spacing: 1px;
   }
 
   .coverage-label {
-    font-size: calc(var(--m) * 0.18);
-    color: #cbd5e1;
+    font-size: calc(var(--m) * 0.2);
+    color: #8b949e;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
     text-align: center;
-    margin-bottom: calc(var(--m) * 0.2);
-    font-weight: 600;
+    margin-bottom: calc(var(--m) * 0.25);
+    font-weight: 400;
   }
 
   .progress-bar {
-    width: 90%;
-    height: calc(var(--m) * 0.15);
+    width: calc(var(--m) * 10);
+    height: calc(var(--m) * 0.12);
     background: #334155;
-    border-radius: calc(var(--m) * 0.08);
+    border-radius: 0;
     overflow: hidden;
-    margin-bottom: calc(var(--m) * 0.15);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    margin-bottom: calc(var(--m) * 0.2);
   }
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(to right, #e2ca18, #ffd700);
-    border-radius: calc(var(--m) * 0.08);
+    background: #ffd700;
+    border-radius: 0;
     transition: width 0.8s ease-in-out;
     width: 0%;
-    box-shadow: 0 0 calc(var(--m) * 0.1) rgba(226, 202, 24, 0.5);
   }
 
   .percentage {
-    font-size: calc(var(--m) * 0.28);
+    font-size: calc(var(--m) * 0.4);
     color: #ffffff;
     text-align: center;
     line-height: 1;
-    font-weight: 700;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    font-weight: 400;
+    margin-top: calc(var(--m) * 0.05);
   }
 
   /* All UI elements removed for clean game design */
