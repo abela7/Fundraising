@@ -47,26 +47,6 @@ if ($_POST && isset($_POST['action']) && $_POST['action'] === 'update_display_mo
     }
 }
 
-// Handle language update
-if ($_POST && isset($_POST['action']) && $_POST['action'] === 'update_language') {
-    $language = trim($_POST['projector_language'] ?? 'en');
-    
-    // Validate language
-    $valid_languages = ['en', 'am'];
-    if (in_array($language, $valid_languages)) {
-        $stmt = $db->prepare("UPDATE settings SET projector_language = ? WHERE id = 1");
-        $stmt->bind_param("s", $language);
-        
-        if ($stmt->execute()) {
-            $success_msg = "Projector language updated successfully!";
-        } else {
-            $error_msg = "Failed to update language.";
-        }
-    } else {
-        $error_msg = "Invalid language selected.";
-    }
-}
-
 // Get current footer message
 $result = $db->query("SELECT message, is_visible, updated_at FROM projector_footer WHERE id = 1");
 $current_footer = $result->fetch_assoc();
@@ -77,10 +57,9 @@ if (!$current_footer) {
 }
 
 // Get current settings including display mode
-$settings_result = $db->query("SELECT projector_display_mode, projector_language FROM settings WHERE id = 1");
+$settings_result = $db->query("SELECT projector_display_mode FROM settings WHERE id = 1");
 $current_settings = $settings_result->fetch_assoc();
 $current_display_mode = $current_settings['projector_display_mode'] ?? 'amount';
-$current_language = $current_settings['projector_language'] ?? 'en';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -284,54 +263,11 @@ $current_language = $current_settings['projector_language'] ?? 'en';
                                 </div>
                             </div>
                             
-                        </div> 
-                        <div class="row">
-                            <!-- Language Control -->
-                            <div class="col-lg-4 mb-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="card-title mb-0">
-                                            <i class="fas fa-language me-2"></i>Language Control
-                                        </h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <form method="POST">
-                                            <input type="hidden" name="action" value="update_language">
-                                            
-                                            <div class="mb-3">
-                                                <label class="form-label">Projector Display Language</label>
-                                                <select name="projector_language" class="form-select" id="languageSelect">
-                                                    <option value="en" <?= $current_language === 'en' ? 'selected' : '' ?>>
-                                                        🇺🇸 English
-                                                    </option>
-                                                    <option value="am" <?= $current_language === 'am' ? 'selected' : '' ?>>
-                                                        🇪🇹 አማርኛ (Amharic)
-                                                    </option>
-                                                </select>
-                                                <small class="text-muted">Choose the language for the live projector display</small>
-                                            </div>
-                                            
-                                            <div class="current-language-info mb-3">
-                                                <div class="alert alert-info d-flex align-items-center">
-                                                    <i class="fas fa-info-circle me-2"></i>
-                                                    <div>
-                                                        <strong>Current Language:</strong> 
-                                                        <span id="currentLanguageText">
-                                                            <?php echo $current_language === 'am' ? '🇪🇹 አማርኛ (Amharic)' : '🇺🇸 English'; ?>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <button type="submit" class="btn btn-primary w-100">
-                                                <i class="fas fa-sync-alt me-2"></i>Update Language
-                                            </button>
-                                        </form>
-                                    </div>
+                        
+                    
+                            
                                 </div>
                             </div>
-                        </div>
-                    </div> 
                 </div>
             </main>
                         </div>
