@@ -1,0 +1,23 @@
+{
+    "live_fundraising_display": "Live Fundraising Display",
+    "fullscreen": "Fullscreen",
+    "campaign_title": "Live Fundraising Campaign",
+    "of": "of",
+    "total_paid": "Total Paid",
+    "total_pledged": "Total Pledged",
+    "grand_total": "Grand Total",
+    "live": "LIVE",
+    "waiting_for_contributions": "Waiting for contributions...",
+    "loading": "Loading...",
+    "recent_contributions": "Recent Contributions",
+    "pledged": "Pledged",
+    "paid": "Paid",
+    "anonymous": "Anonymous",
+    "goal_announcement": "Goal Reached! Congratulations!",
+    "milestone_announcement": "{percent}% Reached! Thank you for your amazing support!",
+    "currency_gbp": "GBP",
+    "currency_usd": "USD",
+    "currency_eur": "EUR",
+    "lang_en": "EN",
+    "lang_am": "አማ"
+}
