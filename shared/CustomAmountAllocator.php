@@ -125,6 +125,54 @@ class CustomAmountAllocator {
     }
     
     /**
+     * Track custom amount for PAYMENTS (separate method)
+     */
+    private function trackPaymentCustomAmount(int $paymentId, float $amount, string $donorName): void {
+        // DEBUG: Log tracking attempt
+        error_log("CustomAmountAllocator: Tracking PAYMENT amount £{$amount} for donor {$donorName} (payment ID: {$paymentId})");
+        
+        // Check if donor already has tracking record
+        $stmt = $this->db->prepare("
+            SELECT id, total_amount, allocated_amount, remaining_amount 
+            FROM custom_amount_tracking 
+            WHERE donor_name = ? 
+            LIMIT 1
+        ");
+        $stmt->bind_param('s', $donorName);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        
+        if ($result) {
+            // Update existing record
+            $newTotal = $result['total_amount'] + $amount;
+            $newRemaining = $result['remaining_amount'] + $amount;
+            
+            error_log("CustomAmountAllocator: Updating existing PAYMENT record for {$donorName}: total £{$newTotal}, remaining £{$newRemaining}");
+            
+            $update = $this->db->prepare("
+                UPDATE custom_amount_tracking 
+                SET total_amount = ?, remaining_amount = ?, last_updated = NOW()
+                WHERE id = ?
+            ");
+            $update->bind_param('ddi', $newTotal, $newRemaining, $result['id']);
+            $update->execute();
+        } else {
+            // Create new tracking record
+            error_log("CustomAmountAllocator: Creating new PAYMENT tracking record for {$donorName}: amount £{$amount}");
+            
+            $insert = $this->db->prepare("
+                INSERT INTO custom_amount_tracking 
+                (donor_id, donor_name, total_amount, allocated_amount, remaining_amount)
+                VALUES (0, ?, ?, 0, ?)
+            ");
+            $insert->bind_param('sdd', $donorName, $amount, $amount);
+            $insert->execute();
+            
+            error_log("CustomAmountAllocator: New PAYMENT tracking record created with ID: " . $this->db->insert_id);
+        }
+    }
+    
+    /**
      * Check if accumulated amounts can now allocate cells
      */
     private function checkAndAllocateAccumulated(): ?array {
@@ -243,7 +291,7 @@ class CustomAmountAllocator {
     /**
      * Allocate appropriate cells for £100+ amounts
      */
-    private function allocateAppropriateCells(int $pledgeId, float $amount, string $donorName, string $status): array {
+    private function allocateAppropriateCells(int $pledgeId, float $amount, string $donorName, string $status, ?int $paymentId = null): array {
         // Calculate how many cells to allocate
         $cellsToAllocate = $this->calculateCellsForAmount($amount);
         $allocatedAmount = $cellsToAllocate * 100; // £100 per 0.25m²
@@ -262,7 +310,13 @@ class CustomAmountAllocator {
         
         // If there's remaining amount, track it
         if ($remainingAmount > 0) {
-            $this->trackCustomAmount($pledgeId, $remainingAmount, $donorName);
+            // Use appropriate tracking method based on whether this is a pledge or payment
+            if ($pledgeId !== null) {
+                $this->trackCustomAmount($pledgeId, $remainingAmount, $donorName);
+            } else {
+                // This is a payment, use payment tracking
+                $this->trackPaymentCustomAmount($paymentId, $remainingAmount, $donorName);
+            }
         }
         
         return [
@@ -320,7 +374,7 @@ class CustomAmountAllocator {
             
             // Rule 1: Under £100 = accumulate (no immediate allocation)
             if ($amount < 100) {
-                $this->trackCustomAmount($paymentId, $amount, $donorName);
+                $this->trackPaymentCustomAmount($paymentId, $amount, $donorName);
                 
                 // Check if we can now allocate a cell
                 $allocationResult = $this->checkAndAllocateAccumulated();
@@ -336,7 +390,7 @@ class CustomAmountAllocator {
             }
             
             // Rule 2: £100+ = allocate appropriate cells
-            $allocationResult = $this->allocateAppropriateCells($paymentId, $amount, $donorName, $status);
+            $allocationResult = $this->allocateAppropriateCells(0, $amount, $donorName, $status, $paymentId);
             
             $this->db->commit();
             
