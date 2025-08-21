@@ -12,63 +12,70 @@ $db = db();
 $message = '';
 $error = '';
 
-// Get current floor allocation status
-$floorStatus = $db->query("
-    SELECT 
-        status,
-        COUNT(*) as count,
-        SUM(amount) as total_amount
-    FROM floor_grid_cells 
-    GROUP BY status
-")->fetch_all(MYSQLI_ASSOC);
+try {
+    // Get current floor allocation status - simplified query
+    $floorStatus = $db->query("
+        SELECT 
+            status,
+            COUNT(*) as count
+        FROM floor_grid_cells 
+        GROUP BY status
+    ")->fetch_all(MYSQLI_ASSOC);
 
-// Get recent allocations
-$recentAllocations = $db->query("
-    SELECT 
-        cell_id,
-        status,
-        pledge_id,
-        payment_id,
-        donor_name,
-        amount,
-        allocated_at
-    FROM floor_grid_cells 
-    WHERE status IN ('pledged', 'paid')
-    ORDER BY allocated_at DESC
-    LIMIT 10
-")->fetch_all(MYSQLI_ASSOC);
+    // Get recent allocations - simplified query
+    $recentAllocations = $db->query("
+        SELECT 
+            cell_id,
+            status,
+            pledge_id,
+            payment_id,
+            donor_name,
+            amount
+        FROM floor_grid_cells 
+        WHERE status IN ('pledged', 'paid')
+        ORDER BY cell_id DESC
+        LIMIT 10
+    ")->fetch_all(MYSQLI_ASSOC);
 
-// Get pledges that have floor allocations
-$allocatedPledges = $db->query("
-    SELECT DISTINCT
-        p.id,
-        p.amount,
-        p.donor_name,
-        p.status,
-        COUNT(fgc.cell_id) as allocated_cells
-    FROM pledges p
-    INNER JOIN floor_grid_cells fgc ON p.id = fgc.pledge_id
-    WHERE p.status = 'approved' AND fgc.status IN ('pledged', 'paid')
-    GROUP BY p.id
-    ORDER BY p.id DESC
-    LIMIT 10
-")->fetch_all(MYSQLI_ASSOC);
+    // Get pledges that have floor allocations - simplified query
+    $allocatedPledges = $db->query("
+        SELECT DISTINCT
+            p.id,
+            p.amount,
+            p.donor_name,
+            p.status,
+            COUNT(fgc.cell_id) as allocated_cells
+        FROM pledges p
+        INNER JOIN floor_grid_cells fgc ON p.id = fgc.pledge_id
+        WHERE p.status = 'approved' AND fgc.status IN ('pledged', 'paid')
+        GROUP BY p.id
+        ORDER BY p.id DESC
+        LIMIT 10
+    ")->fetch_all(MYSQLI_ASSOC);
 
-// Get payments that have floor allocations
-$allocatedPayments = $db->query("
-    SELECT DISTINCT
-        pay.id,
-        pay.amount,
-        pay.donor_name,
-        pay.status,
-        COUNT(fgc.cell_id) as allocated_cells
-    FROM payments pay
-    INNER JOIN floor_grid_cells fgc ON pay.id = fgc.payment_id
-    WHERE pay.status = 'approved' AND fgc.status IN ('pledged', 'paid')
-    GROUP BY pay.id
-    ORDER BY pay.id DESC
-    LIMIT 10
-")->fetch_all(MYSQLI_ASSOC);
+    // Get payments that have floor allocations - simplified query
+    $allocatedPayments = $db->query("
+        SELECT DISTINCT
+            pay.id,
+            pay.amount,
+            pay.donor_name,
+            pay.status,
+            COUNT(fgc.cell_id) as allocated_cells
+        FROM payments pay
+        INNER JOIN floor_grid_cells fgc ON pay.id = fgc.payment_id
+        WHERE pay.status = 'approved' AND fgc.status IN ('pledged', 'paid')
+        GROUP BY pay.id
+        ORDER BY pay.id DESC
+        LIMIT 10
+    ")->fetch_all(MYSQLI_ASSOC);
+
+} catch (Exception $e) {
+    $error = 'Database Error: ' . $e->getMessage();
+    $floorStatus = [];
+    $recentAllocations = [];
+    $allocatedPledges = [];
+    $allocatedPayments = [];
+}
 ?>
 
 <!DOCTYPE html>
@@ -97,7 +104,13 @@ $allocatedPayments = $db->query("
                     <?php endif; ?>
                     
                     <?php if ($error): ?>
-                        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> <?= htmlspecialchars($error) ?>
+                            <br><br>
+                            <a href="debug_floor_table.php" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-bug me-1"></i>Debug Database Structure
+                            </a>
+                        </div>
                     <?php endif; ?>
 
                     <!-- Floor Status Overview -->
@@ -110,21 +123,22 @@ $allocatedPayments = $db->query("
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div class="row">
-                                        <?php foreach ($floorStatus as $status): ?>
-                                            <div class="col-md-3 mb-3">
-                                                <div class="card bg-light">
-                                                    <div class="card-body text-center">
-                                                        <h4 class="text-primary"><?= $status['count'] ?></h4>
-                                                        <p class="mb-0 text-muted"><?= ucfirst($status['status']) ?></p>
-                                                        <?php if ($status['total_amount']): ?>
-                                                            <small class="text-success">£<?= number_format($status['total_amount'], 2) ?></small>
-                                                        <?php endif; ?>
+                                    <?php if (empty($floorStatus)): ?>
+                                        <p class="text-muted">No floor status data available.</p>
+                                    <?php else: ?>
+                                        <div class="row">
+                                            <?php foreach ($floorStatus as $status): ?>
+                                                <div class="col-md-3 mb-3">
+                                                    <div class="card bg-light">
+                                                        <div class="card-body text-center">
+                                                            <h4 class="text-primary"><?= $status['count'] ?></h4>
+                                                            <p class="mb-0 text-muted"><?= ucfirst($status['status']) ?></p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -241,7 +255,6 @@ $allocatedPayments = $db->query("
                                                         <th>Payment ID</th>
                                                         <th>Donor</th>
                                                         <th>Amount</th>
-                                                        <th>Allocated At</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -255,9 +268,8 @@ $allocatedPayments = $db->query("
                                                             </td>
                                                             <td><?= $allocation['pledge_id'] ?: '-' ?></td>
                                                             <td><?= $allocation['payment_id'] ?: '-' ?></td>
-                                                            <td><?= htmlspecialchars($allocation['donor_name']) ?></td>
-                                                            <td>£<?= number_format($allocation['amount'], 2) ?></td>
-                                                            <td><?= $allocation['allocated_at'] ? date('M j, Y g:i A', strtotime($allocation['allocated_at'])) : '-' ?></td>
+                                                            <td><?= htmlspecialchars($allocation['donor_name'] ?? 'Unknown') ?></td>
+                                                            <td>£<?= number_format($allocation['amount'] ?? 0, 2) ?></td>
                                                         </tr>
                                                     <?php endforeach; ?>
                                                 </tbody>

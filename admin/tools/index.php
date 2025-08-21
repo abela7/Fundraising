@@ -164,6 +164,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-bug me-2 text-secondary"></i>Debug Floor Table</h5>
+                        <p class="card-text">Check the database structure and sample data of the floor_grid_cells table.</p>
+                        <a href="debug_floor_table.php" class="btn btn-secondary">Debug Table</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-cogs me-2 text-info"></i>Test Deallocator Class</h5>
+                        <p class="card-text">Test if the IntelligentGridDeallocator class loads and works correctly.</p>
+                        <a href="test_deallocator_class.php" class="btn btn-info">Test Class</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100 border-danger">
                     <div class="card-body">
                         <h5 class="card-title"><i class="fas fa-power-off me-2 text-danger"></i>Reset Floor Map</h5>
