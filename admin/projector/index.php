@@ -94,6 +94,12 @@ $current_display_mode = $current_settings['projector_display_mode'] ?? 'amount';
                         <button class="btn btn-outline-primary" onclick="openFullscreen()">
                             <i class="fas fa-expand me-2"></i>Open Fullscreen
                         </button>
+                        <a href="../../public/projector/floor/" target="_blank" class="btn btn-success">
+                            <i class="fas fa-map me-2"></i>Floor Map
+                        </a>
+                        <a href="../../public/projector/floor/3d-view.php" target="_blank" class="btn btn-info">
+                            <i class="fas fa-cube me-2"></i>3D View
+                        </a>
                     </div>
                     
                     <?php if (isset($success_msg)): ?>
