@@ -70,7 +70,24 @@ try {
             ];
         }
         
-        $response['data']['grid_cells'] = $groupedData;
+        // Always include both grid data and summary statistics for live updates
+        $stats = $gridAllocator->getAllocationStats();
+        $total_area = (float)($stats['total_possible_area'] ?? 0);
+        $allocated_area = (float)($stats['total_allocated_area'] ?? 0);
+        $progress_percentage = ($total_area > 0) ? ($allocated_area / $total_area) * 100 : 0;
+
+        $response['data'] = [
+            'grid_cells' => $groupedData,
+            'summary' => [
+                'total_cells' => (int)($stats['total_cells'] ?? 0),
+                'pledged_cells' => (int)($stats['pledged_cells'] ?? 0),
+                'paid_cells' => (int)($stats['paid_cells'] ?? 0),
+                'available_cells' => (int)($stats['available_cells'] ?? 0),
+                'total_area_sqm' => $total_area,
+                'allocated_area_sqm' => $allocated_area,
+                'progress_percentage' => round($progress_percentage, 2)
+            ]
+        ];
     }
 
 } catch (Exception $e) {

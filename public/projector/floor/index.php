@@ -99,72 +99,63 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Stats card styling */
+  /* Compact stats card - positioned like a rectangle */
   .stats-card {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(20, 27, 45, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 20px;
-    min-width: 250px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(20, 27, 45, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: calc(var(--m) * 0.3);
+    width: calc(var(--m) * 6);
+    height: calc(var(--m) * 2.5);
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     z-index: 1000;
-  }
-
-  .stats-card h3 {
-    margin: 0 0 15px 0;
-    font-size: 1.1em;
-    font-weight: 600;
-    color: #cbd5e1;
-    text-align: center;
-  }
-
-  .coverage-display {
-    text-align: center;
-    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
   }
 
   .coverage-numbers {
-    font-size: 1.8em;
+    font-size: calc(var(--m) * 0.25);
     font-weight: bold;
     color: #e2ca18;
-    margin-bottom: 5px;
+    line-height: 1.1;
+    text-align: center;
+    margin-bottom: calc(var(--m) * 0.1);
   }
 
   .coverage-label {
-    font-size: 0.9em;
+    font-size: calc(var(--m) * 0.15);
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    text-align: center;
+    margin-bottom: calc(var(--m) * 0.15);
   }
 
   .progress-bar {
     width: 100%;
-    height: 8px;
+    height: calc(var(--m) * 0.1);
     background: #334155;
-    border-radius: 4px;
     overflow: hidden;
-    margin-top: 10px;
+    margin-bottom: calc(var(--m) * 0.08);
   }
 
   .progress-fill {
     height: 100%;
     background: linear-gradient(to right, #e2ca18, #ffd700);
-    border-radius: 4px;
     transition: width 0.5s ease-in-out;
     width: 0%;
   }
 
   .percentage {
-    font-size: 0.85em;
+    font-size: calc(var(--m) * 0.12);
     color: #cbd5e1;
-    margin-top: 8px;
     text-align: center;
+    line-height: 1;
   }
 
   /* All UI elements removed for clean game design */
@@ -182,19 +173,16 @@
       <div class="shape G">G</div>
     </div>
     
-    <!-- Live Coverage Stats Card -->
+    <!-- Compact Live Stats -->
     <div class="stats-card">
-      <h3>Coverage Progress</h3>
-      <div class="coverage-display">
-        <div class="coverage-numbers">
-          <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m²
-        </div>
-        <div class="coverage-label">Square Meters Covered</div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progress-fill"></div>
-        </div>
-        <div class="percentage" id="coverage-percentage">0.0%</div>
+      <div class="coverage-numbers">
+        <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m²
       </div>
+      <div class="coverage-label">Coverage Progress</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="percentage" id="coverage-percentage">0.0%</div>
     </div>
   </div>
 
