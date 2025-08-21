@@ -230,34 +230,32 @@
         .sub-square.filled {
             background: linear-gradient(45deg, var(--accent-gold), #ffed4e);
             border: 1px solid var(--accent-gold);
-            box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4);
-            transform: scale(1.02);
         }
         
         .grid-item:hover .sub-square.filled {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
+            background: linear-gradient(45deg, #ffed4e, var(--accent-gold));
         }
         
         .grid-label {
-            font-size: 1.3rem;
+            font-size: 1.5rem;
             font-weight: 700;
             color: var(--accent-gold);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.8rem;
         }
         
         .grid-description {
-            font-size: 0.9rem;
+            font-size: 1.1rem;
             color: var(--text-light);
-            opacity: 0.9;
+            opacity: 0.95;
+            line-height: 1.4;
         }
         
         .grid-dimensions {
-            font-size: 0.8rem;
+            font-size: 1rem;
             color: var(--accent-gold);
-            opacity: 0.8;
+            opacity: 0.9;
             font-weight: 600;
-            margin-top: 0.5rem;
+            margin-top: 0.8rem;
         }
         
 
@@ -270,9 +268,9 @@
         
         .cta-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 2rem;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
         
@@ -280,36 +278,39 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 1.2rem 2rem;
-            font-size: 1.2rem;
+            padding: 1.5rem 2.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
             text-decoration: none;
-            color: var(--text-white);
+            color: #1a365d;
             background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
-            border-radius: 50px;
-            box-shadow: var(--shadow);
+            border-radius: 20px;
             transition: all 0.3s ease;
-            border: none;
+            border: 2px solid var(--accent-gold);
             cursor: pointer;
-            min-height: 60px;
+            min-height: 65px;
+            gap: 0.8rem;
         }
         
         .cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-            color: var(--primary-bg);
+            transform: translateY(-2px);
+            color: #1a365d;
             text-decoration: none;
+            background: linear-gradient(135deg, #ffed4e, var(--accent-gold));
         }
         
         .cta-button.secondary {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid var(--accent-gold);
-            color: var(--accent-gold);
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: var(--text-white);
+            backdrop-filter: blur(10px);
         }
         
         .cta-button.secondary:hover {
-            background: var(--accent-gold);
-            color: var(--primary-bg);
+            background: rgba(255, 255, 255, 0.25);
+            border-color: var(--accent-gold);
+            color: var(--text-white);
+            transform: translateY(-2px);
         }
         
         .cta-button i {
@@ -345,11 +346,11 @@
             }
             
             .amharic-heading {
-                font-size: 1.2rem;
+                font-size: 1.3rem;
             }
             
             .amharic-text {
-                font-size: 1rem;
+                font-size: 1.1rem;
             }
             
             .floor-plan h2 {
@@ -361,14 +362,26 @@
                 gap: 1.5rem;
             }
             
+            .grid-label {
+                font-size: 1.4rem;
+            }
+            
+            .grid-description {
+                font-size: 1.2rem;
+            }
+            
+            .grid-dimensions {
+                font-size: 1.1rem;
+            }
+            
             .cta-grid {
                 grid-template-columns: 1fr;
                 gap: 1.5rem;
             }
             
             .cta-button {
-                padding: 1rem 1.5rem;
-                font-size: 1.1rem;
+                padding: 1.3rem 2rem;
+                font-size: 1.2rem;
             }
         }
         
@@ -387,11 +400,11 @@
             }
             
             .amharic-heading {
-                font-size: 1.1rem;
+                font-size: 1.2rem;
             }
             
             .amharic-text {
-                font-size: 0.95rem;
+                font-size: 1rem;
             }
             
             .grid-container {
@@ -400,6 +413,23 @@
             
             .grid-item {
                 padding: 1rem;
+            }
+            
+            .grid-label {
+                font-size: 1.3rem;
+            }
+            
+            .grid-description {
+                font-size: 1.1rem;
+            }
+            
+            .grid-dimensions {
+                font-size: 1rem;
+            }
+            
+            .cta-button {
+                padding: 1.2rem 1.8rem;
+                font-size: 1.1rem;
             }
         }
         
