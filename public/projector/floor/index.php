@@ -103,23 +103,22 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Stats card - positioned in lower center of floor map */
+  /* Stats card - positioned closer to floor map */
   .stats-card {
     position: absolute;
-    bottom: calc(var(--m) * 2);
+    bottom: calc(var(--m) * 0.5);
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(10, 15, 27, 0.9);
+    background: transparent;
     border: none;
     border-radius: 0;
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
-    backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: calc(var(--m) * 0.4) calc(var(--m) * 0.8);
+    padding: calc(var(--m) * 0.3) calc(var(--m) * 0.6);
     box-sizing: border-box;
     z-index: 100;
     
@@ -131,8 +130,8 @@
   /* Mobile positioning */
   @media (max-width: 768px) {
     .stats-card {
-      bottom: calc(var(--m) * 1);
-      padding: calc(var(--m) * 0.3) calc(var(--m) * 0.6);
+      bottom: calc(var(--m) * 0.3);
+      padding: calc(var(--m) * 0.2) calc(var(--m) * 0.4);
     }
   }
 
