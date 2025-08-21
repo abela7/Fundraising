@@ -112,59 +112,75 @@ class CustomAmountAllocator {
      * Check if accumulated amounts can now allocate cells
      */
     private function checkAndAllocateAccumulated(): ?array {
-        // Find donors with £100+ in remaining amount
+        // Check if TOTAL accumulated amount reaches £100+ (collective accumulation)
         $stmt = $this->db->prepare("
-            SELECT donor_name, remaining_amount 
-            FROM custom_amount_tracking 
-            WHERE remaining_amount >= 100 
-            ORDER BY remaining_amount DESC
+            SELECT SUM(remaining_amount) as total_remaining
+            FROM custom_amount_tracking
         ");
         $stmt->execute();
-        $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $result = $stmt->get_result()->fetch_assoc();
+        $totalRemaining = (float)($result['total_remaining'] ?? 0);
         
-        $allocations = [];
-        foreach ($results as $donor) {
-            $amount = (float)$donor['remaining_amount'];
-            $donorName = $donor['donor_name'];
-            
-            // Calculate how many cells to allocate
-            $cellsToAllocate = $this->calculateCellsForAmount($amount);
-            $allocatedAmount = $cellsToAllocate * 100; // £100 per 0.25m²
-            $remainingAmount = $amount - $allocatedAmount;
-            
-            // Allocate cells using existing grid allocator
-            $gridAllocator = new IntelligentGridAllocator($this->db);
-            $allocationResult = $gridAllocator->allocate(
-                null, // No specific pledge ID for accumulated amounts
-                null, // No payment ID
-                $allocatedAmount,
-                null, // No package ID
-                $donorName,
-                'allocated' // Status for accumulated allocations
-            );
-            
-            if ($allocationResult['success']) {
-                // Update tracking record
-                $update = $this->db->prepare("
-                    UPDATE custom_amount_tracking 
-                    SET allocated_amount = allocated_amount + ?, 
-                        remaining_amount = ?, 
-                        last_updated = NOW()
-                    WHERE donor_name = ?
-                ");
-                $update->bind_param('dds', $allocatedAmount, $remainingAmount, $donorName);
-                $update->execute();
-                
-                $allocations[] = [
-                    'donor' => $donorName,
-                    'allocated' => $allocatedAmount,
-                    'remaining' => $remainingAmount,
-                    'cells' => $allocationResult['allocated_cells']
-                ];
-            }
+        if ($totalRemaining < 100) {
+            return null; // Not enough to allocate
         }
         
-        return $allocations;
+        // Calculate how many cells to allocate from total
+        $cellsToAllocate = $this->calculateCellsForAmount($totalRemaining);
+        $allocatedAmount = $cellsToAllocate * 100; // £100 per 0.25m²
+        $remainingAmount = $totalRemaining - $allocatedAmount;
+        
+        // Allocate cells using existing grid allocator
+        $gridAllocator = new IntelligentGridAllocator($this->db);
+        $allocationResult = $gridAllocator->allocate(
+            null, // No specific pledge ID for accumulated amounts
+            null, // No payment ID
+            $allocatedAmount,
+            null, // No package ID
+            'Anonymous', // Use 'Anonymous' for collective allocations
+            'allocated' // Status for accumulated allocations
+        );
+        
+        if ($allocationResult['success']) {
+            // Update ALL tracking records to reflect the allocation
+            $update = $this->db->prepare("
+                UPDATE custom_amount_tracking 
+                SET allocated_amount = allocated_amount + (remaining_amount * ? / ?),
+                    remaining_amount = remaining_amount * ? / ?,
+                    last_updated = NOW()
+                WHERE remaining_amount > 0
+            ");
+            $ratio = $allocatedAmount / $totalRemaining;
+            $remainingRatio = $remainingAmount / $totalRemaining;
+            $update->bind_param('dddd', $ratio, $totalRemaining, $remainingRatio, $totalRemaining);
+            $update->execute();
+            
+            return [
+                [
+                    'donor' => 'Collective (Multiple Donors)',
+                    'allocated' => $allocatedAmount,
+                    'remaining' => $remainingAmount,
+                    'cells' => $allocationResult['allocated_cells'],
+                    'total_contributors' => $this->getActiveDonorCount()
+                ]
+            ];
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Get count of active donors with remaining amounts
+     */
+    private function getActiveDonorCount(): int {
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) as count 
+            FROM custom_amount_tracking 
+            WHERE remaining_amount > 0
+        ");
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        return (int)($result['count'] ?? 0);
     }
     
     /**
