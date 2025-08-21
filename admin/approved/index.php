@@ -34,10 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Invalid state');
                 }
 
-                // First deallocate floor cells
-                $gridDeallocator = new IntelligentGridDeallocator($db);
-                $deallocationResult = $gridDeallocator->deallocateDonation($pledgeId, null);
-
                 // Revert pledge to pending
                 $upd = $db->prepare("UPDATE pledges SET status='pending' WHERE id=?");
                 $upd->bind_param('i', $pledgeId);
@@ -61,23 +57,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
+                // Free up floor grid cells for this pledge
+                $gridDeallocator = new IntelligentGridDeallocator($db);
+                $deallocationResult = $gridDeallocator->deallocatePledge($pledgeId);
+                
+                if (!$deallocationResult['success']) {
+                    error_log("Floor deallocation failed for pledge {$pledgeId}: " . $deallocationResult['error']);
+                }
+
                 // Note: payments are standalone; no pledge_id linkage anymore
 
                 // Audit log
                 $uid = (int)(current_user()['id'] ?? 0);
                 $before = json_encode(['status' => 'approved'], JSON_UNESCAPED_SLASHES);
-                $after = json_encode([
-                    'status' => 'pending',
-                    'grid_deallocation' => $deallocationResult
-                ], JSON_UNESCAPED_SLASHES);
+                $after = json_encode(['status' => 'pending'], JSON_UNESCAPED_SLASHES);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'undo_approve', ?, ?, 'admin')");
                 $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
                 $log->execute();
 
                 $db->commit();
-                $actionMsg = $deallocationResult['success'] 
-                    ? "Approval undone & {$deallocationResult['message']}" 
-                    : "Approval undone (Grid deallocation failed: {$deallocationResult['error']})";
+                $actionMsg = 'Approval undone';
             } catch (Throwable $e) {
                 $db->rollback();
                 $actionMsg = 'Error: ' . $e->getMessage();
@@ -125,6 +124,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
+
+                // Free up floor grid cells for this pledge
+                $gridDeallocator = new IntelligentGridDeallocator($db);
+                $deallocationResult = $gridDeallocator->deallocatePledge($pledgeId);
+                
+                if (!$deallocationResult['success']) {
+                    error_log("Floor deallocation failed for pledge {$pledgeId}: " . $deallocationResult['error']);
+                }
 
                 // Prefer explicit package selection; fallback to sqm-meters match
                 $pkgId = $packageId;
@@ -197,6 +204,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
 
+                // Free up floor grid cells for this payment
+                $gridDeallocator = new IntelligentGridDeallocator($db);
+                $deallocationResult = $gridDeallocator->deallocatePayment($paymentId);
+                
+                if (!$deallocationResult['success']) {
+                    error_log("Floor deallocation failed for payment {$paymentId}: " . $deallocationResult['error']);
+                }
+
                 // Audit log
                 $uid = (int)(current_user()['id'] ?? 0);
                 $before = json_encode(['status' => 'approved', 'amount' => $amountOld], JSON_UNESCAPED_SLASHES);
@@ -225,10 +240,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pay = $sel->get_result()->fetch_assoc();
                 if (!$pay || (string)$pay['status'] !== 'approved') { throw new RuntimeException('Payment is not approved'); }
 
-                // First deallocate floor cells
-                $gridDeallocator = new IntelligentGridDeallocator($db);
-                $deallocationResult = $gridDeallocator->deallocateDonation(null, $paymentId);
-
                 // Set back to pending
                 $upd = $db->prepare("UPDATE payments SET status='pending' WHERE id=?");
                 $upd->bind_param('i', $paymentId);
@@ -252,18 +263,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Audit
                 $uid = (int)(current_user()['id'] ?? 0);
                 $before = json_encode(['status'=>'approved'], JSON_UNESCAPED_SLASHES);
-                $after  = json_encode([
-                    'status'=>'pending',
-                    'grid_deallocation' => $deallocationResult
-                ], JSON_UNESCAPED_SLASHES);
+                $after  = json_encode(['status'=>'pending'], JSON_UNESCAPED_SLASHES);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'undo_approve', ?, ?, 'admin')");
                 $log->bind_param('iiss', $uid, $paymentId, $before, $after);
                 $log->execute();
 
                 $db->commit();
-                $actionMsg = $deallocationResult['success'] 
-                    ? "Payment approval undone & {$deallocationResult['message']}" 
-                    : "Payment approval undone (Grid deallocation failed: {$deallocationResult['error']})";
+                $actionMsg = 'Payment approval undone';
             } catch (Throwable $e) {
                 $db->rollback();
                 $actionMsg = 'Error: ' . $e->getMessage();

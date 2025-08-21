@@ -4,7 +4,6 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
-require_once __DIR__ . '/../../shared/IntelligentGridDeallocator.php';
 require_login();
 require_admin();
 
@@ -17,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $pledgeId = (int)($_POST['pledge_id'] ?? 0);
     $action = $_POST['action'] ?? '';
-    if ($pledgeId && in_array($action, ['approve','reject','update','unapprove'], true)) {
+    if ($pledgeId && in_array($action, ['approve','reject','update'], true)) {
         $db->begin_transaction();
         try {
             $stmt = $db->prepare('SELECT id, amount, type, status FROM pledges WHERE id = ? FOR UPDATE');
@@ -113,60 +112,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $log->execute();
                 }
                 $actionMsg = 'Rejected';
-            } elseif ($action === 'unapprove') {
-                // Unapprove pledge and deallocate floor cells
-                $uid = (int)current_user()['id'];
-                
-                // First deallocate floor cells
-                $gridDeallocator = new IntelligentGridDeallocator($db);
-                $deallocationResult = $gridDeallocator->deallocateDonation($pledgeId, null);
-                
-                // Update pledge status to pending
-                $unapp = $db->prepare("UPDATE pledges SET status='pending', approved_by_user_id=NULL, approved_at=NULL WHERE id = ?");
-                $unapp->bind_param('i', $pledgeId);
-                $unapp->execute();
-
-                // Decrement counters
-                $deltaPaid = 0.0;
-                $deltaPledged = 0.0;
-                if ((string)$pledge['type'] === 'paid') {
-                    $deltaPaid = -(float)$pledge['amount'];
-                } else {
-                    $deltaPledged = -(float)$pledge['amount'];
-                }
-
-                $ctr = $db->prepare(
-                    "UPDATE counters SET 
-                       paid_total = paid_total + ?, 
-                       pledged_total = pledged_total + ?, 
-                       grand_total = grand_total + ?, 
-                       version = version + 1,
-                       recalc_needed = 0
-                     WHERE id = 1"
-                );
-                $grandDelta = $deltaPaid + $deltaPledged;
-                $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
-                $ctr->execute();
-
-                // Audit log
-                $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-                $ipBin = $ip ? @inet_pton($ip) : null;
-                $before = json_encode(['status' => 'approved', 'type' => $pledge['type'], 'amount' => (float)$pledge['amount']], JSON_UNESCAPED_SLASHES);
-                $after  = json_encode([
-                    'status' => 'pending',
-                    'grid_deallocation' => $deallocationResult
-                ], JSON_UNESCAPED_SLASHES);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, ip_address, source) VALUES(?, 'pledge', ?, 'unapprove', ?, ?, ?, 'admin')");
-                $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
-                if (!$log->execute()) {
-                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'unapprove', ?, ?, 'admin')");
-                    $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
-                    $log->execute();
-                }
-                
-                $actionMsg = $deallocationResult['success'] 
-                    ? "Unapproved & {$deallocationResult['message']}" 
-                    : "Unapproved (Grid deallocation failed: {$deallocationResult['error']})";
             } elseif ($action === 'update') {
                 // Update pledge details
                 $donorName = trim($_POST['donor_name'] ?? '');
@@ -235,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Payments workflow (standalone payments with status lifecycle)
-    if (in_array($action, ['approve_payment','reject_payment','update_payment','unapprove_payment'], true)) {
+    if (in_array($action, ['approve_payment','reject_payment','update_payment'], true)) {
         $paymentId = (int)($_POST['payment_id'] ?? 0);
         if ($paymentId > 0) {
             $db->begin_transaction();
@@ -303,46 +248,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $log->bind_param('iiss', $uid, $paymentId, $before, $after);
                     $log->execute();
                     $actionMsg = 'Payment rejected';
-                } else if ($action === 'unapprove_payment') {
-                    // Unapprove payment and deallocate floor cells
-                    if ((string)$pay['status'] !== 'approved') { throw new RuntimeException('Payment not approved'); }
-                    
-                    // First deallocate floor cells
-                    $gridDeallocator = new IntelligentGridDeallocator($db);
-                    $deallocationResult = $gridDeallocator->deallocateDonation(null, $paymentId);
-                    
-                    // Update payment status to pending
-                    $upd = $db->prepare("UPDATE payments SET status='pending' WHERE id=?");
-                    $upd->bind_param('i', $paymentId);
-                    $upd->execute();
-
-                    // Decrement counters
-                    $amt = -(float)$pay['amount'];
-                    $ctr = $db->prepare(
-                        "UPDATE counters SET 
-                           paid_total = paid_total + ?, 
-                           grand_total = grand_total + ?, 
-                           version = version + 1,
-                           recalc_needed = 0
-                         WHERE id = 1"
-                    );
-                    $ctr->bind_param('dd', $amt, $amt);
-                    $ctr->execute();
-
-                    // Audit log
-                    $uid = (int)current_user()['id'];
-                    $before = json_encode(['status'=>'approved', 'amount'=>(float)$pay['amount']], JSON_UNESCAPED_SLASHES);
-                    $after  = json_encode([
-                        'status'=>'pending',
-                        'grid_deallocation' => $deallocationResult
-                    ], JSON_UNESCAPED_SLASHES);
-                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'unapprove', ?, ?, 'admin')");
-                    $log->bind_param('iiss', $uid, $paymentId, $before, $after);
-                    $log->execute();
-                    
-                    $actionMsg = $deallocationResult['success'] 
-                        ? "Payment unapproved & {$deallocationResult['message']}" 
-                        : "Payment unapproved (Grid deallocation failed: {$deallocationResult['error']})";
                 } else if ($action === 'update_payment') {
                     // Update standalone payment fields while keeping status pending
                     if ((string)$pay['status'] !== 'pending') { throw new RuntimeException('Payment not pending'); }
