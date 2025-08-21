@@ -3,7 +3,7 @@ require_once '../../config/db.php';
 require_once '../../config/env.php';
 
 // Fetch settings from the database
-$settings_query = "SELECT projector_language, refresh_rate, target_amount, currency, campaign_title FROM settings WHERE id = 1";
+$settings_query = "SELECT projector_language, refresh_rate, target_amount, currency FROM settings WHERE id = 1";
 $settings_stmt = $pdo->query($settings_query);
 $settings = $settings_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -11,16 +11,12 @@ $projector_language = $settings['projector_language'] ?? 'en';
 $refresh_rate = $settings['refresh_rate'] ?? 5000;
 $target_amount = $settings['target_amount'] ?? 100000;
 $currency = $settings['currency'] ?? 'GBP';
-$campaign_title = $settings['campaign_title'] ?? 'Live Fundraising Campaign';
 
 // Load language files
 $lang_en = json_decode(file_get_contents('lang/en.json'), true);
 $lang_am = json_decode(file_get_contents('lang/am.json'), true);
 
 $lang = ($projector_language === 'am') ? $lang_am : $lang_en;
-
-// Add campaign title to language array
-$lang['campaign_title'] = $campaign_title;
 
 ?>
 <!DOCTYPE html>
@@ -108,10 +104,6 @@ $lang['campaign_title'] = $campaign_title;
             en: <?php echo json_encode($lang_en); ?>,
             am: <?php echo json_encode($lang_am); ?>
         };
-        
-        // Add dynamic campaign title to translations
-        translations.en.campaign_title = "<?php echo $campaign_title; ?>";
-        translations.am.campaign_title = "<?php echo $campaign_title; ?>"; // You might want a different way to translate this
 
         let currentLanguage = '<?php echo $projector_language; ?>';
 
