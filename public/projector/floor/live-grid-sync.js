@@ -56,7 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
          */
         startPolling() {
             this.fetchAndUpdate(); // Initial fetch
+            
+            // Regular polling every 2 seconds
             setInterval(() => this.fetchAndUpdate(), this.pollInterval);
+            
+            // AGGRESSIVE polling to check for localStorage changes every 500ms
+            this.lastRefreshCheck = 0;
+            setInterval(() => {
+                const lastRefresh = localStorage.getItem('floorMapRefresh');
+                if (lastRefresh && parseInt(lastRefresh) > this.lastRefreshCheck) {
+                    console.log('🚀 GridSync: AGGRESSIVE POLLING detected localStorage change!');
+                    this.lastRefreshCheck = parseInt(lastRefresh);
+                    this.fetchAndUpdate();
+                }
+            }, 500);
         },
 
         /**
@@ -65,8 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setupRefreshSignals() {
             // Listen for localStorage signals from admin pages
             window.addEventListener('storage', (e) => {
+                console.log('GridSync: Storage event detected', e.key, e.newValue);
                 if (e.key === 'floorMapRefresh' && e.newValue) {
-                    console.log('GridSync: Received immediate refresh signal from admin action');
+                    console.log('🚀 GridSync: IMMEDIATE REFRESH TRIGGERED by admin action!');
                     this.fetchAndUpdate();
                 }
             });

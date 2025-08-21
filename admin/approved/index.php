@@ -77,23 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->commit();
                 $actionMsg = 'Approval undone';
                 
-                // Signal floor map to refresh immediately
-                echo "<script>
-                    if (window.opener || window.parent !== window) {
-                        // Signal parent/opener windows
-                        try {
-                            if (window.opener && window.opener.refreshFloorMap) {
-                                window.opener.refreshFloorMap();
-                            }
-                            if (window.parent && window.parent.refreshFloorMap) {
-                                window.parent.refreshFloorMap();
-                            }
-                        } catch(e) { /* Cross-origin restrictions */ }
-                    }
-                    
-                    // Use localStorage to signal other tabs
-                    localStorage.setItem('floorMapRefresh', Date.now());
-                </script>";
+                // Set a flag to trigger floor map refresh on page load
+                $_SESSION['trigger_floor_refresh'] = true;
             } catch (Throwable $e) {
                 $db->rollback();
                 $actionMsg = 'Error: ' . $e->getMessage();
@@ -279,23 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->commit();
                 $actionMsg = 'Payment approval undone';
                 
-                // Signal floor map to refresh immediately
-                echo "<script>
-                    if (window.opener || window.parent !== window) {
-                        // Signal parent/opener windows
-                        try {
-                            if (window.opener && window.opener.refreshFloorMap) {
-                                window.opener.refreshFloorMap();
-                            }
-                            if (window.parent && window.parent.refreshFloorMap) {
-                                window.parent.refreshFloorMap();
-                            }
-                        } catch(e) { /* Cross-origin restrictions */ }
-                    }
-                    
-                    // Use localStorage to signal other tabs
-                    localStorage.setItem('floorMapRefresh', Date.now());
-                </script>";
+                // Set a flag to trigger floor map refresh on page load
+                $_SESSION['trigger_floor_refresh'] = true;
             } catch (Throwable $e) {
                 $db->rollback();
                 $actionMsg = 'Error: ' . $e->getMessage();
@@ -564,6 +534,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+// Check for floor map refresh trigger
+<?php if (isset($_SESSION['trigger_floor_refresh']) && $_SESSION['trigger_floor_refresh']): ?>
+// Clear the flag
+<?php unset($_SESSION['trigger_floor_refresh']); ?>
+
+// Trigger immediate floor map refresh
+console.log('Admin action completed - triggering floor map refresh');
+localStorage.setItem('floorMapRefresh', Date.now());
+
+// Also try to call refresh function directly on any open floor map windows
+try {
+    // Check all open windows/tabs
+    for (let i = 0; i < window.length; i++) {
+        try {
+            if (window[i] && window[i].refreshFloorMap) {
+                window[i].refreshFloorMap();
+            }
+        } catch(e) { /* Cross-origin restrictions */ }
+    }
+} catch(e) { /* No access to other windows */ }
+
+// Show user feedback
+setTimeout(() => {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alert.innerHTML = `
+        <i class="fas fa-sync-alt me-2"></i>Floor map refresh signal sent!
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 3000);
+}, 100);
+<?php endif; ?>
 </script>
 </body>
 </html>

@@ -174,6 +174,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-bug me-2 text-primary"></i>Debug Refresh</h5>
+                        <p class="card-text">Debug immediate refresh system to fix floor map update delays after admin actions.</p>
+                        <a href="debug_refresh_issue.php" class="btn btn-primary">Debug</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100 border-danger">
                     <div class="card-body">
                         <h5 class="card-title"><i class="fas fa-power-off me-2 text-danger"></i>Reset Floor Map</h5>
