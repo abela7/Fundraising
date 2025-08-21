@@ -167,9 +167,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Audit
                 $afterJson = json_encode(['amount'=>$amount,'method'=>$payment_method,'donor'=>$donorName,'status'=>'pending']);
                 $source = 'public';
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment', ?, 'create_pending', ?, ?)");
-                $log->bind_param('iiss', $createdBy, $entityId, $afterJson, $source);
-                $log->execute();
+                try {
+                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment', ?, 'create_pending', ?, ?)");
+                    $log->bind_param('iiss', $createdBy, $entityId, $afterJson, $source);
+                    $log->execute();
+                } catch (Exception $auditError) {
+                    // Log audit error but don't fail the main transaction
+                    error_log("Warning: Audit log insertion failed for payment ID: " . $entityId . " - " . $auditError->getMessage());
+                }
             } else {
                 // PLEDGE path. Guard duplicate UUID.
                 $stmt = $db->prepare("SELECT id FROM pledges WHERE client_uuid = ?");
@@ -223,9 +228,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $afterJson = json_encode(['amount'=>$amount,'type'=>'pledge','anonymous'=>$anonymousFlag,'donor'=>$donorName,'status'=>'pending']);
                 $source = 'public';
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'pledge', ?, 'create_pending', ?, ?)");
-                $log->bind_param('iiss', $createdBy, $entityId, $afterJson, $source);
-                $log->execute();
+                try {
+                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'pledge', ?, 'create_pending', ?, ?)");
+                    $log->bind_param('iiss', $createdBy, $entityId, $afterJson, $source);
+                    $log->execute();
+                } catch (Exception $auditError) {
+                    // Log audit error but don't fail the main transaction
+                    error_log("Warning: Audit log insertion failed for pledge ID: " . $entityId . " - " . $auditError->getMessage());
+                }
             }
 
             $db->commit();
@@ -236,6 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $db->rollback();
             error_log("Public donation error: " . $e->getMessage() . " on line " . $e->getLine());
+            error_log("Stack trace: " . $e->getTraceAsString());
             $error = 'Error processing your donation. Please try again or contact support.';
         }
     }
