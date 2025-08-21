@@ -7,7 +7,7 @@
 <style>
   /* 1m size + canvas size - Enhanced responsive scaling */
   :root { 
-    --m: min(2.5vw, 2.5vh, 36px); 
+    --m: min(3.5vw, 3.5vh, 48px); 
     --cols: 41; 
     --rows: 20; 
     --max-width: calc(var(--cols) * var(--m));
@@ -15,11 +15,11 @@
   }
   
   /* Responsive breakpoints with proportional scaling */
-  @media (max-width: 1600px) { :root { --m: min(2.2vw, 2.2vh, 32px); } }
-  @media (max-width: 1200px) { :root { --m: min(2.0vw, 2.0vh, 28px); } }
-  @media (max-width: 900px)  { :root { --m: min(1.8vw, 1.8vh, 24px); } }
-  @media (max-width: 600px)  { :root { --m: min(1.6vw, 1.6vh, 20px); } }
-  @media (max-width: 480px)  { :root { --m: min(1.4vw, 1.4vh, 16px); } }
+  @media (max-width: 1600px) { :root { --m: min(3.2vw, 3.2vh, 44px); } }
+  @media (max-width: 1200px) { :root { --m: min(3.0vw, 3.0vh, 40px); } }
+  @media (max-width: 900px)  { :root { --m: min(2.8vw, 2.8vh, 36px); } }
+  @media (max-width: 600px)  { :root { --m: min(2.6vw, 2.6vh, 32px); } }
+  @media (max-width: 480px)  { :root { --m: min(2.4vw, 2.4vh, 28px); } }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body{
@@ -41,7 +41,7 @@
     grid-template-columns: repeat(var(--cols), var(--m));
     grid-template-rows: repeat(var(--rows), var(--m));
     position: relative;
-    max-width: 90vw; max-height: 90vh;
+    max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
     .main-section {
             width: 100%;
