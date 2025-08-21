@@ -124,14 +124,18 @@ class CustomAmountAllocator {
     private function checkAndAllocateAccumulated(): ?array {
         // Check if TOTAL accumulated amount reaches £100+ (collective accumulation)
         $stmt = $this->db->prepare("
-            SELECT SUM(remaining_amount) as total_remaining
+            SELECT remaining_amount
             FROM custom_amount_tracking
+            WHERE id = 1
         ");
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
-        $totalRemaining = (float)($result['total_remaining'] ?? 0);
+        $totalRemaining = (float)($result['remaining_amount'] ?? 0);
+        
+        error_log("CustomAmountAllocator: Current remaining amount: £{$totalRemaining}");
         
         if ($totalRemaining < 100) {
+            error_log("CustomAmountAllocator: Not enough to allocate (£{$totalRemaining} < £100)");
             return null; // Not enough to allocate
         }
         
@@ -142,6 +146,16 @@ class CustomAmountAllocator {
         
         // DEBUG: Log the allocation attempt
         error_log("CustomAmountAllocator: Attempting to allocate £{$allocatedAmount} for {$cellsToAllocate} cells");
+        error_log("CustomAmountAllocator: Will leave £{$remainingAmount} remaining");
+        
+        // Check if there are available cells first
+        $availableCells = $this->checkAvailableCells($cellsToAllocate);
+        if (empty($availableCells)) {
+            error_log("CustomAmountAllocator: ERROR - No available cells found for allocation!");
+            return null;
+        }
+        
+        error_log("CustomAmountAllocator: Found " . count($availableCells) . " available cells");
         
         // Allocate cells using existing grid allocator
         $gridAllocator = new IntelligentGridAllocator($this->db);
@@ -158,7 +172,8 @@ class CustomAmountAllocator {
         error_log("CustomAmountAllocator: Allocation result: " . json_encode($allocationResult));
         
         if ($allocationResult['success']) {
-            // Reset ALL tracking records after successful allocation
+            error_log("CustomAmountAllocator: SUCCESS! Cells allocated successfully");
+            // Reset tracking records after successful allocation
             $this->resetTrackingAfterAllocation($allocatedAmount, $remainingAmount);
             
             return [
@@ -170,9 +185,37 @@ class CustomAmountAllocator {
                     'total_contributors' => $this->getActiveDonorCount()
                 ]
             ];
+        } else {
+            error_log("CustomAmountAllocator: FAILED! Allocation error: " . ($allocationResult['error'] ?? 'Unknown error'));
         }
         
         return null;
+    }
+    
+    /**
+     * Check if there are enough available cells for allocation
+     */
+    private function checkAvailableCells(int $requiredCells): array {
+        // Check for any available cells (not just 0.5x0.5)
+        $stmt = $this->db->prepare("
+            SELECT cell_id, rectangle_id, cell_type, status
+            FROM floor_grid_cells
+            WHERE status = 'available'
+            ORDER BY rectangle_id ASC, CAST(SUBSTRING_INDEX(cell_id, '-', -1) AS UNSIGNED) ASC
+            LIMIT ?
+        ");
+        $stmt->bind_param('i', $requiredCells);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        error_log("CustomAmountAllocator: Found " . count($result) . " available cells out of " . $requiredCells . " required");
+        
+        // Log details of available cells
+        foreach ($result as $cell) {
+            error_log("CustomAmountAllocator: Available cell: {$cell['cell_id']} (type: {$cell['cell_type']}, status: {$cell['status']})");
+        }
+        
+        return $result;
     }
     
     /**
