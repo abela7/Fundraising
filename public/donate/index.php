@@ -32,7 +32,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // --- Step 1: Sanitize and collect all form inputs ---
     $name = trim((string)($_POST['name'] ?? ''));
     $phone = trim((string)($_POST['phone'] ?? ''));
-    $email = trim((string)($_POST['email'] ?? ''));
     $anonymous = isset($_POST['anonymous']); // will be true or false
     $anonymousFlag = $anonymous ? 1 : 0;
     $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
@@ -40,7 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $type = (string)($_POST['type'] ?? 'pledge'); // 'pledge' or 'paid'
     $payment_method_input = trim((string)($_POST['payment_method'] ?? ''));
     $package_choice = (string)($_POST['package_choice'] ?? ''); // '1', '0.5', '0.25', 'custom'
-    $notes = trim((string)($_POST['notes'] ?? ''));
     $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
 
     // --- Step 2: Validate the inputs and business logic ---
@@ -123,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Donor data normalization
             $donorName  = ($type === 'paid' && $anonymous) ? 'Anonymous' : $name;
             $donorPhone = ($type === 'paid' && $anonymous) ? null : $phone;
-            $donorEmail = ($type === 'paid' && $anonymous) ? null : $email;
+            $donorEmail = null; // Email field removed
 
             // For anonymous pledges, we still need some identifier, use "Anonymous"
             if ($type === 'pledge' && $anonymous) {
@@ -132,11 +130,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $donorEmail = null;
             }
 
-            // Notes decoration for paid
-            $final_notes = $notes;
+            // Notes decoration for paid (simplified since no user notes)
+            $final_notes = '';
             if ($type === 'paid' && $payment_method) {
-                $payment_note = 'Paid via ' . ucfirst($payment_method) . '.';
-                $final_notes = $notes ? ($payment_note . "\n" . $notes) : $payment_note;
+                $final_notes = 'Paid via ' . ucfirst($payment_method) . '.';
             }
 
             if ($type === 'paid') {
@@ -345,11 +342,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                        placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                             </div>
                             
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email (Optional)</label>
-                                <input type="email" class="form-control" id="email" name="email" 
-                                       placeholder="Enter email address" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-                            </div>
                             
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="anonymous" name="anonymous" 
@@ -358,11 +350,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <i class="fas fa-user-secret me-1"></i>
                                     Make this donation anonymous
                                 </label>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="notes" class="form-label">Notes (Optional)</label>
-                                <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="e.g., part of a family pledge..."><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
                             </div>
                         </div>
                         

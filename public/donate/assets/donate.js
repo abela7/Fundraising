@@ -105,25 +105,6 @@ function setupFormValidation() {
         });
     }
 
-    // Email validation
-    const emailField = document.getElementById('email');
-    if (emailField) {
-        emailField.addEventListener('input', function() {
-            if (this.value.trim() === '') {
-                this.classList.remove('is-valid', 'is-invalid');
-            } else {
-                const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
-                if (isValid) {
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
-                } else {
-                    this.classList.remove('is-valid');
-                    this.classList.add('is-invalid');
-                }
-            }
-        });
-    }
-
     // Name validation
     const nameField = document.getElementById('name');
     if (nameField) {
