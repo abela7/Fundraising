@@ -249,253 +249,216 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Make a Donation - Church Fundraising</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../../assets/theme.css">
-    <link rel="stylesheet" href="assets/donate.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/donate.css?v=<?php echo @filemtime(__DIR__ . '/assets/donate.css'); ?>">
 </head>
-<body class="public-body">
-    <div class="container-fluid">
-        <div class="row min-vh-100">
-            <!-- Left Side - Info Panel -->
-            <div class="col-lg-5 info-panel d-flex flex-column">
-                <div class="info-content">
-                    <div class="church-logo mb-4">
-                        <i class="fas fa-church text-primary" style="font-size: 3rem;"></i>
-                        <h1 class="mt-3">Church Fundraising</h1>
-                    </div>
-                    
-                    <div class="progress-section mb-4">
-                        <h3 class="text-primary mb-3">
-                            <i class="fas fa-target me-2"></i>
+<body>
+    <div class="app-wrapper">
+        <div class="app-content">
+            <main class="main-content">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">
+                        <i class="fas fa-hand-holding-heart me-2"></i>
+                        Make a Donation
+                    </h1>
+                    <p class="text-muted">Support our community with your generous contribution</p>
+                </div>
+                
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">
+                            <i class="fas fa-target me-1"></i>
                             Fundraising Progress
-                        </h3>
-                        <div class="progress mb-3" style="height: 20px;">
-                            <div class="progress-bar bg-success" style="width: <?php echo number_format($progressPercent, 1); ?>%"></div>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="fw-bold"><?php echo $currency; ?> <?php echo number_format($currentTotal, 0); ?></span>
-                            <span class="text-muted">of <?php echo $currency; ?> <?php echo number_format($targetAmount, 0); ?></span>
-                        </div>
-                        <div class="text-center mt-2">
-                            <small class="text-muted"><?php echo number_format($progressPercent, 1); ?>% Complete</small>
-                        </div>
+                        <div class="stat-value"><?php echo number_format($progressPercent, 1); ?>%</div>
                     </div>
-                    
-                    <div class="info-points">
-                        <div class="info-point mb-3">
-                            <i class="fas fa-shield-alt text-success me-3"></i>
-                            <div>
-                                <h5 class="mb-1">Secure & Safe</h5>
-                                <p class="mb-0 text-muted">Your information is protected and secure.</p>
-                            </div>
+                    <div class="stat-card">
+                        <div class="stat-label">
+                            <i class="fas fa-pound-sign me-1"></i>
+                            Current Total
                         </div>
-                        <div class="info-point mb-3">
-                            <i class="fas fa-clock text-info me-3"></i>
-                            <div>
-                                <h5 class="mb-1">Quick Process</h5>
-                                <p class="mb-0 text-muted">Takes less than 2 minutes to complete.</p>
-                            </div>
+                        <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($currentTotal, 0); ?></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">
+                            <i class="fas fa-flag-checkered me-1"></i>
+                            Target Amount
                         </div>
-                        <div class="info-point mb-3">
-                            <i class="fas fa-heart text-danger me-3"></i>
-                            <div>
-                                <h5 class="mb-1">Making a Difference</h5>
-                                <p class="mb-0 text-muted">Every contribution helps build our community.</p>
-                            </div>
+                        <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($targetAmount, 0); ?></div>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="card mb-4">
+                    <div class="progress-section">
+                        <div class="progress mb-2" style="height: 20px;">
+                            <div class="progress-bar" style="width: <?php echo number_format($progressPercent, 1); ?>%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between text-sm">
+                            <span><?php echo $currency; ?> <?php echo number_format($currentTotal, 0); ?> raised</span>
+                            <span><?php echo number_format($progressPercent, 1); ?>% complete</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Right Side - Donation Form -->
-            <div class="col-lg-7 form-panel">
-                <div class="form-container">
-                    <div class="form-header mb-4">
-                        <h2 class="text-center mb-2">
-                            <i class="fas fa-hand-holding-heart text-primary me-2"></i>
-                            Make a Donation
-                        </h2>
-                        <p class="text-center text-muted">Support our community with your generous contribution</p>
-                    </div>
-                    
-                    <?php if ($success): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <?php echo htmlspecialchars($success, ENT_QUOTES, 'UTF-8'); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
+                
+                <!-- Registration Form -->
+                <div class="card">
                     
                     <?php if ($error): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
                     <?php endif; ?>
                     
-                    <form method="POST" class="donation-form" id="donationForm">
+                    <?php if ($success): ?>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <form method="POST" class="registration-form">
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="client_uuid" value="">
                         
-                        <!-- Personal Information -->
-                        <div class="form-section mb-4">
-                            <h4 class="form-section-title">
-                                <i class="fas fa-user text-primary me-2"></i>
-                                Your Information
-                            </h4>
+                        <!-- Donor Information -->
+                        <div class="form-section">
+                            <h3 class="form-section-title">
+                                <i class="fas fa-user"></i>
+                                Donor Information
+                            </h3>
+                            
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       placeholder="Enter full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" 
+                                       placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email (Optional)</label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       placeholder="Enter email address" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                            </div>
                             
                             <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="anonymous" name="anonymous"
-                                       <?php echo (isset($_POST['anonymous']) && $_POST['anonymous']) ? 'checked' : ''; ?>>
-                                <label class="form-check-label fw-bold" for="anonymous">
+                                <input class="form-check-input" type="checkbox" id="anonymous" name="anonymous" 
+                                       <?php echo isset($_POST['anonymous']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="anonymous">
                                     <i class="fas fa-user-secret me-1"></i>
                                     Make this donation anonymous
                                 </label>
                             </div>
-                            
-                            <div id="personalInfo">
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="name" class="form-label">Full Name</label>
-                                        <input type="text" class="form-control" id="name" name="name" 
-                                               placeholder="Enter your full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="phone" class="form-label">Phone Number</label>
-                                        <input type="tel" class="form-control" id="phone" name="phone" 
-                                               placeholder="07XXXXXXXXX" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">Email (Optional)</label>
-                                    <input type="email" class="form-control" id="email" name="email" 
-                                           placeholder="your.email@example.com" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-                                </div>
-                            </div>
-                            
+
                             <div class="mb-3">
-                                <label for="notes" class="form-label">Message (Optional)</label>
-                                <textarea class="form-control" id="notes" name="notes" rows="2" 
-                                          placeholder="Any special message or dedication..."><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
+                                <label for="notes" class="form-label">Notes (Optional)</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="e.g., part of a family pledge..."><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
                             </div>
                         </div>
                         
                         <!-- Amount Selection -->
-                        <div class="form-section mb-4">
-                            <h4 class="form-section-title">
-                                <i class="fas fa-pound-sign text-primary me-2"></i>
-                                Choose Amount
-                            </h4>
+                        <div class="form-section">
+                            <h3 class="form-section-title">
+                                <i class="fas fa-pound-sign"></i>
+                                Select Amount
+                            </h3>
                             
-                            <div class="amount-options">
-                                <label class="amount-option" data-pack="1">
+                            <div class="quick-amounts">
+                                <label class="quick-amount-btn" data-pack="1">
                                     <input type="radio" name="pack" value="1" class="d-none">
-                                    <div class="amount-card">
-                                        <div class="amount-value"><?php echo $currency; ?> <?php echo isset($pkgOne) ? number_format((float)$pkgOne['price'], 0) : 'N/A'; ?></div>
-                                        <div class="amount-label">1 Square Meter</div>
-                                        <div class="amount-description">Full square meter of our new building</div>
-                                        <i class="fas fa-check-circle amount-check"></i>
-                                    </div>
+                                    <span class="quick-amount-value"><?php echo $currency; ?> <?php echo isset($pkgOne) ? number_format((float)$pkgOne['price'], 0) : 'N/A'; ?></span>
+                                    <span class="quick-amount-label">1 Square Meter</span>
+                                    <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                                 
-                                <label class="amount-option" data-pack="0.5">
+                                <label class="quick-amount-btn" data-pack="0.5">
                                     <input type="radio" name="pack" value="0.5" class="d-none">
-                                    <div class="amount-card">
-                                        <div class="amount-value"><?php echo $currency; ?> <?php echo isset($pkgHalf) ? number_format((float)$pkgHalf['price'], 0) : 'N/A'; ?></div>
-                                        <div class="amount-label">½ Square Meter</div>
-                                        <div class="amount-description">Half square meter contribution</div>
-                                        <i class="fas fa-check-circle amount-check"></i>
-                                    </div>
+                                    <span class="quick-amount-value"><?php echo $currency; ?> <?php echo isset($pkgHalf) ? number_format((float)$pkgHalf['price'], 0) : 'N/A'; ?></span>
+                                    <span class="quick-amount-label">½ Square Meter</span>
+                                    <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                                 
-                                <label class="amount-option" data-pack="0.25">
+                                <label class="quick-amount-btn" data-pack="0.25">
                                     <input type="radio" name="pack" value="0.25" class="d-none">
-                                    <div class="amount-card">
-                                        <div class="amount-value"><?php echo $currency; ?> <?php echo isset($pkgQuarter) ? number_format((float)$pkgQuarter['price'], 0) : 'N/A'; ?></div>
-                                        <div class="amount-label">¼ Square Meter</div>
-                                        <div class="amount-description">Quarter square meter support</div>
-                                        <i class="fas fa-check-circle amount-check"></i>
-                                    </div>
+                                    <span class="quick-amount-value"><?php echo $currency; ?> <?php echo isset($pkgQuarter) ? number_format((float)$pkgQuarter['price'], 0) : 'N/A'; ?></span>
+                                    <span class="quick-amount-label">¼ Square Meter</span>
+                                    <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                                 
-                                <label class="amount-option" data-pack="custom">
+                                <label class="quick-amount-btn" data-pack="custom">
                                     <input type="radio" name="pack" value="custom" class="d-none">
-                                    <div class="amount-card">
-                                        <div class="amount-value">Custom</div>
-                                        <div class="amount-label">Your Amount</div>
-                                        <div class="amount-description">Choose your own amount</div>
-                                        <i class="fas fa-check-circle amount-check"></i>
-                                    </div>
+                                    <span class="quick-amount-value">Custom</span>
+                                    <span class="quick-amount-label">Enter Amount</span>
+                                    <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                             </div>
                             
                             <div class="mb-3 d-none" id="customAmountDiv">
-                                <label for="custom_amount" class="form-label">Enter Custom Amount</label>
+                                <label for="custom_amount" class="form-label">Custom Amount</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><?php echo $currency; ?></span>
                                     <input type="number" class="form-control" id="custom_amount" name="custom_amount" 
-                                           min="1" step="0.01" placeholder="0.00" value="<?php echo htmlspecialchars($_POST['custom_amount'] ?? ''); ?>">
+                                           min="1" step="0.01" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Payment Type -->
-                        <div class="form-section mb-4">
-                            <h4 class="form-section-title">
-                                <i class="fas fa-credit-card text-primary me-2"></i>
+                        <div class="form-section half">
+                            <h3 class="form-section-title">
+                                <i class="fas fa-credit-card"></i>
                                 Payment Type
-                            </h4>
-                            
-                            <div class="payment-type-options">
-                                <label class="payment-type-option">
-                                    <input type="radio" name="type" value="pledge" class="d-none" checked>
-                                    <div class="payment-type-card">
-                                        <i class="fas fa-handshake text-warning mb-2"></i>
-                                        <h5>Promise to Pay</h5>
-                                        <p class="text-muted mb-0">I will pay this amount later</p>
-                                    </div>
+                            </h3>
+                            <div class="segmented-control">
+                                <input class="form-check-input" type="radio" name="type" id="typePledge" 
+                                       value="pledge" checked>
+                                <label class="form-check-label" for="typePledge">
+                                    <i class="fas fa-handshake me-1"></i>Promise to Pay Later
                                 </label>
                                 
-                                <label class="payment-type-option">
-                                    <input type="radio" name="type" value="paid" class="d-none">
-                                    <div class="payment-type-card">
-                                        <i class="fas fa-check-circle text-success mb-2"></i>
-                                        <h5>Already Paid</h5>
-                                        <p class="text-muted mb-0">I have already made this payment</p>
-                                    </div>
+                                <input class="form-check-input" type="radio" name="type" id="typePaid" value="paid">
+                                <label class="form-check-label" for="typePaid">
+                                    <i class="fas fa-check-circle me-1"></i>Paid Now
                                 </label>
                             </div>
                         </div>
                         
                         <!-- Payment Method (shown only for paid) -->
-                        <div class="form-section mb-4 d-none" id="paymentMethodDiv">
-                            <h4 class="form-section-title">
-                                <i class="fas fa-wallet text-primary me-2"></i>
+                        <div class="form-section half d-none" id="paymentMethodDiv">
+                            <h3 class="form-section-title">
+                                <i class="fas fa-wallet"></i>
                                 Payment Method
-                            </h4>
+                            </h3>
                             
                             <select class="form-select" name="payment_method" id="payment_method">
-                                <option value="">How did you pay?</option>
-                                <option value="cash" <?php echo (($_POST['payment_method'] ?? '') === 'cash') ? 'selected' : ''; ?>>Cash</option>
-                                <option value="card" <?php echo (($_POST['payment_method'] ?? '') === 'card') ? 'selected' : ''; ?>>Card/Online</option>
-                                <option value="bank" <?php echo (($_POST['payment_method'] ?? '') === 'bank') ? 'selected' : ''; ?>>Bank Transfer</option>
-                                <option value="other" <?php echo (($_POST['payment_method'] ?? '') === 'other') ? 'selected' : ''; ?>>Other</option>
+                                <option value="">Select method...</option>
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="transfer">Bank Transfer</option>
+                                <option value="cheque">Cheque</option>
                             </select>
                         </div>
                         
                         <!-- Submit Button -->
-                        <div class="text-center">
-                            <button type="submit" class="btn btn-primary btn-lg px-5 py-3">
-                                <i class="fas fa-heart me-2"></i>
-                                Submit Donation
-                            </button>
-                        </div>
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-save"></i>
+                            Register Donation
+                        </button>
                     </form>
                 </div>
-            </div>
+                
+                <!-- Mobile Action Button -->
+            </main>
         </div>
     </div>
     
