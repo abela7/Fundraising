@@ -316,7 +316,7 @@ if (isset($_SESSION['success_message'])) {
                     </div>
                     <?php endif; ?>
                     
-                    <form method="POST" class="registration-form">
+                    <form method="POST" class="registration-form needs-validation" novalidate>
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="client_uuid" value="">
                         
@@ -329,14 +329,20 @@ if (isset($_SESSION['success_message'])) {
                             
                             <div class="mb-3">
                                 <label for="name" class="form-label">Full Name</label>
-                                <input type="text" class="form-control" id="name" name="name" 
+                                <input type="text" class="form-control" id="name" name="name" required
                                        placeholder="Enter full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                                <div class="invalid-feedback">
+                                    Please enter a valid name (at least 2 characters).
+                                </div>
                             </div>
                             
                             <div class="mb-3">
                                 <label for="phone" class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" id="phone" name="phone" 
+                                <input type="tel" class="form-control" id="phone" name="phone" required
                                        placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                                <div class="invalid-feedback">
+                                    Please enter a valid UK mobile number starting with 07.
+                                </div>
                             </div>
                             
                             <div class="mb-3">
@@ -493,6 +499,9 @@ if (isset($_SESSION['success_message'])) {
             phoneField.required = false;
             nameField.placeholder = 'Anonymous';
             phoneField.placeholder = 'Anonymous';
+            // Clear validation classes when anonymous
+            nameField.classList.remove('is-valid', 'is-invalid');
+            phoneField.classList.remove('is-valid', 'is-invalid');
         } else {
             nameField.required = true;
             phoneField.required = true;

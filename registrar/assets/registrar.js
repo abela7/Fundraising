@@ -1,5 +1,14 @@
 // Registrar Panel JavaScript - Mobile First
 
+// Utility function for phone normalization (used in real-time validation)
+function normalizeUkPhone(phone) {
+    let digits = phone.replace(/[^0-9+]/g, '');
+    if (digits.startsWith('+44')) {
+        digits = '0' + digits.slice(3);
+    }
+    return digits;
+}
+
 // DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize components
@@ -95,6 +104,8 @@ function initRegistrationForm() {
             if (s.startsWith('+44')) s = '0' + s.slice(3);
             return s;
         };
+        
+
 
         // Phone format validation when required
         let normalized = rawPhone;
@@ -168,6 +179,48 @@ function initFormValidation() {
             form.classList.add('was-validated');
         }, false);
     });
+    
+    // Real-time validation for phone number (UK mobile format)
+    const phoneField = document.getElementById('phone');
+    if (phoneField) {
+        phoneField.addEventListener('input', function() {
+            const phone = normalizeUkPhone(this.value);
+            const isValid = /^07\d{9}$/.test(phone);
+            const isRequired = this.required;
+            
+            if (isRequired && this.value.trim() === '') {
+                this.classList.remove('is-valid', 'is-invalid');
+            } else if (this.value.trim() !== '') {
+                if (isValid) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                }
+            }
+        });
+    }
+
+    // Name validation
+    const nameField = document.getElementById('name');
+    if (nameField) {
+        nameField.addEventListener('input', function() {
+            const isRequired = this.required;
+            if (isRequired && this.value.trim() === '') {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            } else if (this.value.trim().length >= 2) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else if (this.value.trim() !== '') {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-valid', 'is-invalid');
+            }
+        });
+    }
 }
 
 // Success animation
