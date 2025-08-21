@@ -102,6 +102,43 @@
             opacity: 0.95;
         }
         
+        /* Vision Description */
+        .vision-description {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .amharic-heading {
+            font-size: 1.4rem;
+            color: var(--accent-gold);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 700;
+            line-height: 1.6;
+        }
+        
+        .amharic-text {
+            font-size: 1.1rem;
+            color: var(--text-light);
+            margin-bottom: 1.2rem;
+            line-height: 1.8;
+            text-align: justify;
+        }
+        
+        .amharic-text:last-child {
+            margin-bottom: 0;
+            font-weight: 600;
+            color: var(--accent-gold);
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        
         /* Floor Plan Section */
         .floor-plan {
             padding: 4rem 2rem;
@@ -115,6 +152,79 @@
             margin-bottom: 3rem;
             color: var(--accent-gold);
             text-shadow: var(--shadow);
+        }
+        
+        /* Grid System Explanation */
+        .grid-explanation {
+            margin-bottom: 4rem;
+        }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .grid-item {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .grid-item:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-gold);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .grid-visual {
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80px;
+        }
+        
+        .grid-square {
+            border: 2px solid var(--accent-gold);
+            background: rgba(255, 215, 0, 0.1);
+            position: relative;
+        }
+        
+        .large-square {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+        }
+        
+        .medium-square {
+            width: 80px;
+            height: 40px;
+            background: linear-gradient(45deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+        }
+        
+        .small-square {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+        }
+        
+        .grid-label {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            margin-bottom: 0.5rem;
+        }
+        
+        .grid-description {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            opacity: 0.9;
         }
         
         .space-grid {
@@ -289,8 +399,26 @@
                 font-size: 2rem;
             }
             
+            .vision-description {
+                padding: 1.5rem;
+                margin: 0 1rem;
+            }
+            
+            .amharic-heading {
+                font-size: 1.2rem;
+            }
+            
+            .amharic-text {
+                font-size: 1rem;
+            }
+            
             .floor-plan h2 {
                 font-size: 2rem;
+            }
+            
+            .grid-container {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
             }
             
             .space-grid {
@@ -320,6 +448,27 @@
             
             .core-message .english {
                 font-size: 1.6rem;
+            }
+            
+            .vision-description {
+                padding: 1rem;
+                margin: 0 0.5rem;
+            }
+            
+            .amharic-heading {
+                font-size: 1.1rem;
+            }
+            
+            .amharic-text {
+                font-size: 0.95rem;
+            }
+            
+            .grid-container {
+                gap: 1rem;
+            }
+            
+            .grid-item {
+                padding: 1rem;
             }
             
             .space-visual {
@@ -383,12 +532,54 @@
                 <span class="amharic">ይህ ታሪኬ ነው</span>
                 <span class="english">It is My History</span>
             </div>
+            
+            <div class="vision-description fade-in">
+                <h3 class="amharic-heading">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።</h3>
+                <p class="amharic-text">
+                    ለትውልድ የሚሻገር ትልቅ አሻራ የምናሳርፍበት፣ መንፈሳዊ አገልግሎታችንን በተሟላ ሁኔታ የምናከናውንበት እና ለልጆቻችን ሃይማኖታችንን የምናስተላልፍበት ሕንጻ ቤተ ክርስቲያን ባለቤት ለመሆን እየተጋን ነው።
+                </p>
+                <p class="amharic-text">
+                    ይህን ታላቅ ምዕራፍ ለመጨረስ ግን የእያንዳንዳችን ድርሻ ወሳኝ ነው። እርስዎም የበኩሎዎን በመወጣት የበረከት ተካፋይ እና የዚህ ታሪካዊ ስኬት አካል እንዲሆኑ በጻድቁ አቡነ ተክለሃይማኖት ስም በአክብሮት እንጠይቃለን።
+                </p>
+                <p class="amharic-text">
+                    በካሬ ዋጋ ድጋፍ ያድርጉ: ከታች በተቀመጠው የካሬ ዋጋ መሰረት አቅምዎ የፈቀደውን ድጋፍ ያድርጉልን። ቢያንስ እርስዎ ወይም ወዳጅዎ ቆመው የሚያስቀድሱባትን ቦታ ይግዙልን።
+                </p>
+            </div>
         </div>
     </section>
     
     <!-- Floor Plan Explanation Section -->
     <section class="floor-plan">
         <h2 class="fade-in">Choose Your Space in Our Church</h2>
+        
+        <!-- Grid System Explanation -->
+        <div class="grid-explanation fade-in">
+            <div class="grid-container">
+                <div class="grid-item large">
+                    <div class="grid-visual">
+                        <div class="grid-square large-square"></div>
+                    </div>
+                    <div class="grid-label">1m² = £400</div>
+                    <div class="grid-description">4 x 0.25m² spaces</div>
+                </div>
+                
+                <div class="grid-item medium">
+                    <div class="grid-visual">
+                        <div class="grid-square medium-square"></div>
+                    </div>
+                    <div class="grid-label">0.5m² = £200</div>
+                    <div class="grid-description">2 x 0.25m² spaces</div>
+                </div>
+                
+                <div class="grid-item small">
+                    <div class="grid-visual">
+                        <div class="grid-square small-square"></div>
+                    </div>
+                    <div class="grid-label">0.25m² = £100</div>
+                    <div class="grid-description">1 x 0.25m² space</div>
+                </div>
+            </div>
+        </div>
         
         <div class="space-grid">
             <div class="space-item fade-in">
