@@ -23,51 +23,11 @@
   @media (max-width: 480px)  { :root { --m: min(2.4vw, 2.4vh, 28px); } }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  /* Enhanced animated background with subtle moving gradient */
   body{
     display: flex; align-items: center; justify-content: center;
     padding: 0; margin: 0; min-height: 100vh;
-    background: linear-gradient(-45deg, #0f172a, #1e293b, #334155, #1e293b);
-    background-size: 400% 400%;
-    animation: gradientShift 15s ease infinite;
+    background: #131A2D; /* Dark blue background */
     font-family: system-ui, -apple-system, sans-serif;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  /* Animated background gradient */
-  @keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  
-  /* Subtle floating particles effect */
-  body::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: 
-      radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.1), transparent),
-      radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.05), transparent),
-      radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.08), transparent),
-      radial-gradient(1px 1px at 130px 80px, rgba(255, 255, 255, 0.06), transparent),
-      radial-gradient(2px 2px at 160px 30px, rgba(255, 255, 255, 0.04), transparent);
-    background-repeat: repeat;
-    background-size: 200px 100px;
-    animation: floatParticles 20s linear infinite;
-    pointer-events: none;
-    z-index: 1;
-  }
-  
-  @keyframes floatParticles {
-    0% { transform: translateY(0px) translateX(0px); }
-    33% { transform: translateY(-10px) translateX(5px); }
-    66% { transform: translateY(5px) translateX(-3px); }
-    100% { transform: translateY(0px) translateX(0px); }
   }
 
   .game-container{
@@ -79,10 +39,8 @@
     position: relative;
     padding: 20px;
     box-sizing: border-box;
-    z-index: 2;
   }
 
-  /* Enhanced floor map with subtle glow and pulse effect */
   .floor-map{
     display: grid;
     grid-template-columns: repeat(var(--cols), var(--m));
@@ -90,95 +48,40 @@
     position: relative;
     max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
-    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.1));
-    animation: subtlePulse 4s ease-in-out infinite;
-    
     .main-section {
-      width: 100%;
-      height: 100%;
-      display: grid;
-      grid-template-columns: repeat(28, 1fr);
-      grid-template-rows: repeat(44, 1fr);
-      gap: 2px;
-      padding: 5px;
-      background-color: #E0E0E0;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(28, 1fr);
+            grid-template-rows: repeat(44, 1fr);
+            gap: 2px; /* This creates the subtle border effect */
+            padding: 5px; /* A little space around the edge */
+            background-color: #E0E0E0; /* A slightly darker grey for the "grout" */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
 
-    /* Base style for all cell types */
-    .meter-container, .half-tile, .grid-tile-quarter {
-      background-color: #F5F5F5;
-    }
-    
-    /* Interactive hover effect only on the smallest, selectable cells */
-    .grid-tile-quarter:hover {
-      background-color: #FFFFFF;
-      transition: background-color 0.2s ease-in-out;
-    }
-  }
-  
-  /* Subtle pulse animation for the floor map */
-  @keyframes subtlePulse {
-    0%, 100% { 
-      filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.1));
-      transform: scale(1);
-    }
-    50% { 
-      filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.15));
-      transform: scale(1.002);
-    }
+        /* Base style for all cell types */
+        .meter-container, .half-tile, .grid-tile-quarter {
+            background-color: #F5F5F5; /* The default, bright whiteish color for cells */
+        }
+        
+        /* Interactive hover effect only on the smallest, selectable cells */
+        .grid-tile-quarter:hover {
+            background-color: #FFFFFF; /* Brighten on hover */
+            transition: background-color 0.2s ease-in-out;
+        }
   }
 
-  /* Enhanced shape styling with subtle animations */
+  /* Clean floor map - removed all UI elements */
+
   .shape{ 
     display:flex; align-items:center; justify-content:center; 
     font-weight:800; color:#fff; opacity:.78;
     font-size: max(12px, min(1.2em, calc(var(--m) * 0.4)));
-    user-select: none;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
+    user-select: none; 
   }
-  
-  /* Add subtle shimmer effect to shapes */
-  .shape::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-      45deg,
-      transparent,
-      rgba(255, 255, 255, 0.05),
-      transparent
-    );
-    animation: shimmer 8s ease-in-out infinite;
-    pointer-events: none;
-  }
-  
-  @keyframes shimmer {
-    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-    50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-  }
-  
-  /* Enhanced shape colors with subtle gradients */
-  .A{ background: linear-gradient(135deg, #8B8680, #9a9590); }
-  .B{ background: linear-gradient(135deg, #8B8680, #9a9590); }
-  .C{ background: linear-gradient(135deg, #8B8680, #9a9590); }
-  .D{ background: linear-gradient(135deg, #8B8680, #9a9590); }
-  .E{ background: linear-gradient(135deg, #8B8680, #9a9590); }
-  .F{ background: linear-gradient(135deg, #8B8680, #9a9590); }
-  .G{ background: linear-gradient(135deg, #8B8680, #9a9590); }
-  
-  /* Hover effects for shapes */
-  .shape:hover {
-    opacity: 0.9;
-    transform: scale(1.02);
-    filter: brightness(1.1);
-  }
+  .A{ background:#8B8680 } .B{ background:#8B8680 } .C{ background:#8B8680 }
+  .D{ background:#8B8680 } .E{ background:#8B8680 } .F{ background:#8B8680 } .G{ background:#8B8680 }
 
   /* Totals: A=108, B=9, C=16, D=120, E=120, F=20, G=120 => 513 */
 
@@ -201,15 +104,15 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Enhanced stats card with live indicator */
+  /* Stats card - positioned closer to floor map */
   .stats-card {
     position: absolute;
     bottom: calc(var(--m) * 0.5);
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 215, 0, 0.2);
-    border-radius: 12px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
     display: flex;
@@ -219,48 +122,10 @@
     padding: calc(var(--m) * 0.3) calc(var(--m) * 0.6);
     box-sizing: border-box;
     z-index: 100;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    animation: cardGlow 3s ease-in-out infinite;
     
     /* Responsive width based on content */
     min-width: calc(var(--m) * 8);
     width: auto;
-  }
-  
-  /* Subtle glow animation for stats card */
-  @keyframes cardGlow {
-    0%, 100% { 
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 rgba(255, 215, 0, 0.1);
-    }
-    50% { 
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 215, 0, 0.2);
-    }
-  }
-  
-  /* Add live indicator dot */
-  .stats-card::after {
-    content: '';
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 8px;
-    height: 8px;
-    background: #00ff88;
-    border-radius: 50%;
-    animation: livePulse 2s ease-in-out infinite;
-    box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-  }
-  
-  @keyframes livePulse {
-    0%, 100% { 
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% { 
-      opacity: 0.6;
-      transform: scale(1.2);
-    }
   }
 
   /* Mobile positioning */
@@ -271,7 +136,6 @@
     }
   }
 
-  /* Add subtle animation to coverage numbers */
   .coverage-numbers {
     font-size: calc(var(--m) * 0.8);
     font-weight: 700;
@@ -280,16 +144,6 @@
     text-align: center;
     margin-bottom: calc(var(--m) * 0.12);
     letter-spacing: 1px;
-    animation: numberGlow 4s ease-in-out infinite;
-  }
-  
-  @keyframes numberGlow {
-    0%, 100% { 
-      text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-    }
-    50% { 
-      text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
-    }
   }
 
   .coverage-label {
@@ -302,31 +156,21 @@
     font-weight: 500;
   }
 
-  /* Enhanced progress bar with animated fill */
   .progress-bar {
     width: calc(var(--m) * 10);
     height: calc(var(--m) * 0.16);
-    background: rgba(51, 65, 85, 0.8);
-    border-radius: 8px;
+    background: #334155;
+    border-radius: 0;
     overflow: hidden;
     margin-bottom: calc(var(--m) * 0.25);
-    position: relative;
   }
-  
+
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700);
-    background-size: 200% 100%;
-    border-radius: 8px;
+    background: #ffd700;
+    border-radius: 0;
     transition: width 0.8s ease-in-out;
     width: 0%;
-    animation: progressShimmer 2s ease-in-out infinite;
-    position: relative;
-  }
-  
-  @keyframes progressShimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
   }
 
   .percentage {
@@ -386,7 +230,7 @@
     }
   }
 
-  /* Clean floor map design with enhanced visual effects */
+  /* All UI elements removed for clean game design */
 </style>
 </head>
 <body>
