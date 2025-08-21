@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // --- Step 1: Sanitize and collect all form inputs ---
     $name = trim((string)($_POST['name'] ?? ''));
     $phone = trim((string)($_POST['phone'] ?? ''));
+    $notes = trim((string)($_POST['notes'] ?? '')); // Notes field restored
     $anonymous = isset($_POST['anonymous']); // will be true or false
     $anonymousFlag = $anonymous ? 1 : 0;
     $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
@@ -150,10 +151,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $donorPhone = ($type === 'paid' && $anonymous) ? null : $phone;
             $donorEmail = null; // Email field removed
 
-            // Notes decoration for paid (simplified since no user notes)
-            $final_notes = '';
+            // Notes processing - combine user notes with payment method info
+            $final_notes = $notes; // Start with user's notes
             if ($type === 'paid' && $payment_method) {
-                $final_notes = 'Paid via ' . ucfirst($payment_method) . '.';
+                $payment_info = 'Paid via ' . ucfirst($payment_method) . '.';
+                if (!empty($final_notes)) {
+                    $final_notes .= ' ' . $payment_info;
+                } else {
+                    $final_notes = $payment_info;
+                }
             }
 
             if ($type === 'paid') {
@@ -333,6 +339,11 @@ if (isset($_SESSION['success_message'])) {
                                        placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                             </div>
                             
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">Notes (Optional)</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                          placeholder="Add any additional notes about this donation..."><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
+                            </div>
                             
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="anonymous" name="anonymous" 
@@ -422,8 +433,8 @@ if (isset($_SESSION['success_message'])) {
                                 <option value="">Select method...</option>
                                 <option value="cash">Cash</option>
                                 <option value="card">Card</option>
-                                <option value="transfer">Bank Transfer</option>
-                                <option value="cheque">Cheque</option>
+                                <option value="bank">Bank Transfer</option>
+                                <option value="other">Other</option>
                             </select>
                         </div>
                         
