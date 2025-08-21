@@ -45,6 +45,8 @@
             border-radius: 8px;
             color: white;
             max-width: 250px;
+            max-height: 80vh;
+            overflow-y: auto;
             transition: opacity 0.3s ease;
         }
 
@@ -218,6 +220,25 @@
             #fullscreen-btn {
                 right: 120px;
             }
+        }
+
+        /* Custom scrollbar styling */
+        #controls::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #controls::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        #controls::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.6);
+            border-radius: 4px;
+        }
+
+        #controls::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.8);
         }
     </style>
 </head>
