@@ -137,30 +137,29 @@
   }
 
   .coverage-numbers {
-    font-size: calc(var(--m) * 1.2);
+    font-size: calc(var(--m) * 1.1);
     font-weight: 800;
     color: #ffd700;
     line-height: 1;
     text-align: center;
     margin-bottom: calc(var(--m) * 0.15);
     letter-spacing: 1px;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
   }
 
   .coverage-label {
-    font-size: calc(var(--m) * 0.4);
-    color: #cbd5e1;
+    font-size: calc(var(--m) * 0.35);
+    color: #8b949e;
     text-transform: uppercase;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     text-align: center;
     margin-bottom: calc(var(--m) * 0.35);
     font-weight: 600;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
   }
 
   .progress-bar {
     width: calc(var(--m) * 12);
-    height: calc(var(--m) * 0.25);
+    height: calc(var(--m) * 0.2);
     background: #334155;
     border-radius: 0;
     overflow: hidden;
@@ -176,13 +175,13 @@
   }
 
   .percentage {
-    font-size: calc(var(--m) * 0.8);
+    font-size: calc(var(--m) * 0.7);
     color: #ffffff;
     text-align: center;
     line-height: 1;
-    font-weight: 700;
+    font-weight: 600;
     margin-top: calc(var(--m) * 0.1);
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   }
 
   /* Fullscreen button styling */
