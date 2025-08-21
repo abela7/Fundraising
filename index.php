@@ -1,78 +1,494 @@
-<?php
-declare(strict_types=1);
-?><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fundraising Menu</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="assets/theme.css">
-  <style>a.card-link{text-decoration:none}</style>
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="icon" href="favicon.ico">
-  <meta name="robots" content="noindex">
-  <meta name="color-scheme" content="light">
-  <style>
-    .menu-card .btn{min-width:110px}
-  </style>
-  </head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liverpool Abune Teklehaymanot EOTC - Building Our Legacy Church</title>
+    
+    <!-- CSS Dependencies -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts for Amharic support -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    
+    <style>
+        :root {
+            --primary-bg: #1e4d5c;
+            --accent-gold: #ffd700;
+            --text-white: #ffffff;
+            --text-light: #e8f4f8;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Ethiopic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-bg) 0%, #2a6b7d 100%);
+            color: var(--text-white);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem 1rem;
+            position: relative;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="0.5" fill="%23ffffff" opacity="0.03"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+        }
+        
+        .amharic-quote {
+            font-size: 1.1rem;
+            color: var(--accent-gold);
+            margin-bottom: 1.5rem;
+            font-weight: 400;
+            line-height: 1.8;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .church-name {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 2rem;
+            text-shadow: var(--shadow);
+            letter-spacing: 1px;
+        }
+        
+        .core-message {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            text-shadow: var(--shadow);
+            line-height: 1.2;
+        }
+        
+        .core-message .amharic {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .core-message .english {
+            font-size: 2.8rem;
+            opacity: 0.95;
+        }
+        
+        /* Floor Plan Section */
+        .floor-plan {
+            padding: 4rem 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+        
+        .floor-plan h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: var(--accent-gold);
+            text-shadow: var(--shadow);
+        }
+        
+        .space-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .space-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .space-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+        
+        .space-item:hover::before {
+            transform: translateX(100%);
+        }
+        
+        .space-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .space-visual {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1.5rem;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .space-1m {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+        }
+        
+        .space-05m {
+            width: 120px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+        }
+        
+        .space-025m {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+        }
+        
+        .space-label {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--accent-gold);
+        }
+        
+        .space-description {
+            font-size: 1rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+        
+        .space-price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-white);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Call to Action Section */
+        .cta-section {
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+        
+        .cta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.2rem 2rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: var(--text-white);
+            background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
+            border-radius: 50px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            min-height: 60px;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            color: var(--primary-bg);
+            text-decoration: none;
+        }
+        
+        .cta-button.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--accent-gold);
+            color: var(--accent-gold);
+        }
+        
+        .cta-button.secondary:hover {
+            background: var(--accent-gold);
+            color: var(--primary-bg);
+        }
+        
+        .cta-button i {
+            margin-right: 0.8rem;
+            font-size: 1.3rem;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero {
+                padding: 1rem;
+            }
+            
+            .amharic-quote {
+                font-size: 1rem;
+            }
+            
+            .church-name {
+                font-size: 2rem;
+            }
+            
+            .core-message {
+                font-size: 2.5rem;
+            }
+            
+            .core-message .english {
+                font-size: 2rem;
+            }
+            
+            .floor-plan h2 {
+                font-size: 2rem;
+            }
+            
+            .space-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .space-item {
+                padding: 1.5rem;
+            }
+            
+            .cta-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .cta-button {
+                padding: 1rem 1.5rem;
+                font-size: 1.1rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .core-message {
+                font-size: 2rem;
+            }
+            
+            .core-message .english {
+                font-size: 1.6rem;
+            }
+            
+            .space-visual {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .space-1m {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .space-05m {
+                width: 100px;
+                height: 50px;
+            }
+            
+            .space-025m {
+                width: 50px;
+                height: 50px;
+            }
+        }
+        
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Loading animation */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.8s ease forwards;
+        }
+        
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in:nth-child(2) { animation-delay: 0.2s; }
+        .fade-in:nth-child(3) { animation-delay: 0.4s; }
+        .fade-in:nth-child(4) { animation-delay: 0.6s; }
+    </style>
+</head>
 <body>
-<nav class="navbar navbar-expand-lg bg-brand">
-  <div class="container">
-    <a class="navbar-brand text-white fw-semibold" href="./">Church Fundraising</a>
-  </div>
-  </nav>
-
-<div class="container py-5">
-  <div class="text-center mb-4">
-    <h2 class="fw-bold">Choose a section</h2>
-    <div class="text-muted">Quick access menu</div>
-  </div>
-  <div class="row g-3 justify-content-center">
-    <div class="col-12 col-md-6 col-lg-4">
-      <a class="card-link" href="admin/login.php">
-        <div class="card h-100 shadow-sm menu-card">
-          <div class="card-body d-flex flex-column justify-content-between">
-            <div>
-              <h5 class="card-title">Admin</h5>
-              <p class="card-text">Dashboard, approvals, settings</p>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="amharic-quote fade-in">
+                "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" ፪ ዜና ፪፥፱
             </div>
-            <span class="btn btn-primary mt-2">Open Admin</span>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <a class="card-link" href="registrar/login.php">
-        <div class="card h-100 shadow-sm menu-card">
-          <div class="card-body d-flex flex-column justify-content-between">
-            <div>
-              <h5 class="card-title">Registrar</h5>
-              <p class="card-text">Registration form and tools</p>
+            
+            <h1 class="church-name fade-in">
+                LIVERPOOL ABUNE TEKLEHAYMANOT EOTC
+            </h1>
+            
+            <div class="core-message fade-in">
+                <span class="amharic">ይህ ታሪኬ ነው</span>
+                <span class="english">It is My History</span>
             </div>
-            <span class="btn btn-primary mt-2">Open Registrar</span>
-          </div>
         </div>
-      </a>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <a class="card-link" href="public/projector/">
-        <div class="card h-100 shadow-sm menu-card">
-          <div class="card-body d-flex flex-column justify-content-between">
-            <div>
-              <h5 class="card-title">Live View (Projector)</h5>
-              <p class="card-text">Real-time totals and ticker</p>
+    </section>
+    
+    <!-- Floor Plan Explanation Section -->
+    <section class="floor-plan">
+        <h2 class="fade-in">Choose Your Space in Our Church</h2>
+        
+        <div class="space-grid">
+            <div class="space-item fade-in">
+                <div class="space-visual">
+                    <div class="space-1m"></div>
+                </div>
+                <div class="space-label">1m² Space</div>
+                <div class="space-description">Perfect for families and larger donations</div>
+                <div class="space-price">£400</div>
             </div>
-            <span class="btn btn-primary mt-2">Open Live View</span>
-          </div>
+            
+            <div class="space-item fade-in">
+                <div class="space-visual">
+                    <div class="space-05m"></div>
+                </div>
+                <div class="space-label">0.5m² Space</div>
+                <div class="space-description">Great for couples and medium donations</div>
+                <div class="space-price">£200</div>
+            </div>
+            
+            <div class="space-item fade-in">
+                <div class="space-visual">
+                    <div class="space-025m"></div>
+                </div>
+                <div class="space-label">0.25m² Space</div>
+                <div class="space-description">Ideal for individuals and smaller donations</div>
+                <div class="space-price">£100</div>
+            </div>
         </div>
-      </a>
-    </div>
-  </div>
-</div>
-<footer class="py-4 bg-brand mt-5">
-  <div class="container small">&copy; <?php echo date('Y'); ?> Church Fundraising</div>
-  </footer>
+    </section>
+    
+    <!-- Call to Action Section -->
+    <section class="cta-section">
+        <div class="cta-grid">
+            <a href="public/donate/" class="cta-button fade-in">
+                <i class="fas fa-heart"></i>
+                Donate Now
+            </a>
+            
+            <a href="public/projector/" class="cta-button secondary fade-in">
+                <i class="fas fa-chart-line"></i>
+                View Live Progress
+            </a>
+            
+            <a href="public/floor/" class="cta-button secondary fade-in">
+                <i class="fas fa-map"></i>
+                View Church Floor Map
+            </a>
+        </div>
+    </section>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animationDelay = '0s';
+                    entry.target.classList.add('fade-in');
+                }
+            });
+        }, observerOptions);
+        
+        // Observe all fade-in elements
+        document.addEventListener('DOMContentLoaded', () => {
+            const fadeElements = document.querySelectorAll('.fade-in');
+            fadeElements.forEach(el => observer.observe(el));
+        });
+        
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add hover effects to space items
+        document.querySelectorAll('.space-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
 </body>
 </html>
