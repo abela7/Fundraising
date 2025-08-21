@@ -192,26 +192,61 @@
         
         .grid-square {
             border: 2px solid var(--accent-gold);
-            background: rgba(255, 215, 0, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .large-square {
             width: 80px;
             height: 80px;
-            background: linear-gradient(45deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
         }
         
         .medium-square {
             width: 80px;
             height: 40px;
-            background: linear-gradient(45deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
         }
         
         .small-square {
             width: 40px;
             height: 40px;
-            background: linear-gradient(45deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+        }
+        
+        .grid-subdivision {
+            display: grid;
+            gap: 2px;
+            width: 100%;
+            height: 100%;
+            padding: 2px;
+        }
+        
+        .large-square .grid-subdivision {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+        
+        .medium-square .grid-subdivision {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr;
+        }
+        
+        .small-square .grid-subdivision {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+        
+        .sub-square {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 2px;
+        }
+        
+        .sub-square.filled {
+            background: linear-gradient(45deg, var(--accent-gold), #ffed4e);
+            border: 1px solid var(--accent-gold);
+            box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
         }
         
         .grid-label {
@@ -227,100 +262,15 @@
             opacity: 0.9;
         }
         
-        .space-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        
-        .space-item {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 2rem;
-            text-align: center;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .space-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-            transform: translateX(-100%);
-            transition: transform 0.6s ease;
-        }
-        
-        .space-item:hover::before {
-            transform: translateX(100%);
-        }
-        
-        .space-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        }
-        
-        .space-visual {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 1.5rem;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .space-1m {
-            width: 120px;
-            height: 120px;
-            background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
-            border-radius: 15px;
-            box-shadow: var(--shadow);
-        }
-        
-        .space-05m {
-            width: 120px;
-            height: 60px;
-            background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
-            border-radius: 15px;
-            box-shadow: var(--shadow);
-        }
-        
-        .space-025m {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, var(--accent-gold), #ffed4e);
-            border-radius: 15px;
-            box-shadow: var(--shadow);
-        }
-        
-        .space-label {
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
+        .grid-dimensions {
+            font-size: 0.8rem;
             color: var(--accent-gold);
+            opacity: 0.8;
+            font-weight: 600;
+            margin-top: 0.5rem;
         }
         
-        .space-description {
-            font-size: 1rem;
-            color: var(--text-light);
-            margin-bottom: 1rem;
-        }
-        
-        .space-price {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-white);
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
+
         
         /* Call to Action Section */
         .cta-section {
@@ -421,15 +371,6 @@
                 gap: 1.5rem;
             }
             
-            .space-grid {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-            }
-            
-            .space-item {
-                padding: 1.5rem;
-            }
-            
             .cta-grid {
                 grid-template-columns: 1fr;
                 gap: 1.5rem;
@@ -469,26 +410,6 @@
             
             .grid-item {
                 padding: 1rem;
-            }
-            
-            .space-visual {
-                width: 100px;
-                height: 100px;
-            }
-            
-            .space-1m {
-                width: 100px;
-                height: 100px;
-            }
-            
-            .space-05m {
-                width: 100px;
-                height: 50px;
-            }
-            
-            .space-025m {
-                width: 50px;
-                height: 50px;
             }
         }
         
@@ -557,56 +478,46 @@
             <div class="grid-container">
                 <div class="grid-item large">
                     <div class="grid-visual">
-                        <div class="grid-square large-square"></div>
+                        <div class="grid-square large-square">
+                            <div class="grid-subdivision">
+                                <div class="sub-square filled"></div>
+                                <div class="sub-square filled"></div>
+                                <div class="sub-square filled"></div>
+                                <div class="sub-square filled"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="grid-label">1m² = £400</div>
                     <div class="grid-description">4 x 0.25m² spaces</div>
+                    <div class="grid-dimensions">1m × 1m</div>
                 </div>
                 
                 <div class="grid-item medium">
                     <div class="grid-visual">
-                        <div class="grid-square medium-square"></div>
+                        <div class="grid-square medium-square">
+                            <div class="grid-subdivision">
+                                <div class="sub-square filled"></div>
+                                <div class="sub-square filled"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="grid-label">0.5m² = £200</div>
                     <div class="grid-description">2 x 0.25m² spaces</div>
+                    <div class="grid-dimensions">1m × 0.5m</div>
                 </div>
                 
                 <div class="grid-item small">
                     <div class="grid-visual">
-                        <div class="grid-square small-square"></div>
+                        <div class="grid-square small-square">
+                            <div class="grid-subdivision">
+                                <div class="sub-square filled"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="grid-label">0.25m² = £100</div>
                     <div class="grid-description">1 x 0.25m² space</div>
+                    <div class="grid-dimensions">0.5m × 0.5m</div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="space-grid">
-            <div class="space-item fade-in">
-                <div class="space-visual">
-                    <div class="space-1m"></div>
-                </div>
-                <div class="space-label">1m² Space</div>
-                <div class="space-description">Perfect for families and larger donations</div>
-                <div class="space-price">£400</div>
-            </div>
-            
-            <div class="space-item fade-in">
-                <div class="space-visual">
-                    <div class="space-05m"></div>
-                </div>
-                <div class="space-label">0.5m² Space</div>
-                <div class="space-description">Great for couples and medium donations</div>
-                <div class="space-price">£200</div>
-            </div>
-            
-            <div class="space-item fade-in">
-                <div class="space-visual">
-                    <div class="space-025m"></div>
-                </div>
-                <div class="space-label">0.25m² Space</div>
-                <div class="space-description">Ideal for individuals and smaller donations</div>
-                <div class="space-price">£100</div>
             </div>
         </div>
     </section>
@@ -670,16 +581,7 @@
             });
         });
         
-        // Add hover effects to space items
-        document.querySelectorAll('.space-item').forEach(item => {
-            item.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-10px) scale(1.02)';
-            });
-            
-            item.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0) scale(1)';
-            });
-        });
+
     </script>
 </body>
 </html>
