@@ -28,10 +28,14 @@ class CustomAmountAllocator {
         string $status
     ): array {
         try {
+            // DEBUG: Log the pledge processing
+            error_log("CustomAmountAllocator: Processing pledge ID {$pledgeId}, amount £{$amount}, donor: {$donorName}, status: {$status}");
+            
             $this->db->begin_transaction();
             
             // Rule 1: Under £100 = accumulate (no immediate allocation)
             if ($amount < 100) {
+                error_log("CustomAmountAllocator: Amount £{$amount} < £100, tracking for accumulation");
                 $this->trackCustomAmount($pledgeId, $amount, $donorName);
                 
                 // Check if we can now allocate a cell
@@ -48,6 +52,7 @@ class CustomAmountAllocator {
             }
             
             // Rule 2: £100+ = allocate appropriate cells
+            error_log("CustomAmountAllocator: Amount £{$amount} >= £100, allocating cells");
             $allocationResult = $this->allocateAppropriateCells($pledgeId, $amount, $donorName, $status);
             
             $this->db->commit();
@@ -75,6 +80,9 @@ class CustomAmountAllocator {
      * Track custom amount in custom_amount_tracking table
      */
     private function trackCustomAmount(int $pledgeId, float $amount, string $donorName): void {
+        // DEBUG: Log tracking attempt
+        error_log("CustomAmountAllocator: Tracking amount £{$amount} for donor {$donorName} (pledge ID: {$pledgeId})");
+        
         // Check if donor already has tracking record
         $stmt = $this->db->prepare("
             SELECT id, total_amount, allocated_amount, remaining_amount 
@@ -91,6 +99,8 @@ class CustomAmountAllocator {
             $newTotal = $result['total_amount'] + $amount;
             $newRemaining = $result['remaining_amount'] + $amount;
             
+            error_log("CustomAmountAllocator: Updating existing record for {$donorName}: total £{$newTotal}, remaining £{$newRemaining}");
+            
             $update = $this->db->prepare("
                 UPDATE custom_amount_tracking 
                 SET total_amount = ?, remaining_amount = ?, last_updated = NOW()
@@ -100,6 +110,8 @@ class CustomAmountAllocator {
             $update->execute();
         } else {
             // Create new tracking record
+            error_log("CustomAmountAllocator: Creating new tracking record for {$donorName}: amount £{$amount}");
+            
             $insert = $this->db->prepare("
                 INSERT INTO custom_amount_tracking 
                 (donor_id, donor_name, total_amount, allocated_amount, remaining_amount)
@@ -107,6 +119,8 @@ class CustomAmountAllocator {
             ");
             $insert->bind_param('sdd', $donorName, $amount, $amount);
             $insert->execute();
+            
+            error_log("CustomAmountAllocator: New tracking record created with ID: " . $this->db->insert_id);
         }
     }
     
@@ -132,6 +146,9 @@ class CustomAmountAllocator {
         $allocatedAmount = $cellsToAllocate * 100; // £100 per 0.25m²
         $remainingAmount = $totalRemaining - $allocatedAmount;
         
+        // DEBUG: Log the allocation attempt
+        error_log("CustomAmountAllocator: Attempting to allocate £{$allocatedAmount} for {$cellsToAllocate} cells");
+        
         // Allocate cells using existing grid allocator
         $gridAllocator = new IntelligentGridAllocator($this->db);
         $allocationResult = $gridAllocator->allocate(
@@ -142,6 +159,9 @@ class CustomAmountAllocator {
             'Anonymous', // Use 'Anonymous' for collective allocations
             'allocated' // Status for accumulated allocations
         );
+        
+        // DEBUG: Log the allocation result
+        error_log("CustomAmountAllocator: Allocation result: " . json_encode($allocationResult));
         
         if ($allocationResult['success']) {
             // Reset ALL tracking records after successful allocation
