@@ -194,18 +194,18 @@
       <div class="shape E">E</div>
       <div class="shape F">F</div>
       <div class="shape G">G</div>
-    </div>
-    
-    <!-- Compact Live Stats -->
-    <div class="stats-card">
-      <div class="coverage-numbers">
-        <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m²
+      
+      <!-- Stats card inside floor map at bottom -->
+      <div class="stats-card">
+        <div class="coverage-numbers">
+          <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m²
+        </div>
+        <div class="coverage-label">Coverage Progress</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="percentage" id="coverage-percentage">0.0%</div>
       </div>
-      <div class="coverage-label">Coverage Progress</div>
-      <div class="progress-bar">
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
-      <div class="percentage" id="coverage-percentage">0.0%</div>
     </div>
   </div>
 
