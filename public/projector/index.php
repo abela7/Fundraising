@@ -166,14 +166,14 @@ $language = $settings['projector_language'] ?? 'en';
     
     // Load translations
     async function loadTranslations() {
+        const lang = config.language || 'en';
         try {
-            const response = await fetch(`./assets/translations-${config.language}.json`);
-            if (response.ok) {
-                translations = await response.json();
-                applyTranslations();
-            } else {
-                console.warn('Failed to load translations, using defaults');
+            const response = await fetch(`translations-${lang}.json?v=${new Date().getTime()}`); // Append timestamp to bypass cache
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            translations = await response.json();
+            applyTranslations();
         } catch (error) {
             console.error('Error loading translations:', error);
         }
