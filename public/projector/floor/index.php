@@ -107,58 +107,58 @@
   /* Compact stats card - responsive and unobtrusive */
   .stats-card {
     position: relative;
-    margin: clamp(10px, 2vh, 20px) auto 0;
+    margin: clamp(5px, 1vh, 12px) auto 0;
     background: rgba(20, 27, 45, 0.9);
     border: 1px solid rgba(226, 202, 24, 0.4);
-    border-radius: 6px;
-    padding: clamp(8px, 1.5vh, 16px) clamp(12px, 2.5vw, 24px);
-    max-width: clamp(280px, 35vw, 450px);
+    border-radius: 4px;
+    padding: clamp(6px, 1vh, 12px) clamp(10px, 2vw, 18px);
+    max-width: clamp(250px, 28vw, 350px);
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(8px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(6px);
   }
 
   .coverage-numbers {
-    font-size: clamp(16px, 2.8vw, 28px);
+    font-size: clamp(14px, 2.4vw, 24px);
     font-weight: bold;
     color: #e2ca18;
     line-height: 1.1;
     text-align: center;
-    margin-bottom: clamp(4px, 0.8vh, 8px);
+    margin-bottom: clamp(3px, 0.6vh, 6px);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
   .coverage-label {
-    font-size: clamp(10px, 1.5vw, 16px);
+    font-size: clamp(9px, 1.2vw, 14px);
     color: #cbd5e1;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     text-align: center;
-    margin-bottom: clamp(6px, 1vh, 12px);
+    margin-bottom: clamp(4px, 0.8vh, 8px);
     font-weight: 500;
   }
 
   .progress-bar {
     width: 100%;
-    height: clamp(6px, 1vh, 12px);
+    height: clamp(5px, 0.8vh, 10px);
     background: #334155;
-    border-radius: 6px;
+    border-radius: 5px;
     overflow: hidden;
-    margin-bottom: clamp(4px, 0.8vh, 8px);
+    margin-bottom: clamp(3px, 0.6vh, 6px);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .progress-fill {
     height: 100%;
     background: linear-gradient(to right, #e2ca18, #ffd700);
-    border-radius: 6px;
+    border-radius: 5px;
     transition: width 0.6s ease-in-out;
     width: 0%;
   }
 
   .percentage {
-    font-size: clamp(12px, 2vw, 20px);
+    font-size: clamp(11px, 1.8vw, 18px);
     color: #ffffff;
     text-align: center;
     line-height: 1;
