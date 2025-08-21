@@ -119,6 +119,157 @@ if (isset($_GET['report'])) {
     }
     fclose($out); exit;
   }
+  if ($report === 'all_donations') {
+    if ($format === 'excel') {
+      // Set headers for Excel download
+      header('Content-Type: application/vnd.ms-excel');
+      header('Content-Disposition: attachment; filename="all_donations_backup_' . date('Y-m-d_H-i-s') . '.xls"');
+      header('Cache-Control: max-age=0');
+      
+      // Start Excel content
+      echo '<!DOCTYPE html>';
+      echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+      echo '<head>';
+      echo '<meta charset="UTF-8">';
+      echo '<style>';
+      echo 'table { border-collapse: collapse; width: 100%; }';
+      echo 'th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }';
+      echo 'th { background-color: #f2f2f2; font-weight: bold; }';
+      echo '.number { text-align: right; }';
+      echo '</style>';
+      echo '</head><body>';
+      
+      echo '<table>';
+      echo '<tr>';
+      echo '<th>#</th>';
+      echo '<th>Donor Name</th>';
+      echo '<th>Donation Type</th>';
+      echo '<th>Amount (£)</th>';
+      echo '<th>Status</th>';
+      echo '<th>Notes</th>';
+      echo '<th>Phone</th>';
+      echo '<th>Email</th>';
+      echo '<th>Package</th>';
+      echo '<th>Created/Received Date</th>';
+      echo '<th>Registrar/Received By</th>';
+      echo '</tr>';
+      
+      $rowNumber = 1;
+      $totalAmount = 0.00;
+      
+      // Get all approved pledges (with optional date filtering)
+      $pledgesSql = "
+        SELECT 
+          p.id,
+          p.donor_name,
+          'Pledge' AS donation_type,
+          p.amount,
+          p.status,
+          p.notes,
+          p.donor_phone,
+          p.donor_email,
+          dp.label AS package_label,
+          p.created_at AS transaction_date,
+          u.name AS registrar_name,
+          p.anonymous
+        FROM pledges p
+        LEFT JOIN donation_packages dp ON dp.id = p.package_id
+        LEFT JOIN users u ON u.id = p.created_by_user_id
+        WHERE p.status IN ('approved', 'pending', 'rejected')
+      ";
+      
+      // Add date filtering if custom range is specified
+      if (isset($_GET['date']) && $_GET['date'] === 'custom' && isset($_GET['from']) && isset($_GET['to'])) {
+        $pledgesSql .= " AND p.created_at BETWEEN ? AND ?";
+        $pledgesSql .= " ORDER BY p.created_at DESC";
+        $pledgesStmt = $db->prepare($pledgesSql);
+        $pledgesStmt->bind_param('ss', $_GET['from'] . ' 00:00:00', $_GET['to'] . ' 23:59:59');
+        $pledgesStmt->execute();
+        $pledgesResult = $pledgesStmt->get_result();
+      } else {
+        $pledgesSql .= " ORDER BY p.created_at DESC";
+        $pledgesResult = $db->query($pledgesSql);
+      }
+      while ($pledge = $pledgesResult->fetch_assoc()) {
+        echo '<tr>';
+        echo '<td>' . $rowNumber++ . '</td>';
+        echo '<td>' . ($pledge['anonymous'] ? 'Anonymous' : htmlspecialchars($pledge['donor_name'] ?: 'Anonymous')) . '</td>';
+        echo '<td>' . htmlspecialchars($pledge['donation_type']) . '</td>';
+        echo '<td class="number">' . number_format((float)$pledge['amount'], 2) . '</td>';
+        $totalAmount += (float)$pledge['amount'];
+        echo '<td>' . htmlspecialchars(ucfirst($pledge['status'])) . '</td>';
+        echo '<td>' . htmlspecialchars($pledge['notes'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars($pledge['donor_phone'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars($pledge['donor_email'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars($pledge['package_label'] ?: 'Custom') . '</td>';
+        echo '<td>' . date('d/m/Y H:i', strtotime($pledge['transaction_date'])) . '</td>';
+        echo '<td>' . htmlspecialchars($pledge['registrar_name'] ?: 'Self Pledged') . '</td>';
+        echo '</tr>';
+      }
+      
+      // Get all payments (with optional date filtering)
+      $paymentsSql = "
+        SELECT 
+          p.id,
+          p.donor_name,
+          'Payment' AS donation_type,
+          p.amount,
+          p.status,
+          p.reference AS notes,
+          p.donor_phone,
+          p.donor_email,
+          dp.label AS package_label,
+          p.received_at AS transaction_date,
+          u.name AS received_by_name,
+          p.method
+        FROM payments p
+        LEFT JOIN donation_packages dp ON dp.id = p.package_id
+        LEFT JOIN users u ON u.id = p.received_by_user_id
+        WHERE p.status IN ('approved', 'pending', 'rejected', 'voided')
+      ";
+      
+      // Add date filtering if custom range is specified
+      if (isset($_GET['date']) && $_GET['date'] === 'custom' && isset($_GET['from']) && isset($_GET['to'])) {
+        $paymentsSql .= " AND p.received_at BETWEEN ? AND ?";
+        $paymentsSql .= " ORDER BY p.received_at DESC";
+        $paymentsStmt = $db->prepare($paymentsSql);
+        $paymentsStmt->bind_param('ss', $_GET['from'] . ' 00:00:00', $_GET['to'] . ' 23:59:59');
+        $paymentsStmt->execute();
+        $paymentsResult = $paymentsStmt->get_result();
+      } else {
+        $paymentsSql .= " ORDER BY p.received_at DESC";
+        $paymentsResult = $db->query($paymentsSql);
+      }
+      while ($payment = $paymentsResult->fetch_assoc()) {
+        echo '<tr>';
+        echo '<td>' . $rowNumber++ . '</td>';
+        echo '<td>' . htmlspecialchars($payment['donor_name'] ?: 'Anonymous') . '</td>';
+        echo '<td>' . htmlspecialchars($payment['donation_type']) . '</td>';
+        echo '<td class="number">' . number_format((float)$payment['amount'], 2) . '</td>';
+        $totalAmount += (float)$payment['amount'];
+        echo '<td>' . htmlspecialchars(ucfirst($payment['status'])) . '</td>';
+        echo '<td>' . htmlspecialchars($payment['notes'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars($payment['donor_phone'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars($payment['payment_email'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars($payment['package_label'] ?: 'Custom') . '</td>';
+        echo '<td>' . date('d/m/Y H:i', strtotime($payment['transaction_date'])) . '</td>';
+        echo '<td>' . htmlspecialchars($payment['received_by_name'] ?: 'Direct') . '</td>';
+        echo '</tr>';
+      }
+      
+      // Add summary row
+      echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
+      echo '<td colspan="3" style="text-align: right;"><strong>Total:</strong></td>';
+      echo '<td class="number"><strong>' . number_format($totalAmount, 2) . '</strong></td>';
+      echo '<td colspan="6"></td>';
+      echo '</tr>';
+      
+      echo '</table>';
+      echo '</body></html>';
+      exit;
+    }
+  }
+  
   if ($report === 'summary') {
     if ($format === 'csv') {
       header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="summary_report.csv"');
@@ -322,6 +473,27 @@ if (isset($_GET['report'])) {
                                                 <i class="fas fa-download me-2"></i>Download CSV
                                             </a>
                                             <button class="btn btn-outline-info" onclick="showCustomDateModal('financial')">
+                                                <i class="fas fa-calendar me-2"></i>Custom Range
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
+                                            <div class="icon-circle bg-warning mx-auto" style="width: 60px; height: 60px;">
+                                                <i class="fas fa-database text-white fs-4"></i>
+                                            </div>
+                                    </div>
+                                        <h5 class="card-title">All Donations Export</h5>
+                                        <p class="card-text text-muted">Complete backup of all donations (pledges & payments) for data safety</p>
+                                        <div class="d-grid gap-2">
+                                            <a href="?report=all_donations&format=excel" class="btn btn-warning">
+                                                <i class="fas fa-download me-2"></i>Download Excel
+                                            </a>
+                                            <button class="btn btn-outline-warning" onclick="showCustomDateModal('all_donations')">
                                                 <i class="fas fa-calendar me-2"></i>Custom Range
                                             </button>
                                         </div>

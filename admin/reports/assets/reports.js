@@ -118,7 +118,11 @@ function generateCustomReport() {
     }
     
     // Build URL with custom parameters
-    const url = `?report=${reportType}&format=csv&date=custom&from=${fromDate}&to=${toDate}`;
+    let format = 'csv';
+    if (reportType === 'all_donations') {
+        format = 'excel';
+    }
+    const url = `?report=${reportType}&format=${format}&date=custom&from=${fromDate}&to=${toDate}`;
     
     // Add loading state to button
     const btn = document.querySelector('#customDateModal .btn-primary');
