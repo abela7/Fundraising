@@ -166,8 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Audit
                 $afterJson = json_encode(['amount'=>$amount,'method'=>$payment_method,'donor'=>$donorName,'status'=>'pending']);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment', ?, 'create_pending', ?, 'public')");
-                $log->bind_param('iis', $createdBy, $entityId, $afterJson);
+                $source = 'public';
+                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment', ?, 'create_pending', ?, ?)");
+                $log->bind_param('iiss', $createdBy, $entityId, $afterJson, $source);
                 $log->execute();
             } else {
                 // PLEDGE path. Guard duplicate UUID.
@@ -221,8 +222,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $entityId = $db->insert_id;
 
                 $afterJson = json_encode(['amount'=>$amount,'type'=>'pledge','anonymous'=>$anonymousFlag,'donor'=>$donorName,'status'=>'pending']);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'pledge', ?, 'create_pending', ?, 'public')");
-                $log->bind_param('iis', $createdBy, $entityId, $afterJson);
+                $source = 'public';
+                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'pledge', ?, 'create_pending', ?, ?)");
+                $log->bind_param('iiss', $createdBy, $entityId, $afterJson, $source);
                 $log->execute();
             }
 
