@@ -41,26 +41,46 @@
             padding: 15px;
             border-radius: 8px;
             color: white;
+            max-width: 250px;
         }
 
         #controls h3 {
-            margin: 0 0 10px 0;
+            margin: 0 0 15px 0;
             font-size: 16px;
+            color: #ffd700;
         }
 
         .control-group {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .control-group label {
             display: block;
             margin-bottom: 5px;
             font-size: 12px;
+            color: #cccccc;
         }
 
         .control-group input {
-            width: 100px;
-            margin-right: 10px;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .control-group input[type="color"] {
+            width: 50px;
+            height: 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .control-group span {
+            font-size: 11px;
+            color: #888;
         }
 
         #file-input {
@@ -72,6 +92,11 @@
             padding: 15px;
             border-radius: 8px;
             color: white;
+        }
+
+        #file-input h3 {
+            margin: 0 0 10px 0;
+            color: #ffd700;
         }
 
         #file-input input[type="file"] {
@@ -121,6 +146,16 @@
         #fullscreen-btn:hover {
             background: rgba(0, 0, 0, 0.9);
         }
+
+        .color-preview {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fff;
+            border-radius: 3px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -128,20 +163,41 @@
         <div id="loading">Loading 3D Scene...</div>
         
         <div id="controls">
-            <h3>Camera Controls</h3>
+            <h3>Floor Controls</h3>
+            
             <div class="control-group">
-                <label>Camera Distance:</label>
-                <input type="range" id="distance" min="5" max="50" value="20" step="1">
-                <span id="distance-value">20</span>
+                <label>Floor Color:</label>
+                <input type="color" id="floor-color" value="#8B4513">
+                <span>Main floor color</span>
             </div>
+
             <div class="control-group">
-                <label>Rotation Speed:</label>
-                <input type="range" id="rotation-speed" min="0" max="2" value="0.5" step="0.1">
-                <span id="rotation-value">0.5</span>
+                <label>Transparency:</label>
+                <input type="range" id="opacity" min="0.1" max="1" value="0.8" step="0.1">
+                <span id="opacity-value">0.8</span>
             </div>
+
+            <div class="control-group">
+                <label>Camera Height:</label>
+                <input type="range" id="camera-height" min="10" max="100" value="50" step="1">
+                <span id="height-value">50</span>
+            </div>
+
             <div class="control-group">
                 <label>Auto Rotate:</label>
-                <input type="checkbox" id="auto-rotate" checked>
+                <input type="checkbox" id="auto-rotate">
+            </div>
+
+            <div class="control-group">
+                <label>Rotation Speed:</label>
+                <input type="range" id="rotation-speed" min="0" max="2" value="0.3" step="0.1">
+                <span id="rotation-value">0.3</span>
+            </div>
+
+            <div class="control-group">
+                <label>Light Intensity:</label>
+                <input type="range" id="light-intensity" min="0.1" max="2" value="1" step="0.1">
+                <span id="light-value">1.0</span>
             </div>
         </div>
 
@@ -170,8 +226,9 @@
     <script>
         let scene, camera, renderer, controls;
         let currentModel = null;
-        let autoRotate = true;
-        let rotationSpeed = 0.5;
+        let autoRotate = false;
+        let rotationSpeed = 0.3;
+        let directionalLight;
 
         // Initialize the 3D scene
         function init() {
@@ -179,9 +236,10 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x1a1a1a);
 
-            // Create camera
+            // Create camera positioned above for top-down view
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 20, 20);
+            camera.position.set(0, 50, 0); // Position camera above
+            camera.lookAt(0, 0, 0); // Look down at the floor
 
             // Create renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -191,11 +249,11 @@
             document.getElementById('container').appendChild(renderer.domElement);
 
             // Add lights
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(10, 10, 5);
+            directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(0, 100, 0); // Light from above
             directionalLight.castShadow = true;
             scene.add(directionalLight);
 
@@ -205,10 +263,10 @@
             controls.dampingFactor = 0.05;
             controls.autoRotate = autoRotate;
             controls.autoRotateSpeed = rotationSpeed;
-
-            // Add grid helper
-            const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
-            scene.add(gridHelper);
+            
+            // Limit vertical rotation to maintain top-down perspective
+            controls.minPolarAngle = 0; // 0 degrees (top)
+            controls.maxPolarAngle = Math.PI / 2.5; // ~72 degrees (slightly tilted)
 
             // Handle window resize
             window.addEventListener('resize', onWindowResize, false);
@@ -261,31 +319,22 @@
                     
                     // Scale to fit in view
                     const maxDim = Math.max(size.x, size.y, size.z);
-                    const scale = 20 / maxDim;
+                    const scale = 30 / maxDim;
                     object.scale.setScalar(scale);
                     
-                    // Add material to make it visible
-                    object.traverse(function(child) {
-                        if (child.isMesh) {
-                            child.material = new THREE.MeshPhongMaterial({
-                                color: 0x8B4513,
-                                transparent: true,
-                                opacity: 0.8,
-                                side: THREE.DoubleSide
-                            });
-                        }
-                    });
+                    // Apply current color and opacity settings
+                    applyMaterialSettings(object);
                     
                     scene.add(object);
                     currentModel = object;
                     
-                    // Adjust camera to fit model
-                    const distance = Math.max(size.x, size.y, size.z) * 2;
-                    camera.position.set(distance, distance, distance);
+                    // Adjust camera to fit model from above
+                    const distance = Math.max(size.x, size.y, size.z) * 1.5;
+                    camera.position.set(0, distance, 0);
                     controls.target.set(0, 0, 0);
                     controls.update();
                     
-                    console.log('3D Model loaded successfully!');
+                    console.log('3D Floor Model loaded successfully!');
                     
                 } catch (error) {
                     console.error('Error loading OBJ:', error);
@@ -294,6 +343,24 @@
             };
 
             reader.readAsText(file);
+        }
+
+        // Apply material settings to the model
+        function applyMaterialSettings(object) {
+            const floorColor = document.getElementById('floor-color').value;
+            const opacity = parseFloat(document.getElementById('opacity').value);
+            
+            object.traverse(function(child) {
+                if (child.isMesh) {
+                    child.material = new THREE.MeshPhongMaterial({
+                        color: floorColor,
+                        transparent: true,
+                        opacity: opacity,
+                        side: THREE.DoubleSide,
+                        shininess: 30
+                    });
+                }
+            });
         }
 
         // Event listeners
@@ -311,23 +378,50 @@
                 }
             });
 
-            // Controls
-            document.getElementById('distance').addEventListener('input', function(e) {
-                const distance = parseFloat(e.target.value);
-                document.getElementById('distance-value').textContent = distance;
-                camera.position.set(distance, distance, distance);
+            // Color control
+            document.getElementById('floor-color').addEventListener('input', function(e) {
+                if (currentModel) {
+                    applyMaterialSettings(currentModel);
+                }
+            });
+
+            // Opacity control
+            document.getElementById('opacity').addEventListener('input', function(e) {
+                const opacity = parseFloat(e.target.value);
+                document.getElementById('opacity-value').textContent = opacity;
+                if (currentModel) {
+                    applyMaterialSettings(currentModel);
+                }
+            });
+
+            // Camera height control
+            document.getElementById('camera-height').addEventListener('input', function(e) {
+                const height = parseFloat(e.target.value);
+                document.getElementById('height-value').textContent = height;
+                camera.position.y = height;
                 controls.update();
             });
 
+            // Rotation speed control
             document.getElementById('rotation-speed').addEventListener('input', function(e) {
                 rotationSpeed = parseFloat(e.target.value);
                 document.getElementById('rotation-value').textContent = rotationSpeed;
                 controls.autoRotateSpeed = rotationSpeed;
             });
 
+            // Auto rotate control
             document.getElementById('auto-rotate').addEventListener('change', function(e) {
                 autoRotate = e.target.checked;
                 controls.autoRotate = autoRotate;
+            });
+
+            // Light intensity control
+            document.getElementById('light-intensity').addEventListener('input', function(e) {
+                const intensity = parseFloat(e.target.value);
+                document.getElementById('light-value').textContent = intensity.toFixed(1);
+                if (directionalLight) {
+                    directionalLight.intensity = intensity;
+                }
             });
 
             // Fullscreen
