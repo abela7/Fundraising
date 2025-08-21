@@ -22,16 +22,12 @@
   @media (max-width: 480px)  { :root { --m: min(1.4vw, 1.4vh, 16px); } }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background-color: #0a0f1b; /* Dark Navy Blueprint Background */
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  body{
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; margin: 0; min-height: 100vh;
+    background: #131A2D; /* Dark blue background */
+    font-family: system-ui, -apple-system, sans-serif;
+    overflow: hidden;
   }
 
   .game-container{
@@ -53,26 +49,21 @@
             display: grid;
             grid-template-columns: repeat(28, 1fr);
             grid-template-rows: repeat(44, 1fr);
-            gap: 1px; /* Fine grid lines */
-            padding: 1px;
-            background-color: #38bdf8; /* Glowing Cyan Blueprint Grid */
-            box-shadow: 0 0 25px rgba(56, 189, 248, 0.3); /* Soft glow for the entire map */
-            border: 1px solid #38bdf8;
-            /* New Scaling Logic for Projector View */
-            height: 90vh; /* Make the map 90% of the screen height */
-            aspect-ratio: 28 / 44; /* Maintain the exact grid aspect ratio */
-            max-width: 90vw; /* Ensure it doesn't get too wide on unusual screens */
+            gap: 2px; /* This creates the subtle border effect */
+            padding: 5px; /* A little space around the edge */
+            background-color: #E0E0E0; /* A slightly darker grey for the "grout" */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         /* Base style for all cell types */
         .meter-container, .half-tile, .grid-tile-quarter {
-            background-color: #1e293b; /* Matte Black/Grey for unfunded cells */
+            background-color: #F5F5F5; /* The default, bright whiteish color for cells */
         }
         
-        /* Interactive hover effect */
+        /* Interactive hover effect only on the smallest, selectable cells */
         .grid-tile-quarter:hover {
-            box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.7);
-            transition: box-shadow 0.2s ease-in-out;
+            background-color: #FFFFFF; /* Brighten on hover */
+            transition: background-color 0.2s ease-in-out;
         }
   }
 

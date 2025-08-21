@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Configuration
         apiUrl: '/api/grid_status.php',
         pollInterval: 5000, // Fetch updates every 5 seconds
-        allocationColor: 'radial-gradient(ellipse at center, #fde047, #eab308)', // Glowing Gold Gradient
+        allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
         // State
         gridReady: false,
@@ -92,8 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // First, reset all cells that might have a status
             const styledCells = document.querySelectorAll('.cell-pledged, .cell-paid');
             styledCells.forEach(cell => {
-                cell.style.background = ''; // Use background to reset gradient
-                cell.classList.remove('cell-allocated');
+                cell.style.backgroundColor = '';
+                cell.classList.remove('cell-pledged', 'cell-paid');
             });
             
             // Apply new statuses
@@ -104,10 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         const cellElement = document.getElementById(cellData.cell_id);
                         if (cellElement) {
                             // Add a smooth transition effect
-                            cellElement.style.transition = 'background 0.5s ease';
+                            cellElement.style.transition = 'background-color 0.5s ease';
                             
                             if (cellData.status === 'pledged' || cellData.status === 'paid') {
-                                cellElement.style.background = this.allocationColor; // Use background for gradient
+                                cellElement.style.backgroundColor = this.allocationColor;
                                 cellElement.classList.add('cell-allocated');
                             }
                         } else {
