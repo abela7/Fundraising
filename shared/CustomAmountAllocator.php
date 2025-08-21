@@ -83,45 +83,18 @@ class CustomAmountAllocator {
         // DEBUG: Log tracking attempt
         error_log("CustomAmountAllocator: Tracking amount £{$amount} for donor {$donorName} (pledge ID: {$pledgeId})");
         
-        // Check if donor already has tracking record
-        $stmt = $this->db->prepare("
-            SELECT id, total_amount, allocated_amount, remaining_amount 
-            FROM custom_amount_tracking 
-            WHERE donor_name = ? 
-            LIMIT 1
+        // Always update the single record with ID = 1
+        $update = $this->db->prepare("
+            UPDATE custom_amount_tracking 
+            SET total_amount = total_amount + ?,
+                remaining_amount = remaining_amount + ?,
+                last_updated = NOW()
+            WHERE id = 1
         ");
-        $stmt->bind_param('s', $donorName);
-        $stmt->execute();
-        $result = $stmt->get_result()->fetch_assoc();
+        $update->bind_param('dd', $amount, $amount);
+        $update->execute();
         
-        if ($result) {
-            // Update existing record
-            $newTotal = $result['total_amount'] + $amount;
-            $newRemaining = $result['remaining_amount'] + $amount;
-            
-            error_log("CustomAmountAllocator: Updating existing record for {$donorName}: total £{$newTotal}, remaining £{$newRemaining}");
-            
-            $update = $this->db->prepare("
-                UPDATE custom_amount_tracking 
-                SET total_amount = ?, remaining_amount = ?, last_updated = NOW()
-                WHERE id = ?
-            ");
-            $update->bind_param('ddi', $newTotal, $newRemaining, $result['id']);
-            $update->execute();
-        } else {
-            // Create new tracking record
-            error_log("CustomAmountAllocator: Creating new tracking record for {$donorName}: amount £{$amount}");
-            
-            $insert = $this->db->prepare("
-                INSERT INTO custom_amount_tracking 
-                (donor_id, donor_name, total_amount, allocated_amount, remaining_amount)
-                VALUES (0, ?, ?, 0, ?)
-            ");
-            $insert->bind_param('sdd', $donorName, $amount, $amount);
-            $insert->execute();
-            
-            error_log("CustomAmountAllocator: New tracking record created with ID: " . $this->db->insert_id);
-        }
+        error_log("CustomAmountAllocator: Updated collective record with £{$amount} from {$donorName}");
     }
     
     /**
@@ -131,45 +104,18 @@ class CustomAmountAllocator {
         // DEBUG: Log tracking attempt
         error_log("CustomAmountAllocator: Tracking PAYMENT amount £{$amount} for donor {$donorName} (payment ID: {$paymentId})");
         
-        // Check if donor already has tracking record
-        $stmt = $this->db->prepare("
-            SELECT id, total_amount, allocated_amount, remaining_amount 
-            FROM custom_amount_tracking 
-            WHERE donor_name = ? 
-            LIMIT 1
+        // Always update the single record with ID = 1
+        $update = $this->db->prepare("
+            UPDATE custom_amount_tracking 
+            SET total_amount = total_amount + ?,
+                remaining_amount = remaining_amount + ?,
+                last_updated = NOW()
+            WHERE id = 1
         ");
-        $stmt->bind_param('s', $donorName);
-        $stmt->execute();
-        $result = $stmt->get_result()->fetch_assoc();
+        $update->bind_param('dd', $amount, $amount);
+        $update->execute();
         
-        if ($result) {
-            // Update existing record
-            $newTotal = $result['total_amount'] + $amount;
-            $newRemaining = $result['remaining_amount'] + $amount;
-            
-            error_log("CustomAmountAllocator: Updating existing PAYMENT record for {$donorName}: total £{$newTotal}, remaining £{$newRemaining}");
-            
-            $update = $this->db->prepare("
-                UPDATE custom_amount_tracking 
-                SET total_amount = ?, remaining_amount = ?, last_updated = NOW()
-                WHERE id = ?
-            ");
-            $update->bind_param('ddi', $newTotal, $newRemaining, $result['id']);
-            $update->execute();
-        } else {
-            // Create new tracking record
-            error_log("CustomAmountAllocator: Creating new PAYMENT tracking record for {$donorName}: amount £{$amount}");
-            
-            $insert = $this->db->prepare("
-                INSERT INTO custom_amount_tracking 
-                (donor_id, donor_name, total_amount, allocated_amount, remaining_amount)
-                VALUES (0, ?, ?, 0, ?)
-            ");
-            $insert->bind_param('sdd', $donorName, $amount, $amount);
-            $insert->execute();
-            
-            error_log("CustomAmountAllocator: New PAYMENT tracking record created with ID: " . $this->db->insert_id);
-        }
+        error_log("CustomAmountAllocator: Updated collective record with PAYMENT £{$amount} from {$donorName}");
     }
     
     /**
@@ -233,59 +179,35 @@ class CustomAmountAllocator {
      * Reset tracking records after successful allocation
      */
     private function resetTrackingAfterAllocation(float $allocatedAmount, float $remainingAmount): void {
-        // Get current total for ratio calculation
-        $stmt = $this->db->prepare("
-            SELECT SUM(remaining_amount) as total_remaining
-            FROM custom_amount_tracking
+        // Simply update the single record with ID = 1
+        $update = $this->db->prepare("
+            UPDATE custom_amount_tracking 
+            SET allocated_amount = allocated_amount + ?,
+                remaining_amount = ?,
+                last_updated = NOW()
+            WHERE id = 1
         ");
-        $stmt->execute();
-        $result = $stmt->get_result()->fetch_assoc();
-        $totalRemaining = (float)($result['total_remaining'] ?? 0);
+        $update->bind_param('dd', $allocatedAmount, $remainingAmount);
+        $update->execute();
         
-        if ($totalRemaining <= 0) return;
-        
-        // Calculate proportional allocation for each donor
-        $stmt = $this->db->prepare("
-            SELECT id, remaining_amount
-            FROM custom_amount_tracking
-            WHERE remaining_amount > 0
-        ");
-        $stmt->execute();
-        $donors = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
-        foreach ($donors as $donor) {
-            $donorAmount = (float)$donor['remaining_amount'];
-            $donorId = $donor['id'];
-            
-            // Calculate proportional allocation
-            $proportionalAllocated = ($donorAmount / $totalRemaining) * $allocatedAmount;
-            $proportionalRemaining = ($donorAmount / $totalRemaining) * $remainingAmount;
-            
-            // Update donor record
-            $update = $this->db->prepare("
-                UPDATE custom_amount_tracking 
-                SET allocated_amount = allocated_amount + ?,
-                    remaining_amount = ?,
-                    last_updated = NOW()
-                WHERE id = ?
-            ");
-            $update->bind_param('ddi', $proportionalAllocated, $proportionalRemaining, $donorId);
-            $update->execute();
-        }
+        error_log("CustomAmountAllocator: Reset collective record - allocated: £{$allocatedAmount}, remaining: £{$remainingAmount}");
     }
     
     /**
      * Get count of active donors with remaining amounts
      */
     private function getActiveDonorCount(): int {
+        // Since we only have one collective record, return 1 if there's remaining amount
         $stmt = $this->db->prepare("
-            SELECT COUNT(*) as count 
+            SELECT remaining_amount 
             FROM custom_amount_tracking 
-            WHERE remaining_amount > 0
+            WHERE id = 1
         ");
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
-        return (int)($result['count'] ?? 0);
+        $remaining = (float)($result['remaining_amount'] ?? 0);
+        
+        return $remaining > 0 ? 1 : 0;
     }
     
     /**
