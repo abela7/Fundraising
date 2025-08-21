@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
+require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
 require_login();
 require_admin();
 
@@ -57,17 +58,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
-                // Allocate floor grid cells with the new intelligent allocator
-                $gridAllocator = new IntelligentGridAllocator($db);
+                // Allocate floor grid cells using custom amount allocator for smart handling
                 $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
                 $packageId = isset($pledge['package_id']) ? (int)$pledge['package_id'] : null;
                 $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
+                $amount = (float)$pledge['amount'];
                 
-                $allocationResult = $gridAllocator->allocate(
+                // Use custom amount allocator for smart allocation
+                $customAllocator = new CustomAmountAllocator($db);
+                $allocationResult = $customAllocator->processCustomAmount(
                     $pledgeId,
-                    null, // No payment ID for a pledge
-                    (float)$pledge['amount'],
-                    $packageId,
+                    $amount,
                     $donorName,
                     $status
                 );
@@ -90,9 +91,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $log->execute();
                 }
                 
-                $actionMsg = $allocationResult['success'] 
-                    ? "Approved & {$allocationResult['message']} (Grid allocation failed: {$allocationResult['error']})" 
-                    : "Approved (Grid allocation failed: {$allocationResult['error']})";
+                // Handle custom amount allocation result
+                if ($allocationResult['success']) {
+                    if ($allocationResult['type'] === 'accumulated') {
+                        $actionMsg = "Approved & {$allocationResult['message']}";
+                        if (!empty($allocationResult['allocation_result'])) {
+                            $actionMsg .= " (Auto-allocated cells for accumulated amounts)";
+                        }
+                    } else {
+                        $actionMsg = "Approved & {$allocationResult['message']}";
+                    }
+                } else {
+                    $actionMsg = "Approved (Custom allocation failed: {$allocationResult['error']})";
+                }
             } elseif ($action === 'reject') {
                 $uid = (int)current_user()['id'];
                 $rej = $db->prepare("UPDATE pledges SET status='rejected' WHERE id = ?");

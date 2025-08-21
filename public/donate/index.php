@@ -20,7 +20,14 @@ $pkgCustom  = $pkgByLabel['Custom'] ?? null;
 // Get current fundraising stats
 $counters = $db->query('SELECT * FROM counters WHERE id=1')->fetch_assoc() ?: [];
 $currentTotal = (float)($counters['grand_total'] ?? 0);
-$progressPercent = $targetAmount > 0 ? min(100, ($currentTotal / $targetAmount) * 100) : 0;
+
+// Get custom amount tracking for progress calculation
+$customAmounts = $db->query('SELECT SUM(total_amount) as total_tracked FROM custom_amount_tracking')->fetch_assoc() ?: [];
+$customTotal = (float)($customAmounts['total_tracked'] ?? 0);
+
+// Include custom amounts in progress (both allocated and pending)
+$totalWithCustom = $currentTotal + $customTotal;
+$progressPercent = $targetAmount > 0 ? min(100, ($totalWithCustom / $targetAmount) * 100) : 0;
 
 $success = '';
 $error = '';
@@ -292,9 +299,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="progress-bar" style="width: <?php echo number_format($progressPercent, 1); ?>%"></div>
                         </div>
                         <div class="d-flex justify-content-between text-sm">
-                            <span><?php echo $currency; ?> <?php echo number_format($currentTotal, 0); ?> raised</span>
+                            <span><?php echo $currency; ?> <?php echo number_format($currentTotal, 0); ?> allocated</span>
                             <span><?php echo number_format($progressPercent, 1); ?>% complete</span>
                         </div>
+                        <?php if ($customTotal > 0): ?>
+                        <div class="d-flex justify-content-between text-sm text-muted">
+                            <span>+ <?php echo $currency; ?> <?php echo number_format($customTotal, 0); ?> pending</span>
+                            <span>Total: <?php echo $currency; ?> <?php echo number_format($totalWithCustom, 0); ?></span>
+                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
                 
