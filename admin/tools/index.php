@@ -165,6 +165,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fas fa-bug me-2 text-info"></i>Debug Deallocation</h5>
+                            <p class="card-text">Debug and fix issues with the floor deallocation system.</p>
+                            <a href="debug_deallocation.php" class="btn btn-info">Debug System</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100 border-danger">
                         <div class="card-body">
                             <h5 class="card-title"><i class="fas fa-power-off me-2 text-danger"></i>Reset Floor Map</h5>

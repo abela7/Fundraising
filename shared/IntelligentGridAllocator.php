@@ -134,7 +134,7 @@ class IntelligentGridAllocator
                 payment_id = ?,
                 donor_name = ?,
                 amount = ?,
-                assigned_date = NOW()
+                allocated_at = NOW()
             WHERE cell_id IN ($placeholders)
         ";
         
@@ -154,10 +154,10 @@ class IntelligentGridAllocator
     public function getGridStatus(): array
     {
         $sql = "
-            SELECT cell_id, rectangle_id, cell_type, area_size, status, donor_name, amount, assigned_date
+            SELECT cell_id, rectangle_id, cell_type, area, status, donor_name, amount, allocated_at
             FROM floor_grid_cells 
             WHERE status IN ('pledged', 'paid')
-            ORDER BY rectangle_id, assigned_date
+            ORDER BY rectangle_id, allocated_at
         ";
         
         $result = $this->db->query($sql);
