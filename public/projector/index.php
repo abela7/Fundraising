@@ -348,12 +348,11 @@ $language = $settings['projector_language'] ?? 'en';
         }
     }
     
-    // Initialize with translations
+    // Main initialization function
     async function init() {
-        // Load translations first
-        await loadTranslations();
+        await loadTranslations(); // Load translations first
         
-        // Update clock
+        // Set intervals
         setInterval(updateClock, 1000);
         updateClock();
         
