@@ -284,6 +284,51 @@ $current_language = $current_settings['projector_language'] ?? 'en';
                                 </div>
                             </div>
                             
+                            <!-- Language Control -->
+                            <div class="col-lg-4 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-language me-2"></i>Language Control
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form method="POST">
+                                            <input type="hidden" name="action" value="update_language">
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label">Projector Display Language</label>
+                                                <select name="projector_language" class="form-select" id="languageSelect">
+                                                    <option value="en" <?= $current_language === 'en' ? 'selected' : '' ?>>
+                                                        🇺🇸 English
+                                                    </option>
+                                                    <option value="am" <?= $current_language === 'am' ? 'selected' : '' ?>>
+                                                        🇪🇹 አማርኛ (Amharic)
+                                                    </option>
+                                                </select>
+                                                <small class="text-muted">Choose the language for the live projector display</small>
+                                            </div>
+                                            
+                                            <div class="current-language-info mb-3">
+                                                <div class="alert alert-info d-flex align-items-center">
+                                                    <i class="fas fa-info-circle me-2"></i>
+                                                    <div>
+                                                        <strong>Current Language:</strong> 
+                                                        <span id="currentLanguageText">
+                                                            <?php echo $current_language === 'am' ? '🇪🇹 አማርኛ (Amharic)' : '🇺🇸 English'; ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <button type="submit" class="btn btn-primary w-100">
+                                                <i class="fas fa-sync-alt me-2"></i>Update Language
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         
                     
                             
@@ -666,48 +711,3 @@ $current_language = $current_settings['projector_language'] ?? 'en';
     </script>
 </body>
 </html>
-
-                        <!-- Language Control -->
-                        <div class="col-lg-4 mb-4">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-language me-2"></i>Language Control
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <form method="POST">
-                                        <input type="hidden" name="action" value="update_language">
-                                        
-                                        <div class="mb-3">
-                                            <label class="form-label">Projector Display Language</label>
-                                            <select name="projector_language" class="form-select" id="languageSelect">
-                                                <option value="en" <?= $current_language === 'en' ? 'selected' : '' ?>>
-                                                    🇺🇸 English
-                                                </option>
-                                                <option value="am" <?= $current_language === 'am' ? 'selected' : '' ?>>
-                                                    🇪🇹 አማርኛ (Amharic)
-                                                </option>
-                                            </select>
-                                            <small class="text-muted">Choose the language for the live projector display</small>
-                                        </div>
-                                        
-                                        <div class="current-language-info mb-3">
-                                            <div class="alert alert-info d-flex align-items-center">
-                                                <i class="fas fa-info-circle me-2"></i>
-                                                <div>
-                                                    <strong>Current Language:</strong> 
-                                                    <span id="currentLanguageText">
-                                                        <?php echo $current_language === 'am' ? '🇪🇹 አማርኛ (Amharic)' : '🇺🇸 English'; ?>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <button type="submit" class="btn btn-primary w-100">
-                                            <i class="fas fa-sync-alt me-2"></i>Update Language
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
