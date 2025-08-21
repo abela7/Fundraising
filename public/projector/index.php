@@ -3,7 +3,7 @@ require_once '../../config/db.php';
 require_once '../../config/env.php';
 
 // Fetch settings from the database
-$settings_query = "SELECT projector_language, refresh_rate, target_amount, currency FROM settings WHERE id = 1";
+$settings_query = "SELECT projector_language, refresh_rate, target_amount, currency, campaign_title FROM settings WHERE id = 1";
 $settings_stmt = $pdo->query($settings_query);
 $settings = $settings_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -11,12 +11,16 @@ $projector_language = $settings['projector_language'] ?? 'en';
 $refresh_rate = $settings['refresh_rate'] ?? 5000;
 $target_amount = $settings['target_amount'] ?? 100000;
 $currency = $settings['currency'] ?? 'GBP';
+$campaign_title = $settings['campaign_title'] ?? 'Live Fundraising Campaign';
 
 // Load language files
 $lang_en = json_decode(file_get_contents('lang/en.json'), true);
 $lang_am = json_decode(file_get_contents('lang/am.json'), true);
 
 $lang = ($projector_language === 'am') ? $lang_am : $lang_en;
+
+// Add campaign title to language array
+$lang['campaign_title'] = $campaign_title;
 
 ?>
 <!DOCTYPE html>
@@ -34,6 +38,13 @@ $lang = ($projector_language === 'am') ? $lang_am : $lang_en;
 
 <body>
     <div class="container">
+        <div class="header">
+            <h1 class="campaign-title" data-lang-key="campaign_title"><?php echo $lang['campaign_title']; ?></h1>
+            <div class="progress-bar-container top-progress-bar">
+                <div id="progress-bar-top" class="progress-bar"></div>
+                <div id="progress-percentage-top" class="progress-percentage">0%</div>
+            </div>
+        </div>
         <div class="main-content">
             <div class="left-panel">
                 <div class="totals">
@@ -79,12 +90,8 @@ $lang = ($projector_language === 'am') ? $lang_am : $lang_en;
             <div class="live-update-badge">
                 <span class="live-dot"></span> <span data-lang-key="live_update"><?php echo $lang['live_update']; ?></span>
             </div>
-            <div class="progress-bar-container">
-                <div id="progress-bar" class="progress-bar"></div>
-                <div id="loading-bar-text" class="loading-text" data-lang-key="loading">
-                    <?php echo $lang['loading']; ?>
-                </div>
-                <div id="progress-percentage" class="progress-percentage">0%</div>
+            <div id="loading-bar-text" class="loading-text" data-lang-key="loading">
+                <?php echo $lang['loading']; ?>
             </div>
             <div id="celebration" class="celebration">🎉 Target Reached! 🎉</div>
         </div>
@@ -101,6 +108,10 @@ $lang = ($projector_language === 'am') ? $lang_am : $lang_en;
             en: <?php echo json_encode($lang_en); ?>,
             am: <?php echo json_encode($lang_am); ?>
         };
+        
+        // Add dynamic campaign title to translations
+        translations.en.campaign_title = "<?php echo $campaign_title; ?>";
+        translations.am.campaign_title = "<?php echo $campaign_title; ?>"; // You might want a different way to translate this
 
         let currentLanguage = '<?php echo $projector_language; ?>';
 
@@ -116,8 +127,8 @@ $lang = ($projector_language === 'am') ? $lang_am : $lang_en;
         const totalPledgedElement = document.getElementById('total-pledged');
         const grandTotalElement = document.getElementById('grand-total');
         const liveUpdatesContainer = document.getElementById('live-updates');
-        const progressBar = document.getElementById('progress-bar');
-        const progressPercentage = document.getElementById('progress-percentage');
+        const progressBarTop = document.getElementById('progress-bar-top');
+        const progressPercentageTop = document.getElementById('progress-percentage-top');
         const loadingBarText = document.getElementById('loading-bar-text');
         const celebrationElement = document.getElementById('celebration');
 
@@ -152,8 +163,10 @@ $lang = ($projector_language === 'am') ? $lang_am : $lang_en;
 
         function updateProgressBar(current, target) {
             const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-            progressBar.style.width = `${percentage}%`;
-            progressPercentage.textContent = `${Math.floor(percentage)}%`;
+            const percentageFloored = Math.floor(percentage);
+
+            progressBarTop.style.width = `${percentage}%`;
+            progressPercentageTop.textContent = `${percentageFloored}%`;
 
             if (percentage >= 100) {
                 celebrationElement.style.display = 'block';
