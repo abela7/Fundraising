@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Floor Map - Fundraising</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            color: white;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .ui-panel {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 20px;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .top-panel {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .left-panel {
+            top: 20px;
+            left: 20px;
+            width: 300px;
+        }
+
+        .right-panel {
+            top: 20px;
+            right: 20px;
+            width: 300px;
+        }
+
+        .bottom-panel {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .legend {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .cell-info {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            max-width: 250px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .cell-info.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="ui-overlay">
+            <!-- Top Panel -->
+            <div class="ui-panel top-panel">
+                <h1 style="font-size: 28px; font-weight: 300;">🏢 3D Floor Map</h1>
+                <button class="btn" onclick="resetCamera()">Reset View</button>
+                <button class="btn secondary" onclick="toggleWireframe()">Wireframe</button>
+                <button class="btn secondary" onclick="toggleGrid()">Show Grid</button>
+            </div>
+
+            <!-- Left Panel -->
+            <div class="ui-panel left-panel">
+                <h3>🔍 Search & Filter</h3>
+                <input type="text" class="search-box" placeholder="Search donors, cells..." id="searchInput">
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalCells">0</div>
+                        <div class="stat-label">Total Cells</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="occupiedCells">0</div>
+                        <div class="stat-label">Occupied</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="availableCells">0</div>
+                        <div class="stat-label">Available</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalRevenue">$0</div>
+                        <div class="stat-label">Revenue</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="ui-panel right-panel">
+                <h3>🎨 Legend</h3>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4CAF50;"></div>
+                        <span>Available</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FF9800;"></div>
+                        <span>Reserved</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #F44336;"></div>
+                        <span>Occupied</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #9C27B0;"></div>
+                        <span>Premium</span>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 20px;">📊 Quick Actions</h3>
+                <button class="btn" style="width: 100%; margin-top: 10px;" onclick="exportData()">Export Data</button>
+                <button class="btn secondary" style="width: 100%; margin-top: 10px;" onclick="refreshData()">Refresh</button>
+            </div>
+
+            <!-- Bottom Panel -->
+            <div class="ui-panel bottom-panel">
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; opacity: 0.8;">Use mouse to rotate, scroll to zoom, right-click to pan</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Loading 3D Floor Map...</div>
+        </div>
+
+        <!-- Cell Info Tooltip -->
+        <div class="cell-info" id="cellInfo"></div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let floorCells = [];
+        let wireframeMode = false;
+        let gridVisible = true;
+        let cellData = {};
+
+        // Initialize Three.js scene
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(50, 50, 50);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lighting
+            setupLighting();
+
+            // Create floor grid
+            createFloorGrid();
+
+            // Load cell data
+            loadCellData();
+
+            // Start animation loop
+            animate();
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            // Directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            scene.add(directionalLight);
+
+            // Point lights for dramatic effect
+            const pointLight1 = new THREE.PointLight(0x667eea, 0.5, 100);
+            pointLight1.position.set(-50, 30, -50);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0x764ba2, 0.5, 100);
+            pointLight2.position.set(50, 30, 50);
+            scene.add(pointLight2);
+        }
+
+        function createFloorGrid() {
+            // Create floor plane
+            const floorGeometry = new THREE.PlaneGeometry(100, 100);
+            const floorMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x2c3e50,
+                transparent: true,
+                opacity: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Create grid helper
+            const gridHelper = new THREE.GridHelper(100, 20, 0x444444, 0x222222);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+
+            // Create cell grid (10x10)
+            createCellGrid();
+        }
+
+        function createCellGrid() {
+            const cellSize = 8;
+            const spacing = 2;
+            const startX = -45;
+            const startZ = -45;
+
+            for (let row = 0; row < 10; row++) {
+                for (let col = 0; col < 10; col++) {
+                    const x = startX + col * (cellSize + spacing);
+                    const z = startZ + row * (cellSize + spacing);
+
+                    const cellGeometry = new THREE.BoxGeometry(cellSize, 0.5, cellSize);
+                    const cellMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0x4CAF50,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+
+                    const cell = new THREE.Mesh(cellGeometry, cellMaterial);
+                    cell.position.set(x, 0.25, z);
+                    cell.castShadow = true;
+                    cell.receiveShadow = true;
+
+                    // Store cell information
+                    cell.userData = {
+                        row: row,
+                        col: col,
+                        id: `cell_${row}_${col}`,
+                        status: 'available',
+                        donor: null,
+                        amount: 0
+                    };
+
+                    // Add click event
+                    cell.userData.mesh = cell;
+                    floorCells.push(cell);
+                    scene.add(cell);
+
+                    // Add hover effects
+                    addCellInteractions(cell);
+                }
+            }
+        }
+
+        function addCellInteractions(cell) {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            // Mouse move event
+            document.addEventListener('mousemove', (event) => {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(floorCells.map(c => c.userData.mesh));
+
+                // Reset all cell materials
+                floorCells.forEach(c => {
+                    if (c.userData.mesh.material.emissive) {
+                        c.userData.mesh.material.emissive.setHex(0x000000);
+                    }
+                });
+
+                // Highlight hovered cell
+                if (intersects.length > 0) {
+                    const hoveredCell = intersects[0].object;
+                    if (hoveredCell.material.emissive) {
+                        hoveredCell.material.emissive.setHex(0x333333);
+                    }
+                    showCellInfo(hoveredCell, event);
+                } else {
+                    hideCellInfo();
+                }
+            });
+
+            // Click event
+            document.addEventListener('click', (event) => {
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(floorCells.map(c => c.userData.mesh));
+
+                if (intersects.length > 0) {
+                    const clickedCell = intersects[0].object;
+                    selectCell(clickedCell);
+                }
+            });
+        }
+
+        function showCellInfo(cell, event) {
+            const cellInfo = document.getElementById('cellInfo');
+            const userData = cell.userData;
+            
+            cellInfo.innerHTML = `
+                <strong>Cell ${userData.row + 1}-${userData.col + 1}</strong><br>
+                Status: ${userData.status}<br>
+                ${userData.donor ? `Donor: ${userData.donor}` : 'No donor assigned'}<br>
+                ${userData.amount > 0 ? `Amount: $${userData.amount.toLocaleString()}` : ''}
+            `;
+            
+            cellInfo.style.left = event.clientX + 10 + 'px';
+            cellInfo.style.top = event.clientY - 10 + 'px';
+            cellInfo.classList.add('show');
+        }
+
+        function hideCellInfo() {
+            document.getElementById('cellInfo').classList.remove('show');
+        }
+
+        function selectCell(cell) {
+            // Deselect all cells
+            floorCells.forEach(c => {
+                c.userData.mesh.material.color.setHex(0x4CAF50);
+            });
+
+            // Select clicked cell
+            cell.material.color.setHex(0x667eea);
+            
+            // You can add more selection logic here
+            console.log('Selected cell:', cell.userData);
+        }
+
+        async function loadCellData() {
+            try {
+                // Simulate loading data from your PHP backend
+                // Replace this with actual API call to your PHP backend
+                const response = await fetch('/api/grid_status.php');
+                const data = await response.json();
+                
+                // Update cell data
+                updateCellsWithData(data);
+                
+                // Update statistics
+                updateStatistics();
+                
+                // Hide loading screen
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error loading cell data:', error);
+                // Use mock data for demonstration
+                useMockData();
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function useMockData() {
+            // Mock data for demonstration
+            const mockData = {
+                total_cells: 100,
+                occupied_cells: 45,
+                available_cells: 55,
+                total_revenue: 125000,
+                cells: []
+            };
+
+            // Generate mock cell data
+            for (let i = 0; i < 100; i++) {
+                const row = Math.floor(i / 10);
+                const col = i % 10;
+                const statuses = ['available', 'occupied', 'reserved', 'premium'];
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                
+                mockData.cells.push({
+                    row: row,
+                    col: col,
+                    status: status,
+                    donor: status === 'available' ? null : `Donor ${i + 1}`,
+                    amount: status === 'available' ? 0 : Math.floor(Math.random() * 5000) + 1000
+                });
+            }
+
+            updateCellsWithData(mockData);
+            updateStatistics();
+        }
+
+        function updateCellsWithData(data) {
+            data.cells.forEach(cellInfo => {
+                const cell = floorCells.find(c => c.userData.row === cellInfo.row && c.userData.col === cellInfo.col);
+                if (cell) {
+                    // Update cell data
+                    Object.assign(cell.userData, cellInfo);
+                    
+                    // Update cell appearance based on status
+                    updateCellAppearance(cell, cellInfo.status);
+                }
+            });
+        }
+
+        function updateCellAppearance(cell, status) {
+            const colors = {
+                'available': 0x4CAF50,
+                'occupied': 0xF44336,
+                'reserved': 0xFF9800,
+                'premium': 0x9C27B0
+            };
+
+            cell.material.color.setHex(colors[status] || colors.available);
+        }
+
+        function updateStatistics() {
+            const stats = {
+                totalCells: floorCells.length,
+                occupiedCells: floorCells.filter(c => c.userData.status === 'occupied').length,
+                availableCells: floorCells.filter(c => c.userData.status === 'available').length,
+                totalRevenue: floorCells.reduce((sum, c) => sum + (c.userData.amount || 0), 0)
+            };
+
+            document.getElementById('totalCells').textContent = stats.totalCells;
+            document.getElementById('occupiedCells').textContent = stats.occupiedCells;
+            document.getElementById('availableCells').textContent = stats.availableCells;
+            document.getElementById('totalRevenue').textContent = `$${stats.totalRevenue.toLocaleString()}`;
+        }
+
+        function resetCamera() {
+            camera.position.set(50, 50, 50);
+            controls.reset();
+        }
+
+        function toggleWireframe() {
+            wireframeMode = !wireframeMode;
+            floorCells.forEach(cell => {
+                cell.material.wireframe = wireframeMode;
+            });
+        }
+
+        function toggleGrid() {
+            gridVisible = !gridVisible;
+            scene.children.forEach(child => {
+                if (child instanceof THREE.GridHelper) {
+                    child.visible = gridVisible;
+                }
+            });
+        }
+
+        function exportData() {
+            const data = floorCells.map(cell => cell.userData);
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'floor_map_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function refreshData() {
+            loadCellData();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Initialize the scene
+        init();
+    </script>
+</body>
+</html>

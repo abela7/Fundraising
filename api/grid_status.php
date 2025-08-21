@@ -1,103 +1,100 @@
 <?php
-declare(strict_types=1);
-
-/**
- * Floor Grid Status API
- * 
- * Returns the current status of all floor grid cells for real-time visualization
- * on the projector floor plan page.
- */
-
 header('Content-Type: application/json');
-header('Cache-Control: no-cache, must-revalidate');
-header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-
-// CORS headers for projector access
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../shared/IntelligentGridAllocator.php';
-
-try {
-    $db = db();
-    $gridAllocator = new IntelligentGridAllocator($db);
-    
-    // Get request parameters
-    $format = $_GET['format'] ?? 'detailed'; // 'detailed' or 'summary'
-    
-    $response = [
-        'success' => true,
-        'timestamp' => date('c'),
-        'data' => []
-    ];
-    
-    if ($format === 'summary') {
-        // Return summary statistics only, focusing on the smallest cell unit
-        $stats = $gridAllocator->getAllocationStats();
-        $total_area = (float)($stats['total_possible_area'] ?? 0);
-        $allocated_area = (float)($stats['total_allocated_area'] ?? 0);
-        $progress_percentage = ($total_area > 0) ? ($allocated_area / $total_area) * 100 : 0;
-
-        $response['data'] = [
-            'statistics' => [
-                'total_cells' => (int)($stats['total_cells'] ?? 0),
-                'pledged_cells' => (int)($stats['pledged_cells'] ?? 0),
-                'paid_cells' => (int)($stats['paid_cells'] ?? 0),
-                'available_cells' => (int)($stats['available_cells'] ?? 0),
-                'total_area_sqm' => $total_area,
-                'allocated_area_sqm' => $allocated_area,
-                'progress_percentage' => round($progress_percentage, 2)
-            ]
-        ];
-        
-    } else {
-        // Return detailed grid status, grouped by rectangle for the frontend
-        $gridStatus = $gridAllocator->getGridStatus();
-        $groupedData = [];
-        foreach ($gridStatus as $cell) {
-            $rectId = $cell['rectangle_id'];
-            if (!isset($groupedData[$rectId])) {
-                $groupedData[$rectId] = [];
-            }
-            // The frontend expects a specific structure, let's match it.
-            $groupedData[$rectId][] = [
-                'cell_id' => $cell['cell_id'],
-                'status'  => $cell['status'],
-                'donor'   => $cell['donor_name'],
-                'amount'  => (float)$cell['amount']
-            ];
-        }
-        
-        // Always include both grid data and summary statistics for live updates
-        $stats = $gridAllocator->getAllocationStats();
-        $total_area = (float)($stats['total_possible_area'] ?? 0);
-        $allocated_area = (float)($stats['total_allocated_area'] ?? 0);
-        $progress_percentage = ($total_area > 0) ? ($allocated_area / $total_area) * 100 : 0;
-
-        $response['data'] = [
-            'grid_cells' => $groupedData,
-            'summary' => [
-                'total_cells' => (int)($stats['total_cells'] ?? 0),
-                'pledged_cells' => (int)($stats['pledged_cells'] ?? 0),
-                'paid_cells' => (int)($stats['paid_cells'] ?? 0),
-                'available_cells' => (int)($stats['available_cells'] ?? 0),
-                'total_area_sqm' => $total_area,
-                'allocated_area_sqm' => $allocated_area,
-                'progress_percentage' => round($progress_percentage, 2)
-            ]
-        ];
-    }
-
-} catch (Exception $e) {
-    http_response_code(500);
-    $response = [
-        'success' => false,
-        'error' => 'An internal server error occurred: ' . $e->getMessage(),
-        'timestamp' => date('c'),
-    ];
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
 }
 
-echo json_encode($response, JSON_PRETTY_PRINT);
+require_once '../config/db.php';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    // Get grid status data
+    $query = "
+        SELECT 
+            gc.row_position,
+            gc.col_position,
+            gc.status,
+            gc.donor_id,
+            gc.amount,
+            gc.created_at,
+            gc.updated_at,
+            d.name as donor_name,
+            d.email as donor_email
+        FROM grid_cells gc
+        LEFT JOIN donors d ON gc.donor_id = d.id
+        ORDER BY gc.row_position, gc.col_position
+    ";
+    
+    $stmt = $pdo->prepare($query);
+    $stmt->execute();
+    $cells = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Get summary statistics
+    $statsQuery = "
+        SELECT 
+            COUNT(*) as total_cells,
+            SUM(CASE WHEN status = 'occupied' THEN 1 ELSE 0 END) as occupied_cells,
+            SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available_cells,
+            SUM(CASE WHEN status = 'reserved' THEN 1 ELSE 0 END) as reserved_cells,
+            SUM(CASE WHEN status = 'premium' THEN 1 ELSE 0 END) as premium_cells,
+            SUM(COALESCE(amount, 0)) as total_revenue
+        FROM grid_cells
+    ";
+    
+    $statsStmt = $pdo->prepare($statsQuery);
+    $statsStmt->execute();
+    $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Format the response
+    $response = [
+        'success' => true,
+        'timestamp' => date('Y-m-d H:i:s'),
+        'total_cells' => (int)$stats['total_cells'],
+        'occupied_cells' => (int)$stats['occupied_cells'],
+        'available_cells' => (int)$stats['available_cells'],
+        'reserved_cells' => (int)$stats['reserved_cells'],
+        'premium_cells' => (int)$stats['premium_cells'],
+        'total_revenue' => (float)$stats['total_revenue'],
+        'cells' => []
+    ];
+    
+    foreach ($cells as $cell) {
+        $response['cells'][] = [
+            'row' => (int)$cell['row_position'],
+            'col' => (int)$cell['col_position'],
+            'status' => $cell['status'] ?: 'available',
+            'donor' => $cell['donor_name'] ?: null,
+            'donor_email' => $cell['donor_email'] ?: null,
+            'amount' => (float)($cell['amount'] ?: 0),
+            'created_at' => $cell['created_at'],
+            'updated_at' => $cell['updated_at']
+        ];
+    }
+    
+    echo json_encode($response, JSON_PRETTY_PRINT);
+    
+} catch (PDOException $e) {
+    // Return error response
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database error: ' . $e->getMessage(),
+        'timestamp' => date('Y-m-d H:i:s')
+    ], JSON_PRETTY_PRINT);
+} catch (Exception $e) {
+    // Return error response
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Server error: ' . $e->getMessage(),
+        'timestamp' => date('Y-m-d H:i:s')
+    ], JSON_PRETTY_PRINT);
+}
 ?>
