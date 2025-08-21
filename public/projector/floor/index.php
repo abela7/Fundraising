@@ -104,67 +104,66 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Stats card positioned below floor map */
+  /* Compact stats card - responsive and unobtrusive */
   .stats-card {
     position: relative;
-    margin: 20px auto 0;
-    background: rgba(20, 27, 45, 0.95);
-    border: 2px solid rgba(226, 202, 24, 0.3);
-    border-radius: 8px;
-    padding: 25px 35px;
-    max-width: 600px;
+    margin: clamp(10px, 2vh, 20px) auto 0;
+    background: rgba(20, 27, 45, 0.9);
+    border: 1px solid rgba(226, 202, 24, 0.4);
+    border-radius: 6px;
+    padding: clamp(8px, 1.5vh, 16px) clamp(12px, 2.5vw, 24px);
+    max-width: clamp(280px, 35vw, 450px);
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
   }
 
   .coverage-numbers {
-    font-size: clamp(24px, 4vw, 48px);
+    font-size: clamp(16px, 2.8vw, 28px);
     font-weight: bold;
     color: #e2ca18;
-    line-height: 1.2;
+    line-height: 1.1;
     text-align: center;
-    margin-bottom: 12px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    margin-bottom: clamp(4px, 0.8vh, 8px);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
   .coverage-label {
-    font-size: clamp(14px, 2.5vw, 24px);
+    font-size: clamp(10px, 1.5vw, 16px);
     color: #cbd5e1;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     text-align: center;
-    margin-bottom: 20px;
-    font-weight: 600;
+    margin-bottom: clamp(6px, 1vh, 12px);
+    font-weight: 500;
   }
 
   .progress-bar {
     width: 100%;
-    height: clamp(12px, 1.5vw, 20px);
+    height: clamp(6px, 1vh, 12px);
     background: #334155;
-    border-radius: 10px;
+    border-radius: 6px;
     overflow: hidden;
-    margin-bottom: 15px;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    margin-bottom: clamp(4px, 0.8vh, 8px);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .progress-fill {
     height: 100%;
     background: linear-gradient(to right, #e2ca18, #ffd700);
-    border-radius: 10px;
-    transition: width 0.8s ease-in-out;
+    border-radius: 6px;
+    transition: width 0.6s ease-in-out;
     width: 0%;
-    box-shadow: 0 0 10px rgba(226, 202, 24, 0.4);
   }
 
   .percentage {
-    font-size: clamp(16px, 3vw, 28px);
+    font-size: clamp(12px, 2vw, 20px);
     color: #ffffff;
     text-align: center;
     line-height: 1;
     font-weight: 600;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
   /* All UI elements removed for clean game design */
