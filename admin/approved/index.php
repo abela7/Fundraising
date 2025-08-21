@@ -76,6 +76,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $db->commit();
                 $actionMsg = 'Approval undone';
+                
+                // Signal floor map to refresh immediately
+                echo "<script>
+                    if (window.opener || window.parent !== window) {
+                        // Signal parent/opener windows
+                        try {
+                            if (window.opener && window.opener.refreshFloorMap) {
+                                window.opener.refreshFloorMap();
+                            }
+                            if (window.parent && window.parent.refreshFloorMap) {
+                                window.parent.refreshFloorMap();
+                            }
+                        } catch(e) { /* Cross-origin restrictions */ }
+                    }
+                    
+                    // Use localStorage to signal other tabs
+                    localStorage.setItem('floorMapRefresh', Date.now());
+                </script>";
             } catch (Throwable $e) {
                 $db->rollback();
                 $actionMsg = 'Error: ' . $e->getMessage();
@@ -260,6 +278,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $db->commit();
                 $actionMsg = 'Payment approval undone';
+                
+                // Signal floor map to refresh immediately
+                echo "<script>
+                    if (window.opener || window.parent !== window) {
+                        // Signal parent/opener windows
+                        try {
+                            if (window.opener && window.opener.refreshFloorMap) {
+                                window.opener.refreshFloorMap();
+                            }
+                            if (window.parent && window.parent.refreshFloorMap) {
+                                window.parent.refreshFloorMap();
+                            }
+                        } catch(e) { /* Cross-origin restrictions */ }
+                    }
+                    
+                    // Use localStorage to signal other tabs
+                    localStorage.setItem('floorMapRefresh', Date.now());
+                </script>";
             } catch (Throwable $e) {
                 $db->rollback();
                 $actionMsg = 'Error: ' . $e->getMessage();

@@ -220,6 +220,42 @@
     font-size: 1rem; 
   }
 
+  /* Refresh button styling */
+  .refresh-btn {
+    position: fixed;
+    top: 12px;
+    right: 120px; /* Position it left of fullscreen button */
+    z-index: 1100;
+    background: rgba(0, 120, 0, 0.4);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: opacity 0.25s ease, transform 0.2s ease;
+    opacity: 0.35;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  .refresh-btn:hover { 
+    opacity: 1; 
+    transform: translateY(-1px); 
+  }
+  
+  .refresh-btn.hidden { 
+    opacity: 0; 
+    pointer-events: none; 
+  }
+  
+  .refresh-btn i { 
+    font-size: 1rem; 
+  }
+
   @media (max-width: 768px) {
     .fullscreen-btn { 
       padding: 6px 8px; 
@@ -228,6 +264,15 @@
       right: 8px; 
     }
     .fullscreen-btn i { 
+      font-size: 0.9rem; 
+    }
+    .refresh-btn { 
+      padding: 6px 8px; 
+      font-size: 0.8rem; 
+      top: 8px; 
+      right: 100px; 
+    }
+    .refresh-btn i { 
       font-size: 0.9rem; 
     }
   }
@@ -239,6 +284,11 @@
   <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle Fullscreen (F)">
     <i class="fas fa-expand"></i>
     <span class="label">Fullscreen</span>
+  </button>
+  
+  <button class="refresh-btn" id="refreshBtn" title="Force Refresh Floor Map (R)" onclick="window.refreshFloorMap && window.refreshFloorMap()">
+    <i class="fas fa-sync-alt"></i>
+    <span class="label">Refresh</span>
   </button>
 
   <div class="game-container">
@@ -1441,11 +1491,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     fsBtn.addEventListener('click', toggleFullscreen);
 
-    // Keyboard shortcut: F to toggle fullscreen
+    // Keyboard shortcuts: F for fullscreen, R for refresh
     document.addEventListener('keydown', (e) => {
         if (e.key.toLowerCase() === 'f') {
             e.preventDefault();
             toggleFullscreen();
+        } else if (e.key.toLowerCase() === 'r') {
+            e.preventDefault();
+            if (window.refreshFloorMap) {
+                window.refreshFloorMap();
+                // Visual feedback
+                const refreshBtn = document.getElementById('refreshBtn');
+                if (refreshBtn) {
+                    refreshBtn.style.opacity = '1';
+                    refreshBtn.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        refreshBtn.style.opacity = '';
+                        refreshBtn.style.transform = '';
+                    }, 200);
+                }
+            }
         }
     });
 

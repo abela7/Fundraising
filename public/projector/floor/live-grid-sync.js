@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('GridSync: Grid is ready. Starting synchronization.');
                 this.gridReady = true;
                 this.startPolling();
+                this.setupRefreshSignals();
             });
         },
 
@@ -56,6 +57,36 @@ document.addEventListener('DOMContentLoaded', () => {
         startPolling() {
             this.fetchAndUpdate(); // Initial fetch
             setInterval(() => this.fetchAndUpdate(), this.pollInterval);
+        },
+
+        /**
+         * Sets up immediate refresh signals from admin actions.
+         */
+        setupRefreshSignals() {
+            // Listen for localStorage signals from admin pages
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'floorMapRefresh' && e.newValue) {
+                    console.log('GridSync: Received immediate refresh signal from admin action');
+                    this.fetchAndUpdate();
+                }
+            });
+
+            // Make refresh function globally available for window.opener calls
+            window.refreshFloorMap = () => {
+                console.log('GridSync: Direct refresh triggered');
+                this.fetchAndUpdate();
+            };
+
+            // Check for refresh signals on page focus (in case we missed localStorage event)
+            window.addEventListener('focus', () => {
+                const lastRefresh = localStorage.getItem('floorMapRefresh');
+                if (lastRefresh && (Date.now() - parseInt(lastRefresh)) < 10000) {
+                    console.log('GridSync: Refresh on focus due to recent admin action');
+                    this.fetchAndUpdate();
+                }
+            });
+
+            console.log('GridSync: Refresh signals setup complete');
         },
         
         /**
