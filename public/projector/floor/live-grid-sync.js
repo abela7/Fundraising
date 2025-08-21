@@ -16,9 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const GridSync = {
         // Configuration
         apiUrl: '/api/grid_status.php',
-        summaryApiUrl: '/api/grid_status.php?format=summary', // URL for summary stats
-        pollInterval: 5000,
-        allocationColor: '#e2ca18',
+        pollInterval: 5000, // Fetch updates every 5 seconds
+        allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
         // DOM Elements
         elements: {
@@ -27,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             paidCells: document.getElementById('paid-cells'),
             pledgedCells: document.getElementById('pledged-cells'),
             totalAllocatedCells: document.getElementById('total-allocated-cells'),
-            availableCells: document.getElementById('available-cells'),
+            availableCells: document.getElementById('available-cells')
         },
         
         // State
@@ -65,41 +64,62 @@ document.addEventListener('DOMContentLoaded', () => {
          * Starts the polling process to fetch live data.
          */
         startPolling() {
-            this.fetchAndUpdateGrid(); // Initial fetch for the grid
-            this.fetchAndUpdateStats(); // Initial fetch for the stats
-            
-            setInterval(() => this.fetchAndUpdateGrid(), this.pollInterval);
-            setInterval(() => this.fetchAndUpdateStats(), this.pollInterval);
+            this.fetchAndUpdate(); // Initial fetch
+            setInterval(() => this.fetchAndUpdate(), this.pollInterval);
         },
         
         /**
-         * Fetches and updates the grid visuals.
+         * Fetches data from the API and updates the grid visuals.
          */
-        async fetchAndUpdateGrid() {
+        async fetchAndUpdate() {
+            console.log('GridSync: Fetching latest grid status...');
             try {
-                const response = await fetch(this.apiUrl);
-                const data = await response.json();
-                if (data.success && data.data && data.data.grid_cells) {
-                    this.updateGrid(data.data.grid_cells);
+                // Fetch both detailed and summary data in parallel for efficiency
+                const [detailResponse, summaryResponse] = await Promise.all([
+                    fetch(this.apiUrl),
+                    fetch(`${this.apiUrl}?format=summary`)
+                ]);
+
+                if (!detailResponse.ok || !summaryResponse.ok) {
+                    throw new Error('API request failed');
                 }
+
+                const detailData = await detailResponse.json();
+                const summaryData = await summaryResponse.json();
+
+                if (detailData.success && detailData.data.grid_cells) {
+                    this.updateGrid(detailData.data.grid_cells);
+                } else {
+                    console.error('GridSync: Detailed data response was not successful.', detailData);
+                }
+                
+                if (summaryData.success && summaryData.data.statistics) {
+                    this.updateInfoPanel(summaryData.data.statistics);
+                } else {
+                    console.error('GridSync: Summary data response was not successful.', summaryData);
+                }
+
             } catch (error) {
-                console.error('GridSync: Error fetching grid data:', error);
+                console.error('GridSync: Error fetching or parsing data:', error);
             }
         },
-
+        
         /**
-         * Fetches and updates the statistics panel.
+         * Updates the info panel with the latest summary statistics.
+         * @param {object} stats - The statistics object from the API.
          */
-        async fetchAndUpdateStats() {
-            try {
-                const response = await fetch(this.summaryApiUrl);
-                const data = await response.json();
-                if (data.success && data.data && data.data.statistics) {
-                    this.updateStats(data.data.statistics);
-                }
-            } catch (error) {
-                console.error('GridSync: Error fetching stats data:', error);
-            }
+        updateInfoPanel(stats) {
+            const totalAllocated = stats.pledged_cells + stats.paid_cells;
+            
+            this.elements.allocatedArea.textContent = stats.allocated_area_sqm.toFixed(2);
+            this.elements.paidCells.textContent = stats.paid_cells;
+            this.elements.pledgedCells.textContent = stats.pledged_cells;
+            this.elements.totalAllocatedCells.textContent = totalAllocated;
+            this.elements.availableCells.textContent = stats.available_cells;
+            
+            // Update progress bar
+            const percentage = stats.progress_percentage || 0;
+            this.elements.progressBar.style.width = `${percentage}%`;
         },
 
         /**
@@ -138,21 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             console.timeEnd('GridSync: Update Duration');
-        },
-
-        /**
-         * Updates the statistics panel with live data.
-         * @param {object} stats - The statistics object from the API.
-         */
-        updateStats(stats) {
-            const totalAllocated = stats.pledged_cells + stats.paid_cells;
-            
-            this.elements.allocatedArea.textContent = stats.allocated_area_sqm.toFixed(2);
-            this.elements.progressBar.style.width = `${stats.progress_percentage}%`;
-            this.elements.paidCells.textContent = stats.paid_cells;
-            this.elements.pledgedCells.textContent = stats.pledged_cells;
-            this.elements.totalAllocatedCells.textContent = totalAllocated;
-            this.elements.availableCells.textContent = stats.available_cells;
         }
     };
     

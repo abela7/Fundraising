@@ -101,136 +101,89 @@
 
   /* All UI elements removed for clean game design */
 
-  /* General Setup */
-  body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      margin: 0;
-      min-height: 100vh;
-      background: #131A2D;
-      font-family: system-ui, -apple-system, sans-serif;
-      overflow: hidden;
-  }
-
-  .container {
-      display: flex;
-      gap: 20px;
-      width: 95vw;
-      height: 95vh;
-      max-width: 1600px; /* Max width for large screens */
-  }
-
-  /* Floor Map Container */
-  .floor-map-container {
-      flex-grow: 1; /* Allows the map to take up available space */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
-  }
-
-  .main-section {
-      display: grid;
-      grid-template-columns: repeat(28, 1fr);
-      grid-template-rows: repeat(44, 1fr);
-      gap: 2px;
-      padding: 5px;
-      background-color: #E0E0E0;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      /* Maintain aspect ratio while fitting within the container */
-      aspect-ratio: 28 / 44;
-      max-height: 100%;
-      max-width: 100%;
-  }
-
-  /* Live Info Panel */
+  /* Info Panel Styles */
   .info-panel {
-      width: 320px; /* Fixed width for the panel */
-      flex-shrink: 0; /* Prevents the panel from shrinking */
-      color: #fff;
-      background-color: rgba(10, 15, 27, 0.8); /* Semi-transparent dark background */
-      border-radius: 8px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    max-width: 350px;
+    width: 100%;
+    box-sizing: border-box;
   }
-  
+
   .info-panel h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 1.8rem;
-      color: #e2ca18;
-      border-bottom: 1px solid #e2ca18;
-      padding-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.8em;
+    color: #fff;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   .progress-display {
-      text-align: center;
-      margin-bottom: 25px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
-  .progress-display .area {
-      font-size: 2.5rem;
-      font-weight: bold;
-      color: #fff;
+  .area {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #FFD700; /* Gold color for area */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
   }
-  
-  .progress-display .total {
-      font-size: 1.2rem;
-      color: #94a3b8; /* Muted text color */
+
+  .total {
+    font-size: 1.2em;
+    color: #888;
   }
 
   .progress-bar-container {
-      width: 100%;
-      background-color: #334155;
-      border-radius: 5px;
-      overflow: hidden;
-      height: 20px;
-      margin-top: 10px;
+    width: 100%;
+    height: 10px;
+    background-color: #333;
+    border-radius: 5px;
+    overflow: hidden;
   }
 
   #progress-bar-fill {
-      width: 0%;
-      height: 100%;
-      background-color: #e2ca18;
-      transition: width 0.5s ease-in-out;
+    height: 100%;
+    background: linear-gradient(to right, #FFD700, #FFA500); /* Gold to Orange gradient */
+    border-radius: 5px;
+    transition: width 0.3s ease-in-out;
   }
-  
+
   .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-top: auto; /* Pushes stats to the bottom */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
   }
 
   .stat-item {
-      background-color: #1e293b;
-      padding: 15px;
-      border-radius: 5px;
-      text-align: center;
-  }
-  
-  .stat-item .value {
-      font-size: 1.8rem;
-      font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
 
-  .stat-item .label {
-      font-size: 0.9rem;
-      color: #94a3b8;
+  .value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #FFD700; /* Gold color for values */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
   }
 
-  /* Base style for all cell types */
-  .meter-container, .half-tile, .grid-tile-quarter {
-      background-color: #F5F5F5;
-  }
-  
-  /* Interactive hover effect */
-  .grid-tile-quarter:hover {
-      background-color: #FFFFFF;
-      transition: background-color 0.2s ease-in-out;
+  .label {
+    font-size: 0.9em;
+    color: #bbb;
+    margin-top: 5px;
   }
 </style>
 </head>
@@ -273,10 +226,23 @@
     </div>
     
     <?php
-    // PHP code to generate the grid rectangles
-    // ...
-    ?>
+    // PHP Grid Generation Logic (A to G rectangles)
+    $shapes = [
+        'A' => ['grid-column' => '1 / 25', 'grid-row' => '19 / 32'],
+        'B' => ['grid-column' => '1 / 3', 'grid-row' => '17 / 19'],
+        'C' => ['grid-column' => '10 / 11', 'grid-row' => '9 / 16'],
+        'D' => ['grid-column' => '24 / 33', 'grid-row' => '5 / 16'],
+        'E' => ['grid-column' => '12 / 23', 'grid-row' => '7 / 16'],
+        'F' => ['grid-column' => '34 / 38', 'grid-row' => '2 / 5'],
+        'G' => ['grid-column' => '34 / 41', 'grid-row' => '6 / 20']
+    ];
 
+    // This part is just for layout, the JS will draw the actual cells inside these containers
+    foreach ($shapes as $shape => $style) {
+        echo "<div class='shape' id='shape-{$shape}' style='grid-column: {$style['grid-column']}; grid-row: {$style['grid-row']};'></div>\n";
+    }
+    ?>
+    
 <script>
 // Grid system for rectangle A - 0.5m x 0.5m subdivisions (maximum flexibility)
 function createGridForShapeA() {
