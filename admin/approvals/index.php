@@ -577,7 +577,9 @@ document.addEventListener('click', function(e){
     document.getElementById('dSqm').textContent = fmt(card.dataset.sqmMeters||0) + ' m²';
   }
   document.getElementById('dCreated').textContent = card.dataset.createdAt||'—';
-  document.getElementById('dRegistrar').textContent = card.dataset.registrar||'—';
+  const registrarEl = document.getElementById('dRegistrar');
+  const registrarValue = card.dataset.registrar||'';
+  registrarEl.textContent = registrarValue.trim() === '' ? 'Self Pledged' : registrarValue;
   document.getElementById('dNotes').textContent = card.dataset.notes||'—';
   modal.show();
 });

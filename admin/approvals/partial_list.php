@@ -158,7 +158,13 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
               </div>
             <?php endif; ?>
             <div class="time"><?php echo $pledge_created ? date('H:i', strtotime($pledge_created)) : '--:--'; ?></div>
-            <div class="registrar"><?php echo htmlspecialchars(substr($pledge_registrar ?: 'System', 0, 15)); ?></div>
+            <div class="registrar">
+                <?php if (empty(trim($pledge_registrar))): ?>
+                    <span class="badge bg-info" style="font-size: 0.7rem;">Self Pledged</span>
+                <?php else: ?>
+                    <?php echo htmlspecialchars(substr($pledge_registrar, 0, 15)); ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
     

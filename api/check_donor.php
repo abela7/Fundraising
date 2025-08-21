@@ -15,8 +15,16 @@ function normalize_uk_mobile(string $raw): string {
 }
 
 try {
-	$raw = trim((string)($_GET['phone'] ?? ''));
-	$phone = normalize_uk_mobile($raw);
+	// Handle both GET and POST requests
+	$input = '';
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		$postData = json_decode(file_get_contents('php://input'), true);
+		$input = trim((string)($postData['phone'] ?? ''));
+	} else {
+		$input = trim((string)($_GET['phone'] ?? ''));
+	}
+	
+	$phone = normalize_uk_mobile($input);
 
 	$result = [
 		'success' => true,
@@ -55,7 +63,18 @@ try {
 		if ($row['latest'] && (!$latest || $row['latest'] > $latest)) { $latest = $row['latest']; }
 	}
 	$result['pledges']['latest'] = $latest;
-	$result['exists'] = ($result['pledges']['pending'] + $result['pledges']['approved']) > 0;
+	
+	// Also check payments for this phone
+	$paymentCount = 0;
+	$paymentStmt = $db->prepare("SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ? AND status IN ('pending', 'approved')");
+	$paymentStmt->bind_param('s', $phone);
+	$paymentStmt->execute();
+	$paymentRes = $paymentStmt->get_result();
+	if ($paymentRow = $paymentRes->fetch_assoc()) {
+		$paymentCount = (int)$paymentRow['cnt'];
+	}
+	
+	$result['exists'] = ($result['pledges']['pending'] + $result['pledges']['approved'] + $paymentCount) > 0;
 
 	echo json_encode($result);
 } catch (Throwable $e) {
