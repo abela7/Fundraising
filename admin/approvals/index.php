@@ -66,12 +66,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Use custom amount allocator for smart allocation
                 $customAllocator = new CustomAmountAllocator($db);
-                $allocationResult = $customAllocator->processCustomAmount(
-                    $pledgeId,
-                    $amount,
-                    $donorName,
-                    $status
-                );
+                
+                // Handle both pledges and payments
+                if ($pledge['type'] === 'paid') {
+                    $allocationResult = $customAllocator->processPaymentCustomAmount(
+                        $pledgeId,
+                        $amount,
+                        $donorName,
+                        $status
+                    );
+                } else {
+                    $allocationResult = $customAllocator->processCustomAmount(
+                        $pledgeId,
+                        $amount,
+                        $donorName,
+                        $status
+                    );
+                }
                 
                 // Audit log
                 $ip = $_SERVER['REMOTE_ADDR'] ?? null;
@@ -224,8 +235,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ctr->bind_param('dd', $amt, $grandDelta);
                     $ctr->execute();
 
-                    // Allocate floor grid cells for payment with the new intelligent allocator
-                    $gridAllocator = new IntelligentGridAllocator($db);
+                    // Allocate floor grid cells for payment using custom amount allocator
+                    $customAllocator = new CustomAmountAllocator($db);
                     
                     // Get payment details for allocation
                     $paymentDetails = $db->prepare("SELECT donor_name, amount, package_id FROM payments WHERE id = ?");
@@ -234,15 +245,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $paymentData = $paymentDetails->get_result()->fetch_assoc();
 
                     if ($paymentData) {
-                        $allocationResult = $gridAllocator->allocate(
-                            null, // No pledge ID for a direct payment
+                        $allocationResult = $customAllocator->processPaymentCustomAmount(
                             $paymentId,
                             (float)$paymentData['amount'],
-                            isset($paymentData['package_id']) ? (int)$paymentData['package_id'] : null,
                             (string)$paymentData['donor_name'],
                             'paid'
                         );
-                        $actionMsg .= " Grid allocation: " . ($allocationResult['success'] ? $allocationResult['message'] : $allocationResult['error']);
+                        
+                        if ($allocationResult['success']) {
+                            $actionMsg .= " Custom allocation: " . $allocationResult['message'];
+                        } else {
+                            $actionMsg .= " Custom allocation failed: " . $allocationResult['error'];
+                        }
                     }
                     // No need to update audit log here as it's handled separately for payments
                 } else if ($action === 'reject_payment') {

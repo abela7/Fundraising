@@ -2,12 +2,14 @@
 declare(strict_types=1);
 
 /**
- * Custom Amount Allocator
+ * Custom Amount Allocator - FIXED VERSION
  * 
  * Implements the brilliant custom amount system:
  * Rule 1: Under £100 = accumulate until £100, then auto-allocate
  * Rule 2: Over £100 = allocate appropriate cells + track remaining
  * Rule 3: Clean cell ownership (one donor per cell)
+ * Rule 4: Handle both pledges AND payments
+ * Rule 5: Reset totals after allocation
  */
 class CustomAmountAllocator {
     private mysqli $db;
@@ -142,18 +144,8 @@ class CustomAmountAllocator {
         );
         
         if ($allocationResult['success']) {
-            // Update ALL tracking records to reflect the allocation
-            $update = $this->db->prepare("
-                UPDATE custom_amount_tracking 
-                SET allocated_amount = allocated_amount + (remaining_amount * ? / ?),
-                    remaining_amount = remaining_amount * ? / ?,
-                    last_updated = NOW()
-                WHERE remaining_amount > 0
-            ");
-            $ratio = $allocatedAmount / $totalRemaining;
-            $remainingRatio = $remainingAmount / $totalRemaining;
-            $update->bind_param('dddd', $ratio, $totalRemaining, $remainingRatio, $totalRemaining);
-            $update->execute();
+            // Reset ALL tracking records after successful allocation
+            $this->resetTrackingAfterAllocation($allocatedAmount, $remainingAmount);
             
             return [
                 [
@@ -167,6 +159,51 @@ class CustomAmountAllocator {
         }
         
         return null;
+    }
+    
+    /**
+     * Reset tracking records after successful allocation
+     */
+    private function resetTrackingAfterAllocation(float $allocatedAmount, float $remainingAmount): void {
+        // Get current total for ratio calculation
+        $stmt = $this->db->prepare("
+            SELECT SUM(remaining_amount) as total_remaining
+            FROM custom_amount_tracking
+        ");
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        $totalRemaining = (float)($result['total_remaining'] ?? 0);
+        
+        if ($totalRemaining <= 0) return;
+        
+        // Calculate proportional allocation for each donor
+        $stmt = $this->db->prepare("
+            SELECT id, remaining_amount
+            FROM custom_amount_tracking
+            WHERE remaining_amount > 0
+        ");
+        $stmt->execute();
+        $donors = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        foreach ($donors as $donor) {
+            $donorAmount = (float)$donor['remaining_amount'];
+            $donorId = $donor['id'];
+            
+            // Calculate proportional allocation
+            $proportionalAllocated = ($donorAmount / $totalRemaining) * $allocatedAmount;
+            $proportionalRemaining = ($donorAmount / $totalRemaining) * $remainingAmount;
+            
+            // Update donor record
+            $update = $this->db->prepare("
+                UPDATE custom_amount_tracking 
+                SET allocated_amount = allocated_amount + ?,
+                    remaining_amount = ?,
+                    last_updated = NOW()
+                WHERE id = ?
+            ");
+            $update->bind_param('ddi', $proportionalAllocated, $proportionalRemaining, $donorId);
+            $update->execute();
+        }
     }
     
     /**
@@ -247,5 +284,58 @@ class CustomAmountAllocator {
             'total_remaining' => (float)($result['total_remaining'] ?? 0),
             'donor_count' => (int)($result['donor_count'] ?? 0)
         ];
+    }
+    
+    /**
+     * Process payment custom amount (NEW METHOD)
+     */
+    public function processPaymentCustomAmount(
+        int $paymentId,
+        float $amount,
+        string $donorName,
+        string $status
+    ): array {
+        try {
+            $this->db->begin_transaction();
+            
+            // Rule 1: Under £100 = accumulate (no immediate allocation)
+            if ($amount < 100) {
+                $this->trackCustomAmount($paymentId, $amount, $donorName);
+                
+                // Check if we can now allocate a cell
+                $allocationResult = $this->checkAndAllocateAccumulated();
+                
+                $this->db->commit();
+                
+                return [
+                    'success' => true,
+                    'message' => "Payment £{$amount} tracked. No immediate allocation.",
+                    'allocation_result' => $allocationResult,
+                    'type' => 'accumulated'
+                ];
+            }
+            
+            // Rule 2: £100+ = allocate appropriate cells
+            $allocationResult = $this->allocateAppropriateCells($paymentId, $amount, $donorName, $status);
+            
+            $this->db->commit();
+            
+            return [
+                'success' => true,
+                'message' => "Allocated appropriate cells for payment £{$amount}",
+                'allocation_result' => $allocationResult,
+                'type' => 'allocated'
+            ];
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            error_log("CustomAmountAllocator Payment Error: " . $e->getMessage());
+            
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'type' => 'error'
+            ];
+        }
     }
 }
