@@ -43,32 +43,7 @@
     100% { background-position: 0% 50%; }
   }
 
-  /* More visible floating particles */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: 
-      radial-gradient(4px 4px at 20px 30px, rgba(255, 255, 255, 0.3), transparent),
-      radial-gradient(3px 3px at 40px 70px, rgba(255, 215, 0, 0.2), transparent),
-      radial-gradient(2px 2px at 90px 40px, rgba(255, 255, 255, 0.25), transparent),
-      radial-gradient(3px 3px at 130px 80px, rgba(255, 215, 0, 0.15), transparent),
-      radial-gradient(4px 4px at 160px 30px, rgba(255, 255, 255, 0.2), transparent);
-    background-repeat: repeat;
-    background-size: 300px 200px;
-    animation: visibleFloatingParticles 15s linear infinite;
-    pointer-events: none;
-    z-index: 1;
-  }
 
-  @keyframes visibleFloatingParticles {
-    0% { transform: translateY(0px) translateX(0px); opacity: 0.8; }
-    50% { opacity: 1; }
-    100% { transform: translateY(-200px) translateX(100px); opacity: 0.8; }
-  }
 
   .game-container{
     display: flex; 
@@ -89,9 +64,7 @@
     position: relative;
     max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
-    /* MUCH more visible glow effect */
-    filter: drop-shadow(0 0 40px rgba(255, 215, 0, 0.4));
-    animation: strongGlow 4s ease-in-out infinite alternate;
+
     
     .main-section {
       width: 100%;
@@ -117,10 +90,7 @@
     }
   }
 
-  @keyframes strongGlow {
-    0% { filter: drop-shadow(0 0 40px rgba(255, 215, 0, 0.4)); }
-    100% { filter: drop-shadow(0 0 60px rgba(255, 215, 0, 0.7)); }
-  }
+
 
   /* Clean floor map - removed all UI elements */
 
@@ -129,93 +99,40 @@
     font-weight:800; color:#fff; opacity:.9;
     font-size: max(12px, min(1.2em, calc(var(--m) * 0.4)));
     user-select: none;
-    /* MUCH MORE VISIBLE pulsing effect */
-    animation: dramaticShapePulse 3s ease-in-out infinite;
+    /* Removed all animations and effects */
     transition: all 0.5s ease;
     position: relative;
     overflow: hidden;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.1);
   }
 
-  /* Much more dramatic pulsing animation */
-  @keyframes dramaticShapePulse {
-    0%, 100% { 
-      transform: scale(1); 
-      opacity: 0.9;
-      box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.1), 0 0 20px rgba(255, 215, 0, 0.3);
-    }
-    50% { 
-      transform: scale(1.08); 
-      opacity: 1;
-      box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.3), 0 0 40px rgba(255, 215, 0, 0.6);
-    }
-  }
 
-  /* Much more visible shimmer effect */
-  .shape::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-      45deg,
-      transparent,
-      rgba(255, 255, 255, 0.4),
-      rgba(255, 215, 0, 0.3),
-      rgba(255, 255, 255, 0.4),
-      transparent
-    );
-    animation: visibleShimmer 4s ease-in-out infinite;
-    pointer-events: none;
-  }
 
-  @keyframes visibleShimmer {
-    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); opacity: 0; }
-    50% { opacity: 1; }
-    100% { transform: translateX(100%) translateY(100%) rotate(45deg); opacity: 0; }
-  }
 
-  /* Much more colorful and visible gradients for each section */
+
+  /* Simple gradients for each section - no animations */
   .A{ 
     background: linear-gradient(135deg, #8B8680, #b8b3a8, #8B8680); 
-    animation-delay: 0s;
   }
   .B{ 
     background: linear-gradient(135deg, #8B8680, #a8a39e, #8B8680); 
-    animation-delay: 0.5s;
   }
   .C{ 
     background: linear-gradient(135deg, #8B8680, #9f9a95, #8B8680); 
-    animation-delay: 1s;
   }
   .D{ 
     background: linear-gradient(135deg, #8B8680, #b0ab96, #8B8680); 
-    animation-delay: 1.5s;
   }
   .E{ 
     background: linear-gradient(135deg, #8B8680, #a5a090, #8B8680); 
-    animation-delay: 2s;
   }
   .F{ 
     background: linear-gradient(135deg, #8B8680, #9a958a, #8B8680); 
-    animation-delay: 2.5s;
   }
   .G{ 
     background: linear-gradient(135deg, #8B8680, #b5b0a5, #8B8680); 
-    animation-delay: 3s;
   }
 
-  /* Much more dramatic hover effects */
-  .shape:hover {
-    transform: scale(1.15) !important;
-    opacity: 1 !important;
-    filter: brightness(1.3) saturate(1.2);
-    box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.4), 0 0 60px rgba(255, 215, 0, 0.8);
-    z-index: 10;
-  }
+
 
   /* Totals: A=108, B=9, C=16, D=120, E=120, F=20, G=120 => 513 */
 
@@ -238,7 +155,7 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Stats card with much more visible effects */
+  /* Stats card - removed all effects */
   .stats-card {
     position: absolute;
     bottom: calc(var(--m) * 0.5);
@@ -259,21 +176,11 @@
     z-index: 100;
     min-width: calc(var(--m) * 8);
     width: auto;
-    /* Much more visible floating animation */
-    animation: dramaticFloatingCard 3s ease-in-out infinite;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.3);
+    /* Removed floating animation */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   }
 
-  @keyframes dramaticFloatingCard {
-    0%, 100% { 
-      transform: translateX(-50%) translateY(0px) scale(1);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.3);
-    }
-    50% { 
-      transform: translateX(-50%) translateY(-10px) scale(1.05);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 215, 0, 0.5);
-    }
-  }
+
 
   /* Mobile positioning */
   @media (max-width: 768px) {
@@ -315,27 +222,13 @@
   .progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #ffd700, #ffed4e, #ffa500, #ffd700);
-    background-size: 300% 100%;
     border-radius: 0;
     transition: width 0.8s ease-in-out;
     width: 0%;
-    animation: dramaticProgressShimmer 2s ease-in-out infinite;
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+    /* Removed shimmer animation */
   }
 
-  @keyframes dramaticProgressShimmer {
-    0% { 
-      background-position: -300% 0;
-      box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-    }
-    50% {
-      box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
-    }
-    100% { 
-      background-position: 300% 0;
-      box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-    }
-  }
+
 
   .percentage {
     font-size: calc(var(--m) * 0.55);
@@ -394,37 +287,7 @@
     }
   }
 
-  /* Add a pulsing border to the entire floor map */
-  .floor-map::after {
-    content: '';
-    position: absolute;
-    top: -5px;
-    left: -5px;
-    right: -5px;
-    bottom: -5px;
-    background: linear-gradient(45deg, 
-      rgba(255, 215, 0, 0.3), 
-      rgba(255, 255, 255, 0.2), 
-      rgba(255, 215, 0, 0.3), 
-      rgba(255, 255, 255, 0.2)
-    );
-    background-size: 400% 400%;
-    animation: borderPulse 3s ease infinite;
-    border-radius: 10px;
-    z-index: -1;
-    pointer-events: none;
-  }
 
-  @keyframes borderPulse {
-    0%, 100% { 
-      background-position: 0% 50%;
-      opacity: 0.5;
-    }
-    50% { 
-      background-position: 100% 50%;
-      opacity: 1;
-    }
-  }
 
   /* All UI elements removed for clean game design */
 </style>
