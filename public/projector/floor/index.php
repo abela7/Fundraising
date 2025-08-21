@@ -27,13 +27,18 @@
     padding: 0; margin: 0; min-height: 100vh;
     background: #131A2D; /* Dark blue background */
     font-family: system-ui, -apple-system, sans-serif;
-    overflow: hidden;
   }
 
   .game-container{
-    display: flex; align-items: center; justify-content: center;
-    width: 100vw; height: 100vh;
+    display: flex; 
+    flex-direction: column;
+    align-items: center; 
+    justify-content: center;
+    width: 100vw; 
+    min-height: 100vh;
     position: relative;
+    padding: 20px 0;
+    box-sizing: border-box;
   }
 
   .floor-map{
@@ -99,63 +104,67 @@
   /* F previously set to AH column, rows 2–5 */
   .F{ grid-column: 34 / span  5; grid-row:  2 / span  4; }
 
-  /* Compact stats card - positioned like a rectangle */
+  /* Stats card positioned below floor map */
   .stats-card {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(20, 27, 45, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: calc(var(--m) * 0.3);
-    width: calc(var(--m) * 6);
-    height: calc(var(--m) * 2.5);
+    position: relative;
+    margin: 20px auto 0;
+    background: rgba(20, 27, 45, 0.95);
+    border: 2px solid rgba(226, 202, 24, 0.3);
+    border-radius: 8px;
+    padding: 25px 35px;
+    max-width: 600px;
     color: #ffffff;
     font-family: system-ui, -apple-system, sans-serif;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    box-sizing: border-box;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
   }
 
   .coverage-numbers {
-    font-size: calc(var(--m) * 0.25);
+    font-size: clamp(24px, 4vw, 48px);
     font-weight: bold;
     color: #e2ca18;
-    line-height: 1.1;
+    line-height: 1.2;
     text-align: center;
-    margin-bottom: calc(var(--m) * 0.1);
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   .coverage-label {
-    font-size: calc(var(--m) * 0.15);
-    color: #94a3b8;
+    font-size: clamp(14px, 2.5vw, 24px);
+    color: #cbd5e1;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     text-align: center;
-    margin-bottom: calc(var(--m) * 0.15);
+    margin-bottom: 20px;
+    font-weight: 600;
   }
 
   .progress-bar {
     width: 100%;
-    height: calc(var(--m) * 0.1);
+    height: clamp(12px, 1.5vw, 20px);
     background: #334155;
+    border-radius: 10px;
     overflow: hidden;
-    margin-bottom: calc(var(--m) * 0.08);
+    margin-bottom: 15px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .progress-fill {
     height: 100%;
     background: linear-gradient(to right, #e2ca18, #ffd700);
-    transition: width 0.5s ease-in-out;
+    border-radius: 10px;
+    transition: width 0.8s ease-in-out;
     width: 0%;
+    box-shadow: 0 0 10px rgba(226, 202, 24, 0.4);
   }
 
   .percentage {
-    font-size: calc(var(--m) * 0.12);
-    color: #cbd5e1;
+    font-size: clamp(16px, 3vw, 28px);
+    color: #ffffff;
     text-align: center;
     line-height: 1;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   /* All UI elements removed for clean game design */
