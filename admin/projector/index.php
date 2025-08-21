@@ -284,6 +284,8 @@ $current_language = $current_settings['projector_language'] ?? 'en';
                                 </div>
                             </div>
                             
+                        </div> 
+                        <div class="row">
                             <!-- Language Control -->
                             <div class="col-lg-4 mb-4">
                                 <div class="card">
@@ -329,11 +331,7 @@ $current_language = $current_settings['projector_language'] ?? 'en';
                                 </div>
                             </div>
                         </div>
-                        
-                    
-                            
-                                </div>
-                            </div>
+                    </div> 
                 </div>
             </main>
                         </div>
