@@ -137,33 +137,32 @@
   }
 
   .coverage-numbers {
-    font-size: calc(var(--m) * 1.1);
-    font-weight: 800;
+    font-size: calc(var(--m) * 0.8);
+    font-weight: 700;
     color: #ffd700;
     line-height: 1;
     text-align: center;
-    margin-bottom: calc(var(--m) * 0.15);
+    margin-bottom: calc(var(--m) * 0.12);
     letter-spacing: 1px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
   }
 
   .coverage-label {
-    font-size: calc(var(--m) * 0.35);
+    font-size: calc(var(--m) * 0.28);
     color: #8b949e;
     text-transform: uppercase;
     letter-spacing: 2px;
     text-align: center;
-    margin-bottom: calc(var(--m) * 0.35);
-    font-weight: 600;
+    margin-bottom: calc(var(--m) * 0.3);
+    font-weight: 500;
   }
 
   .progress-bar {
-    width: calc(var(--m) * 12);
-    height: calc(var(--m) * 0.2);
+    width: calc(var(--m) * 10);
+    height: calc(var(--m) * 0.16);
     background: #334155;
     border-radius: 0;
     overflow: hidden;
-    margin-bottom: calc(var(--m) * 0.3);
+    margin-bottom: calc(var(--m) * 0.25);
   }
 
   .progress-fill {
@@ -175,13 +174,12 @@
   }
 
   .percentage {
-    font-size: calc(var(--m) * 0.7);
+    font-size: calc(var(--m) * 0.55);
     color: #ffffff;
     text-align: center;
     line-height: 1;
-    font-weight: 600;
-    margin-top: calc(var(--m) * 0.1);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    font-weight: 500;
+    margin-top: calc(var(--m) * 0.08);
   }
 
   /* Fullscreen button styling */
