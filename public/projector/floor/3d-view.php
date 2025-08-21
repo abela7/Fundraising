@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Floor Map - Church Fundraising</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <style>
         body {
             margin: 0;
@@ -42,11 +45,17 @@
             border-radius: 8px;
             color: white;
             max-width: 250px;
+            transition: opacity 0.3s ease;
+        }
+
+        #controls.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
         #controls h3 {
             margin: 0 0 15px 0;
-            font-size: 16px;
+            font-size: clamp(14px, 2vw, 16px);
             color: #ffd700;
         }
 
@@ -57,7 +66,7 @@
         .control-group label {
             display: block;
             margin-bottom: 5px;
-            font-size: 12px;
+            font-size: clamp(10px, 1.5vw, 12px);
             color: #cccccc;
         }
 
@@ -67,8 +76,8 @@
         }
 
         .control-group input[type="color"] {
-            width: 50px;
-            height: 30px;
+            width: clamp(40px, 6vw, 50px);
+            height: clamp(25px, 4vw, 30px);
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -79,7 +88,7 @@
         }
 
         .control-group span {
-            font-size: 11px;
+            font-size: clamp(9px, 1.2vw, 11px);
             color: #888;
         }
 
@@ -92,25 +101,34 @@
             padding: 15px;
             border-radius: 8px;
             color: white;
+            transition: opacity 0.3s ease;
+        }
+
+        #file-input.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
         #file-input h3 {
             margin: 0 0 10px 0;
             color: #ffd700;
+            font-size: clamp(12px, 1.8vw, 14px);
         }
 
         #file-input input[type="file"] {
             margin-bottom: 10px;
+            font-size: clamp(10px, 1.4vw, 12px);
         }
 
         #file-input button {
             background: #ffd700;
             color: #000;
             border: none;
-            padding: 8px 16px;
+            padding: clamp(6px, 1.2vw, 8px) clamp(12px, 2vw, 16px);
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
+            font-size: clamp(10px, 1.4vw, 12px);
         }
 
         #file-input button:hover {
@@ -126,7 +144,13 @@
             padding: 15px;
             border-radius: 8px;
             color: white;
-            font-size: 12px;
+            font-size: clamp(10px, 1.4vw, 12px);
+            transition: opacity 0.3s ease;
+        }
+
+        #info.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
         #fullscreen-btn {
@@ -137,10 +161,16 @@
             background: rgba(0, 0, 0, 0.7);
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: clamp(8px, 1.5vw, 10px) clamp(12px, 2vw, 15px);
             border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: clamp(12px, 1.8vw, 14px);
+            transition: opacity 0.3s ease;
+        }
+
+        #fullscreen-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
         #fullscreen-btn:hover {
@@ -155,6 +185,39 @@
             border-radius: 3px;
             margin-left: 10px;
             vertical-align: middle;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            #controls {
+                max-width: 200px;
+                padding: 12px;
+            }
+            
+            #file-input {
+                padding: 12px;
+                max-width: 180px;
+            }
+            
+            #fullscreen-btn {
+                right: 150px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #controls {
+                max-width: 180px;
+                padding: 10px;
+            }
+            
+            #file-input {
+                padding: 10px;
+                max-width: 160px;
+            }
+            
+            #fullscreen-btn {
+                right: 120px;
+            }
         }
     </style>
 </head>
@@ -190,7 +253,7 @@
 
             <div class="control-group">
                 <label>Rotation Speed:</label>
-                <input type="range" id="rotation-speed" min="0" max="2" value="0.3" step="0.1">
+                <input type="range" id="rotation-speed" min="0" max="5" value="0.3" step="0.1">
                 <span id="rotation-value">0.3</span>
             </div>
 
@@ -204,6 +267,12 @@
                 <label>Model Brightness:</label>
                 <input type="range" id="model-brightness" min="0.1" max="3" value="1.5" step="0.1">
                 <span id="brightness-value">1.5</span>
+            </div>
+
+            <div class="control-group">
+                <label>Background Color:</label>
+                <input type="color" id="background-color" value="#1a1a1a">
+                <span>Scene background</span>
             </div>
         </div>
 
@@ -452,12 +521,40 @@
                 }
             });
 
+            // Background color control
+            document.getElementById('background-color').addEventListener('input', function(e) {
+                const bgColor = e.target.value;
+                scene.background = new THREE.Color(bgColor);
+            });
+
             // Fullscreen
             document.getElementById('fullscreen-btn').addEventListener('click', function() {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen();
                 } else {
                     document.exitFullscreen();
+                }
+            });
+
+            // Handle fullscreen changes
+            document.addEventListener('fullscreenchange', function() {
+                const controls = document.getElementById('controls');
+                const fileInput = document.getElementById('file-input');
+                const info = document.getElementById('info');
+                const fullscreenBtn = document.getElementById('fullscreen-btn');
+                
+                if (document.fullscreenElement) {
+                    // Hide controls in fullscreen
+                    controls.classList.add('hidden');
+                    fileInput.classList.add('hidden');
+                    info.classList.add('hidden');
+                    fullscreenBtn.classList.add('hidden');
+                } else {
+                    // Show controls when exiting fullscreen
+                    controls.classList.remove('hidden');
+                    fileInput.classList.remove('hidden');
+                    info.classList.remove('hidden');
+                    fullscreenBtn.classList.remove('hidden');
                 }
             });
 
@@ -468,6 +565,26 @@
                         document.documentElement.requestFullscreen();
                     } else {
                         document.exitFullscreen();
+                    }
+                }
+                
+                // Toggle controls visibility with 'C' key
+                if (e.key === 'c' || e.key === 'C') {
+                    const controls = document.getElementById('controls');
+                    const fileInput = document.getElementById('file-input');
+                    const info = document.getElementById('info');
+                    const fullscreenBtn = document.getElementById('fullscreen-btn');
+                    
+                    if (controls.classList.contains('hidden')) {
+                        controls.classList.remove('hidden');
+                        fileInput.classList.remove('hidden');
+                        info.classList.remove('hidden');
+                        fullscreenBtn.classList.remove('hidden');
+                    } else {
+                        controls.classList.add('hidden');
+                        fileInput.classList.add('hidden');
+                        info.classList.add('hidden');
+                        fullscreenBtn.classList.add('hidden');
                     }
                 }
             });
