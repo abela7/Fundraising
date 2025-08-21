@@ -161,9 +161,9 @@
         
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 2rem;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
         
@@ -187,66 +187,56 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 80px;
+            height: 100px;
         }
         
         .grid-square {
             border: 2px solid var(--accent-gold);
             background: rgba(255, 255, 255, 0.05);
             position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: grid;
+            gap: 1px;
+            padding: 1px;
         }
         
         .large-square {
-            width: 80px;
-            height: 80px;
-        }
-        
-        .medium-square {
-            width: 80px;
-            height: 40px;
-        }
-        
-        .small-square {
-            width: 40px;
-            height: 40px;
-        }
-        
-        .grid-subdivision {
-            display: grid;
-            gap: 2px;
-            width: 100%;
-            height: 100%;
-            padding: 2px;
-        }
-        
-        .large-square .grid-subdivision {
+            width: 100px;
+            height: 100px;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
         }
         
-        .medium-square .grid-subdivision {
+        .medium-square {
+            width: 100px;
+            height: 100px;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr;
+            grid-template-rows: 1fr 1fr;
         }
         
-        .small-square .grid-subdivision {
-            grid-template-columns: 1fr;
-            grid-template-rows: 1fr;
+        .small-square {
+            width: 100px;
+            height: 100px;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
         }
         
         .sub-square {
             background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 215, 0, 0.2);
-            border-radius: 2px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 3px;
+            transition: all 0.3s ease;
         }
         
         .sub-square.filled {
             background: linear-gradient(45deg, var(--accent-gold), #ffed4e);
             border: 1px solid var(--accent-gold);
-            box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+            box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4);
+            transform: scale(1.02);
+        }
+        
+        .grid-item:hover .sub-square.filled {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
         }
         
         .grid-label {
@@ -479,12 +469,10 @@
                 <div class="grid-item large">
                     <div class="grid-visual">
                         <div class="grid-square large-square">
-                            <div class="grid-subdivision">
-                                <div class="sub-square filled"></div>
-                                <div class="sub-square filled"></div>
-                                <div class="sub-square filled"></div>
-                                <div class="sub-square filled"></div>
-                            </div>
+                            <div class="sub-square filled"></div>
+                            <div class="sub-square filled"></div>
+                            <div class="sub-square filled"></div>
+                            <div class="sub-square filled"></div>
                         </div>
                     </div>
                     <div class="grid-label">1m² = £400</div>
@@ -495,10 +483,10 @@
                 <div class="grid-item medium">
                     <div class="grid-visual">
                         <div class="grid-square medium-square">
-                            <div class="grid-subdivision">
-                                <div class="sub-square filled"></div>
-                                <div class="sub-square filled"></div>
-                            </div>
+                            <div class="sub-square filled"></div>
+                            <div class="sub-square filled"></div>
+                            <div class="sub-square"></div>
+                            <div class="sub-square"></div>
                         </div>
                     </div>
                     <div class="grid-label">0.5m² = £200</div>
@@ -509,9 +497,10 @@
                 <div class="grid-item small">
                     <div class="grid-visual">
                         <div class="grid-square small-square">
-                            <div class="grid-subdivision">
-                                <div class="sub-square filled"></div>
-                            </div>
+                            <div class="sub-square filled"></div>
+                            <div class="sub-square"></div>
+                            <div class="sub-square"></div>
+                            <div class="sub-square"></div>
                         </div>
                     </div>
                     <div class="grid-label">0.25m² = £100</div>
