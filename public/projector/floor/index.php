@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>1m Grid + Headers (Aligned)</title>
+<title>Floor Map - Live Fundraising</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
   /* 1m size + canvas size - Enhanced responsive scaling */
   :root { 
@@ -181,10 +182,63 @@
     margin-top: calc(var(--m) * 0.08);
   }
 
+  /* Fullscreen button styling */
+  .fullscreen-btn {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: opacity 0.25s ease, transform 0.2s ease;
+    opacity: 0.35;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  .fullscreen-btn:hover { 
+    opacity: 1; 
+    transform: translateY(-1px); 
+  }
+  
+  .fullscreen-btn.hidden { 
+    opacity: 0; 
+    pointer-events: none; 
+  }
+  
+  .fullscreen-btn i { 
+    font-size: 1rem; 
+  }
+
+  @media (max-width: 768px) {
+    .fullscreen-btn { 
+      padding: 6px 8px; 
+      font-size: 0.8rem; 
+      top: 8px; 
+      right: 8px; 
+    }
+    .fullscreen-btn i { 
+      font-size: 0.9rem; 
+    }
+  }
+
   /* All UI elements removed for clean game design */
 </style>
 </head>
 <body>
+  <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle Fullscreen (F)">
+    <i class="fas fa-expand"></i>
+    <span class="label">Fullscreen</span>
+  </button>
+
   <div class="game-container">
     <div class="floor-map">
       <div class="shape A">A</div>
@@ -1349,6 +1403,67 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="live-grid-sync.js" defer></script>
+
+<script>
+// Fullscreen functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const fsBtn = document.getElementById('fullscreenBtn');
+    let fsHideTimer;
+
+    function isFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || 
+                 document.mozFullScreenElement || document.msFullscreenElement);
+    }
+
+    async function toggleFullscreen() {
+        try {
+            if (!isFullscreen()) {
+                const el = document.documentElement;
+                if (el.requestFullscreen) await el.requestFullscreen();
+                else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+                else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+                fsBtn.querySelector('i').className = 'fas fa-compress';
+                fsBtn.querySelector('.label').textContent = 'Exit';
+            } else {
+                if (document.exitFullscreen) await document.exitFullscreen();
+                else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+                else if (document.mozCancelFullScreen) await document.mozCancelFullScreen();
+                else if (document.msExitFullscreen) await document.msExitFullscreen();
+                fsBtn.querySelector('i').className = 'fas fa-expand';
+                fsBtn.querySelector('.label').textContent = 'Fullscreen';
+            }
+        } catch (error) {
+            console.warn('Fullscreen toggle failed:', error);
+        }
+    }
+
+    fsBtn.addEventListener('click', toggleFullscreen);
+
+    // Keyboard shortcut: F to toggle fullscreen
+    document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            toggleFullscreen();
+        }
+    });
+
+    // Double-click anywhere to toggle fullscreen
+    document.addEventListener('dblclick', (e) => {
+        // Ignore double-clicks on links/buttons/inputs
+        if (e.target.closest('a,button,input,textarea,select')) return;
+        toggleFullscreen();
+    });
+
+    // Auto-hide fullscreen button after 3s of inactivity
+    function scheduleFsHide() {
+        if (fsHideTimer) clearTimeout(fsHideTimer);
+        fsBtn.classList.remove('hidden');
+        fsHideTimer = setTimeout(() => fsBtn.classList.add('hidden'), 3000);
+    }
+    ['mousemove','touchstart','keydown'].forEach(evt => document.addEventListener(evt, scheduleFsHide));
+    scheduleFsHide();
+});
+</script>
 
 </body>
 </html>
