@@ -159,7 +159,7 @@
         }
         
         .floor-map-container {
-            max-width: 95%;
+            max-width: 90%;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.08);
             border-radius: 20px;
@@ -178,7 +178,6 @@
             height: auto;
             border-radius: 15px;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-            border: 2px solid var(--accent-gold);
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -472,8 +471,8 @@
             
             .floor-map-container {
                 padding: 1rem 0.3rem;
-                margin: 0 0.1rem;
-                max-width: 98%;
+                margin: 0 auto;
+                max-width: 90%;
             }
             
             .floor-map-img {
@@ -542,8 +541,8 @@
             
             .floor-map-container {
                 padding: 0.8rem 0.1rem;
-                margin: 0 0.05rem;
-                max-width: 99%;
+                margin: 0 auto;
+                max-width: 90%;
             }
             
             .floor-map-img {
