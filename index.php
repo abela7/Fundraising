@@ -141,7 +141,7 @@
         
         /* Floor Plan Section */
         .floor-plan {
-            padding: 4rem 2rem;
+            padding: 4rem 2rem 2rem 2rem;
         }
         
         .floor-plan h2 {
@@ -154,7 +154,7 @@
         
         /* Grid System Explanation */
         .grid-explanation {
-            margin-bottom: 4rem;
+            margin-bottom: 2rem;
         }
         
         .grid-container {
