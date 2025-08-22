@@ -159,11 +159,11 @@
         }
         
         .floor-map-container {
-            max-width: 1000px;
+            max-width: 95%;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.08);
             border-radius: 20px;
-            padding: 2rem;
+            padding: 1.5rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
         }
@@ -219,8 +219,8 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(5px);
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(15px);
         }
         
         .lightbox-content {
@@ -240,7 +240,6 @@
             max-height: 90vh;
             border-radius: 10px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-            border: 3px solid var(--accent-gold);
         }
         
         .lightbox-close {
@@ -472,14 +471,15 @@
             }
             
             .floor-map-container {
-                padding: 1.5rem 0.5rem;
-                margin: 0 0.2rem;
+                padding: 1rem 0.3rem;
+                margin: 0 0.1rem;
+                max-width: 98%;
             }
             
             .floor-map-img {
                 border-radius: 10px;
-                margin: 0 -0.5rem;
-                max-width: calc(100% + 1rem);
+                margin: 0 -0.3rem;
+                max-width: calc(100% + 0.6rem);
             }
             
             .floor-map-title {
@@ -541,14 +541,15 @@
             }
             
             .floor-map-container {
-                padding: 1rem 0.2rem;
-                margin: 0 0.1rem;
+                padding: 0.8rem 0.1rem;
+                margin: 0 0.05rem;
+                max-width: 99%;
             }
             
             .floor-map-img {
                 border-radius: 8px;
-                margin: 0 -0.2rem;
-                max-width: calc(100% + 0.4rem);
+                margin: 0 -0.1rem;
+                max-width: calc(100% + 0.2rem);
             }
             
             .floor-map-title {
