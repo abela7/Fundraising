@@ -463,12 +463,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <a href="../projector/" class="nav-btn btn-projector">
                             <i class="fas fa-tv me-2"></i>
-                            <span class="btn-text">Projector View</span>
+                            <span class="btn-text">Donation status</span>
                         </a>
                         
                         <a href="../projector/floor/" class="nav-btn btn-floor">
                             <i class="fas fa-map me-2"></i>
-                            <span class="btn-text">Floor View</span>
+                            <span class="btn-text">The Chruch's Floor Map</span>
                         </a>
                     </div>
                 </div>

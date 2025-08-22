@@ -81,22 +81,123 @@
          }
          
          .saint-image {
-             margin-bottom: 2rem;
+             position: relative;
+             margin-bottom: 3rem;
              text-align: center;
+             perspective: 1000px;
          }
          
          .saint-portrait {
-             width: 200px;
+             width: 300px;
              height: auto;
-             border-radius: 50%;
-             border: 4px solid var(--accent-gold);
-             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-             transition: all 0.3s ease;
+             position: relative;
+             transform-style: preserve-3d;
+             animation: float 6s ease-in-out infinite;
+             filter: drop-shadow(0 20px 40px rgba(255, 215, 0, 0.3));
+             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+         }
+         
+         .saint-portrait::before {
+             content: '';
+             position: absolute;
+             top: -10px;
+             left: -10px;
+             right: -10px;
+             bottom: -10px;
+             background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700, #ffed4e);
+             background-size: 400% 400%;
+             animation: gradientShift 3s ease infinite;
+             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+             z-index: -1;
+             opacity: 0.8;
+         }
+         
+         .saint-portrait::after {
+             content: '';
+             position: absolute;
+             top: 0;
+             left: 0;
+             right: 0;
+             bottom: 0;
+             background: radial-gradient(circle at 30% 30%, rgba(255, 215, 0, 0.4) 0%, transparent 50%);
+             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+             z-index: 1;
+             pointer-events: none;
          }
          
          .saint-portrait:hover {
-             transform: scale(1.05);
-             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+             transform: rotateY(15deg) rotateX(10deg) scale(1.1);
+             filter: drop-shadow(0 30px 60px rgba(255, 215, 0, 0.6));
+         }
+         
+         .saint-portrait:hover::before {
+             animation: gradientShift 1s ease infinite;
+         }
+         
+         @keyframes float {
+             0%, 100% { transform: translateY(0px) rotateY(0deg); }
+             25% { transform: translateY(-10px) rotateY(2deg); }
+             50% { transform: translateY(-5px) rotateY(0deg); }
+             75% { transform: translateY(-15px) rotateY(-2deg); }
+         }
+         
+         @keyframes gradientShift {
+             0% { background-position: 0% 50%; }
+             50% { background-position: 100% 50%; }
+             100% { background-position: 0% 50%; }
+         }
+         
+         /* Glowing particles around the saint */
+         .saint-image::before {
+             content: '';
+             position: absolute;
+             top: 50%;
+             left: 50%;
+             width: 400px;
+             height: 400px;
+             background: radial-gradient(circle, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+             transform: translate(-50%, -50%);
+             animation: pulse 4s ease-in-out infinite;
+             z-index: -1;
+         }
+         
+         @keyframes pulse {
+             0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
+             50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.3; }
+         }
+         
+         /* Floating particles */
+         .saint-image::after {
+             content: '';
+             position: absolute;
+             top: 0;
+             left: 0;
+             right: 0;
+             bottom: 0;
+             pointer-events: none;
+         }
+         
+         .particle {
+             position: absolute;
+             width: 4px;
+             height: 4px;
+             background: var(--accent-gold);
+             border-radius: 50%;
+             animation: particleFloat 8s linear infinite;
+         }
+         
+         .particle:nth-child(1) { top: 20%; left: 10%; animation-delay: 0s; }
+         .particle:nth-child(2) { top: 60%; left: 80%; animation-delay: 1s; }
+         .particle:nth-child(3) { top: 80%; left: 20%; animation-delay: 2s; }
+         .particle:nth-child(4) { top: 30%; left: 70%; animation-delay: 3s; }
+         .particle:nth-child(5) { top: 70%; left: 30%; animation-delay: 4s; }
+         
+         @keyframes particleFloat {
+             0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+             10% { opacity: 1; }
+             90% { opacity: 1; }
+             100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
          }
         
         .amharic-quote {
@@ -467,7 +568,14 @@
              }
              
              .saint-portrait {
-                 width: 150px;
+                 width: 200px;
+             }
+             
+             .saint-portrait::before {
+                 top: -5px;
+                 left: -5px;
+                 right: -5px;
+                 bottom: -5px;
              }
             
             .amharic-quote {
@@ -557,7 +665,19 @@
              }
              
              .saint-portrait {
-                 width: 120px;
+                 width: 150px;
+             }
+             
+             .saint-portrait::before {
+                 top: -3px;
+                 left: -3px;
+                 right: -3px;
+                 bottom: -3px;
+             }
+             
+             .particle {
+                 width: 3px;
+                 height: 3px;
              }
             
             .core-message .english {
@@ -658,6 +778,11 @@
                  <div class="hero-content">
              <div class="saint-image fade-in">
                  <img src="Abune-Teklehaymanot.png" alt="Abune Teklehaymanot" class="saint-portrait">
+                 <div class="particle"></div>
+                 <div class="particle"></div>
+                 <div class="particle"></div>
+                 <div class="particle"></div>
+                 <div class="particle"></div>
              </div>
              <div class="amharic-quote fade-in">
                  "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" <br>፪ ዜና ፪፥፱
