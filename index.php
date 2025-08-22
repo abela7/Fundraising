@@ -152,6 +152,57 @@
             text-shadow: var(--shadow);
         }
         
+        /* Church Floor Map Section */
+        .floor-map-section {
+            margin-bottom: 4rem;
+            padding: 0 1rem;
+        }
+        
+        .floor-map-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .floor-map-image {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .floor-map-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--accent-gold);
+        }
+        
+        .floor-map-info {
+            text-align: center;
+        }
+        
+        .floor-map-title {
+            font-size: 1.8rem;
+            color: var(--accent-gold);
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .floor-map-description {
+            font-size: 1.1rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        
+        .floor-map-description:last-child {
+            margin-bottom: 0;
+        }
+        
         /* Grid System Explanation */
         .grid-explanation {
             margin-bottom: 2rem;
@@ -355,6 +406,19 @@
                 font-size: 2rem;
             }
             
+            .floor-map-container {
+                padding: 1.5rem;
+                margin: 0 0.5rem;
+            }
+            
+            .floor-map-title {
+                font-size: 1.5rem;
+            }
+            
+            .floor-map-description {
+                font-size: 1rem;
+            }
+            
             .grid-container {
                 grid-template-columns: 1fr;
                 gap: 1.5rem;
@@ -403,6 +467,19 @@
             
             .amharic-text {
                 font-size: 1rem;
+            }
+            
+            .floor-map-container {
+                padding: 1rem;
+                margin: 0 0.3rem;
+            }
+            
+            .floor-map-title {
+                font-size: 1.3rem;
+            }
+            
+            .floor-map-description {
+                font-size: 0.95rem;
             }
             
             .grid-container {
@@ -496,52 +573,73 @@
     <section class="floor-plan">
 
         
-        <!-- Grid System Explanation -->
-        <div class="grid-explanation fade-in">
-            <div class="grid-container">
-                <div class="grid-item large">
-                    <div class="grid-visual">
-                        <div class="grid-square large-square">
-                            <div class="sub-square filled"></div>
-                            <div class="sub-square filled"></div>
-                            <div class="sub-square filled"></div>
-                            <div class="sub-square filled"></div>
-                        </div>
-                    </div>
-                    <div class="grid-label">1m² = £400</div>
-                    <div class="grid-description">4 x 0.25m² spaces</div>
-                    <div class="grid-dimensions">1m × 1m</div>
-                </div>
-                
-                <div class="grid-item medium">
-                    <div class="grid-visual">
-                        <div class="grid-square medium-square">
-                            <div class="sub-square filled"></div>
-                            <div class="sub-square filled"></div>
-                            <div class="sub-square"></div>
-                            <div class="sub-square"></div>
-                        </div>
-                    </div>
-                    <div class="grid-label">0.5m² = £200</div>
-                    <div class="grid-description">2 x 0.25m² spaces</div>
-                    <div class="grid-dimensions">1m × 0.5m</div>
-                </div>
-                
-                <div class="grid-item small">
-                    <div class="grid-visual">
-                        <div class="grid-square small-square">
-                            <div class="sub-square filled"></div>
-                            <div class="sub-square"></div>
-                            <div class="sub-square"></div>
-                            <div class="sub-square"></div>
-                        </div>
-                    </div>
-                    <div class="grid-label">0.25m² = £100</div>
-                    <div class="grid-description">1 x 0.25m² space</div>
-                    <div class="grid-dimensions">0.5m × 0.5m</div>
-                </div>
-            </div>
-        </div>
+                 <!-- Church Floor Map Section -->
+         <div class="floor-map-section fade-in">
+             <div class="floor-map-container">
+                 <div class="floor-map-image">
+                     <img src="Floor Map.png" alt="Church Upper Floor Plan" class="floor-map-img">
+                 </div>
+                 <div class="floor-map-info">
+                     <h3 class="floor-map-title">የቤተ ክርስቲያን ላይኛ ወለል ካርታ</h3>
+                     <p class="floor-map-description">
+                         ቤተ ክርስቲያኑ 2 ወለል አለው። እያንዳንዱ ወለል 513m² ስፋት አለው።
+                     </p>
+                     <p class="floor-map-description">
+                         ይህ ላይኛው ወለል ነው። እያንዳንዱ ካሬ 1m × 1m ስፋት አለው እና ዋጋው £400 ነው።
+                     </p>
+                     <p class="floor-map-description">
+                         ግማሹ 1m × 0.5m እና አንድ አራተኛው 0.5m × 0.5m ነው።
+                     </p>
+                 </div>
+             </div>
+         </div>
+         
+         <!-- Grid System Explanation -->
+         <div class="grid-explanation fade-in">
+             <div class="grid-container">
+                 <div class="grid-item large">
+                     <div class="grid-visual">
+                         <div class="grid-square large-square">
+                             <div class="sub-square filled"></div>
+                             <div class="sub-square filled"></div>
+                             <div class="sub-square filled"></div>
+                             <div class="sub-square filled"></div>
+                         </div>
+                     </div>
+                     <div class="grid-label">1m² = £400</div>
+                     <div class="grid-description">4 x 0.25m² spaces</div>
+                     <div class="grid-dimensions">1m × 1m</div>
+                 </div>
+                 
+                 <div class="grid-item medium">
+                     <div class="grid-visual">
+                         <div class="grid-square medium-square">
+                             <div class="sub-square filled"></div>
+                             <div class="sub-square filled"></div>
+                             <div class="sub-square"></div>
+                             <div class="sub-square"></div>
+                         </div>
+                     </div>
+                     <div class="grid-label">0.5m² = £200</div>
+                     <div class="grid-description">2 x 0.25m² spaces</div>
+                     <div class="grid-dimensions">1m × 0.5m</div>
+                 </div>
+                 
+                 <div class="grid-item small">
+                     <div class="grid-visual">
+                         <div class="grid-square small-square">
+                             <div class="sub-square filled"></div>
+                             <div class="sub-square"></div>
+                             <div class="sub-square"></div>
+                             <div class="sub-square"></div>
+                         </div>
+                     </div>
+                     <div class="grid-label">0.25m² = £100</div>
+                     <div class="grid-description">1 x 0.25m² space</div>
+                     <div class="grid-dimensions">0.5m × 0.5m</div>
+                 </div>
+             </div>
+         </div>
     </section>
     
          <!-- Call to Action Section -->
