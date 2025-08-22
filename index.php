@@ -179,6 +179,13 @@
             border-radius: 15px;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
             border: 2px solid var(--accent-gold);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .floor-map-img:hover {
+            transform: scale(1.02);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
         }
         
         .floor-map-info {
@@ -201,6 +208,64 @@
         
         .floor-map-description:last-child {
             margin-bottom: 0;
+        }
+        
+        /* Lightbox Gallery */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(5px);
+        }
+        
+        .lightbox-content {
+            position: relative;
+            margin: auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 1200px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .lightbox-img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 10px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            border: 3px solid var(--accent-gold);
+        }
+        
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: var(--text-white);
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10000;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .lightbox-close:hover {
+            background: var(--accent-gold);
+            color: #1a365d;
+            transform: scale(1.1);
         }
         
         /* Grid System Explanation */
@@ -407,8 +472,14 @@
             }
             
             .floor-map-container {
-                padding: 1.5rem;
-                margin: 0 0.5rem;
+                padding: 1.5rem 0.5rem;
+                margin: 0 0.2rem;
+            }
+            
+            .floor-map-img {
+                border-radius: 10px;
+                margin: 0 -0.5rem;
+                max-width: calc(100% + 1rem);
             }
             
             .floor-map-title {
@@ -470,8 +541,14 @@
             }
             
             .floor-map-container {
-                padding: 1rem;
-                margin: 0 0.3rem;
+                padding: 1rem 0.2rem;
+                margin: 0 0.1rem;
+            }
+            
+            .floor-map-img {
+                border-radius: 8px;
+                margin: 0 -0.2rem;
+                max-width: calc(100% + 0.4rem);
             }
             
             .floor-map-title {
@@ -577,7 +654,7 @@
          <div class="floor-map-section fade-in">
              <div class="floor-map-container">
                  <div class="floor-map-image">
-                     <img src="Floor Map.png" alt="Church Upper Floor Plan" class="floor-map-img">
+                     <img src="Floor Map.png" alt="Church Upper Floor Plan" class="floor-map-img" onclick="openLightbox()">
                  </div>
                  <div class="floor-map-info">
                      <h3 class="floor-map-title">የቤተ ክርስቲያን ላይኛ ወለል ካርታ</h3>
@@ -667,8 +744,16 @@
          </div>
      </section>
     
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+         <!-- Lightbox Modal -->
+     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+         <div class="lightbox-content">
+             <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+             <img id="lightbox-img" class="lightbox-img" src="" alt="Church Floor Plan">
+         </div>
+     </div>
+
+     <!-- Scripts -->
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
         // Intersection Observer for fade-in animations
@@ -704,9 +789,37 @@
                     });
                 }
             });
-        });
-        
+                 });
+         
+         // Lightbox functionality
+         function openLightbox() {
+             const lightbox = document.getElementById('lightbox');
+             const lightboxImg = document.getElementById('lightbox-img');
+             const floorMapImg = document.querySelector('.floor-map-img');
+             
+             lightboxImg.src = floorMapImg.src;
+             lightbox.style.display = 'block';
+             document.body.style.overflow = 'hidden'; // Prevent background scrolling
+         }
+         
+         function closeLightbox() {
+             const lightbox = document.getElementById('lightbox');
+             lightbox.style.display = 'none';
+             document.body.style.overflow = 'auto'; // Restore scrolling
+         }
+         
+         // Close lightbox with ESC key
+         document.addEventListener('keydown', function(event) {
+             if (event.key === 'Escape') {
+                 closeLightbox();
+             }
+         });
+         
+         // Prevent lightbox from closing when clicking on the image
+         document.getElementById('lightbox-img').addEventListener('click', function(event) {
+             event.stopPropagation();
+         });
 
-    </script>
+     </script>
 </body>
 </html>
