@@ -142,8 +142,6 @@
         /* Floor Plan Section */
         .floor-plan {
             padding: 4rem 2rem;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
         }
         
         .floor-plan h2 {
@@ -462,7 +460,7 @@
     <section class="hero">
         <div class="hero-content">
             <div class="amharic-quote fade-in">
-                "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" ፪ ዜና ፪፥፱
+                "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" <br>፪ ዜና ፪፥፱
             </div>
             
             <h1 class="church-name fade-in">
@@ -491,7 +489,7 @@
     
     <!-- Floor Plan Explanation Section -->
     <section class="floor-plan">
-        <h2 class="fade-in">Choose Your Space in Our Church</h2>
+
         
         <!-- Grid System Explanation -->
         <div class="grid-explanation fade-in">
