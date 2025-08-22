@@ -266,9 +266,9 @@
         
         .cta-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            max-width: 900px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            max-width: 1000px;
             margin: 0 auto;
         }
         
@@ -373,7 +373,7 @@
             }
             
             .cta-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 1.5rem;
             }
             
@@ -423,6 +423,11 @@
             
             .grid-dimensions {
                 font-size: 1rem;
+            }
+            
+            .cta-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
             }
             
             .cta-button {
@@ -539,25 +544,30 @@
         </div>
     </section>
     
-    <!-- Call to Action Section -->
-    <section class="cta-section">
-        <div class="cta-grid">
-            <a href="public/donate/" class="cta-button fade-in">
-                <i class="fas fa-heart"></i>
-                Donate Now
-            </a>
-            
-            <a href="public/projector/" class="cta-button secondary fade-in">
-                <i class="fas fa-chart-line"></i>
-                View Live Progress
-            </a>
-            
-            <a href="public/floor/" class="cta-button secondary fade-in">
-                <i class="fas fa-map"></i>
-                View Church Floor Map
-            </a>
-        </div>
-    </section>
+         <!-- Call to Action Section -->
+     <section class="cta-section">
+         <div class="cta-grid">
+             <a href="public/donate/" class="cta-button fade-in">
+                 <i class="fas fa-heart"></i>
+                 Donate Now
+             </a>
+             
+             <a href="public/projector/" class="cta-button secondary fade-in">
+                 <i class="fas fa-chart-line"></i>
+                 View Live Progress
+             </a>
+             
+             <a href="public/projector/floor/" class="cta-button secondary fade-in">
+                 <i class="fas fa-map"></i>
+                 View Church Floor Map
+             </a>
+             
+             <a href="https://abuneteklehaymanot.org/" target="_blank" class="cta-button secondary fade-in">
+                 <i class="fas fa-globe"></i>
+                 Visit Our Website
+             </a>
+         </div>
+     </section>
     
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
