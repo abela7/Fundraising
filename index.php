@@ -155,16 +155,16 @@
         /* Church Floor Map Section */
         .floor-map-section {
             margin-bottom: 4rem;
-            padding: 0 1rem;
+            padding: 0;
         }
         
         .floor-map-container {
-            max-width: 90%;
-            margin: 0 auto;
+            width: 100%;
+            margin: 0;
             background: rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            padding: 1.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            padding: 2rem 1.5rem;
+            border: none;
             backdrop-filter: blur(10px);
         }
         
@@ -470,9 +470,9 @@
             }
             
             .floor-map-container {
-                padding: 1rem 0.3rem;
-                margin: 0 auto;
-                max-width: 90%;
+                padding: 1.5rem 1rem;
+                margin: 0;
+                width: 100%;
             }
             
             .floor-map-img {
@@ -540,9 +540,9 @@
             }
             
             .floor-map-container {
-                padding: 0.8rem 0.1rem;
-                margin: 0 auto;
-                max-width: 90%;
+                padding: 1rem 0.5rem;
+                margin: 0;
+                width: 100%;
             }
             
             .floor-map-img {
