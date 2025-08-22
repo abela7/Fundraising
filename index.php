@@ -655,16 +655,13 @@
                      <img src="Floor Map.png" alt="Church Upper Floor Plan" class="floor-map-img" onclick="openLightbox()">
                  </div>
                  <div class="floor-map-info">
-                     <h3 class="floor-map-title">የቤተ ክርስቲያን ላይኛ ወለል ካርታ</h3>
+                     <h3 class="floor-map-title">የቤተክርስቲያኑ ላይኛው ወለል ካርታ</h3>
                      <p class="floor-map-description">
-                         ቤተ ክርስቲያኑ 2 ወለል አለው። እያንዳንዱ ወለል 513m² ስፋት አለው።
-                     </p>
-                     <p class="floor-map-description">
-                         ይህ ላይኛው ወለል ነው። እያንዳንዱ ካሬ 1m × 1m ስፋት አለው እና ዋጋው £400 ነው።
-                     </p>
-                     <p class="floor-map-description">
+                         ቤተ ክርስቲያኑ 2 ወለል ያለው ሲሆን እያንዳንዱ ወለል 513m² ስፋት አለው። ምስሉ ላይ የምትመለከቱት እያንዳንዱ 1m × 1m ካሬ ዋጋው £400 ነው።
                          ግማሹ 1m × 0.5m እና አንድ አራተኛው 0.5m × 0.5m ነው።
                      </p>
+                    
+                    
                  </div>
              </div>
          </div>
