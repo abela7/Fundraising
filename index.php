@@ -177,14 +177,12 @@
             max-width: 100%;
             height: auto;
             border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
             cursor: pointer;
             transition: all 0.3s ease;
         }
         
         .floor-map-img:hover {
             transform: scale(1.02);
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
         }
         
         .floor-map-info {
