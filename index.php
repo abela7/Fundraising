@@ -93,24 +93,23 @@
              position: relative;
              transform-style: preserve-3d;
              animation: float 6s ease-in-out infinite;
-             filter: drop-shadow(0 20px 40px rgba(255, 215, 0, 0.3));
-             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+             filter: drop-shadow(0 20px 40px rgba(255, 215, 0, 0.3)) brightness(1.1) contrast(1.1);
+             border-radius: 20px;
              transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+             overflow: hidden;
          }
          
          .saint-portrait::before {
              content: '';
              position: absolute;
-             top: -10px;
-             left: -10px;
-             right: -10px;
-             bottom: -10px;
-             background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700, #ffed4e);
-             background-size: 400% 400%;
-             animation: gradientShift 3s ease infinite;
-             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-             z-index: -1;
-             opacity: 0.8;
+             top: 0;
+             left: 0;
+             right: 0;
+             bottom: 0;
+             background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, transparent 50%, rgba(255, 215, 0, 0.1) 100%);
+             animation: shimmer 4s ease-in-out infinite;
+             z-index: 1;
+             pointer-events: none;
          }
          
          .saint-portrait::after {
@@ -120,19 +119,18 @@
              left: 0;
              right: 0;
              bottom: 0;
-             background: radial-gradient(circle at 30% 30%, rgba(255, 215, 0, 0.4) 0%, transparent 50%);
-             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-             z-index: 1;
+             background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 40%);
+             z-index: 2;
              pointer-events: none;
          }
          
          .saint-portrait:hover {
              transform: rotateY(15deg) rotateX(10deg) scale(1.1);
-             filter: drop-shadow(0 30px 60px rgba(255, 215, 0, 0.6));
+             filter: drop-shadow(0 30px 60px rgba(255, 215, 0, 0.6)) brightness(1.2) contrast(1.2);
          }
          
          .saint-portrait:hover::before {
-             animation: gradientShift 1s ease infinite;
+             animation: shimmer 2s ease infinite;
          }
          
          @keyframes float {
@@ -142,10 +140,10 @@
              75% { transform: translateY(-15px) rotateY(-2deg); }
          }
          
-         @keyframes gradientShift {
-             0% { background-position: 0% 50%; }
-             50% { background-position: 100% 50%; }
-             100% { background-position: 0% 50%; }
+         @keyframes shimmer {
+             0% { transform: translateX(-100%) skewX(-15deg); }
+             50% { transform: translateX(100%) skewX(-15deg); }
+             100% { transform: translateX(-100%) skewX(-15deg); }
          }
          
          /* Glowing particles around the saint */
@@ -569,13 +567,7 @@
              
              .saint-portrait {
                  width: 200px;
-             }
-             
-             .saint-portrait::before {
-                 top: -5px;
-                 left: -5px;
-                 right: -5px;
-                 bottom: -5px;
+                 border-radius: 15px;
              }
             
             .amharic-quote {
@@ -666,13 +658,7 @@
              
              .saint-portrait {
                  width: 150px;
-             }
-             
-             .saint-portrait::before {
-                 top: -3px;
-                 left: -3px;
-                 right: -3px;
-                 bottom: -3px;
+                 border-radius: 10px;
              }
              
              .particle {
