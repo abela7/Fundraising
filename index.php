@@ -3,7 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liverpool Abune Teklehaymanot EOTC - Building Our Legacy Church</title>
+    <title>የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ! - Liverpool Abune Teklehaymanot EOTC</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="ለትውልድ የሚሻገር ትልቅ አሻራ የምናሳርፍበት፣ መንፈሳዊ አገልግሎታችንን በተሟላ ሁኔታ የምናከናውንበት እና ለልጆቻችን ሃይማኖታችንን የምናስተላልፍበት ሕንጻ ቤተ ክርስቲያን ባለቤት ለመሆን እየተጋን ነው።">
+    <meta name="keywords" content="Abune Teklehaymanot, Liverpool Church, Ethiopian Orthodox, Donation, Fundraising, Church Building, Legacy">
+    <meta name="author" content="Liverpool Abune Teklehaymanot EOTC">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!">
+    <meta property="og:description" content="የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="Abune-Teklehaymanot.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!">
+    <meta name="twitter:description" content="የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።">
     
     <!-- CSS Dependencies -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -61,11 +74,30 @@
             pointer-events: none;
         }
         
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            max-width: 800px;
-        }
+                 .hero-content {
+             position: relative;
+             z-index: 2;
+             max-width: 900px;
+         }
+         
+         .saint-image {
+             margin-bottom: 2rem;
+             text-align: center;
+         }
+         
+         .saint-portrait {
+             width: 200px;
+             height: auto;
+             border-radius: 50%;
+             border: 4px solid var(--accent-gold);
+             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+             transition: all 0.3s ease;
+         }
+         
+         .saint-portrait:hover {
+             transform: scale(1.05);
+             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+         }
         
         .amharic-quote {
             font-size: 1.1rem;
@@ -430,9 +462,13 @@
         
         /* Responsive Design */
         @media (max-width: 768px) {
-            .hero {
-                padding: 1rem;
-            }
+                         .hero {
+                 padding: 1rem;
+             }
+             
+             .saint-portrait {
+                 width: 150px;
+             }
             
             .amharic-quote {
                 font-size: 1rem;
@@ -516,9 +552,13 @@
         }
         
         @media (max-width: 480px) {
-            .core-message {
-                font-size: 2rem;
-            }
+                         .core-message {
+                 font-size: 2rem;
+             }
+             
+             .saint-portrait {
+                 width: 120px;
+             }
             
             .core-message .english {
                 font-size: 1.6rem;
@@ -615,19 +655,22 @@
 <body>
     <!-- Hero Section -->
     <section class="hero">
-        <div class="hero-content">
-            <div class="amharic-quote fade-in">
-                "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" <br>፪ ዜና ፪፥፱
-            </div>
+                 <div class="hero-content">
+             <div class="saint-image fade-in">
+                 <img src="Abune-Teklehaymanot.png" alt="Abune Teklehaymanot" class="saint-portrait">
+             </div>
+             <div class="amharic-quote fade-in">
+                 "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" <br>፪ ዜና ፪፥፱
+             </div>
             
-            <h1 class="church-name fade-in">
-                LIVERPOOL ABUNE TEKLEHAYMANOT EOTC
-            </h1>
-            
-            <div class="core-message fade-in">
-                <span class="amharic">ይህ ታሪኬ ነው</span>
-                <span class="english">It is My History</span>
-            </div>
+                         <h1 class="church-name fade-in">
+                 የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!
+             </h1>
+             
+             <div class="core-message fade-in">
+                 <span class="amharic">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።</span>
+                 <span class="english">Liverpool Abune Teklehaymanot EOTC</span>
+             </div>
             
             <div class="vision-description fade-in">
                 <h3 class="amharic-heading">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።</h3>
