@@ -18,9 +18,38 @@ $db = db();
         .info { background-color: #d1ecf1; border-color: #bee5eb; }
         .success { background-color: #d4edda; border-color: #c3e6cb; }
         .warning { background-color: #fff3cd; border-color: #ffeaa7; }
-        .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-generate { background-color: #007bff; color: white; }
-        .btn-clear { background-color: #dc3545; color: white; }
+        .btn { 
+            padding: 15px 30px; 
+            margin: 10px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: bold;
+            display: inline-block;
+            text-decoration: none;
+        }
+        .btn-generate { 
+            background-color: #007bff !important; 
+            color: white !important; 
+            border: 2px solid #007bff !important;
+        }
+        .btn-clear { 
+            background-color: #dc3545 !important; 
+            color: white !important; 
+            border: 2px solid #dc3545 !important;
+        }
+        .btn:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+        .actions-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
         table { width: 100%; border-collapse: collapse; margin: 10px 0; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f8f9fa; }
@@ -31,6 +60,23 @@ $db = db();
 <body>
 
 <h1>🧪 REALISTIC TEST DATA GENERATOR</h1>
+
+<!-- QUICK ACTION BUTTONS (Top of page) -->
+<div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+    <h3 style="margin: 0 0 15px 0;">Quick Actions</h3>
+    <form method="POST" style="display: inline;">
+        <button type="submit" name="action" value="generate" 
+                style="background: #28a745; color: white; padding: 12px 25px; border: none; border-radius: 5px; font-size: 16px; margin: 5px; cursor: pointer;"
+                onclick="return confirm('Generate 500 realistic test donations?')">
+            🚀 GENERATE TEST DATA
+        </button>
+        <button type="submit" name="action" value="clear" 
+                style="background: #dc3545; color: white; padding: 12px 25px; border: none; border-radius: 5px; font-size: 16px; margin: 5px; cursor: pointer;"
+                onclick="return confirm('Clear all test data?')">
+            🗑️ CLEAR TEST DATA
+        </button>
+    </form>
+</div>
 
 <?php
 // Get current system info
@@ -297,8 +343,9 @@ function clearTestData($db) {
 <li><strong>10%</strong> - Large donations (£800-£2000)</li>
 </ul>
 
-<h3>Actions:</h3>
-<form method="POST">
+<div class="actions-section">
+<h3>🎯 ACTIONS</h3>
+<form method="POST" style="margin: 0;">
     <button type="submit" name="action" value="generate" class="btn btn-generate" 
             onclick="return confirm('Generate 500 realistic test donations?')">
         🚀 Generate Realistic Test Data
@@ -309,6 +356,11 @@ function clearTestData($db) {
         🗑️ Clear Test Data
     </button>
 </form>
+<p style="margin-top: 15px; color: #666;">
+    <strong>Generate:</strong> Creates 500 realistic donations<br>
+    <strong>Clear:</strong> Removes all test data
+</p>
+</div>
 
 </div>
 
