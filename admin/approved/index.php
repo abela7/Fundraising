@@ -57,13 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
-                // Deallocate floor grid cells for this pledge using CustomAmountAllocator
-                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
-                $customAllocator = new CustomAmountAllocator($db);
-                $deallocationResult = $customAllocator->deallocateCustomAmount($pledgeId, null, (float)$pledge['amount']);
+                // Deallocate floor grid cells for this pledge
+                $gridAllocator = new IntelligentGridAllocator($db);
+                $deallocationResult = $gridAllocator->deallocate($pledgeId, null);
                 if (!$deallocationResult['success']) {
-                    error_log("Deallocation failed for pledge {$pledgeId}: " . ($deallocationResult['error'] ?? 'Unknown error'));
-                    // Don't throw error - allow unapproval to continue even if deallocation partially fails
+                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
                 }
 
                 // Note: payments are standalone; no pledge_id linkage anymore
@@ -248,10 +246,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
 
-                // Deallocate floor grid cells for this payment using CustomAmountAllocator
-                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
-                $customAllocator = new CustomAmountAllocator($db);
-                $deallocationResult = $customAllocator->deallocateCustomAmount(null, $paymentId, (float)$pay['amount']);
+                // Deallocate floor grid cells for this payment
+                $gridAllocator = new IntelligentGridAllocator($db);
+                $deallocationResult = $gridAllocator->deallocate(null, $paymentId);
                 if (!$deallocationResult['success']) {
                     throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
                 }
