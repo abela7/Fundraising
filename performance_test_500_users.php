@@ -1,5 +1,11 @@
 <?php
 declare(strict_types=1);
+
+// Enable error reporting for debugging
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 require_once 'config/db.php';
 
 // Performance test for 500 simultaneous registrations
@@ -8,6 +14,15 @@ require_once 'config/db.php';
 $testResults = [];
 $errors = [];
 $success = '';
+
+// Add connection test at startup
+try {
+    $db = db();
+    $dbStatus = "✅ Database connection successful (" . $db->server_info . ")";
+} catch (Exception $e) {
+    $dbStatus = "❌ Database connection failed: " . $e->getMessage();
+    $errors[] = $dbStatus;
+}
 
 // Get registrar users for realistic assignment
 function getRegistrarUsers(): array {
@@ -162,20 +177,20 @@ function insertTestData(array $testData): array {
         try {
             $db->begin_transaction();
             
+            // Use EXACT same query structure as working registrar page
             $stmt = $db->prepare("
                 INSERT INTO pledges (
-                    donor_name, donor_phone, donor_email, package_id, source, anonymous,
-                    amount, type, status, notes, client_uuid, created_by_user_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                  donor_name, donor_phone, donor_email, source, anonymous,
+                  amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             foreach ($batch as $record) {
                 $stmt->bind_param(
-                    'sssisidssssi',
+                    'sssidsssii',
                     $record['donor_name'],
                     $record['donor_phone'],
                     $record['donor_email'],
-                    $record['package_id'],
                     $record['source'],
                     $record['anonymous'],
                     $record['amount'],
@@ -183,7 +198,8 @@ function insertTestData(array $testData): array {
                     $record['status'],
                     $record['notes'],
                     $record['client_uuid'],
-                    $record['created_by_user_id']
+                    $record['created_by_user_id'],
+                    $record['package_id']
                 );
                 
                 if ($stmt->execute()) {
@@ -348,6 +364,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Database Status -->
+        <div class="alert <?php echo strpos($dbStatus, '✅') !== false ? 'alert-success' : 'alert-danger'; ?>" role="alert">
+            <?php echo $dbStatus; ?>
         </div>
 
         <!-- Messages -->
@@ -550,7 +571,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <?php } catch (Exception $e): ?>
                         <p class="text-danger">Error checking database status: <?php echo htmlspecialchars($e->getMessage()); ?></p>
-                        <?php endtry; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
