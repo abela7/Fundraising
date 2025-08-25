@@ -55,6 +55,7 @@
         .hero {
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
@@ -81,28 +82,47 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            margin-bottom: 3rem;
         }
         
-        /* Hero Side Images */
-        .hero-side-images {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            z-index: 1;
+        /* Hero Images Row */
+        .hero-images-row {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4rem;
+            margin-top: 2rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hero-image-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .hero-image-item:hover {
+            transform: translateY(-5px);
         }
         
         .hero-side-image {
-            position: absolute;
-            width: 180px;
-            height: 180px;
+            width: 200px;
+            height: 200px;
             border-radius: 50%;
             border: 4px solid var(--accent-gold);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             overflow: hidden;
             transition: all 0.3s ease;
+            position: relative;
         }
         
         .hero-side-image img {
@@ -113,14 +133,17 @@
             transition: all 0.3s ease;
         }
         
-        .hero-side-image.left {
-            left: 8%;
-            top: 15%;
+        /* Specific positioning for St. Tekla image to show face properly */
+        .hero-side-image.right img {
+            object-position: center 20%; /* Adjust to show face better */
         }
         
-        .hero-side-image.right {
-            right: 8%;
-            top: 15%;
+        .hero-image-label {
+            font-size: 1.1rem;
+            color: var(--accent-gold);
+            font-weight: 600;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
         /* Loading state for images */
@@ -167,123 +190,74 @@
             animation-play-state: paused;
         }
         
-        /* Responsive adjustments for side images */
+        /* Responsive adjustments for images row */
         @media (max-width: 1200px) {
+            .hero-images-row {
+                gap: 3rem;
+                padding: 1.5rem;
+            }
+            
             .hero-side-image {
-                width: 150px;
-                height: 150px;
-            }
-            
-            .hero-side-image.left {
-                left: 6%;
-                top: 20%;
-            }
-            
-            .hero-side-image.right {
-                right: 6%;
-                top: 20%;
+                width: 180px;
+                height: 180px;
             }
         }
         
         @media (max-width: 992px) {
+            .hero-images-row {
+                gap: 2.5rem;
+                padding: 1.5rem;
+            }
+            
             .hero-side-image {
-                width: 120px;
-                height: 120px;
+                width: 160px;
+                height: 160px;
             }
             
-            .hero-side-image.left {
-                left: 4%;
-                top: 25%;
-            }
-            
-            .hero-side-image.right {
-                right: 4%;
-                top: 25%;
+            .hero-image-label {
+                font-size: 1rem;
             }
         }
         
-        /* Mobile Design - Creative Stacked Layout */
         @media (max-width: 768px) {
-            .hero-side-images {
-                position: relative;
-                display: flex;
-                justify-content: center;
-                align-items: center;
+            .hero-images-row {
                 gap: 2rem;
-                margin-bottom: 2rem;
-                pointer-events: auto;
-                order: -1; /* Move images above text on mobile */
-                background: rgba(255, 255, 255, 0.05);
-                backdrop-filter: blur(10px);
-                border-radius: 20px;
                 padding: 1.5rem;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                margin-top: 1.5rem;
+                flex-direction: column;
+                gap: 2rem;
             }
             
             .hero-side-image {
-                position: relative;
-                width: 120px;
-                height: 120px;
+                width: 150px;
+                height: 150px;
                 border-width: 3px;
-                left: auto;
-                right: auto;
-                top: auto;
-                animation: none;
-                transition: all 0.3s ease;
             }
             
-            .hero-side-image:hover {
-                transform: scale(1.05);
-                box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+            .hero-image-label {
+                font-size: 1rem;
             }
             
             .hero-content {
-                text-align: center;
-                max-width: 100%;
-                padding: 0 1rem;
-                order: 1; /* Text comes after images */
-            }
-            
-            /* Adjust hero padding for mobile */
-            .hero {
-                padding: 1rem;
-                min-height: auto;
-                flex-direction: column;
-            }
-            
-            /* Mobile-specific animations */
-            .hero-side-image {
-                animation: mobileFloat 3s ease-in-out infinite;
-            }
-            
-            .hero-side-image.left {
-                animation-delay: 0s;
-            }
-            
-            .hero-side-image.right {
-                animation-delay: 1.5s;
-            }
-            
-            @keyframes mobileFloat {
-                0%, 100% {
-                    transform: translateY(0px) rotate(0deg);
-                }
-                50% {
-                    transform: translateY(-8px) rotate(2deg);
-                }
+                margin-bottom: 2rem;
             }
         }
         
         @media (max-width: 576px) {
-            .hero-side-images {
+            .hero-images-row {
                 gap: 1.5rem;
-                margin-bottom: 1.5rem;
+                padding: 1rem;
+                margin-top: 1rem;
             }
             
             .hero-side-image {
-                width: 100px;
-                height: 100px;
+                width: 130px;
+                height: 130px;
                 border-width: 2px;
+            }
+            
+            .hero-image-label {
+                font-size: 0.9rem;
             }
             
             /* Enhanced mobile touch interactions */
@@ -294,15 +268,19 @@
         }
         
         @media (max-width: 480px) {
-            .hero-side-images {
+            .hero-images-row {
                 gap: 1rem;
-                margin-bottom: 1rem;
+                padding: 1rem;
             }
             
             .hero-side-image {
-                width: 80px;
-                height: 80px;
+                width: 110px;
+                height: 110px;
                 border-width: 2px;
+            }
+            
+            .hero-image-label {
+                font-size: 0.85rem;
             }
             
             /* Mobile-specific text adjustments */
@@ -328,42 +306,23 @@
         
         /* Extra small devices */
         @media (max-width: 360px) {
-            .hero-side-images {
+            .hero-images-row {
                 gap: 0.8rem;
-                margin-bottom: 0.8rem;
+                padding: 0.8rem;
             }
             
             .hero-side-image {
-                width: 70px;
-                height: 70px;
+                width: 100px;
+                height: 100px;
                 border-width: 1px;
+            }
+            
+            .hero-image-label {
+                font-size: 0.8rem;
             }
         }
         
-        /* Landscape mobile devices */
-        @media (max-height: 500px) and (orientation: landscape) {
-            .hero-side-images {
-                position: absolute;
-                gap: 1rem;
-                margin-bottom: 0;
-            }
-            
-            .hero-side-image {
-                width: 80px;
-                height: 80px;
-                position: absolute;
-            }
-            
-            .hero-side-image.left {
-                left: 2%;
-                top: 10%;
-            }
-            
-            .hero-side-image.right {
-                right: 2%;
-                top: 10%;
-            }
-        }
+
         
                  .amharic-quote {
              font-size: 1.1rem;
@@ -975,25 +934,15 @@
 <body>
     <!-- Hero Section -->
     <section class="hero">
-        <!-- Hero Side Images -->
-        <div class="hero-side-images">
-            <div class="hero-side-image left">
-                <img src="EOTC-Logo.png" alt="EOTC Logo" loading="lazy">
-            </div>
-            <div class="hero-side-image right">
-                <img src="Abune-Teklehaymanot.png" alt="Abune Teklehaymanot" loading="lazy">
-            </div>
-        </div>
-        
         <div class="hero-content">
              
              <div class="amharic-quote fade-in">
                  "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" <br>፪ ዜና ፪፥፱
              </div>
             
-                         <h1 class="church-name fade-in">
-                 የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!
-             </h1>
+            <h1 class="church-name fade-in">
+                የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!
+            </h1>
              
              <div class="core-message fade-in">
                  <span class="amharic">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።</span>
@@ -1011,6 +960,23 @@
                 <p class="amharic-text">
                     በካሬ ዋጋ ድጋፍ ያድርጉ <br> ከታች በተቀመጠው የካሬ ዋጋ መሰረት አቅምዎ የፈቀደውን ድጋፍ ያድርጉልን። ቢያንስ እርስዎ ወይም ወዳጅዎ ቆመው የሚያስቀድሱባትን ቦታ ይግዙልን።
                 </p>
+            </div>
+        </div>
+        
+        <!-- Hero Images Row -->
+        <div class="hero-images-row fade-in">
+            <div class="hero-image-item">
+                <div class="hero-side-image left">
+                    <img src="EOTC-Logo.png" alt="EOTC Logo" loading="lazy">
+                </div>
+                <div class="hero-image-label">EOTC Logo</div>
+            </div>
+            
+            <div class="hero-image-item">
+                <div class="hero-side-image right">
+                    <img src="Abune-Teklehaymanot.png" alt="Abune Teklehaymanot" loading="lazy">
+                </div>
+                <div class="hero-image-label">Abune Teklehaymanot</div>
             </div>
         </div>
     </section>
