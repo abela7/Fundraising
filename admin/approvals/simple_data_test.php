@@ -126,7 +126,7 @@ try {
                 $createdBy = $registrars[($created % count($registrars))]['id'] ?? 1;
                 $notes = "Realistic test data";
                 
-                $stmt->bind_param('sssdsiis', 
+                $stmt->bind_param('sssdsisis', 
                     $donorName, $phone, $source, $amount, $type, 
                     $packageId, $uuid, $createdBy, $notes
                 );
