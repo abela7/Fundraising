@@ -113,6 +113,16 @@
             transition: all 0.3s ease;
         }
         
+        .hero-side-image.left {
+            left: 8%;
+            top: 15%;
+        }
+        
+        .hero-side-image.right {
+            right: 8%;
+            top: 15%;
+        }
+        
         /* Loading state for images */
         .hero-side-image img:not([src]) {
             background: linear-gradient(45deg, var(--accent-gold), #ffed4e);
@@ -123,16 +133,6 @@
         .hero-side-image img[src*="error"] {
             background: linear-gradient(45deg, var(--primary-bg), #2a6b7d);
             opacity: 0.8;
-        }
-        
-        .hero-side-image.left {
-            left: 5%;
-            top: 20%;
-        }
-        
-        .hero-side-image.right {
-            right: 5%;
-            top: 20%;
         }
         
         .hero-side-image:hover {
@@ -175,13 +175,13 @@
             }
             
             .hero-side-image.left {
-                left: 3%;
-                top: 25%;
+                left: 6%;
+                top: 20%;
             }
             
             .hero-side-image.right {
-                right: 3%;
-                top: 25%;
+                right: 6%;
+                top: 20%;
             }
         }
         
@@ -192,66 +192,176 @@
             }
             
             .hero-side-image.left {
-                left: 2%;
-                top: 30%;
+                left: 4%;
+                top: 25%;
             }
             
             .hero-side-image.right {
-                right: 2%;
-                top: 30%;
+                right: 4%;
+                top: 25%;
             }
         }
         
+        /* Mobile Design - Creative Stacked Layout */
         @media (max-width: 768px) {
+            .hero-side-images {
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 2rem;
+                margin-bottom: 2rem;
+                pointer-events: auto;
+                order: -1; /* Move images above text on mobile */
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(10px);
+                border-radius: 20px;
+                padding: 1.5rem;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
             .hero-side-image {
-                width: 100px;
-                height: 100px;
+                position: relative;
+                width: 120px;
+                height: 120px;
                 border-width: 3px;
+                left: auto;
+                right: auto;
+                top: auto;
+                animation: none;
+                transition: all 0.3s ease;
+            }
+            
+            .hero-side-image:hover {
+                transform: scale(1.05);
+                box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+            }
+            
+            .hero-content {
+                text-align: center;
+                max-width: 100%;
+                padding: 0 1rem;
+                order: 1; /* Text comes after images */
+            }
+            
+            /* Adjust hero padding for mobile */
+            .hero {
+                padding: 1rem;
+                min-height: auto;
+                flex-direction: column;
+            }
+            
+            /* Mobile-specific animations */
+            .hero-side-image {
+                animation: mobileFloat 3s ease-in-out infinite;
             }
             
             .hero-side-image.left {
-                left: 1%;
-                top: 15%;
+                animation-delay: 0s;
             }
             
             .hero-side-image.right {
-                right: 1%;
-                top: 15%;
+                animation-delay: 1.5s;
+            }
+            
+            @keyframes mobileFloat {
+                0%, 100% {
+                    transform: translateY(0px) rotate(0deg);
+                }
+                50% {
+                    transform: translateY(-8px) rotate(2deg);
+                }
             }
         }
         
         @media (max-width: 576px) {
+            .hero-side-images {
+                gap: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .hero-side-image {
+                width: 100px;
+                height: 100px;
+                border-width: 2px;
+            }
+            
+            /* Enhanced mobile touch interactions */
+            .hero-side-image:active {
+                transform: scale(0.95);
+                transition: transform 0.1s ease;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .hero-side-images {
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
+            
             .hero-side-image {
                 width: 80px;
                 height: 80px;
                 border-width: 2px;
             }
             
-            .hero-side-image.left {
-                left: 0.5%;
-                top: 10%;
+            /* Mobile-specific text adjustments */
+            .amharic-quote {
+                font-size: 0.9rem;
+                margin-bottom: 1rem;
             }
             
-            .hero-side-image.right {
-                right: 0.5%;
-                top: 10%;
+            .church-name {
+                font-size: 1.8rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .core-message {
+                font-size: 2.2rem;
+                margin-bottom: 2rem;
+            }
+            
+            .core-message .english {
+                font-size: 1.8rem;
             }
         }
         
-        @media (max-width: 480px) {
+        /* Extra small devices */
+        @media (max-width: 360px) {
+            .hero-side-images {
+                gap: 0.8rem;
+                margin-bottom: 0.8rem;
+            }
+            
             .hero-side-image {
                 width: 70px;
                 height: 70px;
+                border-width: 1px;
+            }
+        }
+        
+        /* Landscape mobile devices */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .hero-side-images {
+                position: absolute;
+                gap: 1rem;
+                margin-bottom: 0;
+            }
+            
+            .hero-side-image {
+                width: 80px;
+                height: 80px;
+                position: absolute;
             }
             
             .hero-side-image.left {
-                left: 0.3%;
-                top: 8%;
+                left: 2%;
+                top: 10%;
             }
             
             .hero-side-image.right {
-                right: 0.3%;
-                top: 8%;
+                right: 2%;
+                top: 10%;
             }
         }
         
@@ -1101,3 +1211,4 @@
      </script>
 </body>
 </html>
+
