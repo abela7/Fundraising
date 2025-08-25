@@ -444,7 +444,7 @@ function approvePledge(id, type) {
         formData.append('payment_id', id);
     }
     
-    fetch('simple_approve.php', {
+    fetch('working_approve.php', {
         method: 'POST',
         body: formData
     })
@@ -486,7 +486,7 @@ function rejectPledge(id, type) {
         formData.append('payment_id', id);
     }
     
-    fetch('simple_approve.php', {
+    fetch('working_approve.php', {
         method: 'POST',
         body: formData
     })
