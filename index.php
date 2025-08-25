@@ -55,7 +55,6 @@
         .hero {
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
@@ -75,262 +74,10 @@
             pointer-events: none;
         }
         
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            max-width: 900px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 3rem;
-        }
-        
-        /* Hero Images Row */
-        .hero-images-row {
-            position: relative;
-            z-index: 2;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 4rem;
-            margin-top: 2rem;
-            padding: 2rem;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-        
-        .hero-image-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
-            transition: all 0.3s ease;
-        }
-        
-        .hero-image-item:hover {
-            transform: translateY(-5px);
-        }
-        
-        .hero-side-image {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            border: 4px solid var(--accent-gold);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        
-        .hero-side-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-            transition: all 0.3s ease;
-        }
-        
-        /* Specific positioning for St. Tekla image to show face properly */
-        .hero-side-image.right img {
-            object-position: center 20%; /* Adjust to show face better */
-        }
-        
-        .hero-image-label {
-            font-size: 1.1rem;
-            color: var(--accent-gold);
-            font-weight: 600;
-            text-align: center;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        /* Loading state for images */
-        .hero-side-image img:not([src]) {
-            background: linear-gradient(45deg, var(--accent-gold), #ffed4e);
-            opacity: 0.7;
-        }
-        
-        /* Image error fallback */
-        .hero-side-image img[src*="error"] {
-            background: linear-gradient(45deg, var(--primary-bg), #2a6b7d);
-            opacity: 0.8;
-        }
-        
-        .hero-side-image:hover {
-            transform: scale(1.05);
-            border-color: #ffed4e;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-        }
-        
-        /* Add subtle animation for side images */
-        .hero-side-image {
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        .hero-side-image.left {
-            animation-delay: 0s;
-        }
-        
-        .hero-side-image.right {
-            animation-delay: 3s;
-        }
-        
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0px);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-        
-        .hero-side-image:hover {
-            animation-play-state: paused;
-        }
-        
-        /* Responsive adjustments for images row */
-        @media (max-width: 1200px) {
-            .hero-images-row {
-                gap: 3rem;
-                padding: 1.5rem;
-            }
-            
-            .hero-side-image {
-                width: 180px;
-                height: 180px;
-            }
-        }
-        
-        @media (max-width: 992px) {
-            .hero-images-row {
-                gap: 2.5rem;
-                padding: 1.5rem;
-            }
-            
-            .hero-side-image {
-                width: 160px;
-                height: 160px;
-            }
-            
-            .hero-image-label {
-                font-size: 1rem;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .hero-images-row {
-                gap: 2rem;
-                padding: 1.5rem;
-                margin-top: 1.5rem;
-                flex-direction: column;
-                gap: 2rem;
-            }
-            
-            .hero-side-image {
-                width: 150px;
-                height: 150px;
-                border-width: 3px;
-            }
-            
-            .hero-image-label {
-                font-size: 1rem;
-            }
-            
-            .hero-content {
-                margin-bottom: 2rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .hero-images-row {
-                gap: 1.5rem;
-                padding: 1rem;
-                margin-top: 1rem;
-            }
-            
-            .hero-side-image {
-                width: 130px;
-                height: 130px;
-                border-width: 2px;
-            }
-            
-            .hero-image-label {
-                font-size: 0.9rem;
-            }
-            
-            /* Enhanced mobile touch interactions */
-            .hero-side-image:active {
-                transform: scale(0.95);
-                transition: transform 0.1s ease;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .hero-images-row {
-                gap: 1rem;
-                padding: 1rem;
-            }
-            
-            .hero-side-image {
-                width: 110px;
-                height: 110px;
-                border-width: 2px;
-            }
-            
-            .hero-image-label {
-                font-size: 0.85rem;
-            }
-            
-            /* Mobile-specific text adjustments */
-            .amharic-quote {
-                font-size: 0.9rem;
-                margin-bottom: 1rem;
-            }
-            
-            .church-name {
-                font-size: 1.8rem;
-                margin-bottom: 1.5rem;
-            }
-            
-            .core-message {
-                font-size: 2.2rem;
-                margin-bottom: 2rem;
-            }
-            
-            .core-message .english {
-                font-size: 1.8rem;
-            }
-        }
-        
-        /* Extra small devices */
-        @media (max-width: 360px) {
-            .hero-images-row {
-                gap: 0.8rem;
-                padding: 0.8rem;
-            }
-            
-            .hero-side-image {
-                width: 100px;
-                height: 100px;
-                border-width: 1px;
-            }
-            
-            .hero-image-label {
-                font-size: 0.8rem;
-            }
-        }
-        
-
-        
-                 .amharic-quote {
-             font-size: 1.1rem;
-             color: var(--accent-gold);
-             margin-bottom: 1.5rem;
-             font-weight: 400;
-             line-height: 1.8;
-             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                 .hero-content {
+             position: relative;
+             z-index: 2;
+             max-width: 900px;
          }
          
 
@@ -338,6 +85,15 @@
 
          
 
+        
+        .amharic-quote {
+            font-size: 1.1rem;
+            color: var(--accent-gold);
+            margin-bottom: 1.5rem;
+            font-weight: 400;
+            line-height: 1.8;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
         
         .church-name {
             font-size: 2.5rem;
@@ -781,9 +537,11 @@
         }
         
         @media (max-width: 480px) {
-            .core-message {
-                font-size: 2rem;
-            }
+                         .core-message {
+                 font-size: 2rem;
+             }
+             
+
             
             .core-message .english {
                 font-size: 1.6rem;
@@ -851,60 +609,6 @@
                 padding: 1.2rem 1.8rem;
                 font-size: 1.1rem;
             }
-            
-            /* Additional mobile optimizations for side images */
-            .hero-side-image {
-                width: 60px;
-                height: 60px;
-                border-width: 2px;
-            }
-            
-            .hero-side-image.left {
-                left: 0.2%;
-                top: 5%;
-            }
-            
-            .hero-side-image.right {
-                right: 0.2%;
-                top: 5%;
-            }
-        }
-        
-        /* Extra small devices */
-        @media (max-width: 360px) {
-            .hero-side-image {
-                width: 50px;
-                height: 50px;
-                border-width: 1px;
-            }
-            
-            .hero-side-image.left {
-                left: 0.1%;
-                top: 3%;
-            }
-            
-            .hero-side-image.right {
-                right: 0.1%;
-                top: 3%;
-            }
-        }
-        
-        /* Landscape mobile devices */
-        @media (max-height: 500px) and (orientation: landscape) {
-            .hero-side-image {
-                width: 80px;
-                height: 80px;
-            }
-            
-            .hero-side-image.left {
-                left: 2%;
-                top: 10%;
-            }
-            
-            .hero-side-image.right {
-                right: 2%;
-                top: 10%;
-            }
         }
         
         /* Smooth scrolling */
@@ -934,15 +638,15 @@
 <body>
     <!-- Hero Section -->
     <section class="hero">
-        <div class="hero-content">
+                 <div class="hero-content">
              
              <div class="amharic-quote fade-in">
                  "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" <br>፪ ዜና ፪፥፱
              </div>
             
-            <h1 class="church-name fade-in">
-                የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!
-            </h1>
+                         <h1 class="church-name fade-in">
+                 የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!
+             </h1>
              
              <div class="core-message fade-in">
                  <span class="amharic">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።</span>
@@ -960,23 +664,6 @@
                 <p class="amharic-text">
                     በካሬ ዋጋ ድጋፍ ያድርጉ <br> ከታች በተቀመጠው የካሬ ዋጋ መሰረት አቅምዎ የፈቀደውን ድጋፍ ያድርጉልን። ቢያንስ እርስዎ ወይም ወዳጅዎ ቆመው የሚያስቀድሱባትን ቦታ ይግዙልን።
                 </p>
-            </div>
-        </div>
-        
-        <!-- Hero Images Row -->
-        <div class="hero-images-row fade-in">
-            <div class="hero-image-item">
-                <div class="hero-side-image left">
-                    <img src="EOTC-Logo.png" alt="EOTC Logo" loading="lazy">
-                </div>
-                <div class="hero-image-label">EOTC Logo</div>
-            </div>
-            
-            <div class="hero-image-item">
-                <div class="hero-side-image right">
-                    <img src="Abune-Teklehaymanot.png" alt="Abune Teklehaymanot" loading="lazy">
-                </div>
-                <div class="hero-image-label">Abune Teklehaymanot</div>
             </div>
         </div>
     </section>
@@ -1151,30 +838,7 @@
          document.getElementById('lightbox-img').addEventListener('click', function(event) {
              event.stopPropagation();
          });
-         
-         // Enhanced image loading for hero side images
-         document.addEventListener('DOMContentLoaded', function() {
-             const sideImages = document.querySelectorAll('.hero-side-image img');
-             
-             sideImages.forEach(img => {
-                 // Add loading animation
-                 img.style.opacity = '0';
-                 img.style.transform = 'scale(0.8)';
-                 
-                 img.addEventListener('load', function() {
-                     this.style.transition = 'all 0.5s ease';
-                     this.style.opacity = '1';
-                     this.style.transform = 'scale(1)';
-                 });
-                 
-                 img.addEventListener('error', function() {
-                     this.style.opacity = '0.8';
-                     this.style.filter = 'grayscale(100%)';
-                 });
-             });
-         });
 
      </script>
 </body>
 </html>
-
