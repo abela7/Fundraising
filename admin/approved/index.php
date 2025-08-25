@@ -341,6 +341,22 @@ $stmt->execute();
 $approved_items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 ?>
+<!-- --- TEMPORARY DEBUG PANEL --- -->
+<div class="alert alert-warning">
+    <h4><i class="fas fa-bug"></i> Debug Information</h4>
+    <pre><?php
+    echo "Page: " . htmlspecialchars($page) . "\n";
+    echo "Records Per Page: " . htmlspecialchars($records_per_page) . "\n";
+    echo "Offset: " . htmlspecialchars($offset) . "\n";
+    echo "Total Records Found: " . htmlspecialchars($total_records) . "\n";
+    echo "Total Pages: " . htmlspecialchars($total_pages) . "\n";
+    echo "Items on this page: " . count($approved_items) . "\n\n";
+    echo "--- Raw Query Result --- \n";
+    print_r($approved_items);
+    ?>
+    </pre>
+</div>
+<!-- --- END DEBUG PANEL --- -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
