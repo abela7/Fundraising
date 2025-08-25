@@ -62,6 +62,7 @@ $items = isset($approved_items) ? $approved_items : [];
         $item_approved_at = (string)($item['approved_at'] ?? '');
 
         // Display logic
+        $isPayment = ($item_type === 'payment');
         $isPledge = ($item_type === 'pledge');
         $showAnonChip = $item_anonymous === 1;
         $displayName = $showAnonChip ? 'Anonymous' : ($item_donor_name ?: 'N/A');
@@ -134,10 +135,10 @@ $items = isset($approved_items) ? $approved_items : [];
         
         <div class="approval-actions">
             <button type="button" class="btn btn-edit" data-bs-toggle="modal" data-bs-target="#editModal"
-                    onclick="openEditModal(<?php echo $item_id; ?>, '<?php echo htmlspecialchars($item_donor_name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($item_donor_phone, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($item_donor_email ?? '', ENT_QUOTES); ?>', <?php echo $item_amount; ?>, <?php echo $meters; ?>, '<?php echo htmlspecialchars($item_notes ?? '', ENT_QUOTES); ?>', '<?php echo $isPledge ? 'pledge' : 'payment'; ?>', '<?php echo $item_package_id; ?>', '<?php echo htmlspecialchars((string)($item['method'] ?? ''), ENT_QUOTES); ?>')">
+                    onclick="openEditModal(<?php echo $item_id; ?>, '<?php echo htmlspecialchars($item_donor_name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($item_donor_phone, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($item_donor_email ?? '', ENT_QUOTES); ?>', <?php echo $item_amount; ?>, <?php echo $meters; ?>, '<?php echo htmlspecialchars($item_notes ?? '', ENT_QUOTES); ?>', '<?php echo $isPayment ? 'payment' : 'pledge'; ?>', '<?php echo $item_package_id; ?>', '<?php echo htmlspecialchars((string)($item['method'] ?? ''), ENT_QUOTES); ?>')">
                 <i class="fas fa-edit"></i>
             </button>
-            <form method="post" class="action-form" action="index.php" onclick="event.stopPropagation();">
+            <form method="post" class="action-form" action="index.php?page=<?php echo $page ?? 1; ?>" onclick="event.stopPropagation();">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="<?php echo $isPledge ? 'undo' : 'undo_payment'; ?>">
                 <input type="hidden" name="<?php echo $isPledge ? 'pledge_id' : 'payment_id'; ?>" value="<?php echo $item_id; ?>">

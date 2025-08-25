@@ -307,53 +307,35 @@ $total_pages = (int)ceil($total_records / $records_per_page);
 // Get approved items
 // Combined approved items (pledges + payments), newest first
 $combinedSql = "
-(SELECT 
-    p.id,
-    p.amount,
-    'pledge' AS type,
-    p.notes,
-    p.created_at,
-    p.approved_at,
-    dp.sqm_meters AS sqm_meters,
-    p.anonymous,
-    p.donor_name,
-    p.donor_phone,
-    p.donor_email,
-    u.name AS registrar_name,
-    NULL AS payment_id,
-    NULL AS payment_amount,
-    NULL AS payment_method,
-    NULL AS payment_reference
-  FROM pledges p
-  LEFT JOIN donation_packages dp ON dp.id = p.package_id
-  LEFT JOIN users u ON p.created_by_user_id = u.id
-  WHERE p.status = 'approved')
+(SELECT
+    p.id, p.amount, p.type, p.notes, p.created_at, p.approved_at, p.anonymous,
+    p.donor_name, p.donor_phone, p.donor_email,
+    u.name as registrar_name,
+    dp.label AS package_label, dp.price AS package_price, dp.sqm_meters AS package_sqm, p.package_id,
+    NULL as method
+FROM pledges p
+LEFT JOIN users u ON p.created_by_user_id = u.id
+LEFT JOIN donation_packages dp ON dp.id = p.package_id
+WHERE p.status = 'approved')
 UNION ALL
-(SELECT 
-    pay.id AS id,
-    pay.amount,
-    'paid' AS type,
-    pay.reference AS notes,
-    pay.created_at,
-    pay.received_at AS approved_at,
-    dp.sqm_meters AS sqm_meters,
-    0 AS anonymous,
-    pay.donor_name,
-    pay.donor_phone,
-    pay.donor_email,
-    u.name AS registrar_name,
-    pay.id AS payment_id,
-    pay.amount AS payment_amount,
-    pay.method AS payment_method,
-    pay.reference AS payment_reference
-  FROM payments pay
-  LEFT JOIN donation_packages dp ON dp.id = pay.package_id
-  LEFT JOIN users u ON pay.received_by_user_id = u.id
-  WHERE pay.status = 'approved'
+(SELECT
+    pay.id, pay.amount, 'payment' as type, pay.reference as notes, pay.created_at, pay.received_at as approved_at, 0 as anonymous,
+    pay.donor_name, pay.donor_phone, pay.donor_email,
+    u2.name as registrar_name,
+    dp2.label AS package_label, dp2.price AS package_price, dp2.sqm_meters AS package_sqm, pay.package_id,
+    pay.method as method
+FROM payments pay
+LEFT JOIN users u2 ON u2.id = pay.received_by_user_id
+LEFT JOIN donation_packages dp2 ON dp2.id = pay.package_id
+WHERE pay.status = 'approved')
 ORDER BY approved_at DESC
 LIMIT ?, ?
 ";
 $stmt = $db->prepare($combinedSql);
+if ($stmt === false) {
+    // This will catch SQL syntax errors and prevent a 500 error
+    die("Error preparing the SQL query: " . $db->error);
+}
 $stmt->bind_param('ii', $offset, $records_per_page);
 $stmt->execute();
 $approved_items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
