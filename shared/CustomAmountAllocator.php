@@ -294,12 +294,10 @@ class CustomAmountAllocator {
     
     /**
      * Calculate how many 0.25m² cells to allocate for an amount
+     * Enhanced: Proportional allocation - every £100 = 1 cell (0.25m²)
      */
     private function calculateCellsForAmount(float $amount): int {
-        if ($amount >= 400) return 4;      // 1m² = £400
-        if ($amount >= 200) return 2;      // 0.5m² = £200
-        if ($amount >= 100) return 1;      // 0.25m² = £100
-        return 0;                           // Under £100
+        return (int)floor($amount / 100); // £100 per 0.25m² cell
     }
     
     /**
@@ -374,6 +372,64 @@ class CustomAmountAllocator {
                 'success' => false,
                 'error' => $e->getMessage(),
                 'type' => 'error'
+            ];
+        }
+    }
+    
+    /**
+     * Deallocate custom amount when unapproving a donation
+     * Handles both cells and custom_amount_tracking remainder
+     */
+    public function deallocateCustomAmount(int $pledgeId, ?int $paymentId, float $amount): array {
+        try {
+            $this->db->begin_transaction();
+            
+            // Step 1: Use IntelligentGridAllocator to deallocate any cells
+            $gridAllocator = new IntelligentGridAllocator($this->db);
+            $cellDeallocationResult = $gridAllocator->deallocate($pledgeId, $paymentId);
+            
+            // Step 2: Calculate how much was likely in custom_amount_tracking
+            $cellsAllocated = 0;
+            if ($cellDeallocationResult['success'] && !empty($cellDeallocationResult['deallocated_cells'])) {
+                $cellsAllocated = count($cellDeallocationResult['deallocated_cells']);
+            }
+            
+            $allocatedToCells = $cellsAllocated * 100; // £100 per cell
+            $remainderAmount = max(0, $amount - $allocatedToCells);
+            
+            // Step 3: Remove remainder from custom_amount_tracking if any
+            if ($remainderAmount > 0) {
+                $update = $this->db->prepare("
+                    UPDATE custom_amount_tracking 
+                    SET total_amount = GREATEST(0, total_amount - ?),
+                        remaining_amount = GREATEST(0, remaining_amount - ?),
+                        last_updated = NOW()
+                    WHERE id = 1
+                ");
+                $update->bind_param('dd', $remainderAmount, $remainderAmount);
+                $update->execute();
+                
+                error_log("CustomAmountAllocator: Deallocated £{$remainderAmount} from custom_amount_tracking for " . 
+                         ($pledgeId ? "pledge {$pledgeId}" : "payment {$paymentId}"));
+            }
+            
+            $this->db->commit();
+            
+            return [
+                'success' => true,
+                'message' => "Deallocated {$cellsAllocated} cells + £{$remainderAmount} from remainder pool",
+                'cells_deallocated' => $cellsAllocated,
+                'remainder_deallocated' => $remainderAmount,
+                'total_deallocated' => $amount
+            ];
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            error_log("CustomAmountAllocator Deallocation Error: " . $e->getMessage());
+            
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
             ];
         }
     }

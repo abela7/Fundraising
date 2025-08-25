@@ -82,51 +82,24 @@ try {
                 $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
                 $packageId = isset($pledge['package_id']) ? (int)$pledge['package_id'] : null;
                 
-                // Use CORRECT allocator based on package type
-                if ($packageId && $packageId <= 3) {
-                    // Fixed packages (1m², 0.5m², 0.25m²) - Use IntelligentGridAllocator
-                    require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
-                    $gridAllocator = new IntelligentGridAllocator($db);
-                    
-                    if ($pledge['type'] === 'paid') {
-                        $allocationResult = $gridAllocator->allocate(
-                            null, // No pledge ID for payments
-                            $pledgeId, // Payment ID (repurposed)
-                            $amount,
-                            $packageId,
-                            $donorName,
-                            $status
-                        );
-                    } else {
-                        $allocationResult = $gridAllocator->allocate(
-                            $pledgeId,
-                            null, // No payment ID for pledges
-                            $amount,
-                            $packageId,
-                            $donorName,
-                            $status
-                        );
-                    }
+                // Use CustomAmountAllocator for ALL donations (as original system)
+                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                $customAllocator = new CustomAmountAllocator($db);
+                
+                if ($pledge['type'] === 'paid') {
+                    $allocationResult = $customAllocator->processPaymentCustomAmount(
+                        $pledgeId,
+                        $amount,
+                        $donorName,
+                        $status
+                    );
                 } else {
-                    // Custom amounts (package_id 4 or null) - Use CustomAmountAllocator
-                    require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
-                    $customAllocator = new CustomAmountAllocator($db);
-                    
-                    if ($pledge['type'] === 'paid') {
-                        $allocationResult = $customAllocator->processPaymentCustomAmount(
-                            $pledgeId,
-                            $amount,
-                            $donorName,
-                            $status
-                        );
-                    } else {
-                        $allocationResult = $customAllocator->processCustomAmount(
-                            $pledgeId,
-                            $amount,
-                            $donorName,
-                            $status
-                        );
-                    }
+                    $allocationResult = $customAllocator->processCustomAmount(
+                        $pledgeId,
+                        $amount,
+                        $donorName,
+                        $status
+                    );
                 }
                 
                 if (isset($allocationResult['success']) && $allocationResult['success']) {
@@ -215,32 +188,16 @@ try {
                     $packageId = isset($paymentData['package_id']) ? (int)$paymentData['package_id'] : null;
                     $status = 'paid';
                     
-                    // Use CORRECT allocator based on package type
-                    if ($packageId && $packageId <= 3) {
-                        // Fixed packages (1m², 0.5m², 0.25m²) - Use IntelligentGridAllocator
-                        require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
-                        $gridAllocator = new IntelligentGridAllocator($db);
-                        
-                        $allocationResult = $gridAllocator->allocate(
-                            null, // No pledge ID for payments
-                            $paymentId, // Payment ID
-                            $amount,
-                            $packageId,
-                            $donorName,
-                            $status
-                        );
-                    } else {
-                        // Custom amounts (package_id 4 or null) - Use CustomAmountAllocator
-                        require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
-                        $customAllocator = new CustomAmountAllocator($db);
-                        
-                        $allocationResult = $customAllocator->processPaymentCustomAmount(
-                            $paymentId,
-                            $amount,
-                            $donorName,
-                            $status
-                        );
-                    }
+                    // Use CustomAmountAllocator for ALL payments (as original system)
+                    require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                    $customAllocator = new CustomAmountAllocator($db);
+                    
+                    $allocationResult = $customAllocator->processPaymentCustomAmount(
+                        $paymentId,
+                        $amount,
+                        $donorName,
+                        $status
+                    );
                     
                     if (isset($allocationResult['success']) && $allocationResult['success']) {
                         $gridMessage = "Grid allocated successfully";
