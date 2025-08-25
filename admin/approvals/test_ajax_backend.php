@@ -194,6 +194,13 @@ $pendingPayments = $db->query("SELECT id, donor_name, amount FROM payments WHERE
         </div>
     </div>
 
+    <div class="container">
+        <h2>📊 Live Activity Monitor</h2>
+        <div id="activity-log" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+            <div style="color: #6c757d;">Waiting for approval activity...</div>
+        </div>
+    </div>
+
     <?php if (!empty($pendingPledges)): ?>
     <div class="container">
         <h2>🔄 Test Pending Pledges</h2>
@@ -256,10 +263,38 @@ $pendingPayments = $db->query("SELECT id, donor_name, amount FROM payments WHERE
             return 'ajax-test-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         }
 
+        // Log activity to the monitor
+        function logActivity(message, type = 'info') {
+            const log = document.getElementById('activity-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': '#6c757d',
+                'success': '#155724', 
+                'error': '#721c24',
+                'warning': '#856404'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.style.color = colors[type] || colors.info;
+            logEntry.style.marginBottom = '5px';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            // Clear initial message if present
+            if (log.textContent.includes('Waiting for approval activity...')) {
+                log.innerHTML = '';
+            }
+            
+            log.appendChild(logEntry);
+            log.scrollTop = log.scrollHeight;
+        }
+
         // Test approval functionality
         async function testApproval(type, id, button) {
             const resultDiv = document.getElementById(`result-${type}-${id}`);
             const originalText = button.textContent;
+            
+            // Log start of operation
+            logActivity(`Starting approval of ${type} #${id}...`, 'info');
             
             // Disable button and show loading
             button.disabled = true;
@@ -284,19 +319,31 @@ $pendingPayments = $db->query("SELECT id, donor_name, amount FROM payments WHERE
                 const result = await response.json();
                 
                 if (result.success) {
+                    logActivity(`✅ SUCCESS: ${type} #${id} approved - ${result.message}`, 'success');
+                    if (result.allocation_result) {
+                        logActivity(`Floor allocation: ${result.allocation_result.message || 'Completed'}`, 'success');
+                    }
+                    
                     resultDiv.className = 'result success';
                     resultDiv.textContent = `✅ SUCCESS!\n\nMessage: ${result.message}\n\nDetails:\n${JSON.stringify(result, null, 2)}`;
+                    
+                    // Update stats immediately after successful approval
+                    logActivity('Updating system statistics...', 'info');
+                    updateStats();
                     
                     // Hide the test item after successful approval
                     setTimeout(() => {
                         button.closest('.test-item').style.opacity = '0.5';
                         button.closest('.test-item').style.pointerEvents = 'none';
-                    }, 2000);
+                        button.closest('.test-item').innerHTML += '<div style="color: green; font-weight: bold; margin-top: 10px;">✅ PROCESSED - Item approved successfully</div>';
+                    }, 1000);
                 } else {
+                    logActivity(`❌ FAILED: ${type} #${id} approval failed - ${result.error}`, 'error');
                     resultDiv.className = 'result error';
                     resultDiv.textContent = `❌ FAILED!\n\nError: ${result.error}\n\nFull Response:\n${JSON.stringify(result, null, 2)}`;
                 }
             } catch (error) {
+                logActivity(`❌ NETWORK ERROR: ${type} #${id} - ${error.message}`, 'error');
                 resultDiv.className = 'result error';
                 resultDiv.textContent = `❌ NETWORK ERROR!\n\nError: ${error.message}`;
             } finally {
@@ -310,6 +357,9 @@ $pendingPayments = $db->query("SELECT id, donor_name, amount FROM payments WHERE
         async function testRejection(type, id, button) {
             const resultDiv = document.getElementById(`result-${type}-${id}`);
             const originalText = button.textContent;
+            
+            // Log start of operation
+            logActivity(`Starting rejection of ${type} #${id}...`, 'warning');
             
             // Disable button and show loading
             button.disabled = true;
@@ -334,19 +384,27 @@ $pendingPayments = $db->query("SELECT id, donor_name, amount FROM payments WHERE
                 const result = await response.json();
                 
                 if (result.success) {
+                    logActivity(`✅ SUCCESS: ${type} #${id} rejected - ${result.message}`, 'warning');
+                    
                     resultDiv.className = 'result success';
                     resultDiv.textContent = `✅ SUCCESS!\n\nMessage: ${result.message}\n\nDetails:\n${JSON.stringify(result, null, 2)}`;
+                    
+                    // Update stats immediately after successful rejection
+                    updateStats();
                     
                     // Hide the test item after successful rejection
                     setTimeout(() => {
                         button.closest('.test-item').style.opacity = '0.5';
                         button.closest('.test-item').style.pointerEvents = 'none';
-                    }, 2000);
+                        button.closest('.test-item').innerHTML += '<div style="color: red; font-weight: bold; margin-top: 10px;">❌ PROCESSED - Item rejected successfully</div>';
+                    }, 1000);
                 } else {
+                    logActivity(`❌ FAILED: ${type} #${id} rejection failed - ${result.error}`, 'error');
                     resultDiv.className = 'result error';
                     resultDiv.textContent = `❌ FAILED!\n\nError: ${result.error}\n\nFull Response:\n${JSON.stringify(result, null, 2)}`;
                 }
             } catch (error) {
+                logActivity(`❌ NETWORK ERROR: ${type} #${id} rejection - ${error.message}`, 'error');
                 resultDiv.className = 'result error';
                 resultDiv.textContent = `❌ NETWORK ERROR!\n\nError: ${error.message}`;
             } finally {
@@ -356,12 +414,33 @@ $pendingPayments = $db->query("SELECT id, donor_name, amount FROM payments WHERE
             }
         }
 
-        // Auto-refresh stats every 30 seconds
+        // Auto-refresh stats every 5 minutes (not 30 seconds)
         setInterval(() => {
             if (document.visibilityState === 'visible') {
-                location.reload();
+                updateStats();
             }
-        }, 30000);
+        }, 300000);
+
+        // Function to update stats without page reload
+        async function updateStats() {
+            try {
+                const response = await fetch('get_stats.php');
+                const stats = await response.json();
+                
+                // Update stat cards
+                const statCards = document.querySelectorAll('.stat-number');
+                if (statCards.length >= 6) {
+                    statCards[0].textContent = '£' + parseFloat(stats.paid_total || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+                    statCards[1].textContent = '£' + parseFloat(stats.pledged_total || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+                    statCards[2].textContent = '£' + parseFloat(stats.grand_total || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+                    statCards[3].textContent = stats.available_cells || '0';
+                    statCards[4].textContent = stats.allocated_cells || '0';
+                    statCards[5].textContent = '£' + parseFloat(stats.remaining_amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+                }
+            } catch (error) {
+                console.log('Stats update failed:', error);
+            }
+        }
     </script>
 </body>
 </html>
