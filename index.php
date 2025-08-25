@@ -78,192 +78,197 @@
             position: relative;
             z-index: 2;
             max-width: 900px;
-            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         
-        /* Side Images Container */
+        /* Hero Side Images */
         .hero-side-images {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            transform: translateY(-50%);
-            pointer-events: none;
-            z-index: 1;
-        }
-        
-        .hero-side-images .side-image {
-            position: absolute;
-            width: 180px;
-            height: 180px;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 4px solid var(--accent-gold);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 
-                        0 0 0 1px rgba(255, 215, 0, 0.1),
-                        inset 0 0 20px rgba(255, 215, 0, 0.1);
-            transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-        }
-        
-        .hero-side-images .side-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-            filter: brightness(1.05) contrast(1.1);
-        }
-        
-        /* Loading state for images */
-        .hero-side-images .side-image::before {
-            content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.1), transparent);
-            animation: shimmer 2s infinite;
+            pointer-events: none;
             z-index: 1;
-            opacity: 0;
         }
         
-        .hero-side-images .side-image img[loading] + ::before {
-            opacity: 1;
+        .hero-side-image {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 4px solid var(--accent-gold);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: all 0.3s ease;
         }
         
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
+        .hero-side-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            transition: all 0.3s ease;
         }
         
-        .hero-side-images .side-image:hover img {
-            transform: scale(1.05);
+        /* Loading state for images */
+        .hero-side-image img:not([src]) {
+            background: linear-gradient(45deg, var(--accent-gold), #ffed4e);
+            opacity: 0.7;
         }
         
-        .hero-side-images .side-image:hover {
-            border-color: #ffed4e;
-            box-shadow: 0 12px 40px rgba(255, 215, 0, 0.4),
-                        0 0 0 2px rgba(255, 215, 0, 0.2),
-                        inset 0 0 30px rgba(255, 215, 0, 0.15);
-            transform: scale(1.02);
+        /* Image error fallback */
+        .hero-side-image img[src*="error"] {
+            background: linear-gradient(45deg, var(--primary-bg), #2a6b7d);
+            opacity: 0.8;
         }
         
-        /* Left side - EOTC Logo */
-        .hero-side-images .eotc-logo {
+        .hero-side-image.left {
             left: 5%;
-            top: 50%;
-            transform: translateY(-50%);
+            top: 20%;
         }
         
-        /* Right side - St. Tekla */
-        .hero-side-images .st-tekla {
+        .hero-side-image.right {
             right: 5%;
-            top: 50%;
-            transform: translateY(-50%);
+            top: 20%;
+        }
+        
+        .hero-side-image:hover {
+            transform: scale(1.05);
+            border-color: #ffed4e;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Add subtle animation for side images */
+        .hero-side-image {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        .hero-side-image.left {
+            animation-delay: 0s;
+        }
+        
+        .hero-side-image.right {
+            animation-delay: 3s;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        
+        .hero-side-image:hover {
+            animation-play-state: paused;
         }
         
         /* Responsive adjustments for side images */
-        @media (min-width: 1400px) {
-            .hero-side-images .side-image {
-                width: 200px;
-                height: 200px;
-            }
-            
-            .hero-side-images .eotc-logo {
-                left: 8%;
-            }
-            
-            .hero-side-images .st-tekla {
-                right: 8%;
-            }
-        }
-        
         @media (max-width: 1200px) {
-            .hero-side-images .side-image {
+            .hero-side-image {
                 width: 150px;
                 height: 150px;
             }
             
-            .hero-side-images .eotc-logo {
+            .hero-side-image.left {
                 left: 3%;
+                top: 25%;
             }
             
-            .hero-side-images .st-tekla {
+            .hero-side-image.right {
                 right: 3%;
+                top: 25%;
             }
         }
         
         @media (max-width: 992px) {
-            .hero-side-images .side-image {
-                width: 130px;
-                height: 130px;
-            }
-            
-            .hero-side-images .eotc-logo {
-                left: 2%;
-            }
-            
-            .hero-side-images .st-tekla {
-                right: 2%;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .hero-side-images {
-                position: relative;
-                top: auto;
-                transform: none;
-                display: flex;
-                justify-content: center;
-                gap: 2rem;
-                margin-bottom: 2rem;
-                pointer-events: auto;
-            }
-            
-            .hero-side-images .side-image {
-                position: relative;
-                left: auto;
-                right: auto;
-                top: auto;
-                transform: none;
+            .hero-side-image {
                 width: 120px;
                 height: 120px;
             }
             
-            .hero-side-images .eotc-logo {
-                left: auto;
-                top: auto;
-                transform: none;
+            .hero-side-image.left {
+                left: 2%;
+                top: 30%;
             }
             
-            .hero-side-images .st-tekla {
-                right: auto;
-                top: auto;
-                transform: none;
+            .hero-side-image.right {
+                right: 2%;
+                top: 30%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .hero-side-image {
+                width: 100px;
+                height: 100px;
+                border-width: 3px;
+            }
+            
+            .hero-side-image.left {
+                left: 1%;
+                top: 15%;
+            }
+            
+            .hero-side-image.right {
+                right: 1%;
+                top: 15%;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .hero-side-image {
+                width: 80px;
+                height: 80px;
+                border-width: 2px;
+            }
+            
+            .hero-side-image.left {
+                left: 0.5%;
+                top: 10%;
+            }
+            
+            .hero-side-image.right {
+                right: 0.5%;
+                top: 10%;
             }
         }
         
         @media (max-width: 480px) {
-            .hero-side-images {
-                gap: 1.5rem;
-                margin-bottom: 1.5rem;
+            .hero-side-image {
+                width: 70px;
+                height: 70px;
             }
             
-            .hero-side-images .side-image {
-                width: 100px;
-                height: 100px;
+            .hero-side-image.left {
+                left: 0.3%;
+                top: 8%;
+            }
+            
+            .hero-side-image.right {
+                right: 0.3%;
+                top: 8%;
             }
         }
         
-        .amharic-quote {
-            font-size: 1.1rem;
-            color: var(--accent-gold);
-            margin-bottom: 1.5rem;
-            font-weight: 400;
-            line-height: 1.8;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
+                 .amharic-quote {
+             font-size: 1.1rem;
+             color: var(--accent-gold);
+             margin-bottom: 1.5rem;
+             font-weight: 400;
+             line-height: 1.8;
+             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+         }
+         
+
+         
+
+         
+
         
         .church-name {
             font-size: 2.5rem;
@@ -707,11 +712,9 @@
         }
         
         @media (max-width: 480px) {
-                         .core-message {
-                 font-size: 2rem;
-             }
-             
-
+            .core-message {
+                font-size: 2rem;
+            }
             
             .core-message .english {
                 font-size: 1.6rem;
@@ -779,6 +782,60 @@
                 padding: 1.2rem 1.8rem;
                 font-size: 1.1rem;
             }
+            
+            /* Additional mobile optimizations for side images */
+            .hero-side-image {
+                width: 60px;
+                height: 60px;
+                border-width: 2px;
+            }
+            
+            .hero-side-image.left {
+                left: 0.2%;
+                top: 5%;
+            }
+            
+            .hero-side-image.right {
+                right: 0.2%;
+                top: 5%;
+            }
+        }
+        
+        /* Extra small devices */
+        @media (max-width: 360px) {
+            .hero-side-image {
+                width: 50px;
+                height: 50px;
+                border-width: 1px;
+            }
+            
+            .hero-side-image.left {
+                left: 0.1%;
+                top: 3%;
+            }
+            
+            .hero-side-image.right {
+                right: 0.1%;
+                top: 3%;
+            }
+        }
+        
+        /* Landscape mobile devices */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .hero-side-image {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .hero-side-image.left {
+                left: 2%;
+                top: 10%;
+            }
+            
+            .hero-side-image.right {
+                right: 2%;
+                top: 10%;
+            }
         }
         
         /* Smooth scrolling */
@@ -800,46 +857,20 @@
             }
         }
         
-        /* Staggered animation delays for hero elements */
-        .hero-side-images .eotc-logo { animation-delay: 0.1s; }
-        .hero-side-images .st-tekla { animation-delay: 0.3s; }
-        .amharic-quote { animation-delay: 0.5s; }
-        .church-name { animation-delay: 0.7s; }
-        .core-message { animation-delay: 0.9s; }
-        .vision-description { animation-delay: 1.1s; }
-        
-        /* Floating animation for side images */
-        @keyframes float {
-            0%, 100% { transform: translateY(-50%) translateX(0px); }
-            50% { transform: translateY(-50%) translateX(5px); }
-        }
-        
-        .hero-side-images .eotc-logo {
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        .hero-side-images .st-tekla {
-            animation: float 6s ease-in-out infinite reverse;
-        }
-        
-        /* Mobile floating animation reset */
-        @media (max-width: 768px) {
-            .hero-side-images .eotc-logo,
-            .hero-side-images .st-tekla {
-                animation: none;
-            }
-        }
+        .fade-in:nth-child(2) { animation-delay: 0.2s; }
+        .fade-in:nth-child(3) { animation-delay: 0.4s; }
+        .fade-in:nth-child(4) { animation-delay: 0.6s; }
     </style>
 </head>
 <body>
     <!-- Hero Section -->
     <section class="hero">
-        <!-- Side Images Container -->
+        <!-- Hero Side Images -->
         <div class="hero-side-images">
-            <div class="side-image eotc-logo fade-in">
+            <div class="hero-side-image left">
                 <img src="EOTC-Logo.png" alt="EOTC Logo" loading="lazy">
             </div>
-            <div class="side-image st-tekla fade-in">
+            <div class="hero-side-image right">
                 <img src="Abune-Teklehaymanot.png" alt="Abune Teklehaymanot" loading="lazy">
             </div>
         </div>
@@ -1043,6 +1074,28 @@
          // Prevent lightbox from closing when clicking on the image
          document.getElementById('lightbox-img').addEventListener('click', function(event) {
              event.stopPropagation();
+         });
+         
+         // Enhanced image loading for hero side images
+         document.addEventListener('DOMContentLoaded', function() {
+             const sideImages = document.querySelectorAll('.hero-side-image img');
+             
+             sideImages.forEach(img => {
+                 // Add loading animation
+                 img.style.opacity = '0';
+                 img.style.transform = 'scale(0.8)';
+                 
+                 img.addEventListener('load', function() {
+                     this.style.transition = 'all 0.5s ease';
+                     this.style.opacity = '1';
+                     this.style.transform = 'scale(1)';
+                 });
+                 
+                 img.addEventListener('error', function() {
+                     this.style.opacity = '0.8';
+                     this.style.filter = 'grayscale(100%)';
+                 });
+             });
          });
 
      </script>
