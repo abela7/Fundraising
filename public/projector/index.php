@@ -8,7 +8,7 @@ if (!$settings) {
     $settings = [
         'projector_names_mode' => 'full',
         'refresh_seconds' => 10,
-        'target_amount' => 100000,
+        'target_amount' => 450000,
         'currency_code' => 'GBP'
     ];
 }
