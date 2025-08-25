@@ -12,6 +12,61 @@ $page_title = 'Pending Approvals';
 $db = db();
 $actionMsg = '';
 
+// Pagination and filtering parameters
+$page = max(1, (int)($_GET['page'] ?? 1));
+$per_page = 20;
+$offset = ($page - 1) * $per_page;
+
+// Filter parameters
+$search = trim($_GET['search'] ?? '');
+$type_filter = $_GET['type'] ?? '';
+$amount_min = $_GET['amount_min'] !== '' ? (float)$_GET['amount_min'] : null;
+$amount_max = $_GET['amount_max'] !== '' ? (float)$_GET['amount_max'] : null;
+$sort = $_GET['sort'] ?? 'created_desc';
+
+// Build dynamic WHERE conditions for filtering
+$where_conditions = ["p.status = 'pending'"];
+$params = [];
+$param_types = '';
+
+if ($search !== '') {
+    $where_conditions[] = "(p.donor_name LIKE ? OR p.donor_phone LIKE ? OR p.donor_email LIKE ? OR p.notes LIKE ?)";
+    $search_param = '%' . $search . '%';
+    $params = array_merge($params, [$search_param, $search_param, $search_param, $search_param]);
+    $param_types .= 'ssss';
+}
+
+if ($type_filter !== '') {
+    $where_conditions[] = "p.type = ?";
+    $params[] = $type_filter;
+    $param_types .= 's';
+}
+
+if ($amount_min !== null) {
+    $where_conditions[] = "p.amount >= ?";
+    $params[] = $amount_min;
+    $param_types .= 'd';
+}
+
+if ($amount_max !== null) {
+    $where_conditions[] = "p.amount <= ?";
+    $params[] = $amount_max;
+    $param_types .= 'd';
+}
+
+// Build ORDER BY clause
+$order_by = 'p.created_at DESC';
+switch ($sort) {
+    case 'created_asc': $order_by = 'p.created_at ASC'; break;
+    case 'created_desc': $order_by = 'p.created_at DESC'; break;
+    case 'amount_asc': $order_by = 'p.amount ASC'; break;
+    case 'amount_desc': $order_by = 'p.amount DESC'; break;
+    case 'name_asc': $order_by = 'p.donor_name ASC'; break;
+    case 'name_desc': $order_by = 'p.donor_name DESC'; break;
+    case 'type_asc': $order_by = 'p.type ASC'; break;
+    case 'type_desc': $order_by = 'p.type DESC'; break;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // htmx posts will include HX-Request header; still support normal POST
     verify_csrf();
@@ -405,7 +460,166 @@ if ($cntRes) {
                 </div>
               </div>
               <div class="card-body">
+                <!-- Filtering and Search Controls -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <form method="GET" class="filtering-controls">
+                      <div class="row g-3">
+                        <div class="col-md-4">
+                          <label for="search" class="form-label">Search</label>
+                          <input type="text" class="form-control" id="search" name="search" 
+                                 value="<?php echo htmlspecialchars($search); ?>" 
+                                 placeholder="Name, phone, email, notes...">
+                        </div>
+                        <div class="col-md-2">
+                          <label for="type" class="form-label">Type</label>
+                          <select class="form-select" id="type" name="type">
+                            <option value="">All Types</option>
+                            <option value="pledge" <?php echo $type_filter === 'pledge' ? 'selected' : ''; ?>>Pledge</option>
+                            <option value="paid" <?php echo $type_filter === 'paid' ? 'selected' : ''; ?>>Paid</option>
+                            <option value="payment" <?php echo $type_filter === 'payment' ? 'selected' : ''; ?>>Payment</option>
+                          </select>
+                        </div>
+                        <div class="col-md-2">
+                          <label for="amount_min" class="form-label">Min Amount</label>
+                          <input type="number" class="form-control" id="amount_min" name="amount_min" 
+                                 value="<?php echo $amount_min !== null ? $amount_min : ''; ?>" 
+                                 min="0" step="0.01" placeholder="£0">
+                        </div>
+                        <div class="col-md-2">
+                          <label for="amount_max" class="form-label">Max Amount</label>
+                          <input type="number" class="form-control" id="amount_max" name="amount_max" 
+                                 value="<?php echo $amount_max !== null ? $amount_max : ''; ?>" 
+                                 min="0" step="0.01" placeholder="£999999">
+                        </div>
+                        <div class="col-md-2">
+                          <label for="sort" class="form-label">Sort By</label>
+                          <select class="form-select" id="sort" name="sort">
+                            <option value="created_desc" <?php echo $sort === 'created_desc' ? 'selected' : ''; ?>>Newest First</option>
+                            <option value="created_asc" <?php echo $sort === 'created_asc' ? 'selected' : ''; ?>>Oldest First</option>
+                            <option value="amount_desc" <?php echo $sort === 'amount_desc' ? 'selected' : ''; ?>>Highest Amount</option>
+                            <option value="amount_asc" <?php echo $sort === 'amount_asc' ? 'selected' : ''; ?>>Lowest Amount</option>
+                            <option value="name_asc" <?php echo $sort === 'name_asc' ? 'selected' : ''; ?>>Name A-Z</option>
+                            <option value="name_desc" <?php echo $sort === 'name_desc' ? 'selected' : ''; ?>>Name Z-A</option>
+                            <option value="type_asc" <?php echo $sort === 'type_asc' ? 'selected' : ''; ?>>Type A-Z</option>
+                            <option value="type_desc" <?php echo $sort === 'type_desc' ? 'selected' : ''; ?>>Type Z-A</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="row mt-3">
+                        <div class="col-12">
+                          <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Apply Filters
+                          </button>
+                          <a href="index.php" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-times"></i> Clear Filters
+                          </a>
+                          <input type="hidden" name="page" value="1">
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+
+                <!-- Results Info -->
+                <?php if (isset($total_count)): ?>
+                <div class="row mb-3">
+                  <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="text-muted">
+                        Showing <?php echo count($pending_pledges); ?> of <?php echo $total_count; ?> items
+                        <?php if ($search || $type_filter || $amount_min !== null || $amount_max !== null): ?>
+                          (filtered)
+                        <?php endif; ?>
+                      </div>
+                      <div class="text-muted">
+                        Page <?php echo $page; ?> of <?php echo max(1, ceil($total_count / $per_page)); ?>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <?php endif; ?>
+
                 <?php include __DIR__ . '/partial_list.php'; ?>
+
+                <!-- Pagination -->
+                <?php if (isset($total_count) && $total_count > $per_page): ?>
+                <div class="row mt-4">
+                  <div class="col-12">
+                    <nav aria-label="Approvals pagination">
+                      <?php
+                      $total_pages = ceil($total_count / $per_page);
+                      $current_page = $page;
+                      
+                      // Build query string for pagination links
+                      $query_params = array_filter([
+                          'search' => $search,
+                          'type' => $type_filter,
+                          'amount_min' => $amount_min,
+                          'amount_max' => $amount_max,
+                          'sort' => $sort
+                      ]);
+                      ?>
+                      <ul class="pagination justify-content-center">
+                        <!-- Previous Page -->
+                        <?php if ($current_page > 1): ?>
+                        <li class="page-item">
+                          <a class="page-link" href="?<?php echo http_build_query(array_merge($query_params, ['page' => $current_page - 1])); ?>">
+                            <i class="fas fa-chevron-left"></i> Previous
+                          </a>
+                        </li>
+                        <?php else: ?>
+                        <li class="page-item disabled">
+                          <span class="page-link"><i class="fas fa-chevron-left"></i> Previous</span>
+                        </li>
+                        <?php endif; ?>
+
+                        <!-- Page Numbers -->
+                        <?php
+                        $start_page = max(1, $current_page - 2);
+                        $end_page = min($total_pages, $current_page + 2);
+                        
+                        if ($start_page > 1): ?>
+                        <li class="page-item">
+                          <a class="page-link" href="?<?php echo http_build_query(array_merge($query_params, ['page' => 1])); ?>">1</a>
+                        </li>
+                        <?php if ($start_page > 2): ?>
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                        <li class="page-item <?php echo $i === $current_page ? 'active' : ''; ?>">
+                          <a class="page-link" href="?<?php echo http_build_query(array_merge($query_params, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                        </li>
+                        <?php endfor; ?>
+
+                        <?php if ($end_page < $total_pages): ?>
+                        <?php if ($end_page < $total_pages - 1): ?>
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php endif; ?>
+                        <li class="page-item">
+                          <a class="page-link" href="?<?php echo http_build_query(array_merge($query_params, ['page' => $total_pages])); ?>"><?php echo $total_pages; ?></a>
+                        </li>
+                        <?php endif; ?>
+
+                        <!-- Next Page -->
+                        <?php if ($current_page < $total_pages): ?>
+                        <li class="page-item">
+                          <a class="page-link" href="?<?php echo http_build_query(array_merge($query_params, ['page' => $current_page + 1])); ?>">
+                            Next <i class="fas fa-chevron-right"></i>
+                          </a>
+                        </li>
+                        <?php else: ?>
+                        <li class="page-item disabled">
+                          <span class="page-link">Next <i class="fas fa-chevron-right"></i></span>
+                        </li>
+                        <?php endif; ?>
+                      </ul>
+                    </nav>
+                  </div>
+                </div>
+                <?php endif; ?>
               </div>
           </div>
         </div>

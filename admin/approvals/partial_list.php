@@ -6,6 +6,30 @@ require_once __DIR__ . '/../../shared/csrf.php'; // <-- FIX: Added missing inclu
 require_admin();
 $db = db();
 
+// Get pagination and filter data from parent (index.php)
+global $where_conditions, $params, $param_types, $order_by, $offset, $per_page;
+
+$where_clause = implode(' AND ', $where_conditions);
+
+// Get total count for pagination
+$count_sql = "
+    SELECT COUNT(*) as total
+    FROM pledges p
+    LEFT JOIN users u ON p.created_by_user_id = u.id
+    LEFT JOIN donation_packages dp ON dp.id = p.package_id
+    WHERE $where_clause
+";
+
+if (!empty($params)) {
+    $count_stmt = $db->prepare($count_sql);
+    $count_stmt->bind_param($param_types, ...$params);
+    $count_stmt->execute();
+    $total_count = $count_stmt->get_result()->fetch_assoc()['total'];
+} else {
+    $total_count = $db->query($count_sql)->fetch_assoc()['total'];
+}
+
+// Get paginated data
 $sql = "
     SELECT 
         p.id, p.amount, p.type, p.notes, p.created_at, p.anonymous,
@@ -15,10 +39,20 @@ $sql = "
     FROM pledges p
     LEFT JOIN users u ON p.created_by_user_id = u.id
     LEFT JOIN donation_packages dp ON dp.id = p.package_id
-    WHERE p.status = 'pending'
-    ORDER BY p.created_at DESC
+    WHERE $where_clause
+    ORDER BY $order_by
+    LIMIT $per_page OFFSET $offset
 ";
-$res = $db->query($sql);
+
+if (!empty($params)) {
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param($param_types, ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+} else {
+    $res = $db->query($sql);
+}
+
 $pending_pledges = [];
 if ($res && $res instanceof mysqli_result) {
     while ($row = $res->fetch_assoc()) { $pending_pledges[] = $row; }
