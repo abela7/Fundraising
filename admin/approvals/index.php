@@ -405,7 +405,15 @@ if ($cntRes) {
                 </div>
               </div>
               <div class="card-body">
-                <?php include __DIR__ . '/partial_list.php'; ?>
+                <?php 
+                // Check if we should use the improved version
+                $use_improved = true; // Set to true to enable improved pagination
+                if ($use_improved) {
+                    include __DIR__ . '/partial_list_improved.php';
+                } else {
+                    include __DIR__ . '/partial_list.php';
+                }
+                ?>
               </div>
           </div>
         </div>
