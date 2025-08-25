@@ -90,21 +90,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         echo "<div class='section success'>";
         echo "<h2>🚀 GENERATING REALISTIC TEST DATA</h2>";
         
-        $generated = generateRealisticTestData($db, $registrars, $packages);
-        
-        echo "<h3>✅ Generation Complete!</h3>";
-        echo "<div class='stats'>";
-        echo "<div class='stat-box'><strong>" . $generated['registrar_pledges'] . "</strong><br>Registrar Pledges</div>";
-        echo "<div class='stat-box'><strong>" . $generated['public_pledges'] . "</strong><br>Public Pledges</div>";
-        echo "<div class='stat-box'><strong>" . $generated['total'] . "</strong><br>Total Created</div>";
-        echo "</div>";
-        
-        echo "<h4>Distribution Breakdown:</h4>";
-        echo "<ul>";
-        foreach ($generated['breakdown'] as $type => $count) {
-            echo "<li><strong>$type:</strong> $count donations</li>";
+        try {
+            echo "<p>📊 Found " . count($registrars) . " registrars and " . count($packages) . " packages</p>";
+            echo "<p>🔄 Starting generation...</p>";
+            
+            $generated = generateRealisticTestData($db, $registrars, $packages);
+            
+            echo "<h3>✅ Generation Complete!</h3>";
+            echo "<div class='stats'>";
+            echo "<div class='stat-box'><strong>" . $generated['registrar_pledges'] . "</strong><br>Registrar Pledges</div>";
+            echo "<div class='stat-box'><strong>" . $generated['public_pledges'] . "</strong><br>Public Pledges</div>";
+            echo "<div class='stat-box'><strong>" . $generated['total'] . "</strong><br>Total Created</div>";
+            echo "</div>";
+            
+            echo "<h4>Distribution Breakdown:</h4>";
+            echo "<ul>";
+            foreach ($generated['breakdown'] as $type => $count) {
+                echo "<li><strong>$type:</strong> $count donations</li>";
+            }
+            echo "</ul>";
+            
+            // Verify data was actually created
+            $currentPendingAfter = $db->query("SELECT COUNT(*) as count FROM pledges WHERE status='pending'")->fetch_assoc()['count'];
+            echo "<p><strong>Total pending donations now:</strong> $currentPendingAfter</p>";
+            
+        } catch (Exception $e) {
+            echo "<div class='section' style='background-color: #f8d7da;'>";
+            echo "<h3>❌ ERROR DURING GENERATION</h3>";
+            echo "<p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
+            echo "<p><strong>File:</strong> " . $e->getFile() . "</p>";
+            echo "<p><strong>Line:</strong> " . $e->getLine() . "</p>";
+            echo "</div>";
         }
-        echo "</ul>";
         
         echo "</div>";
         
@@ -112,9 +129,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         echo "<div class='section warning'>";
         echo "<h2>🗑️ CLEARING TEST DATA</h2>";
         
-        $cleared = clearTestData($db);
+        try {
+            $cleared = clearTestData($db);
+            echo "<p>✅ Cleared $cleared pending test donations</p>";
+        } catch (Exception $e) {
+            echo "<p>❌ Error clearing data: " . htmlspecialchars($e->getMessage()) . "</p>";
+        }
         
-        echo "<p>✅ Cleared $cleared pending test donations</p>";
         echo "</div>";
     }
 }
@@ -266,7 +287,9 @@ function createPledge($db, $createdBy, $packageId, $amount, $source) {
         $packageIdNullable, $uuid, $createdBy, $notes
     );
     
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        throw new Exception("Failed to create pledge: " . $stmt->error . " - Data: $donorName, $amount, $source");
+    }
 }
 
 function clearTestData($db) {
