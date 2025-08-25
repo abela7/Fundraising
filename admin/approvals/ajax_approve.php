@@ -82,14 +82,52 @@ try {
             $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
             $ctr->execute();
             
-            // Simple audit log (no complex allocation for now)
+            // IMMEDIATE grid allocation (fast version)
+            try {
+                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                $customAllocator = new CustomAmountAllocator($db);
+                
+                $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
+                $amount = (float)$pledge['amount'];
+                $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
+                
+                if ($pledge['type'] === 'paid') {
+                    $allocationResult = $customAllocator->processPaymentCustomAmount(
+                        $pledgeId,
+                        $amount,
+                        $donorName,
+                        $status
+                    );
+                } else {
+                    $allocationResult = $customAllocator->processCustomAmount(
+                        $pledgeId,
+                        $amount,
+                        $donorName,
+                        $status
+                    );
+                }
+                
+                $gridMessage = $allocationResult['success'] ? 
+                    "Grid allocated successfully." : 
+                    "Grid allocation failed: " . ($allocationResult['error'] ?? 'Unknown error');
+                    
+            } catch (Exception $gridError) {
+                $gridMessage = "Grid allocation error: " . $gridError->getMessage();
+                // Don't fail the approval if grid allocation fails
+                error_log("Grid allocation failed for pledge {$pledgeId}: " . $gridError->getMessage());
+            }
+            
+            // Audit log with grid allocation result
             $before = json_encode(['status' => 'pending', 'type' => $pledge['type'], 'amount' => (float)$pledge['amount']]);
-            $after = json_encode(['status' => 'approved']);
+            $after = json_encode([
+                'status' => 'approved',
+                'grid_allocation' => $allocationResult ?? ['success' => false, 'error' => $gridMessage ?? 'Not processed']
+            ]);
             $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'approve', ?, ?, 'admin_ajax')");
             $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
             $log->execute();
             
-            $message = "Pledge #{$pledgeId} approved successfully. Grid allocation will be processed in background.";
+            $message = "Pledge #{$pledgeId} approved successfully. " . ($gridMessage ?? 'Grid allocation processed.');
             
         } elseif ($action === 'reject') {
             // Reject pledge
@@ -144,7 +182,38 @@ try {
             $ctr->bind_param('dd', $amt, $amt);
             $ctr->execute();
             
-            $message = "Payment #{$paymentId} approved successfully. Grid allocation will be processed in background.";
+            // IMMEDIATE grid allocation for payment
+            try {
+                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                $customAllocator = new CustomAmountAllocator($db);
+                
+                // Get payment details for allocation
+                $paymentDetails = $db->prepare("SELECT donor_name, amount FROM payments WHERE id = ?");
+                $paymentDetails->bind_param('i', $paymentId);
+                $paymentDetails->execute();
+                $paymentData = $paymentDetails->get_result()->fetch_assoc();
+                
+                if ($paymentData) {
+                    $allocationResult = $customAllocator->processPaymentCustomAmount(
+                        $paymentId,
+                        (float)$paymentData['amount'],
+                        (string)$paymentData['donor_name'],
+                        'paid'
+                    );
+                    
+                    $gridMessage = $allocationResult['success'] ? 
+                        "Grid allocated successfully." : 
+                        "Grid allocation failed: " . ($allocationResult['error'] ?? 'Unknown error');
+                } else {
+                    $gridMessage = "Payment data not found for grid allocation.";
+                }
+                
+            } catch (Exception $gridError) {
+                $gridMessage = "Grid allocation error: " . $gridError->getMessage();
+                error_log("Grid allocation failed for payment {$paymentId}: " . $gridError->getMessage());
+            }
+            
+            $message = "Payment #{$paymentId} approved successfully. " . ($gridMessage ?? 'Grid allocation processed.');
             
         } elseif ($action === 'reject_payment') {
             // Reject payment
