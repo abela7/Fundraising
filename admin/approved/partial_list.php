@@ -34,16 +34,16 @@ if (empty($approved)) {
 
 <?php
 // If combined items are provided, render those; otherwise fallback to pledges-only list
-$items = isset($approved_items) ? $approved_items : [];
+$items = $approved_items ?? [];
 ?>
 <div class="approval-list">
     <?php if (empty($items)): ?>
         <div class="text-center p-5 text-muted">
             <i class="fas fa-check-circle fa-3x mb-3"></i>
-            <h4>No Approved Items</h4>
-            <p>There are no approved items to display.</p>
+            <h4>No Approved Items Yet</h4>
+            <p>Once items are approved, they will appear here for management.</p>
         </div>
-    <?php endif; ?>
+    <?php else: ?>
     <?php foreach ($items as $item): ?>
     <?php
         // Guard against nulls and unexpected values
@@ -149,6 +149,7 @@ $items = isset($approved_items) ? $approved_items : [];
         </div>
     </div>
     <?php endforeach; ?>
+    <?php endif; ?>
 </div>
 
 
