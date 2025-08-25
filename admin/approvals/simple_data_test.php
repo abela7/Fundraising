@@ -9,11 +9,11 @@ echo "<h1>🔍 SIMPLE DATA TEST (NO AUTH)</h1>";
 try {
     echo "<p>1. Testing database connection...</p>";
     
-    // Direct database connection test
+    // Direct database connection test (CORRECT CREDENTIALS)
     $host = 'localhost';
-    $username = 'abunetdg_fundraising_user';
-    $password = 'nU?Cy*+B%@Wk';
-    $database = 'abunetdg_fundraising_DB';
+    $username = 'abunetdg_abela';
+    $password = '2424@Admin';
+    $database = 'abunetdg_fundraising';
     
     $db = new mysqli($host, $username, $password, $database);
     
