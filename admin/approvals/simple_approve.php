@@ -35,7 +35,7 @@ try {
         if ($action === 'approve') {
             if ($pledgeId <= 0) throw new Exception('Invalid pledge ID');
             
-            $stmt = $db->prepare('SELECT id, amount, type, status, donor_name FROM pledges WHERE id = ? FOR UPDATE');
+            $stmt = $db->prepare('SELECT id, amount, type, status, donor_name, package_id FROM pledges WHERE id = ? FOR UPDATE');
             $stmt->bind_param('i', $pledgeId);
             $stmt->execute();
             $pledge = $stmt->get_result()->fetch_assoc();
@@ -72,32 +72,61 @@ try {
             $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
             $ctr->execute();
             
-            // CRITICAL: RESTORE FLOOR ALLOCATION
+            // CRITICAL: RESTORE FLOOR ALLOCATION WITH CORRECT ALLOCATOR
             $gridMessage = "Grid allocation failed";
             $allocationResult = ['success' => false, 'error' => 'No allocation attempted'];
             
             try {
-                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
-                $customAllocator = new CustomAmountAllocator($db);
-                
                 $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
                 $amount = (float)$pledge['amount'];
                 $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
+                $packageId = isset($pledge['package_id']) ? (int)$pledge['package_id'] : null;
                 
-                if ($pledge['type'] === 'paid') {
-                    $allocationResult = $customAllocator->processPaymentCustomAmount(
-                        $pledgeId,
-                        $amount,
-                        $donorName,
-                        $status
-                    );
+                // Use CORRECT allocator based on package type
+                if ($packageId && $packageId <= 3) {
+                    // Fixed packages (1m², 0.5m², 0.25m²) - Use IntelligentGridAllocator
+                    require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
+                    $gridAllocator = new IntelligentGridAllocator($db);
+                    
+                    if ($pledge['type'] === 'paid') {
+                        $allocationResult = $gridAllocator->allocate(
+                            null, // No pledge ID for payments
+                            $pledgeId, // Payment ID (repurposed)
+                            $amount,
+                            $packageId,
+                            $donorName,
+                            $status
+                        );
+                    } else {
+                        $allocationResult = $gridAllocator->allocate(
+                            $pledgeId,
+                            null, // No payment ID for pledges
+                            $amount,
+                            $packageId,
+                            $donorName,
+                            $status
+                        );
+                    }
                 } else {
-                    $allocationResult = $customAllocator->processCustomAmount(
-                        $pledgeId,
-                        $amount,
-                        $donorName,
-                        $status
-                    );
+                    // Custom amounts (package_id 4 or null) - Use CustomAmountAllocator
+                    require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                    $customAllocator = new CustomAmountAllocator($db);
+                    
+                    if ($pledge['type'] === 'paid') {
+                        $allocationResult = $customAllocator->processPaymentCustomAmount(
+                            $pledgeId,
+                            $amount,
+                            $donorName,
+                            $status
+                        );
+                    } else {
+                        $allocationResult = $customAllocator->processCustomAmount(
+                            $pledgeId,
+                            $amount,
+                            $donorName,
+                            $status
+                        );
+                    }
                 }
                 
                 if (isset($allocationResult['success']) && $allocationResult['success']) {
@@ -142,7 +171,7 @@ try {
         } elseif ($action === 'approve_payment') {
             if ($paymentId <= 0) throw new Exception('Invalid payment ID');
             
-            $sel = $db->prepare("SELECT id, amount, status FROM payments WHERE id=? FOR UPDATE");
+            $sel = $db->prepare("SELECT id, amount, status, package_id FROM payments WHERE id=? FOR UPDATE");
             $sel->bind_param('i', $paymentId);
             $sel->execute();
             $pay = $sel->get_result()->fetch_assoc();
@@ -169,26 +198,49 @@ try {
             $ctr->bind_param('dd', $amt, $amt);
             $ctr->execute();
             
-            // CRITICAL: RESTORE FLOOR ALLOCATION FOR PAYMENTS
+            // CRITICAL: RESTORE FLOOR ALLOCATION FOR PAYMENTS WITH CORRECT ALLOCATOR
             $gridMessage = "Grid allocation failed";
+            $allocationResult = ['success' => false, 'error' => 'No allocation attempted'];
             
             try {
-                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
-                $customAllocator = new CustomAmountAllocator($db);
-                
                 // Get payment details for allocation
-                $paymentDetails = $db->prepare("SELECT donor_name, amount FROM payments WHERE id = ?");
+                $paymentDetails = $db->prepare("SELECT donor_name, amount, package_id FROM payments WHERE id = ?");
                 $paymentDetails->bind_param('i', $paymentId);
                 $paymentDetails->execute();
                 $paymentData = $paymentDetails->get_result()->fetch_assoc();
                 
                 if ($paymentData) {
-                    $allocationResult = $customAllocator->processPaymentCustomAmount(
-                        $paymentId,
-                        (float)$paymentData['amount'],
-                        (string)$paymentData['donor_name'],
-                        'paid'
-                    );
+                    $donorName = (string)$paymentData['donor_name'];
+                    $amount = (float)$paymentData['amount'];
+                    $packageId = isset($paymentData['package_id']) ? (int)$paymentData['package_id'] : null;
+                    $status = 'paid';
+                    
+                    // Use CORRECT allocator based on package type
+                    if ($packageId && $packageId <= 3) {
+                        // Fixed packages (1m², 0.5m², 0.25m²) - Use IntelligentGridAllocator
+                        require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
+                        $gridAllocator = new IntelligentGridAllocator($db);
+                        
+                        $allocationResult = $gridAllocator->allocate(
+                            null, // No pledge ID for payments
+                            $paymentId, // Payment ID
+                            $amount,
+                            $packageId,
+                            $donorName,
+                            $status
+                        );
+                    } else {
+                        // Custom amounts (package_id 4 or null) - Use CustomAmountAllocator
+                        require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                        $customAllocator = new CustomAmountAllocator($db);
+                        
+                        $allocationResult = $customAllocator->processPaymentCustomAmount(
+                            $paymentId,
+                            $amount,
+                            $donorName,
+                            $status
+                        );
+                    }
                     
                     if (isset($allocationResult['success']) && $allocationResult['success']) {
                         $gridMessage = "Grid allocated successfully";
