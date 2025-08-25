@@ -62,34 +62,81 @@ $pendingByPackage = $db->query("
         dp.label as package_label,
         COUNT(*) as count,
         SUM(p.amount) as total_amount,
-        p.type
+        p.type,
+        p.source
     FROM pledges p 
     LEFT JOIN donation_packages dp ON p.package_id = dp.id
     WHERE p.status = 'pending'
-    GROUP BY p.package_id, p.type
-    ORDER BY p.package_id, p.type
+    GROUP BY p.package_id, p.type, p.source
+    ORDER BY p.package_id, p.type, p.source
+")->fetch_all(MYSQLI_ASSOC);
+
+// Get custom amount breakdown
+$customBreakdown = $db->query("
+    SELECT 
+        CASE 
+            WHEN amount < 100 THEN 'Under £100'
+            WHEN amount < 400 THEN '£100-£399'
+            ELSE '£400+'
+        END as amount_range,
+        COUNT(*) as count,
+        SUM(amount) as total,
+        AVG(amount) as avg_amount
+    FROM pledges 
+    WHERE status = 'pending' AND (package_id = 4 OR package_id IS NULL)
+    GROUP BY amount_range
+    ORDER BY MIN(amount)
 ")->fetch_all(MYSQLI_ASSOC);
 
 if (empty($pendingByPackage)) {
     echo "<div class='warning'>⚠️ No pending donations found to test</div>";
+    echo "<p><strong>Generate realistic test data:</strong> <a href='generate_realistic_test_data.php'>🧪 Data Generator</a></p>";
 } else {
+    echo "<h4>Package Distribution Analysis:</h4>";
     echo "<table>";
-    echo "<tr><th>Package ID</th><th>Package</th><th>Type</th><th>Count</th><th>Total</th><th>Expected Allocator</th></tr>";
+    echo "<tr><th>Package ID</th><th>Package</th><th>Type</th><th>Source</th><th>Count</th><th>Total</th><th>Allocator</th></tr>";
     foreach ($pendingByPackage as $row) {
         $packageId = $row['package_id'] ?? 'NULL';
-        $allocator = ($packageId && $packageId <= 3) ? "IntelligentGridAllocator" : "CustomAmountAllocator";
-        $color = ($packageId && $packageId <= 3) ? "color: blue;" : "color: green;";
+        // Updated: ALL packages now use CustomAmountAllocator
+        $allocator = "CustomAmountAllocator";
+        $color = "color: green;";
         
         echo "<tr>";
         echo "<td>$packageId</td>";
         echo "<td>" . ($row['package_label'] ?? 'Custom/No Package') . "</td>";
         echo "<td>" . ucfirst($row['type']) . "</td>";
+        echo "<td>" . ucfirst($row['source']) . "</td>";
         echo "<td>{$row['count']}</td>";
         echo "<td>£" . number_format($row['total_amount'], 2) . "</td>";
         echo "<td style='$color'><strong>$allocator</strong></td>";
         echo "</tr>";
     }
     echo "</table>";
+    
+    if (!empty($customBreakdown)) {
+        echo "<h4>Custom Amount Analysis:</h4>";
+        echo "<table>";
+        echo "<tr><th>Amount Range</th><th>Count</th><th>Total Value</th><th>Average</th><th>Allocation Behavior</th></tr>";
+        foreach ($customBreakdown as $row) {
+            $behavior = $row['amount_range'] === 'Under £100' ? 
+                       'Accumulate in custom_amount_tracking' : 
+                       'Immediate cell allocation + remainder tracking';
+            
+            echo "<tr>";
+            echo "<td><strong>{$row['amount_range']}</strong></td>";
+            echo "<td>{$row['count']}</td>";
+            echo "<td>£" . number_format($row['total'], 2) . "</td>";
+            echo "<td>£" . number_format($row['avg_amount'], 2) . "</td>";
+            echo "<td><em>$behavior</em></td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+    }
+    
+    // Get totals
+    $totalPending = $db->query("SELECT COUNT(*) as count, SUM(amount) as total FROM pledges WHERE status='pending'")->fetch_assoc();
+    echo "<h4>Overall Summary:</h4>";
+    echo "<p><strong>Total Pending:</strong> {$totalPending['count']} donations worth £" . number_format($totalPending['total'], 2) . "</p>";
 }
 ?>
 
@@ -98,54 +145,61 @@ if (empty($pendingByPackage)) {
 <div class='test-section'>
 <h2>3. 🔧 Allocation Logic Test</h2>
 
-<p><strong>Fixed Package Logic:</strong></p>
+<p><strong>Enhanced Unified Logic:</strong></p>
 <ul>
-<li>Package ID 1, 2, 3 → <span style="color: blue;"><strong>IntelligentGridAllocator</strong></span></li>
-<li>Package ID 4 or NULL → <span style="color: green;"><strong>CustomAmountAllocator</strong></span></li>
+<li>ALL PACKAGES → <span style="color: green;"><strong>CustomAmountAllocator</strong></span> (Enhanced with proportional allocation)</li>
+<li>Fixed packages get immediate allocation at exact package value</li>
+<li>Custom amounts get proportional allocation (every £100 = 1 cell)</li>
 </ul>
 
 <p><strong>Current Implementation in simple_approve.php:</strong></p>
 <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
-if ($packageId && $packageId <= 3) {
-    // Fixed packages - Use IntelligentGridAllocator
-    $gridAllocator = new IntelligentGridAllocator($db);
-    $allocationResult = $gridAllocator->allocate(...)
+// Use CustomAmountAllocator for ALL donations (enhanced)
+$customAllocator = new CustomAmountAllocator($db);
+
+if ($pledge['type'] === 'paid') {
+    $allocationResult = $customAllocator->processPaymentCustomAmount(...)
 } else {
-    // Custom amounts - Use CustomAmountAllocator  
-    $customAllocator = new CustomAmountAllocator($db);
     $allocationResult = $customAllocator->processCustomAmount(...)
 }
 </pre>
+
+<p><strong>Key Enhancement:</strong> <code>calculateCellsForAmount()</code> now uses <code>floor($amount / 100)</code> for maximum efficiency!</p>
 
 </div>
 
 <div class='test-section'>
 <h2>4. 🚀 Ready to Test</h2>
 
-<p><strong>To verify the fix:</strong></p>
+<p><strong>To verify the enhanced system:</strong></p>
 <ol>
-<li>Approve a <span style="color: blue;"><strong>fixed package donation</strong></span> (1m², 0.5m², 0.25m²)</li>
-<li>Approve a <span style="color: green;"><strong>custom amount donation</strong></span></li>
-<li>Check floor map for immediate allocation</li>
-<li>Check console for "Grid allocated successfully" message</li>
+<li><strong>Generate realistic test data:</strong> <a href="generate_realistic_test_data.php">🧪 Use Data Generator</a></li>
+<li>Approve a <strong>£100 donation</strong> → Should get exactly 1 cell</li>
+<li>Approve a <strong>£350 donation</strong> → Should get 3 cells + £50 remainder</li>
+<li>Approve a <strong>£75 donation</strong> → Should accumulate, no immediate cells</li>
+<li>Check floor map for proper allocation</li>
+<li>Test unapproval → Should restore custom_amount_tracking properly</li>
 </ol>
 
-<p><strong>Expected Results:</strong></p>
+<p><strong>Expected Enhanced Results:</strong></p>
 <ul>
-<li>✅ Fixed packages allocate exact cells immediately</li>
-<li>✅ Custom amounts under £100 accumulate in custom_amount_tracking</li>
-<li>✅ Custom amounts £100+ allocate appropriate cells + track remainder</li>
-<li>✅ Floor map updates correctly for both types</li>
+<li>✅ <strong>Maximum Efficiency:</strong> Every £100 gets exactly 1 cell (0.25m²)</li>
+<li>✅ <strong>No Waste:</strong> £350 now gets 3 cells instead of 2</li>
+<li>✅ <strong>Under £100:</strong> Accumulate in custom_amount_tracking</li>
+<li>✅ <strong>Proper Deallocation:</strong> Unapproval works for all amounts</li>
+<li>✅ <strong>Realistic Distribution:</strong> Most donations are standard packages</li>
 </ul>
 
 <div style="background: #d4edda; padding: 15px; border-radius: 5px; margin: 10px 0;">
-<h3>🎯 THE PROBLEM WAS FIXED:</h3>
-<p>I was forcing <strong>EVERYTHING</strong> through CustomAmountAllocator, but the system has TWO allocation methods:</p>
+<h3>🎯 THE SYSTEM WAS ENHANCED:</h3>
+<p>The enhanced allocation system now provides:</p>
 <ul>
-<li><strong>IntelligentGridAllocator</strong> for fixed packages (immediate cell allocation)</li>
-<li><strong>CustomAmountAllocator</strong> for custom amounts (accumulation logic)</li>
+<li><strong>✅ Unified Allocator:</strong> CustomAmountAllocator handles ALL donations efficiently</li>
+<li><strong>✅ Proportional Allocation:</strong> Every £100 = 1 cell (maximum efficiency)</li>
+<li><strong>✅ Complete Deallocation:</strong> Fixed the under £100 unapproval bug</li>
+<li><strong>✅ Realistic Test Data:</strong> Proper package distribution for real-world testing</li>
 </ul>
-<p>Now the system uses the CORRECT allocator based on package_id! 🚀</p>
+<p>Now the system is both MORE efficient AND has complete deallocation support! 🚀</p>
 </div>
 
 </div>
