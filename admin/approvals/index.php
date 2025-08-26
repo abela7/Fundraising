@@ -322,7 +322,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Combined pending items (pledges + payments), newest first
+// Pagination parameters
+$page = max(1, (int)($_GET['page'] ?? 1));
+$per_page = in_array((int)($_GET['per_page'] ?? 20), [10, 20, 50]) ? (int)($_GET['per_page'] ?? 20) : 20;
+$offset = ($page - 1) * $per_page;
+
+// Get total count for pagination
+$count_sql = "
+SELECT COUNT(*) as total FROM (
+  (SELECT p.id FROM pledges p WHERE p.status = 'pending')
+  UNION ALL
+  (SELECT pay.id FROM payments pay WHERE pay.status = 'pending')
+) as combined_count";
+$total_items = (int)$db->query($count_sql)->fetch_assoc()['total'];
+$total_pages = (int)ceil($total_items / $per_page);
+
+// Combined pending items (pledges + payments), newest first with pagination
 $combinedSql = "
 SELECT 'pledge' AS item_type, p.id AS item_id, p.amount, NULL AS method, p.notes, p.created_at,
        NULL AS sqm_meters, p.anonymous, p.donor_name, p.donor_phone, p.donor_email,
@@ -342,6 +357,7 @@ LEFT JOIN users u2 ON u2.id = pay.received_by_user_id
 LEFT JOIN donation_packages dp2 ON dp2.id = pay.package_id
 WHERE pay.status = 'pending'
 ORDER BY created_at DESC
+LIMIT $per_page OFFSET $offset
 ";
 $pending_items = $db->query($combinedSql)->fetch_all(MYSQLI_ASSOC);
 
@@ -406,6 +422,60 @@ if ($cntRes) {
               </div>
               <div class="card-body">
                 <?php include __DIR__ . '/partial_list.php'; ?>
+                
+                <?php if ($total_pages > 1): ?>
+                <nav aria-label="Pending items pagination" class="mt-4">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">
+                      Showing <?php echo min(($page - 1) * $per_page + 1, $total_items); ?> to 
+                      <?php echo min($page * $per_page, $total_items); ?> of <?php echo $total_items; ?> items
+                    </span>
+                    <div class="btn-group" role="group" aria-label="Items per page">
+                      <a href="?page=1&per_page=10" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 10 ? 'active' : ''; ?>">10</a>
+                      <a href="?page=1&per_page=20" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 20 ? 'active' : ''; ?>">20</a>
+                      <a href="?page=1&per_page=50" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 50 ? 'active' : ''; ?>">50</a>
+                    </div>
+                  </div>
+                  <ul class="pagination pagination-sm justify-content-center">
+                    <?php if ($page > 1): ?>
+                      <li class="page-item">
+                        <a class="page-link" href="?page=1&per_page=<?php echo $per_page; ?>" aria-label="First">
+                          <i class="fas fa-angle-double-left"></i>
+                        </a>
+                      </li>
+                      <li class="page-item">
+                        <a class="page-link" href="?page=<?php echo $page - 1; ?>&per_page=<?php echo $per_page; ?>" aria-label="Previous">
+                          <i class="fas fa-angle-left"></i>
+                        </a>
+                      </li>
+                    <?php endif; ?>
+                    
+                    <?php
+                    $start = max(1, $page - 2);
+                    $end = min($total_pages, $page + 2);
+                    
+                    for ($i = $start; $i <= $end; $i++):
+                    ?>
+                      <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
+                        <a class="page-link" href="?page=<?php echo $i; ?>&per_page=<?php echo $per_page; ?>"><?php echo $i; ?></a>
+                      </li>
+                    <?php endfor; ?>
+                    
+                    <?php if ($page < $total_pages): ?>
+                      <li class="page-item">
+                        <a class="page-link" href="?page=<?php echo $page + 1; ?>&per_page=<?php echo $per_page; ?>" aria-label="Next">
+                          <i class="fas fa-angle-right"></i>
+                        </a>
+                      </li>
+                      <li class="page-item">
+                        <a class="page-link" href="?page=<?php echo $total_pages; ?>&per_page=<?php echo $per_page; ?>" aria-label="Last">
+                          <i class="fas fa-angle-double-right"></i>
+                        </a>
+                      </li>
+                    <?php endif; ?>
+                  </ul>
+                </nav>
+                <?php endif; ?>
               </div>
           </div>
         </div>
