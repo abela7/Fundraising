@@ -355,34 +355,38 @@ if ($filter_type && in_array($filter_type, ['pledge', 'payment'])) {
 
 // Amount filter
 if ($filter_amount_min !== null) {
-    $where_conditions[] = 'p.amount >= ' . $filter_amount_min;
-    $payment_where_conditions[] = 'pay.amount >= ' . $filter_amount_min;
+    $where_conditions[] = 'p.amount >= ' . (float)$filter_amount_min;
+    $payment_where_conditions[] = 'pay.amount >= ' . (float)$filter_amount_min;
 }
 if ($filter_amount_max !== null) {
-    $where_conditions[] = 'p.amount <= ' . $filter_amount_max;
-    $payment_where_conditions[] = 'pay.amount <= ' . $filter_amount_max;
+    $where_conditions[] = 'p.amount <= ' . (float)$filter_amount_max;
+    $payment_where_conditions[] = 'pay.amount <= ' . (float)$filter_amount_max;
 }
 
 // Donor name filter
 if ($filter_donor) {
-    $where_conditions[] = 'p.donor_name LIKE \'%' . $db->escape_string($filter_donor) . '%\'';
-    $payment_where_conditions[] = 'pay.donor_name LIKE \'%' . $db->escape_string($filter_donor) . '%\'';
+    $escaped_donor = mysqli_real_escape_string($db, $filter_donor);
+    $where_conditions[] = 'p.donor_name LIKE \'%' . $escaped_donor . '%\'';
+    $payment_where_conditions[] = 'pay.donor_name LIKE \'%' . $escaped_donor . '%\'';
 }
 
 // Registrar filter
 if ($filter_registrar) {
-    $where_conditions[] = 'u.name LIKE \'%' . $db->escape_string($filter_registrar) . '%\'';
-    $payment_where_conditions[] = 'u2.name LIKE \'%' . $db->escape_string($filter_registrar) . '%\'';
+    $escaped_registrar = mysqli_real_escape_string($db, $filter_registrar);
+    $where_conditions[] = 'u.name LIKE \'%' . $escaped_registrar . '%\'';
+    $payment_where_conditions[] = 'u2.name LIKE \'%' . $escaped_registrar . '%\'';
 }
 
 // Date filter
 if ($filter_date_from) {
-    $where_conditions[] = 'DATE(p.created_at) >= \'' . $db->escape_string($filter_date_from) . '\'';
-    $payment_where_conditions[] = 'DATE(pay.created_at) >= \'' . $db->escape_string($filter_date_from) . '\'';
+    $escaped_date_from = mysqli_real_escape_string($db, $filter_date_from);
+    $where_conditions[] = 'DATE(p.created_at) >= \'' . $escaped_date_from . '\'';
+    $payment_where_conditions[] = 'DATE(pay.created_at) >= \'' . $escaped_date_from . '\'';
 }
 if ($filter_date_to) {
-    $where_conditions[] = 'DATE(p.created_at) <= \'' . $db->escape_string($filter_date_to) . '\'';
-    $payment_where_conditions[] = 'DATE(pay.created_at) <= \'' . $db->escape_string($filter_date_to) . '\'';
+    $escaped_date_to = mysqli_real_escape_string($db, $filter_date_to);
+    $where_conditions[] = 'DATE(p.created_at) <= \'' . $escaped_date_to . '\'';
+    $payment_where_conditions[] = 'DATE(pay.created_at) <= \'' . $escaped_date_to . '\'';
 }
 
 $where_clause = implode(' AND ', $where_conditions);
