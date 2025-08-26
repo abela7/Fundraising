@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/RateLimiter.php';
+require_once __DIR__ . '/../../shared/BotDetector.php';
 
 // Get settings (single row config)
 $db = db();
@@ -35,6 +37,28 @@ $error = '';
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
+    
+    // 🛡️ SECURITY: Rate Limiting & Bot Detection
+    $clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $rateLimiter = new RateLimiter($db);
+    $botDetector = new BotDetector($db);
+    
+    // Check if IP is blocked
+    $blockCheck = $rateLimiter->isBlocked($clientIP);
+    if ($blockCheck['blocked']) {
+        $retryTime = RateLimiter::formatRetryAfter($blockCheck['retry_after']);
+        $error = "Access temporarily restricted. Please try again in {$retryTime}. If you believe this is an error, please contact support.";
+        goto skip_processing;
+    }
+    
+    // Analyze for bot behavior
+    $botAnalysis = $botDetector->analyzeSubmission($_POST, $_SERVER);
+    if ($botAnalysis['is_bot']) {
+        // Log suspicious activity but don't reveal detection
+        error_log("Bot detected on donation form: IP={$clientIP}, Confidence={$botAnalysis['confidence']}, Reasons=" . implode(', ', $botAnalysis['reasons']));
+        $error = 'Please try again. If you continue to experience issues, contact support.';
+        goto skip_processing;
+    }
 
     // --- Step 1: Sanitize and collect all form inputs ---
     $name = trim((string)($_POST['name'] ?? ''));
@@ -119,7 +143,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please select a valid amount greater than zero.';
     }
 
-    // --- Step 3: If validation passes, process the database transaction ---
+    // --- Step 3: Check rate limits before database processing ---
+    if (empty($error)) {
+        // Get normalized phone for rate limiting
+        $normalizedPhone = null;
+        if (!$anonymous && $phone !== '') {
+            $normalizedPhone = $normalizeUk($phone);
+        }
+        
+        // Check submission limits
+        $limitCheck = $rateLimiter->checkSubmission($clientIP, $normalizedPhone);
+        if (!$limitCheck['allowed']) {
+            $retryTime = $limitCheck['retry_after'] ? RateLimiter::formatRetryAfter($limitCheck['retry_after']) : '';
+            $error = $limitCheck['reason'] . ($retryTime ? " Please try again in {$retryTime}." : '');
+            goto skip_processing;
+        }
+        
+        // Require CAPTCHA for suspicious activity (future enhancement)
+        if ($limitCheck['require_captcha']) {
+            // For now, just log this - CAPTCHA can be added later
+            error_log("CAPTCHA should be required for IP: {$clientIP}");
+        }
+    }
+    
+    // --- Step 4: If all security checks pass, process the database transaction ---
     if (empty($error)) {
         $db->begin_transaction();
         try {
@@ -245,6 +292,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $db->commit();
+            
+            // 🛡️ SECURITY: Record successful submission for rate limiting
+            $submissionMetadata = [
+                'type' => $type,
+                'amount' => $amount,
+                'anonymous' => $anonymousFlag,
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                'package' => $selectedPackage['label'] ?? 'custom'
+            ];
+            $rateLimiter->recordSubmission($clientIP, $normalizedPhone, $submissionMetadata);
+            
             $success = "Thank you! Your " . ($type === 'pledge' ? 'pledge' : 'payment') . " of {$currency} " . number_format($amount, 2) . " has been submitted for approval. You will be notified once it's processed.";
             
             // Clear form data after successful submission
@@ -254,6 +312,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // even if there's an exception (likely in audit logging)
             try {
                 $db->commit();
+                
+                // Still record submission for rate limiting even on partial success
+                $submissionMetadata = [
+                    'type' => $type,
+                    'amount' => $amount,
+                    'anonymous' => $anonymousFlag,
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                    'package' => $selectedPackage['label'] ?? 'custom',
+                    'partial_success' => true
+                ];
+                $rateLimiter->recordSubmission($clientIP, $normalizedPhone ?? null, $submissionMetadata);
+                
                 $success = "Thank you! Your " . ($type === 'pledge' ? 'pledge' : 'payment') . " of {$currency} " . number_format($amount, 2) . " has been submitted for approval. You will be notified once it's processed.";
                 $_POST = [];
             } catch (Exception $commitError) {
@@ -263,6 +333,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    
+    // Label for security-related early exits
+    skip_processing:
 }
 ?>
 <!DOCTYPE html>
@@ -331,6 +404,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <form method="POST" class="registration-form">
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="client_uuid" value="">
+                        
+                        <?php 
+                        // 🛡️ SECURITY: Add honeypot fields for bot detection
+                        echo BotDetector::generateHoneypotFields(); 
+                        ?>
                         
                         <!-- Donor Information -->
                         <div class="form-section">
@@ -480,5 +558,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/donate.js"></script>
+    
+    <?php 
+    // 🛡️ SECURITY: Add bot detection JavaScript
+    echo BotDetector::generateDetectionScript(); 
+    ?>
 </body>
 </html>
