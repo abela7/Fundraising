@@ -173,7 +173,7 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
                 onclick="openEditModal(<?php echo $pledge_id; ?>, '<?php echo htmlspecialchars($pledge_donor_name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_email ?? '', ENT_QUOTES); ?>', <?php echo $pledge_amount; ?>, <?php echo $pledge_sqm; ?>, '<?php echo htmlspecialchars($pledge_notes ?? '', ENT_QUOTES); ?>', '<?php echo $isPledge ? 'pledge' : 'payment'; ?>')">
             <i class="fas fa-edit"></i>
         </button>
-        <form class="action-form ajax-form" data-action="<?php echo $isPledge ? 'reject' : 'reject_payment'; ?>" data-item-id="<?php echo $pledge_id; ?>" onclick="event.stopPropagation();">
+        <form method="post" class="action-form" action="index.php" onclick="event.stopPropagation();">
             <?php echo csrf_input(); ?>
             <?php if ($isPledge): ?>
               <input type="hidden" name="action" value="reject">
@@ -182,11 +182,11 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
               <input type="hidden" name="action" value="reject_payment">
               <input type="hidden" name="payment_id" value="<?php echo $pledge_id; ?>">
             <?php endif; ?>
-            <button type="submit" class="btn btn-reject" data-loading-text="<i class='fas fa-spinner fa-spin'></i>">
+            <button type="submit" class="btn btn-reject">
                 <i class="fas fa-times"></i>
             </button>
         </form>
-        <form class="action-form ajax-form" data-action="<?php echo $isPledge ? 'approve' : 'approve_payment'; ?>" data-item-id="<?php echo $pledge_id; ?>" onclick="event.stopPropagation();">
+        <form method="post" class="action-form" action="index.php" onclick="event.stopPropagation();">
             <?php echo csrf_input(); ?>
             <?php if ($isPledge): ?>
               <input type="hidden" name="action" value="approve">
@@ -195,7 +195,7 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
               <input type="hidden" name="action" value="approve_payment">
               <input type="hidden" name="payment_id" value="<?php echo $pledge_id; ?>">
             <?php endif; ?>
-            <button type="submit" class="btn btn-approve" data-loading-text="<i class='fas fa-spinner fa-spin'></i>">
+            <button type="submit" class="btn btn-approve">
                 <i class="fas fa-check"></i>
             </button>
         </form>
