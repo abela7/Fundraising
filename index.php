@@ -649,7 +649,7 @@
              </h1>
              
              <div class="core-message fade-in">
-                 <span class="amharic">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።</span>
+                 <span class="amharic">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን!</span>
                  <span class="english">Liverpool Abune Teklehaymanot EOTC</span>
              </div>
             
