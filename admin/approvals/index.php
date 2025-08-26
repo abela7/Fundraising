@@ -322,22 +322,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// Filter and sort parameters
+$filter_type = $_GET['filter_type'] ?? '';
+$filter_amount_min = !empty($_GET['filter_amount_min']) ? (float)$_GET['filter_amount_min'] : null;
+$filter_amount_max = !empty($_GET['filter_amount_max']) ? (float)$_GET['filter_amount_max'] : null;
+$filter_donor = trim($_GET['filter_donor'] ?? '');
+$filter_registrar = trim($_GET['filter_registrar'] ?? '');
+$filter_date_from = $_GET['filter_date_from'] ?? '';
+$filter_date_to = $_GET['filter_date_to'] ?? '';
+$sort_by = $_GET['sort_by'] ?? 'created_at';
+$sort_order = in_array($_GET['sort_order'] ?? 'desc', ['asc', 'desc']) ? $_GET['sort_order'] : 'desc';
+
 // Pagination parameters
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = in_array((int)($_GET['per_page'] ?? 20), [10, 20, 50]) ? (int)($_GET['per_page'] ?? 20) : 20;
 $offset = ($page - 1) * $per_page;
 
+// Build WHERE conditions for filters
+$where_conditions = ['p.status = \'pending\''];
+$payment_where_conditions = ['pay.status = \'pending\''];
+
+// Type filter
+if ($filter_type && in_array($filter_type, ['pledge', 'payment'])) {
+    if ($filter_type === 'pledge') {
+        // Only show pledges, exclude payments from results
+        $payment_where_conditions[] = '1=0'; // This will exclude all payments
+    } else {
+        // Only show payments, exclude pledges from results  
+        $where_conditions[] = '1=0'; // This will exclude all pledges
+    }
+}
+
+// Amount filter
+if ($filter_amount_min !== null) {
+    $where_conditions[] = 'p.amount >= ' . $filter_amount_min;
+    $payment_where_conditions[] = 'pay.amount >= ' . $filter_amount_min;
+}
+if ($filter_amount_max !== null) {
+    $where_conditions[] = 'p.amount <= ' . $filter_amount_max;
+    $payment_where_conditions[] = 'pay.amount <= ' . $filter_amount_max;
+}
+
+// Donor name filter
+if ($filter_donor) {
+    $where_conditions[] = 'p.donor_name LIKE \'%' . $db->escape_string($filter_donor) . '%\'';
+    $payment_where_conditions[] = 'pay.donor_name LIKE \'%' . $db->escape_string($filter_donor) . '%\'';
+}
+
+// Registrar filter
+if ($filter_registrar) {
+    $where_conditions[] = 'u.name LIKE \'%' . $db->escape_string($filter_registrar) . '%\'';
+    $payment_where_conditions[] = 'u2.name LIKE \'%' . $db->escape_string($filter_registrar) . '%\'';
+}
+
+// Date filter
+if ($filter_date_from) {
+    $where_conditions[] = 'DATE(p.created_at) >= \'' . $db->escape_string($filter_date_from) . '\'';
+    $payment_where_conditions[] = 'DATE(pay.created_at) >= \'' . $db->escape_string($filter_date_from) . '\'';
+}
+if ($filter_date_to) {
+    $where_conditions[] = 'DATE(p.created_at) <= \'' . $db->escape_string($filter_date_to) . '\'';
+    $payment_where_conditions[] = 'DATE(pay.created_at) <= \'' . $db->escape_string($filter_date_to) . '\'';
+}
+
+$where_clause = implode(' AND ', $where_conditions);
+$payment_where_clause = implode(' AND ', $payment_where_conditions);
+
+// Map sort fields to actual columns
+$sort_mapping = [
+    'created_at' => 'created_at',
+    'amount' => 'amount',
+    'donor_name' => 'donor_name',
+    'registrar_name' => 'registrar_name',
+    'item_type' => 'item_type'
+];
+
+$sort_column = $sort_mapping[$sort_by] ?? 'created_at';
+$order_clause = "$sort_column $sort_order";
+
 // Get total count for pagination
 $count_sql = "
 SELECT COUNT(*) as total FROM (
-  (SELECT p.id FROM pledges p WHERE p.status = 'pending')
+  (SELECT p.id FROM pledges p 
+   LEFT JOIN users u ON p.created_by_user_id = u.id 
+   WHERE $where_clause)
   UNION ALL
-  (SELECT pay.id FROM payments pay WHERE pay.status = 'pending')
+  (SELECT pay.id FROM payments pay 
+   LEFT JOIN users u2 ON u2.id = pay.received_by_user_id 
+   WHERE $payment_where_clause)
 ) as combined_count";
+
 $total_items = (int)$db->query($count_sql)->fetch_assoc()['total'];
 $total_pages = (int)ceil($total_items / $per_page);
 
-// Combined pending items (pledges + payments), newest first with pagination
+// Combined pending items (pledges + payments) with filtering and sorting
 $combinedSql = "
 SELECT 'pledge' AS item_type, p.id AS item_id, p.amount, NULL AS method, p.notes, p.created_at,
        NULL AS sqm_meters, p.anonymous, p.donor_name, p.donor_phone, p.donor_email,
@@ -346,7 +424,7 @@ SELECT 'pledge' AS item_type, p.id AS item_id, p.amount, NULL AS method, p.notes
 FROM pledges p
 LEFT JOIN users u ON p.created_by_user_id = u.id
 LEFT JOIN donation_packages dp ON dp.id = p.package_id
-WHERE p.status = 'pending'
+WHERE $where_clause
 UNION ALL
 SELECT 'payment' AS item_type, pay.id AS item_id, pay.amount, pay.method, pay.reference AS notes, pay.created_at,
        NULL AS sqm_meters, 0 AS anonymous, pay.donor_name, pay.donor_phone, pay.donor_email,
@@ -355,8 +433,8 @@ SELECT 'payment' AS item_type, pay.id AS item_id, pay.amount, pay.method, pay.re
 FROM payments pay
 LEFT JOIN users u2 ON u2.id = pay.received_by_user_id
 LEFT JOIN donation_packages dp2 ON dp2.id = pay.package_id
-WHERE pay.status = 'pending'
-ORDER BY created_at DESC
+WHERE $payment_where_clause
+ORDER BY $order_clause
 LIMIT $per_page OFFSET $offset
 ";
 $pending_items = $db->query($combinedSql)->fetch_all(MYSQLI_ASSOC);
@@ -409,6 +487,9 @@ if ($cntRes) {
                   Pending Approvals
                 </h5>
                 <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false">
+                    <i class="fas fa-filter"></i> Filters & Sort
+                  </button>
                   <a href="../approved/" class="btn btn-sm btn-outline-success">
                     <i class="fas fa-check-circle"></i> View Approved
                   </a>
@@ -418,6 +499,79 @@ if ($cntRes) {
                   <button class="btn btn-sm btn-outline-secondary" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
                     <i class="fas fa-play"></i> <span id="autoRefreshText">Auto Refresh</span>
                   </button>
+                </div>
+              </div>
+              
+              <!-- Filters and Sort Panel -->
+              <div class="collapse" id="filtersCollapse">
+                <div class="card-body border-bottom bg-light">
+                  <form method="GET" action="index.php" class="row g-3">
+                    <div class="col-md-3">
+                      <label class="form-label">Type</label>
+                      <select name="filter_type" class="form-select form-select-sm">
+                        <option value="">All Types</option>
+                        <option value="pledge" <?php echo $filter_type === 'pledge' ? 'selected' : ''; ?>>Pledges Only</option>
+                        <option value="payment" <?php echo $filter_type === 'payment' ? 'selected' : ''; ?>>Payments Only</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">Amount Range</label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text">£</span>
+                        <input type="number" name="filter_amount_min" class="form-control" placeholder="Min" step="0.01" value="<?php echo htmlspecialchars($filter_amount_min ?? ''); ?>">
+                        <span class="input-group-text">to</span>
+                        <input type="number" name="filter_amount_max" class="form-control" placeholder="Max" step="0.01" value="<?php echo htmlspecialchars($filter_amount_max ?? ''); ?>">
+                      </div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label">Date From</label>
+                      <input type="date" name="filter_date_from" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filter_date_from); ?>">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label">Date To</label>
+                      <input type="date" name="filter_date_to" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filter_date_to); ?>">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label">Sort By</label>
+                      <select name="sort_by" class="form-select form-select-sm">
+                        <option value="created_at" <?php echo $sort_by === 'created_at' ? 'selected' : ''; ?>>Created Date</option>
+                        <option value="amount" <?php echo $sort_by === 'amount' ? 'selected' : ''; ?>>Amount</option>
+                        <option value="donor_name" <?php echo $sort_by === 'donor_name' ? 'selected' : ''; ?>>Donor Name</option>
+                        <option value="registrar_name" <?php echo $sort_by === 'registrar_name' ? 'selected' : ''; ?>>Registrar</option>
+                        <option value="item_type" <?php echo $sort_by === 'item_type' ? 'selected' : ''; ?>>Type</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Search Donor</label>
+                      <input type="text" name="filter_donor" class="form-control form-control-sm" placeholder="Search by donor name..." value="<?php echo htmlspecialchars($filter_donor); ?>">
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">Search Registrar</label>
+                      <input type="text" name="filter_registrar" class="form-control form-control-sm" placeholder="Search by registrar..." value="<?php echo htmlspecialchars($filter_registrar); ?>">
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label">Order</label>
+                      <select name="sort_order" class="form-select form-select-sm">
+                        <option value="desc" <?php echo $sort_order === 'desc' ? 'selected' : ''; ?>>Newest First</option>
+                        <option value="asc" <?php echo $sort_order === 'asc' ? 'selected' : ''; ?>>Oldest First</option>
+                      </select>
+                    </div>
+                    <div class="col-md-1">
+                      <label class="form-label">&nbsp;</label>
+                      <div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                          <i class="fas fa-search"></i> Apply
+                        </button>
+                      </div>
+                    </div>
+                    <?php if ($filter_type || $filter_amount_min || $filter_amount_max || $filter_donor || $filter_registrar || $filter_date_from || $filter_date_to || $sort_by !== 'created_at' || $sort_order !== 'desc'): ?>
+                    <div class="col-12">
+                      <a href="index.php" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-times"></i> Clear All Filters
+                      </a>
+                    </div>
+                    <?php endif; ?>
+                  </form>
                 </div>
               </div>
               <div class="card-body">
@@ -430,21 +584,39 @@ if ($cntRes) {
                       Showing <?php echo min(($page - 1) * $per_page + 1, $total_items); ?> to 
                       <?php echo min($page * $per_page, $total_items); ?> of <?php echo $total_items; ?> items
                     </span>
+                    <?php
+                    // Build query string for maintaining filters in pagination
+                    $filter_params = [];
+                    if ($filter_type) $filter_params['filter_type'] = $filter_type;
+                    if ($filter_amount_min !== null) $filter_params['filter_amount_min'] = $filter_amount_min;
+                    if ($filter_amount_max !== null) $filter_params['filter_amount_max'] = $filter_amount_max;
+                    if ($filter_donor) $filter_params['filter_donor'] = $filter_donor;
+                    if ($filter_registrar) $filter_params['filter_registrar'] = $filter_registrar;
+                    if ($filter_date_from) $filter_params['filter_date_from'] = $filter_date_from;
+                    if ($filter_date_to) $filter_params['filter_date_to'] = $filter_date_to;
+                    if ($sort_by !== 'created_at') $filter_params['sort_by'] = $sort_by;
+                    if ($sort_order !== 'desc') $filter_params['sort_order'] = $sort_order;
+                    
+                    function build_pagination_url_approvals($page_num, $per_page_num, $filter_params) {
+                      $params = array_merge($filter_params, ['page' => $page_num, 'per_page' => $per_page_num]);
+                      return '?' . http_build_query($params);
+                    }
+                    ?>
                     <div class="btn-group" role="group" aria-label="Items per page">
-                      <a href="?page=1&per_page=10" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 10 ? 'active' : ''; ?>">10</a>
-                      <a href="?page=1&per_page=20" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 20 ? 'active' : ''; ?>">20</a>
-                      <a href="?page=1&per_page=50" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 50 ? 'active' : ''; ?>">50</a>
+                      <a href="<?php echo build_pagination_url_approvals(1, 10, $filter_params); ?>" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 10 ? 'active' : ''; ?>">10</a>
+                      <a href="<?php echo build_pagination_url_approvals(1, 20, $filter_params); ?>" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 20 ? 'active' : ''; ?>">20</a>
+                      <a href="<?php echo build_pagination_url_approvals(1, 50, $filter_params); ?>" class="btn btn-sm btn-outline-secondary <?php echo $per_page == 50 ? 'active' : ''; ?>">50</a>
                     </div>
                   </div>
                   <ul class="pagination pagination-sm justify-content-center">
                     <?php if ($page > 1): ?>
                       <li class="page-item">
-                        <a class="page-link" href="?page=1&per_page=<?php echo $per_page; ?>" aria-label="First">
+                        <a class="page-link" href="<?php echo build_pagination_url_approvals(1, $per_page, $filter_params); ?>" aria-label="First">
                           <i class="fas fa-angle-double-left"></i>
                         </a>
                       </li>
                       <li class="page-item">
-                        <a class="page-link" href="?page=<?php echo $page - 1; ?>&per_page=<?php echo $per_page; ?>" aria-label="Previous">
+                        <a class="page-link" href="<?php echo build_pagination_url_approvals($page - 1, $per_page, $filter_params); ?>" aria-label="Previous">
                           <i class="fas fa-angle-left"></i>
                         </a>
                       </li>
@@ -457,18 +629,18 @@ if ($cntRes) {
                     for ($i = $start; $i <= $end; $i++):
                     ?>
                       <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                        <a class="page-link" href="?page=<?php echo $i; ?>&per_page=<?php echo $per_page; ?>"><?php echo $i; ?></a>
+                        <a class="page-link" href="<?php echo build_pagination_url_approvals($i, $per_page, $filter_params); ?>"><?php echo $i; ?></a>
                       </li>
                     <?php endfor; ?>
                     
                     <?php if ($page < $total_pages): ?>
                       <li class="page-item">
-                        <a class="page-link" href="?page=<?php echo $page + 1; ?>&per_page=<?php echo $per_page; ?>" aria-label="Next">
+                        <a class="page-link" href="<?php echo build_pagination_url_approvals($page + 1, $per_page, $filter_params); ?>" aria-label="Next">
                           <i class="fas fa-angle-right"></i>
                         </a>
                       </li>
                       <li class="page-item">
-                        <a class="page-link" href="?page=<?php echo $total_pages; ?>&per_page=<?php echo $per_page; ?>" aria-label="Last">
+                        <a class="page-link" href="<?php echo build_pagination_url_approvals($total_pages, $per_page, $filter_params); ?>" aria-label="Last">
                           <i class="fas fa-angle-double-right"></i>
                         </a>
                       </li>
