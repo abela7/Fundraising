@@ -5,6 +5,22 @@ require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
 require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+
+// Helper function to build redirect URL preserving current filter parameters
+function buildRedirectUrl($message, $postData = []) {
+    $params = ['msg' => $message];
+    
+    // Preserve filter and pagination parameters from POST data (since they were submitted with the form)
+    $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+    
+    foreach ($preserveParams as $param) {
+        if (isset($postData[$param]) && $postData[$param] !== '') {
+            $params[$param] = $postData[$param];
+        }
+    }
+    
+    return 'index.php?' . http_build_query($params);
+}
 require_login();
 require_admin();
 
@@ -314,11 +330,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $actionMsg = 'Error: ' . $e->getMessage();
             }
         }
-        header('Location: index.php?msg=' . urlencode($actionMsg));
+        header('Location: ' . buildRedirectUrl($actionMsg, $_POST));
         exit;
     }
     // PRG: redirect to avoid resubmission and show flash message
-    header('Location: index.php?msg=' . urlencode($actionMsg));
+    header('Location: ' . buildRedirectUrl($actionMsg, $_POST));
     exit;
 }
 
@@ -717,6 +733,16 @@ if ($cntRes) {
           <input type="hidden" name="action" id="editAction" value="update">
           <input type="hidden" name="pledge_id" id="editPledgeId">
           <input type="hidden" name="payment_id" id="editPaymentId">
+          
+          <?php 
+          // Preserve current filter and pagination parameters in edit form
+          $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+          foreach ($preserveParams as $param) {
+              if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                  echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+              }
+          }
+          ?>
           <input type="hidden" name="method" id="editMethodHidden">
           
           <div class="row">

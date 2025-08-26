@@ -4,6 +4,23 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
+
+// Helper function to build redirect URL preserving current filter parameters
+function buildRedirectUrl($message, $postData = []) {
+    $params = ['msg' => $message];
+    
+    // Preserve filter and pagination parameters from POST data (since they were submitted with the form)
+    $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+    
+    foreach ($preserveParams as $param) {
+        if (isset($postData[$param]) && $postData[$param] !== '') {
+            $params[$param] = $postData[$param];
+        }
+    }
+    
+    return 'index.php?' . http_build_query($params);
+}
+
 require_login();
 require_admin();
 
@@ -273,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    header('Location: index.php?msg=' . urlencode($actionMsg));
+    header('Location: ' . buildRedirectUrl($actionMsg, $_POST));
     exit;
 }
 
@@ -636,6 +653,16 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
           <?php echo csrf_input(); ?>
           <input type="hidden" name="action" value="update_pledge">
           <input type="hidden" name="pledge_id" id="editPledgeId">
+          
+          <?php 
+          // Preserve current filter and pagination parameters in edit form
+          $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+          foreach ($preserveParams as $param) {
+              if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                  echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+              }
+          }
+          ?>
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
@@ -702,6 +729,16 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
           <?php echo csrf_input(); ?>
           <input type="hidden" name="action" value="update_payment">
           <input type="hidden" name="payment_id" id="editPaymentId">
+          
+          <?php 
+          // Preserve current filter and pagination parameters in edit form
+          $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+          foreach ($preserveParams as $param) {
+              if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                  echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+              }
+          }
+          ?>
           <div class="mb-3">
             <label class="form-label">Amount (£)</label>
             <input type="number" class="form-control" id="editPaymentAmount" name="payment_amount" step="0.01" min="0" required>

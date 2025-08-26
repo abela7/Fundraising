@@ -182,6 +182,16 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
               <input type="hidden" name="action" value="reject_payment">
               <input type="hidden" name="payment_id" value="<?php echo $pledge_id; ?>">
             <?php endif; ?>
+            
+            <?php 
+            // Preserve current filter and pagination parameters
+            $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+            foreach ($preserveParams as $param) {
+                if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                    echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+                }
+            }
+            ?>
             <button type="submit" class="btn btn-reject">
                 <i class="fas fa-times"></i>
             </button>
@@ -195,6 +205,16 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
               <input type="hidden" name="action" value="approve_payment">
               <input type="hidden" name="payment_id" value="<?php echo $pledge_id; ?>">
             <?php endif; ?>
+            
+            <?php 
+            // Preserve current filter and pagination parameters
+            $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+            foreach ($preserveParams as $param) {
+                if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                    echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+                }
+            }
+            ?>
             <button type="submit" class="btn btn-approve">
                 <i class="fas fa-check"></i>
             </button>

@@ -81,6 +81,16 @@ if (empty($approved)) {
           <?php echo csrf_input(); ?>
           <input type="hidden" name="action" value="undo">
           <input type="hidden" name="pledge_id" value="<?php echo $pledge_id; ?>">
+          
+          <?php 
+          // Preserve current filter and pagination parameters
+          $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+          foreach ($preserveParams as $param) {
+              if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                  echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+              }
+          }
+          ?>
           <button class="btn btn-sm btn-danger" title="Undo approval"><i class="fas fa-undo"></i></button>
         </form>
       <?php else: ?>
@@ -89,6 +99,16 @@ if (empty($approved)) {
           <input type="hidden" name="action" value="undo_payment">
           <input type="hidden" name="payment_id" value="<?php echo (int)($payment_id ?? 0); ?>">
           <input type="hidden" name="payment_amount" value="<?php echo (float)($payment_amount ?? 0); ?>">
+          
+          <?php 
+          // Preserve current filter and pagination parameters
+          $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+          foreach ($preserveParams as $param) {
+              if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                  echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+              }
+          }
+          ?>
           <button class="btn btn-sm btn-warning" title="Undo payment approval"><i class="fas fa-rotate-left"></i></button>
         </form>
       <?php endif; ?>
