@@ -538,9 +538,9 @@ function h($value) {
             // Passcode copy functionality removed for security
             // Passcodes are now only shown during approval process
             
-            <?php if (isset($_SESSION['approved_registrar'])): ?>
             // WhatsApp sharing function
             function shareOnWhatsApp() {
+                <?php if (isset($_SESSION['approved_registrar'])): ?>
                 const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
                 
                 // Format the message
@@ -585,8 +585,10 @@ Please save this code for future use!`;
                     button.classList.remove('btn-success');
                     button.classList.add('btn-light');
                 }, 2000);
+                <?php else: ?>
+                alert('Session expired. Please refresh the page and try again.');
+                <?php endif; ?>
             }
-            <?php endif; ?>
             
             // Smooth animations for new applications (if any are added dynamically)
             const applications = document.querySelectorAll('.application-card');
