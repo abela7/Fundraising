@@ -51,22 +51,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'permanent_delete') {
         $id = (int)$_POST['id'];
         // First check if this member has any associated data
-        $stmt = $db->prepare('SELECT COUNT(*) as count FROM pledges WHERE registered_by_user_id = ?');
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM pledges WHERE approved_by_user_id = ?');
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
         
         if ($result['count'] > 0) {
-            $msg = 'Cannot delete member: Member has associated pledge registrations. Please deactivate instead.';
+            $msg = 'Cannot delete member: Member has associated pledge approvals. Please deactivate instead.';
         } else {
             // Check for payments as well
-            $stmt = $db->prepare('SELECT COUNT(*) as count FROM payments WHERE registered_by_user_id = ?');
+            $stmt = $db->prepare('SELECT COUNT(*) as count FROM payments WHERE received_by_user_id = ?');
             $stmt->bind_param('i', $id);
             $stmt->execute();
             $result = $stmt->get_result()->fetch_assoc();
             
             if ($result['count'] > 0) {
-                $msg = 'Cannot delete member: Member has associated payment registrations. Please deactivate instead.';
+                $msg = 'Cannot delete member: Member has associated payment records. Please deactivate instead.';
             } else {
                 // Safe to delete
                 $stmt = $db->prepare('DELETE FROM users WHERE id = ?');
