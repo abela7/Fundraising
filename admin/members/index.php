@@ -68,11 +68,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result['count'] > 0) {
                 $msg = 'Cannot delete member: Member has associated payment records. Please deactivate instead.';
             } else {
-                // Safe to delete
-                $stmt = $db->prepare('DELETE FROM users WHERE id = ?');
-                $stmt->bind_param('i', $id);
-                $stmt->execute();
-                $msg = 'Member permanently deleted';
+                // Safe to delete - use transaction to ensure both operations succeed
+                $db->begin_transaction();
+                
+                try {
+                    // First, delete any related registrar application record
+                    // Find the registrar application by matching email and phone
+                    $stmt = $db->prepare('SELECT email, phone FROM users WHERE id = ?');
+                    $stmt->bind_param('i', $id);
+                    $stmt->execute();
+                    $userResult = $stmt->get_result()->fetch_assoc();
+                    
+                    if ($userResult) {
+                        // Delete matching registrar application
+                        $stmt = $db->prepare('DELETE FROM registrar_applications WHERE email = ? OR phone = ?');
+                        $stmt->bind_param('ss', $userResult['email'], $userResult['phone']);
+                        $stmt->execute();
+                    }
+                    
+                    // Then delete the user
+                    $stmt = $db->prepare('DELETE FROM users WHERE id = ?');
+                    $stmt->bind_param('i', $id);
+                    $stmt->execute();
+                    
+                    // Commit the transaction
+                    $db->commit();
+                    $msg = 'Member permanently deleted (including registrar application record)';
+                    
+                } catch (Exception $e) {
+                    // Rollback on error
+                    $db->rollback();
+                    $msg = 'Error deleting member: ' . $e->getMessage();
+                }
             }
         }
     }
