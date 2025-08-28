@@ -221,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </h6>
                             <ul class="info-list">
                                 <li><i class="fas fa-check text-success me-2"></i>Your application will be reviewed by an administrator</li>
-                                <li><i class="fas fa-check text-success me-2"></i>You'll receive login credentials via email if approved</li>
+                                <li><i class="fas fa-check text-success me-2"></i>You'll receive login credentials via WhatsApp if approved</li>
                                 <li><i class="fas fa-check text-success me-2"></i>You can then start registering donations and pledges</li>
                             </ul>
                         </div>
