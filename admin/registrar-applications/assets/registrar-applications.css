@@ -508,6 +508,49 @@
   color: var(--status-approved);
 }
 
+/* WhatsApp Share Styling */
+.alert[style*="25D366"] {
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+  animation: whatsapp-pulse 2s ease-in-out;
+}
+
+.alert[style*="25D366"] .btn-light {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #128C7E;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  transition: all 0.3s ease;
+}
+
+.alert[style*="25D366"] .btn-light:hover {
+  background: white;
+  border-color: white;
+  color: #25D366;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.alert[style*="25D366"] .btn-success {
+  background: rgba(34, 197, 94, 0.9) !important;
+  border-color: rgba(34, 197, 94, 0.9) !important;
+  color: white !important;
+}
+
+@keyframes whatsapp-pulse {
+  0% {
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.5);
+  }
+  100% {
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+  }
+}
+
 /* Empty State Enhancement */
 .empty-state {
   text-align: center;

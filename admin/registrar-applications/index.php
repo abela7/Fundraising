@@ -57,7 +57,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->close();
                 
                 $db->commit();
-                $msg = "Application approved successfully! Registrar account created with passcode: <strong>{$passcode}</strong><br><small class='text-muted'>Please share this passcode with {$app['name']} securely. This passcode will not be visible again for security reasons.</small>";
+                
+                // Store the passcode and user details in session for WhatsApp sharing
+                $_SESSION['approved_registrar'] = [
+                    'name' => $app['name'],
+                    'phone' => $app['phone'],
+                    'passcode' => $passcode,
+                    'timestamp' => time()
+                ];
+                
+                $msg = "Application approved successfully! Registrar account created with passcode: <strong>{$passcode}</strong><br><small class='text-muted'>Use the WhatsApp share button below to send login details to {$app['name']} securely.</small>";
             } catch (Exception $e) {
                 $db->rollback();
                 $error = 'Failed to approve application: ' . $e->getMessage();
@@ -173,6 +182,31 @@ function h($value) {
                             <?php echo $msg; ?>
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
+                        
+                        <?php if (isset($_SESSION['approved_registrar'])): ?>
+                            <?php 
+                            $approvedData = $_SESSION['approved_registrar'];
+                            // Clear the session data after 5 minutes for security
+                            if (time() - $approvedData['timestamp'] > 300) {
+                                unset($_SESSION['approved_registrar']);
+                            } else {
+                            ?>
+                            <div class="alert alert-info border-0" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white;">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fab fa-whatsapp fa-2x me-3"></i>
+                                        <div>
+                                            <h6 class="mb-1 text-white">Share Login Details via WhatsApp</h6>
+                                            <small class="text-white opacity-75">Send secure login instructions to <?php echo h($approvedData['name']); ?></small>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-light btn-sm" onclick="shareOnWhatsApp()">
+                                        <i class="fab fa-whatsapp me-2"></i>Share Now
+                                    </button>
+                                </div>
+                            </div>
+                            <?php } ?>
+                        <?php endif; ?>
                     <?php endif; ?>
                     
                     <?php if ($error): ?>
@@ -503,6 +537,56 @@ function h($value) {
             
             // Passcode copy functionality removed for security
             // Passcodes are now only shown during approval process
+            
+            <?php if (isset($_SESSION['approved_registrar'])): ?>
+            // WhatsApp sharing function
+            function shareOnWhatsApp() {
+                const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
+                
+                // Format the message
+                const message = `Dear ${approvedData.name},
+
+Thanks for registering to become a registrar. You are now approved to be a registrar.
+
+Use your phone number and the code to login. Before you login watch and understand this video:
+https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
+
+Once you understand you can login and try around before the main event starts. If you have any question or face any technical problem don't forget to contact us anytime.
+
+Your access code is: ${approvedData.passcode}
+
+Please save this code for future use!`;
+
+                // Format phone number for WhatsApp (remove non-digits and add country code if needed)
+                let phoneNumber = approvedData.phone.replace(/\D/g, '');
+                
+                // Add country code if not present (assuming UK +44 if number doesn't start with country code)
+                if (!phoneNumber.startsWith('44') && phoneNumber.length === 11 && phoneNumber.startsWith('0')) {
+                    phoneNumber = '44' + phoneNumber.substring(1);
+                } else if (!phoneNumber.startsWith('44') && phoneNumber.length === 10) {
+                    phoneNumber = '44' + phoneNumber;
+                }
+                
+                // Create WhatsApp URL
+                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+                
+                // Open WhatsApp
+                window.open(whatsappUrl, '_blank');
+                
+                // Show confirmation
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check me-2"></i>Sent!';
+                button.classList.add('btn-success');
+                button.classList.remove('btn-light');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-light');
+                }, 2000);
+            }
+            <?php endif; ?>
             
             // Smooth animations for new applications (if any are added dynamically)
             const applications = document.querySelectorAll('.application-card');
