@@ -40,15 +40,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $userId = $db->insert_id;
                 $stmt->close();
                 
-                // Update application status
+                // Update application status - store hashed passcode for security
                 $adminId = current_user()['id'];
-                $stmt = $db->prepare('UPDATE registrar_applications SET status = "approved", passcode = ?, approved_by_user_id = ?, approved_at = NOW() WHERE id = ?');
-                $stmt->bind_param('sii', $passcode, $adminId, $appId);
+                // Check if passcode_hash column exists, if not use old column temporarily
+                $columnCheck = $db->query("SHOW COLUMNS FROM registrar_applications LIKE 'passcode_hash'");
+                if ($columnCheck->num_rows > 0) {
+                    // New secure method - store hashed passcode
+                    $stmt = $db->prepare('UPDATE registrar_applications SET status = "approved", passcode_hash = ?, approved_by_user_id = ?, approved_at = NOW() WHERE id = ?');
+                    $stmt->bind_param('sii', $hash, $adminId, $appId);
+                } else {
+                    // Fallback to old method (for backward compatibility during migration)
+                    $stmt = $db->prepare('UPDATE registrar_applications SET status = "approved", passcode = ?, approved_by_user_id = ?, approved_at = NOW() WHERE id = ?');
+                    $stmt->bind_param('sii', $passcode, $adminId, $appId);
+                }
                 $stmt->execute();
                 $stmt->close();
                 
                 $db->commit();
-                $msg = "Application approved successfully! Registrar account created with passcode: <strong>{$passcode}</strong><br><small class='text-muted'>Please share this passcode with {$app['name']} securely.</small>";
+                $msg = "Application approved successfully! Registrar account created with passcode: <strong>{$passcode}</strong><br><small class='text-muted'>Please share this passcode with {$app['name']} securely. This passcode will not be visible again for security reasons.</small>";
             } catch (Exception $e) {
                 $db->rollback();
                 $error = 'Failed to approve application: ' . $e->getMessage();
@@ -325,10 +334,14 @@ function h($value) {
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <?php if ($app['passcode'] && $app['status'] === 'approved'): ?>
+                                    <?php if ($app['status'] === 'approved' && (isset($app['passcode']) || isset($app['passcode_hash']))): ?>
                                         <div class="passcode-display">
-                                            <div class="passcode-label">Generated Login Passcode</div>
-                                            <div class="passcode-value"><?php echo h($app['passcode']); ?></div>
+                                            <div class="passcode-label">Login Passcode Status</div>
+                                            <div class="passcode-secure-message">
+                                                <i class="fas fa-shield-alt me-2"></i>
+                                                <strong>Secure:</strong> Passcode was generated and shared during approval.
+                                                <br><small class="text-muted mt-1 d-block">For security, passcodes are not stored in plain text and cannot be viewed again.</small>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                     
@@ -488,38 +501,8 @@ function h($value) {
                 });
             });
             
-            // Auto-select and copy passcode when clicked
-            const passcodes = document.querySelectorAll('.passcode-value');
-            passcodes.forEach(passcode => {
-                passcode.style.cursor = 'pointer';
-                passcode.title = 'Click to copy passcode';
-                
-                passcode.addEventListener('click', function() {
-                    // Select the text
-                    const range = document.createRange();
-                    range.selectNode(this);
-                    window.getSelection().removeAllRanges();
-                    window.getSelection().addRange(range);
-                    
-                    // Copy to clipboard
-                    try {
-                        document.execCommand('copy');
-                        
-                        // Show feedback
-                        const originalText = this.textContent;
-                        this.textContent = 'Copied!';
-                        this.style.color = '#059669';
-                        
-                        setTimeout(() => {
-                            this.textContent = originalText;
-                            this.style.color = '';
-                            window.getSelection().removeAllRanges();
-                        }, 1500);
-                    } catch (err) {
-                        console.log('Copy failed:', err);
-                    }
-                });
-            });
+            // Passcode copy functionality removed for security
+            // Passcodes are now only shown during approval process
             
             // Smooth animations for new applications (if any are added dynamically)
             const applications = document.querySelectorAll('.application-card');
