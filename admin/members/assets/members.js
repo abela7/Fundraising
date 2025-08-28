@@ -57,6 +57,28 @@ function toggleMemberStatus(id, action) {
   }
 }
 
+// Delete member permanently
+function deleteMemberPermanently(id, name) {
+  // Set member details in modal
+  document.getElementById('deleteMemberName').textContent = name;
+  document.getElementById('delete_id').value = id;
+  
+  // Show confirmation modal
+  const modal = new bootstrap.Modal(document.getElementById('deleteMemberModal'));
+  modal.show();
+  
+  // Handle confirm button click
+  const confirmBtn = document.getElementById('confirmDeleteBtn');
+  confirmBtn.onclick = function() {
+    // Add loading state
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
+    
+    // Submit the form
+    document.getElementById('deleteMemberForm').submit();
+  };
+}
+
 // Add loading state to forms
 document.querySelectorAll('form').forEach(form => {
   form.addEventListener('submit', function() {

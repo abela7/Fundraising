@@ -48,6 +48,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)$_POST['id'];
         $db->query('UPDATE users SET active=1 WHERE id=' . $id);
         $msg = 'Member activated';
+    } elseif ($action === 'permanent_delete') {
+        $id = (int)$_POST['id'];
+        // First check if this member has any associated data
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM pledges WHERE registered_by_user_id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        
+        if ($result['count'] > 0) {
+            $msg = 'Cannot delete member: Member has associated pledge registrations. Please deactivate instead.';
+        } else {
+            // Check for payments as well
+            $stmt = $db->prepare('SELECT COUNT(*) as count FROM payments WHERE registered_by_user_id = ?');
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            
+            if ($result['count'] > 0) {
+                $msg = 'Cannot delete member: Member has associated payment registrations. Please deactivate instead.';
+            } else {
+                // Safe to delete
+                $stmt = $db->prepare('DELETE FROM users WHERE id = ?');
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+                $msg = 'Member permanently deleted';
+            }
+        }
     }
 }
 
@@ -174,6 +201,11 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
                         <i class="fas fa-check"></i>
                       </button>
                       <?php endif; ?>
+                      <button type="button" class="btn btn-sm btn-light text-danger" 
+                              onclick="event.stopPropagation(); deleteMemberPermanently(<?php echo (int)$r['id']; ?>, '<?php echo htmlspecialchars($r['name']); ?>')"
+                              data-bs-toggle="tooltip" title="Delete Permanently">
+                        <i class="fas fa-trash"></i>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -318,6 +350,51 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
   <input type="hidden" name="action" id="toggle_action">
   <input type="hidden" name="id" id="toggle_id">
 </form>
+
+<form method="post" id="deleteMemberForm" class="d-none">
+  <?php echo csrf_input(); ?>
+  <input type="hidden" name="action" value="permanent_delete">
+  <input type="hidden" name="id" id="delete_id">
+</form>
+
+<!-- Delete Member Confirmation Modal -->
+<div class="modal fade" id="deleteMemberModal" tabindex="-1" aria-labelledby="deleteMemberModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deleteMemberModalLabel">
+          <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete Member
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger">
+          <i class="fas fa-warning me-2"></i>
+          <strong>Warning:</strong> This action cannot be undone!
+        </div>
+        <p>Are you sure you want to <strong>permanently delete</strong> the member:</p>
+        <div class="text-center p-3 bg-light rounded">
+          <h5 class="text-danger mb-0" id="deleteMemberName"></h5>
+        </div>
+        <div class="mt-3">
+          <small class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Note:</strong> If this member has any associated pledge or payment registrations, 
+            the deletion will be prevented and you'll need to deactivate the member instead.
+          </small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times me-2"></i>Cancel
+        </button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+          <i class="fas fa-trash me-2"></i>Delete Permanently
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Member Statistics Modal -->
 <div class="modal fade" id="memberStatsModal" tabindex="-1" aria-labelledby="memberStatsModalLabel" aria-hidden="true">
