@@ -134,21 +134,16 @@
   padding: 1rem 1.5rem;
 }
 
-/* Delete Modal Specific Styles */
-#deleteMemberModal .alert-danger {
-  border: 2px solid var(--danger);
-  background: rgba(220, 53, 69, 0.1);
-  border-radius: 8px;
+/* Inline Delete Form Styling */
+form[onsubmit*="PERMANENT DELETE"] {
+  display: inline-block !important;
+  margin: 0;
+  padding: 0;
 }
 
-#deleteMemberModal .bg-light {
-  background: var(--gray-100) !important;
-  border: 2px dashed var(--danger-light);
-}
-
-#deleteMemberModal #deleteMemberName {
-  font-family: 'Georgia', serif;
-  font-style: italic;
+form[onsubmit*="PERMANENT DELETE"] .btn {
+  margin-left: 2px;
+  border-left: 1px solid var(--danger-light);
 }
 
 /* Edit Form Row */
