@@ -105,6 +105,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </form>
 
                 <div class="auth-footer">
+                    <div class="text-center mb-3">
+                        <hr class="my-3">
+                        <p class="mb-2">
+                            <small class="text-muted">Don't have a registrar account?</small>
+                        </p>
+                        <a href="register.php" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-user-plus me-1"></i>Apply to Become a Registrar
+                        </a>
+                    </div>
                     <p class="mb-2">
                         <a href="../" class="text-decoration-none">
                             <i class="fas fa-arrow-left me-1"></i>Back to Home

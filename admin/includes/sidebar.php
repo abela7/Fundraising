@@ -55,6 +55,13 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
         </span>
         <span class="nav-label">Members</span>
       </a>
+      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'registrar-applications' ? './' : '../registrar-applications/'; ?>" 
+         class="nav-link <?php echo $current_dir === 'registrar-applications' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-user-plus"></i>
+        </span>
+        <span class="nav-label">Registrar Applications</span>
+      </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'payments' ? './' : '../payments/'; ?>" 
          class="nav-link <?php echo $current_dir === 'payments' ? 'active' : ''; ?>">
         <span class="nav-icon">
