@@ -8,7 +8,7 @@
     <!-- SEO Meta Tags -->
     <meta name="description" content="ለትውልድ የሚሻገር ትልቅ አሻራ የምናሳርፍበት፣ መንፈሳዊ አገልግሎታችንን በተሟላ ሁኔታ የምናከናውንበት እና ለልጆቻችን ሃይማኖታችንን የምናስተላልፍበት ሕንጻ ቤተ ክርስቲያን ባለቤት ለመሆን እየተጋን ነው።">
     <meta name="keywords" content="Abune Teklehaymanot, Liverpool Church, Ethiopian Orthodox, Donation, Fundraising, Church Building, Legacy">
-    <meta name="author" content="Liverpool Abune Teklehaymanot EOTC">
+    <meta name="author" content="Liverpool Mekane Kidusan Abune Teklehaymanot EOTC">
     <meta name="robots" content="index, follow">
     <meta property="og:title" content="የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!">
     <meta property="og:description" content="የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።">
@@ -651,7 +651,7 @@
                          <!-- Test change - workflow verification -->
             <div class="core-message fade-in">
                 <span class="amharic">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን!</span>
-                <span class="english">Liverpool Abune Teklehaymanot EOTC</span>
+                <span class="english">Liverpool Mekane Kidusan Abune Teklehaymanot EOTC</span>
             </div>
             
             <div class="vision-description fade-in">
@@ -749,7 +749,7 @@
              
              <a href="public/projector/" class="cta-button secondary fade-in">
                  <i class="fas fa-chart-line"></i>
-                 View Live Progress
+                 View The Progress
              </a>
              
              <a href="public/projector/floor/" class="cta-button secondary fade-in">
