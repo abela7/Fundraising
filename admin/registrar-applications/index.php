@@ -137,13 +137,14 @@ function h($value) {
     <link rel="stylesheet" href="assets/registrar-applications.css">
 </head>
 <body>
-    <div class="admin-layout">
+    <div class="admin-wrapper">
         <?php include '../includes/sidebar.php'; ?>
         
-        <main class="main-content">
+        <div class="admin-content">
             <?php include '../includes/topbar.php'; ?>
             
-            <div class="content-wrapper">
+            <main class="main-content">
+                <div class="content-wrapper">
                 <div class="content-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -429,8 +430,9 @@ function h($value) {
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
-            </div>
-        </main>
+                </div>
+            </main>
+        </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
