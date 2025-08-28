@@ -114,7 +114,7 @@ document.getElementById('preferencesForm')?.addEventListener('submit', function(
 document.getElementById('2faToggle')?.addEventListener('change', function() {
     if (this.checked) {
         // In real app, this would initiate 2FA setup
-        if (confirm('Enable Two-Factor Authentication? You will receive setup instructions via email.')) {
+        if (confirm('Enable Two-Factor Authentication? You will receive setup instructions via WhatsApp.')) {
             showToast('2FA setup instructions sent to your email', 'info');
         } else {
             this.checked = false;

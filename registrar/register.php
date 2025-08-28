@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                                 <div class="step-content">
                                     <h6 class="step-title">Receive Access</h6>
-                                    <p class="step-desc">Get your login credentials via email</p>
+                                    <p class="step-desc">Get your login credentials via WhatsApp</p>
                                 </div>
                             </div>
                         </div>
