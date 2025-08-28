@@ -134,24 +134,7 @@ function h($value) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/theme.css">
     <link rel="stylesheet" href="../assets/admin.css">
-    <style>
-        .application-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            transition: box-shadow 0.2s;
-        }
-        .application-card:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .status-badge {
-            font-size: 0.8rem;
-            padding: 0.25rem 0.5rem;
-        }
-        .status-pending { background-color: #fff3cd; color: #856404; }
-        .status-approved { background-color: #d1eddd; color: #155724; }
-        .status-rejected { background-color: #f8d7da; color: #721c24; }
-    </style>
+    <link rel="stylesheet" href="assets/registrar-applications.css">
 </head>
 <body>
     <div class="admin-layout">
@@ -224,122 +207,194 @@ function h($value) {
                     
                     <!-- Applications list -->
                     <?php if (empty($applications)): ?>
-                        <div class="card">
-                            <div class="card-body text-center py-5">
-                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">No applications found</h5>
-                                <p class="text-muted">There are no registrar applications to display.</p>
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-user-plus"></i>
+                                </div>
+                                <h5 class="empty-state-title">No Applications Found</h5>
+                                <p class="empty-state-desc">
+                                    <?php if ($status !== 'all'): ?>
+                                        There are no <?php echo h($status); ?> registrar applications to display.
+                                        <br><a href="?status=all" class="text-decoration-none">View all applications</a>
+                                    <?php else: ?>
+                                        No registrar applications have been submitted yet. 
+                                        <br>Applications will appear here when users submit registrar requests.
+                                    <?php endif; ?>
+                                </p>
                             </div>
                         </div>
                     <?php else: ?>
                         <?php foreach ($applications as $app): ?>
                             <div class="application-card">
                                 <div class="card-body">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-8">
-                                            <div class="d-flex align-items-center mb-2">
-                                                <h5 class="mb-0 me-3"><?php echo h($app['name']); ?></h5>
-                                                <span class="badge status-badge status-<?php echo h($app['status']); ?>">
-                                                    <?php echo ucfirst(h($app['status'])); ?>
-                                                </span>
+                                    <!-- Application Header -->
+                                    <div class="application-header">
+                                        <div class="d-flex align-items-center flex-grow-1">
+                                            <div class="applicant-avatar">
+                                                <?php echo strtoupper(substr(h($app['name']), 0, 1)); ?>
                                             </div>
-                                            
-                                            <div class="row text-muted">
-                                                <div class="col-sm-6">
-                                                    <i class="fas fa-envelope me-1"></i>
-                                                    <?php echo h($app['email']); ?>
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <i class="fas fa-phone me-1"></i>
-                                                    <?php echo h($app['phone']); ?>
-                                                </div>
+                                            <div class="applicant-info flex-grow-1">
+                                                <h5 class="mb-0">
+                                                    <?php echo h($app['name']); ?>
+                                                    <span class="badge status-badge status-<?php echo h($app['status']); ?> ms-2">
+                                                        <?php echo ucfirst(h($app['status'])); ?>
+                                                    </span>
+                                                </h5>
                                             </div>
-                                            
-                                            <small class="text-muted">
-                                                <i class="fas fa-calendar me-1"></i>
-                                                Applied: <?php echo date('M j, Y g:i A', strtotime($app['created_at'])); ?>
-                                                
-                                                <?php if ($app['approved_at']): ?>
-                                                    <br>
-                                                    <i class="fas fa-user-check me-1"></i>
-                                                    Processed: <?php echo date('M j, Y g:i A', strtotime($app['approved_at'])); ?>
-                                                    <?php if ($app['approved_by_name']): ?>
-                                                        by <?php echo h($app['approved_by_name']); ?>
-                                                    <?php endif; ?>
-                                                <?php endif; ?>
-                                                
-                                                <?php if ($app['passcode'] && $app['status'] === 'approved'): ?>
-                                                    <br>
-                                                    <i class="fas fa-key me-1"></i>
-                                                    Passcode: <strong><?php echo h($app['passcode']); ?></strong>
-                                                <?php endif; ?>
-                                                
-                                                <?php if ($app['notes']): ?>
-                                                    <br>
-                                                    <i class="fas fa-sticky-note me-1"></i>
-                                                    Notes: <?php echo h($app['notes']); ?>
-                                                <?php endif; ?>
-                                            </small>
                                         </div>
                                         
-                                        <div class="col-md-4 text-end">
-                                            <?php if ($app['status'] === 'pending'): ?>
-                                                <div class="btn-group-vertical d-grid gap-2">
-                                                    <form method="post" class="d-inline">
-                                                        <?php echo csrf_input(); ?>
-                                                        <input type="hidden" name="action" value="approve">
-                                                        <input type="hidden" name="app_id" value="<?php echo $app['id']; ?>">
-                                                        <button type="submit" class="btn btn-success btn-sm w-100" 
-                                                                onclick="return confirm('Are you sure you want to approve this application? This will create a registrar account.')">
-                                                            <i class="fas fa-check me-1"></i>Approve
-                                                        </button>
-                                                    </form>
-                                                    
-                                                    <button type="button" class="btn btn-danger btn-sm w-100" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#rejectModal<?php echo $app['id']; ?>">
-                                                        <i class="fas fa-times me-1"></i>Reject
+                                        <?php if ($app['status'] === 'pending'): ?>
+                                            <div class="action-buttons">
+                                                <form method="post" class="d-inline">
+                                                    <?php echo csrf_input(); ?>
+                                                    <input type="hidden" name="action" value="approve">
+                                                    <input type="hidden" name="app_id" value="<?php echo $app['id']; ?>">
+                                                    <button type="submit" class="btn btn-approve" 
+                                                            onclick="return confirm('Are you sure you want to approve this application? This will create a registrar account.')">
+                                                        <i class="fas fa-check"></i>
+                                                        Approve
                                                     </button>
-                                                </div>
+                                                </form>
                                                 
-                                                <!-- Reject Modal -->
-                                                <div class="modal fade" id="rejectModal<?php echo $app['id']; ?>" tabindex="-1">
-                                                    <div class="modal-dialog">
-                                                        <div class="modal-content">
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title">Reject Application</h5>
-                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                            </div>
-                                                            <form method="post">
-                                                                <div class="modal-body">
-                                                                    <?php echo csrf_input(); ?>
-                                                                    <input type="hidden" name="action" value="reject">
-                                                                    <input type="hidden" name="app_id" value="<?php echo $app['id']; ?>">
-                                                                    
-                                                                    <p>Are you sure you want to reject the application from <strong><?php echo h($app['name']); ?></strong>?</p>
-                                                                    
-                                                                    <div class="mb-3">
-                                                                        <label for="notes<?php echo $app['id']; ?>" class="form-label">Reason (optional)</label>
-                                                                        <textarea name="notes" id="notes<?php echo $app['id']; ?>" 
-                                                                                  class="form-control" rows="3" 
-                                                                                  placeholder="Enter reason for rejection..."></textarea>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                                    <button type="submit" class="btn btn-danger">
-                                                                        <i class="fas fa-times me-1"></i>Reject Application
-                                                                    </button>
-                                                                </div>
-                                                            </form>
-                                                        </div>
+                                                <button type="button" class="btn btn-reject" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#rejectModal<?php echo $app['id']; ?>">
+                                                    <i class="fas fa-times"></i>
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <!-- Application Details -->
+                                    <div class="application-details">
+                                        <div class="detail-item">
+                                            <div class="detail-icon email">
+                                                <i class="fas fa-envelope"></i>
+                                            </div>
+                                            <div class="detail-content">
+                                                <div class="detail-label">Email Address</div>
+                                                <div class="detail-value"><?php echo h($app['email']); ?></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="detail-item">
+                                            <div class="detail-icon phone">
+                                                <i class="fas fa-phone"></i>
+                                            </div>
+                                            <div class="detail-content">
+                                                <div class="detail-label">Phone Number</div>
+                                                <div class="detail-value"><?php echo h($app['phone']); ?></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Timeline -->
+                                    <div class="application-timeline">
+                                        <div class="timeline-item">
+                                            <div class="timeline-icon submitted">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <div class="timeline-title">Application Submitted</div>
+                                                <div class="timeline-desc">
+                                                    <?php echo date('M j, Y \a\t g:i A', strtotime($app['created_at'])); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <?php if ($app['approved_at']): ?>
+                                            <div class="timeline-item">
+                                                <div class="timeline-icon processed">
+                                                    <i class="fas fa-<?php echo $app['status'] === 'approved' ? 'check' : 'times'; ?>"></i>
+                                                </div>
+                                                <div class="timeline-content">
+                                                    <div class="timeline-title">
+                                                        Application <?php echo ucfirst(h($app['status'])); ?>
+                                                    </div>
+                                                    <div class="timeline-desc">
+                                                        <?php echo date('M j, Y \a\t g:i A', strtotime($app['approved_at'])); ?>
+                                                        <?php if ($app['approved_by_name']): ?>
+                                                            by <?php echo h($app['approved_by_name']); ?>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
-                                            <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <?php if ($app['passcode'] && $app['status'] === 'approved'): ?>
+                                        <div class="passcode-display">
+                                            <div class="passcode-label">Generated Login Passcode</div>
+                                            <div class="passcode-value"><?php echo h($app['passcode']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($app['notes']): ?>
+                                        <div class="alert alert-info border-0 mt-3">
+                                            <div class="d-flex align-items-start">
+                                                <i class="fas fa-sticky-note me-2 mt-1"></i>
+                                                <div>
+                                                    <strong>Admin Notes:</strong><br>
+                                                    <?php echo h($app['notes']); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <!-- Enhanced Reject Modal -->
+                            <?php if ($app['status'] === 'pending'): ?>
+                                <div class="modal fade" id="rejectModal<?php echo $app['id']; ?>" tabindex="-1">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header border-0 pb-0">
+                                                <h5 class="modal-title">
+                                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                                    Reject Application
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form method="post">
+                                                <div class="modal-body">
+                                                    <?php echo csrf_input(); ?>
+                                                    <input type="hidden" name="action" value="reject">
+                                                    <input type="hidden" name="app_id" value="<?php echo $app['id']; ?>">
+                                                    
+                                                    <div class="text-center mb-4">
+                                                        <div class="applicant-avatar mx-auto mb-3">
+                                                            <?php echo strtoupper(substr(h($app['name']), 0, 1)); ?>
+                                                        </div>
+                                                        <p class="mb-0">Are you sure you want to reject the application from</p>
+                                                        <strong class="fs-5"><?php echo h($app['name']); ?></strong>?
+                                                    </div>
+                                                    
+                                                    <div class="mb-3">
+                                                        <label for="notes<?php echo $app['id']; ?>" class="form-label">
+                                                            <i class="fas fa-comment me-1"></i>
+                                                            Reason for Rejection (Optional)
+                                                        </label>
+                                                        <textarea name="notes" id="notes<?php echo $app['id']; ?>" 
+                                                                  class="form-control" rows="3" 
+                                                                  placeholder="Provide a reason for the rejection to help the applicant understand..."></textarea>
+                                                        <div class="form-text">This note will be recorded for administrative purposes.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-0 pt-0">
+                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                                                        <i class="fas fa-arrow-left me-1"></i>Cancel
+                                                    </button>
+                                                    <button type="submit" class="btn btn-danger">
+                                                        <i class="fas fa-times me-1"></i>Reject Application
+                                                    </button>
+                                                </div>
+                                            </form>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                         
                         <!-- Pagination -->
@@ -380,5 +435,149 @@ function h($value) {
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/admin.js"></script>
+    
+    <script>
+        // Enhanced registrar applications UI interactions
+        (function() {
+            'use strict';
+            
+            // Loading states for form submissions
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    if (submitBtn && !submitBtn.classList.contains('loading')) {
+                        submitBtn.classList.add('loading');
+                        submitBtn.disabled = true;
+                        
+                        // Re-enable after timeout as fallback
+                        setTimeout(() => {
+                            submitBtn.classList.remove('loading');
+                            submitBtn.disabled = false;
+                        }, 10000);
+                    }
+                });
+            });
+            
+            // Enhanced confirm dialogs for approve actions
+            const approveButtons = document.querySelectorAll('.btn-approve');
+            approveButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const form = this.closest('form');
+                    const applicantName = this.closest('.application-card')
+                        .querySelector('.applicant-info h5')
+                        .textContent.split('\n')[0].trim();
+                    
+                    // Create custom confirmation
+                    const confirmed = confirm(
+                        `Approve ${applicantName}'s application?\n\n` +
+                        `This will:\n` +
+                        `• Create a registrar account\n` +
+                        `• Generate a 6-digit login passcode\n` +
+                        `• Grant access to the registrar system\n\n` +
+                        `Continue?`
+                    );
+                    
+                    if (confirmed) {
+                        form.submit();
+                    }
+                });
+            });
+            
+            // Auto-select and copy passcode when clicked
+            const passcodes = document.querySelectorAll('.passcode-value');
+            passcodes.forEach(passcode => {
+                passcode.style.cursor = 'pointer';
+                passcode.title = 'Click to copy passcode';
+                
+                passcode.addEventListener('click', function() {
+                    // Select the text
+                    const range = document.createRange();
+                    range.selectNode(this);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                    
+                    // Copy to clipboard
+                    try {
+                        document.execCommand('copy');
+                        
+                        // Show feedback
+                        const originalText = this.textContent;
+                        this.textContent = 'Copied!';
+                        this.style.color = '#059669';
+                        
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                            this.style.color = '';
+                            window.getSelection().removeAllRanges();
+                        }, 1500);
+                    } catch (err) {
+                        console.log('Copy failed:', err);
+                    }
+                });
+            });
+            
+            // Smooth animations for new applications (if any are added dynamically)
+            const applications = document.querySelectorAll('.application-card');
+            applications.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
+            
+            // Enhanced modal interactions
+            const rejectModals = document.querySelectorAll('[id^="rejectModal"]');
+            rejectModals.forEach(modal => {
+                modal.addEventListener('shown.bs.modal', function() {
+                    // Focus on textarea when modal opens
+                    const textarea = this.querySelector('textarea');
+                    if (textarea) {
+                        setTimeout(() => textarea.focus(), 100);
+                    }
+                });
+                
+                modal.addEventListener('hidden.bs.modal', function() {
+                    // Clear form when modal closes
+                    const form = this.querySelector('form');
+                    if (form) {
+                        const textarea = form.querySelector('textarea');
+                        if (textarea) textarea.value = '';
+                    }
+                });
+            });
+            
+            // Auto-refresh indicator (optional)
+            let refreshTimer;
+            function showRefreshIndicator() {
+                // Only show if there are pending applications
+                const pendingCount = document.querySelectorAll('.status-pending').length;
+                if (pendingCount > 0) {
+                    // Could add a subtle refresh indicator here
+                }
+            }
+            
+            // Filter tab enhancements
+            const filterTabs = document.querySelectorAll('.nav-pills .nav-link');
+            filterTabs.forEach(tab => {
+                tab.addEventListener('click', function(e) {
+                    // Add loading state during navigation
+                    if (!this.classList.contains('active')) {
+                        this.style.opacity = '0.7';
+                        this.style.pointerEvents = 'none';
+                    }
+                });
+            });
+            
+            // Keyboard shortcuts (optional enhancement)
+            document.addEventListener('keydown', function(e) {
+                // Ctrl/Cmd + R to refresh (prevent default and show custom refresh)
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    window.location.reload();
+                }
+            });
+            
+        })();
+    </script>
 </body>
 </html>
