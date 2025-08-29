@@ -23,3 +23,7 @@ function verify_csrf(): void {
         exit;
     }
 }
+
+function verify_csrf_for_download(): bool {
+    return ($_POST['csrf_token'] ?? '') === ($_SESSION['csrf_token'] ?? '');
+}

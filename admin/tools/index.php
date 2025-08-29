@@ -169,10 +169,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="card-body text-center">
                                         <h5 class="card-title">
                                             <i class="fas fa-upload fa-2x text-info mb-2"></i><br>
-                                            Import Database
+                                            Import Instructions
                                         </h5>
-                                        <p class="card-text text-muted small">Wipe the current database and restore it from an exported JSON backup file. Use this on your target machine (e.g., LOCAL).</p>
-                                        <a href="import_database.php" class="btn btn-info stretched-link">Go to Import</a>
+                                        <p class="card-text text-muted small">How to import a `.sql` backup file to your local database using phpMyAdmin.</p>
+                                        <a href="import_helper.php" class="btn btn-info stretched-link">View Instructions</a>
                                     </div>
                                 </div>
                             </div>

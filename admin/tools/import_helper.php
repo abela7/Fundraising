@@ -44,14 +44,14 @@ try {
                     
                     <!-- Import Instructions -->
                     <div class="alert alert-warning">
-                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Import Process:</h6>
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Import Process using phpMyAdmin:</h6>
                         <ol>
-                            <li><strong>Download backup</strong> from server using Export tool</li>
-                            <li><strong>Open phpMyAdmin</strong> (http://localhost/phpmyadmin)</li>
-                            <li><strong>Select database:</strong> <?php echo DB_NAME; ?></li>
-                            <li><strong>Drop all tables</strong> (or drop entire database and recreate)</li>
-                            <li><strong>Import</strong> the downloaded JSON/SQL file</li>
-                            <li><strong>Refresh this page</strong> to verify connection</li>
+                            <li><strong>Download `.sql` backup</strong> from your server using the "Export Database" tool.</li>
+                            <li><strong>Open phpMyAdmin</strong> on this local machine (link below).</li>
+                            <li><strong>Select your local database:</strong> `<?php echo DB_NAME; ?>`</li>
+                            <li>Click the **"Import"** tab at the top.</li>
+                            <li>Click **"Choose File"** and select the `.sql` file you downloaded.</li>
+                            <li>Ensure the format is set to "SQL" and click **"Import"**. This will restore the database to the state of the server backup.</li>
                         </ol>
                     </div>
                     
@@ -68,9 +68,9 @@ try {
                                     <strong>Document Root:</strong> <?php echo $_SERVER['DOCUMENT_ROOT'] ?? 'Not set'; ?>
                                 </div>
                                 <div class="col-md-6">
-                                    <strong>Environment:</strong> <?php echo ENVIRONMENT; ?><br>
-                                    <strong>Database Name:</strong> <?php echo DB_NAME; ?><br>
-                                    <strong>Database User:</strong> <?php echo DB_USER; ?>
+                                    <strong>Environment:</strong> <?php echo defined('ENVIRONMENT') ? ENVIRONMENT : 'unknown'; ?><br>
+                                    <strong>Database Name:</strong> <?php echo defined('DB_NAME') ? DB_NAME : 'unknown'; ?><br>
+                                    <strong>Database User:</strong> <?php echo defined('DB_USER') ? DB_USER : 'unknown'; ?>
                                 </div>
                             </div>
                         </div>
@@ -105,13 +105,15 @@ try {
                                 // Show current totals
                                 $counters = $db->query("SELECT * FROM counters WHERE id=1")->fetch_assoc();
                                 if ($counters) {
-                                    echo "<div class='alert alert-success mt-3'>";
+                                    echo "<div class='alert alert-light mt-3'>";
                                     echo "<h6>Current Fundraising Totals:</h6>";
-                                    echo "<strong>Paid:</strong> £" . number_format($counters['paid_total'], 2) . "<br>";
-                                    echo "<strong>Pledged:</strong> £" . number_format($counters['pledged_total'], 2) . "<br>";
-                                    echo "<strong>Grand Total:</strong> £" . number_format($counters['grand_total'], 2) . "<br>";
-                                    echo "<strong>Last Updated:</strong> " . $counters['last_updated'];
+                                    echo "<strong>Paid:</strong> £" . number_format((float)($counters['paid_total'] ?? 0), 2) . "<br>";
+                                    echo "<strong>Pledged:</strong> £" . number_format((float)($counters['pledged_total'] ?? 0), 2) . "<br>";
+                                    echo "<strong>Grand Total:</strong> £" . number_format((float)($counters['grand_total'] ?? 0), 2) . "<br>";
+                                    echo "<strong>Last Updated:</strong> " . ($counters['last_updated'] ?? 'N/A');
                                     echo "</div>";
+                                } else {
+                                     echo "<div class='alert alert-warning mt-3'>Could not find totals data. The `counters` table may be empty.</div>";
                                 }
                                 
                             } catch (Exception $e) {
