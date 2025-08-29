@@ -153,6 +153,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                          <p class="text-muted">Use these tools to manually synchronize your local and server databases. The typical workflow is to export from the server and import to your local machine.</p>
                          <div class="row">
                             <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-primary">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-chart-pie fa-2x text-primary mb-2"></i><br>
+                                            Database Status
+                                        </h5>
+                                        <p class="card-text text-muted small">View live stats and compare with a backup file before importing to see what has changed.</p>
+                                        <a href="database_status.php" class="btn btn-primary stretched-link">Check Status</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
                                 <div class="card h-100 border-success">
                                     <div class="card-body text-center">
                                         <h5 class="card-title">
