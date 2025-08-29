@@ -513,30 +513,39 @@ Church Fundraising Team`;
             // Enhanced phone number formatting for UK numbers
             let phoneNumber = approvedData.phone.replace(/\D/g, ''); // Remove all non-digits
             
+            console.log('Original phone:', approvedData.phone, 'Cleaned:', phoneNumber);
+            
             // Handle different UK number formats
-            if (phoneNumber.startsWith('0') && phoneNumber.length === 11) {
-                // UK mobile: 07123456789 -> 447123456789
+            if (phoneNumber.startsWith('0') && (phoneNumber.length === 11 || phoneNumber.length === 10)) {
+                // UK number with leading 0: 07360436132 -> 447360436132
+                // Remove the leading 0 and add 44
                 phoneNumber = '44' + phoneNumber.substring(1);
-            } else if (phoneNumber.startsWith('44') && phoneNumber.length === 13) {
-                // Already in international format: 447123456789
-                phoneNumber = phoneNumber;
-            } else if (phoneNumber.startsWith('447') && phoneNumber.length === 13) {
-                // Already correct: 447123456789
+            } else if (phoneNumber.startsWith('44')) {
+                // Already in international format: 447360436132
                 phoneNumber = phoneNumber;
             } else if (phoneNumber.startsWith('7') && phoneNumber.length === 10) {
-                // Missing country code: 7123456789 -> 447123456789
+                // UK mobile without country code: 7360436132 -> 447360436132
                 phoneNumber = '44' + phoneNumber;
             } else if (phoneNumber.length === 10 && !phoneNumber.startsWith('0')) {
-                // 10 digit number without leading 0: 7123456789 -> 447123456789
+                // 10 digit number: 7360436132 -> 447360436132
+                phoneNumber = '44' + phoneNumber;
+            } else if (phoneNumber.length === 9 && phoneNumber.startsWith('7')) {
+                // 9 digit mobile: 736043613 -> 44736043613 (might be missing last digit)
                 phoneNumber = '44' + phoneNumber;
             } else {
                 // Fallback: try to format as UK number
-                console.warn('Unusual phone number format:', approvedData.phone);
-                if (phoneNumber.length >= 10) {
-                    // Take last 10 digits and add UK country code
-                    phoneNumber = '44' + phoneNumber.slice(-10);
+                console.warn('Unusual phone number format:', approvedData.phone, 'Length:', phoneNumber.length);
+                if (phoneNumber.length >= 9) {
+                    // Remove leading 0 if present and add 44
+                    if (phoneNumber.startsWith('0')) {
+                        phoneNumber = '44' + phoneNumber.substring(1);
+                    } else {
+                        phoneNumber = '44' + phoneNumber;
+                    }
                 }
             }
+            
+            console.log('Final WhatsApp number:', phoneNumber);
             
             // Create WhatsApp URL
             const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
