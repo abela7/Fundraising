@@ -48,23 +48,23 @@ if ($db_connection_ok) {
         $payments_table_exists = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
 
         if ($pledges_table_exists) {
-            // Pledges created today by this registrar
-            $stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM pledges WHERE created_by_user_id = ? AND DATE(created_at) = CURDATE()");
-            $stmt->bind_param("i", $userId);
-            $stmt->execute();
-            $todayPledges = $stmt->get_result()->fetch_assoc() ?: $todayPledges;
-            $stmt->close();
+// Pledges created today by this registrar
+$stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM pledges WHERE created_by_user_id = ? AND DATE(created_at) = CURDATE()");
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$todayPledges = $stmt->get_result()->fetch_assoc() ?: $todayPledges;
+$stmt->close();
         } else {
             if (empty($db_error_message)) $db_error_message = '`pledges` table not found.';
         }
-        
+
         if ($payments_table_exists) {
-            // Payments received today by this registrar
-            $stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM payments WHERE received_by_user_id = ? AND DATE(received_at) = CURDATE()");
-            $stmt->bind_param("i", $userId);
-            $stmt->execute();
-            $todayPayments = $stmt->get_result()->fetch_assoc() ?: $todayPayments;
-            $stmt->close();
+// Payments received today by this registrar
+$stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM payments WHERE received_by_user_id = ? AND DATE(received_at) = CURDATE()");
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$todayPayments = $stmt->get_result()->fetch_assoc() ?: $todayPayments;
+$stmt->close();
         } else {
              if (empty($db_error_message)) $db_error_message = '`payments` table not found.';
         }

@@ -35,14 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['backup_file'])) {
 
             // --- 2. IMPORT FROM SQL FILE (ROBUST, LOW-MEMORY METHOD) ---
             $templine = '';
-            $file_handle = fopen($sql_file_path, 'r');
-            if (!$file_handle) {
-                throw new Exception("Could not open the uploaded SQL file.");
-            }
-
-            while (($line = fgets($file_handle)) !== false) {
-                // Skip comments and empty lines
-                if (substr($line, 0, 2) == '--' || trim($line) == '') {
+            $lines = file($sql_file_path);
+            foreach ($lines as $line) {
+                // Skip comments
+                if (substr($line, 0, 2) == '--' || $line == '') {
                     continue;
                 }
                 
@@ -53,15 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['backup_file'])) {
                 if (substr(trim($line), -1, 1) == ';') {
                     // Perform the query
                     if (!$db->query($templine)) {
-                        // Log the failing query for debugging but don't expose it to the user
-                        error_log("SQL Import Error on query: " . $templine . " | Error: " . $db->error);
-                        throw new Exception("A database error occurred during import. Please check the server logs for details.");
+                        throw new Exception("Error performing query '{$templine}': " . $db->error);
                     }
                     // Reset temp line
                     $templine = '';
                 }
             }
-            fclose($file_handle);
 
             $db->query('SET FOREIGN_KEY_CHECKS=1;');
             $msg = 'Success! Database has been wiped and restored from the SQL backup file.';

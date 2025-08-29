@@ -14,9 +14,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     const GridSync = {
-        // Configuration - Dynamic path based on environment
-        apiUrl: (window.location.pathname.includes('/Fundraising/') ? '../../../api/grid_status.php' : '../../api/grid_status.php'),
-        pollInterval: 1000, // Fetch updates every 1 second for immediate response
+        // Configuration
+        apiUrl: '/api/grid_status.php',
+        pollInterval: 2000, // Fetch updates every 2 seconds for faster response
         allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
         // State
@@ -60,16 +60,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Regular polling every 2 seconds
             setInterval(() => this.fetchAndUpdate(), this.pollInterval);
             
-            // ULTRA-AGGRESSIVE polling to check for localStorage changes every 250ms
+            // AGGRESSIVE polling to check for localStorage changes every 500ms
             this.lastRefreshCheck = 0;
             setInterval(() => {
                 const lastRefresh = localStorage.getItem('floorMapRefresh');
                 if (lastRefresh && parseInt(lastRefresh) > this.lastRefreshCheck) {
-                    console.log('🚀 GridSync: IMMEDIATE REFRESH detected localStorage change!');
+                    console.log('🚀 GridSync: AGGRESSIVE POLLING detected localStorage change!');
                     this.lastRefreshCheck = parseInt(lastRefresh);
                     this.fetchAndUpdate();
                 }
-            }, 250);
+            }, 500);
         },
 
         /**
@@ -109,9 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async fetchAndUpdate() {
             console.log('GridSync: Fetching latest grid status...');
             try {
-                // Add cache busting parameter to ensure fresh data
-                const cacheBuster = Date.now();
-                const response = await fetch(`${this.apiUrl}?_=${cacheBuster}`);
+                const response = await fetch(this.apiUrl);
                 if (!response.ok) {
                     throw new Error(`API request failed with status ${response.status}`);
                 }

@@ -30,10 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_sql'])) {
             'users', 'donation_packages', 'settings', 'counters', 'payments',
             'pledges', 'projector_footer', 'floor_grid_cells', 'custom_amount_tracking',
             'user_messages', 'projector_commands', 'registrar_applications',
-            'user_blocklist', 'floor_area_allocations', 'message_attachments', 'audit_logs'
+            'user_blocklist', 'floor_area_allocations'
         ];
 
-        echo "-- Fundraising System SQL Dump (v1.1 - Complete)\n";
+        echo "-- Fundraising System SQL Dump\n";
         echo "-- Server version: " . $db->server_info . "\n";
         echo "-- Generation Time: " . date('Y-m-d H:i:s') . "\n";
         echo "-- Database: `" . DB_NAME . "`\n";

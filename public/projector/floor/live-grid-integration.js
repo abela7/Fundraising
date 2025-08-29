@@ -5,7 +5,7 @@
 
 class LiveGridIntegration {
     constructor() {
-        this.apiUrl = (window.location.pathname.includes('/Fundraising/') ? '../../../api/grid_status.php' : '../../api/grid_status.php');
+        this.apiUrl = '/api/grid_status.php';
         this.refreshInterval = 5000; // 5 seconds
         this.intervalId = null;
         this.isInitialized = false;

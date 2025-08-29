@@ -492,12 +492,12 @@ if ($cntRes) {
   
   <div class="admin-content">
     <?php include '../includes/topbar.php'; ?>
-
+    
     <main class="main-content">
       <div class="container-fluid">
         <?php include '../includes/db_error_banner.php'; ?>
 
-        <?php if ($actionMsg): ?>
+          <?php if ($actionMsg): ?>
             <div class="alert alert-info alert-dismissible fade show" role="alert">
               <i class="fas fa-info-circle me-2"></i>
               <?php echo htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8'); ?>
