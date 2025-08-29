@@ -7,7 +7,7 @@
 
 class AdvancedGridSync {
     constructor() {
-        this.apiUrl = '/api/grid_status.php';
+        this.apiUrl = '../../../api/grid_status.php'; // Correct path: go up 3 levels from /public/projector/floor/
         this.cellIdToElementMap = new Map();
         this.elementToCellIdMap = new Map();
         this.statusUpdateQueue = [];

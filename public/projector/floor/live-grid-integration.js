@@ -5,7 +5,7 @@
 
 class LiveGridIntegration {
     constructor() {
-        this.apiUrl = '/api/grid_status.php';
+        this.apiUrl = '../../../api/grid_status.php'; // Correct path: go up 3 levels from /public/projector/floor/
         this.refreshInterval = 5000; // 5 seconds
         this.intervalId = null;
         this.isInitialized = false;
