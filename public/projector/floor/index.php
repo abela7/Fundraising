@@ -304,7 +304,7 @@
       <!-- Stats card inside floor map at bottom -->
       <div class="stats-card">
         <div class="coverage-numbers">
-          <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m²
+          <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m² Per Floor
         </div>
         <div class="coverage-label">Coverage Progress</div>
         <div class="progress-bar">
