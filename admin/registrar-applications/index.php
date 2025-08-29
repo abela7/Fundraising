@@ -510,71 +510,55 @@ Please keep this code secure and save it for future reference.
 Best regards,
 Church Fundraising Team`;
 
-            // Enhanced phone number formatting for UK numbers
+            // --- Enhanced Phone Number Formatting & Validation ---
             let phoneNumber = approvedData.phone.replace(/\D/g, ''); // Remove all non-digits
-            
-            console.log('Original phone:', approvedData.phone, 'Cleaned:', phoneNumber);
-            
-            // Handle different UK number formats
-            if (phoneNumber.startsWith('0') && (phoneNumber.length === 11 || phoneNumber.length === 10)) {
-                // UK number with leading 0: 07360436132 -> 447360436132
-                // Remove the leading 0 and add 44
+
+            // Normalize common UK mobile formats
+            if (phoneNumber.startsWith('07') && phoneNumber.length === 11) {
+                // Standard: 07xxxxxxxxx -> 447xxxxxxxxx
                 phoneNumber = '44' + phoneNumber.substring(1);
-            } else if (phoneNumber.startsWith('44')) {
-                // Already in international format: 447360436132
-                phoneNumber = phoneNumber;
             } else if (phoneNumber.startsWith('7') && phoneNumber.length === 10) {
-                // UK mobile without country code: 7360436132 -> 447360436132
+                // No leading 0: 7xxxxxxxxx -> 447xxxxxxxxx
                 phoneNumber = '44' + phoneNumber;
-            } else if (phoneNumber.length === 10 && !phoneNumber.startsWith('0')) {
-                // 10 digit number: 7360436132 -> 447360436132
-                phoneNumber = '44' + phoneNumber;
-            } else if (phoneNumber.length === 9 && phoneNumber.startsWith('7')) {
-                // 9 digit mobile: 736043613 -> 44736043613 (might be missing last digit)
-                phoneNumber = '44' + phoneNumber;
+            } else if (phoneNumber.startsWith('447') && phoneNumber.length === 12) {
+                // Already correct: 447xxxxxxxxx
             } else {
-                // Fallback: try to format as UK number
-                console.warn('Unusual phone number format:', approvedData.phone, 'Length:', phoneNumber.length);
-                if (phoneNumber.length >= 9) {
-                    // Remove leading 0 if present and add 44
-                    if (phoneNumber.startsWith('0')) {
-                        phoneNumber = '44' + phoneNumber.substring(1);
-                    } else {
-                        phoneNumber = '44' + phoneNumber;
-                    }
+                // Attempt a generic fallback for other formats
+                console.warn('Unusual phone number format. Applying fallback logic for:', approvedData.phone);
+                if (phoneNumber.startsWith('0')) {
+                    phoneNumber = '44' + phoneNumber.substring(1);
+                } else if (!phoneNumber.startsWith('44')) {
+                    phoneNumber = '44' + phoneNumber;
                 }
             }
-            
-            console.log('Final WhatsApp number:', phoneNumber);
-            
-            // Ensure no spaces or special characters in phone number
-            phoneNumber = phoneNumber.replace(/\s+/g, '').replace(/[^\d]/g, '');
-            
-            // Validate the phone number format
-            if (!phoneNumber.startsWith('44') || phoneNumber.length < 12 || phoneNumber.length > 13) {
-                const correctedNumber = prompt(`Phone number format issue detected.\n\nOriginal: ${approvedData.phone}\nFormatted: ${phoneNumber}\n\nPlease enter the correct UK mobile number (starting with 07 or 447):`);
-                if (!correctedNumber) {
-                    return; // User cancelled
-                }
-                
-                // Re-format the manually entered number
-                let manualNumber = correctedNumber.replace(/\D/g, '');
-                if (manualNumber.startsWith('0') && manualNumber.length === 11) {
-                    phoneNumber = '44' + manualNumber.substring(1);
-                } else if (manualNumber.startsWith('44')) {
-                    phoneNumber = manualNumber;
-                } else if (manualNumber.startsWith('7') && manualNumber.length === 10) {
-                    phoneNumber = '44' + manualNumber;
+
+            // Final validation with user prompt for correction
+            if (phoneNumber.length !== 12) {
+                const correctedNumber = prompt(
+                    `The phone number "${approvedData.phone}" may be incorrect. We formatted it to "${phoneNumber}".\n\n` +
+                    `Please enter the correct UK mobile number (e.g., 07123456789) to proceed:`,
+                    approvedData.phone // Pre-fill with original number
+                );
+
+                if (correctedNumber) {
+                    let manualNumber = correctedNumber.replace(/\D/g, '');
+                    if (manualNumber.startsWith('07') && manualNumber.length === 11) {
+                        phoneNumber = '44' + manualNumber.substring(1);
+                    } else if (manualNumber.startsWith('447') && manualNumber.length === 12) {
+                        phoneNumber = manualNumber;
+                    } else if (manualNumber.startsWith('7') && manualNumber.length === 10) {
+                        phoneNumber = '44' + manualNumber;
+                    } else {
+                        alert('The number you entered still appears to be in an invalid format. Sharing cancelled.');
+                        return; // Stop execution
+                    }
                 } else {
-                    alert('Invalid phone number format. Please use UK mobile format (07xxxxxxxxx)');
-                    return;
+                    return; // User cancelled the prompt
                 }
             }
             
             // Create WhatsApp URL
             const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-            
-            console.log('WhatsApp URL:', whatsappUrl);
             
             // Open WhatsApp
             window.open(whatsappUrl, '_blank');
