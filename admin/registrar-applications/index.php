@@ -547,8 +547,34 @@ Church Fundraising Team`;
             
             console.log('Final WhatsApp number:', phoneNumber);
             
+            // Ensure no spaces or special characters in phone number
+            phoneNumber = phoneNumber.replace(/\s+/g, '').replace(/[^\d]/g, '');
+            
+            // Validate the phone number format
+            if (!phoneNumber.startsWith('44') || phoneNumber.length < 12 || phoneNumber.length > 13) {
+                const correctedNumber = prompt(`Phone number format issue detected.\n\nOriginal: ${approvedData.phone}\nFormatted: ${phoneNumber}\n\nPlease enter the correct UK mobile number (starting with 07 or 447):`);
+                if (!correctedNumber) {
+                    return; // User cancelled
+                }
+                
+                // Re-format the manually entered number
+                let manualNumber = correctedNumber.replace(/\D/g, '');
+                if (manualNumber.startsWith('0') && manualNumber.length === 11) {
+                    phoneNumber = '44' + manualNumber.substring(1);
+                } else if (manualNumber.startsWith('44')) {
+                    phoneNumber = manualNumber;
+                } else if (manualNumber.startsWith('7') && manualNumber.length === 10) {
+                    phoneNumber = '44' + manualNumber;
+                } else {
+                    alert('Invalid phone number format. Please use UK mobile format (07xxxxxxxxx)');
+                    return;
+                }
+            }
+            
             // Create WhatsApp URL
             const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+            
+            console.log('WhatsApp URL:', whatsappUrl);
             
             // Open WhatsApp
             window.open(whatsappUrl, '_blank');
