@@ -97,6 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payment_method_input = trim((string)($_POST['payment_method'] ?? ''));
     $package_choice = (string)($_POST['package_choice'] ?? ''); // '1', '0.5', '0.25', 'custom'
     $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
+    if ($client_uuid === '') {
+        try { $client_uuid = bin2hex(random_bytes(16)); } catch (Throwable $e) { $client_uuid = uniqid('uuid_', true); }
+    }
 
     // --- Step 2: Validate the inputs and business logic ---
     $error = '';
@@ -290,7 +293,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $db->rollback();
             error_log("Registrar form submission error: " . $e->getMessage() . " on line " . $e->getLine());
-            $error = 'Error saving registration. Please try again or contact an administrator.';
+            $error = (defined('ENVIRONMENT') && ENVIRONMENT !== 'production')
+                ? ('Error saving registration: ' . $e->getMessage())
+                : 'Error saving registration. Please try again or contact an administrator.';
         }
     }
 }
@@ -482,7 +487,7 @@ if (isset($_SESSION['success_message'])) {
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/registrar.js"></script>
+    <script src="assets/registrar.js?v=<?php echo @filemtime(__DIR__ . '/assets/registrar.js'); ?>"></script>
     <script>
     // Quick amount selection
     document.querySelectorAll('.quick-amount-btn').forEach(btn => {
