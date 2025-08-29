@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Floor Map - Church Fundraising</title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <?php require_once __DIR__ . '/../../shared/url.php'; ?>
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(url_for('favicon.ico')) ?>">
+    <link rel="shortcut icon" type="image/x-icon" href="<?= htmlspecialchars(url_for('favicon.ico')) ?>">
+    <link rel="apple-touch-icon" href="<?= htmlspecialchars(url_for('apple-touch-icon.png')) ?>">
     <style>
         body {
             margin: 0;

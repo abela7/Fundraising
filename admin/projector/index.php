@@ -1,6 +1,7 @@
 <?php
 require_once '../../config/db.php';
 require_once '../../shared/auth.php';
+require_once '../../shared/url.php';
 require_login();
 require_admin();
 
@@ -94,10 +95,10 @@ $current_display_mode = $current_settings['projector_display_mode'] ?? 'amount';
                         <button class="btn btn-outline-primary" onclick="openFullscreen()">
                             <i class="fas fa-expand me-2"></i>Open Fullscreen
                         </button>
-                        <a href="../../public/projector/floor/" target="_blank" class="btn btn-success">
+                        <a href="<?= htmlspecialchars(url_for('public/projector/floor/')) ?>" target="_blank" class="btn btn-success">
                             <i class="fas fa-map me-2"></i>Floor Map
                         </a>
-                        <a href="../../public/projector/floor/3d-view.php" target="_blank" class="btn btn-info">
+                        <a href="<?= htmlspecialchars(url_for('public/projector/floor/3d-view.php')) ?>" target="_blank" class="btn btn-info">
                             <i class="fas fa-cube me-2"></i>3D View
                         </a>
                     </div>
@@ -607,12 +608,12 @@ $current_display_mode = $current_settings['projector_display_mode'] ?? 'amount';
         
         // Open projector view
         function openProjectorView() {
-            window.open('/public/projector/', '_blank');
+            window.open('<?= addslashes(url_for('public/projector/')) ?>', '_blank');
         }
         
         // Open fullscreen
         function openFullscreen() {
-            const url = '/public/projector/';
+            const url = '<?= addslashes(url_for('public/projector/')) ?>';
             const win = window.open(url, '_blank');
             if (win) {
                 setTimeout(() => {

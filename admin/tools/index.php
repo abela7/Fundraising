@@ -188,6 +188,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-dark">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-plug fa-2x text-dark mb-2"></i><br>
+                                            Local Failover Guide
+                                        </h5>
+                                        <p class="card-text text-muted small">Step-by-step, your IP, shareable links, and QR codes for registrars.</p>
+                                        <a href="local_failover_guide.php" class="btn btn-dark stretched-link">Open Guide</a>
+                                    </div>
+                                </div>
+                            </div>
                              <div class="col-md-4 mb-3">
                                 <div class="card h-100 border-danger">
                                     <div class="card-body text-center">
