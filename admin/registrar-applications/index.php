@@ -491,12 +491,13 @@ function h($value) {
     <script src="../assets/admin.js"></script>
     
     <script>
-        // WhatsApp sharing function - Global scope
+        // --- Globally Accessible Functions ---
+
+        // Function to handle sharing on WhatsApp
         function shareOnWhatsApp() {
             <?php if (isset($_SESSION['approved_registrar'])): ?>
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
             
-            // Format the message with professional English
             const message = `Dear ${approvedData.name},
 
 Congratulations! Your application to become a registrar has been approved.
@@ -515,52 +516,35 @@ Please keep this code secure and save it for future reference.
 Best regards,
 Church Fundraising Team`;
 
-            // --- Enhanced Phone Number Formatting (Direct Share) ---
-            let phoneNumber = approvedData.phone.replace(/\D/g, ''); // Remove all non-digits
-
-            // Normalize common UK mobile formats
+            let phoneNumber = approvedData.phone.replace(/\D/g, '');
             if (phoneNumber.startsWith('07') && phoneNumber.length === 11) {
-                // Standard: 07xxxxxxxxx -> 447xxxxxxxxx
                 phoneNumber = '44' + phoneNumber.substring(1);
             } else if (phoneNumber.startsWith('7') && phoneNumber.length === 10) {
-                // No leading 0: 7xxxxxxxxx -> 447xxxxxxxxx
                 phoneNumber = '44' + phoneNumber;
             } else if (phoneNumber.startsWith('447') && phoneNumber.length === 12) {
-                // Already correct: 447xxxxxxxxx, do nothing.
-            } else {
-                // Fallback for other formats - remove leading 0 if present, then add 44
-                console.warn('Unusual phone number format detected. Applying fallback formatting for:', approvedData.phone);
-                if (phoneNumber.startsWith('0')) {
-                    phoneNumber = '44' + phoneNumber.substring(1);
-                } else if (!phoneNumber.startsWith('44')) {
-                    phoneNumber = '44' + phoneNumber;
-                }
+                // Correct format
+            } else if (phoneNumber.startsWith('0')) {
+                phoneNumber = '44' + phoneNumber.substring(1);
+            } else if (!phoneNumber.startsWith('44')) {
+                phoneNumber = '44' + phoneNumber;
             }
-            
-            // Create WhatsApp URL
+
             const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-            
-            // Open WhatsApp
             window.open(whatsappUrl, '_blank');
-            
-            // Show confirmation
-            const button = event.target;
-            const originalText = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-check me-2"></i>Sent!';
-            button.classList.add('btn-success');
-            button.classList.remove('btn-light');
-            
-            setTimeout(() => {
-                button.innerHTML = originalText;
-                button.classList.remove('btn-success');
-                button.classList.add('btn-light');
-            }, 2000);
+
+            const button = event.target.closest('.btn-group').querySelector('[onclick*="shareOnWhatsApp"]');
+            if (button) {
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check me-2"></i>Shared!';
+                setTimeout(() => { button.innerHTML = originalText; }, 2000);
+            }
             <?php else: ?>
-            alert('Session expired. Please refresh the page and try again.');
+            alert('Session expired. The page will now refresh to get new data.');
+            window.location.reload();
             <?php endif; ?>
         }
 
-        // Function to copy the WhatsApp message to clipboard
+        // Function to copy the WhatsApp message to the clipboard
         function copyShareMessage() {
             <?php if (isset($_SESSION['approved_registrar'])): ?>
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
@@ -581,32 +565,27 @@ Please keep this code secure and save it for future reference.
 
 Best regards,
 Church Fundraising Team`;
-
-            // Create a temporary textarea to copy the message
-            const tempTextarea = document.createElement('textarea');
-            tempTextarea.value = message;
-            document.body.appendChild(tempTextarea);
-
-            // Select and copy the text
-            tempTextarea.select();
-            tempTextarea.setSelectionRange(0, 99999); // For mobile devices
-
-            try {
-                document.execCommand('copy');
-                alert('Message copied to clipboard!');
-            } catch (err) {
+            
+            navigator.clipboard.writeText(message).then(() => {
+                const button = event.target.closest('.btn-group').querySelector('[onclick*="copyShareMessage"]');
+                if(button) {
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+                    setTimeout(() => { button.innerHTML = originalText; }, 2000);
+                }
+            }).catch(err => {
                 console.error('Failed to copy message: ', err);
-                alert('Failed to copy message to clipboard. Please manually copy.');
-            }
-            document.body.removeChild(tempTextarea);
+                alert('Failed to copy message. Please try again.');
+            });
             <?php else: ?>
-            alert('Session expired. Please refresh the page and try again.');
+            alert('Session expired. The page will now refresh to get new data.');
+            window.location.reload();
             <?php endif; ?>
         }
     </script>
     
     <script>
-        // Enhanced registrar applications UI interactions
+        // Enhanced registrar applications UI interactions (IIFE for local scope)
         (function() {
             'use strict';
             
