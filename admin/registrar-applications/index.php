@@ -491,28 +491,51 @@ function h($value) {
             <?php if (isset($_SESSION['approved_registrar'])): ?>
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
             
-            // Format the message
+            // Format the message with professional English
             const message = `Dear ${approvedData.name},
 
-Thanks for registering to become a registrar. You are now approved to be a registrar.
+Congratulations! Your application to become a registrar has been approved.
 
-Use your phone number and the code to login. Before you login watch and understand this video:
+You can now log in to the registrar portal using your phone number and the access code provided below.
+
+Before logging in, please watch this instructional video to familiarize yourself with the system:
 https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
 
-Once you understand you can login and try around before the main event starts. If you have any question or face any technical problem don't forget to contact us anytime.
+Once you have reviewed the video, you may log in and explore the system before the main event begins. If you have any questions or encounter any technical difficulties, please don't hesitate to contact us.
 
 Your access code is: ${approvedData.passcode}
 
-Please save this code for future use!`;
+Please keep this code secure and save it for future reference.
 
-            // Format phone number for WhatsApp (remove non-digits and add country code if needed)
-            let phoneNumber = approvedData.phone.replace(/\D/g, '');
+Best regards,
+Church Fundraising Team`;
+
+            // Enhanced phone number formatting for UK numbers
+            let phoneNumber = approvedData.phone.replace(/\D/g, ''); // Remove all non-digits
             
-            // Add country code if not present (assuming UK +44 if number doesn't start with country code)
-            if (!phoneNumber.startsWith('44') && phoneNumber.length === 11 && phoneNumber.startsWith('0')) {
+            // Handle different UK number formats
+            if (phoneNumber.startsWith('0') && phoneNumber.length === 11) {
+                // UK mobile: 07123456789 -> 447123456789
                 phoneNumber = '44' + phoneNumber.substring(1);
-            } else if (!phoneNumber.startsWith('44') && phoneNumber.length === 10) {
+            } else if (phoneNumber.startsWith('44') && phoneNumber.length === 13) {
+                // Already in international format: 447123456789
+                phoneNumber = phoneNumber;
+            } else if (phoneNumber.startsWith('447') && phoneNumber.length === 13) {
+                // Already correct: 447123456789
+                phoneNumber = phoneNumber;
+            } else if (phoneNumber.startsWith('7') && phoneNumber.length === 10) {
+                // Missing country code: 7123456789 -> 447123456789
                 phoneNumber = '44' + phoneNumber;
+            } else if (phoneNumber.length === 10 && !phoneNumber.startsWith('0')) {
+                // 10 digit number without leading 0: 7123456789 -> 447123456789
+                phoneNumber = '44' + phoneNumber;
+            } else {
+                // Fallback: try to format as UK number
+                console.warn('Unusual phone number format:', approvedData.phone);
+                if (phoneNumber.length >= 10) {
+                    // Take last 10 digits and add UK country code
+                    phoneNumber = '44' + phoneNumber.slice(-10);
+                }
             }
             
             // Create WhatsApp URL
