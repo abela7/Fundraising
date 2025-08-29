@@ -8,13 +8,23 @@ $page_title = $page_title ?? 'Dashboard';
 $unread_count = 0;
 $current_user_id = $user['id'] ?? 0;
 if ($current_user_id > 0) {
-    $db = db();
-    $stmt = $db->prepare('SELECT COUNT(*) as count FROM user_messages WHERE recipient_user_id = ? AND read_at IS NULL');
-    $stmt->bind_param('i', $current_user_id);
-    $stmt->execute();
-    $result = $stmt->get_result()->fetch_assoc();
-    $unread_count = (int)($result['count'] ?? 0);
-    $stmt->close();
+    try {
+        $db = db();
+        // Check if the table exists before querying
+        $table_check = $db->query("SHOW TABLES LIKE 'user_messages'");
+        if ($table_check && $table_check->num_rows > 0) {
+            $stmt = $db->prepare('SELECT COUNT(*) as count FROM user_messages WHERE recipient_user_id = ? AND read_at IS NULL');
+            $stmt->bind_param('i', $current_user_id);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $unread_count = (int)($result['count'] ?? 0);
+            $stmt->close();
+        }
+    } catch (Exception $e) {
+        // If the database connection fails (e.g., during setup), just default to 0.
+        // This makes the UI resilient.
+        $unread_count = 0;
+    }
 }
 ?>
 <header class="topbar">

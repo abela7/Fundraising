@@ -2,6 +2,9 @@
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 
+// Resiliently load DB data. This must come after auth/csrf but before using $db.
+require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
+
 // Check if logged in and has registrar or admin role
 require_login();
 $user = current_user();
@@ -11,13 +14,22 @@ if (!in_array($role, ['registrar', 'admin'], true)) {
     exit;
 }
 
-// Get settings (single row config)
-$db = db();
-$settings = $db->query('SELECT * FROM settings WHERE id=1')->fetch_assoc() ?: [];
+// Use pre-loaded data, provide defaults if not available
 $currency = $settings['currency_code'] ?? 'GBP';
+$pkgRows = [];
+if ($db_connection_ok) {
+    try {
+        $pkg_table_exists = $db->query("SHOW TABLES LIKE 'donation_packages'")->num_rows > 0;
+        if ($pkg_table_exists) {
+            $pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
+        } else {
+            if (empty($db_error_message)) $db_error_message = '`donation_packages` table not found.';
+        }
+    } catch(Exception $e) {
+        if (empty($db_error_message)) $db_error_message = 'Could not load donation packages.';
+    }
+}
 
-// Load donation packages for UI and server-side validation
-$pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
 $pkgByLabel = [];
 foreach ($pkgRows as $r) { $pkgByLabel[$r['label']] = $r; }
 $pkgOne     = $pkgByLabel['1 m²']   ?? null;
@@ -30,19 +42,36 @@ $userId = (int)(current_user()['id'] ?? 0);
 $todayPledges = ['count' => 0, 'total' => 0];
 $todayPayments = ['count' => 0, 'total' => 0];
 
-// Pledges created today by this registrar
-$stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM pledges WHERE created_by_user_id = ? AND DATE(created_at) = CURDATE()");
-$stmt->bind_param("i", $userId);
-$stmt->execute();
-$todayPledges = $stmt->get_result()->fetch_assoc() ?: $todayPledges;
-$stmt->close();
+if ($db_connection_ok) {
+    try {
+        $pledges_table_exists = $db->query("SHOW TABLES LIKE 'pledges'")->num_rows > 0;
+        $payments_table_exists = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
 
-// Payments received today by this registrar
-$stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM payments WHERE received_by_user_id = ? AND DATE(received_at) = CURDATE()");
-$stmt->bind_param("i", $userId);
-$stmt->execute();
-$todayPayments = $stmt->get_result()->fetch_assoc() ?: $todayPayments;
-$stmt->close();
+        if ($pledges_table_exists) {
+            // Pledges created today by this registrar
+            $stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM pledges WHERE created_by_user_id = ? AND DATE(created_at) = CURDATE()");
+            $stmt->bind_param("i", $userId);
+            $stmt->execute();
+            $todayPledges = $stmt->get_result()->fetch_assoc() ?: $todayPledges;
+            $stmt->close();
+        } else {
+            if (empty($db_error_message)) $db_error_message = '`pledges` table not found.';
+        }
+        
+        if ($payments_table_exists) {
+            // Payments received today by this registrar
+            $stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM payments WHERE received_by_user_id = ? AND DATE(received_at) = CURDATE()");
+            $stmt->bind_param("i", $userId);
+            $stmt->execute();
+            $todayPayments = $stmt->get_result()->fetch_assoc() ?: $todayPayments;
+            $stmt->close();
+        } else {
+             if (empty($db_error_message)) $db_error_message = '`payments` table not found.';
+        }
+    } catch(Exception $e) {
+        if (empty($db_error_message)) $db_error_message = 'Could not load registrar stats.';
+    }
+}
 
 $todayCombined = [
 	'count' => (int)($todayPledges['count'] ?? 0) + (int)($todayPayments['count'] ?? 0),
@@ -292,6 +321,7 @@ if (isset($_SESSION['success_message'])) {
             <?php include 'includes/topbar.php'; ?>
             
             <main class="main-content">
+                <?php include __DIR__ . '/../admin/includes/db_error_banner.php'; ?>
                 <!-- Page Header -->
 
                 

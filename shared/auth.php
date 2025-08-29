@@ -8,15 +8,27 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 function current_user(): ?array {
-    return $_SESSION['user'] ?? null;
+    // If the session is set, we can return it without a DB query.
+    if (isset($_SESSION['user'])) {
+        return $_SESSION['user'];
+    }
+    return null;
+}
+
+function is_logged_in(): bool {
+    return isset($_SESSION['user']);
 }
 
 function is_admin(): bool {
-    return (current_user()['role'] ?? null) === 'admin';
+    // Check session data first to avoid unnecessary DB queries.
+    if (isset($_SESSION['user']['role'])) {
+        return $_SESSION['user']['role'] === 'admin';
+    }
+    return false;
 }
 
 function require_login(): void {
-    if (!current_user()) {
+    if (!is_logged_in()) {
         // Compute app base and correct login target based on area (admin vs registrar)
         $script = $_SERVER['SCRIPT_NAME'] ?? '';
         $appBase = '';

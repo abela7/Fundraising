@@ -1,20 +1,20 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../admin/includes/resilient_db_loader.php'; // Use the resilient loader
 
-$settings = db()->query('SELECT projector_names_mode, refresh_seconds, target_amount, currency_code FROM settings WHERE id=1')->fetch_assoc();
-if (!$settings) {
-    // Use defaults if no settings found
-    $settings = [
-        'projector_names_mode' => 'full',
-        'refresh_seconds' => 10,
-        'target_amount' => 100000,
-        'currency_code' => 'GBP'
-    ];
-}
-$refresh = max(1, (int)$settings['refresh_seconds']);
+// Use pre-loaded data, provide defaults if not available
+$settings_defaults = [
+    'projector_names_mode' => 'full',
+    'refresh_seconds' => 10,
+    'target_amount' => 100000,
+    'currency_code' => 'GBP'
+];
+$settings = array_merge($settings_defaults, $settings);
+
+$refresh = max(1, (int)($settings['refresh_seconds'] ?? 10));
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
-$target = (float)$settings['target_amount'];
+$target = (float)($settings['target_amount'] ?? 100000);
 ?>
 <!DOCTYPE html>
 <html lang="en">

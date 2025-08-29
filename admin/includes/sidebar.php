@@ -2,6 +2,24 @@
 // Reusable Sidebar Navigation Component
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 $current_dir = basename(dirname($_SERVER['PHP_SELF']));
+
+// --- Resilient Pending Applications Count ---
+$pending_applications_count = 0;
+try {
+    $db_sidebar = db();
+    $table_check_sidebar = $db_sidebar->query("SHOW TABLES LIKE 'registrar_applications'");
+    if ($table_check_sidebar && $table_check_sidebar->num_rows > 0) {
+        $result_sidebar = $db_sidebar->query("SELECT COUNT(*) as count FROM registrar_applications WHERE status = 'pending'");
+        if ($result_sidebar) {
+            $pending_applications_count = (int)($result_sidebar->fetch_assoc()['count'] ?? 0);
+        }
+    }
+} catch (Exception $e) {
+    // If DB fails for any reason, default to 0. This makes the sidebar resilient.
+    $pending_applications_count = 0;
+}
+// --- End Resilient Count ---
+
 ?>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
@@ -61,6 +79,9 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
           <i class="fas fa-user-plus"></i>
         </span>
         <span class="nav-label">Registrar Applications</span>
+        <?php if ($pending_applications_count > 0): ?>
+          <span class="badge bg-danger ms-auto"><?php echo $pending_applications_count; ?></span>
+        <?php endif; ?>
       </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'payments' ? './' : '../payments/'; ?>" 
          class="nav-link <?php echo $current_dir === 'payments' ? 'active' : ''; ?>">

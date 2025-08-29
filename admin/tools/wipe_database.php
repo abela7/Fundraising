@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_admin();
 
 $page_title = 'Wipe Database';
@@ -10,7 +11,8 @@ $msg = '';
 $msg_type = 'info';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wipe_database_confirmed'])) {
-    if (verify_csrf(true)) {
+    // Use the non-exiting CSRF check
+    if (verify_csrf(false)) {
         try {
             set_time_limit(120); // 2 minutes
             $db->query('SET FOREIGN_KEY_CHECKS=0;');
@@ -34,12 +36,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wipe_database_confirm
             }
 
         } catch (Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollback();
+            }
             $db->query('SET FOREIGN_KEY_CHECKS=1;');
             $msg = 'Error wiping database: ' . $e->getMessage();
             $msg_type = 'danger';
         }
     } else {
-        $msg = 'Invalid security token. Please try again.';
+        $msg = 'Invalid security token. Please refresh the page and try again.';
         $msg_type = 'danger';
     }
 }
@@ -68,8 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wipe_database_confirm
                 <div class="card-body">
                     
                     <div class="alert alert-info">
-                        <strong>Current Environment:</strong> <span class="badge bg-primary"><?php echo strtoupper(ENVIRONMENT); ?></span><br>
-                        <strong>Database to be wiped:</strong> <?php echo DB_NAME; ?>
+                        <strong>Current Environment:</strong> <span class="badge bg-primary"><?php echo strtoupper(defined('ENVIRONMENT') ? ENVIRONMENT : 'unknown'); ?></span><br>
+                        <strong>Database to be wiped:</strong> <?php echo defined('DB_NAME') ? DB_NAME : 'unknown'; ?>
                     </div>
 
                     <?php if ($msg): ?>
@@ -82,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wipe_database_confirm
                     </div>
                     
                     <form method="POST" onsubmit="return confirm('ARE YOU ABSOLUTELY SURE you want to wipe all tables from the database \'<?php echo DB_NAME; ?>\'? This action is irreversible.');">
-                        <?php include __DIR__ . '/../../shared/csrf_input.php'; ?>
+                        <?php echo csrf_input(); ?>
                         <div class="d-grid">
                             <button type="submit" name="wipe_database_confirmed" class="btn btn-danger btn-lg">
                                 <i class="fas fa-bomb me-2"></i>

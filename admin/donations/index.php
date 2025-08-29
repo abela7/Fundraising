@@ -6,6 +6,9 @@ require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
 
+// Resiliently load settings and check for DB errors
+require_once __DIR__ . '/../includes/resilient_db_loader.php';
+
 $page_title = 'Donations Management';
 $current_user = current_user();
 $db = db();
@@ -342,394 +345,396 @@ $currency = $settings['currency_code'] ?? 'GBP';
     <?php include '../includes/sidebar.php'; ?>
     
     <div class="admin-content">
-        <?php include '../includes/topbar.php'; ?>
-        
+        <?php include __DIR__ . '/../includes/topbar.php'; ?>
         <main class="main-content">
-            <!-- Success/Error Messages -->
-            <?php if (isset($_GET['msg'])): ?>
-            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                <i class="fas fa-info-circle me-2"></i>
-                <?php echo htmlspecialchars($_GET['msg']); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php endif; ?>
+            <div class="container-fluid">
+                <?php include __DIR__ . '/../includes/db_error_banner.php'; ?>
 
-            <!-- Page Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 class="h3 mb-1 text-primary">
-                        <i class="fas fa-donate me-2"></i>Donations Management
-                    </h1>
-                    <p class="text-muted mb-0">Comprehensive view and management of all payments and pledges</p>
+                <!-- Success/Error Messages -->
+                <?php if (isset($_GET['msg'])): ?>
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <?php echo htmlspecialchars($_GET['msg']); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-primary" onclick="exportDonations()">
-                        <i class="fas fa-download me-2"></i>Export
-                    </button>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDonationModal">
-                        <i class="fas fa-plus me-2"></i>Add Donation
-                    </button>
-                </div>
-            </div>
+                <?php endif; ?>
 
-            <!-- Statistics Dashboard -->
-            <div class="row g-3 mb-4">
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="stat-card stat-card-primary">
-                        <div class="stat-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value"><?php echo number_format($stats['total_count']); ?></div>
-                            <div class="stat-label">Total Donations</div>
-                            <div class="stat-detail">
-                                <?php echo number_format($stats['payment_count']); ?> payments, 
-                                <?php echo number_format($stats['pledge_count']); ?> pledges
-                            </div>
-                        </div>
+                <!-- Page Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 class="h3 mb-1 text-primary">
+                            <i class="fas fa-donate me-2"></i>Donations Management
+                        </h1>
+                        <p class="text-muted mb-0">Comprehensive view and management of all payments and pledges</p>
                     </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="stat-card stat-card-success">
-                        <div class="stat-icon">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($stats['approved_amount'], 0); ?></div>
-                            <div class="stat-label">Approved Total</div>
-                            <div class="stat-detail">
-                                Paid: <?php echo $currency; ?><?php echo number_format($stats['paid_amount'], 0); ?> | 
-                                Pledged: <?php echo $currency; ?><?php echo number_format($stats['pledged_amount'], 0); ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="stat-card stat-card-warning">
-                        <div class="stat-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($stats['pending_amount'], 0); ?></div>
-                            <div class="stat-label">Pending Review</div>
-                            <div class="stat-detail">Awaiting approval</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="stat-card stat-card-info">
-                        <div class="stat-icon">
-                            <i class="fas fa-percentage"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value"><?php 
-                                $total_raised = $stats['approved_amount'] + $stats['pending_amount'];
-                                $approvalRate = $total_raised > 0 ? round(($stats['approved_amount'] / $total_raised) * 100, 1) : 0;
-                                echo $approvalRate; ?>%</div>
-                            <div class="stat-label">Approval Rate</div>
-                            <div class="stat-detail">Of total submitted</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Advanced Filters -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">
-                        <i class="fas fa-filter me-2"></i>Advanced Filters
-                        <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
-                            <i class="fas fa-chevron-down"></i>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" onclick="exportDonations()">
+                            <i class="fas fa-download me-2"></i>Export
                         </button>
-                    </h6>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDonationModal">
+                            <i class="fas fa-plus me-2"></i>Add Donation
+                        </button>
+                    </div>
                 </div>
-                <div class="collapse show" id="filtersCollapse">
-                    <div class="card-body">
-                        <form method="get" class="row g-3" id="filterForm">
-                            <div class="col-lg-2 col-md-4 col-sm-6">
-                                <label class="form-label">Donation Type</label>
-                                <select name="type" class="form-select" onchange="submitFilters()">
-                                    <option value="all" <?php echo $typeFilter === 'all' ? 'selected' : ''; ?>>All Types</option>
-                                    <option value="payment" <?php echo $typeFilter === 'payment' ? 'selected' : ''; ?>>Payments</option>
-                                    <option value="pledge" <?php echo $typeFilter === 'pledge' ? 'selected' : ''; ?>>Pledges</option>
-                                </select>
+
+                <!-- Statistics Dashboard -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card stat-card-primary">
+                            <div class="stat-icon">
+                                <i class="fas fa-chart-line"></i>
                             </div>
-                            <div class="col-lg-2 col-md-4 col-sm-6">
-                                <label class="form-label">Status</label>
-                                <select name="status" class="form-select" onchange="submitFilters()">
-                                    <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All Status</option>
-                                    <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                                    <option value="approved" <?php echo $statusFilter === 'approved' ? 'selected' : ''; ?>>Approved</option>
-                                    <option value="rejected" <?php echo $statusFilter === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
-                                    <option value="voided" <?php echo $statusFilter === 'voided' ? 'selected' : ''; ?>>Voided</option>
-                                    <option value="cancelled" <?php echo $statusFilter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
-                                </select>
-                            </div>
-                            <div class="col-lg-2 col-md-4 col-sm-6">
-                                <label class="form-label">Payment Method</label>
-                                <select name="method" class="form-select" onchange="submitFilters()" <?php if ($typeFilter === 'pledge') echo 'disabled'; ?>>
-                                    <option value="all" <?php echo $methodFilter === 'all' ? 'selected' : ''; ?>>All Methods</option>
-                                    <option value="cash" <?php echo $methodFilter === 'cash' ? 'selected' : ''; ?>>Cash</option>
-                                    <option value="bank" <?php echo $methodFilter === 'bank' ? 'selected' : ''; ?>>Bank Transfer</option>
-                                    <option value="card" <?php echo $methodFilter === 'card' ? 'selected' : ''; ?>>Card</option>
-                                    <option value="other" <?php echo $methodFilter === 'other' ? 'selected' : ''; ?>>Other</option>
-                                </select>
-                            </div>
-                            <div class="col-lg-2 col-md-4 col-sm-6">
-                                <label class="form-label">From Date</label>
-                                <input type="date" name="date_from" class="form-control" value="<?php echo htmlspecialchars($dateFrom); ?>" onchange="submitFilters()">
-                            </div>
-                            <div class="col-lg-2 col-md-4 col-sm-6">
-                                <label class="form-label">To Date</label>
-                                <input type="date" name="date_to" class="form-control" value="<?php echo htmlspecialchars($dateTo); ?>" onchange="submitFilters()">
-                            </div>
-                            <div class="col-lg-2 col-md-4 col-sm-6">
-                                <label class="form-label">Search</label>
-                                <div class="input-group">
-                                    <input type="text" name="search" class="form-control" placeholder="Name, phone, email..." value="<?php echo htmlspecialchars($search); ?>">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-search"></i>
-                                    </button>
+                            <div class="stat-content">
+                                <div class="stat-value"><?php echo number_format($stats['total_count']); ?></div>
+                                <div class="stat-label">Total Donations</div>
+                                <div class="stat-detail">
+                                    <?php echo number_format($stats['payment_count']); ?> payments, 
+                                    <?php echo number_format($stats['pledge_count']); ?> pledges
                                 </div>
                             </div>
-                            <div class="col-12">
-                                <div class="d-flex gap-2">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-filter me-2"></i>Apply Filters
-                                    </button>
-                                    <a href="?" class="btn btn-outline-secondary">
-                                        <i class="fas fa-undo me-2"></i>Clear All
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Donations Table -->
-            <div class="card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="fas fa-table me-2"></i>Donations List
-                    </h6>
-                    <div class="text-muted small">
-                        Showing <?php echo number_format(count($donations)); ?> of <?php echo number_format($totalRecords); ?> donations
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <?php if (empty($donations)): ?>
-                    <div class="empty-state text-center py-5">
-                        <i class="fas fa-search text-muted mb-3" style="font-size: 3rem;"></i>
-                        <h5 class="text-muted">No donations found</h5>
-                        <p class="text-muted">Try adjusting your filters or search criteria.</p>
-                        <a href="?" class="btn btn-outline-primary">Clear Filters</a>
-                    </div>
-                    <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="border-0">ID</th>
-                                    <th class="border-0">Date & Time</th>
-                                    <th class="border-0">Type</th>
-                                    <th class="border-0">Donor</th>
-                                    <th class="border-0">Amount</th>
-                                    <th class="border-0">Method</th>
-                                    <th class="border-0">Status</th>
-                                    <th class="border-0">Package</th>
-                                    <th class="border-0">Processed By</th>
-                                    <th class="border-0 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($donations as $donation): ?>
-                                <tr class="donation-row">
-                                    <td>
-                                        <span class="text-primary fw-bold">
-                                            <?php echo strtoupper(substr($donation['donation_type'], 0, 1)) . str_pad((string)$donation['id'], 4, '0', STR_PAD_LEFT); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="timestamp">
-                                            <div class="fw-medium"><?php echo date('d M Y', strtotime($donation['created_at'])); ?></div>
-                                            <small class="text-muted"><?php echo date('h:i A', strtotime($donation['created_at'])); ?></small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <?php if ($donation['donation_type'] === 'payment'): ?>
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-credit-card me-1"></i>Payment
-                                        </span>
-                                        <?php else: ?>
-                                        <span class="badge bg-warning">
-                                            <i class="fas fa-handshake me-1"></i>Pledge
-                                        </span>
-                                        <?php if ($donation['pledge_type'] === 'paid'): ?>
-                                        <span class="badge bg-info mt-1">
-                                            <i class="fas fa-check me-1"></i>Paid at Reg.
-                                        </span>
-                                        <?php endif; ?>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <div class="donor-info">
-                                            <?php if ($donation['anonymous']): ?>
-                                            <div class="fw-medium text-muted">
-                                                <i class="fas fa-user-secret me-1"></i>Anonymous
-                                            </div>
-                                            <?php else: ?>
-                                            <div class="fw-medium"><?php echo htmlspecialchars($donation['donor_name'] ?: 'N/A'); ?></div>
-                                            <?php if ($donation['donor_phone']): ?>
-                                            <small class="text-muted"><?php echo htmlspecialchars($donation['donor_phone']); ?></small>
-                                            <?php endif; ?>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="fw-bold text-success"><?php echo $currency; ?> <?php echo number_format((float)$donation['amount'], 2); ?></span>
-                                    </td>
-                                    <td>
-                                        <?php if ($donation['method']): ?>
-                                        <?php 
-                                        $methodIcons = [
-                                            'cash' => 'fas fa-money-bill-wave',
-                                            'bank' => 'fas fa-university',
-                                            'card' => 'fas fa-credit-card',
-                                            'other' => 'fas fa-question-circle'
-                                        ];
-                                        $icon = $methodIcons[$donation['method']] ?? 'fas fa-question-circle';
-                                        ?>
-                                        <span class="badge bg-secondary">
-                                            <i class="<?php echo $icon; ?> me-1"></i><?php echo ucfirst($donation['method']); ?>
-                                        </span>
-                                        <?php else: ?>
-                                        <span class="text-muted">N/A</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php
-                                        $statusColors = [
-                                            'pending' => 'warning',
-                                            'approved' => 'success',
-                                            'rejected' => 'danger',
-                                            'voided' => 'secondary',
-                                            'cancelled' => 'dark'
-                                        ];
-                                        $statusIcons = [
-                                            'pending' => 'fas fa-clock',
-                                            'approved' => 'fas fa-check-circle',
-                                            'rejected' => 'fas fa-times-circle',
-                                            'voided' => 'fas fa-ban',
-                                            'cancelled' => 'fas fa-minus-circle'
-                                        ];
-                                        $status = $donation['status'];
-                                        $color = $statusColors[$status] ?? 'secondary';
-                                        $icon = $statusIcons[$status] ?? 'fas fa-question-circle';
-                                        ?>
-                                        <span class="badge bg-<?php echo $color; ?>">
-                                            <i class="<?php echo $icon; ?> me-1"></i><?php echo ucfirst($status); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <?php if ($donation['package_label']): ?>
-                                        <span class="badge bg-light text-dark border">
-                                            <?php echo htmlspecialchars($donation['package_label']); ?>
-                                            <?php if ($donation['package_sqm']): ?>
-                                            <br><small>(<?php echo number_format((float)$donation['package_sqm'], 2); ?> m²)</small>
-                                            <?php endif; ?>
-                                        </span>
-                                        <?php else: ?>
-                                        <span class="text-muted">Custom</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted"><?php echo htmlspecialchars($donation['processed_by'] ?: 'System'); ?></small>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <button class="btn btn-sm btn-outline-primary" 
-                                                    onclick="viewDonationDetails(<?php echo htmlspecialchars(json_encode($donation)); ?>)" 
-                                                    title="View Details">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-secondary" 
-                                                    onclick="editDonation(<?php echo htmlspecialchars(json_encode($donation)); ?>)" 
-                                                    title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" 
-                                                    onclick="deleteDonation('<?php echo $donation['donation_type']; ?>', <?php echo $donation['id']; ?>, '<?php echo htmlspecialchars($donation['donor_name'] ?: 'Anonymous'); ?>')" 
-                                                    title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <!-- Pagination -->
-                    <?php if ($totalPages > 1): ?>
-                    <nav class="mt-4">
-                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                            <div class="text-muted small">
-                                Showing <?php echo number_format(($page - 1) * $perPage + 1); ?>–<?php echo number_format(min($page * $perPage, $totalRecords)); ?> of <?php echo number_format($totalRecords); ?>
-                            </div>
-                            <ul class="pagination mb-0">
-                                <?php
-                                $queryBase = $_GET;
-                                unset($queryBase['page']);
-                                $queryString = http_build_query($queryBase);
-                                ?>
-                                <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo max(1, $page - 1); ?>">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </a>
-                                </li>
-                                <?php 
-                                    $start = max(1, $page - 2);
-                                    $end = min($totalPages, $page + 2);
-
-                                    if ($start > 1) {
-                                        echo '<li class="page-item"><a class="page-link" href="?'.($queryString ? $queryString.'&' : '').'page=1">1</a></li>';
-                                        if ($start > 2) {
-                                            echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
-                                        }
-                                    }
-
-                                    for ($i = $start; $i <= $end; $i++): ?>
-                                <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo $i; ?>">
-                                        <?php echo $i; ?>
-                                    </a>
-                                </li>
-                                <?php endfor; 
-                                
-                                    if ($end < $totalPages) {
-                                        if ($end < $totalPages - 1) {
-                                            echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
-                                        }
-                                        echo '<li class="page-item"><a class="page-link" href="?'.($queryString ? $queryString.'&' : '').'page='.$totalPages.'">'.$totalPages.'</a></li>';
-                                    }
-                                ?>
-                                <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo min($totalPages, $page + 1); ?>">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                </li>
-                            </ul>
                         </div>
-                    </nav>
-                    <?php endif; ?>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card stat-card-success">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($stats['approved_amount'], 0); ?></div>
+                                <div class="stat-label">Approved Total</div>
+                                <div class="stat-detail">
+                                    Paid: <?php echo $currency; ?><?php echo number_format($stats['paid_amount'], 0); ?> | 
+                                    Pledged: <?php echo $currency; ?><?php echo number_format($stats['pledged_amount'], 0); ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card stat-card-warning">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value"><?php echo $currency; ?> <?php echo number_format($stats['pending_amount'], 0); ?></div>
+                                <div class="stat-label">Pending Review</div>
+                                <div class="stat-detail">Awaiting approval</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card stat-card-info">
+                            <div class="stat-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value"><?php 
+                                    $total_raised = $stats['approved_amount'] + $stats['pending_amount'];
+                                    $approvalRate = $total_raised > 0 ? round(($stats['approved_amount'] / $total_raised) * 100, 1) : 0;
+                                    echo $approvalRate; ?>%</div>
+                                <div class="stat-label">Approval Rate</div>
+                                <div class="stat-detail">Of total submitted</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </main>
+
+                <!-- Advanced Filters -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <i class="fas fa-filter me-2"></i>Advanced Filters
+                            <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </h6>
+                    </div>
+                    <div class="collapse show" id="filtersCollapse">
+                        <div class="card-body">
+                            <form method="get" class="row g-3" id="filterForm">
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <label class="form-label">Donation Type</label>
+                                    <select name="type" class="form-select" onchange="submitFilters()">
+                                        <option value="all" <?php echo $typeFilter === 'all' ? 'selected' : ''; ?>>All Types</option>
+                                        <option value="payment" <?php echo $typeFilter === 'payment' ? 'selected' : ''; ?>>Payments</option>
+                                        <option value="pledge" <?php echo $typeFilter === 'pledge' ? 'selected' : ''; ?>>Pledges</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <label class="form-label">Status</label>
+                                    <select name="status" class="form-select" onchange="submitFilters()">
+                                        <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All Status</option>
+                                        <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                                        <option value="approved" <?php echo $statusFilter === 'approved' ? 'selected' : ''; ?>>Approved</option>
+                                        <option value="rejected" <?php echo $statusFilter === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
+                                        <option value="voided" <?php echo $statusFilter === 'voided' ? 'selected' : ''; ?>>Voided</option>
+                                        <option value="cancelled" <?php echo $statusFilter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <label class="form-label">Payment Method</label>
+                                    <select name="method" class="form-select" onchange="submitFilters()" <?php if ($typeFilter === 'pledge') echo 'disabled'; ?>>
+                                        <option value="all" <?php echo $methodFilter === 'all' ? 'selected' : ''; ?>>All Methods</option>
+                                        <option value="cash" <?php echo $methodFilter === 'cash' ? 'selected' : ''; ?>>Cash</option>
+                                        <option value="bank" <?php echo $methodFilter === 'bank' ? 'selected' : ''; ?>>Bank Transfer</option>
+                                        <option value="card" <?php echo $methodFilter === 'card' ? 'selected' : ''; ?>>Card</option>
+                                        <option value="other" <?php echo $methodFilter === 'other' ? 'selected' : ''; ?>>Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <label class="form-label">From Date</label>
+                                    <input type="date" name="date_from" class="form-control" value="<?php echo htmlspecialchars($dateFrom); ?>" onchange="submitFilters()">
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <label class="form-label">To Date</label>
+                                    <input type="date" name="date_to" class="form-control" value="<?php echo htmlspecialchars($dateTo); ?>" onchange="submitFilters()">
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6">
+                                    <label class="form-label">Search</label>
+                                    <div class="input-group">
+                                        <input type="text" name="search" class="form-control" placeholder="Name, phone, email..." value="<?php echo htmlspecialchars($search); ?>">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-filter me-2"></i>Apply Filters
+                                        </button>
+                                        <a href="?" class="btn btn-outline-secondary">
+                                            <i class="fas fa-undo me-2"></i>Clear All
+                                        </a>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Donations Table -->
+                <div class="card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-table me-2"></i>Donations List
+                        </h6>
+                        <div class="text-muted small">
+                            Showing <?php echo number_format(count($donations)); ?> of <?php echo number_format($totalRecords); ?> donations
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <?php if (empty($donations)): ?>
+                        <div class="empty-state text-center py-5">
+                            <i class="fas fa-search text-muted mb-3" style="font-size: 3rem;"></i>
+                            <h5 class="text-muted">No donations found</h5>
+                            <p class="text-muted">Try adjusting your filters or search criteria.</p>
+                            <a href="?" class="btn btn-outline-primary">Clear Filters</a>
+                        </div>
+                        <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="border-0">ID</th>
+                                        <th class="border-0">Date & Time</th>
+                                        <th class="border-0">Type</th>
+                                        <th class="border-0">Donor</th>
+                                        <th class="border-0">Amount</th>
+                                        <th class="border-0">Method</th>
+                                        <th class="border-0">Status</th>
+                                        <th class="border-0">Package</th>
+                                        <th class="border-0">Processed By</th>
+                                        <th class="border-0 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($donations as $donation): ?>
+                                    <tr class="donation-row">
+                                        <td>
+                                            <span class="text-primary fw-bold">
+                                                <?php echo strtoupper(substr($donation['donation_type'], 0, 1)) . str_pad((string)$donation['id'], 4, '0', STR_PAD_LEFT); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="timestamp">
+                                                <div class="fw-medium"><?php echo date('d M Y', strtotime($donation['created_at'])); ?></div>
+                                                <small class="text-muted"><?php echo date('h:i A', strtotime($donation['created_at'])); ?></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <?php if ($donation['donation_type'] === 'payment'): ?>
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-credit-card me-1"></i>Payment
+                                            </span>
+                                            <?php else: ?>
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-handshake me-1"></i>Pledge
+                                            </span>
+                                            <?php if ($donation['pledge_type'] === 'paid'): ?>
+                                            <span class="badge bg-info mt-1">
+                                                <i class="fas fa-check me-1"></i>Paid at Reg.
+                                            </span>
+                                            <?php endif; ?>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="donor-info">
+                                                <?php if ($donation['anonymous']): ?>
+                                                <div class="fw-medium text-muted">
+                                                    <i class="fas fa-user-secret me-1"></i>Anonymous
+                                                </div>
+                                                <?php else: ?>
+                                                <div class="fw-medium"><?php echo htmlspecialchars($donation['donor_name'] ?: 'N/A'); ?></div>
+                                                <?php if ($donation['donor_phone']): ?>
+                                                <small class="text-muted"><?php echo htmlspecialchars($donation['donor_phone']); ?></small>
+                                                <?php endif; ?>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-success"><?php echo $currency; ?> <?php echo number_format((float)$donation['amount'], 2); ?></span>
+                                        </td>
+                                        <td>
+                                            <?php if ($donation['method']): ?>
+                                            <?php 
+                                            $methodIcons = [
+                                                'cash' => 'fas fa-money-bill-wave',
+                                                'bank' => 'fas fa-university',
+                                                'card' => 'fas fa-credit-card',
+                                                'other' => 'fas fa-question-circle'
+                                            ];
+                                            $icon = $methodIcons[$donation['method']] ?? 'fas fa-question-circle';
+                                            ?>
+                                            <span class="badge bg-secondary">
+                                                <i class="<?php echo $icon; ?> me-1"></i><?php echo ucfirst($donation['method']); ?>
+                                            </span>
+                                            <?php else: ?>
+                                            <span class="text-muted">N/A</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php
+                                            $statusColors = [
+                                                'pending' => 'warning',
+                                                'approved' => 'success',
+                                                'rejected' => 'danger',
+                                                'voided' => 'secondary',
+                                                'cancelled' => 'dark'
+                                            ];
+                                            $statusIcons = [
+                                                'pending' => 'fas fa-clock',
+                                                'approved' => 'fas fa-check-circle',
+                                                'rejected' => 'fas fa-times-circle',
+                                                'voided' => 'fas fa-ban',
+                                                'cancelled' => 'fas fa-minus-circle'
+                                            ];
+                                            $status = $donation['status'];
+                                            $color = $statusColors[$status] ?? 'secondary';
+                                            $icon = $statusIcons[$status] ?? 'fas fa-question-circle';
+                                            ?>
+                                            <span class="badge bg-<?php echo $color; ?>">
+                                                <i class="<?php echo $icon; ?> me-1"></i><?php echo ucfirst($status); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?php if ($donation['package_label']): ?>
+                                            <span class="badge bg-light text-dark border">
+                                                <?php echo htmlspecialchars($donation['package_label']); ?>
+                                                <?php if ($donation['package_sqm']): ?>
+                                                <br><small>(<?php echo number_format((float)$donation['package_sqm'], 2); ?> m²)</small>
+                                                <?php endif; ?>
+                                            </span>
+                                            <?php else: ?>
+                                            <span class="text-muted">Custom</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted"><?php echo htmlspecialchars($donation['processed_by'] ?: 'System'); ?></small>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" 
+                                                        onclick="viewDonationDetails(<?php echo htmlspecialchars(json_encode($donation)); ?>)" 
+                                                        title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        onclick="editDonation(<?php echo htmlspecialchars(json_encode($donation)); ?>)" 
+                                                        title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="deleteDonation('<?php echo $donation['donation_type']; ?>', <?php echo $donation['id']; ?>, '<?php echo htmlspecialchars($donation['donor_name'] ?: 'Anonymous'); ?>')" 
+                                                        title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <!-- Pagination -->
+                        <?php if ($totalPages > 1): ?>
+                        <nav class="mt-4">
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                                <div class="text-muted small">
+                                    Showing <?php echo number_format(($page - 1) * $perPage + 1); ?>–<?php echo number_format(min($page * $perPage, $totalRecords)); ?> of <?php echo number_format($totalRecords); ?>
+                                </div>
+                                <ul class="pagination mb-0">
+                                    <?php
+                                    $queryBase = $_GET;
+                                    unset($queryBase['page']);
+                                    $queryString = http_build_query($queryBase);
+                                    ?>
+                                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                                        <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo max(1, $page - 1); ?>">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                    <?php 
+                                        $start = max(1, $page - 2);
+                                        $end = min($totalPages, $page + 2);
+
+                                        if ($start > 1) {
+                                            echo '<li class="page-item"><a class="page-link" href="?'.($queryString ? $queryString.'&' : '').'page=1">1</a></li>';
+                                            if ($start > 2) {
+                                                echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
+                                            }
+                                        }
+
+                                        for ($i = $start; $i <= $end; $i++): ?>
+                                    <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                                        <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo $i; ?>">
+                                            <?php echo $i; ?>
+                                        </a>
+                                    </li>
+                                    <?php endfor; 
+                                    
+                                        if ($end < $totalPages) {
+                                            if ($end < $totalPages - 1) {
+                                                echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
+                                            }
+                                            echo '<li class="page-item"><a class="page-link" href="?'.($queryString ? $queryString.'&' : '').'page='.$totalPages.'">'.$totalPages.'</a></li>';
+                                        }
+                                    ?>
+                                    <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                                        <a class="page-link" href="?<?php echo $queryString ? $queryString . '&' : ''; ?>page=<?php echo min($totalPages, $page + 1); ?>">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </nav>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
-</div>
 
 <!-- View Details Modal -->
 <div class="modal fade" id="detailsModal" tabindex="-1">

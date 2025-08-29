@@ -24,11 +24,15 @@ function buildRedirectUrl($message, $postData = []) {
 require_login();
 require_admin();
 
+// Resiliently load settings and check for DB errors
+require_once __DIR__ . '/../includes/resilient_db_loader.php';
+
 $page_title = 'Pending Approvals';
+$current_user = current_user();
 $db = db();
 $actionMsg = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     // htmx posts will include HX-Request header; still support normal POST
     verify_csrf();
     $pledgeId = (int)($_POST['pledge_id'] ?? 0);
@@ -488,12 +492,13 @@ if ($cntRes) {
   
   <div class="admin-content">
     <?php include '../includes/topbar.php'; ?>
-    
+
     <main class="main-content">
-      <div class="row">
-        <div class="col-12">
-          <?php if ($actionMsg): ?>
-            <div class="alert alert-info alert-dismissible fade show animate-fade-in" role="alert">
+      <div class="container-fluid">
+        <?php include '../includes/db_error_banner.php'; ?>
+
+        <?php if ($actionMsg): ?>
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
               <i class="fas fa-info-circle me-2"></i>
               <?php echo htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8'); ?>
               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>

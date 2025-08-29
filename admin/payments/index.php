@@ -5,6 +5,9 @@ require_once '../../shared/auth.php';
 require_login();
 require_admin();
 
+// Resiliently load settings and check for DB errors
+require_once __DIR__ . '/../includes/resilient_db_loader.php';
+
 $current_user = current_user();
 $db = db();
 
@@ -193,6 +196,8 @@ $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             <?php include '../includes/topbar.php'; ?>
             <main class="main-content">
                 <div class="container-fluid">
+                    <?php include '../includes/db_error_banner.php'; ?>
+
                     <!-- Page Header (actions only) -->
                     <div class="page-header mb-4">
                         <div class="d-flex justify-content-end">

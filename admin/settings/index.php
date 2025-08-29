@@ -5,11 +5,13 @@ require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_admin();
 
+// Use the resilient loader to safely get DB status and settings
+require_once __DIR__ . '/../includes/resilient_db_loader.php';
+
 $page_title = 'Settings';
-$db = db();
 $msg = '';
 
- if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) { // Only process POST if DB is connected
      verify_csrf();
     $action = $_POST['action'] ?? '';
 
@@ -96,11 +98,25 @@ $msg = '';
         $stmt->bind_param('dss', $target, $currency, $projectorMode);
          $stmt->execute();
         $msg = 'Settings updated successfully';
+        // Re-fetch settings after update
+        $settings = $db->query('SELECT * FROM settings WHERE id=1')->fetch_assoc() ?: $settings;
      }
  }
 
-$settings = $db->query('SELECT * FROM settings WHERE id=1')->fetch_assoc();
-$donationPackages = $db->query('SELECT * FROM donation_packages ORDER BY price ASC')->fetch_all(MYSQLI_ASSOC);
+// Fetch donation packages safely
+$donationPackages = [];
+if ($db_connection_ok) {
+    try {
+        $packages_table_exists = $db->query("SHOW TABLES LIKE 'donation_packages'")->num_rows > 0;
+        if ($packages_table_exists) {
+            $donationPackages = $db->query('SELECT * FROM donation_packages ORDER BY price ASC')->fetch_all(MYSQLI_ASSOC);
+        } else {
+             if (empty($db_error_message)) $db_error_message = '`donation_packages` table not found.';
+        }
+    } catch (Exception $e) {
+        if (empty($db_error_message)) $db_error_message = 'Could not load donation packages.';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -123,6 +139,8 @@ $donationPackages = $db->query('SELECT * FROM donation_packages ORDER BY price A
     
     <main class="main-content">
       <div class="container-fluid">
+        <?php include '../includes/db_error_banner.php'; ?>
+        
         <!-- Page Header (actions only) -->
         <div class="d-flex justify-content-end mb-4">
           <div class="d-flex gap-2">

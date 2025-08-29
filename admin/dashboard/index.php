@@ -4,11 +4,35 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 
-// Fetch settings and counters
-$settings = db()->query('SELECT target_amount, currency_code, display_token, refresh_seconds FROM settings WHERE id = 1')->fetch_assoc();
-// Live totals for initial render (JS will keep them refreshed) - Updated for new database structure
-// Get totals from counters table (which is maintained by the approval system)
-$countersRow = db()->query("SELECT paid_total, pledged_total, grand_total FROM counters WHERE id = 1")->fetch_assoc();
+// --- Resilient Database Loading ---
+$settings = [];
+$countersRow = [];
+$db_error_message = '';
+
+try {
+    $db = db();
+    // Check if tables exist before querying
+    $settings_table_exists = $db->query("SHOW TABLES LIKE 'settings'")->num_rows > 0;
+    $counters_table_exists = $db->query("SHOW TABLES LIKE 'counters'")->num_rows > 0;
+
+    if ($settings_table_exists) {
+        $settings = $db->query('SELECT target_amount, currency_code, display_token, refresh_seconds FROM settings WHERE id = 1')->fetch_assoc() ?: [];
+    } else {
+        $db_error_message .= '`settings` table not found. ';
+    }
+
+    if ($counters_table_exists) {
+        $countersRow = $db->query("SELECT paid_total, pledged_total, grand_total FROM counters WHERE id = 1")->fetch_assoc() ?: [];
+    } else {
+        $db_error_message .= '`counters` table not found. ';
+    }
+} catch (Exception $e) {
+    // This catches connection errors
+    $db_error_message = 'Database connection failed: ' . $e->getMessage();
+}
+// --- End Resilient Loading ---
+
+// Live totals for initial render (JS will keep them refreshed)
 $paidTotal = (float)($countersRow['paid_total'] ?? 0);
 $pledgedTotal = (float)($countersRow['pledged_total'] ?? 0);
 $grandTotal = (float)($countersRow['grand_total'] ?? 0);
@@ -35,6 +59,12 @@ $page_title = 'Dashboard';
     <?php include '../includes/topbar.php'; ?>
     
     <main class="main-content">
+    <?php if (!empty($db_error_message)): ?>
+        <div class="alert alert-danger m-3">
+            <strong><i class="fas fa-exclamation-triangle me-2"></i>Database Error:</strong>
+            <?php echo htmlspecialchars($db_error_message); ?> Please go to <a href="../tools/import_helper.php">Tools -> Import</a> to restore the database.
+        </div>
+    <?php endif; ?>
       <script>
         window.DASHBOARD_TOKEN = <?php echo json_encode($settings['display_token'] ?? ''); ?>;
         window.DASHBOARD_REFRESH_SECS = <?php echo (int)($settings['refresh_seconds'] ?? 5); ?>;
