@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const GridSync = {
         // Configuration
-        apiUrl: '/api/grid_status.php',
+        apiUrl: null,
         pollInterval: 2000, // Fetch updates every 2 seconds for faster response
         allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
@@ -27,12 +27,29 @@ document.addEventListener('DOMContentLoaded', () => {
          */
         init() {
             console.log('GridSync: Initializing...');
+            this.resolveApiUrl();
+            console.log('GridSync: Using API URL ->', this.apiUrl);
             this.waitForGridCreation().then(() => {
                 console.log('GridSync: Grid is ready. Starting synchronization.');
                 this.gridReady = true;
                 this.startPolling();
                 this.setupRefreshSignals();
             });
+        },
+
+        /**
+         * Resolves the correct API URL based on current hosting path (works for / and /YourApp/).
+         */
+        resolveApiUrl() {
+            try {
+                const marker = '/public/projector/floor/';
+                const path = window.location.pathname;
+                const idx = path.indexOf(marker);
+                const base = idx !== -1 ? path.substring(0, idx + 1) : '/';
+                this.apiUrl = base + 'api/grid_status.php';
+            } catch (e) {
+                this.apiUrl = '/api/grid_status.php';
+            }
         },
 
         /**
@@ -109,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async fetchAndUpdate() {
             console.log('GridSync: Fetching latest grid status...');
             try {
+                if (!this.apiUrl) { this.resolveApiUrl(); }
                 const response = await fetch(this.apiUrl);
                 if (!response.ok) {
                     throw new Error(`API request failed with status ${response.status}`);
