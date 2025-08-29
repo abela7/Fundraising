@@ -74,9 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
-                // Deallocate floor grid cells for this pledge
-                $gridAllocator = new IntelligentGridAllocator($db);
-                $deallocationResult = $gridAllocator->deallocate($pledgeId, null);
+                // Deallocate floor grid cells using custom amount allocator (matches approval logic)
+                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                $customAllocator = new CustomAmountAllocator($db);
+                $donorName = (string)($pledge['donor_name'] ?? 'Anonymous'); // Handle NULL/empty names
+                $deallocationResult = $customAllocator->undoCustomAmount($pledgeId, (float)$pledge['amount'], $donorName);
                 if (!$deallocationResult['success']) {
                     throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
                 }
@@ -236,8 +238,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($paymentId > 0 && $amount > 0) {
             $db->begin_transaction();
             try {
-                // Lock payment and ensure currently approved
-                $sel = $db->prepare("SELECT id, amount, status FROM payments WHERE id=? FOR UPDATE");
+                // Lock payment and ensure currently approved (get all needed data)
+                $sel = $db->prepare("SELECT id, amount, status, donor_name FROM payments WHERE id=? FOR UPDATE");
                 $sel->bind_param('i', $paymentId);
                 $sel->execute();
                 $pay = $sel->get_result()->fetch_assoc();
@@ -263,9 +265,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
 
-                // Deallocate floor grid cells for this payment
-                $gridAllocator = new IntelligentGridAllocator($db);
-                $deallocationResult = $gridAllocator->deallocate(null, $paymentId);
+                // Deallocate floor grid cells using custom amount allocator (matches approval logic)
+                require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
+                $customAllocator = new CustomAmountAllocator($db);
+                $donorName = (string)($pay['donor_name'] ?? 'Anonymous'); // Handle NULL/empty names
+                $deallocationResult = $customAllocator->undoPaymentCustomAmount($paymentId, (float)$pay['amount'], $donorName);
                 if (!$deallocationResult['success']) {
                     throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
                 }
