@@ -2,44 +2,38 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_admin();
 
-$page_title = 'Database Export for Backup';
-$db = db();
-$msg = '';
-
+// Handle the download request before any HTML is output
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_full'])) {
-    if (verify_csrf(true)) {
+    if (verify_csrf(false)) { // Set to false to not exit on failure
         try {
-            set_time_limit(300); // Allow up to 5 minutes for export
-            
-            // Clear all previous output
-            if (ob_get_level()) {
-                ob_end_clean();
-            }
+            $db = db();
+            set_time_limit(300);
+
+            // Start with a clean slate
+            if (ob_get_level()) ob_end_clean();
 
             $timestamp = date('Y-m-d_H-i-s');
-            
             $exportData = [
                 'export_info' => [
                     'timestamp' => date('Y-m-d H:i:s'),
-                    'environment' => ENVIRONMENT,
-                    'database_name' => DB_NAME,
-                    'version' => '1.1'
+                    'environment' => defined('ENVIRONMENT') ? ENVIRONMENT : 'unknown',
+                    'database_name' => defined('DB_NAME') ? DB_NAME : 'unknown',
+                    'version' => '1.3'
                 ],
                 'schema' => [],
                 'data' => []
             ];
-            
-            // Tables to export (everything except logs and transient data)
+
             $tablesToExport = [
                 'users', 'donation_packages', 'settings', 'counters', 'payments',
                 'pledges', 'projector_footer', 'floor_grid_cells', 'custom_amount_tracking',
                 'user_messages', 'projector_commands', 'registrar_applications',
                 'user_blocklist', 'floor_area_allocations'
             ];
-            
-            // 1. Get Schema (CREATE TABLE statements)
+
             foreach ($tablesToExport as $table) {
                 $result = $db->query("SHOW CREATE TABLE `{$table}`");
                 if ($row = $result->fetch_assoc()) {
@@ -48,45 +42,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_full'])) {
                 $result->free();
             }
 
-            // 2. Get Data
             foreach ($tablesToExport as $table) {
-                $exportData['data'][$table] = [];
                 $result = $db->query("SELECT * FROM `{$table}`");
+                $exportData['data'][$table] = [];
                 while ($row = $result->fetch_assoc()) {
                     $exportData['data'][$table][] = $row;
                 }
                 $result->free();
             }
-            
+
             $json_data = json_encode($exportData, JSON_PRETTY_PRINT);
-            
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new Exception('Failed to encode data to JSON: ' . json_last_error_msg());
+                throw new Exception('JSON encoding error: ' . json_last_error_msg());
             }
 
-            // Generate filename
-            $filename = "fundraising_backup_" . ENVIRONMENT . "_{$timestamp}.json";
-            
-            // Send as download
+            $filename = "fundraising_backup_" . (defined('ENVIRONMENT') ? ENVIRONMENT : 'db') . "_{$timestamp}.json";
+
             header('Content-Type: application/json');
             header('Content-Disposition: attachment; filename="' . $filename . '"');
             header('Content-Length: ' . strlen($json_data));
-            
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate');
+            header('Pragma: public');
+
             echo $json_data;
             exit;
-            
+
         } catch (Exception $e) {
-            // We can't show a nice error message here because headers are already sent.
-            // The user will see a partial download or a failed download.
-            // Logging this error to the server's error log is the best we can do.
             error_log('Database Export Failed: ' . $e->getMessage());
-            // Ensure script termination
-            exit;
+            // If we get here, it's too late to show a pretty error.
+            // Best to just die with a clear message.
+            die("An error occurred during export. Please check the server logs.");
         }
     } else {
         $msg = 'Invalid security token. Please refresh the page and try again.';
     }
 }
+
+$page_title = 'Database Export for Backup';
+$msg = $msg ?? ''; // Ensure $msg is defined
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -129,10 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_full'])) {
                         </ol>
                     </div>
                     
-                    <form method="POST" onsubmit="showExportProgress()">
-                        <?php include __DIR__ . '/../../shared/csrf_input.php'; ?>
+                    <form method="POST">
+                        <?php echo csrf_input(); ?>
                         <div class="d-grid">
-                            <button type="submit" name="export_full" class="btn btn-success btn-lg">
+                            <button type="submit" name="export_full" value="1" class="btn btn-success btn-lg" id="exportBtn">
                                 <i class="fas fa-download me-2"></i>
                                 Export Full Database (Structure + Data)
                             </button>
@@ -157,11 +151,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_full'])) {
 </div>
 
 <script>
-function showExportProgress() {
+document.getElementById('exportBtn').addEventListener('click', function() {
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting, please wait...';
     document.getElementById('exportProgress').style.display = 'block';
-    document.querySelector('form button').disabled = true;
-    document.querySelector('form button').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting, please wait...';
-}
+    // The form will submit naturally. Re-enabling the button is tricky
+    // because the page doesn't reload. We can do it on a timer.
+    setTimeout(() => {
+        this.disabled = false;
+        this.innerHTML = '<i class="fas fa-download me-2"></i>Export Full Database (Structure + Data)';
+        document.getElementById('exportProgress').style.display = 'none';
+    }, 15000); // Re-enable after 15 seconds in case of issues.
+});
 </script>
 </body>
 </html>
