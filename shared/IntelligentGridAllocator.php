@@ -46,28 +46,16 @@ class IntelligentGridAllocator
         try {
             $this->db->begin_transaction();
 
-            // Step 2: Find available cells
+            // Step 2: Find the required number of available 0.5x0.5 cells sequentially
             $availableCells = $this->findAvailableQuarterCells($blocksToAllocate);
 
             if (count($availableCells) < $blocksToAllocate) {
                 throw new RuntimeException("Allocation failed: Not enough space available on the floor plan.");
             }
 
-            // Step 3: Update the found cells
-            $cellIds = array_column($availableCells, 'id');
+            // Step 3: Update the found cells in the database
+            $cellIds = array_column($availableCells, 'cell_id');
             $this->updateCells($cellIds, $pledgeId, $paymentId, $donorName, $amount / $blocksToAllocate, $status);
-            
-            // Step 4: Record the allocation for future de-allocation
-            $this->recordAllocation(
-                $pledgeId ? 'pledge' : 'payment',
-                $pledgeId ?? $paymentId,
-                $donorName,
-                $packageId,
-                $amount,
-                $blocksToAllocate * 0.25, // area_size
-                $cellIds,
-                'approved'
-            );
 
             $this->db->commit();
 
@@ -132,16 +120,11 @@ class IntelligentGridAllocator
     }
     
     /**
-     * Updates a batch of cells with the donation information.
+     * Updates a list of cells to mark them as allocated.
      */
-    private function updateCells(array $cellIds, ?int $pledgeId, ?int $paymentId, string $donorName, float $amountPerCell, string $status): void
+    private function updateCells(array $cellIds, ?int $pledgeId, ?int $paymentId, string $donorName, float $amountPerBlock, string $status): void
     {
-        if (empty($cellIds)) {
-            return;
-        }
-        
         $placeholders = implode(',', array_fill(0, count($cellIds), '?'));
-        $types = str_repeat('i', count($cellIds));
         
         $sql = "
             UPDATE floor_grid_cells
@@ -152,22 +135,17 @@ class IntelligentGridAllocator
                 donor_name = ?,
                 amount = ?,
                 assigned_date = NOW()
-            WHERE id IN ({$placeholders})
+            WHERE cell_id IN ($placeholders)
         ";
         
         $stmt = $this->db->prepare($sql);
         
-        // Note the order of parameters for bind_param
-        $params = array_merge([$status, $pledgeId, $paymentId, $donorName, $amountPerCell], $cellIds);
-        $paramTypes = 'sisd' . $types;
+        // Dynamically bind parameters
+        $types = 'siisd' . str_repeat('s', count($cellIds));
+        $params = array_merge([$status, $pledgeId, $paymentId, $donorName, $amountPerBlock], $cellIds);
+        $stmt->bind_param($types, ...$params);
         
-        $stmt->bind_param($paramTypes, ...$params);
         $stmt->execute();
-
-        if ($stmt->affected_rows === 0) {
-            // This is a critical failure, as we already locked the rows.
-            throw new RuntimeException("Failed to update cell statuses. No rows were affected.");
-        }
     }
     
     /**
@@ -187,77 +165,37 @@ class IntelligentGridAllocator
     }
 
     /**
-     * Records the allocation in the ledger table for future reference.
-     */
-    private function recordAllocation(string $type, int $donorId, string $donorName, ?int $packageId, float $amount, float $areaSize, array $cellIds, string $status): void
-    {
-        $cellIdsJson = json_encode($cellIds);
-        $sql = "INSERT INTO floor_area_allocations (allocation_type, donor_id, donor_name, package_id, amount, area_size, cell_ids, status, allocated_date) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('sisiddss', $type, $donorId, $donorName, $packageId, $amount, $areaSize, $cellIdsJson, $status);
-        $stmt->execute();
-    }
-
-    /**
-     * Deallocates grid cells associated with a given pledge or payment.
+     * Deallocates cells for a specific donation when it's unapproved.
+     * 
+     * @param int|null $pledgeId The pledge ID to deallocate (if pledge)
+     * @param int|null $paymentId The payment ID to deallocate (if payment)
+     * @return array Result of the deallocation
      */
     public function deallocate(?int $pledgeId, ?int $paymentId): array
     {
-        $id = $pledgeId ?? $paymentId;
-        $type = $pledgeId ? 'pledge' : 'payment';
-
-        if (!$id) {
-            return ['success' => false, 'error' => 'Pledge or Payment ID is required.'];
-        }
-
         try {
             $this->db->begin_transaction();
-
-            // Step 1: Find the allocation record based on donor_id and type
-            $stmt = $this->db->prepare(
-                "SELECT id, cell_ids FROM floor_area_allocations WHERE donor_id = ? AND allocation_type = ? LIMIT 1"
-            );
-            $stmt->bind_param('is', $id, $type);
-            $stmt->execute();
-            $allocation = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-
-            if (!$allocation) {
-                // This is not an error; sub-£100 donations are not allocated.
+            
+            // Find all cells allocated to this donation
+            $allocatedCells = $this->findAllocatedCells($pledgeId, $paymentId);
+            
+            if (empty($allocatedCells)) {
                 $this->db->commit();
-                return ['success' => true, 'message' => 'No floor allocation found for this item, nothing to deallocate.'];
+                return ['success' => true, 'message' => 'No cells were allocated for this donation.', 'deallocated_cells' => []];
             }
-
-            $allocationId = (int)$allocation['id'];
-            $cell_ids_to_free = json_decode($allocation['cell_ids'] ?? '[]', true);
-
-            if (!empty($cell_ids_to_free)) {
-                // Step 2: Make the cells available again by their primary key ID
-                $placeholders = implode(',', array_fill(0, count($cell_ids_to_free), '?'));
-                $types = str_repeat('i', count($cell_ids_to_free));
-                
-                $updateStmt = $this->db->prepare(
-                    "UPDATE floor_grid_cells 
-                     SET status = 'available', pledge_id = NULL, payment_id = NULL, donor_name = NULL, amount = NULL 
-                     WHERE id IN ({$placeholders})"
-                );
-                $updateStmt->bind_param($types, ...$cell_ids_to_free);
-                $updateStmt->execute();
-                $updateStmt->close();
-            }
-
-            // Step 3: Delete the allocation record
-            $deleteStmt = $this->db->prepare("DELETE FROM floor_area_allocations WHERE id = ?");
-            $deleteStmt->bind_param('i', $allocationId);
-            $deleteStmt->execute();
-            $deleteStmt->close();
-
+            
+            // Free up the allocated cells
+            $this->freeCells($pledgeId, $paymentId);
+            
             $this->db->commit();
-
-            return ['success' => true, 'message' => 'Deallocated ' . count($cell_ids_to_free) . ' cells.'];
-
+            
+            return [
+                'success' => true,
+                'message' => "Successfully deallocated " . count($allocatedCells) . " grid cell(s).",
+                'deallocated_cells' => array_column($allocatedCells, 'cell_id'),
+                'area_deallocated' => count($allocatedCells) * 0.25
+            ];
+            
         } catch (Exception $e) {
             $this->db->rollback();
             error_log("IntelligentGridAllocator Deallocation Error: " . $e->getMessage());
@@ -265,6 +203,97 @@ class IntelligentGridAllocator
         }
     }
     
+    /**
+     * Finds all cells allocated to a specific donation.
+     */
+    private function findAllocatedCells(?int $pledgeId, ?int $paymentId): array
+    {
+        // Build the WHERE condition based on what IDs we have
+        $whereConditions = [];
+        $params = [];
+        $types = '';
+        
+        if ($pledgeId !== null) {
+            $whereConditions[] = "pledge_id = ?";
+            $params[] = $pledgeId;
+            $types .= 'i';
+        }
+        
+        if ($paymentId !== null) {
+            $whereConditions[] = "payment_id = ?";
+            $params[] = $paymentId;
+            $types .= 'i';
+        }
+        
+        if (empty($whereConditions)) {
+            return []; // No IDs provided
+        }
+        
+        $whereClause = implode(' OR ', $whereConditions);
+        
+        $sql = "
+            SELECT cell_id, status, pledge_id, payment_id, donor_name, amount
+            FROM floor_grid_cells
+            WHERE ($whereClause) AND status IN ('pledged', 'paid', 'blocked')
+            ORDER BY cell_id ASC
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+    
+    /**
+     * Frees up cells by resetting them to available status.
+     */
+    private function freeCells(?int $pledgeId, ?int $paymentId): void
+    {
+        // Build the WHERE condition based on what IDs we have
+        $whereConditions = [];
+        $params = [];
+        $types = '';
+        
+        if ($pledgeId !== null) {
+            $whereConditions[] = "pledge_id = ?";
+            $params[] = $pledgeId;
+            $types .= 'i';
+        }
+        
+        if ($paymentId !== null) {
+            $whereConditions[] = "payment_id = ?";
+            $params[] = $paymentId;
+            $types .= 'i';
+        }
+        
+        if (empty($whereConditions)) {
+            return; // No IDs provided
+        }
+        
+        $whereClause = implode(' OR ', $whereConditions);
+        
+        $sql = "
+            UPDATE floor_grid_cells
+            SET
+                status = 'available',
+                pledge_id = NULL,
+                payment_id = NULL,
+                donor_name = NULL,
+                amount = NULL,
+                assigned_date = NULL
+            WHERE ($whereClause) AND status IN ('pledged', 'paid', 'blocked')
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+    }
+
     /**
      * Retrieves overall allocation statistics.
      */
