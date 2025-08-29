@@ -78,7 +78,24 @@ function initRegistrationForm() {
     if (!form) return;
 
     // 1. Generate and set a client-side UUID to prevent double submission
-    let clientUuid = self.crypto.randomUUID();
+    const uuidv4 = () => {
+        if (self.crypto && typeof self.crypto.randomUUID === 'function') {
+            try { return self.crypto.randomUUID(); } catch (e) {}
+        }
+        // Fallback UUID v4 generator
+        const bytes = new Uint8Array(16);
+        if (self.crypto && self.crypto.getRandomValues) {
+            self.crypto.getRandomValues(bytes);
+        } else {
+            for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+        }
+        bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+        bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+        const toHex = (n) => n.toString(16).padStart(2, '0');
+        const b = Array.from(bytes, toHex);
+        return `${b[0]}${b[1]}${b[2]}${b[3]}-${b[4]}${b[5]}-${b[6]}${b[7]}-${b[8]}${b[9]}-${b[10]}${b[11]}${b[12]}${b[13]}${b[14]}${b[15]}`;
+    };
+    let clientUuid = uuidv4();
     let uuidInput = form.querySelector('input[name="client_uuid"]');
     if (uuidInput) {
         uuidInput.value = clientUuid;
@@ -149,7 +166,7 @@ function initRegistrationForm() {
                 submitBtn.innerHTML = `<i class="fas fa-save"></i> Register Donation`;
             }
             // Reset UUID on back navigation to allow a new submission
-            clientUuid = self.crypto.randomUUID();
+            clientUuid = uuidv4();
             if (uuidInput) {
                 uuidInput.value = clientUuid;
             }
