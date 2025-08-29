@@ -143,6 +143,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
             </div>
 
+            <!-- Database Sync Tools -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 border-success">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-database me-2 text-success"></i>
+                            Database Export
+                        </h5>
+                        <p class="card-text text-muted">Export complete database for local backup. Use this on the SERVER to create backups.</p>
+                        <div class="mt-auto">
+                            <a href="export_database.php" class="btn btn-success">
+                                <i class="fas fa-download me-1"></i>Export Database
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 border-info">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-upload me-2 text-info"></i>
+                            Import Helper
+                        </h5>
+                        <p class="card-text text-muted">Helper for importing server database to local system. Shows connection status and instructions.</p>
+                        <div class="mt-auto">
+                            <a href="import_helper.php" class="btn btn-info">
+                                <i class="fas fa-question-circle me-1"></i>Import Helper
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body">
