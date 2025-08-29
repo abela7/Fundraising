@@ -14,8 +14,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     const GridSync = {
-        // Configuration
-        apiUrl: '../../../api/grid_status.php', // Correct path: go up 3 levels from /public/projector/floor/
+        // Configuration - Dynamic path based on environment
+        apiUrl: (window.location.pathname.includes('/Fundraising/') ? '../../../api/grid_status.php' : '../../api/grid_status.php'),
         pollInterval: 2000, // Fetch updates every 2 seconds for faster response
         allocationColor: '#e2ca18', // Unified color for both pledged and paid
         
