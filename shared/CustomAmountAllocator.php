@@ -256,7 +256,7 @@ class CustomAmountAllocator {
     /**
      * Allocate appropriate cells for £100+ amounts
      */
-    private function allocateAppropriateCells(int $pledgeId, float $amount, string $donorName, string $status, ?int $paymentId = null): array {
+    private function allocateAppropriateCells(?int $pledgeId, float $amount, string $donorName, string $status, ?int $paymentId = null): array {
         // Calculate how many cells to allocate
         $cellsToAllocate = $this->calculateCellsForAmount($amount);
         $allocatedAmount = $cellsToAllocate * 100; // £100 per 0.25m²
@@ -266,7 +266,7 @@ class CustomAmountAllocator {
         $gridAllocator = new IntelligentGridAllocator($this->db);
         $allocationResult = $gridAllocator->allocate(
             $pledgeId,
-            null, // No payment ID
+            $paymentId,
             $allocatedAmount,
             null, // No package ID
             $donorName,
@@ -355,7 +355,7 @@ class CustomAmountAllocator {
             }
             
             // Rule 2: £100+ = allocate appropriate cells
-            $allocationResult = $this->allocateAppropriateCells(0, $amount, $donorName, $status, $paymentId);
+            $allocationResult = $this->allocateAppropriateCells(null, $amount, $donorName, $status, $paymentId);
             
             $this->db->commit();
             
