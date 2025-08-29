@@ -143,35 +143,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
             </div>
 
-            <!-- Database Sync Tools -->
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100 border-success">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-database me-2 text-success"></i>
-                            Database Export
+            <!-- Database Manager (Complete Solution) -->
+            <div class="col-md-12 mb-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-database me-2"></i>
+                            Complete Database Manager
                         </h5>
-                        <p class="card-text text-muted">Export complete database for local backup. Use this on the SERVER to create backups.</p>
-                        <div class="mt-auto">
-                            <a href="export_database.php" class="btn btn-success">
-                                <i class="fas fa-download me-1"></i>Export Database
-                            </a>
-                        </div>
                     </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100 border-info">
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-upload me-2 text-info"></i>
-                            Import Helper
-                        </h5>
-                        <p class="card-text text-muted">Helper for importing server database to local system. Shows connection status and instructions.</p>
-                        <div class="mt-auto">
-                            <a href="import_helper.php" class="btn btn-info">
-                                <i class="fas fa-question-circle me-1"></i>Import Helper
+                        <p class="card-text">
+                            <strong>Complete solution for Local ↔ Server database sync.</strong> 
+                            Export complete databases, wipe tables, and import - all from the dashboard without phpMyAdmin.
+                        </p>
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <i class="fas fa-download text-success fa-2x mb-2"></i>
+                                <div><strong>Export</strong></div>
+                                <small class="text-muted">Complete database with all data</small>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="fas fa-trash text-danger fa-2x mb-2"></i>
+                                <div><strong>Wipe</strong></div>
+                                <small class="text-muted">Remove all tables safely</small>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="fas fa-upload text-primary fa-2x mb-2"></i>
+                                <div><strong>Import</strong></div>
+                                <small class="text-muted">Restore complete database</small>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="database_manager.php" class="btn btn-primary btn-lg">
+                                <i class="fas fa-cog me-2"></i>Open Database Manager
                             </a>
                         </div>
                     </div>
