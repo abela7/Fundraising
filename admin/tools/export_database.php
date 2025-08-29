@@ -25,13 +25,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_sql'])) {
         header('Pragma: public');
         
         // --- SQL Backup Logic ---
-
-        $tablesToExport = [
-            'users', 'donation_packages', 'settings', 'counters', 'payments',
-            'pledges', 'projector_footer', 'floor_grid_cells', 'custom_amount_tracking',
-            'user_messages', 'projector_commands', 'registrar_applications',
-            'user_blocklist', 'floor_area_allocations'
-        ];
+        // Discover ALL base tables dynamically (no hardcoded list)
+        $tablesToExport = [];
+        $fullTablesRes = $db->query("SHOW FULL TABLES FROM `" . $db->real_escape_string(DB_NAME) . "` WHERE Table_type = 'BASE TABLE'");
+        while ($row = $fullTablesRes->fetch_row()) {
+            $tablesToExport[] = $row[0];
+        }
+        $fullTablesRes->free();
 
         echo "-- Fundraising System SQL Dump\n";
         echo "-- Server version: " . $db->server_info . "\n";
@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_sql'])) {
         echo "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";\n";
         echo "START TRANSACTION;\n";
         echo "SET time_zone = \"+00:00\";\n\n";
+        echo "SET NAMES utf8mb4;\n\n";
         echo "SET FOREIGN_KEY_CHECKS=0;\n\n";
 
         foreach ($tablesToExport as $table) {
