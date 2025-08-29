@@ -46,16 +46,28 @@ class IntelligentGridAllocator
         try {
             $this->db->begin_transaction();
 
-            // Step 2: Find the required number of available 0.5x0.5 cells sequentially
+            // Step 2: Find available cells
             $availableCells = $this->findAvailableQuarterCells($blocksToAllocate);
 
             if (count($availableCells) < $blocksToAllocate) {
                 throw new RuntimeException("Allocation failed: Not enough space available on the floor plan.");
             }
 
-            // Step 3: Update the found cells in the database
-            $cellIds = array_column($availableCells, 'cell_id');
+            // Step 3: Update the found cells
+            $cellIds = array_column($availableCells, 'id');
             $this->updateCells($cellIds, $pledgeId, $paymentId, $donorName, $amount / $blocksToAllocate, $status);
+            
+            // Step 4: Record the allocation for future de-allocation
+            $this->recordAllocation(
+                $pledgeId ? 'pledge' : 'payment',
+                $pledgeId ?? $paymentId,
+                $donorName,
+                $packageId,
+                $amount,
+                $blocksToAllocate * 0.25, // area_size
+                $cellIds,
+                'approved'
+            );
 
             $this->db->commit();
 
@@ -165,51 +177,63 @@ class IntelligentGridAllocator
     }
 
     /**
+     * Records the allocation in the ledger table for future reference.
+     */
+    private function recordAllocation(string $type, int $donorId, string $donorName, ?int $packageId, float $amount, float $areaSize, array $cellIds, string $status): void
+    {
+        $cellIdsJson = json_encode($cellIds);
+        $sql = "INSERT INTO floor_area_allocations (allocation_type, donor_id, donor_name, package_id, amount, area_size, cell_ids, status, allocated_date) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('sisiddss', $type, $donorId, $donorName, $packageId, $amount, $areaSize, $cellIdsJson, $status);
+        $stmt->execute();
+    }
+
+    /**
      * Deallocates grid cells associated with a given pledge or payment.
      */
     public function deallocate(?int $pledgeId, ?int $paymentId): array
     {
-        if (!$pledgeId && !$paymentId) {
-            return ['success' => false, 'error' => 'Pledge ID or Payment ID is required.'];
+        $id = $pledgeId ?? $paymentId;
+        $type = $pledgeId ? 'pledge' : 'payment';
+
+        if (!$id) {
+            return ['success' => false, 'error' => 'Pledge or Payment ID is required.'];
         }
 
         try {
             $this->db->begin_transaction();
 
-            // Step 1: Find the allocation record based on pledge or payment ID
-            if ($pledgeId) {
-                $stmt = $this->db->prepare("SELECT id, cell_ids FROM floor_area_allocations WHERE pledge_id = ? LIMIT 1");
-                $stmt->bind_param('i', $pledgeId);
-            } else {
-                $stmt = $this->db->prepare("SELECT id, cell_ids FROM floor_area_allocations WHERE payment_id = ? LIMIT 1");
-                $stmt->bind_param('i', $paymentId);
-            }
-            
+            // Step 1: Find the allocation record based on donor_id and type
+            $stmt = $this->db->prepare(
+                "SELECT id, cell_ids FROM floor_area_allocations WHERE donor_id = ? AND allocation_type = ? LIMIT 1"
+            );
+            $stmt->bind_param('is', $id, $type);
             $stmt->execute();
             $allocation = $stmt->get_result()->fetch_assoc();
             $stmt->close();
 
             if (!$allocation) {
-                // If no allocation is found, it might be a sub-£100 donation that wasn't mapped.
-                // In this case, we can consider it a success as there's nothing to deallocate.
+                // This is not an error; sub-£100 donations are not allocated.
                 $this->db->commit();
                 return ['success' => true, 'message' => 'No floor allocation found for this item, nothing to deallocate.'];
             }
 
             $allocationId = (int)$allocation['id'];
-            $cellIds = json_decode($allocation['cell_ids'] ?? '[]', true);
+            $cell_ids_to_free = json_decode($allocation['cell_ids'] ?? '[]', true);
 
-            if (!empty($cellIds)) {
-                // Step 2: Make the cells available again
-                $placeholders = implode(',', array_fill(0, count($cellIds), '?'));
-                $types = str_repeat('s', count($cellIds));
+            if (!empty($cell_ids_to_free)) {
+                // Step 2: Make the cells available again by their primary key ID
+                $placeholders = implode(',', array_fill(0, count($cell_ids_to_free), '?'));
+                $types = str_repeat('i', count($cell_ids_to_free));
                 
                 $updateStmt = $this->db->prepare(
                     "UPDATE floor_grid_cells 
                      SET status = 'available', pledge_id = NULL, payment_id = NULL, donor_name = NULL, amount = NULL 
-                     WHERE cell_id IN ({$placeholders})"
+                     WHERE id IN ({$placeholders})"
                 );
-                $updateStmt->bind_param($types, ...$cellIds);
+                $updateStmt->bind_param($types, ...$cell_ids_to_free);
                 $updateStmt->execute();
                 $updateStmt->close();
             }
@@ -222,7 +246,7 @@ class IntelligentGridAllocator
 
             $this->db->commit();
 
-            return ['success' => true, 'message' => 'Deallocated ' . count($cellIds) . ' cells.'];
+            return ['success' => true, 'message' => 'Deallocated ' . count($cell_ids_to_free) . ' cells.'];
 
         } catch (Exception $e) {
             $this->db->rollback();
