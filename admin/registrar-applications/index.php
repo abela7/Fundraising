@@ -493,6 +493,36 @@ function h($value) {
     <script>
         // --- Globally Accessible Functions ---
 
+        // Fallback function for copying text if the modern API fails
+        function fallbackCopy(textToCopy, button) {
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = textToCopy;
+            tempTextarea.style.position = 'absolute';
+            tempTextarea.style.left = '-9999px';
+            document.body.appendChild(tempTextarea);
+
+            tempTextarea.select();
+            tempTextarea.setSelectionRange(0, 99999); // For mobile devices
+
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback copy method failed:', err);
+            }
+
+            document.body.removeChild(tempTextarea);
+
+            if (success) {
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+                setTimeout(() => { button.innerHTML = originalText; }, 2000);
+            } else {
+                alert('Failed to copy message. Please manually copy the text from the prompt.');
+                prompt('Copy this text:', textToCopy);
+            }
+        }
+
         // Function to handle sharing on WhatsApp
         function shareOnWhatsApp() {
             <?php if (isset($_SESSION['approved_registrar'])): ?>
@@ -500,21 +530,22 @@ function h($value) {
             
             const message = `Dear ${approvedData.name},
 
-Congratulations! Your application to become a registrar has been approved.
+*Congratulations!* Your application to become a registrar has been approved.
 
 You can now log in to the registrar portal using your phone number and the access code provided below.
 
-Before logging in, please watch this instructional video to familiarize yourself with the system:
+Before logging in, we highly recommend watching this instructional video to familiarize yourself with the system:
 https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
 
-Once you have reviewed the video, you may log in and explore the system before the main event begins. If you have any questions or encounter any technical difficulties, please don't hesitate to contact us.
+Once you have reviewed the video, you may log in to explore the system. If you have any questions, please don't hesitate to contact us.
 
-Your access code is: ${approvedData.passcode}
+*Your access code is:*
+` + "```" + `${approvedData.passcode}` + "```" + `
 
-Please keep this code secure and save it for future reference.
+Please keep this code secure for future reference.
 
-Best regards,
-Church Fundraising Team`;
+_Best regards,_
+_The Fundraising Team_`;
 
             let phoneNumber = approvedData.phone.replace(/\D/g, '');
             if (phoneNumber.startsWith('07') && phoneNumber.length === 11) {
@@ -550,33 +581,39 @@ Church Fundraising Team`;
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
             const message = `Dear ${approvedData.name},
 
-Congratulations! Your application to become a registrar has been approved.
+*Congratulations!* Your application to become a registrar has been approved.
 
 You can now log in to the registrar portal using your phone number and the access code provided below.
 
-Before logging in, please watch this instructional video to familiarize yourself with the system:
+Before logging in, we highly recommend watching this instructional video to familiarize yourself with the system:
 https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
 
-Once you have reviewed the video, you may log in and explore the system before the main event begins. If you have any questions or encounter any technical difficulties, please don't hesitate to contact us.
+Once you have reviewed the video, you may log in to explore the system. If you have any questions, please don't hesitate to contact us.
 
-Your access code is: ${approvedData.passcode}
+*Your access code is:*
+` + "```" + `${approvedData.passcode}` + "```" + `
 
-Please keep this code secure and save it for future reference.
+Please keep this code secure for future reference.
 
-Best regards,
-Church Fundraising Team`;
+_Best regards,_
+_The Fundraising Team_`;
             
-            navigator.clipboard.writeText(message).then(() => {
-                const button = event.target.closest('.btn-group').querySelector('[onclick*="copyShareMessage"]');
-                if(button) {
-                    const originalText = button.innerHTML;
-                    button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
-                    setTimeout(() => { button.innerHTML = originalText; }, 2000);
-                }
-            }).catch(err => {
-                console.error('Failed to copy message: ', err);
-                alert('Failed to copy message. Please try again.');
-            });
+            const button = event.target.closest('.btn-group').querySelector('[onclick*="copyShareMessage"]');
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(message).then(() => {
+                    if(button) {
+                        const originalText = button.innerHTML;
+                        button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+                        setTimeout(() => { button.innerHTML = originalText; }, 2000);
+                    }
+                }).catch(err => {
+                    console.error('Modern copy failed, trying fallback:', err);
+                    fallbackCopy(message, button);
+                });
+            } else {
+                fallbackCopy(message, button);
+            }
             <?php else: ?>
             alert('Session expired. The page will now refresh to get new data.');
             window.location.reload();
