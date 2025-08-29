@@ -10,52 +10,100 @@ $msg = '';
 $msg_type = 'info';
 $comparison_results = null;
 
-// --- Function to get stats from the LIVE database ---
+// --- Function to get detailed stats from the LIVE database ---
 function get_live_database_stats(): array {
     $stats = [
-        'pledges' => 0, 'payments' => 0, 'users' => 0,
-        'grand_total' => 0.0, 'last_pledge' => 'N/A', 'last_payment' => 'N/A'
+        'pledges_by_status' => [], 'payments_by_status' => [], 'users_by_role' => [],
+        'pending_applications' => 0, 'cells_by_status' => [], 'projector_commands' => 0,
+        'footer_message' => 'N/A'
     ];
     try {
         $db = db();
-        // Check for tables first
         if ($db->query("SHOW TABLES LIKE 'pledges'")->num_rows > 0) {
-            $stats['pledges'] = (int)$db->query("SELECT COUNT(*) FROM pledges")->fetch_row()[0];
-            $stats['last_pledge'] = $db->query("SELECT MAX(created_at) FROM pledges")->fetch_row()[0] ?? 'N/A';
+            $res = $db->query("SELECT status, COUNT(*) as count, SUM(amount) as total FROM pledges GROUP BY status");
+            while($row = $res->fetch_assoc()) { $stats['pledges_by_status'][$row['status']] = ['count' => (int)$row['count'], 'total' => (float)$row['total']]; }
         }
         if ($db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0) {
-            $stats['payments'] = (int)$db->query("SELECT COUNT(*) FROM payments")->fetch_row()[0];
-            $stats['last_payment'] = $db->query("SELECT MAX(created_at) FROM payments")->fetch_row()[0] ?? 'N/A';
+            $res = $db->query("SELECT status, COUNT(*) as count, SUM(amount) as total FROM payments GROUP BY status");
+            while($row = $res->fetch_assoc()) { $stats['payments_by_status'][$row['status']] = ['count' => (int)$row['count'], 'total' => (float)$row['total']]; }
         }
         if ($db->query("SHOW TABLES LIKE 'users'")->num_rows > 0) {
-            $stats['users'] = (int)$db->query("SELECT COUNT(*) FROM users")->fetch_row()[0];
+             $res = $db->query("SELECT role, COUNT(*) as count FROM users GROUP BY role");
+             while($row = $res->fetch_assoc()) { $stats['users_by_role'][$row['role']] = (int)$row['count']; }
         }
-        if ($db->query("SHOW TABLES LIKE 'counters'")->num_rows > 0) {
-            $stats['grand_total'] = (float)($db->query("SELECT grand_total FROM counters WHERE id=1")->fetch_row()[0] ?? 0.0);
+        if ($db->query("SHOW TABLES LIKE 'registrar_applications'")->num_rows > 0) {
+            $stats['pending_applications'] = (int)($db->query("SELECT COUNT(*) FROM registrar_applications WHERE status = 'pending'")->fetch_row()[0] ?? 0);
         }
-    } catch (Exception $e) {
-        // DB not ready, return empty stats
-    }
+        if ($db->query("SHOW TABLES LIKE 'floor_grid_cells'")->num_rows > 0) {
+            $res = $db->query("SELECT status, COUNT(*) as count FROM floor_grid_cells GROUP BY status");
+             while($row = $res->fetch_assoc()) { $stats['cells_by_status'][$row['status']] = (int)$row['count']; }
+        }
+        if ($db->query("SHOW TABLES LIKE 'projector_commands'")->num_rows > 0) {
+            $stats['projector_commands'] = (int)($db->query("SELECT COUNT(*) FROM projector_commands")->fetch_row()[0] ?? 0);
+        }
+        if ($db->query("SHOW TABLES LIKE 'projector_footer'")->num_rows > 0) {
+            $stats['footer_message'] = $db->query("SELECT message FROM projector_footer LIMIT 1")->fetch_row()[0] ?? 'N/A';
+        }
+    } catch (Exception $e) { /* Fail gracefully */ }
     return $stats;
 }
 
-// --- Function to get stats by PARSING a backup .sql file ---
+// --- Function to get detailed stats by PARSING a backup .sql file ---
 function get_backup_file_stats(string $file_path): array {
-    $stats = ['pledges' => 0, 'payments' => 0, 'users' => 0];
+    $stats = [
+        'pledges_by_status' => [], 'payments_by_status' => [], 'users_by_role' => [],
+        'pending_applications' => 0, 'cells_by_status' => [], 'projector_commands' => 0,
+        'footer_message' => 'N/A'
+    ];
     $file_handle = fopen($file_path, 'r');
-    if (!$file_handle) {
-        throw new Exception("Could not open the uploaded file.");
-    }
+    if (!$file_handle) { throw new Exception("Could not open the uploaded file."); }
+
+    $pledges = []; $payments = []; $users = []; $applications = []; $cells = []; $commands = 0;
+    
     while (($line = fgets($file_handle)) !== false) {
-        if (strpos($line, 'INSERT INTO `pledges`') === 0) {
-            $stats['pledges']++;
-        } elseif (strpos($line, 'INSERT INTO `payments`') === 0) {
-            $stats['payments']++;
-        } elseif (strpos($line, 'INSERT INTO `users`') === 0) {
-            $stats['users']++;
+        if (strpos($line, 'INSERT INTO') !== 0) continue;
+        if (preg_match('/INSERT INTO `(.*?)` \((.*?)\) VALUES \((.*?)\);/', $line, $matches)) {
+            $table = $matches[1];
+            $columns = array_map('trim', explode(',', str_replace('`', '', $matches[2])));
+            $values = str_getcsv($matches[3]);
+            if(count($columns) !== count($values)) continue;
+            $row = array_combine($columns, $values);
+            foreach($row as &$val) { if(is_string($val)) $val = trim($val, "'"); } unset($val);
+            if ($table === 'pledges') $pledges[] = $row;
+            if ($table === 'payments') $payments[] = $row;
+            if ($table === 'users') $users[] = $row;
+            if ($table === 'registrar_applications') $applications[] = $row;
+            if ($table === 'floor_grid_cells') $cells[] = $row;
+            if ($table === 'projector_commands') $commands++;
+            if ($table === 'projector_footer' && isset($row['message'])) $stats['footer_message'] = $row['message'];
         }
     }
     fclose($file_handle);
+
+    foreach($pledges as $p) {
+        $status = $p['status'] ?? 'unknown';
+        if(!isset($stats['pledges_by_status'][$status])) $stats['pledges_by_status'][$status] = ['count' => 0, 'total' => 0];
+        $stats['pledges_by_status'][$status]['count']++;
+        $stats['pledges_by_status'][$status]['total'] += (float)($p['amount'] ?? 0);
+    }
+    foreach($payments as $p) {
+        $status = $p['status'] ?? 'unknown';
+        if(!isset($stats['payments_by_status'][$status])) $stats['payments_by_status'][$status] = ['count' => 0, 'total' => 0];
+        $stats['payments_by_status'][$status]['count']++;
+        $stats['payments_by_status'][$status]['total'] += (float)($p['amount'] ?? 0);
+    }
+    foreach($users as $u) {
+        $role = $u['role'] ?? 'unknown';
+        if(!isset($stats['users_by_role'][$role])) $stats['users_by_role'][$role] = 0;
+        $stats['users_by_role'][$role]++;
+    }
+    foreach($applications as $a) { if(($a['status'] ?? '') === 'pending') $stats['pending_applications']++; }
+    foreach($cells as $c) {
+        $status = $c['status'] ?? 'unknown';
+        if(!isset($stats['cells_by_status'][$status])) $stats['cells_by_status'][$status] = 0;
+        $stats['cells_by_status'][$status]++;
+    }
+    $stats['projector_commands'] = $commands;
     return $stats;
 }
 
@@ -66,13 +114,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['backup_file'])) {
             if (!isset($_FILES['backup_file']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
                 throw new Exception('File upload error. Code: ' . ($_FILES['backup_file']['error'] ?? 'Unknown'));
             }
-            
-            $live_stats = get_live_database_stats();
-            $backup_stats = get_backup_file_stats($_FILES['backup_file']['tmp_name']);
-
             $comparison_results = [
-                'live' => $live_stats,
-                'backup' => $backup_stats,
+                'live' => get_live_database_stats(),
+                'backup' => get_backup_file_stats($_FILES['backup_file']['tmp_name']),
                 'filename' => htmlspecialchars($_FILES['backup_file']['name'])
             ];
             $msg = 'Comparison complete. See the results below.';
@@ -89,6 +133,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['backup_file'])) {
 }
 
 $live_stats = get_live_database_stats();
+
+function render_comparison_row($label, $live_val, $backup_val, $is_money = false) {
+    $live_val = $live_val ?? 0;
+    $backup_val = $backup_val ?? 0;
+    $diff = $backup_val - $live_val;
+
+    $live_display = $is_money ? '£' . number_format($live_val, 2) : number_format($live_val);
+    $backup_display = $is_money ? '£' . number_format($backup_val, 2) : number_format($backup_val);
+    
+    $diff_badge = '';
+    $diff_display = $is_money ? '£' . number_format($diff, 2) : number_format($diff);
+    if ($diff > 0) $diff_badge = "<span class='badge bg-success ms-2'>+{$diff_display}</span>";
+    if ($diff < 0) $diff_badge = "<span class='badge bg-danger ms-2'>{$diff_display}</span>";
+    
+    echo "<tr><td>{$label}</td><td class='text-center'>{$live_display}</td><td class='text-center'>{$backup_display} {$diff_badge}</td></tr>";
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -101,7 +161,7 @@ $live_stats = get_live_database_stats();
     <link rel="stylesheet" href="../assets/admin.css">
 </head>
 <body>
-<div class="container mt-4">
+<div class="container mt-4 mb-4">
     <div class="row">
         <div class="col-lg-10 mx-auto">
             <div class="card shadow-sm">
@@ -113,39 +173,16 @@ $live_stats = get_live_database_stats();
                         <div class="alert alert-<?php echo $msg_type; ?>"><?php echo htmlspecialchars($msg); ?></div>
                     <?php endif; ?>
 
-                    <!-- Live Database Status -->
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5><i class="fas fa-database me-2"></i>Live Database Status</h5>
-                            <small class="text-muted">
-                                Currently connected to: <?php echo defined('DB_NAME') ? DB_NAME : 'N/A'; ?> 
-                                (<?php echo defined('ENVIRONMENT') ? ENVIRONMENT : 'N/A'; ?>)
-                            </small>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-3"><strong>Total Pledges:</strong> <?php echo number_format($live_stats['pledges']); ?></div>
-                                <div class="col-md-3"><strong>Total Payments:</strong> <?php echo number_format($live_stats['payments']); ?></div>
-                                <div class="col-md-3"><strong>Total Users:</strong> <?php echo number_format($live_stats['users']); ?></div>
-                                <div class="col-md-3"><strong>Grand Total:</strong> £<?php echo number_format($live_stats['grand_total'], 2); ?></div>
-                                <div class="col-md-6"><strong>Last Pledge:</strong> <?php echo $live_stats['last_pledge']; ?></div>
-                                <div class="col-md-6"><strong>Last Payment:</strong> <?php echo $live_stats['last_payment']; ?></div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Compare with Backup -->
                     <div class="card mb-4">
-                        <div class="card-header">
-                             <h5><i class="fas fa-exchange-alt me-2"></i>Compare with Backup File</h5>
-                        </div>
+                        <div class="card-header"><h5><i class="fas fa-exchange-alt me-2"></i>Compare Live DB with Backup File</h5></div>
                         <div class="card-body">
-                             <p class="text-muted">Upload a `.sql` backup file to see how it compares to the live database before you import.</p>
+                             <p class="text-muted">Upload a `.sql` backup file to generate a detailed report comparing it against the live database.</p>
                              <form method="POST" enctype="multipart/form-data">
                                 <?php echo csrf_input(); ?>
                                 <div class="input-group">
                                     <input class="form-control" type="file" name="backup_file" accept=".sql" required>
-                                    <button type="submit" class="btn btn-primary"><i class="fas fa-search me-2"></i>Compare Now</button>
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-search me-2"></i>Analyze & Compare</button>
                                 </div>
                             </form>
                         </div>
@@ -155,54 +192,54 @@ $live_stats = get_live_database_stats();
                     <?php if ($comparison_results): 
                         $live = $comparison_results['live'];
                         $backup = $comparison_results['backup'];
-                        
-                        function get_diff_badge($live_val, $backup_val) {
-                            $diff = $backup_val - $live_val;
-                            if ($diff > 0) return "<span class='badge bg-success'>+" . number_format($diff) . "</span>";
-                            if ($diff < 0) return "<span class='badge bg-danger'>" . number_format($diff) . "</span>";
-                            return "<span class='badge bg-secondary'>0</span>";
-                        }
                     ?>
                     <div class="card">
                         <div class="card-header bg-light">
-                            <h5><i class="fas fa-balance-scale me-2"></i>Comparison Results</h5>
-                             <small class="text-muted">Comparing live database with: <strong><?php echo $comparison_results['filename']; ?></strong></small>
+                            <h5><i class="fas fa-balance-scale me-2"></i>Comparison Report</h5>
+                            <small class="text-muted">Comparing <strong>Live Database</strong> with backup file: <strong><?php echo $comparison_results['filename']; ?></strong></small>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-bordered mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Metric</th>
-                                        <th class="text-center">Live Database</th>
-                                        <th class="text-center">Backup File</th>
-                                        <th class="text-center">Difference</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><i class="fas fa-hand-holding-usd me-2 text-primary"></i>Pledges</td>
-                                        <td class="text-center"><?php echo number_format($live['pledges']); ?></td>
-                                        <td class="text-center"><?php echo number_format($backup['pledges']); ?></td>
-                                        <td class="text-center"><?php echo get_diff_badge($live['pledges'], $backup['pledges']); ?></td>
-                                    </tr>
-                                    <tr>
-                                        <td><i class="fas fa-credit-card me-2 text-success"></i>Payments</td>
-                                        <td class="text-center"><?php echo number_format($live['payments']); ?></td>
-                                        <td class="text-center"><?php echo number_format($backup['payments']); ?></td>
-                                        <td class="text-center"><?php echo get_diff_badge($live['payments'], $backup['payments']); ?></td>
-                                    </tr>
-                                    <tr>
-                                        <td><i class="fas fa-users me-2 text-info"></i>Users</td>
-                                        <td class="text-center"><?php echo number_format($live['users']); ?></td>
-                                        <td class="text-center"><?php echo number_format($backup['users']); ?></td>
-                                        <td class="text-center"><?php echo get_diff_badge($live['users'], $backup['users']); ?></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="row g-0">
+                            <!-- Live Column -->
+                            <div class="col-lg-6 border-end">
+                                <h6 class="text-center p-2 bg-light">Live Database</h6>
+                                <table class="table table-striped table-sm mb-0">
+                                    <tr><td><strong>Pending Pledges:</strong></td><td><?php echo number_format($live['pledges_by_status']['pending']['count'] ?? 0); ?> (<?php echo '£' . number_format($live['pledges_by_status']['pending']['total'] ?? 0, 2); ?>)</td></tr>
+                                    <tr><td><strong>Approved Pledges:</strong></td><td><?php echo number_format($live['pledges_by_status']['approved']['count'] ?? 0); ?> (<?php echo '£' . number_format($live['pledges_by_status']['approved']['total'] ?? 0, 2); ?>)</td></tr>
+                                    <tr><td><strong>Pending Payments:</strong></td><td><?php echo number_format($live['payments_by_status']['pending']['count'] ?? 0); ?> (<?php echo '£' . number_format($live['payments_by_status']['pending']['total'] ?? 0, 2); ?>)</td></tr>
+                                    <tr><td><strong>Approved Payments:</strong></td><td><?php echo number_format($live['payments_by_status']['approved']['count'] ?? 0); ?> (<?php echo '£' . number_format($live['payments_by_status']['approved']['total'] ?? 0, 2); ?>)</td></tr>
+                                    <tr><td colspan="2" class="bg-light"><strong>Users & Access</strong></td></tr>
+                                    <tr><td><strong>Admin Users:</strong></td><td><?php echo number_format($live['users_by_role']['admin'] ?? 0); ?></td></tr>
+                                    <tr><td><strong>Registrar Users:</strong></td><td><?php echo number_format($live['users_by_role']['registrar'] ?? 0); ?></td></tr>
+                                    <tr><td><strong>Pending Applications:</strong></td><td><?php echo number_format($live['pending_applications'] ?? 0); ?></td></tr>
+                                    <tr><td colspan="2" class="bg-light"><strong>Floor Map</strong></td></tr>
+                                    <tr><td><strong>Available Cells:</strong></td><td><?php echo number_format($live['cells_by_status']['available'] ?? 0); ?></td></tr>
+                                    <tr><td><strong>Pledged/Paid Cells:</strong></td><td><?php echo number_format(($live['cells_by_status']['pledged'] ?? 0) + ($live['cells_by_status']['paid'] ?? 0)); ?></td></tr>
+                                    <tr><td colspan="2" class="bg-light"><strong>Projector</strong></td></tr>
+                                    <tr><td><strong>Projector Commands:</strong></td><td><?php echo number_format($live['projector_commands'] ?? 0); ?></td></tr>
+                                    <tr><td><strong>Footer Message:</strong></td><td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;"><?php echo htmlspecialchars($live['footer_message'] ?? 'N/A'); ?></td></tr>
+                                </table>
+                            </div>
+                            <!-- Backup Column -->
+                            <div class="col-lg-6">
+                                <h6 class="text-center p-2 bg-light">Backup File</h6>
+                                <table class="table table-striped table-sm mb-0">
+                                     <?php render_comparison_row("Pending Pledges:", $live['pledges_by_status']['pending']['count'] ?? 0, $backup['pledges_by_status']['pending']['count'] ?? 0); ?>
+                                     <?php render_comparison_row("Approved Pledges:", $live['pledges_by_status']['approved']['count'] ?? 0, $backup['pledges_by_status']['approved']['count'] ?? 0); ?>
+                                     <?php render_comparison_row("Pending Payments:", $live['payments_by_status']['pending']['count'] ?? 0, $backup['payments_by_status']['pending']['count'] ?? 0); ?>
+                                     <?php render_comparison_row("Approved Payments:", $live['payments_by_status']['approved']['count'] ?? 0, $backup['payments_by_status']['approved']['count'] ?? 0); ?>
+                                     <tr><td colspan="3" class="bg-light text-white">.</td></tr>
+                                     <?php render_comparison_row("Admin Users:", $live['users_by_role']['admin'] ?? 0, $backup['users_by_role']['admin'] ?? 0); ?>
+                                     <?php render_comparison_row("Registrar Users:", $live['users_by_role']['registrar'] ?? 0, $backup['users_by_role']['registrar'] ?? 0); ?>
+                                     <?php render_comparison_row("Pending Applications:", $live['pending_applications'] ?? 0, $backup['pending_applications'] ?? 0); ?>
+                                     <tr><td colspan="3" class="bg-light text-white">.</td></tr>
+                                     <?php render_comparison_row("Available Cells:", $live['cells_by_status']['available'] ?? 0, $backup['cells_by_status']['available'] ?? 0); ?>
+                                     <?php render_comparison_row("Pledged/Paid Cells:", ($live['cells_by_status']['pledged'] ?? 0) + ($live['cells_by_status']['paid'] ?? 0), ($backup['cells_by_status']['pledged'] ?? 0) + ($backup['cells_by_status']['paid'] ?? 0)); ?>
+                                     <tr><td colspan="3" class="bg-light text-white">.</td></tr>
+                                     <?php render_comparison_row("Projector Commands:", $live['projector_commands'] ?? 0, $backup['projector_commands'] ?? 0); ?>
+                                     <tr><td><strong>Footer Message:</strong></td><td class="text-center" colspan="2" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;"><?php echo htmlspecialchars($backup['footer_message'] ?? 'N/A'); ?></td></tr>
+                                </table>
+                            </div>
                         </div>
-                         <div class="card-footer text-muted">
-                            This comparison is based on counting `INSERT` statements in the `.sql` file. It's a strong indicator of changes but may not capture modified or deleted records.
-                         </div>
                     </div>
                     <?php endif; ?>
 
