@@ -9,67 +9,82 @@ $db = db();
 $msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['export_full'])) {
-    try {
-        set_time_limit(300); // Allow up to 5 minutes for export
-        $timestamp = date('Y-m-d_H-i-s');
-        
-        $exportData = [
-            'export_info' => [
-                'timestamp' => date('Y-m-d H:i:s'),
-                'environment' => ENVIRONMENT,
-                'database_name' => DB_NAME,
-                'version' => '1.1'
-            ],
-            'schema' => [],
-            'data' => []
-        ];
-        
-        // Tables to export (everything except logs and transient data)
-        $tablesToExport = [
-            'users', 'donation_packages', 'settings', 'counters', 'payments',
-            'pledges', 'projector_footer', 'floor_grid_cells', 'custom_amount_tracking',
-            'user_messages', 'projector_commands', 'registrar_applications',
-            'user_blocklist', 'floor_area_allocations'
-        ];
-        
-        // 1. Get Schema (CREATE TABLE statements)
-        foreach ($tablesToExport as $table) {
-            $result = $db->query("SHOW CREATE TABLE `{$table}`");
-            if ($row = $result->fetch_assoc()) {
-                $exportData['schema'][$table] = $row['Create Table'];
+    if (verify_csrf(true)) {
+        try {
+            set_time_limit(300); // Allow up to 5 minutes for export
+            
+            // Clear all previous output
+            if (ob_get_level()) {
+                ob_end_clean();
             }
-            $result->free();
-        }
 
-        // 2. Get Data
-        foreach ($tablesToExport as $table) {
-            $exportData['data'][$table] = [];
-            $result = $db->query("SELECT * FROM `{$table}`");
-            while ($row = $result->fetch_assoc()) {
-                $exportData['data'][$table][] = $row;
+            $timestamp = date('Y-m-d_H-i-s');
+            
+            $exportData = [
+                'export_info' => [
+                    'timestamp' => date('Y-m-d H:i:s'),
+                    'environment' => ENVIRONMENT,
+                    'database_name' => DB_NAME,
+                    'version' => '1.1'
+                ],
+                'schema' => [],
+                'data' => []
+            ];
+            
+            // Tables to export (everything except logs and transient data)
+            $tablesToExport = [
+                'users', 'donation_packages', 'settings', 'counters', 'payments',
+                'pledges', 'projector_footer', 'floor_grid_cells', 'custom_amount_tracking',
+                'user_messages', 'projector_commands', 'registrar_applications',
+                'user_blocklist', 'floor_area_allocations'
+            ];
+            
+            // 1. Get Schema (CREATE TABLE statements)
+            foreach ($tablesToExport as $table) {
+                $result = $db->query("SHOW CREATE TABLE `{$table}`");
+                if ($row = $result->fetch_assoc()) {
+                    $exportData['schema'][$table] = $row['Create Table'];
+                }
+                $result->free();
             }
-            $result->free();
-        }
-        
-        $json_data = json_encode($exportData, JSON_PRETTY_PRINT);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception('Failed to encode data to JSON: ' . json_last_error_msg());
-        }
 
-        // Generate filename
-        $filename = "fundraising_backup_" . ENVIRONMENT . "_{$timestamp}.json";
-        
-        // Send as download
-        header('Content-Type: application/json');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Content-Length: ' . strlen($json_data));
-        
-        echo $json_data;
-        exit;
-        
-    } catch (Exception $e) {
-        $msg = 'Export failed: ' . $e->getMessage();
+            // 2. Get Data
+            foreach ($tablesToExport as $table) {
+                $exportData['data'][$table] = [];
+                $result = $db->query("SELECT * FROM `{$table}`");
+                while ($row = $result->fetch_assoc()) {
+                    $exportData['data'][$table][] = $row;
+                }
+                $result->free();
+            }
+            
+            $json_data = json_encode($exportData, JSON_PRETTY_PRINT);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new Exception('Failed to encode data to JSON: ' . json_last_error_msg());
+            }
+
+            // Generate filename
+            $filename = "fundraising_backup_" . ENVIRONMENT . "_{$timestamp}.json";
+            
+            // Send as download
+            header('Content-Type: application/json');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Length: ' . strlen($json_data));
+            
+            echo $json_data;
+            exit;
+            
+        } catch (Exception $e) {
+            // We can't show a nice error message here because headers are already sent.
+            // The user will see a partial download or a failed download.
+            // Logging this error to the server's error log is the best we can do.
+            error_log('Database Export Failed: ' . $e->getMessage());
+            // Ensure script termination
+            exit;
+        }
+    } else {
+        $msg = 'Invalid security token. Please refresh the page and try again.';
     }
 }
 ?>
