@@ -200,9 +200,14 @@ function h($value) {
                                             <small class="text-white opacity-75">Send secure login instructions to <?php echo h($approvedData['name']); ?></small>
                                         </div>
                                     </div>
-                                    <button type="button" class="btn btn-light btn-sm" onclick="shareOnWhatsApp()">
-                                        <i class="fab fa-whatsapp me-2"></i>Share Now
-                                    </button>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-light btn-sm" onclick="copyShareMessage()">
+                                            <i class="fas fa-copy me-2"></i>Copy Message
+                                        </button>
+                                        <button type="button" class="btn btn-light btn-sm" onclick="shareOnWhatsApp()">
+                                            <i class="fab fa-whatsapp me-2"></i>Share Now
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <?php } ?>
@@ -550,6 +555,50 @@ Church Fundraising Team`;
                 button.classList.remove('btn-success');
                 button.classList.add('btn-light');
             }, 2000);
+            <?php else: ?>
+            alert('Session expired. Please refresh the page and try again.');
+            <?php endif; ?>
+        }
+
+        // Function to copy the WhatsApp message to clipboard
+        function copyShareMessage() {
+            <?php if (isset($_SESSION['approved_registrar'])): ?>
+            const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
+            const message = `Dear ${approvedData.name},
+
+Congratulations! Your application to become a registrar has been approved.
+
+You can now log in to the registrar portal using your phone number and the access code provided below.
+
+Before logging in, please watch this instructional video to familiarize yourself with the system:
+https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
+
+Once you have reviewed the video, you may log in and explore the system before the main event begins. If you have any questions or encounter any technical difficulties, please don't hesitate to contact us.
+
+Your access code is: ${approvedData.passcode}
+
+Please keep this code secure and save it for future reference.
+
+Best regards,
+Church Fundraising Team`;
+
+            // Create a temporary textarea to copy the message
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = message;
+            document.body.appendChild(tempTextarea);
+
+            // Select and copy the text
+            tempTextarea.select();
+            tempTextarea.setSelectionRange(0, 99999); // For mobile devices
+
+            try {
+                document.execCommand('copy');
+                alert('Message copied to clipboard!');
+            } catch (err) {
+                console.error('Failed to copy message: ', err);
+                alert('Failed to copy message to clipboard. Please manually copy.');
+            }
+            document.body.removeChild(tempTextarea);
             <?php else: ?>
             alert('Session expired. Please refresh the page and try again.');
             <?php endif; ?>
