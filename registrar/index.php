@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // --- Step 1: Sanitize and collect all form inputs ---
     $name = trim((string)($_POST['name'] ?? ''));
     $phone = trim((string)($_POST['phone'] ?? ''));
-    $notes = trim((string)($_POST['notes'] ?? '')); // Notes field restored
+    $notes = trim((string)($_POST['notes'] ?? '')); // Tombola code (4 digits)
     $anonymous = isset($_POST['anonymous']); // will be true or false
     $anonymousFlag = $anonymous ? 1 : 0;
     $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
@@ -107,13 +107,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'A unique submission ID is required. Please refresh and try again.';
     }
 
-    // Validation for donor details based on type and anonymity
-    if ($type === 'pledge') {
-        if ($name === '') $error = 'Name is required for all pledges.';
-        elseif ($phone === '') $error = 'Phone number is required for all pledges.';
-    } elseif ($type === 'paid' && !$anonymous) {
-        if ($name === '') $error = 'Name is required unless the donation is anonymous.';
-        elseif ($phone === '') $error = 'Phone number is required unless the donation is anonymous.';
+    // Validation for donor details (always required)
+    if ($name === '') {
+        $error = 'Full name is required.';
+    } elseif ($phone === '') {
+        $error = 'Phone number is required.';
     }
 
     // Normalize and validate UK mobile phone for pledges and non-anonymous paid
@@ -124,13 +122,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         return $digits;
     };
-    if (($type === 'pledge') || ($type === 'paid' && !$anonymous)) {
-        if (!$error && $phone !== '') {
-            $phone = $normalizeUk($phone);
-            if (!preg_match('/^07\d{9}$/', $phone)) {
-                $error = 'Please enter a valid UK mobile number starting with 07.';
-            }
+    if (!$error && $phone !== '') {
+        $phone = $normalizeUk($phone);
+        if (!preg_match('/^07\d{9}$/', $phone)) {
+            $error = 'Please enter a valid UK mobile number starting with 07.';
         }
+    }
+
+    // Validate tombola: must be exactly 4 digits
+    $notesDigits = preg_replace('/\D+/', '', $notes);
+    if (!$error && !preg_match('/^\d{4}$/', $notesDigits)) {
+        $error = 'Please enter a 4-digit tombola number.';
     }
 
     // Validate and normalize payment method
@@ -179,20 +181,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $createdBy = (int)(current_user()['id'] ?? 0);
 
             // Donor data normalization
-            $donorName  = ($type === 'paid' && $anonymous) ? 'Anonymous' : $name;
-            $donorPhone = ($type === 'paid' && $anonymous) ? null : $phone;
+            $donorName  = $anonymous ? 'Anonymous' : $name;
+            $donorPhone = $phone;
             $donorEmail = null; // Email field removed
 
-            // Notes processing - combine user notes with payment method info
-            $final_notes = $notes; // Start with user's notes
-            if ($type === 'paid' && $payment_method) {
-                $payment_info = 'Paid via ' . ucfirst($payment_method) . '.';
-                if (!empty($final_notes)) {
-                    $final_notes .= ' ' . $payment_info;
-                } else {
-                    $final_notes = $payment_info;
-                }
-            }
+            // Use tombola code as-is (exactly 4 digits)
+            $final_notes = $notesDigits;
 
             if ($type === 'paid') {
                 // Standalone PAYMENT (no pledge row). Status defaults to pending in DB.
@@ -375,9 +369,12 @@ if (isset($_SESSION['success_message'])) {
                             </div>
                             
                             <div class="mb-3">
-                                <label for="notes" class="form-label">Notes (Optional)</label>
-                                <textarea class="form-control" id="notes" name="notes" rows="3" 
-                                          placeholder="Add any additional notes about this donation..."><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
+                                <label for="notes" class="form-label">Tombola Number<span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="notes" name="notes" required
+                                       min="0" max="9999" step="1" inputmode="numeric"
+                                       oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
+                                       placeholder="Enter 4-digit tombola number"
+                                       value="<?php echo htmlspecialchars($_POST['notes'] ?? ''); ?>">
                             </div>
                             
                             <div class="form-check mb-3">
