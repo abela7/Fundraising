@@ -486,6 +486,60 @@ function h($value) {
     <script src="../assets/admin.js"></script>
     
     <script>
+        // WhatsApp sharing function - Global scope
+        function shareOnWhatsApp() {
+            <?php if (isset($_SESSION['approved_registrar'])): ?>
+            const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
+            
+            // Format the message
+            const message = `Dear ${approvedData.name},
+
+Thanks for registering to become a registrar. You are now approved to be a registrar.
+
+Use your phone number and the code to login. Before you login watch and understand this video:
+https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
+
+Once you understand you can login and try around before the main event starts. If you have any question or face any technical problem don't forget to contact us anytime.
+
+Your access code is: ${approvedData.passcode}
+
+Please save this code for future use!`;
+
+            // Format phone number for WhatsApp (remove non-digits and add country code if needed)
+            let phoneNumber = approvedData.phone.replace(/\D/g, '');
+            
+            // Add country code if not present (assuming UK +44 if number doesn't start with country code)
+            if (!phoneNumber.startsWith('44') && phoneNumber.length === 11 && phoneNumber.startsWith('0')) {
+                phoneNumber = '44' + phoneNumber.substring(1);
+            } else if (!phoneNumber.startsWith('44') && phoneNumber.length === 10) {
+                phoneNumber = '44' + phoneNumber;
+            }
+            
+            // Create WhatsApp URL
+            const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+            
+            // Open WhatsApp
+            window.open(whatsappUrl, '_blank');
+            
+            // Show confirmation
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check me-2"></i>Sent!';
+            button.classList.add('btn-success');
+            button.classList.remove('btn-light');
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-light');
+            }, 2000);
+            <?php else: ?>
+            alert('Session expired. Please refresh the page and try again.');
+            <?php endif; ?>
+        }
+    </script>
+    
+    <script>
         // Enhanced registrar applications UI interactions
         (function() {
             'use strict';
@@ -537,58 +591,7 @@ function h($value) {
             
             // Passcode copy functionality removed for security
             // Passcodes are now only shown during approval process
-            
-            // WhatsApp sharing function
-            function shareOnWhatsApp() {
-                <?php if (isset($_SESSION['approved_registrar'])): ?>
-                const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
-                
-                // Format the message
-                const message = `Dear ${approvedData.name},
-
-Thanks for registering to become a registrar. You are now approved to be a registrar.
-
-Use your phone number and the code to login. Before you login watch and understand this video:
-https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
-
-Once you understand you can login and try around before the main event starts. If you have any question or face any technical problem don't forget to contact us anytime.
-
-Your access code is: ${approvedData.passcode}
-
-Please save this code for future use!`;
-
-                // Format phone number for WhatsApp (remove non-digits and add country code if needed)
-                let phoneNumber = approvedData.phone.replace(/\D/g, '');
-                
-                // Add country code if not present (assuming UK +44 if number doesn't start with country code)
-                if (!phoneNumber.startsWith('44') && phoneNumber.length === 11 && phoneNumber.startsWith('0')) {
-                    phoneNumber = '44' + phoneNumber.substring(1);
-                } else if (!phoneNumber.startsWith('44') && phoneNumber.length === 10) {
-                    phoneNumber = '44' + phoneNumber;
-                }
-                
-                // Create WhatsApp URL
-                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-                
-                // Open WhatsApp
-                window.open(whatsappUrl, '_blank');
-                
-                // Show confirmation
-                const button = event.target;
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-check me-2"></i>Sent!';
-                button.classList.add('btn-success');
-                button.classList.remove('btn-light');
-                
-                setTimeout(() => {
-                    button.innerHTML = originalText;
-                    button.classList.remove('btn-success');
-                    button.classList.add('btn-light');
-                }, 2000);
-                <?php else: ?>
-                alert('Session expired. Please refresh the page and try again.');
-                <?php endif; ?>
-            }
+            // WhatsApp sharing function moved to global scope above
             
             // Smooth animations for new applications (if any are added dynamically)
             const applications = document.querySelectorAll('.application-card');
