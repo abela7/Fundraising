@@ -510,7 +510,7 @@ Please keep this code secure and save it for future reference.
 Best regards,
 Church Fundraising Team`;
 
-            // --- Enhanced Phone Number Formatting & Validation ---
+            // --- Enhanced Phone Number Formatting (Direct Share) ---
             let phoneNumber = approvedData.phone.replace(/\D/g, ''); // Remove all non-digits
 
             // Normalize common UK mobile formats
@@ -521,39 +521,14 @@ Church Fundraising Team`;
                 // No leading 0: 7xxxxxxxxx -> 447xxxxxxxxx
                 phoneNumber = '44' + phoneNumber;
             } else if (phoneNumber.startsWith('447') && phoneNumber.length === 12) {
-                // Already correct: 447xxxxxxxxx
+                // Already correct: 447xxxxxxxxx, do nothing.
             } else {
-                // Attempt a generic fallback for other formats
-                console.warn('Unusual phone number format. Applying fallback logic for:', approvedData.phone);
+                // Fallback for other formats - remove leading 0 if present, then add 44
+                console.warn('Unusual phone number format detected. Applying fallback formatting for:', approvedData.phone);
                 if (phoneNumber.startsWith('0')) {
                     phoneNumber = '44' + phoneNumber.substring(1);
                 } else if (!phoneNumber.startsWith('44')) {
                     phoneNumber = '44' + phoneNumber;
-                }
-            }
-
-            // Final validation with user prompt for correction
-            if (phoneNumber.length !== 12) {
-                const correctedNumber = prompt(
-                    `The phone number "${approvedData.phone}" may be incorrect. We formatted it to "${phoneNumber}".\n\n` +
-                    `Please enter the correct UK mobile number (e.g., 07123456789) to proceed:`,
-                    approvedData.phone // Pre-fill with original number
-                );
-
-                if (correctedNumber) {
-                    let manualNumber = correctedNumber.replace(/\D/g, '');
-                    if (manualNumber.startsWith('07') && manualNumber.length === 11) {
-                        phoneNumber = '44' + manualNumber.substring(1);
-                    } else if (manualNumber.startsWith('447') && manualNumber.length === 12) {
-                        phoneNumber = manualNumber;
-                    } else if (manualNumber.startsWith('7') && manualNumber.length === 10) {
-                        phoneNumber = '44' + manualNumber;
-                    } else {
-                        alert('The number you entered still appears to be in an invalid format. Sharing cancelled.');
-                        return; // Stop execution
-                    }
-                } else {
-                    return; // User cancelled the prompt
                 }
             }
             
