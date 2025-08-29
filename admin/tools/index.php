@@ -143,41 +143,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
             </div>
 
-            <!-- Database Manager (Complete Solution) -->
-            <div class="col-md-12 mb-4">
-                <div class="card border-primary">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-database me-2"></i>
-                            Complete Database Manager
-                        </h5>
+            <!-- Database Sync Tools -->
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                       <i class="fas fa-sync-alt me-2"></i> Database Sync Tools
                     </div>
                     <div class="card-body">
-                        <p class="card-text">
-                            <strong>Complete solution for Local ↔ Server database sync.</strong> 
-                            Export complete databases, wipe tables, and import - all from the dashboard without phpMyAdmin.
-                        </p>
-                        <div class="row text-center">
-                            <div class="col-md-4">
-                                <i class="fas fa-download text-success fa-2x mb-2"></i>
-                                <div><strong>Export</strong></div>
-                                <small class="text-muted">Complete database with all data</small>
+                         <p class="text-muted">Use these tools to manually synchronize your local and server databases. The typical workflow is to export from the server and import to your local machine.</p>
+                         <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-success">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-download fa-2x text-success mb-2"></i><br>
+                                            Export Database
+                                        </h5>
+                                        <p class="card-text text-muted small">Export the current database (structure + data) to a JSON file. Use this on your source machine (e.g., SERVER).</p>
+                                        <a href="export_database.php" class="btn btn-success stretched-link">Go to Export</a>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <i class="fas fa-trash text-danger fa-2x mb-2"></i>
-                                <div><strong>Wipe</strong></div>
-                                <small class="text-muted">Remove all tables safely</small>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-info">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-upload fa-2x text-info mb-2"></i><br>
+                                            Import Database
+                                        </h5>
+                                        <p class="card-text text-muted small">Wipe the current database and restore it from an exported JSON backup file. Use this on your target machine (e.g., LOCAL).</p>
+                                        <a href="import_database.php" class="btn btn-info stretched-link">Go to Import</a>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <i class="fas fa-upload text-primary fa-2x mb-2"></i>
-                                <div><strong>Import</strong></div>
-                                <small class="text-muted">Restore complete database</small>
+                             <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-danger">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-skull-crossbones fa-2x text-danger mb-2"></i><br>
+                                            Wipe Database
+                                        </h5>
+                                        <p class="card-text text-muted small">Permanently delete all tables from the current database. Use with extreme caution.</p>
+                                        <a href="wipe_database.php" class="btn btn-danger stretched-link">Go to Wipe</a>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="text-center mt-3">
-                            <a href="database_manager.php" class="btn btn-primary btn-lg">
-                                <i class="fas fa-cog me-2"></i>Open Database Manager
-                            </a>
                         </div>
                     </div>
                 </div>
