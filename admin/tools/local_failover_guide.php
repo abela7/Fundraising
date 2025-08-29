@@ -33,6 +33,10 @@ if ($appPath === DIRECTORY_SEPARATOR || $appPath === '.') { $appPath = '/'; }
 
 $ips = detect_candidate_ips();
 $primaryIp = $ips[0] ?? 'YOUR-IP-HERE';
+$preferLaptopHotspot = true; // Force Windows Mobile Hotspot default
+if ($preferLaptopHotspot) {
+    $primaryIp = '192.168.137.1';
+}
 $scheme = 'http';
 
 // Build shareable URLs using the primary IP
@@ -69,7 +73,9 @@ $page_title = 'Local Failover Guide & Share Links';
                                 <?php foreach ($ips as $ip): ?>
                                     <span class="badge bg-primary me-1"><?php echo htmlspecialchars($ip); ?></span>
                                 <?php endforeach; ?>
-                                <div class="small text-muted mt-1">If these look wrong, connect your laptop to the hotspot first, then click Refresh.</div>
+                                <div class="small text-muted mt-1">
+                                    Using Windows Mobile Hotspot. Links below are fixed to <strong>http://192.168.137.1</strong> for fastest failover.
+                                </div>
                             </div>
                             <button class="btn btn-outline-primary btn-sm" onclick="location.reload()"><i class="fas fa-rotate"></i> Refresh</button>
                         </div>
