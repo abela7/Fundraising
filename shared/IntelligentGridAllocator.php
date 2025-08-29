@@ -132,11 +132,16 @@ class IntelligentGridAllocator
     }
     
     /**
-     * Updates a list of cells to mark them as allocated.
+     * Updates a batch of cells with the donation information.
      */
-    private function updateCells(array $cellIds, ?int $pledgeId, ?int $paymentId, string $donorName, float $amountPerBlock, string $status): void
+    private function updateCells(array $cellIds, ?int $pledgeId, ?int $paymentId, string $donorName, float $amountPerCell, string $status): void
     {
+        if (empty($cellIds)) {
+            return;
+        }
+        
         $placeholders = implode(',', array_fill(0, count($cellIds), '?'));
+        $types = str_repeat('i', count($cellIds));
         
         $sql = "
             UPDATE floor_grid_cells
@@ -147,17 +152,22 @@ class IntelligentGridAllocator
                 donor_name = ?,
                 amount = ?,
                 assigned_date = NOW()
-            WHERE cell_id IN ($placeholders)
+            WHERE id IN ({$placeholders})
         ";
         
         $stmt = $this->db->prepare($sql);
         
-        // Dynamically bind parameters
-        $types = 'siisd' . str_repeat('s', count($cellIds));
-        $params = array_merge([$status, $pledgeId, $paymentId, $donorName, $amountPerBlock], $cellIds);
-        $stmt->bind_param($types, ...$params);
+        // Note the order of parameters for bind_param
+        $params = array_merge([$status, $pledgeId, $paymentId, $donorName, $amountPerCell], $cellIds);
+        $paramTypes = 'sisd' . $types;
         
+        $stmt->bind_param($paramTypes, ...$params);
         $stmt->execute();
+
+        if ($stmt->affected_rows === 0) {
+            // This is a critical failure, as we already locked the rows.
+            throw new RuntimeException("Failed to update cell statuses. No rows were affected.");
+        }
     }
     
     /**
