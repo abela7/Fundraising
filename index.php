@@ -158,6 +158,37 @@
             font-size: 1.2rem;
         }
         
+        /* Intro Video Section */
+        .video-section {
+            padding: 2rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+        
+        .video-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
         /* Floor Plan Section */
         .floor-plan {
             padding: 4rem 2rem 2rem 2rem;
@@ -665,6 +696,17 @@
                 <p class="amharic-text">
                     በካሬ ዋጋ ድጋፍ ያድርጉ <br> ከታች በተቀመጠው የካሬ ዋጋ መሰረት አቅምዎ የፈቀደውን ድጋፍ ያድርጉልን። ቢያንስ እርስዎ ወይም ወዳጅዎ ቆመው የሚያስቀድሱባትን ቦታ ይግዙልን።
                 </p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Intro Video Section -->
+    <section class="video-section">
+        <div class="video-container">
+            <div class="video-wrapper">
+                <iframe src="https://www.youtube.com/embed/2N9DizucBZE" title="YouTube video"
+                        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
             </div>
         </div>
     </section>

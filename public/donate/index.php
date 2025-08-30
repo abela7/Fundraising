@@ -363,21 +363,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="text-muted">Support our community with your generous contribution</p>
                 </div>
                 
-                <!-- Intro Video -->
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5 class="mb-3"><i class="fab fa-youtube text-danger me-2"></i>Watch this short video</h5>
-                        <div class="ratio ratio-16x9">
-                            <iframe 
-                                src="https://www.youtube.com/embed/2N9DizucBZE" 
-                                title="Fundraising Overview"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowfullscreen>
-                            </iframe>
-                        </div>
-                    </div>
-                </div>
-                
 
                 
                 <!-- Progress Bar -->
