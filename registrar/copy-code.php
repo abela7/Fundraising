@@ -1,13 +1,18 @@
 <?php
 declare(strict_types=1);
+
 require_once __DIR__ . '/../shared/url.php';
 
-$code = trim((string)($_GET['c'] ?? ''));
-// Only allow 6-digit numeric codes
-if (!preg_match('/^\d{6}$/', $code)) {
-    http_response_code(400);
-    $code = '';
-}
+// Security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: no-referrer');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
+$raw = (string)($_GET['c'] ?? '');
+$code = preg_replace('/\D+/', '', $raw);
+$isValid = (strlen($code) === 6);
 $loginUrl = url_for('/registrar/login.php');
 ?>
 <!DOCTYPE html>
@@ -15,51 +20,64 @@ $loginUrl = url_for('/registrar/login.php');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Copy Access Code</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f7f9fc; }
-        .card { max-width:420px; width:100%; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .code-box { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:1.6rem; letter-spacing:0.2rem; }
+        body { background: #f7f7f9; }
+        .copy-card { max-width: 520px; margin: 10vh auto; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        .code-box { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 2rem; letter-spacing: 0.2rem; }
+        .muted { color: #6c757d; }
     </style>
     <script>
         function copyCode() {
-            const el = document.getElementById('code');
-            const code = el.innerText.trim();
-            navigator.clipboard?.writeText(code).then(() => {
-                showCopied();
-            }).catch(() => {
-                const ta = document.createElement('textarea');
-                ta.value = code; document.body.appendChild(ta); ta.select();
-                try { document.execCommand('copy'); showCopied(); } finally { document.body.removeChild(ta); }
-            });
+            const code = document.getElementById('codeValue').textContent.trim();
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(code).then(() => showCopied(), showFallback);
+            } else {
+                showFallback();
+            }
+        }
+        function showFallback() {
+            const input = document.getElementById('fallbackInput');
+            input.value = document.getElementById('codeValue').textContent.trim();
+            input.select();
+            input.setSelectionRange(0, 99999);
+            try { document.execCommand('copy'); showCopied(); } catch (e) { /* ignore */ }
         }
         function showCopied() {
-            const b = document.getElementById('copyBtn');
-            const old = b.innerHTML;
-            b.innerHTML = '<i class="fas fa-check me-2"></i>Copied';
-            setTimeout(()=> b.innerHTML = old, 1800);
+            const btn = document.getElementById('copyBtn');
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
+            setTimeout(() => btn.innerHTML = original, 2000);
         }
         document.addEventListener('DOMContentLoaded', () => {
-            const hasAuto = sessionStorage.getItem('autoCopied');
-            if (!hasAuto) {
-                copyCode();
-                sessionStorage.setItem('autoCopied', '1');
-            }
+            // Auto-copy on load for faster UX
+            <?php if ($isValid): ?>
+            copyCode();
+            <?php endif; ?>
         });
     </script>
 </head>
 <body>
-    <div class="card p-4">
+<div class="card copy-card">
+    <div class="card-body p-4 text-center">
         <h5 class="mb-3">Your Access Code</h5>
-        <div class="alert alert-info d-flex align-items-center justify-content-between">
-            <div id="code" class="code-box"><?php echo htmlspecialchars($code ?: '------'); ?></div>
-            <button id="copyBtn" class="btn btn-primary btn-sm" onclick="copyCode()">Copy</button>
-        </div>
-        <a class="btn btn-success w-100" href="<?php echo htmlspecialchars($loginUrl); ?>">Go to Login</a>
-        <p class="text-muted mt-3 mb-0" style="font-size:0.9rem;">Tip: If copy didn’t work, tap the code above to select and copy.</p>
+        <?php if ($isValid): ?>
+            <div id="codeValue" class="code-box fw-bold mb-3"><?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?></div>
+            <input id="fallbackInput" type="text" class="visually-hidden" aria-hidden="true">
+            <button id="copyBtn" class="btn btn-success btn-lg w-100 mb-3" onclick="copyCode()">
+                <i class="fas fa-copy me-1"></i>Copy Code
+            </button>
+            <a href="<?php echo htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-primary w-100">Go to Login</a>
+            <p class="mt-3 mb-0 muted">Tip: The code is copied automatically when this page opens.</p>
+        <?php else: ?>
+            <div class="alert alert-warning">Invalid or missing code.</div>
+            <a href="<?php echo htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary w-100">Go to Login</a>
+        <?php endif; ?>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 </body>
 </html>
 

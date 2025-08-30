@@ -529,7 +529,7 @@ function h($value) {
             <?php if (isset($_SESSION['approved_registrar'])): ?>
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
             const registrarLink = <?php echo json_encode(url_for('/registrar/login.php')); ?>;
-            const copyCodeLink = <?php echo json_encode(url_for('/registrar/copy-code.php')); ?> + `?c=${approvedData.passcode}`;
+            const copyCodeLink = <?php echo json_encode(url_for('/registrar/copy-code.php')); ?> + `?c=${encodeURIComponent(approvedData.passcode)}`;
 
             const message = `ሰላም ${approvedData.name},
 
@@ -541,6 +541,8 @@ https://youtu.be/4Dscc1tDlsM
 ከዛም የመመዝገቢያ ሰዓቱ ሲደርስ የስልክ ቁጥርዎን እና ከታች ያለውን የመግቢያ ኮድ ተጠቅመው ምዝገባውን ይጀምራሉ።
 
 *የመግቢያ ኮድ:*
+*${approvedData.passcode}*
+ኮዱን ፈጥነው ለመቅዳት (Tap to copy):
 ${copyCodeLink}
 
 ምዝገባውን ለማድረግ የሚከተለውን ሊንክ ይጠቀሙ። 
@@ -563,9 +565,10 @@ https://donate.abuneteklehaymanot.org/registrar/index.php
                 phoneNumber = '44' + phoneNumber;
             }
 
-            const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isMobile = (navigator.userAgentData && navigator.userAgentData.mobile) ||
+                /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const whatsappUrl = isMobile
-                ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+                ? `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`
                 : `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
 
@@ -586,7 +589,7 @@ https://donate.abuneteklehaymanot.org/registrar/index.php
             <?php if (isset($_SESSION['approved_registrar'])): ?>
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
             const registrarLink = <?php echo json_encode(url_for('/registrar/login.php')); ?>;
-            const copyCodeLink = <?php echo json_encode(url_for('/registrar/copy-code.php')); ?> + `?c=${approvedData.passcode}`;
+            const copyCodeLink = <?php echo json_encode(url_for('/registrar/copy-code.php')); ?> + `?c=${encodeURIComponent(approvedData.passcode)}`;
             const message = `ሰላም ${approvedData.name},
 
 በገቢ ማሰባሰቢያ ፕሮግራሙ ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም እናመሰግናለን።
@@ -597,6 +600,8 @@ https://youtu.be/4Dscc1tDlsM
 ከዛም የመመዝገቢያ ሰዓቱ ሲደርስ የስልክ ቁጥርዎን እና ከታች ያለውን የመግቢያ ኮድ ተጠቅመው ምዝገባውን ይጀምራሉ።
 
 *የመግቢያ ኮድ:*
+*${approvedData.passcode}*
+ኮዱን ፈጥነው ለመቅዳት (Tap to copy):
 ${copyCodeLink}
 
 ምዝገባውን ለማድረግ የሚከተለውን ሊንክ ይጠቀሙ። 
