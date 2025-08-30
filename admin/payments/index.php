@@ -118,6 +118,13 @@ if (!in_array($statusFilter, $allowedStatuses, true)) { $statusFilter = 'all'; }
 
 $search = trim((string)($_GET['search'] ?? ''));
 
+// Registrar filter (who received/recorded the payment)
+$registrarParam = (string)($_GET['registrar'] ?? 'all');
+$registrarId = ($registrarParam !== 'all') ? max(0, (int)$registrarParam) : 0;
+
+// Load registrars for dropdown
+$registrars = $db->query("SELECT id, name FROM users WHERE role='registrar' AND active=1 ORDER BY name")?->fetch_all(MYSQLI_ASSOC) ?? [];
+
 // Stats (based on new schema)
 $settings = $db->query('SELECT target_amount, currency_code FROM settings WHERE id=1')->fetch_assoc() ?: ['target_amount'=>0,'currency_code'=>'GBP'];
 $statPaid = $db->query("SELECT COALESCE(SUM(amount),0) AS total_paid FROM payments WHERE status='approved'")->fetch_assoc();
@@ -132,6 +139,7 @@ $collectionRate = ($settings['target_amount'] > 0) ? round(($totalPaid / (float)
 $where = [];$bind=[];$types='';
 if ($methodFilter !== 'all') { $where[] = 'p.method = ?'; $bind[] = $methodFilter; $types.='s'; }
 if ($statusFilter !== 'all') { $where[] = 'p.status = ?'; $bind[] = $statusFilter; $types.='s'; }
+if ($registrarId > 0) { $where[] = 'p.received_by_user_id = ?'; $bind[] = $registrarId; $types.='i'; }
 if ($search !== '') {
     $where[] = '(p.donor_name LIKE ? OR p.donor_phone LIKE ? OR p.reference LIKE ?)';
     $like = '%' . $search . '%';
@@ -169,6 +177,29 @@ if ($types) {
 }
 $stmt->execute();
 $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Registrar summary when filtered
+$registrarSummary = null; $registrarName = '';
+if ($registrarId > 0) {
+    foreach ($registrars as $reg) { if ((int)$reg['id'] === $registrarId) { $registrarName = $reg['name']; break; } }
+    if ($registrarName === '') {
+        $nmStmt = $db->prepare('SELECT name FROM users WHERE id = ?');
+        $nmStmt->bind_param('i', $registrarId);
+        $nmStmt->execute();
+        $registrarName = (string)($nmStmt->get_result()->fetch_assoc()['name'] ?? 'Registrar #'.$registrarId);
+        $nmStmt->close();
+    }
+    $sumSql = "SELECT 
+                  COUNT(*) AS cnt,
+                  COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) AS approved_total,
+                  COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END),0) AS pending_total
+               FROM payments WHERE received_by_user_id = ?";
+    $s = $db->prepare($sumSql);
+    $s->bind_param('i', $registrarId);
+    $s->execute();
+    $registrarSummary = $s->get_result()->fetch_assoc();
+    $s->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -266,6 +297,17 @@ $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             <form method="get" class="filter-form" id="filterForm">
                                 <div class="row g-3">
                                     <div class="col-lg-3 col-md-6">
+                                        <label class="form-label">Registrar</label>
+                                        <select name="registrar" class="form-select" onchange="document.getElementById('filterForm').submit();">
+                                            <option value="all" <?php echo $registrarId===0?'selected':''; ?>>All Registrars</option>
+                                            <?php foreach ($registrars as $reg): ?>
+                                            <option value="<?php echo (int)$reg['id']; ?>" <?php echo $registrarId===(int)$reg['id']?'selected':''; ?>>
+                                                <?php echo htmlspecialchars($reg['name']); ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
                                         <label class="form-label">Payment Method</label>
                                         <select name="method" class="form-select" onchange="document.getElementById('filterForm').submit();">
                                             <option value="all" <?php echo $methodFilter==='all'?'selected':''; ?>>All Methods</option>
@@ -306,6 +348,21 @@ $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                     </div>
                                 </div>
                             </form>
+                            <?php if ($registrarId > 0 && $registrarSummary): ?>
+                            <div class="mt-3 alert alert-secondary">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div>
+                                        <i class="fas fa-user me-2"></i>
+                                        <strong><?php echo htmlspecialchars($registrarName); ?></strong> summary
+                                    </div>
+                                    <div class="small">
+                                        <span class="me-3"><i class="fas fa-money-bill-wave text-success me-1"></i>Approved: £<?php echo number_format((float)$registrarSummary['approved_total'], 2); ?></span>
+                                        <span class="me-3"><i class="fas fa-clock text-warning me-1"></i>Pending: £<?php echo number_format((float)$registrarSummary['pending_total'], 2); ?></span>
+                                        <span><i class="fas fa-receipt text-muted me-1"></i>Payments: <?php echo (int)$registrarSummary['cnt']; ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     
