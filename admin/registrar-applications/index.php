@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/url.php';
 require_admin();
 
 $page_title = 'Registrar Applications';
@@ -527,25 +528,26 @@ function h($value) {
         function shareOnWhatsApp() {
             <?php if (isset($_SESSION['approved_registrar'])): ?>
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
-            
-            const message = `Dear ${approvedData.name},
+            const registrarLink = <?php echo json_encode(url_for('/registrar/login.php')); ?>;
 
-*Congratulations!* Your application to become a registrar has been approved.
+            const message = `ሰላም ${approvedData.name},
 
-You can now log in to the registrar portal using your phone number and the access code provided below.
+በነገገው ዕለት ለሚኖረው የገቢ ማሰባሰቢያ ፕሮግራም ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም  እናመሰግናለን።
 
-Before logging in, we highly recommend watching this instructional video to familiarize yourself with the system:
-https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
+ወደ መመዝገቢያው ሲስተም ከመግባትዎ በፊት ይሄንን ቪዲዮ መመልከት አለብዎ። 
+https://youtu.be/4Dscc1tDlsM
 
-Once you have reviewed the video, you may log in to explore the system. If you have any questions, please don't hesitate to contact us.
+ከዛም ነገ የመመዝገቢያ ሰዓቱ ሲደርስ የስልክ ቁጥርዎን እና ከታች ያለውን የመግቢያ ኮድ ተጠቅመው ምዝገባውን ይጀምራሉ።
 
-*Your access code is:*
+*የመግቢያ ኮድ:*
 ` + "```" + `${approvedData.passcode}` + "```" + `
 
-Please keep this code secure for future reference.
+ምዝገባውን ለማድረግ የሚከተለውን ሊንክ ይጠቀሙ። 
+https://donate.abuneteklehaymanot.org/registrar/index.php
 
-_Best regards,_
-_The Fundraising Team_`;
+ከምዝገባው ሰዓት በፊት ገብተው ማየት እና መሞከር ይችላሉ።  
+
+ሊ/መ/ቅ አቡነ ተክለሃይማኖት ቤተክርስቲያን የገቢ አሰባሳቢ ኮሚቴ`;
 
             let phoneNumber = approvedData.phone.replace(/\D/g, '');
             if (phoneNumber.startsWith('07') && phoneNumber.length === 11) {
@@ -579,24 +581,25 @@ _The Fundraising Team_`;
         function copyShareMessage() {
             <?php if (isset($_SESSION['approved_registrar'])): ?>
             const approvedData = <?php echo json_encode($_SESSION['approved_registrar']); ?>;
-            const message = `Dear ${approvedData.name},
+            const registrarLink = <?php echo json_encode(url_for('/registrar/login.php')); ?>;
+            const message = `ሰላም ${approvedData.name},
 
-*Congratulations!* Your application to become a registrar has been approved.
+በነገገው ዕለት ለሚኖረው የገቢ ማሰባሰቢያ ፕሮግራም ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም  እናመሰግናለን።
 
-You can now log in to the registrar portal using your phone number and the access code provided below.
+ወደ መመዝገቢያው ሲስተም ከመግባትዎ በፊት ይሄንን አጠር ያለ ቪዲዮ ይመልከቱ። 
+https://youtu.be/2N9DizucBZE
 
-Before logging in, we highly recommend watching this instructional video to familiarize yourself with the system:
-https://youtu.be/fe6TdePATWc?si=M4QYAKbH7wcQtBPR
+ከዛም ነገ የመመዝገቢያ ሰዓቱ ሲደርስ የስልክ ቁጥርዊን እና ከታች ያለውን የመግቢያ ኮድ ተጠቅመው ምዝገባውን ይጀምራሉ።
 
-Once you have reviewed the video, you may log in to explore the system. If you have any questions, please don't hesitate to contact us.
-
-*Your access code is:*
+*የመግቢያ ኮድ:*
 ` + "```" + `${approvedData.passcode}` + "```" + `
 
-Please keep this code secure for future reference.
+ምዝገባውን ለማድረግ የሚከተለውን ሊንክ ይጠቀሙ። 
+${registrarLink}
 
-_Best regards,_
-_The Fundraising Team_`;
+ከምዝገባው ሰዓት በፊት ገብተው ማየት እና መሞከር ይችላሉ።  
+
+ሊ/መ/ቅ አቡነ ተክለሃይማኖት ቤተክርስቲያን የገቢ አሰባሳቢ ኮሚቴ`;
             
             const button = event.target.closest('.btn-group').querySelector('[onclick*="copyShareMessage"]');
 
