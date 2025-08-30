@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/url.php';
 require_admin();
 
 $page_title = 'Members Management';
@@ -215,6 +216,13 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
                               data-bs-toggle="tooltip" title="Reset Code">
                         <i class="fas fa-key"></i>
                       </button>
+                      <?php if ($r['role'] === 'registrar'): ?>
+                      <button type="button" class="btn btn-sm btn-light" 
+                              onclick="event.stopPropagation(); openShareWhatsAppModal(<?php echo (int)$r['id']; ?>, '<?php echo htmlspecialchars($r['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($r['phone'], ENT_QUOTES); ?>')"
+                              data-bs-toggle="tooltip" title="Share via WhatsApp">
+                        <i class="fab fa-whatsapp text-success"></i>
+                      </button>
+                      <?php endif; ?>
                       <?php if ((int)$r['active'] === 1): ?>
                       <button type="button" class="btn btn-sm btn-light text-danger" 
                               onclick="event.stopPropagation(); toggleMemberStatus(<?php echo (int)$r['id']; ?>, 'delete')"
@@ -311,6 +319,36 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
     </div>
   </div>
 </div>
+
+<!-- Share WhatsApp Modal -->
+<div class="modal fade" id="shareWhatsAppModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fab fa-whatsapp me-2"></i>Share Registrar Instructions</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info d-flex align-items-start">
+          <i class="fab fa-whatsapp fa-lg me-3 text-success"></i>
+          <div>
+            <div class="fw-semibold">Message preview will include a fresh login code.</div>
+            <small class="text-muted">A new 6-digit code will be generated securely.</small>
+          </div>
+        </div>
+        <pre id="whatsappMessagePreview" class="p-3 bg-light border rounded" style="white-space: pre-wrap;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" onclick="copyRegistrarShareMessage()">
+          <i class="fas fa-copy me-2"></i>Copy Message
+        </button>
+        <button type="button" class="btn btn-success" onclick="shareRegistrarOnWhatsApp()">
+          <i class="fab fa-whatsapp me-2"></i>Share Now
+        </button>
+      </div>
+    </div>
+  </div>
+  </div>
 
 <!-- Edit Member Modal -->
 <div class="modal fade" id="editMemberModal" tabindex="-1">
@@ -685,6 +723,93 @@ function renderMemberStats(data) {
         </div>
         `}
     `;
+}
+
+// ==== WhatsApp Sharing for existing registrars ====
+let shareTarget = { userId: null, name: '', phone: '', passcode: '' };
+
+async function openShareWhatsAppModal(userId, name, phone) {
+  shareTarget = { userId, name, phone, passcode: '' };
+  const modal = new bootstrap.Modal(document.getElementById('shareWhatsAppModal'));
+  document.getElementById('whatsappMessagePreview').textContent = 'Generating a new login code...';
+  modal.show();
+
+  try {
+    const body = new URLSearchParams();
+    body.set('user_id', String(userId));
+    body.set('csrf_token', '<?php echo csrf_token(); ?>');
+    const res = await fetch('../../api/member_generate_code.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+    const data = await res.json();
+    if (!data.success) { throw new Error(data.error || 'Failed to generate code'); }
+    shareTarget.passcode = data.passcode;
+    // Build message identical to registrar applications page
+    const message = buildAmharicRegistrarMessage(shareTarget);
+    document.getElementById('whatsappMessagePreview').textContent = message;
+  } catch (err) {
+    document.getElementById('whatsappMessagePreview').textContent = 'Error: ' + err.message;
+  }
+}
+
+function buildAmharicRegistrarMessage(d) {
+  return `ሰላም ${d.name},
+
+በነገገው ዕለት ለሚኖረው የገቢ ማሰባሰቢያ ፕሮግራም ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም  እናመሰግናለን።
+
+ወደ መመዝገቢያው ሲስተም ከመግባትዎ በፊት ይሄንን ቪዲዮ መመልከት አለብዎ። 
+https://youtu.be/4Dscc1tDlsM
+
+ከዛም የመመዝገቢያ ሰዓቱ ሲደርስ የስልክ ቁጥርዎን እና ከታች ያለውን የመግቢያ ኮድ ተጠቅመው ምዝገባውን ይጀምራሉ።
+
+*የመግቢያ ኮድ:*
+*${d.passcode}*
+
+ምዝገባውን ለማድረግ የሚከተለውን ሊንክ ይጠቀሙ። 
+https://donate.abuneteklehaymanot.org/registrar/index.php
+
+ከምዝገባው ሰዓት በፊት ገብተው ማየት እና መሞከር ይችላሉ።  
+
+ሊ/መ/ቅ አቡነ ተክለሃይማኖት ቤተክርስቲያን የገቢ አሰባሳቢ ኮሚቴ`;
+}
+
+function copyRegistrarShareMessage() {
+  const msg = document.getElementById('whatsappMessagePreview').textContent || '';
+  if (!msg) return;
+  const ta = document.createElement('textarea');
+  ta.value = msg;
+  document.body.appendChild(ta);
+  ta.select();
+  let success = false;
+  try { success = document.execCommand('copy'); } catch (_) {}
+  document.body.removeChild(ta);
+  if (!success) {
+    alert('Copy failed. Please copy manually.');
+  }
+}
+
+function shareRegistrarOnWhatsApp() {
+  if (!shareTarget.passcode) return;
+  const message = buildAmharicRegistrarMessage(shareTarget);
+  let phoneNumber = (shareTarget.phone || '').replace(/\D/g, '');
+  if (phoneNumber.startsWith('07') && phoneNumber.length === 11) {
+    phoneNumber = '44' + phoneNumber.substring(1);
+  } else if (phoneNumber.startsWith('7') && phoneNumber.length === 10) {
+    phoneNumber = '44' + phoneNumber;
+  } else if (phoneNumber.startsWith('447') && phoneNumber.length === 12) {
+    // ok
+  } else if (phoneNumber.startsWith('0')) {
+    phoneNumber = '44' + phoneNumber.substring(1);
+  } else if (!phoneNumber.startsWith('44')) {
+    phoneNumber = '44' + phoneNumber;
+  }
+  const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const url = isMobile
+    ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+    : `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
 }
 </script>
 </body>
