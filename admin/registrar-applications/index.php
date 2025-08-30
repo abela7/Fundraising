@@ -562,7 +562,10 @@ https://donate.abuneteklehaymanot.org/registrar/index.php
                 phoneNumber = '44' + phoneNumber;
             }
 
-            const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+            const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const whatsappUrl = isMobile
+                ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+                : `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
 
             const button = event.target.closest('.btn-group').querySelector('[onclick*="shareOnWhatsApp"]');
