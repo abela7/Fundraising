@@ -532,7 +532,7 @@ function h($value) {
 
             const message = `ሰላም ${approvedData.name},
 
-በነገገው ዕለት ለሚኖረው የገቢ ማሰባሰቢያ ፕሮግራም ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም  እናመሰግናለን።
+በገቢ ማሰባሰቢያ ፕሮግራሙ ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም እናመሰግናለን።
 
 ወደ መመዝገቢያው ሲስተም ከመግባትዎ በፊት ይሄንን ቪዲዮ መመልከት አለብዎ። 
 https://youtu.be/4Dscc1tDlsM
@@ -587,7 +587,7 @@ https://donate.abuneteklehaymanot.org/registrar/index.php
             const registrarLink = <?php echo json_encode(url_for('/registrar/login.php')); ?>;
             const message = `ሰላም ${approvedData.name},
 
-በነገገው ዕለት ለሚኖረው የገቢ ማሰባሰቢያ ፕሮግራም ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም  እናመሰግናለን።
+በገቢ ማሰባሰቢያ ፕሮግራሙ ላይ መዝጋቢ ሆነው ስለተመዘገቡ በልዑል እግዚአብሄር ስም እናመሰግናለን።
 
 ወደ መመዝገቢያው ሲስተም ከመግባትዎ በፊት ይሄንን ቪዲዮ መመልከት አለብዎ። 
 https://youtu.be/4Dscc1tDlsM
