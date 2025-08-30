@@ -167,8 +167,8 @@
         
         .video-container {
             width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 800px;
+            margin: 0 auto 2rem;
         }
         
         .video-wrapper {
@@ -685,6 +685,15 @@
                 <span class="english">Liverpool Mekane Kidusan Abune Teklehaymanot EOTC</span>
             </div>
             
+            <!-- Intro Video (privacy-enhanced, modest branding) -->
+            <div class="video-container">
+                <div class="video-wrapper">
+                    <iframe src="https://www.youtube-nocookie.com/embed/2N9DizucBZE?modestbranding=1&rel=0" title="Intro video"
+                            frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowfullscreen></iframe>
+                </div>
+            </div>
+
             <div class="vision-description fade-in">
                 <h3 class="amharic-heading">የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።</h3>
                 <p class="amharic-text">
@@ -700,16 +709,7 @@
         </div>
     </section>
     
-    <!-- Intro Video Section -->
-    <section class="video-section">
-        <div class="video-container">
-            <div class="video-wrapper">
-                <iframe src="https://www.youtube.com/embed/2N9DizucBZE" title="YouTube video"
-                        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowfullscreen></iframe>
-            </div>
-        </div>
-    </section>
+    
     
     <!-- Floor Plan Explanation Section -->
     <section class="floor-plan">
