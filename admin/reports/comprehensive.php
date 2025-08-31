@@ -141,6 +141,17 @@ if ($db && $db_error_message === '') {
                            GROUP BY label ORDER BY t DESC");
     $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $res=$stmt->get_result(); while($r=$res->fetch_assoc()){ $breakdowns['pledges_by_package'][] = $r; }
 
+    // Aggregate package data for pie chart
+    $donations_by_package = [];
+    foreach ($breakdowns['payments_by_package'] as $p) {
+        $donations_by_package[$p['label']] = ($donations_by_package[$p['label']] ?? 0) + (float)$p['t'];
+    }
+    foreach ($breakdowns['pledges_by_package'] as $p) {
+        $donations_by_package[$p['label']] = ($donations_by_package[$p['label']] ?? 0) + (float)$p['t'];
+    }
+    arsort($donations_by_package);
+    $breakdowns['donations_by_package_aggregated'] = array_map(fn($l, $t) => ['name' => $l, 'value' => $t], array_keys($donations_by_package), array_values($donations_by_package));
+
     // Time series
     $mp = $db->prepare("SELECT DATE(received_at) d, COALESCE(SUM(amount),0) t, COUNT(*) c FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ? GROUP BY DATE(received_at) ORDER BY d");
     $mp->bind_param('ss',$fromDate,$toDate); $mp->execute(); $rp=$mp->get_result(); $dates=[]; $mapP=[]; while($r=$rp->fetch_assoc()){ $dates[]=$r['d']; $mapP[$r['d']]=$r; }
@@ -539,15 +550,12 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
     if (!el || !window.echarts) return;
     const d = window.COMPREHENSIVE_DATA;
     const chart = echarts.init(el);
-    const data = [
-      { name: 'Paid (approved)', value: d.metrics.paid_total },
-      { name: 'Pledged (approved)', value: d.metrics.pledged_total }
-    ];
+    const data = d.breakdowns.donations_by_package_aggregated;
     chart.setOption({
       tooltip: { trigger: 'item', formatter: params => `${params.name}: ${d.currency} ` + Number(params.value).toLocaleString(undefined,{minimumFractionDigits:2}) + ` (${params.percent}%)` },
       legend: { orient: 'horizontal', bottom: 0 },
       series: [{
-        name: 'Raised Breakdown',
+        name: 'Donations by Package',
         type: 'pie',
         radius: ['40%','70%'],
         center: ['50%','45%'],
