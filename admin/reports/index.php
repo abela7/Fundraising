@@ -445,7 +445,7 @@ if (isset($_GET['report'])) {
                                             </div>
                                         </div>
                                         <h5 class="card-title">Comprehensive Report</h5>
-                                        <p class="card-text text-muted">Full numeric and non-numeric breakdown with charts and exports</p>
+                                        <p class="card-text text-muted">Full numeric and non-numeric breakdown with charts</p>
                                         <div class="d-grid gap-2">
                                             <a href="comprehensive.php" class="btn btn-dark">
                                                 <i class="fas fa-file-alt me-2"></i>Open Report Page
@@ -453,7 +453,7 @@ if (isset($_GET['report'])) {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <div class="card border-0 shadow-sm h-100 report-card">

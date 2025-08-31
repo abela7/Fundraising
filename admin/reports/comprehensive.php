@@ -48,85 +48,7 @@ function resolve_range(): array {
 
 [$fromDate, $toDate] = resolve_range();
 
-// Export handlers (CSV for sections)
-if ($db && isset($_GET['export'])) {
-    $export = $_GET['export'];
-    if ($export === 'top_donors_csv') {
-        header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="top_donors.csv"');
-        $out = fopen('php://output','w');
-        fputcsv($out,['Donor','Phone','Email','Total Pledged','Total Paid','Outstanding','Last Seen']);
-        $sql = "SELECT donor_name, donor_phone, donor_email,
-                       SUM(CASE WHEN src='pledge' THEN amount ELSE 0 END) AS total_pledged,
-                       SUM(CASE WHEN src='payment' THEN amount ELSE 0 END) AS total_paid,
-                       MAX(last_seen_at) AS last_seen
-                FROM (
-                  SELECT donor_name, donor_phone, donor_email, amount, created_at AS last_seen_at, 'pledge' AS src
-                  FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ?
-                  UNION ALL
-                  SELECT donor_name, donor_phone, donor_email, amount, received_at AS last_seen_at, 'payment' AS src
-                  FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?
-                ) x
-                GROUP BY donor_name, donor_phone, donor_email
-                ORDER BY total_paid DESC, total_pledged DESC
-                LIMIT 200";
-        $stmt = $db->prepare($sql); $stmt->bind_param('ssss',$fromDate,$toDate,$fromDate,$toDate); $stmt->execute();
-        $res = $stmt->get_result();
-        while ($r = $res->fetch_assoc()) {
-            $pledged = (float)($r['total_pledged'] ?? 0);
-            $paid    = (float)($r['total_paid'] ?? 0);
-            $outstanding = max($pledged - $paid, 0);
-            fputcsv($out,[
-                $r['donor_name'] !== '' ? $r['donor_name'] : 'Anonymous',
-                $r['donor_phone'],
-                $r['donor_email'],
-                number_format($pledged,2,'.',''),
-                number_format($paid,2,'.',''),
-                number_format($outstanding,2,'.',''),
-                $r['last_seen']
-            ]);
-        }
-        fclose($out); exit;
-    }
-    if ($export === 'method_breakdown_csv') {
-        header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="payments_by_method.csv"');
-        $out = fopen('php://output','w'); fputcsv($out,['Method','Count','Total']);
-        $stmt = $db->prepare("SELECT method, COUNT(*) c, COALESCE(SUM(amount),0) t FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ? GROUP BY method ORDER BY t DESC");
-        $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $res=$stmt->get_result();
-        while($r=$res->fetch_assoc()){ fputcsv($out,[$r['method'],(int)$r['c'],number_format((float)$r['t'],2,'.','')]); }
-        fclose($out); exit;
-    }
-    if ($export === 'package_breakdown_csv') {
-        header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="donations_by_package.csv"');
-        $out = fopen('php://output','w'); fputcsv($out,['Type','Package','Count','Total']);
-        $sqlP = "SELECT 'Payment' as type, COALESCE(dp.label,'Custom') label, COUNT(*) c, COALESCE(SUM(p.amount),0) t
-                 FROM payments p LEFT JOIN donation_packages dp ON dp.id=p.package_id
-                 WHERE p.status='approved' AND p.received_at BETWEEN ? AND ?
-                 GROUP BY label ORDER BY t DESC";
-        $stmt = $db->prepare($sqlP); $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $res=$stmt->get_result();
-        while($r=$res->fetch_assoc()){ fputcsv($out,[$r['type'],$r['label'],(int)$r['c'],number_format((float)$r['t'],2,'.','')]); }
-        $sqlL = "SELECT 'Pledge' as type, COALESCE(dp.label,'Custom') label, COUNT(*) c, COALESCE(SUM(p.amount),0) t
-                 FROM pledges p LEFT JOIN donation_packages dp ON dp.id=p.package_id
-                 WHERE p.status='approved' AND p.created_at BETWEEN ? AND ?
-                 GROUP BY label ORDER BY t DESC";
-        $stmt = $db->prepare($sqlL); $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $res=$stmt->get_result();
-        while($r=$res->fetch_assoc()){ fputcsv($out,[$r['type'],$r['label'],(int)$r['c'],number_format((float)$r['t'],2,'.','')]); }
-        fclose($out); exit;
-    }
-    if ($export === 'timeseries_csv') {
-        header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="timeseries.csv"');
-        $out=fopen('php://output','w'); fputcsv($out,['Date','Payments Total','Payments Count','Pledges Total','Pledges Count']);
-        $mp = $db->prepare("SELECT DATE(received_at) d, COALESCE(SUM(amount),0) t, COUNT(*) c FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ? GROUP BY DATE(received_at)");
-        $mp->bind_param('ss',$fromDate,$toDate); $mp->execute(); $rp=$mp->get_result(); $mapP=[]; while($r=$rp->fetch_assoc()){ $mapP[$r['d']] = ['t'=>(float)$r['t'],'c'=>(int)$r['c']]; }
-        $ml = $db->prepare("SELECT DATE(created_at) d, COALESCE(SUM(amount),0) t, COUNT(*) c FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ? GROUP BY DATE(created_at)");
-        $ml->bind_param('ss',$fromDate,$toDate); $ml->execute(); $rl=$ml->get_result(); $mapL=[]; while($r=$rl->fetch_assoc()){ $mapL[$r['d']] = ['t'=>(float)$r['t'],'c'=>(int)$r['c']]; }
-        $days = array_unique(array_merge(array_keys($mapP), array_keys($mapL))); sort($days);
-        foreach($days as $d){
-            $pT = $mapP[$d]['t'] ?? 0; $pC = $mapP[$d]['c'] ?? 0; $lT = $mapL[$d]['t'] ?? 0; $lC = $mapL[$d]['c'] ?? 0;
-            fputcsv($out,[$d, number_format((float)$pT,2,'.',''), $pC, number_format((float)$lT,2,'.',''), $lC]);
-        }
-        fclose($out); exit;
-    }
-}
+// Exports were intentionally removed from the comprehensive report
 
 // Aggregate metrics (guard if DB available)
 $metrics = [
@@ -300,7 +222,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
     <link rel="stylesheet" href="../../assets/theme.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/reports.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -382,30 +304,14 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                             <div class="d-flex justify-content-between text-muted"><span>Range Outstanding</span><span><?php echo $currency.' '.number_format($metrics['range_outstanding'],2); ?></span></div>
                         </div></div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center justify-content-between">
-                            <div>
-                                <h6 class="mb-2"><i class="fas fa-download me-2 text-primary"></i>Exports</h6>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <a class="btn btn-outline-primary btn-sm" href="?export=top_donors_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>Top Donors CSV</a>
-                                    <a class="btn btn-outline-primary btn-sm" href="?export=method_breakdown_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>Methods CSV</a>
-                                    <a class="btn btn-outline-primary btn-sm" href="?export=package_breakdown_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>Packages CSV</a>
-                                    <a class="btn btn-outline-primary btn-sm" href="?export=timeseries_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>Time Series CSV</a>
-                                </div>
-                            </div>
-                            <div>
-                                <button class="btn btn-outline-secondary btn-sm" onclick="exportJSON(window.COMPREHENSIVE_DATA, 'comprehensive_report.json')"><i class="fas fa-file-code me-1"></i>JSON</button>
-                            </div>
-                        </div></div>
-                    </div>
                 </div>
 
-                <!-- Time Series Chart -->
+                <!-- Pie Chart (ECharts) -->
                 <div class="card border-0 shadow-sm mb-4"><div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0"><i class="fas fa-chart-area me-2 text-primary"></i>Daily Totals</h6>
+                        <h6 class="mb-0"><i class="fas fa-chart-pie me-2 text-primary"></i>Raised Breakdown</h6>
                     </div>
-                    <canvas id="tsChart" height="96"></canvas>
+                    <div id="pieContainer" style="height: 320px;"></div>
                 </div></div>
 
                 <!-- Breakdowns -->
@@ -629,24 +535,29 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
   ]); ?>;
 
   (function(){
-    const ctx = document.getElementById('tsChart');
-    if (!ctx || !window.Chart) return;
+    const el = document.getElementById('pieContainer');
+    if (!el || !window.echarts) return;
     const d = window.COMPREHENSIVE_DATA;
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: d.timeseries.dates,
-        datasets: [
-          { label: 'Payments', data: d.timeseries.payments.totals, borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', tension: 0.2 },
-          { label: 'Pledges', data: d.timeseries.pledges.totals, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', tension: 0.2 }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: { y: { beginAtZero: true } }
-      }
+    const chart = echarts.init(el);
+    const data = [
+      { name: 'Paid (approved)', value: d.metrics.paid_total },
+      { name: 'Pledged (approved)', value: d.metrics.pledged_total }
+    ];
+    chart.setOption({
+      tooltip: { trigger: 'item', formatter: params => `${params.name}: ${d.currency} ` + Number(params.value).toLocaleString(undefined,{minimumFractionDigits:2}) + ` (${params.percent}%)` },
+      legend: { orient: 'horizontal', bottom: 0 },
+      series: [{
+        name: 'Raised Breakdown',
+        type: 'pie',
+        radius: ['40%','70%'],
+        center: ['50%','45%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        label: { show: true, formatter: '{b}: {d}%' },
+        data
+      }]
     });
+    window.addEventListener('resize', () => chart.resize());
   })();
 </script>
 </body>
