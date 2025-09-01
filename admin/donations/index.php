@@ -64,11 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($packageId === null) {
                     $sql = 'INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at) VALUES (?,?,?,?,?, NULL, ?, ?, ?, NOW())';
                     $ins = $db->prepare($sql);
-                    $ins->bind_param('sssdsissi', $donorName, $donorPhone, $donorEmail, $amount, $method, $reference, $status, $receivedBy);
+                    // types: s s s d s s s i => sssdsssi
+                    $ins->bind_param('sssdsssi', $donorName, $donorPhone, $donorEmail, $amount, $method, $reference, $status, $receivedBy);
                 } else {
                     $sql = 'INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at) VALUES (?,?,?,?,?,?,?,?,?, NOW())';
                     $ins = $db->prepare($sql);
-                    $ins->bind_param('sssdsissii', $donorName, $donorPhone, $donorEmail, $amount, $method, $packageId, $reference, $status, $receivedBy);
+                    // types: s s s d s i s s i => sssdsissi
+                    $ins->bind_param('sssdsissi', $donorName, $donorPhone, $donorEmail, $amount, $method, $packageId, $reference, $status, $receivedBy);
                 }
                 $ins->execute();
                 $newId = (int)$db->insert_id;
