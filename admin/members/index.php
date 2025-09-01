@@ -165,8 +165,8 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
               </thead>
               <tbody>
                 <?php foreach ($rows as $r): ?>
-                <tr class="member-row" style="cursor: pointer;" onclick="showMemberStats(<?php echo (int)$r['id']; ?>, '<?php echo htmlspecialchars($r['name'], ENT_QUOTES); ?>')" 
-                    data-bs-toggle="tooltip" title="Click to view performance statistics">
+                <tr class="member-row" style="cursor: pointer;" onclick="window.location.href='view.php?id=<?php echo (int)$r['id']; ?>'" 
+                    data-bs-toggle="tooltip" title="Click to view member details">
                   <td>
                     <div class="d-flex align-items-center">
                       <div class="avatar-circle me-3">
