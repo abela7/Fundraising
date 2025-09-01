@@ -11,6 +11,32 @@ require_once __DIR__ . '/../includes/resilient_db_loader.php';
 $current_user = current_user();
 $db = db();
 
+// AJAX: Get payment details for modal (mirror main payments page)
+if (($_GET['action'] ?? '') === 'get_payment_details') {
+    header('Content-Type: application/json');
+    $id = (int)($_GET['id'] ?? 0);
+    if ($id <= 0) {
+        echo json_encode(['success' => false, 'error' => 'Invalid payment id']);
+        exit;
+    }
+    $sql = "SELECT p.*, u.name AS received_by_name, dp.label AS package_label
+            FROM payments p
+            LEFT JOIN users u ON u.id = p.received_by_user_id
+            LEFT JOIN donation_packages dp ON dp.id = p.package_id
+            WHERE p.id = ? LIMIT 1";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$row) {
+        echo json_encode(['success' => false, 'error' => 'Payment not found']);
+        exit;
+    }
+    echo json_encode(['success' => true, 'payment' => $row]);
+    exit;
+}
+
 // Handle bulk status updates for cash payments
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'bulk_update') {
     verify_csrf();
