@@ -97,6 +97,14 @@ try {
         </span>
         <span class="nav-label">Payments</span>
       </a>
+      <?php if ($current_dir === 'payments'): ?>
+      <a href="cash.php" class="nav-sublink <?php echo basename($_SERVER['PHP_SELF'])==='cash.php' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-money-bill-wave"></i>
+        </span>
+        <span class="nav-label">Cash Payments</span>
+      </a>
+      <?php endif; ?>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'donations' ? './' : '../donations/'; ?>" 
          class="nav-link <?php echo $current_dir === 'donations' ? 'active' : ''; ?>">
         <span class="nav-icon">
