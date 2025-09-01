@@ -127,11 +127,17 @@ $registrars = $db->query("SELECT id, name FROM users WHERE role='registrar' AND 
 
 // Stats (based on new schema)
 $settings = $db->query('SELECT target_amount, currency_code FROM settings WHERE id=1')->fetch_assoc() ?: ['target_amount'=>0,'currency_code'=>'GBP'];
-$statPaid = $db->query("SELECT COALESCE(SUM(amount),0) AS total_paid FROM payments WHERE status='approved'")->fetch_assoc();
+// Method-aware quick stats
+$methodScope = '';
+if ($methodFilter !== 'all') {
+    $methodScope = " AND method='" . $db->real_escape_string($methodFilter) . "'";
+}
+$statPaid = $db->query("SELECT COALESCE(SUM(amount),0) AS total_paid FROM payments WHERE status='approved'".$methodScope)->fetch_assoc();
 $totalPaid = (float)($statPaid['total_paid'] ?? 0);
-$pendingRow = $db->query("SELECT COALESCE(SUM(amount),0) AS pending FROM payments WHERE status='pending'")->fetch_assoc();
+$pendingRow = $db->query("SELECT COALESCE(SUM(amount),0) AS pending FROM payments WHERE status='pending'".$methodScope)->fetch_assoc();
 $pendingAmt = (float)($pendingRow['pending'] ?? 0);
-$todayRow = $db->query("SELECT COUNT(*) AS cnt FROM payments WHERE DATE(created_at)=CURDATE()")->fetch_assoc();
+$todaySql = "SELECT COUNT(*) AS cnt FROM payments WHERE DATE(created_at)=CURDATE()".$methodScope;
+$todayRow = $db->query($todaySql)->fetch_assoc();
 $todayCount = (int)($todayRow['cnt'] ?? 0);
 $collectionRate = ($settings['target_amount'] > 0) ? round(($totalPaid / (float)$settings['target_amount']) * 100) : 0;
 
@@ -159,6 +165,16 @@ if ($types) { $cntStmt->bind_param($types, ...$bind); }
 $cntStmt->execute();
 $totalRows = (int)($cntStmt->get_result()->fetch_assoc()['cnt'] ?? 0);
 $totalPages = (int)ceil($totalRows / $perPage);
+
+// Filtered totals for legitimacy check (exactly matches current filters)
+$sumStmt = $db->prepare("SELECT COALESCE(SUM(p.amount),0) AS total_amount FROM payments p $whereSql");
+if ($types) { $sumStmt->bind_param($types, ...$bind); }
+$sumStmt->execute();
+$filteredTotal = (float)($sumStmt->get_result()->fetch_assoc()['total_amount'] ?? 0);
+
+// Helper for first card title
+$anyFilterActive = ($methodFilter !== 'all') || ($statusFilter !== 'all') || ($registrarId > 0) || ($search !== '');
+$firstCardTitle = $anyFilterActive ? 'Filtered Total' : 'Total Collected';
 
 $sql = "SELECT p.*, u.name AS received_by_name, dp.label AS package_label, dp.sqm_meters AS package_sqm
         FROM payments p
@@ -246,8 +262,8 @@ if ($registrarId > 0) {
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div class="stat-content">
-                                            <div class="stat-value">£<?php echo number_format($totalPaid, 2); ?></div>
-                                    <div class="stat-label">Total Collected</div>
+                                    <div class="stat-value">£<?php echo number_format($totalPaid, 2); ?></div>
+                                    <div class="stat-label"><?php echo htmlspecialchars($firstCardTitle); ?><?php echo $methodFilter!=='all' ? ' · '.ucfirst($methodFilter) : ''; ?></div>
                                 </div>
                             </div>
                         </div>
@@ -257,8 +273,8 @@ if ($registrarId > 0) {
                                     <i class="fas fa-clock"></i>
                                 </div>
                                 <div class="stat-content">
-                                            <div class="stat-value">£<?php echo number_format($pendingAmt, 2); ?></div>
-                                    <div class="stat-label">Pending</div>
+                                    <div class="stat-value">£<?php echo number_format($pendingAmt, 2); ?></div>
+                                    <div class="stat-label">Pending<?php echo $methodFilter!=='all' ? ' · '.ucfirst($methodFilter) : ''; ?></div>
                                 </div>
                             </div>
                         </div>
@@ -268,8 +284,8 @@ if ($registrarId > 0) {
                                     <i class="fas fa-sync"></i>
                                 </div>
                                 <div class="stat-content">
-                                            <div class="stat-value"><?php echo (int)$todayCount; ?></div>
-                                    <div class="stat-label">Today's Payments</div>
+                                    <div class="stat-value"><?php echo (int)$todayCount; ?></div>
+                                    <div class="stat-label">Today's Payments<?php echo $methodFilter!=='all' ? ' · '.ucfirst($methodFilter) : ''; ?></div>
                                 </div>
                             </div>
                         </div>
@@ -372,8 +388,9 @@ if ($registrarId > 0) {
                             <h6 class="card-title mb-0">
                                 <i class="fas fa-list me-2"></i>Payment Records
                             </h6>
-                            <div class="text-muted small">
-                                Total: <?php echo number_format($totalRows); ?> payments
+                            <div class="text-muted small d-flex flex-column text-end">
+                                <span>Total: <?php echo number_format($totalRows); ?> payments</span>
+                                <span>Filtered Amount: £<?php echo number_format($filteredTotal, 2); ?></span>
                             </div>
                         </div>
                         <div class="card-body p-0">
