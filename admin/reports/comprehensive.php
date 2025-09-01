@@ -50,6 +50,45 @@ function resolve_range(): array {
 
 // Exports were intentionally removed from the comprehensive report
 
+// Data Quality drilldown (AJAX, dynamic)
+if (isset($_GET['dq'])) {
+    header('Content-Type: application/json');
+    $kind = (string)$_GET['dq'];
+    $resp = [ 'success' => true, 'rows' => [] ];
+    if ($db && $db_error_message === '') {
+        if ($kind === 'missing_contact_payments') {
+            $sql = "SELECT id, donor_name, amount, method, reference, status, received_at
+                    FROM payments
+                    WHERE COALESCE(donor_phone,'')='' AND COALESCE(donor_email,'')=''
+                      AND received_at BETWEEN ? AND ?
+                    ORDER BY received_at DESC";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param('ss', $fromDate, $toDate);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($r = $res->fetch_assoc()) { $resp['rows'][] = $r; }
+        } elseif ($kind === 'missing_contact_pledges') {
+            $sql = "SELECT id, donor_name, amount, type, status, notes, created_at
+                    FROM pledges
+                    WHERE COALESCE(donor_phone,'')='' AND COALESCE(donor_email,'')=''
+                      AND created_at BETWEEN ? AND ?
+                    ORDER BY created_at DESC";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param('ss', $fromDate, $toDate);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($r = $res->fetch_assoc()) { $resp['rows'][] = $r; }
+        } else {
+            echo json_encode([ 'success' => false, 'error' => 'Unknown data quality key' ]);
+            exit;
+        }
+        echo json_encode($resp);
+        exit;
+    }
+    echo json_encode([ 'success' => false, 'error' => ($db_error_message ?: 'Database unavailable') ]);
+    exit;
+}
+
 // Aggregate metrics (guard if DB available)
 $metrics = [
     'paid_total' => 0.0,
@@ -501,19 +540,52 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                 <div class="card border-0 shadow-sm mb-4"><div class="card-body">
                     <h6 class="mb-3"><i class="fas fa-shield-halved me-2 text-danger"></i>Data Quality</h6>
                     <div class="row g-3">
-                        <div class="col-md-4"><div class="p-3 bg-light rounded"><div class="small text-muted">Payments with missing contact</div><div class="h5 mb-0"><?php echo number_format($data_quality['missing_contact_payments']); ?></div></div></div>
-                        <div class="col-md-4"><div class="p-3 bg-light rounded"><div class="small text-muted">Pledges with missing contact</div><div class="h5 mb-0"><?php echo number_format($data_quality['missing_contact_pledges']); ?></div></div></div>
-                        <div class="col-md-4"><div class="p-3 bg-light rounded"><div class="small text-muted">Duplicate phone hotlist (≥3)</div>
-                            <?php if (count($data_quality['duplicate_phones'])===0): ?>
-                                <div class="text-muted small">None</div>
-                            <?php else: ?>
-                                <ul class="small mb-0">
-                                    <?php foreach ($data_quality['duplicate_phones'] as $r): ?>
-                                        <li><?php echo htmlspecialchars((string)$r['donor_phone']); ?> <span class="text-muted">(<?php echo (int)$r['c']; ?>)</span></li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            <?php endif; ?>
-                        </div></div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <div class="small text-muted">Payments with missing contact</div>
+                                <div class="h5 mb-2"><?php echo number_format($data_quality['missing_contact_payments']); ?></div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="loadDQ('missing_contact_payments')"><i class="fas fa-list me-1"></i>View</button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <div class="small text-muted">Pledges with missing contact</div>
+                                <div class="h5 mb-2"><?php echo number_format($data_quality['missing_contact_pledges']); ?></div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="loadDQ('missing_contact_pledges')"><i class="fas fa-list me-1"></i>View</button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <div class="small text-muted">Duplicate phone hotlist (≥3)</div>
+                                <?php if (count($data_quality['duplicate_phones'])===0): ?>
+                                    <div class="text-muted small">None</div>
+                                <?php else: ?>
+                                    <ul class="small mb-0">
+                                        <?php foreach ($data_quality['duplicate_phones'] as $r): ?>
+                                            <li><?php echo htmlspecialchars((string)$r['donor_phone']); ?> <span class="text-muted">(<?php echo (int)$r['c']; ?>)</span></li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Quality Modal -->
+                <div class="modal fade" id="dqModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="fas fa-triangle-exclamation me-2 text-danger"></i>Data Quality Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" id="dqModalBody">
+                                <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -559,6 +631,39 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
     });
     window.addEventListener('resize', () => chart.resize());
   })();
+
+  // Data Quality drilldown loader
+  function loadDQ(kind){
+    const body = document.getElementById('dqModalBody');
+    const modal = new bootstrap.Modal(document.getElementById('dqModal'));
+    body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
+    modal.show();
+    const url = new URL(window.location.href);
+    url.searchParams.set('dq', kind);
+    fetch(url.toString())
+      .then(r=>r.json())
+      .then(data=>{
+        if(!data.success){ body.innerHTML = '<div class="alert alert-danger">'+(data.error||'Failed to load')+'</div>'; return; }
+        if(!data.rows || data.rows.length===0){ body.innerHTML = '<div class="text-muted">No records found for this range.</div>'; return; }
+        let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr>';
+        if(kind==='missing_contact_payments'){
+          html += '<th>ID</th><th>Donor</th><th>Amount</th><th>Method</th><th>Status</th><th>Received At</th><th></th>';
+        } else {
+          html += '<th>ID</th><th>Donor</th><th>Amount</th><th>Type</th><th>Status</th><th>Created At</th><th></th>';
+        }
+        html += '</tr></thead><tbody>';
+        data.rows.forEach(r=>{
+          if(kind==='missing_contact_payments'){
+            html += `<tr><td>${r.id}</td><td>${r.donor_name||'Anonymous'}</td><td>£${Number(r.amount).toFixed(2)}</td><td>${r.method}</td><td>${r.status}</td><td>${r.received_at||''}</td><td><a class="btn btn-sm btn-outline-primary" href="../donations/payment.php?id=${r.id}">Open</a></td></tr>`;
+          } else {
+            html += `<tr><td>${r.id}</td><td>${r.donor_name||'Anonymous'}</td><td>£${Number(r.amount).toFixed(2)}</td><td>${r.type}</td><td>${r.status}</td><td>${r.created_at||''}</td><td><a class="btn btn-sm btn-outline-primary" href="../donations/pledge.php?id=${r.id}">Open</a></td></tr>`;
+          }
+        });
+        html += '</tbody></table></div>';
+        body.innerHTML = html;
+      })
+      .catch(()=>{ body.innerHTML = '<div class="alert alert-danger">Failed to load details.</div>'; });
+  }
 </script>
 </body>
 </html>
