@@ -8,30 +8,74 @@ $db = db();
 $id = max(1, (int)($_GET['id'] ?? 0));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
-    $id = max(1, (int)($_POST['id'] ?? 0));
-    $donor_name = trim((string)($_POST['donor_name'] ?? ''));
-    $donor_phone = trim((string)($_POST['donor_phone'] ?? ''));
-    $donor_email = trim((string)($_POST['donor_email'] ?? ''));
-    $amount = (float)($_POST['amount'] ?? 0);
-    $package_id = $_POST['package_id'] !== '' ? (int)$_POST['package_id'] : null;
-    $status = (string)($_POST['status'] ?? 'pending');
-    $type = (string)($_POST['type'] ?? 'pledge');
-    $anonymous = isset($_POST['anonymous']) ? 1 : 0;
-    $notes = trim((string)($_POST['notes'] ?? ''));
-    if ($amount <= 0) { $error = 'Amount must be greater than 0.'; }
-    if (empty($error)) {
-        $sql = 'UPDATE pledges SET donor_name=?, donor_phone=?, donor_email=?, amount=?, package_id=?, status=?, type=?, anonymous=?, notes=? WHERE id=?';
-        $stmt = $db->prepare($sql);
-        if ($package_id === null) {
-            $null = null;
-            $stmt->bind_param('sssdsisssi', $donor_name, $donor_phone, $donor_email, $amount, $null, $status, $type, $anonymous, $notes, $id);
-        } else {
-            $stmt->bind_param('sssdsisssi', $donor_name, $donor_phone, $donor_email, $amount, $package_id, $status, $type, $anonymous, $notes, $id);
-        }
-        $stmt->execute();
-        header('Location: pledge.php?id=' . $id . '&ok=1'); exit;
-    }
+	verify_csrf();
+	$action = (string)($_POST['action'] ?? 'update');
+	if ($action === 'convert_to_payment') {
+		$id = max(1, (int)($_POST['id'] ?? 0));
+		$method = (string)($_POST['method'] ?? 'cash');
+		$reference = trim((string)($_POST['reference'] ?? ''));
+
+		// Load pledge to copy fields
+		$ps = $db->prepare('SELECT donor_name, donor_phone, donor_email, amount, package_id, status FROM pledges WHERE id=?');
+		$ps->bind_param('i', $id);
+		$ps->execute();
+		$pledgeRow = $ps->get_result()->fetch_assoc();
+		$ps->close();
+		if (!$pledgeRow) {
+			$error = 'Pledge not found for conversion.';
+		}
+
+		if (empty($error)) {
+			// Map pledge status to payment status
+			$map = ['approved' => 'approved', 'pending' => 'pending', 'rejected' => 'voided', 'cancelled' => 'voided'];
+			$payStatus = $map[$pledgeRow['status']] ?? 'pending';
+			$uid = (int)(current_user()['id'] ?? 0);
+			$refText = $reference !== '' ? $reference : ('Converted from pledge #' . $id);
+
+			// Insert payment
+			if (empty($pledgeRow['package_id'])) {
+				$sql = 'INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at) VALUES (?,?,?,?,?, NULL, ?, ?, ?, NOW())';
+				$ins = $db->prepare($sql);
+				$ins->bind_param('sssdsisi', $pledgeRow['donor_name'], $pledgeRow['donor_phone'], $pledgeRow['donor_email'], $pledgeRow['amount'], $method, $refText, $payStatus, $uid);
+			} else {
+				$sql = 'INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at) VALUES (?,?,?,?,?,?,?,?,?, NOW())';
+				$ins = $db->prepare($sql);
+				$ins->bind_param('sssdsissii', $pledgeRow['donor_name'], $pledgeRow['donor_phone'], $pledgeRow['donor_email'], $pledgeRow['amount'], $method, $pledgeRow['package_id'], $refText, $payStatus, $uid);
+			}
+			$ins->execute();
+			$newPaymentId = (int)$db->insert_id;
+
+			// Mark original pledge as cancelled and note conversion
+			$db->query("UPDATE pledges SET status='cancelled', notes=CONCAT(COALESCE(notes,''),' | Converted to payment #".$newPaymentId."') WHERE id=".$id);
+
+			header('Location: payment.php?id=' . $newPaymentId . '&ok=1');
+			exit;
+		}
+	} else {
+		$id = max(1, (int)($_POST['id'] ?? 0));
+		$donor_name = trim((string)($_POST['donor_name'] ?? ''));
+		$donor_phone = trim((string)($_POST['donor_phone'] ?? ''));
+		$donor_email = trim((string)($_POST['donor_email'] ?? ''));
+		$amount = (float)($_POST['amount'] ?? 0);
+		$package_id = $_POST['package_id'] !== '' ? (int)$_POST['package_id'] : null;
+		$status = (string)($_POST['status'] ?? 'pending');
+		$type = (string)($_POST['type'] ?? 'pledge');
+		$anonymous = isset($_POST['anonymous']) ? 1 : 0;
+		$notes = trim((string)($_POST['notes'] ?? ''));
+		if ($amount <= 0) { $error = 'Amount must be greater than 0.'; }
+		if (empty($error)) {
+			$sql = 'UPDATE pledges SET donor_name=?, donor_phone=?, donor_email=?, amount=?, package_id=?, status=?, type=?, anonymous=?, notes=? WHERE id=?';
+			$stmt = $db->prepare($sql);
+			if ($package_id === null) {
+				$null = null;
+				$stmt->bind_param('sssdsisssi', $donor_name, $donor_phone, $donor_email, $amount, $null, $status, $type, $anonymous, $notes, $id);
+			} else {
+				$stmt->bind_param('sssdsisssi', $donor_name, $donor_phone, $donor_email, $amount, $package_id, $status, $type, $anonymous, $notes, $id);
+			}
+			$stmt->execute();
+			header('Location: pledge.php?id=' . $id . '&ok=1'); exit;
+		}
+	}
 }
 
 $stmt = $db->prepare('SELECT p.*, u.name AS creator_name, a.name AS approver_name FROM pledges p LEFT JOIN users u ON u.id=p.created_by_user_id LEFT JOIN users a ON a.id=p.approved_by_user_id WHERE p.id=?');
@@ -125,9 +169,38 @@ $packages = $db->query('SELECT id, label, price FROM donation_packages ORDER BY 
             </div>
           </div>
           <div class="mt-3 d-flex gap-2">
+            <input type="hidden" name="action" value="update">
             <button class="btn btn-primary" type="submit"><i class="fas fa-save me-1"></i>Save Changes</button>
           </div>
         </form>
+
+        <div class="card mt-3">
+          <div class="card-header bg-light"><i class="fas fa-right-left me-2"></i>Convert to Payment</div>
+          <div class="card-body">
+            <form method="post" class="row g-3">
+              <?php echo csrf_input(); ?>
+              <input type="hidden" name="action" value="convert_to_payment">
+              <input type="hidden" name="id" value="<?php echo (int)$pledge['id']; ?>">
+              <div class="col-md-3">
+                <label class="form-label">Method</label>
+                <select name="method" class="form-select">
+                  <?php foreach (['cash','bank','card','other'] as $m): ?>
+                  <option value="<?php echo $m; ?>"><?php echo ucfirst($m); ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Reference (optional)</label>
+                <input type="text" name="reference" class="form-control" placeholder="Receipt #, Transaction ID, etc.">
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary w-100" onclick="return confirm('Convert this pledge to a payment? The pledge will be marked as cancelled.');">
+                  <i class="fas fa-arrow-right-arrow-left me-1"></i>Convert
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
 
       </div>
     </main>
