@@ -212,6 +212,10 @@
     border-radius: 0 0 12px 12px;
 }
 
+/* Ensure report modals always appear above any local stacking contexts */
+.modal { z-index: 1060; }
+.modal-backdrop { z-index: 1050; }
+
 /* Form Controls */
 .form-control {
     border: 2px solid #e9ecef;

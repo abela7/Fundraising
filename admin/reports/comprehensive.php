@@ -635,7 +635,11 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
   // Data Quality drilldown loader
   function loadDQ(kind){
     const body = document.getElementById('dqModalBody');
-    const modal = new bootstrap.Modal(document.getElementById('dqModal'));
+    const modalEl = document.getElementById('dqModal');
+    if (modalEl && modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+    const modal = new bootstrap.Modal(modalEl, { backdrop: true, focus: true });
     body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
     modal.show();
     const url = new URL(window.location.href);
