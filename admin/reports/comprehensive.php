@@ -644,23 +644,150 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
       .then(r=>r.json())
       .then(data=>{
         if(!data.success){ body.innerHTML = '<div class="alert alert-danger">'+(data.error||'Failed to load')+'</div>'; return; }
-        if(!data.rows || data.rows.length===0){ body.innerHTML = '<div class="text-muted">No records found for this range.</div>'; return; }
-        let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr>';
-        if(kind==='missing_contact_payments'){
-          html += '<th>ID</th><th>Donor</th><th>Amount</th><th>Method</th><th>Status</th><th>Received At</th><th></th>';
-        } else {
-          html += '<th>ID</th><th>Donor</th><th>Amount</th><th>Type</th><th>Status</th><th>Created At</th><th></th>';
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        const titleEl = document.querySelector('#dqModal .modal-title');
+        const label = (kind==='missing_contact_payments' ? 'Payments with missing contact' : 'Pledges with missing contact');
+        if(titleEl){ titleEl.innerHTML = '<i class="fas fa-triangle-exclamation me-2 text-danger"></i>'+label+' ('+rows.length+')'; }
+
+        const currency = (window.COMPREHENSIVE_DATA && window.COMPREHENSIVE_DATA.currency) ? window.COMPREHENSIVE_DATA.currency : 'GBP';
+        const state = {
+          kind: kind,
+          allRows: rows,
+          filteredRows: [],
+          page: 1,
+          pageSize: 10,
+          sortKey: 'id',
+          sortDir: 'desc',
+          search: ''
+        };
+
+        function formatAmount(n){
+          const v = Number(n||0);
+          return currency + ' ' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
-        html += '</tr></thead><tbody>';
-        data.rows.forEach(r=>{
-          if(kind==='missing_contact_payments'){
-            html += `<tr><td>${r.id}</td><td>${r.donor_name||'Anonymous'}</td><td>£${Number(r.amount).toFixed(2)}</td><td>${r.method}</td><td>${r.status}</td><td>${r.received_at||''}</td><td><a class="btn btn-sm btn-outline-primary" href="../donations/payment.php?id=${r.id}">Open</a></td></tr>`;
-          } else {
-            html += `<tr><td>${r.id}</td><td>${r.donor_name||'Anonymous'}</td><td>£${Number(r.amount).toFixed(2)}</td><td>${r.type}</td><td>${r.status}</td><td>${r.created_at||''}</td><td><a class="btn btn-sm btn-outline-primary" href="../donations/pledge.php?id=${r.id}">Open</a></td></tr>`;
+        function badge(text){
+          const t = String(text||'').toLowerCase();
+          let cls = 'secondary';
+          if(t==='approved' || t==='paid') cls = 'success';
+          else if(t==='pending') cls = 'warning';
+          else if(t==='void' || t==='cancelled') cls = 'danger';
+          return `<span class="badge bg-${cls}">${text||''}</span>`;
+        }
+        function applyFilterSort(){
+          const q = state.search.trim().toLowerCase();
+          let arr = state.allRows.slice();
+          if(q){
+            arr = arr.filter(r => String(r.id).includes(q) || String(r.donor_name||'anonymous').toLowerCase().includes(q) || String(r.method||r.type||'').toLowerCase().includes(q) || String(r.status||'').toLowerCase().includes(q));
           }
-        });
-        html += '</tbody></table></div>';
-        body.innerHTML = html;
+          arr.sort((a,b)=>{
+            const k = state.sortKey;
+            let va = a[k]; let vb = b[k];
+            if(k==='amount'){ va = Number(va||0); vb = Number(vb||0); }
+            if(va==null) va = '';
+            if(vb==null) vb = '';
+            if(va<vb) return state.sortDir==='asc' ? -1 : 1;
+            if(va>vb) return state.sortDir==='asc' ? 1 : -1;
+            return 0;
+          });
+          state.filteredRows = arr;
+        }
+        function render(){
+          applyFilterSort();
+          if(state.filteredRows.length===0){ body.innerHTML = '<div class="text-muted">No records found for this range.</div>'; return; }
+          const totalPages = Math.max(1, Math.ceil(state.filteredRows.length / state.pageSize));
+          if(state.page > totalPages) state.page = totalPages;
+          const start = (state.page - 1) * state.pageSize;
+          const pageRows = state.filteredRows.slice(start, start + state.pageSize);
+
+          const safeVal = (v)=>String(v||'').replaceAll('\\','\\\\').replaceAll('"','\\"');
+          let controls = `
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <input id="dqSearch" class="form-control form-control-sm" placeholder="Search (ID, donor, status)" value="${safeVal(state.search)}" />
+                <select id="dqPageSize" class="form-select form-select-sm" style="width:auto">
+                  <option value="10" ${state.pageSize===10?'selected':''}>10</option>
+                  <option value="25" ${state.pageSize===25?'selected':''}>25</option>
+                  <option value="50" ${state.pageSize===50?'selected':''}>50</option>
+                  <option value="100" ${state.pageSize===100?'selected':''}>100</option>
+                </select>
+              </div>
+              <div class="text-muted small">${state.filteredRows.length} records • Page ${state.page} / ${totalPages}</div>
+            </div>`;
+
+          let head = '';
+          if(state.kind==='missing_contact_payments'){
+            head = '<th data-sort="id">ID</th><th data-sort="donor_name">Donor</th><th data-sort="amount">Amount</th><th data-sort="method">Method</th><th data-sort="status">Status</th><th data-sort="received_at">Received At</th><th></th>';
+          } else {
+            head = '<th data-sort="id">ID</th><th data-sort="donor_name">Donor</th><th data-sort="amount">Amount</th><th data-sort="type">Type</th><th data-sort="status">Status</th><th data-sort="created_at">Created At</th><th></th>';
+          }
+
+          let rowsHtml = '';
+          pageRows.forEach(r=>{
+            if(state.kind==='missing_contact_payments'){
+              rowsHtml += `<tr>
+                <td>${r.id}</td>
+                <td>${r.donor_name||'Anonymous'}</td>
+                <td>${formatAmount(r.amount)}</td>
+                <td>${r.method||''}</td>
+                <td>${badge(r.status)}</td>
+                <td>${r.received_at||''}</td>
+                <td><a class="btn btn-sm btn-outline-primary" target="_blank" href="../donations/payment.php?id=${r.id}">Open</a></td>
+              </tr>`;
+            } else {
+              rowsHtml += `<tr>
+                <td>${r.id}</td>
+                <td>${r.donor_name||'Anonymous'}</td>
+                <td>${formatAmount(r.amount)}</td>
+                <td>${r.type||''}</td>
+                <td>${badge(r.status)}</td>
+                <td>${r.created_at||''}</td>
+                <td><a class="btn btn-sm btn-outline-primary" target="_blank" href="../donations/pledge.php?id=${r.id}">Open</a></td>
+              </tr>`;
+            }
+          });
+
+          const table = `
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead><tr>${head}</tr></thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+            </div>`;
+
+          const pager = `
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <div class="text-muted small">Showing ${start+1}-${Math.min(start+state.pageSize, state.filteredRows.length)} of ${state.filteredRows.length}</div>
+              <div class="btn-group btn-group-sm">
+                <button id="dqPrev" class="btn btn-outline-secondary" ${state.page<=1?'disabled':''}>Prev</button>
+                <button id="dqNext" class="btn btn-outline-secondary" ${state.page>=totalPages?'disabled':''}>Next</button>
+              </div>
+            </div>`;
+
+          body.innerHTML = controls + table + pager;
+
+          const searchEl = document.getElementById('dqSearch');
+          const sizeEl = document.getElementById('dqPageSize');
+          const prevEl = document.getElementById('dqPrev');
+          const nextEl = document.getElementById('dqNext');
+
+          if(searchEl){ searchEl.addEventListener('input', (e)=>{ state.search = e.target.value; state.page = 1; render(); }); }
+          if(sizeEl){ sizeEl.addEventListener('change', (e)=>{ state.pageSize = parseInt(e.target.value||'10',10); state.page = 1; render(); }); }
+          if(prevEl){ prevEl.addEventListener('click', ()=>{ if(state.page>1){ state.page -= 1; render(); } }); }
+          if(nextEl){ nextEl.addEventListener('click', ()=>{ const tp = Math.max(1, Math.ceil(state.filteredRows.length / state.pageSize)); if(state.page<tp){ state.page += 1; render(); } }); }
+
+          // Sort handlers
+          body.querySelectorAll('th[data-sort]').forEach(th=>{
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', ()=>{
+              const k = th.getAttribute('data-sort');
+              if(state.sortKey === k){ state.sortDir = (state.sortDir==='asc'?'desc':'asc'); }
+              else { state.sortKey = k; state.sortDir = 'asc'; }
+              render();
+            });
+          });
+        }
+
+        render();
       })
       .catch(()=>{ body.innerHTML = '<div class="alert alert-danger">Failed to load details.</div>'; });
   }
