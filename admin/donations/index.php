@@ -84,15 +84,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $source = 'volunteer';
 
                 if ($packageId === null) {
-                    $sql = 'INSERT INTO pledges (donor_name, donor_phone, donor_email, package_id, source, anonymous, amount, type, status, notes, created_by_user_id, approved_by_user_id, created_at, approved_at, status_changed_at) VALUES (?,?,?,?,?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NULL, NOW())';
+                    // Exclude package_id placeholder and use NULL directly to avoid FK constraint issues
+                    $sql = 'INSERT INTO pledges (donor_name, donor_phone, donor_email, package_id, source, anonymous, amount, type, status, notes, created_by_user_id, approved_by_user_id, created_at, approved_at, status_changed_at) VALUES (?,?,?, NULL, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NULL, NOW())';
                     $ins = $db->prepare($sql);
-                    $null = null;
-                    // types: s s s i s i d s s s i
-                    $ins->bind_param('sssisidsssi', $donorName, $donorPhone, $donorEmail, $null, $source, $anonymous, $amount, $pledgeType, $status, $notes, $createdBy);
+                    // types: s s s s i d s s s i => ssssidsssi
+                    $ins->bind_param('ssssidsssi', $donorName, $donorPhone, $donorEmail, $source, $anonymous, $amount, $pledgeType, $status, $notes, $createdBy);
                 } else {
                     $sql = 'INSERT INTO pledges (donor_name, donor_phone, donor_email, package_id, source, anonymous, amount, type, status, notes, created_by_user_id, approved_by_user_id, created_at, approved_at, status_changed_at) VALUES (?,?,?,?,?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NULL, NOW())';
                     $ins = $db->prepare($sql);
-                    $ins->bind_param('sssisisdsssi', $donorName, $donorPhone, $donorEmail, $packageId, $source, $anonymous, $amount, $pledgeType, $status, $notes, $createdBy);
+                    // types: s s s i s i d s s s i => sssisidsssi
+                    $ins->bind_param('sssisidsssi', $donorName, $donorPhone, $donorEmail, $packageId, $source, $anonymous, $amount, $pledgeType, $status, $notes, $createdBy);
                 }
                 $ins->execute();
                 $newId = (int)$db->insert_id;
@@ -107,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         } elseif ($action === 'update_payment') {
-        if ($action === 'update_payment') {
             $paymentId = (int)($_POST['payment_id'] ?? 0);
             $donorName = trim($_POST['donor_name'] ?? '');
             $donorPhone = trim($_POST['donor_phone'] ?? '');
