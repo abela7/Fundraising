@@ -54,6 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $status = $_POST['status'] ?? 'pending';
                 $reference = trim($_POST['reference'] ?? '');
                 $receivedBy = $selectedRegistrar > 0 ? $selectedRegistrar : $uid;
+                $anonymousPayment = isset($_POST['anonymous']);
+                if ($anonymousPayment) {
+                    $donorName = 'Anonymous';
+                    $donorPhone = '';
+                    $donorEmail = '';
+                }
 
                 if ($packageId === null) {
                     $sql = 'INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at) VALUES (?,?,?,?,?, NULL, ?, ?, ?, NOW())';
@@ -900,6 +906,12 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                                 <option value="voided">Voided</option>
                             </select>
                         </div>
+                        <div class="col-md-4 payment-only">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="anonymous" id="addAnonPayment">
+                                <label class="form-check-label" for="addAnonPayment"><i class="fas fa-user-secret me-1"></i>Make this donation anonymous</label>
+                            </div>
+                        </div>
                         <div class="col-12 payment-only">
                             <label class="form-label">Reference</label>
                             <input type="text" class="form-control" name="reference" placeholder="Receipt #, Transaction ID, etc.">
@@ -934,27 +946,30 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
     <script>
     (function(){
         const typeSel = document.getElementById('donationTypeSelect');
+        function bindAnonToggle(checkbox){
+            if (!checkbox || checkbox.dataset.bound === '1') return;
+            const nameField = document.getElementById('addDonorName');
+            const phoneField = document.getElementById('addDonorPhone');
+            const emailField = document.getElementById('addDonorEmail');
+            checkbox.addEventListener('change', function(){
+                if (this.checked) {
+                    if (nameField) { nameField.required = false; nameField.placeholder = 'Anonymous'; nameField.value=''; }
+                    if (phoneField) { phoneField.required = false; phoneField.placeholder = 'Anonymous'; phoneField.value=''; }
+                    if (emailField) { emailField.value=''; }
+                } else {
+                    if (nameField) { nameField.required = true; nameField.placeholder = 'Enter full name'; }
+                    if (phoneField) { phoneField.required = true; phoneField.placeholder = 'Enter phone number'; }
+                }
+            });
+            checkbox.dataset.bound = '1';
+        }
         function toggleSections(){
             const isPayment = typeSel.value === 'payment';
             document.querySelectorAll('.payment-only').forEach(el=>el.classList.toggle('d-none', !isPayment));
             document.querySelectorAll('.pledge-only').forEach(el=>el.classList.toggle('d-none', isPayment));
-            const nameField = document.getElementById('addDonorName');
-            const phoneField = document.getElementById('addDonorPhone');
-            const emailField = document.getElementById('addDonorEmail');
-            const anon = document.getElementById('addAnon');
-            if (!isPayment) {
-                // Pledge form: apply registrar anonymous logic
-                anon.addEventListener('change', function(){
-                    if (this.checked) {
-                        if (nameField) { nameField.required = false; nameField.placeholder = 'Anonymous'; nameField.value=''; }
-                        if (phoneField) { phoneField.required = false; phoneField.placeholder = 'Anonymous'; phoneField.value=''; }
-                        if (emailField) { emailField.value=''; }
-                    } else {
-                        if (nameField) { nameField.required = true; nameField.placeholder = 'Enter full name'; }
-                        if (phoneField) { phoneField.required = true; phoneField.placeholder = 'Enter phone number'; }
-                    }
-                });
-            }
+            // Bind anonymous toggles for both types once
+            bindAnonToggle(document.getElementById('addAnon'));
+            bindAnonToggle(document.getElementById('addAnonPayment'));
         }
         if (typeSel) {
             typeSel.addEventListener('change', toggleSections);
