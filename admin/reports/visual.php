@@ -22,6 +22,7 @@ try {
 } catch (Exception $e) { $db_error_message = 'Database connection failed: '.$e->getMessage(); }
 
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
+$currentRange = isset($_GET['date']) ? (string)$_GET['date'] : 'month';
 
 // Date Range
 function resolve_range(): array {
@@ -139,12 +140,12 @@ if ($db && $db_error_message === '') {
                 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                     <h4 class="mb-0"><i class="fas fa-chart-bar text-primary me-2"></i>Visual Report</h4>
                     <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary" href="?date=today"><i class="fas fa-clock me-1"></i>Today</a>
-                        <a class="btn btn-outline-secondary" href="?date=week"><i class="fas fa-calendar-week me-1"></i>This Week</a>
-                        <a class="btn btn-outline-secondary" href="?date=month"><i class="fas fa-calendar me-1"></i>This Month</a>
-                        <a class="btn btn-outline-secondary" href="?date=quarter"><i class="fas fa-calendar-alt me-1"></i>Quarter</a>
-                        <a class="btn btn-outline-secondary" href="?date=year"><i class="fas fa-calendar-day me-1"></i>This Year</a>
-                        <a class="btn btn-outline-secondary" href="?date=all"><i class="fas fa-infinity me-1"></i>All Time</a>
+                        <a class="btn btn-outline-secondary<?php echo $currentRange==='today'?' active':''; ?>" href="?date=today"><i class="fas fa-clock me-1"></i>Today</a>
+                        <a class="btn btn-outline-secondary<?php echo $currentRange==='week'?' active':''; ?>" href="?date=week"><i class="fas fa-calendar-week me-1"></i>This Week</a>
+                        <a class="btn btn-outline-secondary<?php echo in_array($currentRange,['','month'])?' active':''; ?>" href="?date=month"><i class="fas fa-calendar me-1"></i>This Month</a>
+                        <a class="btn btn-outline-secondary<?php echo $currentRange==='quarter'?' active':''; ?>" href="?date=quarter"><i class="fas fa-calendar-alt me-1"></i>Quarter</a>
+                        <a class="btn btn-outline-secondary<?php echo $currentRange==='year'?' active':''; ?>" href="?date=year"><i class="fas fa-calendar-day me-1"></i>This Year</a>
+                        <a class="btn btn-outline-secondary<?php echo $currentRange==='all'?' active':''; ?>" href="?date=all"><i class="fas fa-infinity me-1"></i>All Time</a>
                         <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-1"></i>Print</button>
                     </div>
                 </div>
@@ -196,8 +197,8 @@ if ($db && $db_error_message === '') {
                     </div>
                     <div class="col-12">
                         <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-2"><i class="fas fa-chart-line me-2 text-info"></i>Amounts Over Time</h6>
-                            <div id="chartTimeseries" class="chart-box" style="height: 380px"></div>
+                            <h6 class="mb-2"><i class="fas fa-chart-line me-2 text-info"></i>Cumulative Raised Over Time</h6>
+                            <div id="chartCumulative" class="chart-box" style="height: 380px"></div>
                         </div></div>
                     </div>
                     <div class="col-xl-6">
@@ -225,6 +226,7 @@ if ($db && $db_error_message === '') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
 <script>
   window.VISUAL_DATA = <?php echo json_encode([
     'currency' => $currency,
@@ -265,20 +267,26 @@ if ($db && $db_error_message === '') {
       window.addEventListener('resize', ()=>chart.resize());
     })();
 
-    // Amounts Over Time (stacked bar)
+    // Cumulative Raised Over Time (lines)
     (function(){
-      const el = document.getElementById('chartTimeseries'); if(!el) return;
+      const el = document.getElementById('chartCumulative'); if(!el) return;
       const chart = echarts.init(el);
+      const dates = D.timeseries.dates || [];
+      const paid = (D.timeseries.payments_amounts||[]).map(v=>Number(v||0));
+      const pledges = (D.timeseries.pledges_amounts||[]).map(v=>Number(v||0));
+      const cumPaid = []; const cumPledge = []; const cumTotal = [];
+      let a=0,b=0; for(let i=0;i<dates.length;i++){ a+=paid[i]||0; b+=pledges[i]||0; cumPaid.push(a); cumPledge.push(b); cumTotal.push(a+b); }
       chart.setOption({
         tooltip:{ trigger:'axis', valueFormatter: v => fmtValue(v) },
         legend:{ top: 0 },
-        grid:{ left: 40, right: 20, top: 40, bottom: 40 },
-        xAxis:{ type:'category', data: D.timeseries.dates },
+        grid:{ left: 50, right: 20, top: 40, bottom: 40 },
+        xAxis:{ type:'category', data: dates },
         yAxis:{ type:'value' },
         dataZoom:[{ type:'inside' },{ type:'slider' }],
         series:[
-          { name:'Payments', type:'bar', stack:'total', emphasis:{ focus:'series' }, data: D.timeseries.payments_amounts },
-          { name:'Pledges', type:'bar', stack:'total', emphasis:{ focus:'series' }, data: D.timeseries.pledges_amounts }
+          { name:'Cumulative Total', type:'line', smooth:true, symbol:'none', lineStyle:{ width:3 }, areaStyle:{ opacity:0.08 }, data: cumTotal },
+          { name:'Cumulative Paid', type:'line', smooth:true, symbol:'none', data: cumPaid },
+          { name:'Cumulative Pledged', type:'line', smooth:true, symbol:'none', data: cumPledge }
         ]
       });
       window.addEventListener('resize', ()=>chart.resize());
