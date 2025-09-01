@@ -6,14 +6,14 @@ require_login();
 
 // --- Resilient Database Loading ---
 $settings = [];
-$countersRow = [];
 $db_error_message = '';
 
 try {
     $db = db();
     // Check if tables exist before querying
     $settings_table_exists = $db->query("SHOW TABLES LIKE 'settings'")->num_rows > 0;
-    $counters_table_exists = $db->query("SHOW TABLES LIKE 'counters'")->num_rows > 0;
+    $payments_table_exists = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
+    $pledges_table_exists  = $db->query("SHOW TABLES LIKE 'pledges'")->num_rows > 0;
 
     if ($settings_table_exists) {
         $settings = $db->query('SELECT target_amount, currency_code, display_token, refresh_seconds FROM settings WHERE id = 1')->fetch_assoc() ?: [];
@@ -21,21 +21,30 @@ try {
         $db_error_message .= '`settings` table not found. ';
     }
 
-    if ($counters_table_exists) {
-        $countersRow = $db->query("SELECT paid_total, pledged_total, grand_total FROM counters WHERE id = 1")->fetch_assoc() ?: [];
+    // Dynamic, authoritative totals from live data (approved only), to match reports
+    $paidTotal    = 0.0;
+    $pledgedTotal = 0.0;
+    if ($payments_table_exists) {
+        $row = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE status='approved'")->fetch_assoc();
+        $paidTotal = (float)($row['t'] ?? 0);
     } else {
-        $db_error_message .= '`counters` table not found. ';
+        $db_error_message .= '`payments` table not found. ';
     }
+    if ($pledges_table_exists) {
+        $row = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledges WHERE status='approved'")->fetch_assoc();
+        $pledgedTotal = (float)($row['t'] ?? 0);
+    } else {
+        $db_error_message .= '`pledges` table not found. ';
+    }
+    $grandTotal = $paidTotal + $pledgedTotal;
 } catch (Exception $e) {
     // This catches connection errors
     $db_error_message = 'Database connection failed: ' . $e->getMessage();
+    $paidTotal = 0.0; $pledgedTotal = 0.0; $grandTotal = 0.0;
 }
 // --- End Resilient Loading ---
 
-// Live totals for initial render (JS will keep them refreshed)
-$paidTotal = (float)($countersRow['paid_total'] ?? 0);
-$pledgedTotal = (float)($countersRow['pledged_total'] ?? 0);
-$grandTotal = (float)($countersRow['grand_total'] ?? 0);
+// Live totals for initial render (JS can refresh if needed)
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
 $page_title = 'Dashboard';
 ?>

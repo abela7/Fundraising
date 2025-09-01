@@ -7,16 +7,16 @@ require_admin();
 $current_user = current_user();
 $db = db();
 
-// Settings and live stats (align with new counters and schema)
+// Settings and live stats (dynamic, no counters)
 $settings = $db->query("SELECT target_amount, currency_code FROM settings WHERE id=1")->fetch_assoc() ?: ['target_amount'=>0,'currency_code'=>'GBP'];
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
 
-// Use counters as single source of truth for totals
-$counters = $db->query("SELECT paid_total, pledged_total, grand_total FROM counters WHERE id=1")
-              ->fetch_assoc() ?: ['paid_total'=>0,'pledged_total'=>0,'grand_total'=>0];
-$paidTotal    = (float)($counters['paid_total'] ?? 0);
-$pledgedTotal = (float)($counters['pledged_total'] ?? 0);
-$grandTotal   = (float)($counters['grand_total'] ?? ($paidTotal + $pledgedTotal));
+// Dynamic totals from approved rows to match comprehensive report
+$paidRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
+$pledgeRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledges WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
+$paidTotal    = (float)$paidRow['t'];
+$pledgedTotal = (float)$pledgeRow['t'];
+$grandTotal   = $paidTotal + $pledgedTotal;
 
 // Donor count: distinct donors across approved pledges and approved payments
 $donorCountRow = $db->query("SELECT COUNT(*) AS c FROM (
