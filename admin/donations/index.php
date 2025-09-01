@@ -23,6 +23,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->begin_transaction();
         $uid = (int)$current_user['id'];
         
+        if ($action === 'create_donation') {
+            $donationType = $_POST['donation_type'] === 'payment' ? 'payment' : 'pledge';
+            $donorName = trim($_POST['donor_name'] ?? '');
+            $donorPhone = trim($_POST['donor_phone'] ?? '');
+            $donorEmail = trim($_POST['donor_email'] ?? '');
+            $amount = (float)($_POST['amount'] ?? 0);
+            $packageId = isset($_POST['package_id']) && $_POST['package_id'] !== '' ? (int)$_POST['package_id'] : null;
+            $selectedRegistrar = isset($_POST['registrar_id']) && $_POST['registrar_id'] !== '' ? (int)$_POST['registrar_id'] : 0;
+
+            if ($amount <= 0 && $packageId === null) {
+                throw new Exception('Amount must be greater than zero or choose a package.');
+            }
+
+            // Optional package enforcement of amount
+            if ($packageId !== null) {
+                $pkgStmt = $db->prepare('SELECT price FROM donation_packages WHERE id = ?');
+                $pkgStmt->bind_param('i', $packageId);
+                $pkgStmt->execute();
+                $pkg = $pkgStmt->get_result()->fetch_assoc();
+                $pkgStmt->close();
+                if (!$pkg) {
+                    throw new Exception('Selected package was not found.');
+                }
+                $amount = (float)$pkg['price'];
+            }
+
+            if ($donationType === 'payment') {
+                $method = $_POST['method'] ?? 'cash';
+                $status = $_POST['status'] ?? 'pending';
+                $reference = trim($_POST['reference'] ?? '');
+                $receivedBy = $selectedRegistrar > 0 ? $selectedRegistrar : $uid;
+
+                if ($packageId === null) {
+                    $sql = 'INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at) VALUES (?,?,?,?,?, NULL, ?, ?, ?, NOW())';
+                    $ins = $db->prepare($sql);
+                    $ins->bind_param('sssdsissi', $donorName, $donorPhone, $donorEmail, $amount, $method, $reference, $status, $receivedBy);
+                } else {
+                    $sql = 'INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at) VALUES (?,?,?,?,?,?,?,?,?, NOW())';
+                    $ins = $db->prepare($sql);
+                    $ins->bind_param('sssdsissii', $donorName, $donorPhone, $donorEmail, $amount, $method, $packageId, $reference, $status, $receivedBy);
+                }
+                $ins->execute();
+                $newId = (int)$db->insert_id;
+
+                // Audit log
+                $after = json_encode(['donor_name'=>$donorName,'amount'=>$amount,'method'=>$method,'status'=>$status,'received_by_user_id'=>$receivedBy], JSON_UNESCAPED_SLASHES);
+                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'create', NULL, ?, 'admin')");
+                $log->bind_param('iis', $uid, $newId, $after);
+                $log->execute();
+
+                $actionMsg = 'Payment created successfully (#'.$newId.')';
+
+            } else { // pledge
+                $status = $_POST['status'] ?? 'pending';
+                $pledgeType = $_POST['pledge_type'] === 'paid' ? 'paid' : 'pledge';
+                $anonymous = isset($_POST['anonymous']) ? 1 : 0;
+                $notes = trim($_POST['notes'] ?? '');
+                $createdBy = $selectedRegistrar > 0 ? $selectedRegistrar : $uid;
+                $source = 'volunteer';
+
+                if ($packageId === null) {
+                    $sql = 'INSERT INTO pledges (donor_name, donor_phone, donor_email, package_id, source, anonymous, amount, type, status, notes, created_by_user_id, approved_by_user_id, created_at, approved_at, status_changed_at) VALUES (?,?,?,?,?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NULL, NOW())';
+                    $ins = $db->prepare($sql);
+                    $null = null;
+                    // types: s s s i s i d s s s i
+                    $ins->bind_param('sssisidsssi', $donorName, $donorPhone, $donorEmail, $null, $source, $anonymous, $amount, $pledgeType, $status, $notes, $createdBy);
+                } else {
+                    $sql = 'INSERT INTO pledges (donor_name, donor_phone, donor_email, package_id, source, anonymous, amount, type, status, notes, created_by_user_id, approved_by_user_id, created_at, approved_at, status_changed_at) VALUES (?,?,?,?,?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NULL, NOW())';
+                    $ins = $db->prepare($sql);
+                    $ins->bind_param('sssisisdsssi', $donorName, $donorPhone, $donorEmail, $packageId, $source, $anonymous, $amount, $pledgeType, $status, $notes, $createdBy);
+                }
+                $ins->execute();
+                $newId = (int)$db->insert_id;
+
+                // Audit log
+                $after = json_encode(['donor_name'=>$donorName,'amount'=>$amount,'status'=>$status,'created_by_user_id'=>$createdBy,'type'=>$pledgeType], JSON_UNESCAPED_SLASHES);
+                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'create', NULL, ?, 'admin')");
+                $log->bind_param('iis', $uid, $newId, $after);
+                $log->execute();
+
+                $actionMsg = 'Pledge created successfully (#'.$newId.')';
+            }
+
+        } elseif ($action === 'update_payment') {
         if ($action === 'update_payment') {
             $paymentId = (int)($_POST['payment_id'] ?? 0);
             $donorName = trim($_POST['donor_name'] ?? '');
@@ -327,6 +411,10 @@ $stats = [
 // Get currency from settings
 $settings = $db->query('SELECT currency_code FROM settings WHERE id=1')->fetch_assoc();
 $currency = $settings['currency_code'] ?? 'GBP';
+
+// Dropdown data for Add Donation
+$registrars = $db->query("SELECT id, name FROM users WHERE (role='registrar' OR role='admin') AND active=1 ORDER BY name")?->fetch_all(MYSQLI_ASSOC) ?? [];
+$packages = $db->query("SELECT id, label, price FROM donation_packages WHERE active=1 ORDER BY price")?->fetch_all(MYSQLI_ASSOC) ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -734,6 +822,129 @@ $currency = $settings['currency_code'] ?? 'GBP';
             </div>
         </main>
     </div>
+</div>
+
+<!-- Add Donation Modal -->
+<div class="modal fade" id="addDonationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus text-primary me-2"></i>Add Donation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="addDonationForm">
+                <?php echo csrf_input(); ?>
+                <input type="hidden" name="action" value="create_donation">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Donation Type</label>
+                            <select class="form-select" name="donation_type" id="donationTypeSelect">
+                                <option value="payment">Payment</option>
+                                <option value="pledge">Pledge</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Registrar</label>
+                            <select class="form-select" name="registrar_id">
+                                <option value="">Current User</option>
+                                <?php foreach ($registrars as $r): ?>
+                                <option value="<?php echo (int)$r['id']; ?>"><?php echo htmlspecialchars($r['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Package (optional)</label>
+                            <select class="form-select" name="package_id" id="addPackageSelect" onchange="(function(){var s=document.getElementById('addPackageSelect');var a=document.getElementById('addAmount');var p=s.options[s.selectedIndex]?.getAttribute('data-price'); if(p){a.value=parseFloat(p).toFixed(2);}})()">
+                                <option value="">Custom Amount</option>
+                                <?php foreach ($packages as $p): ?>
+                                <option value="<?php echo (int)$p['id']; ?>" data-price="<?php echo number_format((float)$p['price'],2,'.',''); ?>"><?php echo htmlspecialchars($p['label']); ?> - £<?php echo number_format((float)$p['price'],2); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Donor Name</label>
+                            <input type="text" class="form-control" name="donor_name">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" class="form-control" name="donor_phone">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="donor_email">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">£</span>
+                                <input type="number" class="form-control" id="addAmount" name="amount" step="0.01" min="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-4 payment-only">
+                            <label class="form-label">Method</label>
+                            <select class="form-select" name="method">
+                                <option value="cash">Cash</option>
+                                <option value="bank">Bank Transfer</option>
+                                <option value="card">Card</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 payment-only">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="voided">Voided</option>
+                            </select>
+                        </div>
+                        <div class="col-12 payment-only">
+                            <label class="form-label">Reference</label>
+                            <input type="text" class="form-control" name="reference" placeholder="Receipt #, Transaction ID, etc.">
+                        </div>
+
+                        <div class="col-md-4 pledge-only d-none">
+                            <label class="form-label">Pledge Type</label>
+                            <select class="form-select" name="pledge_type">
+                                <option value="pledge">Pledge</option>
+                                <option value="paid">Paid (at registration)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 pledge-only d-none">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="anonymous" id="addAnon">
+                                <label class="form-check-label" for="addAnon">Anonymous</label>
+                            </div>
+                        </div>
+                        <div class="col-12 pledge-only d-none">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+    (function(){
+        const typeSel = document.getElementById('donationTypeSelect');
+        function toggleSections(){
+            const isPayment = typeSel.value === 'payment';
+            document.querySelectorAll('.payment-only').forEach(el=>el.classList.toggle('d-none', !isPayment));
+            document.querySelectorAll('.pledge-only').forEach(el=>el.classList.toggle('d-none', isPayment));
+        }
+        if (typeSel) {
+            typeSel.addEventListener('change', toggleSections);
+            toggleSections();
+        }
+    })();
+    </script>
 </div>
 
 <!-- View Details Modal -->
