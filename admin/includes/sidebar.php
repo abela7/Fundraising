@@ -91,20 +91,19 @@ try {
         <?php endif; ?>
       </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'payments' ? './' : '../payments/'; ?>" 
-         class="nav-link <?php echo $current_dir === 'payments' ? 'active' : ''; ?>">
+         class="nav-link <?php echo ($current_dir === 'payments' && $current_page !== 'cash') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-credit-card"></i>
         </span>
         <span class="nav-label">Payments</span>
       </a>
-      <?php if ($current_dir === 'payments'): ?>
-      <a href="cash.php" class="nav-sublink <?php echo basename($_SERVER['PHP_SELF'])==='cash.php' ? 'active' : ''; ?>">
+      <a href="<?php echo ($current_dir === 'payments' ? 'cash.php' : '../payments/cash.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'payments' && $current_page === 'cash') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-money-bill-wave"></i>
         </span>
         <span class="nav-label">Cash Payments</span>
       </a>
-      <?php endif; ?>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'donations' ? './' : '../donations/'; ?>" 
          class="nav-link <?php echo $current_dir === 'donations' ? 'active' : ''; ?>">
         <span class="nav-icon">
