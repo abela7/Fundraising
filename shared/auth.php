@@ -103,7 +103,12 @@ function login_with_phone_password(string $phone, string $password): bool {
         'phone' => $user['phone'],
         'role' => $user['role'],
     ];
-    $db->query("UPDATE users SET last_login_at = NOW() WHERE id = " . (int)$user['id']);
+    // Fix: Use prepared statement to prevent SQL injection
+    $updateStmt = $db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?");
+    $userId = (int)$user['id'];
+    $updateStmt->bind_param('i', $userId);
+    $updateStmt->execute();
+    $updateStmt->close();
     session_regenerate_id(true);
     return true;
 }
