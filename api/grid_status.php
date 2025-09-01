@@ -12,10 +12,24 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
-// CORS headers for projector access
-header('Access-Control-Allow-Origin: *');
+// CORS headers for projector access - restrict to specific origins
+$allowedOrigins = [
+    'http://localhost',
+    'http://127.0.0.1',
+    'https://abuneteklehaymanot.org',
+    'https://www.abuneteklehaymanot.org'
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+} else {
+    // Fallback for local development and same-origin requests
+    header('Access-Control-Allow-Origin: null');
+}
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Credentials: false');
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../shared/IntelligentGridAllocator.php';
