@@ -461,6 +461,24 @@ if (isset($_GET['report'])) {
                                 <div class="card border-0 shadow-sm h-100 report-card">
                                     <div class="card-body text-center p-4">
                                         <div class="mb-3">
+                                            <div class="icon-circle bg-primary mx-auto" style="width: 60px; height: 60px;">
+                                                <i class="fas fa-chart-bar text-white fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <h5 class="card-title">Visual Report</h5>
+                                        <p class="card-text text-muted">Interactive charts: packages, methods, time, statuses, registrars</p>
+                                        <div class="d-grid gap-2">
+                                            <a href="visual.php?date=month" class="btn btn-primary">
+                                                <i class="fas fa-chart-line me-2"></i>Open Visual Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
                                             <div class="icon-circle bg-success mx-auto" style="width: 60px; height: 60px;">
                                                 <i class="fas fa-users text-white fs-4"></i>
                                             </div>
