@@ -141,30 +141,22 @@ if ($db && $db_error_message === '') {
                            GROUP BY label ORDER BY t DESC");
     $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $res=$stmt->get_result(); while($r=$res->fetch_assoc()){ $breakdowns['pledges_by_package'][] = $r; }
 
-    // Aggregate package data for pie chart
+    // Aggregate for pie chart: donations by package (payments + pledges)
     $donations_by_package = [];
     foreach ($breakdowns['payments_by_package'] as $p) {
-        $donations_by_package[$p['label']] = ($donations_by_package[$p['label']] ?? 0) + (float)$p['t'];
+        $label = (string)($p['label'] ?? 'Custom');
+        $donations_by_package[$label] = ($donations_by_package[$label] ?? 0) + (float)($p['t'] ?? 0);
     }
     foreach ($breakdowns['pledges_by_package'] as $p) {
-        $donations_by_package[$p['label']] = ($donations_by_package[$p['label']] ?? 0) + (float)$p['t'];
+        $label = (string)($p['label'] ?? 'Custom');
+        $donations_by_package[$label] = ($donations_by_package[$label] ?? 0) + (float)($p['t'] ?? 0);
     }
     arsort($donations_by_package);
-    $breakdowns['donations_by_package_aggregated'] = array_map(fn($l, $t) => ['name' => $l, 'value' => $t], array_keys($donations_by_package), array_values($donations_by_package));
-
-    // Time series
-    $mp = $db->prepare("SELECT DATE(received_at) d, COALESCE(SUM(amount),0) t, COUNT(*) c FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ? GROUP BY DATE(received_at) ORDER BY d");
-    $mp->bind_param('ss',$fromDate,$toDate); $mp->execute(); $rp=$mp->get_result(); $dates=[]; $mapP=[]; while($r=$rp->fetch_assoc()){ $dates[]=$r['d']; $mapP[$r['d']]=$r; }
-    $ml = $db->prepare("SELECT DATE(created_at) d, COALESCE(SUM(amount),0) t, COUNT(*) c FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ? GROUP BY DATE(created_at) ORDER BY d");
-    $ml->bind_param('ss',$fromDate,$toDate); $ml->execute(); $rl=$ml->get_result(); $mapL=[]; while($r=$rl->fetch_assoc()){ $dates[]=$r['d']; $mapL[$r['d']]=$r; }
-    $dates = array_values(array_unique($dates)); sort($dates);
-    $timeseries['dates'] = $dates;
-    foreach($dates as $d){
-        $timeseries['payments']['totals'][] = (float)($mapP[$d]['t'] ?? 0);
-        $timeseries['payments']['counts'][] = (int)($mapP[$d]['c'] ?? 0);
-        $timeseries['pledges']['totals'][]  = (float)($mapL[$d]['t'] ?? 0);
-        $timeseries['pledges']['counts'][]  = (int)($mapL[$d]['c'] ?? 0);
-    }
+    $breakdowns['donations_by_package_aggregated'] = array_map(
+        function ($label, $total) { return ['name' => $label, 'value' => (float)$total]; },
+        array_keys($donations_by_package),
+        array_values($donations_by_package)
+    );
 
     // Top donors
     $sql = "SELECT donor_name, donor_phone, donor_email,

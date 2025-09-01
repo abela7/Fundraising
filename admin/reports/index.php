@@ -436,7 +436,8 @@ if (isset($_GET['report'])) {
                                     </div>
                                 </div>
                             </div>
-                            </div>
+                        </div>
+                        <div class="row g-3">
                             <div class="col-lg-4 col-md-6">
                                 <div class="card border-0 shadow-sm h-100 report-card">
                                     <div class="card-body text-center p-4">
@@ -454,6 +455,7 @@ if (isset($_GET['report'])) {
                                         </div>
                                     </div>
                                 </div>
+                            
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <div class="card border-0 shadow-sm h-100 report-card">
