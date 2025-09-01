@@ -865,15 +865,15 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
 
                         <div class="col-md-6">
                             <label class="form-label">Donor Name</label>
-                            <input type="text" class="form-control" name="donor_name">
+                            <input type="text" class="form-control" name="donor_name" id="addDonorName">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Phone</label>
-                            <input type="text" class="form-control" name="donor_phone">
+                            <input type="text" class="form-control" name="donor_phone" id="addDonorPhone">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-control" name="donor_email">
+                            <input type="email" class="form-control" name="donor_email" id="addDonorEmail">
                         </div>
 
                         <div class="col-md-4">
@@ -915,7 +915,7 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                         <div class="col-md-4 pledge-only d-none">
                             <div class="form-check mt-4">
                                 <input class="form-check-input" type="checkbox" name="anonymous" id="addAnon">
-                                <label class="form-check-label" for="addAnon">Anonymous</label>
+                                <label class="form-check-label" for="addAnon"><i class="fas fa-user-secret me-1"></i>Make this donation anonymous</label>
                             </div>
                         </div>
                         <div class="col-12 pledge-only d-none">
@@ -938,6 +938,23 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
             const isPayment = typeSel.value === 'payment';
             document.querySelectorAll('.payment-only').forEach(el=>el.classList.toggle('d-none', !isPayment));
             document.querySelectorAll('.pledge-only').forEach(el=>el.classList.toggle('d-none', isPayment));
+            const nameField = document.getElementById('addDonorName');
+            const phoneField = document.getElementById('addDonorPhone');
+            const emailField = document.getElementById('addDonorEmail');
+            const anon = document.getElementById('addAnon');
+            if (!isPayment) {
+                // Pledge form: apply registrar anonymous logic
+                anon.addEventListener('change', function(){
+                    if (this.checked) {
+                        if (nameField) { nameField.required = false; nameField.placeholder = 'Anonymous'; nameField.value=''; }
+                        if (phoneField) { phoneField.required = false; phoneField.placeholder = 'Anonymous'; phoneField.value=''; }
+                        if (emailField) { emailField.value=''; }
+                    } else {
+                        if (nameField) { nameField.required = true; nameField.placeholder = 'Enter full name'; }
+                        if (phoneField) { phoneField.required = true; phoneField.placeholder = 'Enter phone number'; }
+                    }
+                });
+            }
         }
         if (typeSel) {
             typeSel.addEventListener('change', toggleSections);
