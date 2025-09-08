@@ -544,3 +544,128 @@ body {
         font-size: 0.9rem;
     }
 }
+
+/* Instruction Cards Styling */
+.donation-flow {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.donation-flow h6 {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.donation-flow ol li {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.donation-flow .badge {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 50%;
+    min-width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+.bank-details {
+    background: rgba(255, 255, 255, 0.7);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.bank-details .row {
+    align-items: center;
+}
+
+.bank-details strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.bank-details .fw-bold {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.bank-info-icon {
+    padding: 1rem;
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.bank-info-icon i {
+    color: #28a745 !important;
+}
+
+/* Card Header Enhancements */
+.card-header {
+    border-bottom: none;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+}
+
+.card-header h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* Alert Enhancements */
+.alert-info {
+    background: rgba(13, 202, 240, 0.1);
+    color: #0c5460;
+    border-left: 4px solid #0dcaf0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+}
+
+.alert-info i {
+    color: #0dcaf0;
+}
+
+/* Responsive adjustments for instruction cards */
+@media (max-width: 767px) {
+    .donation-flow {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .bank-details {
+        padding: 1rem;
+    }
+    
+    .bank-details .row {
+        margin-bottom: 0.75rem;
+    }
+    
+    .bank-details .col-sm-4 {
+        margin-bottom: 0.25rem;
+    }
+    
+    .bank-info-icon {
+        margin-top: 1rem;
+        padding: 0.75rem;
+    }
+    
+    .bank-info-icon i {
+        font-size: 2rem !important;
+    }
+}

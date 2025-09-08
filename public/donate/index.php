@@ -363,7 +363,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="text-muted">Support our community with your generous contribution</p>
                 </div>
                 
-
+                <!-- Donation Instructions Card -->
+                <div class="card mb-4 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            How to Donate
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="donation-flow">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-credit-card me-2"></i>
+                                        Option 1: Pay Right Now
+                                    </h6>
+                                    <ol class="list-unstyled">
+                                        <li class="mb-2">
+                                            <span class="badge bg-primary me-2">1</span>
+                                            Use our bank account details below to transfer your donation
+                                        </li>
+                                        <li class="mb-2">
+                                            <span class="badge bg-primary me-2">2</span>
+                                            Choose your payment method (Bank Transfer/Cash/Card/Other)
+                                        </li>
+                                        <li class="mb-2">
+                                            <span class="badge bg-primary me-2">3</span>
+                                            Press "Register Donation" to submit
+                                        </li>
+                                    </ol>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="donation-flow">
+                                    <h6 class="text-success mb-3">
+                                        <i class="fas fa-handshake me-2"></i>
+                                        Option 2: Promise to Pay Later
+                                    </h6>
+                                    <ol class="list-unstyled">
+                                        <li class="mb-2">
+                                            <span class="badge bg-success me-2">1</span>
+                                            Choose the amount you want to pledge
+                                        </li>
+                                        <li class="mb-2">
+                                            <span class="badge bg-success me-2">2</span>
+                                            Select "Promise to Pay Later" 
+                                        </li>
+                                        <li class="mb-2">
+                                            <span class="badge bg-success me-2">3</span>
+                                            Press "Register Donation" to submit
+                                        </li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="fas fa-phone me-2"></i>
+                            <strong>Important:</strong> Once you submit your donation, we will contact you to confirm and process your contribution.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bank Details Card -->
+                <div class="card mb-4 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-university me-2"></i>
+                            Bank Account Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="bank-details">
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong class="text-muted">Account Name:</strong>
+                                        </div>
+                                        <div class="col-sm-8">
+                                            <span class="fw-bold text-primary">LMKATH</span>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong class="text-muted">Account Number:</strong>
+                                        </div>
+                                        <div class="col-sm-8">
+                                            <span class="fw-bold text-primary">85455687</span>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong class="text-muted">Sort Code:</strong>
+                                        </div>
+                                        <div class="col-sm-8">
+                                            <span class="fw-bold text-primary">53-70-44</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="bank-info-icon">
+                                    <i class="fas fa-university fa-3x text-success mb-2"></i>
+                                    <p class="text-muted small mb-0">Use these details for<br>bank transfers</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Progress Bar -->
                 <div class="card mb-4">
