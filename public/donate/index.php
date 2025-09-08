@@ -467,15 +467,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="detail-value">53-70-44</div>
                                 </div>
                             </div>
-                            
-                            <div class="bank-visual">
-                                <div class="bank-card-visual">
-                                    <div class="card-chip"></div>
-                                    <div class="card-number">•••• •••• •••• 5687</div>
-                                    <div class="card-name">LMKATH</div>
-                                    <div class="card-sort">53-70-44</div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

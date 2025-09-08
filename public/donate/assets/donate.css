@@ -554,11 +554,13 @@ body {
 
 .hero-card {
     background: linear-gradient(135deg, #1e4d5c 0%, #0a6286 100%);
-    border-radius: 24px;
+    border-radius: 16px;
     padding: 0;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(10, 98, 134, 0.3);
+    box-shadow: 0 8px 24px rgba(10, 98, 134, 0.2);
     position: relative;
+    max-width: 900px;
+    margin: 0 auto;
 }
 
 .hero-card::before {
@@ -574,31 +576,31 @@ body {
 
 .hero-header {
     text-align: center;
-    padding: 2.5rem 2rem 1.5rem;
+    padding: 1.5rem 1.5rem 1rem;
     position: relative;
     z-index: 2;
 }
 
 .hero-icon {
-    width: 80px;
-    height: 80px;
+    width: 50px;
+    height: 50px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1.5rem;
+    margin: 0 auto 1rem;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .hero-icon i {
-    font-size: 2rem;
+    font-size: 1.5rem;
     color: white;
 }
 
 .hero-title {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: white;
     margin-bottom: 0.5rem;
@@ -606,7 +608,7 @@ body {
 }
 
 .hero-subtitle {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: rgba(255, 255, 255, 0.9);
     margin-bottom: 0;
 }
@@ -614,16 +616,16 @@ body {
 .donation-options {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1.5rem;
-    padding: 0 2rem 2rem;
+    gap: 1rem;
+    padding: 0 1.5rem 1.5rem;
     position: relative;
     z-index: 2;
 }
 
 .option-card {
     background: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
-    padding: 2rem;
+    border-radius: 12px;
+    padding: 1.5rem;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -659,38 +661,38 @@ body {
 .option-header {
     display: flex;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .option-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 1rem;
     background: linear-gradient(135deg, #0a6286, #1e4d5c);
     color: white;
-    font-size: 1.5rem;
-    box-shadow: 0 8px 16px rgba(10, 98, 134, 0.3);
+    font-size: 1.25rem;
+    box-shadow: 0 4px 8px rgba(10, 98, 134, 0.2);
 }
 
 .option-pledge .option-icon {
     background: linear-gradient(135deg, #e2ca18, #ffd700);
-    box-shadow: 0 8px 16px rgba(226, 202, 24, 0.3);
+    box-shadow: 0 4px 8px rgba(226, 202, 24, 0.2);
     color: #1e4d5c;
 }
 
 .option-title {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--gray-900);
     margin-bottom: 0.25rem;
 }
 
 .option-desc {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--gray-600);
     margin-bottom: 0;
 }
@@ -698,15 +700,15 @@ body {
 .option-steps {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .step {
     display: flex;
     align-items: center;
-    padding: 1rem;
+    padding: 0.75rem;
     background: rgba(248, 250, 252, 0.8);
-    border-radius: 12px;
+    border-radius: 8px;
     border: 1px solid rgba(226, 232, 240, 0.5);
     transition: all 0.3s ease;
 }
@@ -717,8 +719,8 @@ body {
 }
 
 .step-number {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: linear-gradient(135deg, #0a6286, #1e4d5c);
     color: white;
@@ -726,27 +728,27 @@ body {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.9rem;
-    margin-right: 1rem;
+    font-size: 0.8rem;
+    margin-right: 0.75rem;
     flex-shrink: 0;
-    box-shadow: 0 4px 8px rgba(10, 98, 134, 0.2);
+    box-shadow: 0 2px 4px rgba(10, 98, 134, 0.2);
 }
 
 .option-pledge .step-number {
     background: linear-gradient(135deg, #e2ca18, #ffd700);
-    box-shadow: 0 4px 8px rgba(226, 202, 24, 0.2);
+    box-shadow: 0 2px 4px rgba(226, 202, 24, 0.2);
     color: #1e4d5c;
 }
 
 .step-text {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     color: var(--gray-700);
     line-height: 1.4;
 }
 
 .hero-footer {
     background: rgba(255, 255, 255, 0.1);
-    padding: 1.5rem 2rem;
+    padding: 1rem 1.5rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
     position: relative;
     z-index: 2;
@@ -757,7 +759,7 @@ body {
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     text-align: center;
 }
 
@@ -774,11 +776,13 @@ body {
 
 .bank-card {
     background: white;
-    border-radius: 24px;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     border: 1px solid rgba(226, 232, 240, 0.8);
     transition: all 0.4s ease;
+    max-width: 700px;
+    margin: 0 auto;
 }
 
 .bank-card:hover {
@@ -788,7 +792,7 @@ body {
 
 .bank-header {
     background: linear-gradient(135deg, #e2ca18 0%, #ffd700 100%);
-    padding: 2rem;
+    padding: 1.5rem;
     display: flex;
     align-items: center;
     position: relative;
@@ -812,25 +816,25 @@ body {
 }
 
 .bank-icon {
-    width: 70px;
-    height: 70px;
+    width: 50px;
+    height: 50px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 18px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 1.5rem;
+    margin-right: 1rem;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .bank-icon i {
-    font-size: 2rem;
+    font-size: 1.5rem;
     color: #1e4d5c;
 }
 
 .bank-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: #1e4d5c;
     margin-bottom: 0.25rem;
@@ -838,32 +842,32 @@ body {
 }
 
 .bank-subtitle {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: rgba(30, 77, 92, 0.8);
     margin-bottom: 0;
 }
 
 .bank-content {
-    padding: 2.5rem;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
+    padding: 2rem;
 }
 
 .bank-details-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 .bank-detail-item {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border-radius: 16px;
-    padding: 1.5rem;
+    border-radius: 12px;
+    padding: 1.25rem;
     border: 1px solid rgba(226, 232, 240, 0.8);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    text-align: center;
 }
 
 .bank-detail-item::before {
@@ -888,7 +892,7 @@ body {
 }
 
 .detail-label {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--gray-600);
     text-transform: uppercase;
@@ -897,212 +901,123 @@ body {
 }
 
 .detail-value {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--gray-900);
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    letter-spacing: 1px;
-}
-
-.bank-visual {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.bank-card-visual {
-    width: 280px;
-    height: 180px;
-    background: linear-gradient(135deg, #1e4d5c 0%, #0a6286 100%);
-    border-radius: 16px;
-    padding: 1.5rem;
-    position: relative;
-    box-shadow: 0 15px 35px rgba(30, 77, 92, 0.3);
-    overflow: hidden;
-}
-
-.bank-card-visual::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
-}
-
-.card-chip {
-    width: 40px;
-    height: 30px;
-    background: linear-gradient(135deg, #e2ca18, #ffd700);
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    position: relative;
-}
-
-.card-chip::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 24px;
-    height: 18px;
-    background: repeating-linear-gradient(
-        90deg,
-        rgba(0,0,0,0.1) 0px,
-        rgba(0,0,0,0.1) 2px,
-        transparent 2px,
-        transparent 4px
-    );
-}
-
-.card-number {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: white;
-    letter-spacing: 2px;
-    margin-bottom: 1rem;
-}
-
-.card-name {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.card-sort {
-    position: absolute;
-    bottom: 1.5rem;
-    right: 1.5rem;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.8);
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
+    word-break: break-all;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
 @media (min-width: 576px) {
     .hero-header {
-        padding: 3rem 2.5rem 2rem;
-    }
-    
-    .hero-title {
-        font-size: 2.25rem;
-    }
-    
-    .donation-options {
-        padding: 0 2.5rem 2.5rem;
-    }
-}
-
-@media (min-width: 768px) {
-    .donation-options {
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-    }
-    
-    .bank-content {
-        grid-template-columns: 1fr 300px;
-        align-items: center;
-    }
-    
-    .bank-details-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .hero-footer {
-        padding: 2rem 2.5rem;
-    }
-}
-
-@media (min-width: 1024px) {
-    .hero-header {
-        padding: 3.5rem 3rem 2.5rem;
-    }
-    
-    .donation-options {
-        padding: 0 3rem 3rem;
-        gap: 2.5rem;
-    }
-    
-    .bank-content {
-        padding: 3rem;
-        grid-template-columns: 1fr 320px;
-    }
-    
-    .bank-details-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1.5rem;
-    }
-    
-    .bank-card-visual {
-        width: 300px;
-        height: 190px;
-    }
-}
-
-@media (max-width: 575px) {
-    .hero-header {
-        padding: 2rem 1.5rem 1.5rem;
+        padding: 2rem 2rem 1.5rem;
     }
     
     .hero-title {
         font-size: 1.75rem;
     }
     
-    .hero-subtitle {
-        font-size: 1rem;
-    }
-    
     .donation-options {
-        padding: 0 1.5rem 2rem;
+        padding: 0 2rem 2rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .donation-options {
+        grid-template-columns: 1fr 1fr;
         gap: 1.5rem;
     }
     
+    .bank-details-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .hero-footer {
+        padding: 1.25rem 2rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .hero-header {
+        padding: 2.5rem 2.5rem 2rem;
+    }
+    
+    .hero-title {
+        font-size: 2rem;
+    }
+    
+    .donation-options {
+        padding: 0 2.5rem 2.5rem;
+        gap: 2rem;
+    }
+    
+    .bank-content {
+        padding: 2.5rem;
+    }
+    
+    .bank-details-grid {
+        max-width: 700px;
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 575px) {
+    .hero-header {
+        padding: 1.5rem 1rem 1rem;
+    }
+    
+    .hero-title {
+        font-size: 1.25rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .donation-options {
+        padding: 0 1rem 1.5rem;
+        gap: 1rem;
+    }
+    
     .option-card {
-        padding: 1.5rem;
+        padding: 1.25rem;
     }
     
     .option-header {
         flex-direction: column;
         text-align: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
     
     .option-icon {
         margin-right: 0;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
     }
     
     .bank-header {
-        padding: 1.5rem;
+        padding: 1.25rem;
         flex-direction: column;
         text-align: center;
     }
     
     .bank-icon {
         margin-right: 0;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
     }
     
     .bank-content {
-        padding: 2rem 1.5rem;
-        grid-template-columns: 1fr;
-        gap: 2rem;
+        padding: 1.5rem 1rem;
     }
     
-    .bank-card-visual {
-        width: 260px;
-        height: 165px;
+    .bank-details-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
     
     .hero-footer {
-        padding: 1.5rem;
+        padding: 1rem;
     }
     
     .contact-notice {
