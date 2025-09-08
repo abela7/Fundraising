@@ -142,7 +142,7 @@ body {
 
 .form-control:focus,
 .form-select:focus {
-  border-color: var(--primary-blue);
+  border-color: #0a6286;
   box-shadow: 0 0 0 0.2rem rgba(10, 98, 134, 0.1);
 }
 
@@ -177,20 +177,20 @@ body {
     top: 8px;
     right: 8px;
     font-size: 1.2rem;
-    color: var(--primary-blue);
+    color: #0a6286;
     opacity: 0;
     transform: scale(0.5);
     transition: all 0.3s ease;
 }
 
 .quick-amount-btn:hover {
-  border-color: var(--primary-blue);
+  border-color: #0a6286;
   background: var(--gray-50);
 }
 
 .quick-amount-btn.active {
-  border-color: var(--primary-blue);
-  background: var(--primary-blue);
+  border-color: #0a6286;
+  background: #0a6286;
   color: white;
   box-shadow: 0 4px 12px rgba(10, 98, 134, 0.2);
 }
@@ -235,7 +235,7 @@ body {
 }
 
 .segmented-control .form-check-input:checked + .form-check-label {
-    background: var(--primary-blue);
+    background: #0a6286;
     color: white;
     box-shadow: 0 4px 12px rgba(10, 98, 134, 0.2);
 }
@@ -246,7 +246,7 @@ body {
   padding: 1rem;
   font-size: 1.125rem;
   font-weight: 600;
-  background: var(--primary-blue);
+  background: linear-gradient(135deg, #0a6286, #1e4d5c);
   color: white;
   border: none;
   border-radius: 12px;
@@ -261,7 +261,9 @@ body {
 
 .btn-submit:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(10, 98, 134, 0.3);
+  background: linear-gradient(135deg, #e2ca18, #ffd700);
+  color: #1e4d5c;
+  box-shadow: 0 8px 20px rgba(226, 202, 24, 0.3);
 }
 
 /* Tablet Styles */
@@ -383,7 +385,7 @@ body {
 
 /* Progress Bar Override */
 .progress-bar {
-  background: var(--primary-gold) !important;
+  background: linear-gradient(135deg, #e2ca18, #ffd700) !important;
 }
 
 /* Alert Styles */
@@ -411,13 +413,13 @@ body {
   background: var(--gray-100);
   border-color: var(--gray-200);
   font-weight: 600;
-  color: var(--primary-blue);
+  color: #0a6286;
 }
 
 /* Form Check Styling */
 .form-check-input:checked {
-  background-color: var(--primary-blue);
-  border-color: var(--primary-blue);
+  background-color: #0a6286;
+  border-color: #0a6286;
 }
 
 /* Text Utilities */
@@ -471,35 +473,35 @@ body {
 
 /* Home Button */
 .btn-home {
-    background: linear-gradient(135deg, var(--primary-blue), #2563eb);
+    background: linear-gradient(135deg, #0a6286, #1e4d5c);
     color: white;
 }
 
 .btn-home:hover {
-    background: linear-gradient(135deg, #1d4ed8, var(--primary-blue));
-    color: white;
+    background: linear-gradient(135deg, #e2ca18, #ffd700);
+    color: #1e4d5c;
 }
 
 /* Projector Button */
 .btn-projector {
-    background: linear-gradient(135deg, var(--primary-gold), #f59e0b);
-    color: white;
+    background: linear-gradient(135deg, #e2ca18, #ffd700);
+    color: #1e4d5c;
 }
 
 .btn-projector:hover {
-    background: linear-gradient(135deg, #d97706, var(--primary-gold));
+    background: linear-gradient(135deg, #0a6286, #1e4d5c);
     color: white;
 }
 
 /* Floor View Button */
 .btn-floor {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: linear-gradient(135deg, #1e4d5c, #0a6286);
     color: white;
 }
 
 .btn-floor:hover {
-    background: linear-gradient(135deg, #047857, #10b981);
-    color: white;
+    background: linear-gradient(135deg, #e2ca18, #ffd700);
+    color: #1e4d5c;
 }
 
 /* Responsive Design */
@@ -551,11 +553,11 @@ body {
 }
 
 .hero-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e4d5c 0%, #0a6286 100%);
     border-radius: 24px;
     padding: 0;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 20px 40px rgba(10, 98, 134, 0.3);
     position: relative;
 }
 
@@ -636,13 +638,13 @@ body {
     left: 0;
     width: 4px;
     height: 100%;
-    background: linear-gradient(180deg, var(--primary-blue), #2563eb);
+    background: linear-gradient(180deg, #0a6286, #1e4d5c);
     transform: scaleY(0);
     transition: transform 0.4s ease;
 }
 
 .option-card.option-pledge::before {
-    background: linear-gradient(180deg, #10b981, #059669);
+    background: linear-gradient(180deg, #e2ca18, #ffd700);
 }
 
 .option-card:hover {
@@ -668,15 +670,16 @@ body {
     align-items: center;
     justify-content: center;
     margin-right: 1rem;
-    background: linear-gradient(135deg, var(--primary-blue), #2563eb);
+    background: linear-gradient(135deg, #0a6286, #1e4d5c);
     color: white;
     font-size: 1.5rem;
-    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 8px 16px rgba(10, 98, 134, 0.3);
 }
 
 .option-pledge .option-icon {
-    background: linear-gradient(135deg, #10b981, #059669);
-    box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+    background: linear-gradient(135deg, #e2ca18, #ffd700);
+    box-shadow: 0 8px 16px rgba(226, 202, 24, 0.3);
+    color: #1e4d5c;
 }
 
 .option-title {
@@ -717,7 +720,7 @@ body {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-blue), #2563eb);
+    background: linear-gradient(135deg, #0a6286, #1e4d5c);
     color: white;
     display: flex;
     align-items: center;
@@ -726,12 +729,13 @@ body {
     font-size: 0.9rem;
     margin-right: 1rem;
     flex-shrink: 0;
-    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 4px 8px rgba(10, 98, 134, 0.2);
 }
 
 .option-pledge .step-number {
-    background: linear-gradient(135deg, #10b981, #059669);
-    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);
+    background: linear-gradient(135deg, #e2ca18, #ffd700);
+    box-shadow: 0 4px 8px rgba(226, 202, 24, 0.2);
+    color: #1e4d5c;
 }
 
 .step-text {
@@ -783,7 +787,7 @@ body {
 }
 
 .bank-header {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, #e2ca18 0%, #ffd700 100%);
     padding: 2rem;
     display: flex;
     align-items: center;
@@ -822,20 +826,20 @@ body {
 
 .bank-icon i {
     font-size: 2rem;
-    color: white;
+    color: #1e4d5c;
 }
 
 .bank-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: white;
+    color: #1e4d5c;
     margin-bottom: 0.25rem;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .bank-subtitle {
     font-size: 1rem;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(30, 77, 92, 0.8);
     margin-bottom: 0;
 }
 
@@ -869,7 +873,7 @@ body {
     left: 0;
     width: 4px;
     height: 100%;
-    background: linear-gradient(180deg, #10b981, #059669);
+    background: linear-gradient(180deg, #0a6286, #1e4d5c);
     transform: scaleY(0);
     transition: transform 0.3s ease;
 }
@@ -909,11 +913,11 @@ body {
 .bank-card-visual {
     width: 280px;
     height: 180px;
-    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    background: linear-gradient(135deg, #1e4d5c 0%, #0a6286 100%);
     border-radius: 16px;
     padding: 1.5rem;
     position: relative;
-    box-shadow: 0 15px 35px rgba(30, 41, 59, 0.3);
+    box-shadow: 0 15px 35px rgba(30, 77, 92, 0.3);
     overflow: hidden;
 }
 
@@ -930,7 +934,7 @@ body {
 .card-chip {
     width: 40px;
     height: 30px;
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    background: linear-gradient(135deg, #e2ca18, #ffd700);
     border-radius: 6px;
     margin-bottom: 1rem;
     position: relative;
