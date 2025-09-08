@@ -360,7 +360,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fas fa-hand-holding-heart me-2"></i>
                         Make a Donation
                     </h1>
-                    <p class="text-muted">Support our community with your generous contribution</p>
+                    <p class="text-muted">Support our church with your generous contribution</p>
                 </div>
                 
                 <!-- Hero Instructions Section -->
