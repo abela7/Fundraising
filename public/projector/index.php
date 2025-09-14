@@ -480,19 +480,32 @@ $target = (float)($settings['target_amount'] ?? 100000);
         let displayText = await formatContributionText(item.text, amount);
         console.log('📝 Final display text:', displayText);
         
-        // Highlight the amount or square meter info in the text
+        // Highlight the amount or square meter info in the text and mark anonymous names
         let highlightedText = displayText;
+        
+        // First, mark anonymous donor names with special styling
+        const nameMatch = displayText.match(/^(.*?)\s+(paid|pledged)\s+/i);
+        if (nameMatch) {
+            const donorName = nameMatch[1].trim();
+            // Check if this is an anonymized name (contains words like "Kind", "Generous", etc.)
+            const anonymousPattern = /^(Kind|Generous|Blessed|Caring|Noble|Faithful|Devoted|Loving|Anonymous)\s+(Supporter|Friend|Donor|Helper|Giver|Benefactor|Patron|Contributor)$/i;
+            if (anonymousPattern.test(donorName)) {
+                highlightedText = highlightedText.replace(donorName, `<span class="anonymous-name">${donorName}</span>`);
+            }
+        }
+        
+        // Then highlight amounts or square meters
         if (state.displayMode === 'amount' || state.displayMode === 'both') {
             // Highlight currency amounts
-            const currencyMatch = displayText.match(/£[\d,]+/);
+            const currencyMatch = highlightedText.match(/£[\d,]+/);
             if (currencyMatch) {
-                highlightedText = displayText.replace(currencyMatch[0], `<span class="amount">${currencyMatch[0]}</span>`);
+                highlightedText = highlightedText.replace(currencyMatch[0], `<span class="amount">${currencyMatch[0]}</span>`);
             }
         } else if (state.displayMode === 'sqm') {
             // Highlight square meter numbers
-            const sqmMatch = displayText.match(/(\d+(?:\.\d+)?|[¼½¾])\s+Square\s+Meters?/i);
+            const sqmMatch = highlightedText.match(/(\d+(?:\.\d+)?|[¼½¾])\s+Square\s+Meters?/i);
             if (sqmMatch) {
-                highlightedText = displayText.replace(sqmMatch[0], `<span class="amount">${sqmMatch[0]}</span>`);
+                highlightedText = highlightedText.replace(sqmMatch[0], `<span class="amount">${sqmMatch[0]}</span>`);
             }
         }
         

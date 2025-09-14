@@ -374,6 +374,37 @@ body {
     /* Removed text-shadow for better readability */
 }
 
+/* Anonymous donor name styling */
+.contribution-text .anonymous-name {
+    color: var(--text-secondary);
+    font-style: italic;
+    position: relative;
+}
+
+.contribution-text .anonymous-name::before {
+    content: "🔒 ";
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin-right: 2px;
+}
+
+/* Subtle privacy indicator animation */
+.contribution-text .anonymous-name::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--text-muted), transparent);
+    animation: privacy-pulse 3s ease-in-out infinite;
+}
+
+@keyframes privacy-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+}
+
 /* Border colors for different contribution types */
 .contribution-item.pledge {
     border-left: 4px solid var(--pledge-border);
