@@ -43,37 +43,10 @@ try {
         throw new Exception(db()->error);
     }
     
-    // Generate secure anonymous names that can't be reverse-engineered
-    function generateSecureAnonymousName($originalName, $timestamp) {
-        if (empty($originalName) || $originalName === 'Anonymous' || $originalName === 'Supporter') {
-            return 'Anonymous Supporter';
-        }
-        
-        // Create a hash-based anonymous identifier that's consistent but secure
-        $hash = hash('sha256', $originalName . $timestamp . 'projector_salt_2024');
-        $shortHash = substr($hash, 0, 6);
-        
-        // Generate a friendly anonymous name based on the hash
-        $prefixes = ['Kind', 'Generous', 'Blessed', 'Caring', 'Noble', 'Faithful', 'Devoted', 'Loving'];
-        $suffixes = ['Supporter', 'Friend', 'Donor', 'Helper', 'Giver', 'Benefactor', 'Patron', 'Contributor'];
-        
-        $prefixIndex = hexdec(substr($shortHash, 0, 1)) % count($prefixes);
-        $suffixIndex = hexdec(substr($shortHash, 1, 1)) % count($suffixes);
-        
-        return $prefixes[$prefixIndex] . ' ' . $suffixes[$suffixIndex];
-    }
-    
     $items = [];
     while ($row = $res->fetch_assoc()) {
-        $originalName = $row['donor_name'] ?? 'Supporter';
-        
-        // Always anonymize for public projector - no real names ever sent to frontend
-        if ($row['anonymous']) {
-            $name = 'Anonymous Supporter';
-        } else {
-            // Generate secure anonymous name based on original name and timestamp
-            $name = generateSecureAnonymousName($originalName, $row['approved_at']);
-        }
+        // Always show as "Kind Donor" for complete anonymity and simplicity
+        $name = 'Kind Donor';
         
         $verb = $row['type'] === 'paid' ? 'paid' : 'pledged';
         $text = $name . ' ' . $verb . ' ' . $currency . ' ' . number_format((float)$row['amount'], 0);

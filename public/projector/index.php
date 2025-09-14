@@ -487,9 +487,8 @@ $target = (float)($settings['target_amount'] ?? 100000);
         const nameMatch = displayText.match(/^(.*?)\s+(paid|pledged)\s+/i);
         if (nameMatch) {
             const donorName = nameMatch[1].trim();
-            // Check if this is an anonymized name (contains words like "Kind", "Generous", etc.)
-            const anonymousPattern = /^(Kind|Generous|Blessed|Caring|Noble|Faithful|Devoted|Loving|Anonymous)\s+(Supporter|Friend|Donor|Helper|Giver|Benefactor|Patron|Contributor)$/i;
-            if (anonymousPattern.test(donorName)) {
+            // Check if this is our anonymized "Kind Donor" name
+            if (donorName === 'Kind Donor') {
                 highlightedText = highlightedText.replace(donorName, `<span class="anonymous-name">${donorName}</span>`);
             }
         }
