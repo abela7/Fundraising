@@ -8,20 +8,22 @@ require_once __DIR__ . '/../config/db.php';
 header('Content-Type: application/json');
 
 try {
-    $settings = db()->query('SELECT target_amount, projector_display_mode FROM settings WHERE id=1')->fetch_assoc();
+    $db = db();
+    
+    $settings = $db->query('SELECT target_amount, projector_display_mode FROM settings WHERE id=1')->fetch_assoc();
     if (!$settings) {
         $settings = ['target_amount' => 100000, 'projector_display_mode' => 'amount'];
     }
 
-    // Read only admin-approved counters for projector safety
-    $ctr = db()->query('SELECT paid_total, pledged_total, grand_total FROM counters WHERE id=1')->fetch_assoc();
-    if (!$ctr) {
-        $ctr = ['paid_total' => 0, 'pledged_total' => 0, 'grand_total' => 0];
-    }
+    // Calculate totals directly from source tables for real-time accuracy
+    // This matches the comprehensive report calculations exactly
+    $paidRow = $db->query("SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE status = 'approved'")->fetch_assoc();
+    $paidTotal = (float)($paidRow['total'] ?? 0);
     
-    $paidTotal = (float)$ctr['paid_total'];
-    $pledgedTotal = (float)$ctr['pledged_total'];
-    $grand = (float)$ctr['grand_total'];
+    $pledgedRow = $db->query("SELECT COALESCE(SUM(amount), 0) AS total FROM pledges WHERE status = 'approved'")->fetch_assoc();
+    $pledgedTotal = (float)($pledgedRow['total'] ?? 0);
+    
+    $grand = $paidTotal + $pledgedTotal;
     $target = max(1.0, (float)$settings['target_amount']);
     $progress = min(100.0, round(($grand / $target) * 100, 2));
 
