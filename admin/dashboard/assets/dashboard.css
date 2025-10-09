@@ -338,12 +338,9 @@
   font-weight: 600;
 }
 
-.card-header h5 {
-  transition: color var(--transition-fast);
-}
-
-.card-header:hover h5 {
-  color: #1a365d;
+.card-header h5:hover {
+  color: #001122; /* Blue-black color on hover */
+  transition: color 0.3s ease;
 }
 
 .card-body {
