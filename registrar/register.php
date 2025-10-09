@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="auth-logo success-state">
                             <i class="fas fa-check"></i>
                         </div>
-                        <h1 class="auth-title">Application Submitted!</h1>
+                        <h1 class="auth-title">Application Submitted!!!</h1>
                         <p class="auth-subtitle">Your registrar application has been received</p>
                     </div>
 
