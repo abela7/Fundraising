@@ -180,7 +180,7 @@ $page_title = 'Dashboard';
         <div class="col-12 col-lg-8">
           <div class="card animate-fade-in" style="animation-delay: 0.3s;">
             <div class="card-header">
-              <h5 class="mb-0">Quick Actions</h5>
+              <h5 class="mb-0">Fast Tools</h5>
             </div>
             <div class="card-body">
               <div class="row g-3">
