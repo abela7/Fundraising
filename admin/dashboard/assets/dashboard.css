@@ -338,6 +338,14 @@
   font-weight: 600;
 }
 
+.card-header h5 {
+  transition: color var(--transition-fast);
+}
+
+.card-header:hover h5 {
+  color: #1a365d;
+}
+
 .card-body {
   padding: 1.5rem;
 }
