@@ -1,10 +1,10 @@
 :root {
-    --primary-color: #4a90e2;
-    --secondary-color: #f5f7fa;
-    --accent-color: #50e3c2;
-    --text-color: #333;
-    --light-gray: #e0e0e0;
-    --white: #fff;
+    --primary-color: var(--primary-blue);
+    --secondary-color: var(--gray-100);
+    --accent-color: var(--primary-gold);
+    --text-color: var(--text-primary);
+    --light-gray: var(--gray-200);
+    --white: var(--base-bg);
     --border-radius: 8px;
     --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -16,7 +16,7 @@ body {
 }
 
 .card {
-    border: none;
+    border: 1px solid var(--light-gray);
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     transition: all 0.3s ease;
@@ -31,6 +31,7 @@ body {
     background-color: var(--white);
     border-bottom: 1px solid var(--light-gray);
     font-weight: 600;
+    color: var(--primary-color);
 }
 
 .table-responsive {
@@ -39,7 +40,7 @@ body {
 
 .table {
     border-collapse: separate;
-    border-spacing: 0 8px; /* Add space between rows */
+    border-spacing: 0 8px;
 }
 
 .table th,
@@ -65,7 +66,7 @@ body {
 }
 
 .table tbody tr:hover {
-    transform: scale(1.02);
+    transform: scale(1.01);
     box-shadow: var(--box-shadow);
     z-index: 10;
     position: relative;
@@ -81,7 +82,7 @@ body {
 
 .badge-pledge {
     background-color: #e8f0fe;
-    color: #4a90e2;
+    color: var(--primary-color);
 }
 
 .badge-paid {
@@ -102,7 +103,7 @@ body {
 #filtersCollapse .form-label {
     font-size: 0.8rem;
     font-weight: 500;
-    color: #555;
+    color: var(--text-color);
     margin-bottom: 0.3rem;
 }
 
@@ -134,7 +135,7 @@ body {
 
 .table .text-muted {
     font-size: 0.85rem;
-    color: #6c757d !important;
+    color: var(--gray-500) !important;
 }
 
 .action-btns {
