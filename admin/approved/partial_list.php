@@ -44,6 +44,8 @@ if (empty($approved)) {
     $donor_phone = (string)($row['donor_phone'] ?? '');
     $donor_email = (string)($row['donor_email'] ?? '');
     $registrar = (string)($row['registrar_name'] ?? '');
+    $approved_at = $row['approved_at'] ?? null;
+    $created_at = $row['created_at'] ?? null;
     $payment_id = isset($row['payment_id']) ? (int)$row['payment_id'] : 0;
     $payment_amount = isset($row['payment_amount']) ? (float)$row['payment_amount'] : null;
     $payment_method = (string)($row['payment_method'] ?? '');
@@ -62,7 +64,23 @@ if (empty($approved)) {
       </div>
       <div class="details-section">
         <div class="sqm"><?php echo htmlspecialchars(format_sqm_fraction($sqm_meters)); ?> m²</div>
-        <div class="registrar"><?php echo htmlspecialchars($registrar ?: ''); ?></div>
+        <div class="registrar-time">
+          <div class="registrar">
+            <i class="fas fa-user-check text-muted me-1"></i>
+            <?php echo htmlspecialchars($registrar ?: 'Unknown'); ?>
+          </div>
+          <div class="time">
+            <i class="fas fa-clock text-muted me-1"></i>
+            <?php
+            $timestamp = $approved_at ?: $created_at;
+            if ($timestamp) {
+              echo date('H:i d/m/Y', strtotime($timestamp));
+            } else {
+              echo 'Unknown time';
+            }
+            ?>
+          </div>
+        </div>
       </div>
     </div>
     <div class="approved-actions">
