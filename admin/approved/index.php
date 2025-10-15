@@ -473,27 +473,15 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
           <?php endif; ?>
 
           <div class="card">
-            <div class="card-header bg-gradient-primary text-white">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                  <div class="me-3">
-                    <div class="icon-circle bg-white bg-opacity-20">
-                      <i class="fas fa-check-circle fa-lg"></i>
-                    </div>
-                  </div>
-                  <div>
-                    <h5 class="mb-0">Approved Items</h5>
-                    <small class="text-white-50">Manage and track approved donations</small>
-                  </div>
-                </div>
-                <div class="d-flex gap-2">
-                  <button class="btn btn-sm btn-light btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false">
-                    <i class="fas fa-filter me-1"></i> Filters & Sort
-                  </button>
-                  <button class="btn btn-sm btn-light btn-outline-light" onclick="location.reload()">
-                    <i class="fas fa-sync-alt me-1"></i> Refresh
-                  </button>
-                </div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">
+                <i class="fas fa-check-circle text-success me-2"></i>Approved Items
+              </h5>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false">
+                  <i class="fas fa-filter"></i> Filters & Sort
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh</button>
               </div>
             </div>
             
