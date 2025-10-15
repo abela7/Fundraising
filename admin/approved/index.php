@@ -488,10 +488,10 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
             <!-- Filters and Sort Panel -->
             <div class="collapse" id="filtersCollapse">
               <div class="card-body border-bottom bg-light">
-                <form method="GET" action="index.php" class="row g-3">
-                  <div class="col-md-3">
+                <form method="GET" action="index.php" class="row g-3 align-items-end">
+                  <div class="col-md-2">
                     <label class="form-label">Type</label>
-                    <select name="filter_type" class="form-select form-select-sm">
+                    <select name="filter_type" class="form-select">
                       <option value="">All Types</option>
                       <option value="pledge" <?php echo $filter_type === 'pledge' ? 'selected' : ''; ?>>Pledges Only</option>
                       <option value="paid" <?php echo $filter_type === 'paid' ? 'selected' : ''; ?>>Payments Only</option>
@@ -499,62 +499,59 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
                   </div>
                   <div class="col-md-3">
                     <label class="form-label">Amount Range</label>
-                    <div class="input-group input-group-sm">
+                    <div class="input-group">
                       <span class="input-group-text">£</span>
                       <input type="number" name="filter_amount_min" class="form-control" placeholder="Min" step="0.01" value="<?php echo htmlspecialchars($filter_amount_min ?? ''); ?>">
                       <span class="input-group-text">to</span>
                       <input type="number" name="filter_amount_max" class="form-control" placeholder="Max" step="0.01" value="<?php echo htmlspecialchars($filter_amount_max ?? ''); ?>">
                     </div>
                   </div>
-                  <div class="col-md-2">
-                    <label class="form-label">Date From</label>
-                    <input type="date" name="filter_date_from" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filter_date_from); ?>">
+                  <div class="col-md-4">
+                    <label class="form-label">Date Range</label>
+                    <div class="input-group">
+                        <input type="date" name="filter_date_from" class="form-control" value="<?php echo htmlspecialchars($filter_date_from); ?>">
+                        <span class="input-group-text">to</span>
+                        <input type="date" name="filter_date_to" class="form-control" value="<?php echo htmlspecialchars($filter_date_to); ?>">
+                    </div>
                   </div>
-                  <div class="col-md-2">
-                    <label class="form-label">Date To</label>
-                    <input type="date" name="filter_date_to" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filter_date_to); ?>">
-                  </div>
-                  <div class="col-md-2">
+                  <div class="col-md-3">
                     <label class="form-label">Sort By</label>
-                    <select name="sort_by" class="form-select form-select-sm">
-                      <option value="approved_at" <?php echo $sort_by === 'approved_at' ? 'selected' : ''; ?>>Approval Date</option>
-                      <option value="created_at" <?php echo $sort_by === 'created_at' ? 'selected' : ''; ?>>Created Date</option>
-                      <option value="amount" <?php echo $sort_by === 'amount' ? 'selected' : ''; ?>>Amount</option>
-                      <option value="donor_name" <?php echo $sort_by === 'donor_name' ? 'selected' : ''; ?>>Donor Name</option>
-                      <option value="registrar_name" <?php echo $sort_by === 'registrar_name' ? 'selected' : ''; ?>>Registrar</option>
-                      <option value="type" <?php echo $sort_by === 'type' ? 'selected' : ''; ?>>Type</option>
-                    </select>
+                    <div class="input-group">
+                        <select name="sort_by" class="form-select">
+                          <option value="approved_at" <?php echo $sort_by === 'approved_at' ? 'selected' : ''; ?>>Approval Date</option>
+                          <option value="created_at" <?php echo $sort_by === 'created_at' ? 'selected' : ''; ?>>Created Date</option>
+                          <option value="amount" <?php echo $sort_by === 'amount' ? 'selected' : ''; ?>>Amount</option>
+                          <option value="donor_name" <?php echo $sort_by === 'donor_name' ? 'selected' : ''; ?>>Donor Name</option>
+                          <option value="registrar_name" <?php echo $sort_by === 'registrar_name' ? 'selected' : ''; ?>>Registrar</-option>
+                          <option value="type" <?php echo $sort_by === 'type' ? 'selected' : ''; ?>>Type</option>
+                        </select>
+                        <select name="sort_order" class="form-select">
+                          <option value="desc" <?php echo $sort_order === 'desc' ? 'selected' : ''; ?>>Desc</option>
+                          <option value="asc" <?php echo $sort_order === 'asc' ? 'selected' : ''; ?>>Asc</option>
+                        </select>
+                    </div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <label class="form-label">Search Donor</label>
-                    <input type="text" name="filter_donor" class="form-control form-control-sm" placeholder="Search by donor name..." value="<?php echo htmlspecialchars($filter_donor); ?>">
+                    <input type="text" name="filter_donor" class="form-control" placeholder="Search by donor name..." value="<?php echo htmlspecialchars($filter_donor); ?>">
                   </div>
                   <div class="col-md-3">
                     <label class="form-label">Search Registrar</label>
-                    <input type="text" name="filter_registrar" class="form-control form-control-sm" placeholder="Search by registrar..." value="<?php echo htmlspecialchars($filter_registrar); ?>">
+                    <input type="text" name="filter_registrar" class="form-control" placeholder="Search by registrar..." value="<?php echo htmlspecialchars($filter_registrar); ?>">
                   </div>
+                  
                   <div class="col-md-2">
-                    <label class="form-label">Order</label>
-                    <select name="sort_order" class="form-select form-select-sm">
-                      <option value="desc" <?php echo $sort_order === 'desc' ? 'selected' : ''; ?>>Newest First</option>
-                      <option value="asc" <?php echo $sort_order === 'asc' ? 'selected' : ''; ?>>Oldest First</option>
-                    </select>
-                  </div>
-                  <div class="col-md-1">
-                    <label class="form-label">&nbsp;</label>
-                    <div>
-                      <button type="submit" class="btn btn-primary btn-sm w-100">
+                      <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-search"></i> Apply
                       </button>
+                  </div>
+                    <?php if ($filter_type || $filter_amount_min || $filter_amount_max || $filter_donor || $filter_registrar || $filter_date_from || $filter_date_to || $sort_by !== 'approved_at' || $sort_order !== 'desc'): ?>
+                    <div class="col-md-3">
+                        <a href="index.php" class="btn btn-outline-secondary w-100">
+                          <i class="fas fa-times"></i> Clear Filters
+                        </a>
                     </div>
-                  </div>
-                  <?php if ($filter_type || $filter_amount_min || $filter_amount_max || $filter_donor || $filter_registrar || $filter_date_from || $filter_date_to || $sort_by !== 'approved_at' || $sort_order !== 'desc'): ?>
-                  <div class="col-12">
-                    <a href="index.php" class="btn btn-outline-secondary btn-sm">
-                      <i class="fas fa-times"></i> Clear All Filters
-                    </a>
-                  </div>
-                  <?php endif; ?>
+                   <?php endif; ?>
                 </form>
               </div>
             </div>
@@ -642,128 +639,120 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
 
 <!-- Edit Pledge Modal -->
 <div class="modal fade" id="editPledgeModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Approved Pledge</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form method="post" action="index.php">
-        <div class="modal-body">
-          <?php echo csrf_input(); ?>
-          <input type="hidden" name="action" value="update_pledge">
-          <input type="hidden" name="pledge_id" id="editPledgeId">
-          
-          <?php 
-          // Preserve current filter and pagination parameters in edit form
-          $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
-          foreach ($preserveParams as $param) {
-              if (isset($_GET[$param]) && $_GET[$param] !== '') {
-                  echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
-              }
-          }
-          ?>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label">Donor Name</label>
-                <input type="text" class="form-control" id="editDonorName" name="donor_name" required>
-              </div>
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Approved Pledge</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label">Phone Number</label>
-                <input type="tel" class="form-control" id="editDonorPhone" name="donor_phone" required>
-              </div>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Email (Optional)</label>
-            <input type="email" class="form-control" id="editDonorEmail" name="donor_email">
-          </div>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label">Amount (£)</label>
-                <input type="number" class="form-control" id="editAmount" name="amount" step="0.01" min="0" required>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label">Package (optional)</label>
-                <select class="form-select" id="editPackageId" name="package_id">
-                  <option value="">— None —</option>
-                  <?php foreach ($pkgRows as $pkg): ?>
-                  <option value="<?php echo (int)$pkg['id']; ?>" data-sqm="<?php echo htmlspecialchars($pkg['sqm_meters']); ?>" data-price="<?php echo htmlspecialchars($pkg['price']); ?>">
-                    <?php echo htmlspecialchars($pkg['label']); ?> (<?php echo number_format((float)$pkg['sqm_meters'], 2); ?> m² · £<?php echo number_format((float)$pkg['price'], 2); ?>)
-                  </option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Notes</label>
-            <textarea class="form-control" id="editNotes" name="notes" rows="3"></textarea>
-          </div>
+            <form method="post" action="index.php">
+                <div class="modal-body">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="action" value="update_pledge">
+                    <input type="hidden" name="pledge_id" id="editPledgeId">
+                    
+                    <?php
+                    $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+                    foreach ($preserveParams as $param) {
+                        if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                            echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+                        }
+                    }
+                    ?>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Donor Name</label>
+                            <input type="text" class="form-control" id="editDonorName" name="donor_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="editDonorPhone" name="donor_phone" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email (Optional)</label>
+                        <input type="email" class="form-control" id="editDonorEmail" name="donor_email">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Amount (£)</label>
+                            <input type="number" class="form-control" id="editAmount" name="amount" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Package (optional)</label>
+                            <select class="form-select" id="editPackageId" name="package_id">
+                                <option value="">— None —</option>
+                                <?php foreach ($pkgRows as $pkg): ?>
+                                <option value="<?php echo (int)$pkg['id']; ?>" data-sqm="<?php echo htmlspecialchars($pkg['sqm_meters']); ?>" data-price="<?php echo htmlspecialchars($pkg['price']); ?>">
+                                    <?php echo htmlspecialchars($pkg['label']); ?> (<?php echo number_format((float)$pkg['sqm_meters'], 2); ?> m² · £<?php echo number_format((float)$pkg['price'], 2); ?>)
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="editNotes" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update Pledge</button>
+                </div>
+            </form>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update</button>
-        </div>
-      </form>
     </div>
-  </div>
 </div>
 
 <!-- Edit Payment Modal -->
 <div class="modal fade" id="editPaymentModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-credit-card me-2"></i>Edit Payment</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form method="post" action="index.php">
-        <div class="modal-body">
-          <?php echo csrf_input(); ?>
-          <input type="hidden" name="action" value="update_payment">
-          <input type="hidden" name="payment_id" id="editPaymentId">
-          
-          <?php 
-          // Preserve current filter and pagination parameters in edit form
-          $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
-          foreach ($preserveParams as $param) {
-              if (isset($_GET[$param]) && $_GET[$param] !== '') {
-                  echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
-              }
-          }
-          ?>
-          <div class="mb-3">
-            <label class="form-label">Amount (£)</label>
-            <input type="number" class="form-control" id="editPaymentAmount" name="payment_amount" step="0.01" min="0" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Method</label>
-            <select class="form-select" id="editPaymentMethod" name="payment_method">
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="bank">Bank</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Reference</label>
-            <input type="text" class="form-control" id="editPaymentReference" name="payment_reference">
-          </div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-credit-card me-2"></i>Edit Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="index.php">
+                <div class="modal-body">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="action" value="update_payment">
+                    <input type="hidden" name="payment_id" id="editPaymentId">
+                    
+                    <?php
+                    $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+                    foreach ($preserveParams as $param) {
+                        if (isset($_GET[$param]) && $_GET[$param] !== '') {
+                            echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
+                        }
+                    }
+                    ?>
+
+                    <div class="mb-3">
+                        <label class="form-label">Amount (£)</label>
+                        <input type="number" class="form-control" id="editPaymentAmount" name="payment_amount" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Method</label>
+                        <select class="form-select" id="editPaymentMethod" name="payment_method">
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="bank">Bank</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reference</label>
+                        <input type="text" class="form-control" id="editPaymentReference" name="payment_reference">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update Payment</button>
+                </div>
+            </form>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update</button>
-        </div>
-      </form>
     </div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
