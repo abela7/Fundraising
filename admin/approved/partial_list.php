@@ -66,17 +66,17 @@ if (empty($approved)) {
         <div class="sqm"><?php echo htmlspecialchars(format_sqm_fraction($sqm_meters)); ?> m²</div>
         <div class="registrar-time">
           <div class="registrar">
-            <i class="fas fa-user-check text-muted me-1"></i>
+            <i class="fas fa-user-check me-1"></i>
             <?php echo htmlspecialchars($registrar ?: 'Unknown'); ?>
           </div>
           <div class="time">
-            <i class="fas fa-clock text-muted me-1"></i>
+            <i class="fas fa-clock me-1"></i>
             <?php
             $timestamp = $approved_at ?: $created_at;
             if ($timestamp) {
-              echo date('H:i d/m/Y', strtotime($timestamp));
+              echo date('H:i d/m', strtotime($timestamp));
             } else {
-              echo 'Unknown time';
+              echo 'Unknown';
             }
             ?>
           </div>

@@ -8,9 +8,10 @@
 .donor-phone{font-size:.85rem;font-weight:700;color:#495057;font-family:'Courier New',monospace}
 .details-section{display:flex;flex-direction:column;align-items:center;min-width:120px}
 .sqm{font-weight:600;color:var(--primary-blue);margin-bottom:6px}
-.registrar-time{display:flex;flex-direction:row;gap:8px;width:100%;justify-content:center}
-.registrar,.time{font-size:.75rem;color:#495057;display:flex;align-items:center}
-.registrar{font-weight:600;color:#2c3e50}
-.time{font-weight:500;color:#6c757d}
+.registrar-time{display:flex;flex-direction:row;gap:6px;width:100%;justify-content:center;flex-wrap:wrap}
+.registrar,.time{font-size:.7rem;padding:4px 10px;border-radius:16px;display:flex;align-items:center;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,.08);transition:all .2s ease}
+.registrar{font-weight:600;background:linear-gradient(135deg,#e8f5e8,#c8e6c9);color:#2e7d32;border:1px solid #a5d6a7}
+.time{font-weight:500;background:linear-gradient(135deg,#fff3e0,#ffcc02);color:#e65100;border:1px solid #ffb74d}
+.registrar:hover,.time:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,.12)}
 .approved-actions{display:flex;gap:6px;margin-left:16px}
 
