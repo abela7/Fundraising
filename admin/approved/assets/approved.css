@@ -6,11 +6,11 @@
 .donor-section{flex:2;min-width:140px}
 .donor-name{font-weight:600;color:#2c3e50}
 .donor-phone{font-size:.85rem;font-weight:700;color:#495057;font-family:'Courier New',monospace}
-.details-section{display:flex;flex-direction:column;align-items:center;min-width:100px}
-.sqm{font-weight:600;color:var(--primary-blue)}
-.registrar-time{display:flex;flex-direction:column;gap:2px;margin-top:4px}
-.registrar,.time{font-size:.75rem;color:#6c757d;display:flex;align-items:center}
-.registrar{font-weight:500}
-.time{font-weight:400}
+.details-section{display:flex;flex-direction:column;align-items:center;min-width:120px}
+.sqm{font-weight:600;color:var(--primary-blue);margin-bottom:6px}
+.registrar-time{display:flex;flex-direction:row;gap:8px;width:100%;justify-content:center}
+.registrar,.time{font-size:.75rem;color:#495057;display:flex;align-items:center}
+.registrar{font-weight:600;color:#2c3e50}
+.time{font-weight:500;color:#6c757d}
 .approved-actions{display:flex;gap:6px;margin-left:16px}
 
