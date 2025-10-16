@@ -522,7 +522,7 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
                           <option value="created_at" <?php echo $sort_by === 'created_at' ? 'selected' : ''; ?>>Created Date</option>
                           <option value="amount" <?php echo $sort_by === 'amount' ? 'selected' : ''; ?>>Amount</option>
                           <option value="donor_name" <?php echo $sort_by === 'donor_name' ? 'selected' : ''; ?>>Donor Name</option>
-                          <option value="registrar_name" <?php echo $sort_by === 'registrar_name' ? 'selected' : ''; ?>>Registrar</-option>
+                          <option value="registrar_name" <?php echo $sort_by === 'registrar_name' ? 'selected' : ''; ?>>Registrar</option>
                           <option value="type" <?php echo $sort_by === 'type' ? 'selected' : ''; ?>>Type</option>
                         </select>
                         <select name="sort_order" class="form-select">
@@ -755,6 +755,30 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
     </div>
 </div>
 
+<!-- Donation History Modal -->
+<div class="modal fade" id="donationHistoryModal" tabindex="-1" aria-labelledby="donationHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-info bg-opacity-10">
+                <h5 class="modal-title" id="donationHistoryModalLabel">
+                    <i class="fas fa-history me-2 text-info"></i>Donation History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="donationHistoryContent">
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-spinner fa-spin"></i> Loading history...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 <script src="assets/approved.js?v=<?php echo @filemtime(__DIR__ . '/assets/approved.js'); ?>"></script>
@@ -812,6 +836,71 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+// Click-to-open donation history for approved cards (similar to approvals)
+document.addEventListener('click', function(e){
+  const card = e.target.closest('.approval-item');
+  if (!card) return;
+  // Ignore if clicking on action buttons/forms
+  if (e.target.closest('.approval-actions')) return;
+  
+  const donorPhone = card.dataset.donorPhoneForHistory;
+  const donorName = card.dataset.donorName;
+  
+  if (donorPhone) {
+    // Fetch and display donation history
+    fetch(`../../api/donor_history.php?phone=${encodeURIComponent(donorPhone)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.donations && data.donations.length > 1) {
+          // Only show history if there are multiple donations
+          const historyContent = document.getElementById('donationHistoryContent');
+          historyContent.innerHTML = `<h6 class="mb-3">${htmlEscape(donorName)}'s Donations</h6>`;
+          
+          const historyList = document.createElement('div');
+          data.donations.forEach(donation => {
+            const date = new Date(donation.date);
+            const formattedDate = date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+            const formattedTime = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            
+            const statusClass = donation.status === 'approved' ? 'success' : (donation.status === 'pending' ? 'warning' : 'danger');
+            const typeLabel = donation.type === 'pledge' ? 'Pledge' : 'Payment';
+            const typeClass = donation.type === 'pledge' ? 'info' : 'primary';
+            
+            const row = document.createElement('div');
+            row.className = 'detail-row mb-2';
+            row.innerHTML = `
+              <div class="d-flex justify-content-between align-items-center">
+                <span>
+                  <span class="badge bg-${typeClass} me-2">${typeLabel}</span>
+                  <span class="text-muted small">${formattedDate} ${formattedTime}</span>
+                </span>
+                <span>
+                  <strong>£${parseFloat(donation.amount).toFixed(2)}</strong>
+                  <span class="badge bg-${statusClass} ms-2">${donation.status}</span>
+                </span>
+              </div>
+            `;
+            historyList.appendChild(row);
+          });
+          
+          historyContent.appendChild(historyList);
+          const modal = new bootstrap.Modal(document.getElementById('donationHistoryModal'));
+          modal.show();
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load donation history:', err);
+      });
+  }
+});
+
+// Helper to escape HTML
+function htmlEscape(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
 
 // Check for floor map refresh trigger
 <?php if (isset($_SESSION['trigger_floor_refresh']) && $_SESSION['trigger_floor_refresh']): ?>

@@ -6,6 +6,26 @@ require_once __DIR__ . '/../../shared/csrf.php';
 require_admin();
 $db = db();
 
+// Helper function to count total donations for a donor (pledges + payments, any status)
+function countDonorDonations(mysqli $db, string $donorPhone): int {
+    if (!$donorPhone) return 0;
+    
+    $stmt = $db->prepare("
+        (SELECT COUNT(*) as cnt FROM pledges WHERE donor_phone = ?)
+        UNION ALL
+        (SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ?)
+    ");
+    $stmt->bind_param('ss', $donorPhone, $donorPhone);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $total = 0;
+    while ($row = $result->fetch_assoc()) {
+        $total += (int)$row['cnt'];
+    }
+    $stmt->close();
+    return $total;
+}
+
 // Format helper
 function format_sqm_fraction(float $value): string {
     if ($value <= 0) return '0';
@@ -13,9 +33,9 @@ function format_sqm_fraction(float $value): string {
     $fractionPart = $value - $whole;
 
     if ($fractionPart > 0) {
-        if (abs($fractionPart - 0.25) < 0.01) return ($whole > 0 ? $whole . ' ' : '') . '¼';
-        if (abs($fractionPart - 0.5) < 0.01) return ($whole > 0 ? $whole . ' ' : '') . '½';
-        if (abs($fractionPart - 0.75) < 0.01) return ($whole > 0 ? $whole . ' ' : '') . '¾';
+        if (abs($fractionPart - 0.25) < 0.01) return ($whole > 0 ? $whole . ' ' : '') . '1/4';
+        if (abs($fractionPart - 0.5) < 0.01) return ($whole > 0 ? $whole . ' ' : '') . '1/2';
+        if (abs($fractionPart - 0.75) < 0.01) return ($whole > 0 ? $whole . ' ' : '') . '3/4';
     }
     
     return $whole > 0 ? (string)$whole : number_format($value, 2);
@@ -24,116 +44,132 @@ function format_sqm_fraction(float $value): string {
 // Expect $approved from parent include
 if (empty($approved)) {
     echo '<div class="text-center p-5 text-muted">
-            <i class="fas fa-inbox fa-3x mb-3"></i>
-            <h4>No approved items yet</h4>
-            <p>Once items are approved, they appear here for management.</p>
+            <i class="fas fa-check-circle fa-3x mb-3"></i>
+            <h4>All approved items</h4>
+            <p>Approved donations appear here for management.</p>
           </div>';
     return;
 }
 ?>
 
-<div class="table-responsive">
-    <table class="table align-middle">
-        <thead>
-            <tr>
-                <th>Donor</th>
-                <th>Amount</th>
-                <th>Type</th>
-                <th>SQM</th>
-                <th>Registrar</th>
-                <th>Timestamp</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($approved as $row): ?>
-          <?php
-            $pledge_id = (int)$row['id'];
-            $amount = (float)$row['amount'];
-            $type = (string)$row['type'];
-            $notes = (string)($row['notes'] ?? '');
-            $sqm_meters = (float)($row['sqm_meters'] ?? 0);
-            $donor_name = (string)($row['donor_name'] ?? '');
-            $donor_phone = (string)($row['donor_phone'] ?? '');
-            $donor_email = (string)($row['donor_email'] ?? '');
-            $registrar = (string)($row['registrar_name'] ?? '');
-            $approved_at = $row['approved_at'] ?? null;
-            $created_at = $row['created_at'] ?? null;
-            $payment_id = isset($row['payment_id']) ? (int)$row['payment_id'] : 0;
-            $payment_amount = isset($row['payment_amount']) ? (float)$row['payment_amount'] : null;
-            $payment_method = (string)($row['payment_method'] ?? '');
-            $payment_reference = (string)($row['payment_reference'] ?? '');
-            $type_class = $type === 'paid' ? 'badge-paid' : 'badge-pledge';
-          ?>
-            <tr>
-                <td>
-                    <strong><?php echo htmlspecialchars($donor_name ?: 'N/A'); ?></strong>
-                    <br>
-                    <small class="text-muted"><?php echo htmlspecialchars($donor_phone ?: ''); ?></small>
-                </td>
-                <td><strong>£<?php echo number_format($amount, 2); ?></strong></td>
-                <td><span class="badge <?php echo $type_class; ?>"><?php echo ucfirst($type); ?></span></td>
-                <td><?php echo htmlspecialchars(format_sqm_fraction($sqm_meters)); ?> m²</td>
-                <td><?php echo htmlspecialchars($registrar ?: 'Unknown'); ?></td>
-                <td>
-                    <?php
-                    $timestamp = $approved_at ?: $created_at;
-                    if ($timestamp) {
-                      echo date('d/m/y H:i', strtotime($timestamp));
-                    } else {
-                      echo 'Unknown';
-                    }
-                    ?>
-                </td>
-                <td>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editPledgeModal"
-                                onclick="openEditPledgeModal(<?php echo $pledge_id; ?>, '<?php echo htmlspecialchars($donor_name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($donor_phone, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($donor_email ?? '', ENT_QUOTES); ?>', <?php echo $amount; ?>, <?php echo $sqm_meters; ?>, '<?php echo htmlspecialchars($notes ?? '', ENT_QUOTES); ?>')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <?php if ($type === 'paid' && $payment_id): ?>
-                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editPaymentModal"
-                                onclick="openEditPaymentModal(<?php echo $payment_id; ?>, <?php echo (float)$payment_amount; ?>, '<?php echo htmlspecialchars($payment_method ?: 'cash', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($payment_reference ?? '', ENT_QUOTES); ?>')">
-                            <i class="fas fa-credit-card"></i>
-                        </button>
-                        <?php endif; ?>
-                        
-                        <?php if ($type !== 'paid'): ?>
-                        <form method="post" class="d-inline" action="index.php" onsubmit="return confirm('Undo approval for this item?');">
-                            <?php echo csrf_input(); ?>
-                            <input type="hidden" name="action" value="undo">
-                            <input type="hidden" name="pledge_id" value="<?php echo $pledge_id; ?>">
-                            <?php
-                            $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
-                            foreach ($preserveParams as $param) {
-                                if (isset($_GET[$param]) && $_GET[$param] !== '') {
-                                    echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
-                                }
-                            }
-                            ?>
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Undo approval"><i class="fas fa-undo"></i></button>
-                        </form>
-                        <?php else: ?>
-                        <form method="post" class="d-inline" action="index.php" onsubmit="return confirm('Undo approval for this payment and subtract from totals?');">
-                            <?php echo csrf_input(); ?>
-                            <input type="hidden" name="action" value="undo_payment">
-                            <input type="hidden" name="payment_id" value="<?php echo (int)($payment_id ?? 0); ?>">
-                            <input type="hidden" name="payment_amount" value="<?php echo (float)($payment_amount ?? 0); ?>">
-                            <?php
-                            $preserveParams = ['filter_type', 'filter_amount_min', 'filter_amount_max', 'filter_donor', 'filter_registrar', 'filter_date_from', 'filter_date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
-                            foreach ($preserveParams as $param) {
-                                if (isset($_GET[$param]) && $_GET[$param] !== '') {
-                                    echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
-                                }
-                            }
-                            ?>
-                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Undo payment approval"><i class="fas fa-rotate-left"></i></button>
-                        </form>
-                        <?php endif; ?>
-                    </div>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
+<div class="approval-list">
+<?php foreach ($approved as $row): ?>
+    <?php
+        // Parse data with same logic as approvals
+        $pledge_id = (int)$row['id'];
+        $pledge_amount = (float)$row['amount'];
+        $pledge_type = strtolower((string)$row['type']);
+        $pledge_notes = (string)($row['notes'] ?? '');
+        $pledge_created = (string)($row['created_at'] ?? '');
+        $pledge_sqm = (float)($row['sqm_meters'] ?? 0);
+        $pledge_anonymous = 0; // Approved items don't use anonymous flag like pending
+        $pledge_donor_name = (string)($row['donor_name'] ?? '');
+        $pledge_donor_phone = (string)($row['donor_phone'] ?? '');
+        $pledge_donor_email = (string)($row['donor_email'] ?? '');
+        $pledge_registrar = (string)($row['registrar_name'] ?? '');
+
+        // Display logic (same as approvals)
+        $isPayment = ($pledge_type === 'payment' || $pledge_type === 'paid');
+        $isPaid = $isPayment;
+        $isPledge = ($pledge_type === 'pledge');
+        $displayName = $pledge_donor_name ?: 'N/A';
+        $displayPhone = $pledge_donor_phone ?: '';
+
+        // Compute meters
+        $meters = 0.0;
+        if ($isPledge && isset($row['sqm_meters'])) {
+            $meters = (float)$row['sqm_meters'];
+        }
+    ?>
+<div class="approval-item" id="pledge-<?php echo $pledge_id; ?>"
+     role="button" tabindex="0"
+     data-pledge-id="<?php echo $pledge_id; ?>"
+     data-type="<?php echo htmlspecialchars($pledge_type, ENT_QUOTES); ?>"
+     data-amount="<?php echo $pledge_amount; ?>"
+     data-anonymous="<?php echo $pledge_anonymous; ?>"
+     data-donor-name="<?php echo htmlspecialchars($pledge_donor_name, ENT_QUOTES); ?>"
+     data-donor-phone="<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>"
+     data-donor-phone-for-history="<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>"
+     data-donor-email="<?php echo htmlspecialchars($pledge_donor_email ?? '', ENT_QUOTES); ?>"
+     data-notes="<?php echo htmlspecialchars($pledge_notes ?? '', ENT_QUOTES); ?>"
+     data-package-label="<?php echo htmlspecialchars((string)($row['package_label'] ?? ''), ENT_QUOTES); ?>"
+     data-sqm-meters="<?php echo $meters; ?>"
+     data-created-at="<?php echo htmlspecialchars($pledge_created, ENT_QUOTES); ?>"
+     data-registrar="<?php echo htmlspecialchars($pledge_registrar, ENT_QUOTES); ?>"
+>
+    <div class="approval-content">
+        <div class="amount-section">
+            <div class="amount">£<?php echo number_format($pledge_amount, 0); ?></div>
+            <?php
+                $badgeClass = 'secondary';
+                if ($isPaid) { $badgeClass = 'success'; }
+                elseif ($isPledge) { $badgeClass = 'warning'; }
+                $label = $isPaid ? 'Payment' : ($isPledge ? 'Pledge' : ucfirst($pledge_type));
+            ?>
+            <div class="type-badge">
+                <span class="badge bg-<?php echo $badgeClass; ?>"><?php echo $label; ?></span>
+            </div>
+        </div>
+        
+        <div class="donor-section">
+            <div class="donor-name">
+                <?php echo htmlspecialchars($displayName); ?>
+                <?php
+                    // Check if this is a repeat donor (has multiple donations total)
+                    $donationCount = countDonorDonations($db, $pledge_donor_phone);
+                    if ($donationCount > 1):
+                ?>
+                    <span class="badge bg-info ms-2" title="This donor has <?php echo $donationCount; ?> total donations">
+                        <i class="fas fa-redo-alt me-1"></i>Repeat Donor
+                    </span>
+                <?php endif; ?>
+            </div>
+            <div class="donor-phone">
+                <?php echo htmlspecialchars($displayPhone); ?>
+            </div>
+        </div>
+        
+        <div class="details-section">
+            <?php if ($isPledge): ?>
+              <?php if (!empty($row['package_label'])): ?>
+                <div class="sqm"><?php echo htmlspecialchars($row['package_label']); ?></div>
+              <?php else: ?>
+                <div class="sqm"><?php echo htmlspecialchars(format_sqm_fraction($meters)); ?> m²</div>
+              <?php endif; ?>
+            <?php else: ?>
+              <div class="sqm">
+                <?php if (!empty($row['package_label'])): ?>
+                  <?php echo htmlspecialchars($row['package_label']); ?>
+                <?php else: ?>
+                  Method: <?php echo htmlspecialchars(ucfirst((string)($row['method'] ?? ''))); ?>
+                <?php endif; ?>
+              </div>
+            <?php endif; ?>
+            <div class="time"><?php echo $pledge_created ? date('H:i', strtotime($pledge_created)) : '--:--'; ?></div>
+            <div class="registrar">
+                <?php if (empty(trim($pledge_registrar))): ?>
+                    <span class="badge bg-info" style="font-size: 0.7rem;">Self Pledged</span>
+                <?php else: ?>
+                    <?php echo htmlspecialchars(substr($pledge_registrar, 0, 15)); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+    <div class="approval-actions">
+        <button type="button" class="btn btn-edit" data-bs-toggle="modal" data-bs-target="#editPledgeModal" 
+                onclick="openEditPledgeModal(<?php echo $pledge_id; ?>, '<?php echo htmlspecialchars($pledge_donor_name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_email ?? '', ENT_QUOTES); ?>', <?php echo $pledge_amount; ?>, <?php echo $meters; ?>, '<?php echo htmlspecialchars($pledge_notes ?? '', ENT_QUOTES); ?>')">
+            <i class="fas fa-edit"></i>
+        </button>
+        <form method="post" class="action-form" action="index.php" onclick="event.stopPropagation();">
+            <?php echo csrf_input(); ?>
+            <input type="hidden" name="action" value="undo">
+            <input type="hidden" name="pledge_id" value="<?php echo $pledge_id; ?>">
+            <button type="submit" class="btn btn-reject">
+                <i class="fas fa-undo"></i>
+            </button>
+        </form>
+    </div>
+</div>
+<?php endforeach; ?>
 </div>
