@@ -173,7 +173,20 @@ function initRegistrationForm() {
             }
         }
 
-        // Duplicate check via API (only if we have a phone to check)
+        // If additional_donation checkbox is already checked and visible, skip duplicate check
+        const additionalDiv = document.getElementById('additionalDonationDiv');
+        if (additionalDiv && !additionalDiv.classList.contains('d-none') && additionalDonationCheckbox && additionalDonationCheckbox.checked) {
+            // User already confirmed they want to make another donation, proceed directly
+            submitting = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Processing...`;
+            }
+            form.submit();
+            return; // Exit early, don't run duplicate check
+        }
+
+        // Duplicate check via API (only if we have a phone to check and checkbox is not already approved)
         if (normalized) {
             try {
                 const res = await fetch(`../../api/check_donor.php?phone=${encodeURIComponent(normalized)}`);
@@ -185,16 +198,16 @@ function initRegistrationForm() {
                     showRepeatDonorModal(data);
                     
                     // Show the additional donation checkbox
-                    const additionalDiv = document.getElementById('additionalDonationDiv');
-                    if (additionalDiv) {
-                        additionalDiv.classList.remove('d-none');
+                    const additionalDonationDiv = document.getElementById('additionalDonationDiv');
+                    if (additionalDonationDiv) {
+                        additionalDonationDiv.classList.remove('d-none');
                     }
                     return; // Stop submission
                 } else {
                     // No previous donations, hide the checkbox
-                    const additionalDiv = document.getElementById('additionalDonationDiv');
-                    if (additionalDiv) {
-                        additionalDiv.classList.add('d-none');
+                    const additionalDonationDiv = document.getElementById('additionalDonationDiv');
+                    if (additionalDonationDiv) {
+                        additionalDonationDiv.classList.add('d-none');
                         if (additionalDonationCheckbox) additionalDonationCheckbox.checked = false;
                     }
                 }
@@ -206,8 +219,8 @@ function initRegistrationForm() {
 
         // Check if additional_donation checkbox is required but not checked
         if (additionalDonationCheckbox && !additionalDonationCheckbox.classList.contains('d-none')) {
-            const additionalDiv = document.getElementById('additionalDonationDiv');
-            if (!additionalDiv?.classList.contains('d-none') && !additionalDonationCheckbox.checked) {
+            const additionalDonationDiv = document.getElementById('additionalDonationDiv');
+            if (!additionalDonationDiv?.classList.contains('d-none') && !additionalDonationCheckbox.checked) {
                 alert('Please check the "This donor wants to make another donation" checkbox to continue.');
                 return;
             }
