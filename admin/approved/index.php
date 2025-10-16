@@ -457,6 +457,25 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
   <link rel="stylesheet" href="../assets/admin.css?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.css'); ?>">
   <link rel="stylesheet" href="../approvals/assets/approvals.css?v=<?php echo @filemtime(__DIR__ . '/../approvals/assets/approvals.css'); ?>">
   <link rel="stylesheet" href="assets/approved.css?v=<?php echo @filemtime(__DIR__ . '/assets/approved.css'); ?>">
+  <style>
+    /* Fix modal background transparency */
+    .modal-content {
+      background-color: #ffffff !important;
+      border: none;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    .modal-header {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .modal-body {
+      background-color: #ffffff !important;
+    }
+    .modal-footer {
+      background-color: #ffffff !important;
+      border-top: 1px solid #e9ecef;
+    }
+  </style>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -756,6 +775,59 @@ $approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
     </div>
 </div>
 
+<!-- Details Modal (like approvals page) -->
+<div class="modal fade details-modal" id="detailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header details-header">
+        <div class="details-header-main">
+          <div class="amount-large" id="dAmountLarge">£ 0.00</div>
+          <div class="chips">
+            <span class="chip chip-type" id="dTypeBadge">APPROVED</span>
+            <span class="chip chip-anon d-none" id="dAnonChip"><i class="fas fa-user-secret me-1"></i>Anonymous</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-grid">
+          <div class="detail-card">
+            <div class="detail-title"><i class="fas fa-user me-2"></i>Donor</div>
+            <div class="detail-row"><span>Name</span><span id="dDonorName">—</span></div>
+            <div class="detail-row"><span>Phone</span><span id="dPhone">—</span></div>
+            <div class="detail-row"><span>Email</span><span id="dEmail">—</span></div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-title"><i class="fas fa-ruler-combined me-2"></i>Details</div>
+            <div class="detail-row"><span>Square meters</span><span id="dSqm">—</span></div>
+            <div class="detail-row"><span>Created</span><span id="dCreated">—</span></div>
+            <div class="detail-row"><span>Registrar</span><span id="dRegistrar">—</span></div>
+          </div>
+          <div class="detail-card detail-notes">
+            <div class="detail-title"><i class="fas fa-sticky-note me-2"></i>Notes</div>
+            <div class="notes-box" id="dNotes">—</div>
+          </div>
+        </div>
+        
+        <!-- Donation History Section (shown for repeat donors) -->
+        <div class="donation-history-section mt-4 d-none" id="donationHistorySection">
+          <div class="detail-card">
+            <div class="detail-title"><i class="fas fa-history me-2"></i>Donation History</div>
+            <div class="donation-history-list" id="donationHistoryList">
+              <div class="text-center text-muted py-3">
+                <i class="fas fa-spinner fa-spin"></i> Loading history...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Donation History Modal -->
 <div class="modal fade" id="donationHistoryModal" tabindex="-1" aria-labelledby="donationHistoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable">
@@ -838,27 +910,51 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Click-to-open donation history for approved cards (similar to approvals)
+// Click-to-open details modal for approved cards (like approvals page)
 document.addEventListener('click', function(e){
   const card = e.target.closest('.approval-item');
   if (!card) return;
-  // Ignore if clicking on action buttons/forms
+  // ignore if clicking on action buttons/forms
   if (e.target.closest('.approval-actions')) return;
+  const fmt = (n) => new Intl.NumberFormat('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(Number(n)||0);
+  const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+  const type = (card.dataset.type||'—').toUpperCase();
+  const amount = '£ ' + fmt(card.dataset.amount||0);
+  const anon = Number(card.dataset.anonymous)===1;
+  document.getElementById('dAmountLarge').textContent = amount;
+  const typeBadge = document.getElementById('dTypeBadge');
+  typeBadge.textContent = type;
+  typeBadge.classList.toggle('is-paid', type==='PAID');
+  typeBadge.classList.toggle('is-pledge', type==='PLEDGE');
+  document.getElementById('dAnonChip').classList.toggle('d-none', !anon);
+  document.getElementById('dDonorName').textContent = card.dataset.donorName||'—';
+  document.getElementById('dPhone').textContent = card.dataset.donorPhone||'—';
+  document.getElementById('dEmail').textContent = card.dataset.donorEmail||'—';
+  if ((card.dataset.type||'').toLowerCase()==='payment' || (card.dataset.type||'').toLowerCase()==='paid') {
+    // For payments, show package if available, otherwise method
+    const pkg = card.dataset.packageLabel || '';
+    document.getElementById('dSqm').textContent = pkg ? pkg : '—';
+  } else {
+    document.getElementById('dSqm').textContent = fmt(card.dataset.sqmMeters||0) + ' m²';
+  }
+  document.getElementById('dCreated').textContent = card.dataset.createdAt||'—';
+  const registrarEl = document.getElementById('dRegistrar');
+  const registrarValue = card.dataset.registrar||'';
+  registrarEl.textContent = registrarValue.trim() === '' ? 'Self Pledged' : registrarValue;
+  document.getElementById('dNotes').textContent = card.dataset.notes||'—';
   
+  // Fetch and display donation history if donor phone is available
   const donorPhone = card.dataset.donorPhoneForHistory;
-  const donorName = card.dataset.donorName;
-  
+  const historySection = document.getElementById('donationHistorySection');
   if (donorPhone) {
-    // Fetch and display donation history
     fetch(`../../api/donor_history.php?phone=${encodeURIComponent(donorPhone)}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.donations && data.donations.length > 1) {
           // Only show history if there are multiple donations
-          const historyContent = document.getElementById('donationHistoryContent');
-          historyContent.innerHTML = `<h6 class="mb-3">${htmlEscape(donorName)}'s Donations</h6>`;
+          const historyList = document.getElementById('donationHistoryList');
+          historyList.innerHTML = '';
           
-          const historyList = document.createElement('div');
           data.donations.forEach(donation => {
             const date = new Date(donation.date);
             const formattedDate = date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -869,31 +965,34 @@ document.addEventListener('click', function(e){
             const typeClass = donation.type === 'pledge' ? 'info' : 'primary';
             
             const row = document.createElement('div');
-            row.className = 'detail-row mb-2';
+            row.className = 'detail-row';
             row.innerHTML = `
-              <div class="d-flex justify-content-between align-items-center">
-                <span>
-                  <span class="badge bg-${typeClass} me-2">${typeLabel}</span>
-                  <span class="text-muted small">${formattedDate} ${formattedTime}</span>
-                </span>
-                <span>
-                  <strong>£${parseFloat(donation.amount).toFixed(2)}</strong>
-                  <span class="badge bg-${statusClass} ms-2">${donation.status}</span>
-                </span>
-              </div>
+              <span>
+                <span class="badge bg-${typeClass} me-2">${typeLabel}</span>
+                <span class="text-muted small">${formattedDate} ${formattedTime}</span>
+              </span>
+              <span>
+                <strong>£${parseFloat(donation.amount).toFixed(2)}</strong>
+                <span class="badge bg-${statusClass} ms-2">${donation.status}</span>
+              </span>
             `;
             historyList.appendChild(row);
           });
           
-          historyContent.appendChild(historyList);
-          const modal = new bootstrap.Modal(document.getElementById('donationHistoryModal'));
-          modal.show();
+          historySection.classList.remove('d-none');
+        } else {
+          historySection.classList.add('d-none');
         }
       })
       .catch(err => {
         console.warn('Failed to load donation history:', err);
+        historySection.classList.add('d-none');
       });
+  } else {
+    historySection.classList.add('d-none');
   }
+  
+  modal.show();
 });
 
 // Helper to escape HTML
