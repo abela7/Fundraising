@@ -6,6 +6,26 @@ require_once __DIR__ . '/../../shared/csrf.php'; // <-- FIX: Added missing inclu
 require_admin();
 $db = db();
 
+// Helper function to count total donations for a donor (pledges + payments, any status)
+function countDonorDonations(mysqli $db, string $donorPhone): int {
+    if (!$donorPhone) return 0;
+    
+    $stmt = $db->prepare("
+        (SELECT COUNT(*) as cnt FROM pledges WHERE donor_phone = ?)
+        UNION ALL
+        (SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ?)
+    ");
+    $stmt->bind_param('ss', $donorPhone, $donorPhone);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $total = 0;
+    while ($row = $result->fetch_assoc()) {
+        $total += (int)$row['cnt'];
+    }
+    $stmt->close();
+    return $total;
+}
+
 $sql = "
     SELECT 
         p.id, p.amount, p.type, p.notes, p.created_at, p.anonymous,
@@ -105,6 +125,7 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
      data-anonymous="<?php echo $pledge_anonymous; ?>"
      data-donor-name="<?php echo htmlspecialchars($pledge_donor_name, ENT_QUOTES); ?>"
      data-donor-phone="<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>"
+     data-donor-phone-for-history="<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>"
      data-donor-email="<?php echo htmlspecialchars($pledge_donor_email ?? '', ENT_QUOTES); ?>"
      data-notes="<?php echo htmlspecialchars($pledge_notes ?? '', ENT_QUOTES); ?>"
      data-package-label="<?php echo htmlspecialchars((string)($pledge['package_label'] ?? ''), ENT_QUOTES); ?>"
@@ -134,6 +155,15 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
                 <?php echo htmlspecialchars($displayName); ?>
                 <?php if ($showAnonChip): ?>
                     <span class="anon-chip ms-2"><i class="fas fa-user-secret"></i> Anonymous</span>
+                <?php endif; ?>
+                <?php
+                    // Check if this is a repeat donor (has multiple donations total)
+                    $donationCount = countDonorDonations($db, $pledge_donor_phone);
+                    if ($donationCount > 1):
+                ?>
+                    <span class="badge bg-info ms-2" title="This donor has <?php echo $donationCount; ?> total donations">
+                        <i class="fas fa-redo-alt me-1"></i>Repeat Donor
+                    </span>
                 <?php endif; ?>
             </div>
             <div class="donor-phone">

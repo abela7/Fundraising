@@ -714,6 +714,18 @@ if ($cntRes) {
             <div class="notes-box" id="dNotes">—</div>
           </div>
         </div>
+        
+        <!-- Donation History Section (shown for repeat donors) -->
+        <div class="donation-history-section mt-4 d-none" id="donationHistorySection">
+          <div class="detail-card">
+            <div class="detail-title"><i class="fas fa-history me-2"></i>Donation History</div>
+            <div class="donation-history-list" id="donationHistoryList">
+              <div class="text-center text-muted py-3">
+                <i class="fas fa-spinner fa-spin"></i> Loading history...
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -883,6 +895,56 @@ document.addEventListener('click', function(e){
   const registrarValue = card.dataset.registrar||'';
   registrarEl.textContent = registrarValue.trim() === '' ? 'Self Pledged' : registrarValue;
   document.getElementById('dNotes').textContent = card.dataset.notes||'—';
+  
+  // Fetch and display donation history if donor phone is available
+  const donorPhone = card.dataset.donorPhoneForHistory;
+  const historySection = document.getElementById('donationHistorySection');
+  if (donorPhone) {
+    fetch(`../../api/donor_history.php?phone=${encodeURIComponent(donorPhone)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.donations && data.donations.length > 1) {
+          // Only show history if there are multiple donations
+          const historyList = document.getElementById('donationHistoryList');
+          historyList.innerHTML = '';
+          
+          data.donations.forEach(donation => {
+            const date = new Date(donation.date);
+            const formattedDate = date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+            const formattedTime = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            
+            const statusClass = donation.status === 'approved' ? 'success' : (donation.status === 'pending' ? 'warning' : 'danger');
+            const typeLabel = donation.type === 'pledge' ? 'Pledge' : 'Payment';
+            const typeClass = donation.type === 'pledge' ? 'info' : 'primary';
+            
+            const row = document.createElement('div');
+            row.className = 'detail-row';
+            row.innerHTML = `
+              <span>
+                <span class="badge bg-${typeClass} me-2">${typeLabel}</span>
+                <span class="text-muted small">${formattedDate} ${formattedTime}</span>
+              </span>
+              <span>
+                <strong>£${parseFloat(donation.amount).toFixed(2)}</strong>
+                <span class="badge bg-${statusClass} ms-2">${donation.status}</span>
+              </span>
+            `;
+            historyList.appendChild(row);
+          });
+          
+          historySection.classList.remove('d-none');
+        } else {
+          historySection.classList.add('d-none');
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load donation history:', err);
+        historySection.classList.add('d-none');
+      });
+  } else {
+    historySection.classList.add('d-none');
+  }
+  
   modal.show();
 });
 
