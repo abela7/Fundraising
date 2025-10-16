@@ -73,6 +73,45 @@ function initSidebar() {
     });
 }
 
+function showRepeatDonorModal(donorData) {
+    const modal = new bootstrap.Modal(document.getElementById('repeatDonorModal'));
+    const donorName = donorData.donor_name || 'Returning Donor';
+    const donorPhone = donorData.normalized || 'N/A';
+    
+    // Populate donor info
+    document.getElementById('modalDonorName').textContent = donorName;
+    document.getElementById('modalDonorPhone').textContent = donorPhone;
+    
+    // Populate recent donations table
+    const tbody = document.getElementById('donationsTableBody');
+    tbody.innerHTML = ''; // Clear existing rows
+    
+    if (donorData.recent_donations && donorData.recent_donations.length > 0) {
+        donorData.recent_donations.forEach(donation => {
+            const row = document.createElement('tr');
+            const date = new Date(donation.date);
+            const formattedDate = date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+            const statusBadge = donation.status === 'approved' ? 
+                '<span class="badge bg-success">Approved</span>' : 
+                '<span class="badge bg-warning">Pending</span>';
+            
+            row.innerHTML = `
+                <td><span class="badge bg-${donation.type === 'pledge' ? 'info' : 'primary'}">${donation.type === 'pledge' ? 'Pledge' : 'Payment'}</span></td>
+                <td>£${parseFloat(donation.amount).toFixed(2)}</td>
+                <td>${statusBadge}</td>
+                <td>${formattedDate}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    } else {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="4" class="text-center text-muted">No previous donations found</td>';
+        tbody.appendChild(row);
+    }
+    
+    modal.show();
+}
+
 function initRegistrationForm() {
     const form = document.querySelector('.registration-form');
     if (!form) return;
@@ -115,6 +154,7 @@ function initRegistrationForm() {
         const typeVal = typeEl ? typeEl.value : 'pledge';
         const rawPhone = (phoneEl?.value || '').trim();
         const isAnon = !!(anonEl && anonEl.checked);
+        const additionalDonationCheckbox = document.getElementById('additional_donation');
 
         const normalizeUk = (v) => {
             let s = (v||'').replace(/[^0-9+]/g, '');
@@ -122,7 +162,6 @@ function initRegistrationForm() {
             return s;
         };
         
-
 
         // Phone format validation when required
         let normalized = rawPhone;
@@ -139,12 +178,38 @@ function initRegistrationForm() {
             try {
                 const res = await fetch(`../../api/check_donor.php?phone=${encodeURIComponent(normalized)}`);
                 const data = await res.json();
-                if (data && (data.pledges?.pending > 0 || data.pledges?.approved > 0)) {
-                    alert('This donor already has a registered pledge. Please review existing records instead of creating duplicates.');
-                    return;
+                const hasPreviousDonations = (data.pledges?.pending > 0 || data.pledges?.approved > 0 || data.payments?.pending > 0 || data.payments?.approved > 0);
+                
+                if (hasPreviousDonations) {
+                    // Show the repeat donor modal with their history
+                    showRepeatDonorModal(data);
+                    
+                    // Show the additional donation checkbox
+                    const additionalDiv = document.getElementById('additionalDonationDiv');
+                    if (additionalDiv) {
+                        additionalDiv.classList.remove('d-none');
+                    }
+                    return; // Stop submission
+                } else {
+                    // No previous donations, hide the checkbox
+                    const additionalDiv = document.getElementById('additionalDonationDiv');
+                    if (additionalDiv) {
+                        additionalDiv.classList.add('d-none');
+                        if (additionalDonationCheckbox) additionalDonationCheckbox.checked = false;
+                    }
                 }
             } catch (err) {
                 // If API fails, still proceed; server will enforce duplicate rules
+                console.warn('Duplicate check error:', err);
+            }
+        }
+
+        // Check if additional_donation checkbox is required but not checked
+        if (additionalDonationCheckbox && !additionalDonationCheckbox.classList.contains('d-none')) {
+            const additionalDiv = document.getElementById('additionalDonationDiv');
+            if (!additionalDiv?.classList.contains('d-none') && !additionalDonationCheckbox.checked) {
+                alert('Please check the "This donor wants to make another donation" checkbox to continue.');
+                return;
             }
         }
 

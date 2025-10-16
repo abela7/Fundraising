@@ -97,6 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payment_method_input = trim((string)($_POST['payment_method'] ?? ''));
     $package_choice = (string)($_POST['package_choice'] ?? ''); // '1', '0.5', '0.25', 'custom'
     $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
+    $additional_donation = isset($_POST['additional_donation']) && $_POST['additional_donation'] === '1';
     if ($client_uuid === '') {
         try { $client_uuid = bin2hex(random_bytes(16)); } catch (Throwable $e) { $client_uuid = uniqid('uuid_', true); }
     }
@@ -192,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Standalone PAYMENT (no pledge row). Status defaults to pending in DB.
                 // Insert with explicit pending status for clarity; link selected package if available
                 // Duplicate check for payments too: block if any existing pledge/payment is pending or approved for same phone
-                if ($donorPhone) {
+                if ($donorPhone && !$additional_donation) {
                     $q1 = $db->prepare("SELECT id FROM pledges WHERE donor_phone=? AND status IN ('pending','approved') LIMIT 1");
                     $q1->bind_param('s', $donorPhone);
                     $q1->execute();
@@ -236,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $status = 'pending';
                 $typeNormalized = 'pledge';
                 // Duplicate check: avoid multiple active pledges/payments for the same phone
-                if ($donorPhone) {
+                if ($donorPhone && !$additional_donation) {
                     // Check pledges with status pending or approved
                     $dup = $db->prepare("SELECT id FROM pledges WHERE donor_phone=? AND status IN ('pending','approved') LIMIT 1");
                     $dup->bind_param('s', $donorPhone);
@@ -385,6 +386,15 @@ if (isset($_SESSION['success_message'])) {
                                     Make this donation anonymous
                                 </label>
                             </div>
+                            
+                            <div class="form-check mb-3 d-none" id="additionalDonationDiv">
+                                <input class="form-check-input" type="checkbox" id="additional_donation" name="additional_donation" 
+                                       value="1">
+                                <label class="form-check-label" for="additional_donation">
+                                    <i class="fas fa-plus-circle me-1"></i>
+                                    This donor wants to make another donation
+                                </label>
+                            </div>
                         </div>
                         
                         <!-- Amount Selection -->
@@ -444,12 +454,14 @@ if (isset($_SESSION['success_message'])) {
                                 <input class="form-check-input" type="radio" name="type" id="typePledge" 
                                        value="pledge" checked>
                                 <label class="form-check-label" for="typePledge">
-                                    <i class="fas fa-handshake me-1"></i>Promise to Pay Later
+                                    <i class="fas fa-handshake me-1"></i>
+                                    Promise to Pay Later
                                 </label>
                                 
                                 <input class="form-check-input" type="radio" name="type" id="typePaid" value="paid">
                                 <label class="form-check-label" for="typePaid">
-                                    <i class="fas fa-check-circle me-1"></i>Paid Now
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Paid Now
                                 </label>
                             </div>
                         </div>
@@ -480,6 +492,54 @@ if (isset($_SESSION['success_message'])) {
                 
                 <!-- Mobile Action Button -->
             </main>
+        </div>
+    </div>
+    
+    <!-- Repeat Donor Modal -->
+    <div class="modal fade" id="repeatDonorModal" tabindex="-1" aria-labelledby="repeatDonorModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10 border-bottom-warning">
+                    <h5 class="modal-title" id="repeatDonorModalLabel">
+                        <i class="fas fa-user-circle me-2 text-warning"></i>Returning Donor Detected
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="donorInfo" class="mb-3">
+                        <p class="mb-2"><strong>Donor Name:</strong> <span id="modalDonorName">-</span></p>
+                        <p class="mb-3"><strong>Phone:</strong> <span id="modalDonorPhone">-</span></p>
+                    </div>
+                    
+                    <h6 class="mb-3 border-bottom pb-2">Previous Donations</h6>
+                    <div id="previousDonationsContainer" class="mb-3" style="max-height: 250px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="donationsTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>To continue:</strong> Check the "This donor wants to make another donation" checkbox below the anonymous option to proceed.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-warning" data-bs-dismiss="modal">
+                        <i class="fas fa-check me-1"></i>Got it
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     

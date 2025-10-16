@@ -36,6 +36,13 @@ try {
 			'approved' => 0,
 			'latest' => null,
 		],
+		'payments' => [
+			'pending' => 0,
+			'approved' => 0,
+			'latest' => null,
+		],
+		'recent_donations' => [],
+		'donor_name' => null,
 	];
 
 	// UK mobile starts with 07 and has 11 digits
@@ -49,32 +56,77 @@ try {
 	}
 
 	$db = db();
+	
+	// Get donor name from pledges or payments (most recent)
+	$nameStmt = $db->prepare("
+		(SELECT donor_name FROM pledges WHERE donor_phone = ? ORDER BY created_at DESC LIMIT 1)
+		UNION ALL
+		(SELECT donor_name FROM payments WHERE donor_phone = ? ORDER BY created_at DESC LIMIT 1)
+		LIMIT 1
+	");
+	$nameStmt->bind_param('ss', $phone, $phone);
+	$nameStmt->execute();
+	$nameRes = $nameStmt->get_result();
+	if ($nameRow = $nameRes->fetch_assoc()) {
+		$result['donor_name'] = $nameRow['donor_name'];
+	}
+	$nameStmt->close();
+	
 	// Count pledges for this phone
 	$stmt = $db->prepare("SELECT status, COUNT(*) as cnt, MAX(created_at) as latest FROM pledges WHERE donor_phone = ? GROUP BY status");
 	$stmt->bind_param('s', $phone);
 	$stmt->execute();
 	$res = $stmt->get_result();
-	$latest = null;
+	$pledgeLatest = null;
 	while ($row = $res->fetch_assoc()) {
 		$status = (string)$row['status'];
 		$cnt = (int)$row['cnt'];
 		if ($status === 'pending') { $result['pledges']['pending'] = $cnt; }
 		if ($status === 'approved') { $result['pledges']['approved'] = $cnt; }
-		if ($row['latest'] && (!$latest || $row['latest'] > $latest)) { $latest = $row['latest']; }
+		if ($row['latest'] && (!$pledgeLatest || $row['latest'] > $pledgeLatest)) { $pledgeLatest = $row['latest']; }
 	}
-	$result['pledges']['latest'] = $latest;
+	$result['pledges']['latest'] = $pledgeLatest;
+	$stmt->close();
 	
-	// Also check payments for this phone
-	$paymentCount = 0;
-	$paymentStmt = $db->prepare("SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ? AND status IN ('pending', 'approved')");
+	// Count payments for this phone
+	$paymentStmt = $db->prepare("SELECT status, COUNT(*) as cnt, MAX(created_at) as latest FROM payments WHERE donor_phone = ? GROUP BY status");
 	$paymentStmt->bind_param('s', $phone);
 	$paymentStmt->execute();
 	$paymentRes = $paymentStmt->get_result();
-	if ($paymentRow = $paymentRes->fetch_assoc()) {
-		$paymentCount = (int)$paymentRow['cnt'];
+	$paymentLatest = null;
+	while ($paymentRow = $paymentRes->fetch_assoc()) {
+		$status = (string)$paymentRow['status'];
+		$cnt = (int)$paymentRow['cnt'];
+		if ($status === 'pending') { $result['payments']['pending'] = $cnt; }
+		if ($status === 'approved') { $result['payments']['approved'] = $cnt; }
+		if ($paymentRow['latest'] && (!$paymentLatest || $paymentRow['latest'] > $paymentLatest)) { $paymentLatest = $paymentRow['latest']; }
 	}
+	$result['payments']['latest'] = $paymentLatest;
+	$paymentStmt->close();
 	
-	$result['exists'] = ($result['pledges']['pending'] + $result['pledges']['approved'] + $paymentCount) > 0;
+	// Get recent donations (pledges + payments combined, last 5)
+	$recentSql = "
+		(SELECT amount, 'pledge' AS type, created_at as donation_date, status FROM pledges WHERE donor_phone = ?)
+		UNION ALL
+		(SELECT amount, 'payment' AS type, created_at as donation_date, status FROM payments WHERE donor_phone = ?)
+		ORDER BY donation_date DESC
+		LIMIT 5
+	";
+	$recentStmt = $db->prepare($recentSql);
+	$recentStmt->bind_param('ss', $phone, $phone);
+	$recentStmt->execute();
+	$recentRes = $recentStmt->get_result();
+	while ($recentRow = $recentRes->fetch_assoc()) {
+		$result['recent_donations'][] = [
+			'amount' => (float)$recentRow['amount'],
+			'type' => $recentRow['type'],
+			'date' => $recentRow['donation_date'],
+			'status' => $recentRow['status'],
+		];
+	}
+	$recentStmt->close();
+	
+	$result['exists'] = ($result['pledges']['pending'] + $result['pledges']['approved'] + $result['payments']['pending'] + $result['payments']['approved']) > 0;
 
 	echo json_encode($result);
 } catch (Throwable $e) {
