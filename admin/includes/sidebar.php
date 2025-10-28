@@ -73,6 +73,13 @@ try {
         </span>
         <span class="nav-label">Members</span>
       </a>
+      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'donors' ? './' : '../donors/'; ?>" 
+         class="nav-link <?php echo $current_dir === 'donors' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-people-arrows"></i>
+        </span>
+        <span class="nav-label">Donors</span>
+      </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'user-status' ? './' : '../user-status/'; ?>" 
          class="nav-link <?php echo $current_dir === 'user-status' ? 'active' : ''; ?>">
         <span class="nav-icon">
