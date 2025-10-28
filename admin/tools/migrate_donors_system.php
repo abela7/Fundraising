@@ -1,16 +1,11 @@
 <?php
 declare(strict_types=1);
-session_start();
 
-require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../config/db.php';
 
-// Admin only
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    http_response_code(403);
-    header('Location: /admin/error/403.php');
-    exit;
-}
+// Admin only - uses proper auth check
+require_admin();
 
 $database = db();
 $migrationLog = [];
