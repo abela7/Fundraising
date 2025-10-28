@@ -1,62 +1,82 @@
 <?php
 declare(strict_types=1);
 
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
 require_admin();
 
-$database = db();
+try {
+    $database = db();
+    
+    if (!$database) {
+        throw new Exception("Database connection failed");
+    }
 
-// Get all donors with their pledge and payment counts
-$donors = $database->query("
-    SELECT 
-        d.id,
-        d.name,
-        d.phone,
-        d.preferred_language,
-        d.total_pledged,
-        d.total_paid,
-        d.balance,
-        d.payment_status,
-        d.achievement_badge,
-        d.pledge_count,
-        d.payment_count,
-        d.created_at,
-        d.last_payment_date,
-        d.active_payment_plan_id,
-        COALESCE((SELECT COUNT(*) FROM pledges WHERE donor_id = d.id), 0) as pledge_records,
-        COALESCE((SELECT COUNT(*) FROM payments WHERE donor_id = d.id), 0) as payment_records
-    FROM donors d
-    ORDER BY d.balance DESC
-")->fetch_all(MYSQLI_ASSOC);
+    // Get all donors with their pledge and payment counts
+    $result = $database->query("
+        SELECT 
+            d.id,
+            d.name,
+            d.phone,
+            d.preferred_language,
+            d.total_pledged,
+            d.total_paid,
+            d.balance,
+            d.payment_status,
+            d.achievement_badge,
+            d.pledge_count,
+            d.payment_count,
+            d.created_at,
+            d.last_payment_date,
+            d.active_payment_plan_id
+        FROM donors d
+        ORDER BY d.balance DESC
+    ");
+    
+    if (!$result) {
+        throw new Exception("Query failed: " . $database->error);
+    }
+    
+    $donors = $result->fetch_all(MYSQLI_ASSOC);
 
-// Get overall statistics
-$stats = $database->query("
-    SELECT 
-        COUNT(*) as total_donors,
-        COUNT(CASE WHEN total_pledged > 0 THEN 1 END) as donors_with_pledges,
-        COUNT(CASE WHEN total_paid > 0 THEN 1 END) as donors_with_payments,
-        COUNT(CASE WHEN payment_status = 'completed' THEN 1 END) as fully_paid_donors,
-        SUM(total_pledged) as total_pledged_amount,
-        SUM(total_paid) as total_paid_amount,
-        SUM(balance) as total_outstanding_balance
-    FROM donors
-")->fetch_assoc() ?: [];
+    // Get overall statistics
+    $statsResult = $database->query("
+        SELECT 
+            COUNT(*) as total_donors,
+            SUM(CASE WHEN total_pledged > 0 THEN 1 ELSE 0 END) as donors_with_pledges,
+            SUM(CASE WHEN total_paid > 0 THEN 1 ELSE 0 END) as donors_with_payments,
+            SUM(CASE WHEN payment_status = 'completed' THEN 1 ELSE 0 END) as fully_paid_donors,
+            SUM(total_pledged) as total_pledged_amount,
+            SUM(total_paid) as total_paid_amount,
+            SUM(balance) as total_outstanding_balance
+        FROM donors
+    ");
+    
+    $stats = $statsResult ? $statsResult->fetch_assoc() : [];
 
-// Get status breakdown
-$statusBreakdown = $database->query("
-    SELECT payment_status, COUNT(*) as count 
-    FROM donors 
-    GROUP BY payment_status
-")->fetch_all(MYSQLI_ASSOC);
+    // Get status breakdown
+    $statusResult = $database->query("
+        SELECT payment_status, COUNT(*) as count 
+        FROM donors 
+        GROUP BY payment_status
+    ");
+    $statusBreakdown = $statusResult ? $statusResult->fetch_all(MYSQLI_ASSOC) : [];
 
-// Get badge breakdown
-$badgeBreakdown = $database->query("
-    SELECT achievement_badge, COUNT(*) as count 
-    FROM donors 
-    GROUP BY achievement_badge
-")->fetch_all(MYSQLI_ASSOC);
+    // Get badge breakdown
+    $badgeResult = $database->query("
+        SELECT achievement_badge, COUNT(*) as count 
+        FROM donors 
+        GROUP BY achievement_badge
+    ");
+    $badgeBreakdown = $badgeResult ? $badgeResult->fetch_all(MYSQLI_ASSOC) : [];
+    
+} catch (Exception $e) {
+    die("Error: " . htmlspecialchars($e->getMessage()));
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -92,13 +112,26 @@ $badgeBreakdown = $database->query("
 </head>
 <body>
 <div class="admin-wrapper">
-    <?php include '../includes/sidebar.php'; ?>
+    <?php 
+    // include '../includes/sidebar.php'; 
+    echo "<!-- Sidebar excluded for debugging -->";
+    ?>
     <div class="admin-content">
-        <?php include '../includes/topbar.php'; ?>
+        <?php 
+        // include '../includes/topbar.php'; 
+        echo "<!-- Topbar excluded for debugging -->";
+        ?>
         <main class="main-content">
             <div class="container-fluid">
                 <h2 class="mb-4"><i class="fas fa-users"></i> Comprehensive Donor Data</h2>
                 
+                <!-- Debug Info -->
+                <div class="alert alert-info">
+                    <strong>DEBUG:</strong> Page loaded successfully. 
+                    Donors count: <?= count($donors) ?> | 
+                    Total Stats: <?= json_encode($stats) ?>
+                </div>
+
                 <!-- Key Statistics -->
                 <div class="row mb-4">
                     <div class="col-md-3 mb-3">
@@ -236,7 +269,7 @@ $badgeBreakdown = $database->query("
                         <div class="row">
                             <div class="col-md-6">
                                 <h5 style="margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 700; border-top: 2px solid #e5e7eb; padding-top: 1rem;">
-                                    <i class="fas fa-handshake"></i> PLEDGES (<?= $donor['pledge_records'] ?>)
+                                    <i class="fas fa-handshake"></i> PLEDGES (<?= $donor['pledge_records'] ?? 0 ?>)
                                 </h5>
                                 <?php
                                 $stmt = $database->prepare("SELECT id, amount, pledge_date, status, notes FROM pledges WHERE donor_id = ? ORDER BY pledge_date DESC");
@@ -272,7 +305,7 @@ $badgeBreakdown = $database->query("
                             <!-- Payments Section -->
                             <div class="col-md-6">
                                 <h5 style="margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 700; border-top: 2px solid #e5e7eb; padding-top: 1rem;">
-                                    <i class="fas fa-credit-card"></i> PAYMENTS (<?= $donor['payment_records'] ?>)
+                                    <i class="fas fa-credit-card"></i> PAYMENTS (<?= $donor['payment_records'] ?? 0 ?>)
                                 </h5>
                                 <?php
                                 $stmt2 = $database->prepare("SELECT id, amount, payment_date, payment_method, status, pledge_id, installment_number FROM payments WHERE donor_id = ? ORDER BY payment_date DESC");
