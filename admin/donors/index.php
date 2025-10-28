@@ -137,11 +137,12 @@ $currency = '£';
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donor Overview | Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Donor Overview - Fundraising Admin</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
         .stats-card {
@@ -249,15 +250,15 @@ $currency = '£';
                 <!-- Page Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h2><i class="bi bi-people-fill"></i> Donor Overview</h2>
+                        <h2><i class="fas fa-users"></i> Donor Overview</h2>
                         <p class="text-muted mb-0">Complete donor registry and financial tracking</p>
                     </div>
                     <div>
                         <button class="btn btn-primary" onclick="window.print()">
-                            <i class="bi bi-printer"></i> Print Report
+                            <i class="fas fa-print"></i> Print Report
                         </button>
                         <a href="export.php" class="btn btn-success">
-                            <i class="bi bi-file-earmark-excel"></i> Export CSV
+                            <i class="fas fa-file-excel"></i> Export CSV
                         </a>
                     </div>
                 </div>
@@ -267,25 +268,25 @@ $currency = '£';
                     <div class="col-md-3">
                         <div class="stats-card info">
                             <h3><?= number_format($stats['total_donors']) ?></h3>
-                            <p><i class="bi bi-people"></i> Total Donors</p>
+                            <p><i class="fas fa-users"></i> Total Donors</p>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="stats-card">
                             <h3><?= number_format($stats['donors_with_pledges']) ?></h3>
-                            <p><i class="bi bi-hand-thumbs-up"></i> Made Pledges</p>
+                            <p><i class="fas fa-hand-holding-usd"></i> Made Pledges</p>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="stats-card success">
                             <h3><?= number_format($stats['donors_with_payments']) ?></h3>
-                            <p><i class="bi bi-cash-coin"></i> Made Payments</p>
+                            <p><i class="fas fa-money-bill-wave"></i> Made Payments</p>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="stats-card warning">
                             <h3><?= number_format($stats['fully_paid_donors']) ?></h3>
-                            <p><i class="bi bi-check-circle"></i> Fully Paid</p>
+                            <p><i class="fas fa-check-circle"></i> Fully Paid</p>
                         </div>
                     </div>
                 </div>
@@ -295,19 +296,19 @@ $currency = '£';
                     <div class="col-md-4">
                         <div class="stats-card info">
                             <h3><?= $currency . number_format($stats['total_pledged_amount'], 2) ?></h3>
-                            <p><i class="bi bi-wallet2"></i> Total Pledged</p>
+                            <p><i class="fas fa-wallet"></i> Total Pledged</p>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="stats-card success">
                             <h3><?= $currency . number_format($stats['total_paid_amount'], 2) ?></h3>
-                            <p><i class="bi bi-currency-pound"></i> Total Paid</p>
+                            <p><i class="fas fa-pound-sign"></i> Total Paid</p>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="stats-card danger">
                             <h3><?= $currency . number_format($stats['total_outstanding_balance'], 2) ?></h3>
-                            <p><i class="bi bi-exclamation-triangle"></i> Outstanding Balance</p>
+                            <p><i class="fas fa-exclamation-triangle"></i> Outstanding Balance</p>
                         </div>
                     </div>
                 </div>
@@ -317,7 +318,7 @@ $currency = '£';
                     <div class="col-md-6">
                         <div class="table-card">
                             <div class="card-body">
-                                <h5 class="card-title"><i class="bi bi-bar-chart"></i> Payment Status Breakdown</h5>
+                                <h5 class="card-title"><i class="fas fa-chart-bar"></i> Payment Status Breakdown</h5>
                                 <table class="table table-sm">
                                     <tbody>
                                         <?php foreach ($statusBreakdown as $status => $count): ?>
@@ -344,7 +345,7 @@ $currency = '£';
                     <div class="col-md-6">
                         <div class="table-card">
                             <div class="card-body">
-                                <h5 class="card-title"><i class="bi bi-trophy"></i> Achievement Badges</h5>
+                                <h5 class="card-title"><i class="fas fa-trophy"></i> Achievement Badges</h5>
                                 <table class="table table-sm">
                                     <tbody>
                                         <?php foreach ($badgeBreakdown as $badge => $count): ?>
@@ -384,7 +385,7 @@ $currency = '£';
                 <div class="filter-section">
                     <form method="GET" class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label"><i class="bi bi-search"></i> Search</label>
+                            <label class="form-label"><i class="fas fa-search"></i> Search</label>
                             <input type="text" 
                                    name="search" 
                                    class="form-control" 
@@ -393,7 +394,7 @@ $currency = '£';
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label"><i class="bi bi-funnel"></i> Payment Status</label>
+                            <label class="form-label"><i class="fas fa-filter"></i> Payment Status</label>
                             <select name="status" class="form-select">
                                 <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>All Statuses</option>
                                 <option value="no_pledge" <?= $statusFilter === 'no_pledge' ? 'selected' : '' ?>>No Pledge</option>
@@ -405,7 +406,7 @@ $currency = '£';
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label"><i class="bi bi-sort-down"></i> Sort By</label>
+                            <label class="form-label"><i class="fas fa-sort"></i> Sort By</label>
                             <select name="sort" class="form-select">
                                 <option value="balance_desc" <?= $sortBy === 'balance_desc' ? 'selected' : '' ?>>Balance (High to Low)</option>
                                 <option value="balance_asc" <?= $sortBy === 'balance_asc' ? 'selected' : '' ?>>Balance (Low to High)</option>
@@ -419,7 +420,7 @@ $currency = '£';
                         <div class="col-md-2">
                             <label class="form-label">&nbsp;</label>
                             <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-filter"></i> Apply Filters
+                                <i class="fas fa-filter"></i> Apply Filters
                             </button>
                         </div>
                     </form>
@@ -446,7 +447,7 @@ $currency = '£';
                                 <?php if (empty($donors)): ?>
                                     <tr>
                                         <td colspan="9" class="text-center py-4 text-muted">
-                                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                                            <i class="fas fa-inbox" style="font-size: 3rem;"></i>
                                             <p class="mb-0 mt-2">No donors found matching your criteria</p>
                                         </td>
                                     </tr>
@@ -505,7 +506,7 @@ $currency = '£';
                                                 <a href="view.php?id=<?= $donor['id'] ?>" 
                                                    class="btn btn-sm btn-outline-primary"
                                                    title="View Details">
-                                                    <i class="bi bi-eye"></i>
+                                                    <i class="fas fa-eye"></i>
                                                 </a>
                                             </td>
                                         </tr>
@@ -560,8 +561,8 @@ $currency = '£';
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/admin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 </body>
 </html>
 

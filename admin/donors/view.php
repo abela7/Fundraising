@@ -40,11 +40,12 @@ $currency = '£';
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($donor['name']) ?> | Donor Details</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= htmlspecialchars($donor['name']) ?> - Fundraising Admin</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
 </head>
 <body>
@@ -59,11 +60,11 @@ $currency = '£';
                 
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h2><i class="bi bi-person-circle"></i> <?= htmlspecialchars($donor['name']) ?></h2>
+                        <h2><i class="fas fa-user-circle"></i> <?= htmlspecialchars($donor['name']) ?></h2>
                         <p class="text-muted mb-0">Donor ID: #<?= $donor['id'] ?> | Phone: <?= htmlspecialchars($donor['phone']) ?></p>
                     </div>
                     <a href="index.php" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Back to List
+                        <i class="fas fa-arrow-left"></i> Back to List
                     </a>
                 </div>
                 
@@ -106,7 +107,7 @@ $currency = '£';
                 <!-- Pledges -->
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-hand-thumbs-up"></i> Pledges (<?= count($pledges) ?>)</h5>
+                        <h5 class="mb-0"><i class="fas fa-hand-holding-usd"></i> Pledges (<?= count($pledges) ?>)</h5>
                     </div>
                     <div class="card-body">
                         <?php if (empty($pledges)): ?>
@@ -145,7 +146,7 @@ $currency = '£';
                 <!-- Payments -->
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Payments (<?= count($payments) ?>)</h5>
+                        <h5 class="mb-0"><i class="fas fa-money-bill-wave"></i> Payments (<?= count($payments) ?>)</h5>
                     </div>
                     <div class="card-body">
                         <?php if (empty($payments)): ?>
@@ -186,7 +187,8 @@ $currency = '£';
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 </body>
 </html>
 
