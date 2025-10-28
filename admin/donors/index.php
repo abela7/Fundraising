@@ -239,11 +239,11 @@ $badgeBreakdown = $database->query("
                                     <i class="fas fa-handshake"></i> PLEDGES (<?= $donor['pledge_records'] ?>)
                                 </h5>
                                 <?php
-                                $pledges = $database->query(
-                                    "SELECT id, amount, pledge_date, status, notes FROM pledges WHERE donor_id = ? ORDER BY pledge_date DESC",
-                                    [$donor['id']]
-                                );
-                                $pledgeRecords = $pledges instanceof \mysqli_result ? $pledges->fetch_all(MYSQLI_ASSOC) : [];
+                                $stmt = $database->prepare("SELECT id, amount, pledge_date, status, notes FROM pledges WHERE donor_id = ? ORDER BY pledge_date DESC");
+                                $stmt->bind_param("i", $donor['id']);
+                                $stmt->execute();
+                                $pledgesResult = $stmt->get_result();
+                                $pledgeRecords = $pledgesResult ? $pledgesResult->fetch_all(MYSQLI_ASSOC) : [];
                                 ?>
                                 <?php if (empty($pledgeRecords)): ?>
                                 <div class="empty-state">No pledges found</div>
@@ -275,11 +275,11 @@ $badgeBreakdown = $database->query("
                                     <i class="fas fa-credit-card"></i> PAYMENTS (<?= $donor['payment_records'] ?>)
                                 </h5>
                                 <?php
-                                $payments = $database->query(
-                                    "SELECT id, amount, payment_date, payment_method, status, pledge_id, installment_number FROM payments WHERE donor_id = ? ORDER BY payment_date DESC",
-                                    [$donor['id']]
-                                );
-                                $paymentRecords = $payments instanceof \mysqli_result ? $payments->fetch_all(MYSQLI_ASSOC) : [];
+                                $stmt2 = $database->prepare("SELECT id, amount, payment_date, payment_method, status, pledge_id, installment_number FROM payments WHERE donor_id = ? ORDER BY payment_date DESC");
+                                $stmt2->bind_param("i", $donor['id']);
+                                $stmt2->execute();
+                                $paymentsResult = $stmt2->get_result();
+                                $paymentRecords = $paymentsResult ? $paymentsResult->fetch_all(MYSQLI_ASSOC) : [];
                                 ?>
                                 <?php if (empty($paymentRecords)): ?>
                                 <div class="empty-state">No payments found</div>
