@@ -143,6 +143,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
             </div>
 
+            <!-- Donor System Migration -->
+            <div class="col-12 mb-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white d-flex align-items-center">
+                        <i class="fas fa-database-gear me-2"></i>
+                        🚀 Donor System Migration (Payment Plans & Portal)
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">
+                            <strong>New Feature:</strong> Migrate your database to support the new Donor Payment Plan System with:
+                        </p>
+                        <ul class="mb-3">
+                            <li>✅ Central <strong>donors</strong> table for all donor tracking</li>
+                            <li>✅ <strong>Payment plans</strong> with installment management</li>
+                            <li>✅ <strong>Donor portal</strong> with multi-language support (EN/AM/TI)</li>
+                            <li>✅ <strong>Comprehensive audit logging</strong> for all changes</li>
+                            <li>✅ <strong>SMS notifications</strong> and secure token management</li>
+                            <li>✅ Automatic linking of existing pledges and payments</li>
+                        </ul>
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Safe Migration:</strong> This migration uses transactions and can be rolled back if any issues occur. All existing data is preserved.
+                        </div>
+                        <a href="migrate_donors_system.php" class="btn btn-primary btn-lg">
+                            <i class="fas fa-rocket-takeoff me-2"></i>Run Donor System Migration
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Database Sync Tools -->
             <div class="col-12 mb-4">
                 <div class="card">
