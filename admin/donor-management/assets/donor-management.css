@@ -1,23 +1,73 @@
 /**
  * Donor Management Styles
- * Professional styling for donor management section
+ * Professional styling matching dashboard design
  */
 
-/* Icon Circles - Match comprehensive report style */
-.icon-circle {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
+/* Stat Cards - Dashboard Style */
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    transition: all 0.3s ease;
+    border: 1px solid #e5e7eb;
+    height: 100%;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary, #0d6efd);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 1.5rem;
+    color: white;
     flex-shrink: 0;
-    transition: all 0.3s ease;
 }
 
-/* Card Hover Effects */
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.875rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    color: #1f2937;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.stat-trend {
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Card Styles */
 .card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
     transition: all 0.3s ease;
 }
 
@@ -26,8 +76,27 @@
     box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
 }
 
-.card:hover .icon-circle {
-    transform: scale(1.1);
+.card-header {
+    background: transparent;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+}
+
+.card-header h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.card-header h6 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.card-body {
+    padding: 1.5rem;
 }
 
 /* Card hover effects */
@@ -163,23 +232,31 @@ a.text-decoration-none:hover .card-title {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .stat-card {
+        padding: 1.25rem;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.25rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
     .card-header h5,
     .card-header h6 {
         font-size: 0.95rem;
     }
     
+    .card-body {
+        padding: 1.25rem;
+    }
+    
     .h2 {
         font-size: 1.5rem;
-    }
-    
-    .icon-circle {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-    }
-    
-    .card-body {
-        padding: 1rem;
     }
     
     .h5 {
@@ -188,10 +265,22 @@ a.text-decoration-none:hover .card-title {
 }
 
 @media (max-width: 576px) {
-    .icon-circle {
-        width: 35px;
-        height: 35px;
-        font-size: 0.9rem;
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
+    }
+    
+    .stat-value {
+        font-size: 1.375rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
     }
 }
 

@@ -230,77 +230,79 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 <?php if ($donors_table_exists): ?>
                 
                 <!-- Summary Statistics -->
-                <div class="row g-3 mb-4">
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <div class="icon-circle bg-primary text-white">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                                <div class="ms-3">
-                                    <div class="small fw-bold text-primary mb-1">Pledge Donors</div>
-                                    <div class="h5 mb-0"><?php echo number_format((int)$stats['total_donors']); ?></div>
-                                    <div class="small text-muted">Need tracking</div>
+                <div class="row g-4 mb-4">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in">
+                            <div class="stat-icon bg-primary">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo number_format((int)$stats['total_donors']); ?></h3>
+                                <p class="stat-label">Pledge Donors</p>
+                                <div class="stat-trend text-muted">
+                                    <i class="fas fa-clipboard-check"></i> Need tracking
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <div class="icon-circle bg-warning text-white">
-                                    <i class="fas fa-hand-holding-usd"></i>
-                                </div>
-                                <div class="ms-3">
-                                    <div class="small fw-bold text-warning mb-1">Total Pledged</div>
-                                    <div class="h5 mb-0"><?php echo $currency; ?> <?php echo number_format((float)$stats['total_pledged'], 2); ?></div>
-                                    <div class="small text-muted">Pledges: <?php echo number_format((int)$stats['donors_with_pledges']); ?></div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s;">
+                            <div class="stat-icon bg-warning">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo $currency . ' ' . number_format((float)$stats['total_pledged'], 0); ?></h3>
+                                <p class="stat-label">Total Pledged</p>
+                                <div class="stat-trend text-warning">
+                                    <i class="fas fa-handshake"></i> Promised
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <div class="icon-circle bg-success text-white">
-                                    <i class="fas fa-check-circle"></i>
-                                </div>
-                                <div class="ms-3">
-                                    <div class="small fw-bold text-success mb-1">Total Paid</div>
-                                    <div class="h5 mb-0"><?php echo $currency; ?> <?php echo number_format((float)$stats['total_paid'], 2); ?></div>
-                                    <div class="small text-muted">Payments collected</div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s;">
+                            <div class="stat-icon bg-success">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo $currency . ' ' . number_format((float)$stats['total_paid'], 0); ?></h3>
+                                <p class="stat-label">Total Paid</p>
+                                <div class="stat-trend text-success">
+                                    <i class="fas fa-arrow-up"></i> Collected
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body d-flex align-items-center">
-                                <div class="icon-circle bg-danger text-white">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                </div>
-                                <div class="ms-3">
-                                    <div class="small fw-bold text-danger mb-1">Outstanding</div>
-                                    <div class="h5 mb-0"><?php echo $currency; ?> <?php echo number_format((float)$stats['total_balance'], 2); ?></div>
-                                    <div class="small text-muted">Remaining balance</div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.3s;">
+                            <div class="stat-icon bg-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value text-danger"><?php echo $currency . ' ' . number_format((float)$stats['total_balance'], 0); ?></h3>
+                                <p class="stat-label">Outstanding Balance</p>
+                                <div class="stat-trend text-danger">
+                                    <i class="fas fa-hourglass-half"></i> Remaining
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="row g-3 mb-4">
+                <div class="row g-4 mb-4">
                     <!-- Payment Status Breakdown -->
                     <div class="col-12 col-lg-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <h6 class="mb-3">
+                        <div class="card animate-fade-in" style="animation-delay: 0.4s;">
+                            <div class="card-header bg-white border-bottom">
+                                <h5 class="mb-0">
                                     <i class="fas fa-chart-pie text-primary me-2"></i>
                                     Payment Status Breakdown
-                                </h6>
+                                </h5>
+                            </div>
+                            <div class="card-body">
                                 <?php 
                                 $status_icons = [
                                     'no_pledge' => ['icon' => 'fa-minus-circle', 'color' => 'secondary'],
@@ -335,12 +337,14 @@ $currency = $settings['currency_code'] ?? 'GBP';
 
                     <!-- Achievement Badge Breakdown -->
                     <div class="col-12 col-lg-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <h6 class="mb-3">
+                        <div class="card animate-fade-in" style="animation-delay: 0.5s;">
+                            <div class="card-header bg-white border-bottom">
+                                <h5 class="mb-0">
                                     <i class="fas fa-trophy text-warning me-2"></i>
                                     Achievement Badges
-                                </h6>
+                                </h5>
+                            </div>
+                            <div class="card-body">
                                 <?php 
                                 $badge_config = [
                                     'pending' => ['icon' => 'fa-circle', 'color' => 'secondary'],
@@ -375,14 +379,16 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 </div>
 
                 <!-- Data Quality Metrics -->
-                <div class="row g-3 mb-4">
+                <div class="row g-4 mb-4">
                     <div class="col-12 col-lg-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <h6 class="mb-3">
+                        <div class="card animate-fade-in" style="animation-delay: 0.6s;">
+                            <div class="card-header bg-white border-bottom">
+                                <h5 class="mb-0">
                                     <i class="fas fa-clipboard-check text-success me-2"></i>
                                     Data Quality Metrics
-                                </h6>
+                                </h5>
+                            </div>
+                            <div class="card-body">
                                 <?php
                                 $phone_percentage = $stats['total_donors'] > 0 ? ((int)$stats['donors_with_phone'] / $stats['total_donors']) * 100 : 0;
                                 $phone_color = $phone_percentage >= 95 ? 'success' : ($phone_percentage >= 80 ? 'warning' : 'danger');
@@ -440,12 +446,14 @@ $currency = $settings['currency_code'] ?? 'GBP';
 
                     <!-- Additional Statistics -->
                     <div class="col-12 col-lg-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <h6 class="mb-3">
+                        <div class="card animate-fade-in" style="animation-delay: 0.7s;">
+                            <div class="card-header bg-white border-bottom">
+                                <h5 class="mb-0">
                                     <i class="fas fa-chart-bar text-info me-2"></i>
                                     Additional Statistics
-                                </h6>
+                                </h5>
+                            </div>
+                            <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-6">
                                         <div class="text-center p-3 border rounded">
@@ -478,15 +486,17 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 </div>
 
                 <!-- More Detailed Breakdowns -->
-                <div class="row g-3 mb-4">
+                <div class="row g-4 mb-4">
                     <!-- Source Breakdown -->
                     <div class="col-12 col-md-4">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <h6 class="mb-3">
+                        <div class="card animate-fade-in" style="animation-delay: 0.8s;">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="mb-0">
                                     <i class="fas fa-door-open text-primary me-2"></i>
                                     Registration Source
                                 </h6>
+                            </div>
+                            <div class="card-body">
                                 <ul class="list-unstyled mb-0">
                                     <?php foreach ($source_breakdown as $source): ?>
                                     <li class="mb-2 d-flex justify-content-between">
@@ -501,12 +511,14 @@ $currency = $settings['currency_code'] ?? 'GBP';
 
                     <!-- Language Preferences -->
                     <div class="col-12 col-md-4">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <h6 class="mb-3">
+                        <div class="card animate-fade-in" style="animation-delay: 0.9s;">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="mb-0">
                                     <i class="fas fa-language text-success me-2"></i>
                                     Language Preferences
                                 </h6>
+                            </div>
+                            <div class="card-body">
                                 <ul class="list-unstyled mb-0">
                                     <?php 
                                     $lang_names = ['en' => 'English', 'am' => 'Amharic', 'ti' => 'Tigrinya'];
@@ -524,12 +536,14 @@ $currency = $settings['currency_code'] ?? 'GBP';
 
                     <!-- Payment Method Preferences -->
                     <div class="col-12 col-md-4">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <h6 class="mb-3">
+                        <div class="card animate-fade-in" style="animation-delay: 1s;">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="mb-0">
                                     <i class="fas fa-credit-card text-warning me-2"></i>
                                     Payment Method Preferences
                                 </h6>
+                            </div>
+                            <div class="card-body">
                                 <ul class="list-unstyled mb-0">
                                     <?php foreach ($payment_method_breakdown as $method): ?>
                                     <li class="mb-2 d-flex justify-content-between">
@@ -544,12 +558,14 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 </div>
 
                 <!-- Recent Donors Table -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body">
-                        <h6 class="mb-3">
+                <div class="card animate-fade-in" style="animation-delay: 1.1s;">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">
                             <i class="fas fa-clock text-info me-2"></i>
                             Recent Pledge Donors (Last 10)
-                        </h6>
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-sm align-middle mb-0">
                                 <thead>
