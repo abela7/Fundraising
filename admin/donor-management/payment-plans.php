@@ -355,7 +355,11 @@ if ($db_connection_ok) {
             SELECT 
                 id, name, preferred_payment_method, total_pledged, total_paid, balance
             FROM donors 
-            WHERE {$pledge_filter} AND balance > 0
+            WHERE {$pledge_filter} 
+                AND balance > 0
+                AND name IS NOT NULL 
+                AND TRIM(name) != ''
+                AND LOWER(TRIM(name)) != 'anonymous'
             ORDER BY name ASC
         ");
         if ($result) {
