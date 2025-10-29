@@ -436,12 +436,11 @@ unset($donor); // Break reference
                                         <th>Paid</th>
                                         <th>Balance</th>
                                         <th>Payment Method</th>
-                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($donors as $donor): ?>
-                                    <tr>
+                                    <tr class="donor-row" style="cursor: pointer;" data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>' title="Click to view details">
                                         <td><?php echo (int)$donor['id']; ?></td>
                                         <td class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></td>
                                         <td>
@@ -469,17 +468,6 @@ unset($donor); // Break reference
                                         <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['balance'], 2); ?></td>
                                         <td><?php echo ucwords(str_replace('_', ' ', $donor['preferred_payment_method'] ?? 'Bank Transfer')); ?></td>
-                                        <td class="text-nowrap">
-                                            <button class="btn btn-sm btn-outline-primary edit-donor" 
-                                                    data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>'>
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger delete-donor" 
-                                                    data-id="<?php echo (int)$donor['id']; ?>" 
-                                                    data-name="<?php echo htmlspecialchars($donor['name']); ?>">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -615,6 +603,196 @@ unset($donor); // Break reference
     </div>
 </div>
 
+<!-- Donor Detail Modal -->
+<div class="modal fade" id="donorDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-circle me-2"></i>Donor Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <!-- Left Column: Basic Info -->
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-id-card me-2 text-primary"></i>Basic Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr>
+                                        <td class="text-muted" style="width: 40%;"><i class="fas fa-hashtag me-2"></i>Donor ID</td>
+                                        <td class="fw-bold" id="detail_id">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-user me-2"></i>Full Name</td>
+                                        <td class="fw-bold" id="detail_name">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-phone me-2"></i>Phone</td>
+                                        <td id="detail_phone">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-tag me-2"></i>Donor Type</td>
+                                        <td id="detail_type">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-language me-2"></i>Preferred Language</td>
+                                        <td id="detail_language">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-credit-card me-2"></i>Payment Method</td>
+                                        <td id="detail_payment_method">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-source me-2"></i>Registration Source</td>
+                                        <td id="detail_source">-</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Financial Info -->
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-pound-sign me-2 text-success"></i>Financial Summary</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr>
+                                        <td class="text-muted" style="width: 40%;"><i class="fas fa-handshake me-2"></i>Total Pledged</td>
+                                        <td class="fw-bold text-warning" id="detail_pledged">£0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-check-circle me-2"></i>Total Paid</td>
+                                        <td class="fw-bold text-success" id="detail_paid">£0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-balance-scale me-2"></i>Balance</td>
+                                        <td class="fw-bold text-danger" id="detail_balance">£0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-flag me-2"></i>Payment Status</td>
+                                        <td id="detail_status">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-trophy me-2"></i>Achievement Badge</td>
+                                        <td id="detail_badge">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-file-invoice me-2"></i>Total Pledges</td>
+                                        <td id="detail_pledge_count">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted"><i class="fas fa-receipt me-2"></i>Total Payments</td>
+                                        <td id="detail_payment_count">0</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Plan Info (if applicable) -->
+                    <div class="col-12" id="payment_plan_section" style="display: none;">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-calendar-alt me-2 text-info"></i>Payment Plan</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <small class="text-muted d-block">Monthly Amount</small>
+                                        <strong id="detail_plan_amount">-</strong>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted d-block">Duration</small>
+                                        <strong id="detail_plan_duration">-</strong>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted d-block">Start Date</small>
+                                        <strong id="detail_plan_start">-</strong>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted d-block">Next Due</small>
+                                        <strong id="detail_plan_next">-</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- System & Audit Info -->
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-secondary"></i>System Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <small class="text-muted d-block"><i class="fas fa-user-plus me-1"></i>Registered By</small>
+                                        <strong id="detail_registered_by">System</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted d-block"><i class="fas fa-calendar-plus me-1"></i>Created At</small>
+                                        <strong id="detail_created_at">-</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted d-block"><i class="fas fa-calendar-check me-1"></i>Last Updated</small>
+                                        <strong id="detail_updated_at">-</strong>
+                                    </div>
+                                </div>
+                                <div class="row mt-3" id="last_activity_section">
+                                    <div class="col-md-4">
+                                        <small class="text-muted d-block"><i class="fas fa-money-bill-wave me-1"></i>Last Payment</small>
+                                        <strong id="detail_last_payment">Never</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted d-block"><i class="fas fa-sms me-1"></i>Last SMS Sent</small>
+                                        <strong id="detail_last_sms">Never</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted d-block"><i class="fas fa-sign-in-alt me-1"></i>Portal Logins</small>
+                                        <strong id="detail_login_count">0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Notes (if any) -->
+                    <div class="col-12" id="admin_notes_section" style="display: none;">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-sticky-note me-2 text-warning"></i>Admin Notes</h6>
+                            </div>
+                            <div class="card-body">
+                                <p id="detail_admin_notes" class="mb-0 text-muted">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Close
+                </button>
+                <button type="button" class="btn btn-primary" id="btnEditFromDetail">
+                    <i class="fas fa-edit me-2"></i>Edit Donor
+                </button>
+                <button type="button" class="btn btn-danger" id="btnDeleteFromDetail">
+                    <i class="fas fa-trash me-2"></i>Delete Donor
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -739,6 +917,129 @@ $(document).ready(function() {
     // Initialize count
     updateFilterCount();
     
+    // Click on table row to view details
+    let currentDonorData = null;
+    
+    $(document).on('click', '.donor-row', function() {
+        const donor = JSON.parse($(this).attr('data-donor'));
+        currentDonorData = donor;
+        
+        // Populate basic info
+        $('#detail_id').text(donor.id);
+        $('#detail_name').text(donor.name);
+        $('#detail_phone').text(donor.phone || '-');
+        
+        // Donor type badge
+        const typeHtml = donor.donor_type === 'pledge' 
+            ? '<span class="badge bg-warning text-dark">Pledge Donor</span>' 
+            : '<span class="badge bg-success">Immediate Payer</span>';
+        $('#detail_type').html(typeHtml);
+        
+        $('#detail_language').text((donor.preferred_language || 'en').toUpperCase());
+        $('#detail_payment_method').text((donor.preferred_payment_method || 'bank_transfer').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+        $('#detail_source').text((donor.source || 'public_form').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+        
+        // Financial info
+        $('#detail_pledged').text('£' + parseFloat(donor.total_pledged || 0).toFixed(2));
+        $('#detail_paid').text('£' + parseFloat(donor.total_paid || 0).toFixed(2));
+        $('#detail_balance').text('£' + parseFloat(donor.balance || 0).toFixed(2));
+        
+        // Payment status badge
+        const statusMap = {
+            'completed': 'success',
+            'paying': 'primary',
+            'overdue': 'danger',
+            'not_started': 'warning'
+        };
+        const statusColor = statusMap[donor.payment_status] || 'secondary';
+        const statusText = (donor.payment_status || 'no_pledge').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        $('#detail_status').html('<span class="badge bg-' + statusColor + '">' + statusText + '</span>');
+        
+        // Achievement badge
+        const badgeText = (donor.achievement_badge || 'pending').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        $('#detail_badge').html('<span class="badge bg-info">' + badgeText + '</span>');
+        
+        $('#detail_pledge_count').text(donor.pledge_count || 0);
+        $('#detail_payment_count').text(donor.payment_count || 0);
+        
+        // Payment plan (show only if has active plan)
+        if (donor.has_active_plan == 1) {
+            $('#detail_plan_amount').text('£' + parseFloat(donor.plan_monthly_amount || 0).toFixed(2));
+            $('#detail_plan_duration').text((donor.plan_duration_months || 0) + ' months');
+            $('#detail_plan_start').text(donor.plan_start_date || '-');
+            $('#detail_plan_next').text(donor.plan_next_due_date || '-');
+            $('#payment_plan_section').show();
+        } else {
+            $('#payment_plan_section').hide();
+        }
+        
+        // System info
+        $('#detail_registered_by').text(donor.registered_by_user_id ? 'User #' + donor.registered_by_user_id : 'System');
+        $('#detail_created_at').text(donor.created_at ? new Date(donor.created_at).toLocaleString() : '-');
+        $('#detail_updated_at').text(donor.updated_at ? new Date(donor.updated_at).toLocaleString() : '-');
+        
+        // Last activity
+        $('#detail_last_payment').text(donor.last_payment_date ? new Date(donor.last_payment_date).toLocaleString() : 'Never');
+        $('#detail_last_sms').text(donor.last_sms_sent_at ? new Date(donor.last_sms_sent_at).toLocaleString() : 'Never');
+        $('#detail_login_count').text(donor.login_count || 0);
+        
+        // Admin notes
+        if (donor.admin_notes && donor.admin_notes.trim() !== '') {
+            $('#detail_admin_notes').text(donor.admin_notes);
+            $('#admin_notes_section').show();
+        } else {
+            $('#admin_notes_section').hide();
+        }
+        
+        // Show modal
+        $('#donorDetailModal').modal('show');
+    });
+    
+    // Edit button in detail modal
+    $('#btnEditFromDetail').click(function() {
+        if (currentDonorData) {
+            $('#donorDetailModal').modal('hide');
+            
+            // Populate edit modal
+            $('#edit_donor_id').val(currentDonorData.id);
+            $('#edit_name').val(currentDonorData.name);
+            $('#edit_phone').val(currentDonorData.phone || '');
+            $('#edit_preferred_language').val(currentDonorData.preferred_language || 'en');
+            $('#edit_preferred_payment_method').val(currentDonorData.preferred_payment_method || 'bank_transfer');
+            
+            const donorTypeText = currentDonorData.donor_type === 'pledge' 
+                ? '<span class="badge bg-warning">Pledge Donor</span>' 
+                : '<span class="badge bg-success">Immediate Payer</span>';
+            $('#edit_donor_type_display').html(donorTypeText);
+            
+            $('#editDonorModal').modal('show');
+        }
+    });
+    
+    // Delete button in detail modal
+    $('#btnDeleteFromDetail').click(function() {
+        if (currentDonorData) {
+            $('#donorDetailModal').modal('hide');
+            
+            if (!confirm('Are you sure you want to delete "' + currentDonorData.name + '"?\n\nThis action cannot be undone.')) {
+                return;
+            }
+            
+            const formData = $('#addDonorForm').serialize() + '&ajax_action=delete_donor&donor_id=' + currentDonorData.id;
+            
+            $.post('', formData, function(response) {
+                if (response.success) {
+                    alert(response.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            }, 'json').fail(function() {
+                alert('Server error. Please try again.');
+            });
+        }
+    });
+    
     // Add Donor
     $('#saveAddDonor').click(function() {
         const formData = $('#addDonorForm').serialize();
@@ -755,50 +1056,9 @@ $(document).ready(function() {
         });
     });
     
-    // Edit Donor
-    $('.edit-donor').click(function() {
-        const donor = JSON.parse($(this).attr('data-donor'));
-        
-        $('#edit_donor_id').val(donor.id);
-        $('#edit_name').val(donor.name);
-        $('#edit_phone').val(donor.phone || '');
-        $('#edit_preferred_language').val(donor.preferred_language);
-        $('#edit_preferred_payment_method').val(donor.preferred_payment_method);
-        
-        // Display donor type (readonly)
-        const donorTypeText = donor.donor_type === 'pledge' 
-            ? '<span class="badge bg-warning">Pledge Donor</span>' 
-            : '<span class="badge bg-success">Immediate Payer</span>';
-        $('#edit_donor_type_display').html(donorTypeText);
-        
-        $('#editDonorModal').modal('show');
-    });
-    
+    // Save Edit Donor
     $('#saveEditDonor').click(function() {
         const formData = $('#editDonorForm').serialize();
-        
-        $.post('', formData, function(response) {
-            if (response.success) {
-                alert(response.message);
-                location.reload();
-            } else {
-                alert('Error: ' + response.message);
-            }
-        }, 'json').fail(function() {
-            alert('Server error. Please try again.');
-        });
-    });
-    
-    // Delete Donor
-    $('.delete-donor').click(function() {
-        const donorId = $(this).data('id');
-        const donorName = $(this).data('name');
-        
-        if (!confirm('Are you sure you want to delete "' + donorName + '"?\n\nThis action cannot be undone.')) {
-            return;
-        }
-        
-        const formData = $('#addDonorForm').serialize() + '&ajax_action=delete_donor&donor_id=' + donorId;
         
         $.post('', formData, function(response) {
             if (response.success) {

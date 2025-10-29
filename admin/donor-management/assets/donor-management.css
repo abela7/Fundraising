@@ -368,6 +368,21 @@ a.text-decoration-none:hover .card-title {
     white-space: nowrap;
 }
 
+/* Clickable donor rows */
+.donor-row {
+    transition: all 0.2s ease;
+}
+
+.donor-row:hover {
+    background-color: #f0f7ff !important;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.donor-row:active {
+    transform: scale(0.99);
+}
+
 /* Responsive table adjustments for mobile */
 @media (max-width: 768px) {
     .table td, .table th {
