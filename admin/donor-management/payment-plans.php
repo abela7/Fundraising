@@ -353,7 +353,7 @@ if ($db_connection_ok) {
         
         $result = $db->query("
             SELECT 
-                id, name, phone, total_pledged, total_paid, balance
+                id, name, preferred_payment_method, total_pledged, total_paid, balance
             FROM donors 
             WHERE {$pledge_filter} AND balance > 0
             ORDER BY name ASC
@@ -450,21 +450,28 @@ foreach ($templates_all as $t) {
     }
     
     #preview_donor {
-        min-height: 200px;
-        max-height: 300px;
+        min-height: 180px;
+        max-height: 250px;
+        font-size: 0.95rem;
     }
     
     #preview_donor option {
-        padding: 0.5rem;
+        padding: 0.75rem 0.5rem;
         cursor: pointer;
+        line-height: 1.6;
     }
     
     #preview_donor option:hover {
-        background-color: #f8f9fa;
+        background-color: #e7f1ff;
     }
     
     #donor_filter_count {
         font-size: 0.875rem;
+        display: block;
+    }
+    
+    #donor_search {
+        border-radius: 0.375rem 0 0 0.375rem;
     }
     </style>
 </head>
@@ -773,34 +780,42 @@ foreach ($templates_all as $t) {
                         <div class="card-body">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Select Donor <span class="text-danger">*</span></label>
-                                <div class="position-relative">
-                                    <div class="input-group mb-2">
-                                        <span class="input-group-text bg-light">
-                                            <i class="fas fa-search text-muted"></i>
-                                        </span>
-                                        <input type="text" class="form-control" id="donor_search" 
-                                               placeholder="Search by name or phone..." autocomplete="off">
-                                        <button type="button" class="btn btn-outline-secondary" id="clear_donor_search" title="Clear search">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
+                                
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text bg-light">
+                                        <i class="fas fa-search text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="donor_search" 
+                                           placeholder="Search by name..." autocomplete="off">
+                                    <button type="button" class="btn btn-outline-secondary" id="clear_donor_search" title="Clear">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="mb-2">
                                     <small class="text-muted" id="donor_filter_count">
-                                        Showing <?php echo count($donors_for_preview); ?> donor<?php echo count($donors_for_preview) !== 1 ? 's' : ''; ?>
+                                        <?php echo count($donors_for_preview); ?> donor<?php echo count($donors_for_preview) !== 1 ? 's' : ''; ?> available
                                     </small>
                                 </div>
-                                <select class="form-select" id="preview_donor" required size="8" style="overflow-y: auto;">
-                                    <option value="">Choose a donor...</option>
-                                    <?php foreach ($donors_for_preview as $donor): ?>
+                                
+                                <select class="form-select" id="preview_donor" required size="6" style="overflow-y: auto;">
+                                    <option value="">-- Select a donor --</option>
+                                    <?php 
+                                    $payment_method_labels = [
+                                        'cash' => 'Cash',
+                                        'bank_transfer' => 'Bank Transfer',
+                                        'card' => 'Card'
+                                    ];
+                                    foreach ($donors_for_preview as $donor): 
+                                        $payment_method = $donor['preferred_payment_method'] ?? 'bank_transfer';
+                                        $payment_label = $payment_method_labels[$payment_method] ?? ucfirst(str_replace('_', ' ', $payment_method));
+                                    ?>
                                     <option value="<?php echo $donor['id']; ?>" 
                                             data-balance="<?php echo $donor['balance']; ?>"
                                             data-name="<?php echo htmlspecialchars($donor['name']); ?>"
-                                            data-phone="<?php echo htmlspecialchars($donor['phone']); ?>"
-                                            data-search-text="<?php echo strtolower(htmlspecialchars($donor['name'] . ' ' . $donor['phone'])); ?>">
-                                        <?php echo htmlspecialchars($donor['name']); ?> 
-                                        <?php if (!empty($donor['phone'])): ?>
-                                            (<?php echo htmlspecialchars($donor['phone']); ?>)
-                                        <?php endif; ?>
-                                        - Balance: £<?php echo number_format($donor['balance'], 2); ?>
+                                            data-payment-method="<?php echo htmlspecialchars($payment_method); ?>"
+                                            data-search-text="<?php echo strtolower(htmlspecialchars($donor['name'] . ' ' . $payment_label)); ?>">
+                                        <?php echo htmlspecialchars($donor['name']); ?> • <?php echo htmlspecialchars($payment_label); ?> • £<?php echo number_format($donor['balance'], 2); ?>
                                     </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -1274,7 +1289,7 @@ document.getElementById('calculatePlanBtn').addEventListener('click', calculateP
     }
 });
 
-// Donor Search/Filter Functionality
+// Donor Search/Filter Functionality - Simple & Clean
 function filterDonors() {
     const searchTerm = document.getElementById('donor_search').value.toLowerCase().trim();
     const donorSelect = document.getElementById('preview_donor');
@@ -1295,39 +1310,62 @@ function filterDonors() {
         }
     });
     
-    // Update count
+    // Update count - simple display
     if (searchTerm === '') {
-        countElement.textContent = `Showing ${options.length} donor${options.length !== 1 ? 's' : ''}`;
+        countElement.textContent = `${options.length} donor${options.length !== 1 ? 's' : ''} available`;
+        countElement.className = 'text-muted';
     } else {
-        countElement.textContent = `Showing ${visibleCount} of ${options.length} donor${options.length !== 1 ? 's' : ''}`;
         if (visibleCount === 0) {
+            countElement.textContent = 'No donors found';
             countElement.className = 'text-danger';
-            countElement.textContent = 'No donors found. Try a different search term.';
         } else {
-            countElement.className = 'text-muted';
-        }
-    }
-    
-    // If search term exists and one result matches exactly, optionally highlight it
-    if (visibleCount === 1 && searchTerm !== '') {
-        const visibleOption = Array.from(options).find(opt => opt.style.display !== 'none');
-        if (visibleOption) {
-            donorSelect.value = visibleOption.value;
+            countElement.textContent = `${visibleCount} donor${visibleCount !== 1 ? 's' : ''} found`;
+            countElement.className = 'text-success';
         }
     }
 }
 
 // Setup donor search
 document.getElementById('donor_search').addEventListener('input', filterDonors);
-document.getElementById('donor_search').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        const donorSelect = document.getElementById('preview_donor');
-        const visibleOptions = Array.from(donorSelect.querySelectorAll('option:not([value=""]):not([style*="display: none"])'));
-        if (visibleOptions.length === 1) {
-            donorSelect.value = visibleOptions[0].value;
-            donorSelect.focus();
-        }
+
+// Handle donor selection - hide other options when one is selected
+document.getElementById('preview_donor').addEventListener('change', function() {
+    const donorSelect = this;
+    const selectedValue = donorSelect.value;
+    
+    if (selectedValue) {
+        // Hide all other options except the selected one and placeholder
+        const options = donorSelect.querySelectorAll('option:not([value=""])');
+        options.forEach(option => {
+            if (option.value === selectedValue) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+        
+        // Update count
+        document.getElementById('donor_filter_count').textContent = '1 donor selected';
+        document.getElementById('donor_filter_count').className = 'text-success';
+        
+        // Clear search input
+        document.getElementById('donor_search').value = '';
+    } else {
+        // Reset: show all options when "Choose a donor..." is selected
+        const options = donorSelect.querySelectorAll('option:not([value=""])');
+        options.forEach(option => {
+            option.style.display = '';
+        });
+        
+        // Reset count
+        const totalDonors = options.length;
+        document.getElementById('donor_filter_count').textContent = `${totalDonors} donor${totalDonors !== 1 ? 's' : ''} available`;
+        document.getElementById('donor_filter_count').className = 'text-muted';
+        
+        // Focus search for new selection
+        setTimeout(() => {
+            document.getElementById('donor_search').focus();
+        }, 100);
     }
 });
 
@@ -1336,6 +1374,16 @@ document.getElementById('clear_donor_search').addEventListener('click', function
     document.getElementById('donor_search').value = '';
     filterDonors();
     document.getElementById('donor_search').focus();
+    
+    // Also reset selection if needed
+    const donorSelect = document.getElementById('preview_donor');
+    if (donorSelect.value) {
+        // When clearing search, show all options again but keep selection
+        const options = donorSelect.querySelectorAll('option:not([value=""])');
+        options.forEach(option => {
+            option.style.display = '';
+        });
+    }
 });
 
 // Reset modal when opened
