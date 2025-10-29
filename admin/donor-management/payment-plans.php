@@ -1,4 +1,7 @@
 <?php
+// Enable output buffering to catch any accidental output before headers
+ob_start();
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
@@ -305,6 +308,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             
         } elseif ($action === 'save_payment_plan') {
             // Save payment plan to donor
+            // Clear any output buffer
+            ob_clean();
             header('Content-Type: application/json');
             
             // STEP 4: Log all received POST data
@@ -546,10 +551,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             // For nullable integers in bind_param, we need to pass NULL explicitly
             // mysqli can handle NULL for 'i' type, but we need to ensure it's actually NULL, not 0
             $template_id_bind = $template_id ?? null;
-            $total_months_bind = $total_months ?? null;
+            // total_months is NOT NULL in database, so it should never be null here (we ensure this in STEP 11)
+            // But for bind_param, we still pass it as is (it should be an integer)
+            $total_months_bind = $total_months; // This should never be null due to STEP 11 logic
             $total_payments_bind = $total_payments ?? null;
             
-            $debug_log[] = "Binding parameters - template_id: " . ($template_id_bind ?? 'NULL') . ", total_months: " . ($total_months_bind ?? 'NULL') . ", total_payments: " . ($total_payments_bind ?? 'NULL');
+            // Validate that total_months is not null before binding (safety check)
+            if ($total_months_bind === null || $total_months_bind <= 0) {
+                throw new Exception('STEP 12 FAILED: total_months cannot be NULL or <= 0, got: ' . var_export($total_months_bind, true));
+            }
+            
+            $debug_log[] = "Binding parameters - template_id: " . ($template_id_bind ?? 'NULL') . ", total_months: $total_months_bind, total_payments: " . ($total_payments_bind ?? 'NULL');
             
             $insert_plan->bind_param('iiiddiisisisssss',
                 $donor_id,              // i - integer
@@ -557,7 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $template_id_bind,      // i - integer (nullable) - can be NULL
                 $total_amount,          // d - decimal
                 $monthly_amount,        // d - decimal
-                $total_months_bind,     // i - integer (nullable) - can be NULL
+                $total_months_bind,     // i - integer (NOT NULL in DB - must be > 0)
                 $total_payments_bind,   // i - integer (nullable) - can be NULL
                 $start_date,            // s - string/date
                 $payment_day,           // i - integer
@@ -734,6 +746,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $db->rollback();
         }
         if (isset($_POST['action']) && ($_POST['action'] === 'save_payment_plan' || $_POST['action'] === 'clear_payment_plan')) {
+            // Clear any output buffer
+            ob_clean();
             header('Content-Type: application/json');
             // Include more detailed error info in development
             $error_msg = $e->getMessage();
@@ -746,7 +760,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 'success' => false, 
                 'message' => $error_msg,
                 'error_details' => $e->getFile() . ':' . $e->getLine(),
-                'sql_error' => $db->error ?? null
+                'sql_error' => ($db_connection_ok ? ($db->error ?? null) : null),
+                'error_type' => get_class($e)
             ];
             
             if (isset($debug_log)) {
@@ -754,6 +769,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             }
             
             echo json_encode($response);
+            ob_end_flush();
             exit;
         }
         $error_message = $e->getMessage();
@@ -762,14 +778,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $db->rollback();
         }
         if (isset($_POST['action']) && ($_POST['action'] === 'save_payment_plan' || $_POST['action'] === 'clear_payment_plan')) {
+            // Clear any output buffer
+            ob_clean();
             header('Content-Type: application/json');
             
             $response = [
                 'success' => false, 
                 'message' => 'Database error: ' . $e->getMessage(),
                 'error_details' => $e->getFile() . ':' . $e->getLine(),
-                'sql_error' => $db->error ?? 'No SQL error info',
-                'mysqli_errno' => $e->getCode()
+                'sql_error' => ($db_connection_ok ? ($db->error ?? 'No SQL error info') : 'DB not connected'),
+                'mysqli_errno' => $e->getCode(),
+                'error_type' => 'mysqli_sql_exception'
             ];
             
             if (isset($debug_log)) {
@@ -777,9 +796,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             }
             
             echo json_encode($response);
+            ob_end_flush();
             exit;
         }
         $error_message = 'Database error: ' . $e->getMessage();
+    } catch (Throwable $e) {
+        // Catch ANY other errors (Parse errors, fatal errors, etc.)
+        if ($db_connection_ok) {
+            try { $db->rollback(); } catch (Exception $re) {}
+        }
+        if (isset($_POST['action']) && ($_POST['action'] === 'save_payment_plan' || $_POST['action'] === 'clear_payment_plan')) {
+            ob_clean();
+            header('Content-Type: application/json');
+            
+            $response = [
+                'success' => false, 
+                'message' => 'Unexpected error: ' . $e->getMessage(),
+                'error_details' => $e->getFile() . ':' . $e->getLine(),
+                'error_type' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ];
+            
+            if (isset($debug_log)) {
+                $response['debug_log'] = $debug_log;
+            }
+            
+            echo json_encode($response);
+            ob_end_flush();
+            exit;
+        }
+        $error_message = 'Unexpected error: ' . $e->getMessage();
     }
 }
 
@@ -2267,14 +2313,20 @@ document.getElementById('savePlanBtn').addEventListener('click', function() {
             console.error('Error:', error);
             console.error('XHR Status:', xhr.status);
             console.error('XHR StatusText:', xhr.statusText);
-            console.error('Full XHR:', xhr);
+            console.error('Content-Type:', xhr.getResponseHeader('Content-Type'));
             
             let errorMsg = 'Server error. Please try again.';
             let fullErrorDetails = '';
             
+            // ALWAYS log the raw response text first
+            if (xhr.responseText) {
+                console.error('=== RAW Response Text (first 3000 chars) ===');
+                console.error(xhr.responseText.substring(0, 3000));
+            }
+            
             // Try to parse error response
             if (xhr.responseJSON) {
-                console.error('=== Response JSON ===');
+                console.error('=== Response JSON (from responseJSON) ===');
                 console.error(JSON.stringify(xhr.responseJSON, null, 2));
                 
                 errorMsg = xhr.responseJSON.message || errorMsg;
@@ -2287,25 +2339,51 @@ document.getElementById('savePlanBtn').addEventListener('click', function() {
                     fullErrorDetails += '\n\nSQL Error: ' + xhr.responseJSON.sql_error;
                 }
                 if (xhr.responseJSON.debug_log) {
-                    console.error('=== DEBUG LOG ===');
+                    console.error('=== DEBUG LOG (from responseJSON) ===');
                     xhr.responseJSON.debug_log.forEach(line => console.error(line));
                     fullErrorDetails += '\n\nCheck console for full debug log';
                 }
             } else if (xhr.responseText) {
                 try {
                     const response = JSON.parse(xhr.responseText);
-                    console.error('=== Parsed Response ===');
+                    console.error('=== Parsed Response (from responseText) ===');
                     console.error(JSON.stringify(response, null, 2));
                     
                     errorMsg = response.message || errorMsg;
+                    if (response.error_details) {
+                        console.error('Error details:', response.error_details);
+                        fullErrorDetails += '\n\nDetails: ' + response.error_details;
+                    }
+                    if (response.sql_error) {
+                        console.error('SQL error:', response.sql_error);
+                        fullErrorDetails += '\n\nSQL Error: ' + response.sql_error;
+                    }
                     if (response.debug_log) {
-                        console.error('=== DEBUG LOG ===');
+                        console.error('=== DEBUG LOG (from responseText) ===');
                         response.debug_log.forEach(line => console.error(line));
+                        fullErrorDetails += '\n\nCheck console for full debug log';
                     }
                 } catch (e) {
-                    // Not JSON, might be HTML error page
-                    console.error('=== Response Text (first 2000 chars) ===');
-                    console.error(xhr.responseText.substring(0, 2000));
+                    // Not JSON, might be HTML error page or PHP fatal error
+                    console.error('=== Failed to parse as JSON ===');
+                    console.error('Parse error:', e);
+                    console.error('=== Full Response Text ===');
+                    console.error(xhr.responseText);
+                    
+                    // Try to extract PHP error from HTML
+                    const fatalMatch = xhr.responseText.match(/Fatal error[^<]+/i);
+                    const warningMatch = xhr.responseText.match(/Warning[^<]+/i);
+                    const parseMatch = xhr.responseText.match(/Parse error[^<]+/i);
+                    
+                    if (fatalMatch) {
+                        errorMsg = 'PHP Fatal Error: ' + fatalMatch[0].trim();
+                    } else if (parseMatch) {
+                        errorMsg = 'PHP Parse Error: ' + parseMatch[0].trim();
+                    } else if (warningMatch) {
+                        errorMsg = 'PHP Warning: ' + warningMatch[0].trim();
+                    } else {
+                        errorMsg = 'Server returned non-JSON response. Check console for details.';
+                    }
                 }
             }
             
