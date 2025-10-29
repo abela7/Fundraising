@@ -360,7 +360,6 @@ if ($db_connection_ok) {
                 AND balance > 0
                 AND name IS NOT NULL 
                 AND TRIM(name) != ''
-                AND LOWER(TRIM(name)) != 'anonymous'
             ORDER BY name ASC
         ");
         if ($result) {
