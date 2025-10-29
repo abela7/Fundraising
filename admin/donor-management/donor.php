@@ -232,11 +232,11 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 <!-- Summary Statistics -->
                 <div class="row g-4 mb-4">
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card animate-fade-in">
-                            <div class="stat-icon bg-primary">
-                                <i class="fas fa-users"></i>
-                            </div>
-                            <div class="stat-content">
+                        <div class="stat-card animate-fade-in" style="color: #0a6286;">
+                            <div class="stat-card-body">
+                                <div class="stat-icon bg-primary">
+                                    <i class="fas fa-users"></i>
+                                </div>
                                 <h3 class="stat-value"><?php echo number_format((int)$stats['total_donors']); ?></h3>
                                 <p class="stat-label">Pledge Donors</p>
                                 <div class="stat-trend text-muted">
@@ -247,11 +247,11 @@ $currency = $settings['currency_code'] ?? 'GBP';
                     </div>
                     
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s;">
-                            <div class="stat-icon bg-warning">
-                                <i class="fas fa-hand-holding-usd"></i>
-                            </div>
-                            <div class="stat-content">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s; color: #f39c12;">
+                            <div class="stat-card-body">
+                                <div class="stat-icon bg-warning">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
                                 <h3 class="stat-value"><?php echo $currency . ' ' . number_format((float)$stats['total_pledged'], 0); ?></h3>
                                 <p class="stat-label">Total Pledged</p>
                                 <div class="stat-trend text-warning">
@@ -262,11 +262,11 @@ $currency = $settings['currency_code'] ?? 'GBP';
                     </div>
                     
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s;">
-                            <div class="stat-icon bg-success">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="stat-content">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s; color: #10b981;">
+                            <div class="stat-card-body">
+                                <div class="stat-icon bg-success">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
                                 <h3 class="stat-value"><?php echo $currency . ' ' . number_format((float)$stats['total_paid'], 0); ?></h3>
                                 <p class="stat-label">Total Paid</p>
                                 <div class="stat-trend text-success">
@@ -277,11 +277,11 @@ $currency = $settings['currency_code'] ?? 'GBP';
                     </div>
                     
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card animate-fade-in" style="animation-delay: 0.3s;">
-                            <div class="stat-icon bg-danger">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <div class="stat-content">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.3s; color: #ef4444;">
+                            <div class="stat-card-body">
+                                <div class="stat-icon bg-danger">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
                                 <h3 class="stat-value text-danger"><?php echo $currency . ' ' . number_format((float)$stats['total_balance'], 0); ?></h3>
                                 <p class="stat-label">Outstanding Balance</p>
                                 <div class="stat-trend text-danger">
