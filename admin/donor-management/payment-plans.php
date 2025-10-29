@@ -316,11 +316,24 @@ if (isset($_SESSION['success_message'])) {
     unset($_SESSION['success_message']);
 }
 
-// Load all payment plan templates
-$templates = [];
+// Load all payment plan templates (for display grid)
+$templates_all = [];
 if ($db_connection_ok) {
     try {
         $result = $db->query("SELECT * FROM payment_plan_templates ORDER BY sort_order ASC, created_at ASC");
+        if ($result) {
+            $templates_all = $result->fetch_all(MYSQLI_ASSOC);
+        }
+    } catch (Exception $e) {
+        // Silent fail
+    }
+}
+
+// Load active templates for preview modal dropdown
+$templates = [];
+if ($db_connection_ok) {
+    try {
+        $result = $db->query("SELECT * FROM payment_plan_templates WHERE is_active = 1 ORDER BY sort_order ASC, created_at ASC");
         if ($result) {
             $templates = $result->fetch_all(MYSQLI_ASSOC);
         }
@@ -329,15 +342,39 @@ if ($db_connection_ok) {
     }
 }
 
+// Load donors with outstanding balances for preview modal
+$donors_for_preview = [];
+if ($db_connection_ok) {
+    try {
+        // Get pledge donors with outstanding balances
+        $check_column = $db->query("SHOW COLUMNS FROM donors LIKE 'donor_type'");
+        $has_donor_type = $check_column && $check_column->num_rows > 0;
+        $pledge_filter = $has_donor_type ? "donor_type = 'pledge'" : "total_pledged > 0";
+        
+        $result = $db->query("
+            SELECT 
+                id, name, phone, total_pledged, total_paid, balance
+            FROM donors 
+            WHERE {$pledge_filter} AND balance > 0
+            ORDER BY name ASC
+        ");
+        if ($result) {
+            $donors_for_preview = $result->fetch_all(MYSQLI_ASSOC);
+        }
+    } catch (Exception $e) {
+        // Silent fail
+    }
+}
+
 // Calculate statistics
 $stats = [
-    'total_templates' => count($templates),
-    'active_templates' => count(array_filter($templates, fn($t) => $t['is_active'])),
-    'inactive_templates' => count(array_filter($templates, fn($t) => !$t['is_active'])),
+    'total_templates' => count($templates_all),
+    'active_templates' => count(array_filter($templates_all, fn($t) => $t['is_active'])),
+    'inactive_templates' => count(array_filter($templates_all, fn($t) => !$t['is_active'])),
     'default_template' => ''
 ];
 
-foreach ($templates as $t) {
+foreach ($templates_all as $t) {
     if ($t['is_default']) {
         $stats['default_template'] = $t['name'];
         break;
@@ -395,6 +432,22 @@ foreach ($templates as $t) {
         margin-top: 1rem;
         border-top: 1px solid #e9ecef;
     }
+    
+    /* Preview Plan Modal Styles */
+    #previewPlanModal .table-responsive {
+        border-radius: 0.375rem;
+    }
+    
+    #previewPlanModal .table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+    }
+    
+    #previewPlanModal .border-start {
+        border-width: 3px !important;
+    }
     </style>
 </head>
 <body>
@@ -416,9 +469,14 @@ foreach ($templates as $t) {
                         </h1>
                         <p class="text-muted mb-0">Create and manage payment plan options that donors can choose from</p>
                     </div>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
-                        <i class="fas fa-plus me-2"></i>Create Template
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#previewPlanModal">
+                            <i class="fas fa-calculator me-2"></i>Preview Plan
+                        </button>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                            <i class="fas fa-plus me-2"></i>Create Template
+                        </button>
+                    </div>
                 </div>
 
                 <?php if ($success_message): ?>
@@ -502,10 +560,10 @@ foreach ($templates as $t) {
 
                 <!-- Payment Plan Templates Grid -->
                 <div class="row g-4 mb-4" id="templatesGrid">
-                    <?php foreach ($templates as $template): ?>
+                    <?php foreach ($templates_all as $index => $template): ?>
                     <div class="col-12 col-md-6 col-lg-4" data-template-id="<?php echo $template['id']; ?>">
                         <div class="plan-card card border-0 shadow-sm h-100 position-relative animate-fade-in" 
-                             style="animation-delay: <?php echo (array_search($template, $templates) * 0.05); ?>s;">
+                             style="animation-delay: <?php echo ($index * 0.05); ?>s;">
                             
                             <div class="card-header bg-white border-bottom">
                                 <div class="d-flex justify-content-between align-items-center">
@@ -671,6 +729,171 @@ foreach ($templates as $t) {
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Plan Modal -->
+<div class="modal fade" id="previewPlanModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-white border-bottom">
+                <h5 class="modal-title">
+                    <i class="fas fa-calculator text-primary me-2"></i>Preview Payment Plan
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <div class="modal-body p-4">
+                <div class="row g-4">
+                    <!-- Left Column: Input -->
+                    <div class="col-lg-5">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-cog text-primary me-2"></i>Plan Configuration</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Select Donor <span class="text-danger">*</span></label>
+                                <select class="form-select" id="preview_donor" required>
+                                    <option value="">Choose a donor...</option>
+                                    <?php foreach ($donors_for_preview as $donor): ?>
+                                    <option value="<?php echo $donor['id']; ?>" 
+                                            data-balance="<?php echo $donor['balance']; ?>"
+                                            data-name="<?php echo htmlspecialchars($donor['name']); ?>"
+                                            data-phone="<?php echo htmlspecialchars($donor['phone']); ?>">
+                                        <?php echo htmlspecialchars($donor['name']); ?> - 
+                                        Balance: £<?php echo number_format($donor['balance'], 2); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Payment Plan Template <span class="text-danger">*</span></label>
+                                <select class="form-select" id="preview_template" required>
+                                    <option value="">Choose a plan...</option>
+                                    <?php foreach ($templates as $template): ?>
+                                    <option value="<?php echo $template['id']; ?>" 
+                                            data-duration="<?php echo $template['duration_months']; ?>"
+                                            data-name="<?php echo htmlspecialchars($template['name']); ?>">
+                                        <?php echo htmlspecialchars($template['name']); ?>
+                                        <?php if ($template['duration_months'] > 0): ?>
+                                            (<?php echo $template['duration_months']; ?> months)
+                                        <?php endif; ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Start Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="preview_start_date" 
+                                           value="<?php echo date('Y-m-d'); ?>" required>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Payment Day (1-28)</label>
+                                    <input type="number" class="form-control" id="preview_payment_day" 
+                                           min="1" max="28" value="1" required>
+                                    <small class="text-muted">Day of month</small>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-3 border-top">
+                                <button type="button" class="btn btn-primary w-100" id="calculatePlanBtn">
+                                    <i class="fas fa-calculator me-2"></i>Calculate Plan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: Results -->
+                <div class="col-lg-7">
+                    <div id="planPreviewResults" style="display: none;">
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-chart-line text-success me-2"></i>Plan Summary</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-6">
+                                        <div class="border-start border-4 border-primary ps-3">
+                                            <small class="text-muted d-block">Total Amount</small>
+                                            <h4 class="mb-0 text-primary" id="preview_total_amount">-</h4>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="border-start border-4 border-success ps-3">
+                                            <small class="text-muted d-block">Monthly Payment</small>
+                                            <h4 class="mb-0 text-success" id="preview_monthly_amount">-</h4>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="border-start border-4 border-info ps-3">
+                                            <small class="text-muted d-block">Duration</small>
+                                            <h5 class="mb-0 text-info" id="preview_duration">-</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="border-start border-4 border-warning ps-3">
+                                            <small class="text-muted d-block">Donor Balance</small>
+                                            <h5 class="mb-0 text-warning" id="preview_donor_balance">-</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div id="preview_plan_match" class="alert" style="display: none;">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <span id="preview_match_message"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-calendar-alt text-primary me-2"></i>Payment Schedule</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-hover table-sm align-middle mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Payment Date</th>
+                                                <th class="text-end">Amount</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="preview_schedule_body">
+                                            <!-- Schedule rows will be generated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="planPreviewEmpty" class="text-center py-5">
+                        <div class="mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle" 
+                                 style="width: 80px; height: 80px;">
+                                <i class="fas fa-calculator fa-2x text-muted"></i>
+                            </div>
+                        </div>
+                        <h6 class="text-muted mb-2">Plan Preview</h6>
+                        <p class="text-muted small mb-0">Select a donor and plan template, then click "Calculate Plan" to see the payment schedule</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Close
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -872,6 +1095,162 @@ $(document).on('click', '.delete-template', function(e) {
 // Prevent row click from triggering when clicking buttons
 $(document).on('click', '.plan-card .btn, .plan-card .form-check-input, .plan-card .form-check-label', function(e) {
     e.stopPropagation();
+});
+
+// Plan Preview Calculation
+function calculatePaymentSchedule() {
+    const donorSelect = document.getElementById('preview_donor');
+    const templateSelect = document.getElementById('preview_template');
+    const startDateInput = document.getElementById('preview_start_date');
+    const paymentDayInput = document.getElementById('preview_payment_day');
+    
+    // Validation
+    if (!donorSelect.value || !templateSelect.value || !startDateInput.value || !paymentDayInput.value) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const selectedDonor = donorSelect.options[donorSelect.selectedIndex];
+    const selectedTemplate = templateSelect.options[templateSelect.selectedIndex];
+    
+    const balance = parseFloat(selectedDonor.getAttribute('data-balance'));
+    const donorName = selectedDonor.getAttribute('data-name');
+    const duration = parseInt(selectedTemplate.getAttribute('data-duration'));
+    const templateName = selectedTemplate.getAttribute('data-name');
+    const startDate = new Date(startDateInput.value);
+    const paymentDay = parseInt(paymentDayInput.value);
+    
+    if (isNaN(balance) || balance <= 0) {
+        alert('Invalid donor balance');
+        return;
+    }
+    
+    if (duration <= 0) {
+        alert('Please select a valid payment plan template with duration');
+        return;
+    }
+    
+    if (isNaN(paymentDay) || paymentDay < 1 || paymentDay > 28) {
+        alert('Payment day must be between 1 and 28');
+        return;
+    }
+    
+    // Calculate monthly payment (divide evenly, last payment may be adjusted)
+    const monthlyAmount = balance / duration;
+    const roundedMonthly = Math.floor(monthlyAmount * 100) / 100; // Round down to 2 decimals
+    const remainder = balance - (roundedMonthly * duration);
+    
+    // Generate payment schedule
+    const schedule = [];
+    let currentDate = new Date(startDate);
+    
+    // Set the first payment date to the payment day of the month
+    if (currentDate.getDate() > paymentDay) {
+        // If start date is after payment day, move to next month
+        currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    currentDate.setDate(Math.min(paymentDay, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()));
+    
+    for (let i = 0; i < duration; i++) {
+        const paymentDate = new Date(currentDate);
+        
+        // Last payment gets the remainder added
+        const amount = (i === duration - 1) 
+            ? roundedMonthly + remainder 
+            : roundedMonthly;
+        
+        schedule.push({
+            installment: i + 1,
+            date: new Date(paymentDate),
+            amount: amount,
+            status: 'pending'
+        });
+        
+        // Move to next month
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+        currentDate.setDate(Math.min(paymentDay, daysInMonth));
+    }
+    
+    // Update UI
+    document.getElementById('preview_total_amount').textContent = '£' + balance.toFixed(2);
+    document.getElementById('preview_monthly_amount').textContent = '£' + roundedMonthly.toFixed(2);
+    document.getElementById('preview_duration').textContent = duration + ' months';
+    document.getElementById('preview_donor_balance').textContent = '£' + balance.toFixed(2);
+    
+    // Check if plan matches balance perfectly
+    const totalCalculated = schedule.reduce((sum, p) => sum + p.amount, 0);
+    const difference = Math.abs(totalCalculated - balance);
+    
+    if (difference < 0.01) {
+        document.getElementById('preview_plan_match').className = 'alert alert-success';
+        document.getElementById('preview_match_message').textContent = 
+            '✓ Plan matches donor balance perfectly!';
+        document.getElementById('preview_plan_match').style.display = 'block';
+    } else {
+        document.getElementById('preview_plan_match').className = 'alert alert-warning';
+        document.getElementById('preview_match_message').textContent = 
+            `Note: Total calculated (£${totalCalculated.toFixed(2)}) differs from balance (£${balance.toFixed(2)}) by £${difference.toFixed(2)}`;
+        document.getElementById('preview_plan_match').style.display = 'block';
+    }
+    
+    // Generate schedule table
+    const tbody = document.getElementById('preview_schedule_body');
+    tbody.innerHTML = '';
+    
+    schedule.forEach((payment, index) => {
+        const row = document.createElement('tr');
+        const dateStr = payment.date.toLocaleDateString('en-GB', { 
+            weekday: 'short', 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+        
+        row.innerHTML = `
+            <td><strong>${payment.installment}</strong></td>
+            <td><i class="fas fa-calendar text-muted me-2"></i>${dateStr}</td>
+            <td class="text-end"><strong class="text-success">£${payment.amount.toFixed(2)}</strong></td>
+            <td><span class="badge bg-secondary">Pending</span></td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    // Show results
+    document.getElementById('planPreviewResults').style.display = 'block';
+    document.getElementById('planPreviewEmpty').style.display = 'none';
+}
+
+// Calculate button click
+document.getElementById('calculatePlanBtn').addEventListener('click', calculatePaymentSchedule);
+
+// Allow Enter key to calculate
+['preview_donor', 'preview_template', 'preview_start_date', 'preview_payment_day'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+        element.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                calculatePaymentSchedule();
+            }
+        });
+    }
+});
+
+// Reset modal when opened
+$('#previewPlanModal').on('show.bs.modal', function() {
+    // Reset form
+    document.getElementById('preview_donor').value = '';
+    document.getElementById('preview_template').value = '';
+    document.getElementById('preview_start_date').value = '<?php echo date('Y-m-d'); ?>';
+    document.getElementById('preview_payment_day').value = '1';
+    
+    // Hide results
+    document.getElementById('planPreviewResults').style.display = 'none';
+    document.getElementById('planPreviewEmpty').style.display = 'block';
+    
+    // Hide match alert
+    document.getElementById('preview_plan_match').style.display = 'none';
 });
 </script>
 </body>
