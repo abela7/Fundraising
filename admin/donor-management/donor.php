@@ -22,14 +22,16 @@ if (!$donors_table_exists) {
 }
 
 // Initialize statistics arrays
+// Note: This is for PLEDGE donors only - people who promised to pay later
+// Direct payment users are not tracked here as they already paid immediately
 $stats = [
     'total_donors' => 0,
     'donors_with_phone' => 0,
     'donors_without_phone' => 0,
     'donors_with_pledges' => 0,
-    'donors_without_pledges' => 0,
-    'donors_with_payments' => 0,
-    'donors_without_payments' => 0,
+    'donors_fully_paid' => 0,
+    'donors_partially_paid' => 0,
+    'donors_not_paid' => 0,
     'total_pledged' => 0.0,
     'total_paid' => 0.0,
     'total_balance' => 0.0,
@@ -47,16 +49,17 @@ $payment_method_breakdown = [];
 $recent_donors = [];
 
 if ($donors_table_exists) {
-    // Get basic donor statistics
+    // Get basic donor statistics - PLEDGE DONORS ONLY
+    // These are people who made pledges and need tracking
     $result = $db->query("
         SELECT 
             COUNT(*) as total_donors,
             COUNT(CASE WHEN phone IS NOT NULL AND phone != '' THEN 1 END) as donors_with_phone,
             COUNT(CASE WHEN phone IS NULL OR phone = '' THEN 1 END) as donors_without_phone,
             COUNT(CASE WHEN total_pledged > 0 THEN 1 END) as donors_with_pledges,
-            COUNT(CASE WHEN total_pledged = 0 THEN 1 END) as donors_without_pledges,
-            COUNT(CASE WHEN total_paid > 0 THEN 1 END) as donors_with_payments,
-            COUNT(CASE WHEN total_paid = 0 THEN 1 END) as donors_without_payments,
+            COUNT(CASE WHEN total_paid >= total_pledged AND total_pledged > 0 THEN 1 END) as donors_fully_paid,
+            COUNT(CASE WHEN total_paid > 0 AND total_paid < total_pledged THEN 1 END) as donors_partially_paid,
+            COUNT(CASE WHEN total_paid = 0 AND total_pledged > 0 THEN 1 END) as donors_not_paid,
             COALESCE(SUM(total_pledged), 0) as total_pledged,
             COALESCE(SUM(total_paid), 0) as total_paid,
             COALESCE(SUM(balance), 0) as total_balance,
@@ -192,9 +195,13 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-database me-2"></i>Donor Database Report
+                            <i class="fas fa-database me-2"></i>Pledge Donor Tracking Report
                         </h1>
-                        <p class="text-muted mb-0">Comprehensive overview and data quality verification</p>
+                        <p class="text-muted mb-0">Track donors who made pledges and monitor their payment progress</p>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Note: Direct payment users are not shown here as they already paid immediately
+                        </small>
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-primary" onclick="window.print()">
@@ -215,8 +222,9 @@ $currency = $settings['currency_code'] ?? 'GBP';
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="flex-grow-1">
-                                        <div class="text-muted text-uppercase small fw-semibold mb-1">Total Donors</div>
+                                        <div class="text-muted text-uppercase small fw-semibold mb-1">Pledge Donors</div>
                                         <div class="h2 mb-0 fw-bold"><?php echo number_format((int)$stats['total_donors']); ?></div>
+                                        <small class="text-muted">Need tracking</small>
                                     </div>
                                     <div class="ms-3">
                                         <div class="text-primary" style="font-size: 2.5rem;">
@@ -389,7 +397,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                         <div>
                                             <h6 class="mb-1 fw-semibold">Phone Numbers</h6>
                                             <p class="mb-0 small text-muted">
-                                                <?php echo number_format((int)$stats['donors_with_phone']); ?> of <?php echo number_format((int)$stats['total_donors']); ?> donors have phone numbers
+                                                <?php echo number_format((int)$stats['donors_with_phone']); ?> of <?php echo number_format((int)$stats['total_donors']); ?> pledge donors have phone numbers
                                             </p>
                                         </div>
                                         <div class="text-end">
@@ -399,37 +407,35 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                 </div>
 
                                 <?php
-                                $pledge_percentage = $stats['total_donors'] > 0 ? ((int)$stats['donors_with_pledges'] / $stats['total_donors']) * 100 : 0;
-                                $pledge_color = $pledge_percentage > 0 ? 'success' : 'warning';
+                                $fully_paid_percentage = $stats['total_donors'] > 0 ? ((int)$stats['donors_fully_paid'] / $stats['total_donors']) * 100 : 0;
                                 ?>
-                                <div class="border-start border-4 border-<?php echo $pledge_color; ?> ps-3 mb-4">
+                                <div class="border-start border-4 border-success ps-3 mb-4">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <h6 class="mb-1 fw-semibold">Donors with Pledges</h6>
+                                            <h6 class="mb-1 fw-semibold">Fully Paid Pledges</h6>
                                             <p class="mb-0 small text-muted">
-                                                <?php echo number_format((int)$stats['donors_with_pledges']); ?> donors have made pledges
+                                                <?php echo number_format((int)$stats['donors_fully_paid']); ?> pledge donors have paid in full
                                             </p>
                                         </div>
                                         <div class="text-end">
-                                            <h4 class="mb-0 text-<?php echo $pledge_color; ?>"><?php echo number_format($pledge_percentage, 1); ?>%</h4>
+                                            <h4 class="mb-0 text-success"><?php echo number_format($fully_paid_percentage, 1); ?>%</h4>
                                         </div>
                                     </div>
                                 </div>
 
                                 <?php
-                                $payment_percentage = $stats['total_donors'] > 0 ? ((int)$stats['donors_with_payments'] / $stats['total_donors']) * 100 : 0;
-                                $payment_color = $payment_percentage > 0 ? 'success' : 'warning';
+                                $not_paid_percentage = $stats['total_donors'] > 0 ? ((int)$stats['donors_not_paid'] / $stats['total_donors']) * 100 : 0;
                                 ?>
-                                <div class="border-start border-4 border-<?php echo $payment_color; ?> ps-3">
+                                <div class="border-start border-4 border-danger ps-3">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <h6 class="mb-1 fw-semibold">Donors with Payments</h6>
+                                            <h6 class="mb-1 fw-semibold">Not Yet Paid</h6>
                                             <p class="mb-0 small text-muted">
-                                                <?php echo number_format((int)$stats['donors_with_payments']); ?> donors have made payments
+                                                <?php echo number_format((int)$stats['donors_not_paid']); ?> pledge donors haven't made any payment yet
                                             </p>
                                         </div>
                                         <div class="text-end">
-                                            <h4 class="mb-0 text-<?php echo $payment_color; ?>"><?php echo number_format($payment_percentage, 1); ?>%</h4>
+                                            <h4 class="mb-0 text-danger"><?php echo number_format($not_paid_percentage, 1); ?>%</h4>
                                         </div>
                                     </div>
                                 </div>
@@ -555,7 +561,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-clock text-info me-2"></i>
-                            Recent Donors (Last 10)
+                            Recent Pledge Donors (Last 10)
                         </h5>
                     </div>
                     <div class="card-body p-0">
@@ -611,10 +617,20 @@ $currency = $settings['currency_code'] ?? 'GBP';
                         <div class="mb-4">
                             <i class="fas fa-database text-muted" style="font-size: 4rem;"></i>
                         </div>
-                        <h3 class="mb-3">Donor Database Not Found</h3>
+                        <h3 class="mb-3">Pledge Donor System Not Found</h3>
                         <p class="text-muted mb-4">
-                            The donor management system has not been set up yet. Run the database migration to create the necessary tables.
+                            The pledge donor tracking system has not been set up yet. Run the database migration to create the necessary tables.
                         </p>
+                        <div class="alert alert-info text-start mb-4">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>What is this system for?
+                            </h6>
+                            <p class="mb-0 small">
+                                This system tracks <strong>pledge donors</strong> - people who promised to pay later and need payment tracking, reminders, and payment plans.
+                                <br>
+                                Direct payment users who pay immediately are NOT tracked here as they're already completed transactions.
+                            </p>
+                        </div>
                         <a href="../tools/migrate_donors_system.php" class="btn btn-primary">
                             <i class="fas fa-play me-2"></i>Run Migration Now
                         </a>
