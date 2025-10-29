@@ -318,16 +318,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
     }
 }
 
-// Get donors list
+// Get donors list with payment plan details
 $donors = [];
 try {
     $donors_result = $db->query("
         SELECT 
-            id, name, phone, preferred_language, 
-            preferred_payment_method, source, total_pledged, total_paid, 
-            balance, payment_status, created_at, updated_at
-        FROM donors 
-        ORDER BY created_at DESC
+            d.id, d.name, d.phone, d.preferred_language, 
+            d.preferred_payment_method, d.source, d.total_pledged, d.total_paid, 
+            d.balance, d.payment_status, d.created_at, d.updated_at,
+            d.has_active_plan, d.active_payment_plan_id, d.plan_monthly_amount, 
+            d.plan_duration_months, d.plan_start_date, d.plan_next_due_date,
+            d.last_payment_date, d.last_sms_sent_at, d.login_count, d.admin_notes,
+            d.registered_by_user_id, d.pledge_count, d.payment_count, d.achievement_badge,
+            -- Payment plan details
+            pp.id as plan_id, pp.total_amount as plan_total_amount,
+            pp.monthly_amount as plan_monthly_amount, pp.total_months as plan_total_months,
+            pp.total_payments as plan_total_payments, pp.start_date as plan_start_date,
+            pp.payment_day as plan_payment_day, pp.payment_method as plan_payment_method,
+            pp.next_payment_due as plan_next_payment_due, pp.last_payment_date as plan_last_payment_date,
+            pp.status as plan_status, pp.plan_frequency_unit, pp.plan_frequency_number,
+            pp.plan_payment_day_type, pp.template_id,
+            pp.next_reminder_date, pp.miss_notification_date, pp.overdue_reminder_date,
+            pp.payments_made, pp.amount_paid,
+            -- Template name if exists
+            t.name as template_name
+        FROM donors d
+        LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id AND pp.status = 'active'
+        LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
+        ORDER BY d.created_at DESC
     ");
     
     if ($donors_result) {
@@ -763,25 +781,115 @@ unset($donor); // Break reference
                     <div class="col-12" id="payment_plan_section" style="display: none;">
                         <div class="card border-0 shadow-sm">
                             <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-calendar-alt me-2 text-info"></i>Payment Plan</h6>
+                                <h6 class="mb-0">
+                                    <i class="fas fa-calendar-alt me-2 text-info"></i>Payment Plan
+                                    <span class="badge bg-info ms-2" id="detail_plan_type_badge">Standard</span>
+                                </h6>
                             </div>
                             <div class="card-body">
-                                <div class="row">
+                                <!-- Plan Summary -->
+                                <div class="row g-3 mb-3">
                                     <div class="col-md-3">
-                                        <small class="text-muted d-block">Monthly Amount</small>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-pound-sign me-1"></i>Monthly Amount
+                                        </small>
                                         <strong id="detail_plan_amount">-</strong>
                                     </div>
                                     <div class="col-md-3">
-                                        <small class="text-muted d-block">Duration</small>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-clock me-1"></i>Duration
+                                        </small>
                                         <strong id="detail_plan_duration">-</strong>
                                     </div>
                                     <div class="col-md-3">
-                                        <small class="text-muted d-block">Start Date</small>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-calendar-check me-1"></i>Start Date
+                                        </small>
                                         <strong id="detail_plan_start">-</strong>
                                     </div>
                                     <div class="col-md-3">
-                                        <small class="text-muted d-block">Next Due</small>
-                                        <strong id="detail_plan_next">-</strong>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-calendar-day me-1"></i>Payment Day
+                                        </small>
+                                        <strong id="detail_plan_payment_day">-</strong>
+                                    </div>
+                                </div>
+                                
+                                <!-- Payment Schedule & Reminders -->
+                                <div class="card border-primary mb-3">
+                                    <div class="card-header bg-primary bg-opacity-10">
+                                        <h6 class="mb-0 text-primary">
+                                            <i class="fas fa-bell me-2"></i>Payment Schedule & Reminders
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="border-start border-4 border-primary ps-3">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-calendar-alt me-1"></i>Next Payment Due
+                                                    </small>
+                                                    <strong class="text-primary" id="detail_plan_next_due">-</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="border-start border-4 border-warning ps-3">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-bell me-1"></i>Reminder Date
+                                                        <small class="text-muted">(2 days before)</small>
+                                                    </small>
+                                                    <strong class="text-warning" id="detail_plan_reminder_date">-</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="border-start border-4 border-warning ps-3">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-bell-slash me-1"></i>Miss Notification
+                                                        <small class="text-muted">(1 day after)</small>
+                                                    </small>
+                                                    <strong class="text-warning" id="detail_plan_miss_notification">-</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mt-2">
+                                            <div class="col-md-12">
+                                                <div class="border-start border-4 border-danger ps-3">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>Overdue Notification
+                                                        <small class="text-muted">(7 days after if still not paid)</small>
+                                                    </small>
+                                                    <strong class="text-danger" id="detail_plan_overdue_notification">-</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Plan Details -->
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <small class="text-muted d-block">Plan Type</small>
+                                        <strong id="detail_plan_type">-</strong>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted d-block">Plan Status</small>
+                                        <span id="detail_plan_status">-</span>
+                                    </div>
+                                    <div class="col-md-6" id="detail_plan_frequency_section" style="display: none;">
+                                        <small class="text-muted d-block">Payment Frequency</small>
+                                        <strong id="detail_plan_frequency">-</strong>
+                                    </div>
+                                    <div class="col-md-6" id="detail_plan_template_section" style="display: none;">
+                                        <small class="text-muted d-block">Template Used</small>
+                                        <strong id="detail_plan_template">-</strong>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted d-block">Payments Made</small>
+                                        <strong id="detail_plan_payments_made">0</strong> / <span id="detail_plan_total_payments">0</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted d-block">Amount Paid</small>
+                                        <strong class="text-success">£<span id="detail_plan_amount_paid">0.00</span></strong> / <span class="text-muted">£<span id="detail_plan_total_amount">0.00</span></span>
                                     </div>
                                 </div>
                             </div>
@@ -1027,11 +1135,93 @@ $(document).ready(function() {
         $('#detail_payment_count').text(donor.payment_count || 0);
         
         // Payment plan (show only if has active plan)
-        if (donor.has_active_plan == 1) {
-            $('#detail_plan_amount').text('£' + parseFloat(donor.plan_monthly_amount || 0).toFixed(2));
-            $('#detail_plan_duration').text((donor.plan_duration_months || 0) + ' months');
-            $('#detail_plan_start').text(donor.plan_start_date || '-');
-            $('#detail_plan_next').text(donor.plan_next_due_date || '-');
+        if (donor.has_active_plan == 1 && donor.plan_id) {
+            // Basic plan info
+            const monthlyAmount = parseFloat(donor.plan_monthly_amount || 0);
+            const totalAmount = parseFloat(donor.plan_total_amount || 0);
+            const amountPaid = parseFloat(donor.amount_paid || 0);
+            const paymentsMade = parseInt(donor.payments_made || 0);
+            const totalPayments = parseInt(donor.plan_total_payments || donor.plan_total_months || 0);
+            const totalMonths = parseInt(donor.plan_total_months || 0);
+            
+            $('#detail_plan_amount').text('£' + monthlyAmount.toFixed(2));
+            
+            // Duration display
+            if (totalMonths > 0) {
+                $('#detail_plan_duration').text(totalMonths + ' month' + (totalMonths !== 1 ? 's' : ''));
+            } else if (totalPayments > 0) {
+                $('#detail_plan_duration').text(totalPayments + ' payment' + (totalPayments !== 1 ? 's' : ''));
+            } else {
+                $('#detail_plan_duration').text('-');
+            }
+            
+            // Dates
+            const formatDate = (dateStr) => {
+                if (!dateStr || dateStr === '-') return '-';
+                try {
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('en-GB', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                } catch {
+                    return dateStr;
+                }
+            };
+            
+            $('#detail_plan_start').text(formatDate(donor.plan_start_date));
+            $('#detail_plan_next_due').text(formatDate(donor.plan_next_payment_due || donor.plan_next_due_date));
+            $('#detail_plan_payment_day').text(donor.plan_payment_day ? 'Day ' + donor.plan_payment_day : '-');
+            
+            // Reminder dates
+            $('#detail_plan_reminder_date').text(formatDate(donor.next_reminder_date));
+            $('#detail_plan_miss_notification').text(formatDate(donor.miss_notification_date));
+            $('#detail_plan_overdue_notification').text(formatDate(donor.overdue_reminder_date));
+            
+            // Plan type
+            const isCustom = donor.plan_frequency_unit && (donor.plan_frequency_unit === 'week' || donor.plan_total_payments);
+            if (isCustom) {
+                $('#detail_plan_type_badge').removeClass('bg-info').addClass('bg-warning').text('Custom');
+                $('#detail_plan_type').text('Custom Payment Plan');
+                
+                // Show frequency info
+                if (donor.plan_frequency_unit && donor.plan_frequency_number) {
+                    const frequencyText = `Every ${donor.plan_frequency_number} ${donor.plan_frequency_unit}${donor.plan_frequency_number > 1 ? 's' : ''}`;
+                    $('#detail_plan_frequency').text(frequencyText);
+                    $('#detail_plan_frequency_section').show();
+                } else {
+                    $('#detail_plan_frequency_section').hide();
+                }
+            } else {
+                $('#detail_plan_type_badge').removeClass('bg-warning').addClass('bg-info').text('Standard');
+                $('#detail_plan_type').text('Standard Monthly Plan');
+                $('#detail_plan_frequency_section').hide();
+            }
+            
+            // Template info
+            if (donor.template_name) {
+                $('#detail_plan_template').text(donor.template_name);
+                $('#detail_plan_template_section').show();
+            } else {
+                $('#detail_plan_template_section').hide();
+            }
+            
+            // Status
+            const statusMap = {
+                'active': { text: 'Active', class: 'bg-success' },
+                'completed': { text: 'Completed', class: 'bg-primary' },
+                'paused': { text: 'Paused', class: 'bg-warning' },
+                'defaulted': { text: 'Defaulted', class: 'bg-danger' },
+                'cancelled': { text: 'Cancelled', class: 'bg-secondary' }
+            };
+            const status = statusMap[donor.plan_status] || { text: (donor.plan_status || 'Unknown'), class: 'bg-secondary' };
+            $('#detail_plan_status').html(`<span class="badge ${status.class}">${status.text}</span>`);
+            
+            // Payments made
+            $('#detail_plan_payments_made').text(paymentsMade);
+            $('#detail_plan_total_payments').text(totalPayments || totalMonths || '?');
+            
+            // Amount paid
+            $('#detail_plan_amount_paid').text(amountPaid.toFixed(2));
+            $('#detail_plan_total_amount').text(totalAmount.toFixed(2));
+            
             $('#payment_plan_section').show();
         } else {
             $('#payment_plan_section').hide();

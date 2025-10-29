@@ -302,10 +302,195 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             header('Content-Type: application/json');
             echo json_encode(['success' => true]);
             exit;
+            
+        } elseif ($action === 'save_payment_plan') {
+            // Save payment plan to donor
+            header('Content-Type: application/json');
+            
+            $donor_id = (int)($_POST['donor_id'] ?? 0);
+            $template_id = isset($_POST['template_id']) && $_POST['template_id'] !== '' ? (int)$_POST['template_id'] : null;
+            $total_amount = (float)($_POST['total_amount'] ?? 0);
+            $monthly_amount = (float)($_POST['monthly_amount'] ?? 0);
+            $total_months = isset($_POST['total_months']) ? (int)$_POST['total_months'] : null;
+            $total_payments = isset($_POST['total_payments']) ? (int)$_POST['total_payments'] : null;
+            $start_date = $_POST['start_date'] ?? '';
+            $payment_day = isset($_POST['payment_day']) ? (int)$_POST['payment_day'] : 1;
+            $next_payment_due = $_POST['next_payment_due'] ?? '';
+            $payment_method = $_POST['payment_method'] ?? 'bank_transfer';
+            $schedule_json = $_POST['schedule'] ?? '[]';
+            
+            // Custom plan fields
+            $plan_frequency_unit = $_POST['plan_frequency_unit'] ?? 'month';
+            $plan_frequency_number = isset($_POST['plan_frequency_number']) ? (int)$_POST['plan_frequency_number'] : 1;
+            $plan_payment_day_type = $_POST['plan_payment_day_type'] ?? 'day_of_month';
+            
+            // Validate
+            if ($donor_id <= 0) {
+                throw new Exception('Invalid donor ID');
+            }
+            if ($total_amount <= 0) {
+                throw new Exception('Total amount must be greater than 0');
+            }
+            if ($monthly_amount <= 0) {
+                throw new Exception('Monthly amount must be greater than 0');
+            }
+            if (empty($start_date)) {
+                throw new Exception('Start date is required');
+            }
+            if (empty($next_payment_due)) {
+                throw new Exception('Next payment due date is required');
+            }
+            
+            // Validate date format
+            $start_date_obj = DateTime::createFromFormat('Y-m-d', $start_date);
+            $next_due_obj = DateTime::createFromFormat('Y-m-d', $next_payment_due);
+            if (!$start_date_obj || !$next_due_obj) {
+                throw new Exception('Invalid date format');
+            }
+            
+            // Check if donor exists
+            $donor_check = $db->prepare("SELECT id, total_pledged, last_pledge_id FROM donors WHERE id = ?");
+            $donor_check->bind_param('i', $donor_id);
+            $donor_check->execute();
+            $donor = $donor_check->get_result()->fetch_assoc();
+            if (!$donor) {
+                throw new Exception('Donor not found');
+            }
+            
+            // Get or create pledge_id
+            $pledge_id = $donor['last_pledge_id'];
+            if (!$pledge_id) {
+                // Create a pledge record if none exists
+                $donor_info = $db->prepare("SELECT name, phone FROM donors WHERE id = ?");
+                $donor_info->bind_param('i', $donor_id);
+                $donor_info->execute();
+                $donor_data = $donor_info->get_result()->fetch_assoc();
+                
+                $create_pledge = $db->prepare("
+                    INSERT INTO pledges (donor_phone, donor_name, amount, status, approved_by_user_id, pledge_date, created_at)
+                    VALUES (?, ?, ?, 'approved', ?, ?, NOW())
+                ");
+                $pledge_date = $start_date;
+                $create_pledge->bind_param('ssdis', $donor_data['phone'], $donor_data['name'], $total_amount, $current_user['id'], $pledge_date);
+                $create_pledge->execute();
+                $pledge_id = $db->insert_id;
+                
+                // Update donor's last_pledge_id
+                $update_pledge_id = $db->prepare("UPDATE donors SET last_pledge_id = ? WHERE id = ?");
+                $update_pledge_id->bind_param('ii', $pledge_id, $donor_id);
+                $update_pledge_id->execute();
+            }
+            
+            // Check if donor already has an active plan
+            $existing_plan = $db->prepare("SELECT id FROM donor_payment_plans WHERE donor_id = ? AND status = 'active'");
+            $existing_plan->bind_param('i', $donor_id);
+            $existing_plan->execute();
+            $existing = $existing_plan->get_result()->fetch_assoc();
+            
+            if ($existing) {
+                // Pause existing plan
+                $pause_existing = $db->prepare("UPDATE donor_payment_plans SET status = 'paused', updated_at = NOW() WHERE id = ?");
+                $pause_existing->bind_param('i', $existing['id']);
+                $pause_existing->execute();
+            }
+            
+            // Calculate reminder dates
+            $next_due_timestamp = strtotime($next_payment_due);
+            $reminder_date = date('Y-m-d', $next_due_timestamp - (2 * 24 * 60 * 60)); // 2 days before payment
+            $miss_notification_date = date('Y-m-d', $next_due_timestamp + (1 * 24 * 60 * 60)); // 1 day after payment due
+            $overdue_reminder_date = date('Y-m-d', $next_due_timestamp + (7 * 24 * 60 * 60)); // 7 days after payment due (if still not paid)
+            
+            // Determine total_months for standard plans (estimate from total_payments if custom)
+            if ($total_months === null && $total_payments !== null) {
+                // For custom plans, estimate months based on frequency
+                if ($plan_frequency_unit === 'week') {
+                    // Rough estimate: 4.33 weeks per month
+                    $total_months = ceil(($total_payments * $plan_frequency_number) / 4.33);
+                } else {
+                    // Monthly frequency
+                    $total_months = $total_payments * $plan_frequency_number;
+                }
+            }
+            
+            // Insert new payment plan
+            $insert_plan = $db->prepare("
+                INSERT INTO donor_payment_plans (
+                    donor_id, pledge_id, template_id, total_amount, monthly_amount, 
+                    total_months, total_payments, start_date, payment_day,
+                    plan_frequency_unit, plan_frequency_number, plan_payment_day_type,
+                    payment_method, next_payment_due, next_reminder_date,
+                    miss_notification_date, overdue_reminder_date, status,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+            ");
+            $insert_plan->bind_param('iiiddiisisissss',
+                $donor_id,              // i - integer
+                $pledge_id,             // i - integer
+                $template_id,           // i - integer (nullable)
+                $total_amount,          // d - decimal
+                $monthly_amount,        // d - decimal
+                $total_months,          // i - integer (nullable)
+                $total_payments,        // i - integer (nullable)
+                $start_date,            // s - string/date
+                $payment_day,           // i - integer
+                $plan_frequency_unit,    // s - string/enum
+                $plan_frequency_number,  // i - integer
+                $plan_payment_day_type, // s - string/enum
+                $payment_method,        // s - string/enum
+                $next_payment_due,      // s - string/date
+                $reminder_date,         // s - string/date
+                $miss_notification_date,// s - string/date
+                $overdue_reminder_date  // s - string/date
+            );
+            $insert_plan->execute();
+            $plan_id = $db->insert_id;
+            
+            // Update donor table
+            $update_donor = $db->prepare("
+                UPDATE donors SET 
+                    has_active_plan = 1,
+                    active_payment_plan_id = ?,
+                    plan_monthly_amount = ?,
+                    plan_duration_months = ?,
+                    plan_start_date = ?,
+                    plan_next_due_date = ?,
+                    payment_status = 'paying',
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $plan_duration_for_donor = $total_months ?? ($total_payments ?? 0);
+            $update_donor->bind_param('idddsi', $plan_id, $monthly_amount, $plan_duration_for_donor, $start_date, $next_payment_due, $donor_id);
+            $update_donor->execute();
+            
+            // Audit log
+            $audit_data = json_encode([
+                'donor_id' => $donor_id,
+                'pledge_id' => $pledge_id,
+                'template_id' => $template_id,
+                'total_amount' => $total_amount,
+                'monthly_amount' => $monthly_amount,
+                'total_payments' => $total_payments,
+                'start_date' => $start_date,
+                'next_payment_due' => $next_payment_due,
+                'schedule' => json_decode($schedule_json, true)
+            ], JSON_UNESCAPED_SLASHES);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'donor_payment_plan', ?, 'create', ?, 'admin')");
+            $audit->bind_param('iis', $current_user['id'], $plan_id, $audit_data);
+            $audit->execute();
+            
+            $db->commit();
+            echo json_encode(['success' => true, 'message' => 'Payment plan saved successfully!']);
+            exit;
+            
         }
         
     } catch (Exception $e) {
         $db->rollback();
+        if (isset($_POST['action']) && $_POST['action'] === 'save_payment_plan') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
         $error_message = $e->getMessage();
     }
 }
@@ -1062,6 +1247,9 @@ foreach ($templates_all as $t) {
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-2"></i>Close
                 </button>
+                <button type="button" class="btn btn-success" id="savePlanBtn" style="display: none;">
+                    <i class="fas fa-save me-2"></i>Save Plan to Donor
+                </button>
             </div>
         </div>
     </div>
@@ -1332,6 +1520,9 @@ function getNextWeekday(date, targetWeekday) {
     return result;
 }
 
+// Store current plan data globally for saving
+let currentPlanData = null;
+
 // Plan Preview Calculation - Robust System
 function calculatePaymentSchedule() {
     const donorSelect = document.getElementById('preview_donor');
@@ -1350,6 +1541,7 @@ function calculatePaymentSchedule() {
     const balance = parseFloat(selectedDonor.getAttribute('data-balance'));
     const duration = parseInt(selectedTemplate.getAttribute('data-duration') || '0');
     const templateName = selectedTemplate.getAttribute('data-name');
+    const templateId = selectedTemplate.value;
     const startDate = new Date(startDateInput.value);
     
     if (isNaN(balance) || balance <= 0) {
@@ -1366,13 +1558,27 @@ function calculatePaymentSchedule() {
     const customOptions = document.getElementById('custom_plan_options');
     const isCustom = customOptions.style.display !== 'none';
     
+    // Custom plan settings for saving
+    let plan_frequency_unit = 'month';
+    let plan_frequency_number = 1;
+    let plan_payment_day_type = 'day_of_month';
+    let payment_day = 1;
+    let total_months = null;
+    
     if (isCustom) {
         // CUSTOM PLAN LOGIC
         const frequencyNumber = parseInt(document.getElementById('custom_frequency_number').value || '1');
         const frequencyUnit = document.getElementById('custom_frequency_unit').value;
         totalPayments = parseInt(document.getElementById('custom_total_payments').value || '1');
         const paymentDayType = document.getElementById('custom_payment_day_type').value;
-        const paymentDay = parseInt(document.getElementById('custom_payment_day').value || '1');
+        const paymentDayInput = parseInt(document.getElementById('custom_payment_day').value || '1');
+        
+        // Store for saving
+        plan_frequency_unit = frequencyUnit;
+        plan_frequency_number = frequencyNumber;
+        plan_payment_day_type = paymentDayType;
+        payment_day = paymentDayInput;
+        total_months = null;
         
         // Validation for custom plan
         if (frequencyNumber < 1 || frequencyNumber > 24) {
@@ -1385,7 +1591,7 @@ function calculatePaymentSchedule() {
             return;
         }
         
-        if (paymentDayType === 'day_of_month' && (paymentDay < 1 || paymentDay > 28)) {
+        if (paymentDayType === 'day_of_month' && (paymentDayInput < 1 || paymentDayInput > 28)) {
             alert('Payment day must be between 1 and 28');
             return;
         }
@@ -1404,7 +1610,7 @@ function calculatePaymentSchedule() {
                 // For weekly frequency with day preference, find the next occurrence
                 // Try to use preferred day in current month if it hasn't passed
                 const daysInStartMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-                const preferredDay = Math.min(paymentDay, daysInStartMonth);
+                const preferredDay = Math.min(paymentDayInput, daysInStartMonth);
                 
                 // Check if preferred day in current month is still available (not in the past)
                 if (startDate.getDate() < preferredDay) {
@@ -1416,19 +1622,19 @@ function calculatePaymentSchedule() {
                     // Then adjust to preferred day in the new month
                     currentDate = addWeeks(startDate, frequencyNumber);
                     const daysInNewMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-                    const newPreferredDay = Math.min(paymentDay, daysInNewMonth);
+                    const newPreferredDay = Math.min(paymentDayInput, daysInNewMonth);
                     currentDate.setDate(newPreferredDay);
                 }
             } else {
                 // Monthly frequency: set to specific day of month
                 const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-                currentDate.setDate(Math.min(paymentDay, daysInMonth));
+                currentDate.setDate(Math.min(paymentDayInput, daysInMonth));
                 
                 // If start date is after payment day, move to next month interval
-                if (startDate.getDate() > paymentDay) {
+                if (startDate.getDate() > paymentDayInput) {
                     currentDate = addMonths(currentDate, frequencyNumber);
                     const daysInNewMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-                    currentDate.setDate(Math.min(paymentDay, daysInNewMonth));
+                    currentDate.setDate(Math.min(paymentDayInput, daysInNewMonth));
                 }
             }
         } else {
@@ -1463,7 +1669,7 @@ function calculatePaymentSchedule() {
                         // For weekly + day_of_month preference, adjust to preferred day if in same month
                         // This is optional preference - don't force it if it would skip too far
                         const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-                        const preferredDay = Math.min(paymentDay, daysInMonth);
+                        const preferredDay = Math.min(paymentDayInput, daysInMonth);
                         
                         // Only adjust if the preferred day is within 3 days of the calculated date
                         // This prevents jumping around too much
@@ -1479,7 +1685,7 @@ function calculatePaymentSchedule() {
                     if (paymentDayType === 'day_of_month') {
                         // Set to specific day of month
                         const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-                        currentDate.setDate(Math.min(paymentDay, daysInMonth));
+                        currentDate.setDate(Math.min(paymentDayInput, daysInMonth));
                     } else {
                         // Weekday-based: maintain same weekday
                         const targetWeekday = startDate.getDay();
@@ -1498,9 +1704,16 @@ function calculatePaymentSchedule() {
             return;
         }
         
-        const paymentDay = parseInt(document.getElementById('preview_payment_day').value || '1');
+        const paymentDayInput = parseInt(document.getElementById('preview_payment_day').value || '1');
         
-        if (isNaN(paymentDay) || paymentDay < 1 || paymentDay > 28) {
+        // Store for saving
+        plan_frequency_unit = 'month';
+        plan_frequency_number = 1;
+        plan_payment_day_type = 'day_of_month';
+        payment_day = paymentDayInput;
+        total_months = duration;
+        
+        if (isNaN(paymentDayInput) || paymentDayInput < 1 || paymentDayInput > 28) {
             alert('Payment day must be between 1 and 28');
             return;
         }
@@ -1514,11 +1727,11 @@ function calculatePaymentSchedule() {
         let currentDate = new Date(startDate);
         
         // Set the first payment date to the payment day of the month
-        if (currentDate.getDate() > paymentDay) {
+        if (currentDate.getDate() > paymentDayInput) {
             currentDate.setMonth(currentDate.getMonth() + 1);
         }
         const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-        currentDate.setDate(Math.min(paymentDay, daysInMonth));
+        currentDate.setDate(Math.min(paymentDayInput, daysInMonth));
         
         for (let i = 0; i < duration; i++) {
             const paymentDate = new Date(currentDate);
@@ -1536,12 +1749,33 @@ function calculatePaymentSchedule() {
             // Move to next month
             currentDate.setMonth(currentDate.getMonth() + 1);
             const daysInNextMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-            currentDate.setDate(Math.min(paymentDay, daysInNextMonth));
+            currentDate.setDate(Math.min(paymentDayInput, daysInNextMonth));
         }
         
         totalPayments = duration;
         frequencyDescription = `${duration} months`;
     }
+    
+    // Store plan data for saving
+    const nextPaymentDue = schedule.length > 0 ? schedule[0].date.toISOString().split('T')[0] : '';
+    const donorPaymentMethod = selectedDonor.getAttribute('data-payment-method') || 'bank_transfer';
+    
+    currentPlanData = {
+        donor_id: parseInt(donorSelect.value),
+        template_id: templateId || null,
+        total_amount: balance,
+        monthly_amount: paymentAmount,
+        total_months: total_months,
+        total_payments: totalPayments,
+        start_date: startDateInput.value,
+        payment_day: payment_day,
+        next_payment_due: nextPaymentDue,
+        payment_method: donorPaymentMethod,
+        schedule: schedule,
+        plan_frequency_unit: plan_frequency_unit,
+        plan_frequency_number: plan_frequency_number,
+        plan_payment_day_type: plan_payment_day_type
+    };
     
     // Update UI
     document.getElementById('preview_total_amount').textContent = '£' + balance.toFixed(2);
@@ -1591,10 +1825,84 @@ function calculatePaymentSchedule() {
     // Show results
     document.getElementById('planPreviewResults').style.display = 'block';
     document.getElementById('planPreviewEmpty').style.display = 'none';
+    
+    // Show save button
+    document.getElementById('savePlanBtn').style.display = 'inline-block';
 }
 
 // Calculate button click
 document.getElementById('calculatePlanBtn').addEventListener('click', calculatePaymentSchedule);
+
+// Save Plan button click
+document.getElementById('savePlanBtn').addEventListener('click', function() {
+    if (!currentPlanData) {
+        alert('Please calculate the payment plan first');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to save this payment plan to the donor?\n\nThis will create an active payment plan record.')) {
+        return;
+    }
+    
+    // Prepare data for submission
+    const formData = {
+        action: 'save_payment_plan',
+        csrf_token: getCSRFToken(),
+        donor_id: currentPlanData.donor_id,
+        template_id: currentPlanData.template_id || '',
+        total_amount: currentPlanData.total_amount,
+        monthly_amount: currentPlanData.monthly_amount,
+        total_months: currentPlanData.total_months || '',
+        total_payments: currentPlanData.total_payments,
+        start_date: currentPlanData.start_date,
+        payment_day: currentPlanData.payment_day,
+        next_payment_due: currentPlanData.next_payment_due,
+        payment_method: currentPlanData.payment_method,
+        plan_frequency_unit: currentPlanData.plan_frequency_unit,
+        plan_frequency_number: currentPlanData.plan_frequency_number,
+        plan_payment_day_type: currentPlanData.plan_payment_day_type,
+        schedule: JSON.stringify(currentPlanData.schedule.map(p => ({
+            installment: p.installment,
+            date: p.date.toISOString().split('T')[0],
+            amount: p.amount,
+            status: p.status
+        })))
+    };
+    
+    // Show loading state
+    const btn = this;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    
+    // Submit via AJAX
+    $.ajax({
+        url: '',
+        method: 'POST',
+        data: formData,
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                alert('Payment plan saved successfully!');
+                $('#previewPlanModal').modal('hide');
+                // Optionally reload page to show updated data
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            } else {
+                alert('Error: ' + (response.message || 'Failed to save payment plan'));
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Save error:', error);
+            alert('Server error. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+});
 
 // Allow Enter key to calculate
 ['preview_donor', 'preview_template', 'preview_start_date', 'preview_payment_day', 
@@ -1834,6 +2142,12 @@ $('#previewPlanModal').on('show.bs.modal', function() {
     
     // Hide match alert
     document.getElementById('preview_plan_match').style.display = 'none';
+    
+    // Hide save button
+    document.getElementById('savePlanBtn').style.display = 'none';
+    
+    // Reset plan data
+    currentPlanData = null;
     
     // Focus on search input
     setTimeout(() => {
