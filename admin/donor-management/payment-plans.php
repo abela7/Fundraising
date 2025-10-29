@@ -563,24 +563,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             
             $debug_log[] = "Binding parameters - template_id: " . ($template_id_bind ?? 'NULL') . ", total_months: $total_months_bind, total_payments: " . ($total_payments_bind ?? 'NULL');
             
-            $insert_plan->bind_param('iiiddiisisisssss',
-                $donor_id,              // i - integer
-                $pledge_id,             // i - integer
-                $template_id_bind,      // i - integer (nullable) - can be NULL
-                $total_amount,          // d - decimal
-                $monthly_amount,        // d - decimal
-                $total_months_bind,     // i - integer (NOT NULL in DB - must be > 0)
-                $total_payments_bind,   // i - integer (nullable) - can be NULL
-                $start_date,            // s - string/date
-                $payment_day,           // i - integer
-                $plan_frequency_unit,    // s - string/enum
-                $plan_frequency_number,  // i - integer
-                $plan_payment_day_type, // s - string/enum
-                $payment_method,        // s - string/enum
-                $next_payment_due,      // s - string/date
-                $reminder_date,         // s - string/date
-                $miss_notification_date,// s - string/date
-                $overdue_reminder_date  // s - string/date
+            // Bind 17 parameters: iiiddiisisississs (17 characters = 17 placeholders)
+            // Mapping: iii(1-3) + dd(4-5) + ii(6-7) + s(8) + i(9) + s(10) + i(11) + s(12) + s(13) + s(14) + s(15) + s(16) + s(17)
+            // Positions: 1-3=iii, 4-5=dd, 6-7=ii, 8=s, 9=i, 10=s, 11=i, 12=s, 13=s(payment_method), 14-17=ssss(dates)
+            $insert_plan->bind_param('iiiddiisisississs',
+                $donor_id,              // 1: i - integer
+                $pledge_id,             // 2: i - integer
+                $template_id_bind,      // 3: i - integer (nullable) - can be NULL
+                $total_amount,          // 4: d - decimal
+                $monthly_amount,        // 5: d - decimal
+                $total_months_bind,     // 6: i - integer (NOT NULL in DB - must be > 0)
+                $total_payments_bind,   // 7: i - integer (nullable) - can be NULL
+                $start_date,            // 8: s - string/date
+                $payment_day,           // 9: i - integer
+                $plan_frequency_unit,    // 10: s - string/enum
+                $plan_frequency_number,  // 11: i - integer
+                $plan_payment_day_type, // 12: s - string/enum
+                $payment_method,        // 13: s - string/enum
+                $next_payment_due,      // 14: s - string/date
+                $reminder_date,         // 15: s - string/date
+                $miss_notification_date,// 16: s - string/date
+                $overdue_reminder_date  // 17: s - string/date
             );
             $insert_plan->execute();
             if ($insert_plan->error) {
