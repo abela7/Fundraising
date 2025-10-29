@@ -448,6 +448,24 @@ foreach ($templates_all as $t) {
     #previewPlanModal .border-start {
         border-width: 3px !important;
     }
+    
+    #preview_donor {
+        min-height: 200px;
+        max-height: 300px;
+    }
+    
+    #preview_donor option {
+        padding: 0.5rem;
+        cursor: pointer;
+    }
+    
+    #preview_donor option:hover {
+        background-color: #f8f9fa;
+    }
+    
+    #donor_filter_count {
+        font-size: 0.875rem;
+    }
     </style>
 </head>
 <body>
@@ -755,15 +773,34 @@ foreach ($templates_all as $t) {
                         <div class="card-body">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Select Donor <span class="text-danger">*</span></label>
-                                <select class="form-select" id="preview_donor" required>
+                                <div class="position-relative">
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text bg-light">
+                                            <i class="fas fa-search text-muted"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="donor_search" 
+                                               placeholder="Search by name or phone..." autocomplete="off">
+                                        <button type="button" class="btn btn-outline-secondary" id="clear_donor_search" title="Clear search">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted" id="donor_filter_count">
+                                        Showing <?php echo count($donors_for_preview); ?> donor<?php echo count($donors_for_preview) !== 1 ? 's' : ''; ?>
+                                    </small>
+                                </div>
+                                <select class="form-select" id="preview_donor" required size="8" style="overflow-y: auto;">
                                     <option value="">Choose a donor...</option>
                                     <?php foreach ($donors_for_preview as $donor): ?>
                                     <option value="<?php echo $donor['id']; ?>" 
                                             data-balance="<?php echo $donor['balance']; ?>"
                                             data-name="<?php echo htmlspecialchars($donor['name']); ?>"
-                                            data-phone="<?php echo htmlspecialchars($donor['phone']); ?>">
-                                        <?php echo htmlspecialchars($donor['name']); ?> - 
-                                        Balance: £<?php echo number_format($donor['balance'], 2); ?>
+                                            data-phone="<?php echo htmlspecialchars($donor['phone']); ?>"
+                                            data-search-text="<?php echo strtolower(htmlspecialchars($donor['name'] . ' ' . $donor['phone'])); ?>">
+                                        <?php echo htmlspecialchars($donor['name']); ?> 
+                                        <?php if (!empty($donor['phone'])): ?>
+                                            (<?php echo htmlspecialchars($donor['phone']); ?>)
+                                        <?php endif; ?>
+                                        - Balance: £<?php echo number_format($donor['balance'], 2); ?>
                                     </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -1237,6 +1274,70 @@ document.getElementById('calculatePlanBtn').addEventListener('click', calculateP
     }
 });
 
+// Donor Search/Filter Functionality
+function filterDonors() {
+    const searchTerm = document.getElementById('donor_search').value.toLowerCase().trim();
+    const donorSelect = document.getElementById('preview_donor');
+    const countElement = document.getElementById('donor_filter_count');
+    const options = donorSelect.querySelectorAll('option:not([value=""])');
+    
+    let visibleCount = 0;
+    
+    options.forEach(option => {
+        const searchText = option.getAttribute('data-search-text') || '';
+        const matches = searchText.includes(searchTerm);
+        
+        if (matches || searchTerm === '') {
+            option.style.display = '';
+            visibleCount++;
+        } else {
+            option.style.display = 'none';
+        }
+    });
+    
+    // Update count
+    if (searchTerm === '') {
+        countElement.textContent = `Showing ${options.length} donor${options.length !== 1 ? 's' : ''}`;
+    } else {
+        countElement.textContent = `Showing ${visibleCount} of ${options.length} donor${options.length !== 1 ? 's' : ''}`;
+        if (visibleCount === 0) {
+            countElement.className = 'text-danger';
+            countElement.textContent = 'No donors found. Try a different search term.';
+        } else {
+            countElement.className = 'text-muted';
+        }
+    }
+    
+    // If search term exists and one result matches exactly, optionally highlight it
+    if (visibleCount === 1 && searchTerm !== '') {
+        const visibleOption = Array.from(options).find(opt => opt.style.display !== 'none');
+        if (visibleOption) {
+            donorSelect.value = visibleOption.value;
+        }
+    }
+}
+
+// Setup donor search
+document.getElementById('donor_search').addEventListener('input', filterDonors);
+document.getElementById('donor_search').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const donorSelect = document.getElementById('preview_donor');
+        const visibleOptions = Array.from(donorSelect.querySelectorAll('option:not([value=""]):not([style*="display: none"])'));
+        if (visibleOptions.length === 1) {
+            donorSelect.value = visibleOptions[0].value;
+            donorSelect.focus();
+        }
+    }
+});
+
+// Clear search button
+document.getElementById('clear_donor_search').addEventListener('click', function() {
+    document.getElementById('donor_search').value = '';
+    filterDonors();
+    document.getElementById('donor_search').focus();
+});
+
 // Reset modal when opened
 $('#previewPlanModal').on('show.bs.modal', function() {
     // Reset form
@@ -1245,12 +1346,21 @@ $('#previewPlanModal').on('show.bs.modal', function() {
     document.getElementById('preview_start_date').value = '<?php echo date('Y-m-d'); ?>';
     document.getElementById('preview_payment_day').value = '1';
     
+    // Reset search
+    document.getElementById('donor_search').value = '';
+    filterDonors();
+    
     // Hide results
     document.getElementById('planPreviewResults').style.display = 'none';
     document.getElementById('planPreviewEmpty').style.display = 'block';
     
     // Hide match alert
     document.getElementById('preview_plan_match').style.display = 'none';
+    
+    // Focus on search input
+    setTimeout(() => {
+        document.getElementById('donor_search').focus();
+    }, 300);
 });
 </script>
 </body>
