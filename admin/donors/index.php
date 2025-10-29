@@ -7,9 +7,9 @@ require_once __DIR__ . '/../../config/db.php';
 require_admin();
 
 $database = db();
+$page_title = 'Donor Overview';
 
 // ==== STATISTICS ====
-// Fetch aggregated donor statistics from database
 $statsResult = $database->query("SELECT 
     COUNT(DISTINCT d.id) as total_donors,
     COUNT(DISTINCT CASE WHEN d.total_pledged > 0 THEN d.id END) as donors_with_pledges,
