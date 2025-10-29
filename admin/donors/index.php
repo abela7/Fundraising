@@ -11,21 +11,19 @@ $page_title = 'Donor Overview';
 
 // ==== STATISTICS ====
 $statsResult = $database->query("SELECT 
-    COUNT(DISTINCT d.id) as total_donors,
-    COUNT(DISTINCT CASE WHEN d.total_pledged > 0 THEN d.id END) as donors_with_pledges,
-    COUNT(DISTINCT CASE WHEN d.total_paid > 0 THEN d.id END) as donors_with_payments,
-    COUNT(DISTINCT CASE WHEN d.payment_status = 'completed' THEN d.id END) as fully_paid_donors,
-    COUNT(DISTINCT CASE WHEN d.payment_status = 'paying' THEN d.id END) as actively_paying_donors,
-    COUNT(DISTINCT CASE WHEN d.payment_status = 'not_started' THEN d.id END) as not_started_donors,
-    COUNT(DISTINCT CASE WHEN d.payment_status = 'overdue' THEN d.id END) as overdue_donors,
-    SUM(COALESCE(d.total_pledged, 0)) as total_pledged_amount,
-    SUM(COALESCE(d.total_paid, 0)) as total_paid_amount,
-    SUM(COALESCE(d.balance, 0)) as total_outstanding_balance,
-    COUNT(DISTINCT p.id) as total_pledges,
-    COUNT(DISTINCT pa.id) as total_payments
-FROM donors d
-LEFT JOIN pledges p ON p.donor_id = d.id
-LEFT JOIN payments pa ON pa.donor_id = d.id");
+    COUNT(*) as total_donors,
+    SUM(CASE WHEN total_pledged > 0 THEN 1 ELSE 0 END) as donors_with_pledges,
+    SUM(CASE WHEN total_paid > 0 THEN 1 ELSE 0 END) as donors_with_payments,
+    SUM(CASE WHEN payment_status = 'completed' THEN 1 ELSE 0 END) as fully_paid_donors,
+    SUM(CASE WHEN payment_status = 'paying' THEN 1 ELSE 0 END) as actively_paying_donors,
+    SUM(CASE WHEN payment_status = 'not_started' THEN 1 ELSE 0 END) as not_started_donors,
+    SUM(CASE WHEN payment_status = 'overdue' THEN 1 ELSE 0 END) as overdue_donors,
+    SUM(COALESCE(total_pledged, 0)) as total_pledged_amount,
+    SUM(COALESCE(total_paid, 0)) as total_paid_amount,
+    SUM(COALESCE(balance, 0)) as total_outstanding_balance,
+    (SELECT COUNT(*) FROM pledges) as total_pledges,
+    (SELECT COUNT(*) FROM payments) as total_payments
+FROM donors");
 
 $stats = $statsResult ? $statsResult->fetch_assoc() : [];
 $stats = $stats ?: [];
