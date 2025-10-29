@@ -1930,6 +1930,109 @@ function getNextWeekday(date, targetWeekday) {
 // Store current plan data globally for saving
 let currentPlanData = null;
 
+// Display existing plan in Plan Preview
+function displayExistingPlanPreview(planData) {
+    // Show plan preview section
+    document.getElementById('planPreviewResults').style.display = 'block';
+    document.getElementById('planPreviewEmpty').style.display = 'none';
+    
+    // Update plan summary
+    document.getElementById('preview_total_amount').textContent = 
+        '£' + parseFloat(planData.total_amount || 0).toFixed(2);
+    document.getElementById('preview_monthly_amount').textContent = 
+        '£' + parseFloat(planData.monthly_amount || 0).toFixed(2);
+    document.getElementById('preview_duration').textContent = 
+        planData.total_payments ? `${planData.total_payments} payments` : '-';
+    
+    // Get donor balance (try to extract from selected option)
+    const donorSelect = document.getElementById('preview_donor');
+    const selectedOption = donorSelect.options[donorSelect.selectedIndex];
+    const balance = parseFloat(selectedOption.getAttribute('data-balance') || 0);
+    document.getElementById('preview_donor_balance').textContent = '£' + balance.toFixed(2);
+    
+    // Add "Existing Plan" badge/indicator
+    const summaryHeader = document.querySelector('#planPreviewResults .card-header h6');
+    if (summaryHeader && !summaryHeader.querySelector('.badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-warning text-dark ms-2';
+        badge.innerHTML = '<i class="fas fa-info-circle me-1"></i>Current Plan';
+        summaryHeader.appendChild(badge);
+    }
+    
+    // Generate payment schedule based on existing plan data
+    const tbody = document.getElementById('preview_schedule_body');
+    tbody.innerHTML = '';
+    
+    if (planData.start_date && planData.monthly_amount && planData.total_payments) {
+        const startDate = new Date(planData.start_date);
+        const monthlyAmount = parseFloat(planData.monthly_amount);
+        const totalPayments = parseInt(planData.total_payments || 0);
+        const paymentsMade = parseInt(planData.payments_made || 0);
+        
+        // Distribute remaining amount over remaining payments
+        const totalRemaining = parseFloat(planData.total_amount || 0) - parseFloat(planData.amount_paid || 0);
+        const remainingPayments = totalPayments - paymentsMade;
+        const remainingMonthlyAmount = remainingPayments > 0 ? totalRemaining / remainingPayments : 0;
+        
+        for (let i = 1; i <= totalPayments; i++) {
+            const row = document.createElement('tr');
+            
+            // Calculate payment date (add months from start date)
+            const paymentDate = new Date(startDate);
+            paymentDate.setMonth(paymentDate.getMonth() + (i - 1));
+            
+            // Format date
+            const dateStr = paymentDate.toLocaleDateString('en-GB', { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            
+            // Determine status and amount
+            let statusBadge, amount, amountClass;
+            if (i <= paymentsMade) {
+                // Payment already made
+                statusBadge = '<span class="badge bg-success">Paid</span>';
+                amount = monthlyAmount;
+                amountClass = 'text-success';
+            } else if (i === paymentsMade + 1) {
+                // Next payment due
+                statusBadge = '<span class="badge bg-warning">Due</span>';
+                amount = remainingMonthlyAmount;
+                amountClass = 'text-warning';
+            } else {
+                // Future payment
+                statusBadge = '<span class="badge bg-secondary">Pending</span>';
+                amount = remainingMonthlyAmount;
+                amountClass = 'text-muted';
+            }
+            
+            row.innerHTML = `
+                <td><strong>${i}</strong></td>
+                <td><i class="fas fa-calendar text-muted me-2"></i>${dateStr}</td>
+                <td class="text-end"><strong class="${amountClass}">£${amount.toFixed(2)}</strong></td>
+                <td>${statusBadge}</td>
+            `;
+            
+            tbody.appendChild(row);
+        }
+    } else {
+        // No schedule data available
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle me-2"></i>Schedule details not available
+                </td>
+            </tr>
+        `;
+    }
+    
+    // Hide match alert and save button for existing plans
+    document.getElementById('preview_plan_match').style.display = 'none';
+    document.getElementById('savePlanBtn').style.display = 'none';
+}
+
 // Plan Preview Calculation - Robust System
 function calculatePaymentSchedule() {
     const donorSelect = document.getElementById('preview_donor');
@@ -2232,6 +2335,15 @@ function calculatePaymentSchedule() {
     // Show results
     document.getElementById('planPreviewResults').style.display = 'block';
     document.getElementById('planPreviewEmpty').style.display = 'none';
+    
+    // Remove "Existing Plan" badge if present (this is a new calculation)
+    const summaryHeader = document.querySelector('#planPreviewResults .card-header h6');
+    if (summaryHeader) {
+        const existingBadge = summaryHeader.querySelector('.badge.bg-warning');
+        if (existingBadge) {
+            existingBadge.remove();
+        }
+    }
     
     // Show save button
     document.getElementById('savePlanBtn').style.display = 'inline-block';
@@ -2564,7 +2676,7 @@ document.getElementById('preview_donor').addEventListener('change', function() {
             try {
                 const planData = JSON.parse(planDataStr);
                 
-                // Populate existing plan info
+                // Populate existing plan info card (left side)
                 document.getElementById('existing_plan_type').textContent = planData.template_name || 'Custom Plan';
                 document.getElementById('existing_plan_monthly').textContent = '£' + parseFloat(planData.monthly_amount || 0).toFixed(2);
                 document.getElementById('existing_plan_start').textContent = planData.start_date || '-';
@@ -2583,6 +2695,9 @@ document.getElementById('preview_donor').addEventListener('change', function() {
                 // Disable template selection until plan is cleared
                 document.getElementById('preview_template').disabled = true;
                 
+                // Show existing plan in Plan Preview (right side)
+                displayExistingPlanPreview(planData);
+                
             } catch (e) {
                 console.error('Error parsing plan data:', e);
                 existingPlanInfo.style.display = 'none';
@@ -2591,6 +2706,10 @@ document.getElementById('preview_donor').addEventListener('change', function() {
         } else {
             existingPlanInfo.style.display = 'none';
             document.getElementById('preview_template').disabled = false;
+            
+            // Hide plan preview if no plan exists
+            document.getElementById('planPreviewResults').style.display = 'none';
+            document.getElementById('planPreviewEmpty').style.display = 'block';
         }
         
         // Hide all other options except the selected one and placeholder
@@ -2612,29 +2731,33 @@ document.getElementById('preview_donor').addEventListener('change', function() {
         
         // Clear search input
         document.getElementById('donor_search').value = '';
-    } else {
-        // Reset: show all options when "Choose a donor..." is selected
-        existingPlanInfo.style.display = 'none';
-        document.getElementById('preview_template').disabled = false;
-        
-        const options = donorSelect.querySelectorAll('option:not([value=""])');
-        options.forEach(option => {
-            option.style.display = '';
-        });
-        
-        // Restore dropdown size for selection
-        donorSelect.size = 6;
-        
-        // Reset count
-        const totalDonors = options.length;
-        document.getElementById('donor_filter_count').textContent = `${totalDonors} donor${totalDonors !== 1 ? 's' : ''} available`;
-        document.getElementById('donor_filter_count').className = 'text-muted';
-        
-        // Focus search for new selection
-        setTimeout(() => {
-            document.getElementById('donor_search').focus();
-        }, 100);
-    }
+        } else {
+            // Reset: show all options when "Choose a donor..." is selected
+            existingPlanInfo.style.display = 'none';
+            document.getElementById('preview_template').disabled = false;
+            
+            // Hide plan preview
+            document.getElementById('planPreviewResults').style.display = 'none';
+            document.getElementById('planPreviewEmpty').style.display = 'block';
+            
+            const options = donorSelect.querySelectorAll('option:not([value=""])');
+            options.forEach(option => {
+                option.style.display = '';
+            });
+            
+            // Restore dropdown size for selection
+            donorSelect.size = 6;
+            
+            // Reset count
+            const totalDonors = options.length;
+            document.getElementById('donor_filter_count').textContent = `${totalDonors} donor${totalDonors !== 1 ? 's' : ''} available`;
+            document.getElementById('donor_filter_count').className = 'text-muted';
+            
+            // Focus search for new selection
+            setTimeout(() => {
+                document.getElementById('donor_search').focus();
+            }, 100);
+        }
 });
 
 // Clear search button
