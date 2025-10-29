@@ -97,8 +97,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     is_default, sort_order, created_by_user_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param('ssdidii', $name, $description, $duration_months, 
-                $suggested_monthly_amount, $is_default, $next_sort, $current_user['id']);
+            $stmt->bind_param('ssidiiii', 
+                $name, 
+                $description, 
+                $duration_months,  // int
+                $suggested_monthly_amount,  // double (nullable)
+                $is_default,  // int
+                $next_sort,  // int
+                $current_user['id']  // int
+            );
             $stmt->execute();
             $template_id = $db->insert_id;
             
@@ -128,37 +135,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 : null;
             $is_default = isset($_POST['is_default']) ? 1 : 0;
             
+            if ($template_id <= 0) {
+                throw new Exception('Invalid template ID');
+            }
+            
             if (empty($name)) {
                 throw new Exception('Plan name is required');
             }
             
+            if ($duration_months < 0 || $duration_months > 60) {
+                throw new Exception('Duration must be between 0 and 60 months');
+            }
+            
+            // Get current state for audit
+            $get_stmt = $db->prepare("SELECT name, description, duration_months, suggested_monthly_amount, is_default FROM payment_plan_templates WHERE id = ?");
+            $get_stmt->bind_param('i', $template_id);
+            $get_stmt->execute();
+            $current = $get_stmt->get_result()->fetch_assoc();
+            if (!$current) {
+                throw new Exception('Template not found');
+            }
+            
             // If setting as default, unset other defaults
-            if ($is_default) {
-                $db->query("UPDATE payment_plan_templates SET is_default = 0");
+            if ($is_default && !$current['is_default']) {
+                $db->query("UPDATE payment_plan_templates SET is_default = 0 WHERE id != $template_id");
             }
             
             // Update template
             $stmt = $db->prepare("
                 UPDATE payment_plan_templates 
                 SET name = ?, description = ?, duration_months = ?, 
-                    suggested_monthly_amount = ?, is_default = ?
+                    suggested_monthly_amount = ?, is_default = ?, updated_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->bind_param('ssdidi', $name, $description, $duration_months, 
-                $suggested_monthly_amount, $is_default, $template_id);
+            $stmt->bind_param('ssidii', 
+                $name,  // string
+                $description,  // string
+                $duration_months,  // int
+                $suggested_monthly_amount,  // double (nullable)
+                $is_default,  // int
+                $template_id  // int
+            );
             $stmt->execute();
             
+            if ($stmt->affected_rows === 0) {
+                throw new Exception('No changes detected or template not found');
+            }
+            
             // Audit log
-            $audit_data = json_encode([
-                'name' => $name,
-                'duration_months' => $duration_months
+            $before_data = json_encode([
+                'name' => $current['name'],
+                'description' => $current['description'],
+                'duration_months' => (int)$current['duration_months'],
+                'suggested_monthly_amount' => $current['suggested_monthly_amount'],
+                'is_default' => (int)$current['is_default']
             ], JSON_UNESCAPED_SLASHES);
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment_plan_template', ?, 'update', ?, 'admin')");
-            $audit->bind_param('iis', $current_user['id'], $template_id, $audit_data);
+            $after_data = json_encode([
+                'name' => $name,
+                'description' => $description,
+                'duration_months' => $duration_months,
+                'suggested_monthly_amount' => $suggested_monthly_amount,
+                'is_default' => $is_default
+            ], JSON_UNESCAPED_SLASHES);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment_plan_template', ?, 'update', ?, ?, 'admin')");
+            $audit->bind_param('iiss', $current_user['id'], $template_id, $before_data, $after_data);
             $audit->execute();
             
             $db->commit();
-            $_SESSION['success_message'] = "Payment plan template updated successfully!";
+            $_SESSION['success_message'] = "Payment plan template '{$name}' updated successfully!";
             header('Location: payment-plans.php');
             exit;
             
@@ -166,47 +210,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $template_id = (int)($_POST['template_id'] ?? 0);
             $is_active = (int)($_POST['is_active'] ?? 0);
             
-            $stmt = $db->prepare("UPDATE payment_plan_templates SET is_active = ? WHERE id = ?");
+            if ($template_id <= 0) {
+                throw new Exception('Invalid template ID');
+            }
+            
+            // Get current state for audit
+            $get_stmt = $db->prepare("SELECT name, is_active FROM payment_plan_templates WHERE id = ?");
+            $get_stmt->bind_param('i', $template_id);
+            $get_stmt->execute();
+            $current = $get_stmt->get_result()->fetch_assoc();
+            if (!$current) {
+                throw new Exception('Template not found');
+            }
+            
+            // Update status
+            $stmt = $db->prepare("UPDATE payment_plan_templates SET is_active = ?, updated_at = NOW() WHERE id = ?");
             $stmt->bind_param('ii', $is_active, $template_id);
             $stmt->execute();
             
             // Audit log
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment_plan_template', ?, 'toggle_active', ?, 'admin')");
-            $audit_data = json_encode(['is_active' => $is_active], JSON_UNESCAPED_SLASHES);
-            $audit->bind_param('iis', $current_user['id'], $template_id, $audit_data);
+            $before_data = json_encode(['is_active' => (int)$current['is_active']], JSON_UNESCAPED_SLASHES);
+            $after_data = json_encode(['is_active' => $is_active], JSON_UNESCAPED_SLASHES);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment_plan_template', ?, 'toggle_active', ?, ?, 'admin')");
+            $audit->bind_param('iiss', $current_user['id'], $template_id, $before_data, $after_data);
             $audit->execute();
             
             $db->commit();
-            $_SESSION['success_message'] = $is_active ? "Plan activated" : "Plan deactivated";
+            $_SESSION['success_message'] = $is_active ? "Plan '{$current['name']}' activated successfully" : "Plan '{$current['name']}' deactivated successfully";
             header('Location: payment-plans.php');
             exit;
             
         } elseif ($action === 'delete_template') {
             $template_id = (int)($_POST['template_id'] ?? 0);
             
+            if ($template_id <= 0) {
+                throw new Exception('Invalid template ID');
+            }
+            
+            // Get template info for audit
+            $get_stmt = $db->prepare("SELECT name, duration_months, is_default FROM payment_plan_templates WHERE id = ?");
+            $get_stmt->bind_param('i', $template_id);
+            $get_stmt->execute();
+            $template = $get_stmt->get_result()->fetch_assoc();
+            if (!$template) {
+                throw new Exception('Template not found');
+            }
+            
+            // Check if it's the default template
+            if ($template['is_default']) {
+                throw new Exception('Cannot delete the default template. Please set another template as default first.');
+            }
+            
+            // Delete template
             $stmt = $db->prepare("DELETE FROM payment_plan_templates WHERE id = ?");
             $stmt->bind_param('i', $template_id);
             $stmt->execute();
             
+            if ($stmt->affected_rows === 0) {
+                throw new Exception('Failed to delete template');
+            }
+            
             // Audit log
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, source) VALUES(?, 'payment_plan_template', ?, 'delete', 'admin')");
-            $audit->bind_param('ii', $current_user['id'], $template_id);
+            $before_data = json_encode([
+                'name' => $template['name'],
+                'duration_months' => (int)$template['duration_months']
+            ], JSON_UNESCAPED_SLASHES);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, source) VALUES(?, 'payment_plan_template', ?, 'delete', ?, 'admin')");
+            $audit->bind_param('iis', $current_user['id'], $template_id, $before_data);
             $audit->execute();
             
             $db->commit();
-            $_SESSION['success_message'] = "Payment plan template deleted successfully!";
+            $_SESSION['success_message'] = "Payment plan template '{$template['name']}' deleted successfully!";
             header('Location: payment-plans.php');
             exit;
             
         } elseif ($action === 'reorder') {
             $order = json_decode($_POST['order'] ?? '[]', true);
+            if (!is_array($order)) {
+                throw new Exception('Invalid order data');
+            }
+            
             foreach ($order as $index => $id) {
+                $templateId = (int)$id;
+                $sortOrder = (int)$index;
                 $stmt = $db->prepare("UPDATE payment_plan_templates SET sort_order = ? WHERE id = ?");
-                $stmt->bind_param('ii', $index, $id);
+                $stmt->bind_param('ii', $sortOrder, $templateId);
                 $stmt->execute();
             }
             
             $db->commit();
+            header('Content-Type: application/json');
             echo json_encode(['success' => true]);
             exit;
         }
@@ -656,6 +749,21 @@ foreach ($templates as $t) {
 <script src="../assets/admin.js"></script>
 
 <script>
+// Get CSRF token helper
+function getCSRFToken() {
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    // Try to find it in any form
+    const form = document.querySelector('form');
+    if (form) {
+        const token = form.querySelector('input[name="csrf_token"]');
+        if (token) return token.value;
+    }
+    return '';
+}
+
 // Initialize drag-and-drop sorting
 new Sortable(document.getElementById('templatesGrid'), {
     animation: 150,
@@ -669,16 +777,31 @@ new Sortable(document.getElementById('templatesGrid'), {
         });
         
         // Save to server
-        $.post('', {
-            action: 'reorder',
-            order: JSON.stringify(order),
-            <?php echo str_replace(['"', "'"], '', csrf_input()); ?>
+        $.ajax({
+            url: '',
+            method: 'POST',
+            data: {
+                action: 'reorder',
+                order: JSON.stringify(order),
+                csrf_token: getCSRFToken()
+            },
+            success: function(response) {
+                // Silent success - order is saved
+            },
+            error: function() {
+                alert('Failed to save order. Please refresh the page.');
+            }
         });
     }
 });
 
 // Toggle active status
 function toggleActive(templateId, isActive) {
+    if (!templateId || templateId <= 0) {
+        alert('Invalid template ID');
+        return;
+    }
+    
     const form = $('<form>', {
         method: 'POST',
         action: ''
@@ -692,25 +815,48 @@ function toggleActive(templateId, isActive) {
 }
 
 // Edit template
-$(document).on('click', '.edit-template', function() {
-    const template = JSON.parse($(this).attr('data-template'));
+$(document).on('click', '.edit-template', function(e) {
+    e.stopPropagation();
+    const templateData = $(this).attr('data-template');
+    if (!templateData) {
+        alert('Template data not found');
+        return;
+    }
     
-    $('#edit_template_id').val(template.id);
-    $('#edit_name').val(template.name);
-    $('#edit_description').val(template.description);
-    $('#edit_duration_months').val(template.duration_months);
-    $('#edit_suggested_monthly_amount').val(template.suggested_monthly_amount);
-    $('#edit_is_default').prop('checked', template.is_default == 1);
-    
-    $('#editTemplateModal').modal('show');
+    try {
+        const template = JSON.parse(templateData);
+        
+        if (!template || !template.id) {
+            alert('Invalid template data');
+            return;
+        }
+        
+        $('#edit_template_id').val(template.id);
+        $('#edit_name').val(template.name || '');
+        $('#edit_description').val(template.description || '');
+        $('#edit_duration_months').val(template.duration_months || 0);
+        $('#edit_suggested_monthly_amount').val(template.suggested_monthly_amount || '');
+        $('#edit_is_default').prop('checked', template.is_default == 1);
+        
+        $('#editTemplateModal').modal('show');
+    } catch (error) {
+        console.error('Error parsing template data:', error);
+        alert('Error loading template data');
+    }
 });
 
 // Delete template
-$(document).on('click', '.delete-template', function() {
+$(document).on('click', '.delete-template', function(e) {
+    e.stopPropagation();
     const id = $(this).data('id');
     const name = $(this).data('name');
     
-    if (confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+    if (!id || id <= 0) {
+        alert('Invalid template ID');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete "${name || 'this template'}"? This action cannot be undone.`)) {
         const form = $('<form>', {
             method: 'POST',
             action: ''
@@ -721,6 +867,11 @@ $(document).on('click', '.delete-template', function() {
         $('body').append(form);
         form.submit();
     }
+});
+
+// Prevent row click from triggering when clicking buttons
+$(document).on('click', '.plan-card .btn, .plan-card .form-check-input, .plan-card .form-check-label', function(e) {
+    e.stopPropagation();
 });
 </script>
 </body>
