@@ -264,113 +264,67 @@ foreach ($templates as $t) {
     <link rel="stylesheet" href="assets/donor-management.css">
     <style>
     .plan-card {
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: move;
+        border-radius: 12px !important;
         overflow: hidden;
-        border-radius: 16px !important;
     }
     .plan-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.2) !important;
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
     }
     .plan-card.dragging {
-        opacity: 0.5;
-        transform: rotate(3deg);
+        opacity: 0.6;
+        transform: scale(0.95);
     }
-    .plan-card-header {
-        position: relative;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .plan-card .card-header {
         padding: 1.5rem;
-        border: none !important;
+        border: none;
+        font-weight: 600;
     }
-    .plan-card-header.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    .plan-card-header.inactive {
-        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-    }
-    .plan-card-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-        opacity: 1;
+    .plan-card .card-body {
+        padding: 1.5rem;
     }
     .default-badge {
         position: absolute;
-        top: 12px;
-        right: 12px;
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: 600;
+        top: -8px;
+        right: 15px;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.75rem;
+        font-weight: 700;
         letter-spacing: 0.5px;
-        box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
+        z-index: 10;
     }
     .duration-badge {
-        background: rgba(255, 255, 255, 0.25);
-        backdrop-filter: blur(10px);
-        padding: 8px 16px;
-        border-radius: 20px;
+        font-size: 0.85rem;
         font-weight: 600;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    .plan-card-body {
-        background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
-        padding: 2rem;
+        padding: 0.4rem 0.9rem;
     }
     .drag-handle {
-        opacity: 0.5;
+        opacity: 0.4;
         transition: opacity 0.3s;
     }
     .plan-card:hover .drag-handle {
         opacity: 1;
     }
-    .suggested-amount-box {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        border-radius: 12px;
+    .suggested-amount {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
         padding: 1rem;
-        color: white;
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
     }
     .plan-description {
-        min-height: 60px;
-        color: #6c757d;
+        min-height: 48px;
         line-height: 1.6;
+        color: #6c757d;
     }
     .plan-actions {
-        background: linear-gradient(to right, #f8f9fa 0%, #e9ecef 100%);
-        padding: 1rem;
-        margin: -2rem -2rem 0 -2rem;
-        border-top: 1px solid #dee2e6;
+        padding-top: 1rem;
+        margin-top: 1rem;
+        border-top: 2px solid #f8f9fa;
     }
-    .empty-state {
-        padding: 4rem 2rem;
-        text-align: center;
-    }
-    .empty-state-icon {
-        width: 120px;
-        height: 120px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
-    }
-    .status-switch .form-check-input:checked {
-        background-color: #38ef7d;
-        border-color: #38ef7d;
+    .btn-group-sm .btn {
+        padding: 0.4rem 0.65rem;
     }
     </style>
 </head>
@@ -477,58 +431,57 @@ foreach ($templates as $t) {
                     </div>
                 </div>
 
-
                 <!-- Payment Plan Templates Grid -->
-                <div class="row g-4" id="templatesGrid">
+                <div class="row g-4 mb-4" id="templatesGrid">
                     <?php foreach ($templates as $template): ?>
                     <div class="col-12 col-md-6 col-lg-4" data-template-id="<?php echo $template['id']; ?>">
-                        <div class="plan-card card border-0 h-100 position-relative animate-fade-in" 
-                             style="animation-delay: <?php echo (array_search($template, $templates) * 0.1); ?>s; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                        <div class="plan-card card border-0 shadow h-100 position-relative animate-fade-in" 
+                             style="animation-delay: <?php echo (array_search($template, $templates) * 0.05); ?>s;">
                             
                             <?php if ($template['is_default']): ?>
-                            <span class="badge text-white default-badge">
-                                <i class="fas fa-crown me-1"></i>RECOMMENDED
+                            <span class="badge bg-warning text-dark default-badge">
+                                <i class="fas fa-crown me-1"></i>DEFAULT
                             </span>
                             <?php endif; ?>
                             
-                            <div class="plan-card-header <?php echo $template['is_active'] ? 'active' : 'inactive'; ?> text-white">
-                                <div class="d-flex justify-content-between align-items-center" style="position: relative; z-index: 1;">
-                                    <h5 class="mb-0 fw-bold">
-                                        <i class="fas fa-grip-vertical me-2 drag-handle" style="cursor: move;"></i>
-                                        <?php echo htmlspecialchars($template['name']); ?>
-                                    </h5>
-                                    <span class="duration-badge">
+                            <div class="card-header bg-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-grip-vertical me-2 drag-handle"></i>
+                                        <h5 class="mb-0"><?php echo htmlspecialchars($template['name']); ?></h5>
+                                    </div>
+                                    <span class="badge bg-light text-dark duration-badge">
                                         <?php if ($template['duration_months'] == 0): ?>
-                                            <i class="fas fa-infinity me-1"></i>Flexible
+                                            <i class="fas fa-infinity me-1"></i>Custom
                                         <?php else: ?>
-                                            <i class="fas fa-calendar-alt me-1"></i><?php echo $template['duration_months']; ?> mo
+                                            <i class="fas fa-calendar-alt me-1"></i><?php echo $template['duration_months']; ?>mo
                                         <?php endif; ?>
                                     </span>
                                 </div>
                             </div>
                             
-                            <div class="plan-card-body">
-                                <p class="plan-description">
+                            <div class="card-body d-flex flex-column">
+                                <p class="plan-description mb-3">
                                     <?php echo htmlspecialchars($template['description'] ?: 'No description provided'); ?>
                                 </p>
                                 
                                 <?php if ($template['suggested_monthly_amount']): ?>
-                                <div class="suggested-amount-box">
+                                <div class="suggested-amount mb-3">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <small class="d-block opacity-75 mb-1">
+                                            <small class="text-muted d-block mb-1">
                                                 <i class="fas fa-lightbulb me-1"></i>Suggested Monthly
                                             </small>
-                                            <h4 class="mb-0 fw-bold">£<?php echo number_format($template['suggested_monthly_amount'], 2); ?></h4>
+                                            <h4 class="mb-0 text-success">£<?php echo number_format($template['suggested_monthly_amount'], 2); ?></h4>
                                         </div>
-                                        <i class="fas fa-pound-sign fa-2x opacity-25"></i>
+                                        <i class="fas fa-pound-sign fa-2x text-success opacity-25"></i>
                                     </div>
                                 </div>
                                 <?php endif; ?>
                                 
-                                <div class="plan-actions">
+                                <div class="plan-actions mt-auto">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <div class="form-check form-switch status-switch">
+                                        <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" 
                                                    id="active_<?php echo $template['id']; ?>"
                                                    <?php echo $template['is_active'] ? 'checked' : ''; ?>
@@ -560,15 +513,20 @@ foreach ($templates as $t) {
                 </div>
 
                 <?php if (empty($templates)): ?>
-                <div class="empty-state animate-fade-in">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-th-list fa-3x text-white"></i>
+                <div class="card border-0 shadow-sm animate-fade-in">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle" 
+                                 style="width: 100px; height: 100px;">
+                                <i class="fas fa-th-list fa-3x text-primary"></i>
+                            </div>
+                        </div>
+                        <h4 class="mb-3">No Payment Plan Templates Yet</h4>
+                        <p class="text-muted mb-4">Create your first template to offer flexible payment options to donors</p>
+                        <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                            <i class="fas fa-plus-circle me-2"></i>Create Your First Template
+                        </button>
                     </div>
-                    <h4 class="mb-3">No Payment Plan Templates Yet</h4>
-                    <p class="text-muted mb-4">Create your first template to offer flexible payment options to donors</p>
-                    <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
-                        <i class="fas fa-plus-circle me-2"></i>Create Your First Template
-                    </button>
                 </div>
                 <?php endif; ?>
             </div>
