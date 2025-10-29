@@ -343,11 +343,85 @@ unset($donor); // Break reference
                 <!-- Donors Table -->
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <h5 class="mb-0">
-                            <i class="fas fa-table me-2 text-primary"></i>
-                            All Donors
-                        </h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-table me-2 text-primary"></i>
+                                All Donors
+                            </h5>
+                            <button class="btn btn-sm btn-outline-primary" id="toggleFilter" type="button">
+                                <i class="fas fa-filter me-2"></i>Filters
+                                <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
+                            </button>
+                        </div>
                     </div>
+                    
+                    <!-- Filter Panel -->
+                    <div id="filterPanel" class="border-bottom" style="display: none;">
+                        <div class="p-3 bg-light">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <label class="form-label small fw-bold">Donor Type</label>
+                                    <select class="form-select form-select-sm" id="filter_donor_type">
+                                        <option value="">All Types</option>
+                                        <option value="pledge">Pledge Donors</option>
+                                        <option value="immediate_payment">Immediate Payers</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12 col-md-6 col-lg-3">
+                                    <label class="form-label small fw-bold">Payment Status</label>
+                                    <select class="form-select form-select-sm" id="filter_payment_status">
+                                        <option value="">All Statuses</option>
+                                        <option value="no_pledge">No Pledge</option>
+                                        <option value="not_started">Not Started</option>
+                                        <option value="paying">Paying</option>
+                                        <option value="overdue">Overdue</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="defaulted">Defaulted</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12 col-md-6 col-lg-2">
+                                    <label class="form-label small fw-bold">Language</label>
+                                    <select class="form-select form-select-sm" id="filter_language">
+                                        <option value="">All Languages</option>
+                                        <option value="en">English</option>
+                                        <option value="am">Amharic</option>
+                                        <option value="ti">Tigrinya</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12 col-md-6 col-lg-2">
+                                    <label class="form-label small fw-bold">Payment Method</label>
+                                    <select class="form-select form-select-sm" id="filter_payment_method">
+                                        <option value="">All Methods</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12 col-md-6 col-lg-2">
+                                    <label class="form-label small fw-bold">Balance</label>
+                                    <select class="form-select form-select-sm" id="filter_balance">
+                                        <option value="">All</option>
+                                        <option value="has_balance">Has Balance (> £0)</option>
+                                        <option value="no_balance">No Balance (£0)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-danger" id="clearFilters">
+                                            <i class="fas fa-times me-1"></i>Clear All Filters
+                                        </button>
+                                        <span class="ms-auto text-muted small align-self-center" id="filterResultCount"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="card-body">
                         <div class="table-responsive">
                             <table id="donorsTable" class="table table-hover align-middle">
@@ -356,12 +430,13 @@ unset($donor); // Break reference
                                         <th>ID</th>
                                         <th>Name</th>
                                         <th>Type</th>
-                                        <th>Email</th>
                                         <th>Phone</th>
                                         <th>Status</th>
                                         <th>Pledged</th>
                                         <th>Paid</th>
                                         <th>Balance</th>
+                                        <th>Language</th>
+                                        <th>Payment Method</th>
                                         <th>Added</th>
                                         <th>Actions</th>
                                     </tr>
@@ -373,29 +448,38 @@ unset($donor); // Break reference
                                         <td class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></td>
                                         <td>
                                             <?php if ($donor['donor_type'] === 'pledge'): ?>
-                                                <span class="badge bg-warning">Pledge</span>
+                                                <span class="badge bg-warning text-dark">Pledge</span>
                                             <?php else: ?>
                                                 <span class="badge bg-success">Immediate</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td><?php echo htmlspecialchars($donor['email'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($donor['phone'] ?? '-'); ?></td>
                                         <td>
-                                            <span class="badge bg-secondary">
+                                            <span class="badge bg-<?php 
+                                                echo match($donor['payment_status'] ?? 'no_pledge') {
+                                                    'completed' => 'success',
+                                                    'paying' => 'primary',
+                                                    'overdue' => 'danger',
+                                                    'not_started' => 'warning',
+                                                    default => 'secondary'
+                                                };
+                                            ?>">
                                                 <?php echo ucwords(str_replace('_', ' ', $donor['payment_status'] ?? 'no_pledge')); ?>
                                             </span>
                                         </td>
                                         <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['balance'], 2); ?></td>
-                                        <td><?php echo date('Y-m-d', strtotime($donor['created_at'])); ?></td>
+                                        <td><?php echo strtoupper($donor['preferred_language'] ?? 'EN'); ?></td>
+                                        <td><?php echo ucwords(str_replace('_', ' ', $donor['preferred_payment_method'] ?? 'Bank Transfer')); ?></td>
+                                        <td><?php echo date('d M Y', strtotime($donor['created_at'])); ?></td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-primary edit-donor" 
                                                     data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>'>
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger delete-donor" 
-                                                    data-id="<?php echo $donor['id']; ?>" 
+                                                    data-id="<?php echo (int)$donor['id']; ?>" 
                                                     data-name="<?php echo htmlspecialchars($donor['name']); ?>">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -545,7 +629,7 @@ unset($donor); // Break reference
 <script>
 $(document).ready(function() {
     // Initialize DataTable
-    $('#donorsTable').DataTable({
+    const table = $('#donorsTable').DataTable({
         order: [[0, 'desc']],
         pageLength: 25,
         language: {
@@ -553,6 +637,103 @@ $(document).ready(function() {
             lengthMenu: "Show _MENU_ donors per page"
         }
     });
+    
+    // Toggle Filter Panel
+    $('#toggleFilter').click(function() {
+        $('#filterPanel').slideToggle(300);
+        const icon = $('#filterIcon');
+        if (icon.hasClass('fa-chevron-down')) {
+            icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        } else {
+            icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        }
+    });
+    
+    // Custom filter function
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        const donorType = $('#filter_donor_type').val();
+        const paymentStatus = $('#filter_payment_status').val();
+        const language = $('#filter_language').val();
+        const paymentMethod = $('#filter_payment_method').val();
+        const balance = $('#filter_balance').val();
+        
+        // Get data from table columns
+        // Column indices: 0=ID, 1=Name, 2=Type, 3=Phone, 4=Status, 5=Pledged, 6=Paid, 7=Balance, 8=Language, 9=Payment Method, 10=Added, 11=Actions
+        const rowDonorType = data[2].toLowerCase(); // Type column
+        const rowPaymentStatus = data[4].toLowerCase(); // Status column
+        const rowBalance = parseFloat(data[7].replace('£', '').replace(',', '')); // Balance column
+        const rowLanguage = data[8].toLowerCase(); // Language column
+        const rowPaymentMethod = data[9].toLowerCase(); // Payment Method column
+        
+        // Apply filters
+        if (donorType && !rowDonorType.includes(donorType.toLowerCase())) {
+            return false;
+        }
+        
+        if (paymentStatus && !rowPaymentStatus.includes(paymentStatus.toLowerCase().replace('_', ' '))) {
+            return false;
+        }
+        
+        if (language && rowLanguage !== language.toLowerCase()) {
+            return false;
+        }
+        
+        if (paymentMethod && !rowPaymentMethod.includes(paymentMethod.toLowerCase().replace('_', ' '))) {
+            return false;
+        }
+        
+        if (balance === 'has_balance' && rowBalance <= 0) {
+            return false;
+        }
+        
+        if (balance === 'no_balance' && rowBalance == 0) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Filter change handlers
+    $('#filter_donor_type, #filter_payment_status, #filter_language, #filter_payment_method, #filter_balance').on('change', function() {
+        table.draw();
+        updateFilterCount();
+    });
+    
+    // Clear filters
+    $('#clearFilters').click(function() {
+        $('#filter_donor_type').val('');
+        $('#filter_payment_status').val('');
+        $('#filter_language').val('');
+        $('#filter_payment_method').val('');
+        $('#filter_balance').val('');
+        table.draw();
+        updateFilterCount();
+    });
+    
+    // Update filter result count
+    function updateFilterCount() {
+        const info = table.page.info();
+        const activeFilters = [];
+        
+        if ($('#filter_donor_type').val()) activeFilters.push('Type');
+        if ($('#filter_payment_status').val()) activeFilters.push('Status');
+        if ($('#filter_language').val()) activeFilters.push('Language');
+        if ($('#filter_payment_method').val()) activeFilters.push('Payment Method');
+        if ($('#filter_balance').val()) activeFilters.push('Balance');
+        
+        if (activeFilters.length > 0) {
+            $('#filterResultCount').html(
+                '<i class="fas fa-filter me-1"></i>' +
+                'Showing ' + info.recordsDisplay + ' of ' + info.recordsTotal + ' donors ' +
+                '(' + activeFilters.length + ' filter' + (activeFilters.length > 1 ? 's' : '') + ' active)'
+            );
+        } else {
+            $('#filterResultCount').html('');
+        }
+    }
+    
+    // Initialize count
+    updateFilterCount();
     
     // Add Donor
     $('#saveAddDonor').click(function() {
