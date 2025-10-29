@@ -418,5 +418,17 @@ $currency = '£';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js?v=<?php echo filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
+<script>
+// Fallback toggle function in case admin.js doesn't load
+if (typeof toggleSidebar === 'undefined') {
+    window.toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        const body = document.body;
+        if (sidebar) {
+            body.classList.toggle('sidebar-collapsed');
+        }
+    };
+}
+</script>
 </body>
 </html>
