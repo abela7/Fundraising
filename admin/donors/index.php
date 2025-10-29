@@ -9,7 +9,7 @@ require_admin();
 $database = db();
 
 // ==== STATISTICS ====
-$stats = $database->query("SELECT 
+$statsResult = $database->query("SELECT 
     COUNT(DISTINCT d.id) as total_donors,
     COUNT(DISTINCT CASE WHEN d.total_pledged > 0 THEN d.id END) as donors_with_pledges,
     COUNT(DISTINCT CASE WHEN d.total_paid > 0 THEN d.id END) as donors_with_payments,
@@ -24,7 +24,10 @@ $stats = $database->query("SELECT
     COUNT(DISTINCT pa.id) as total_payments
 FROM donors d
 LEFT JOIN pledges p ON p.donor_id = d.id
-LEFT JOIN payments pa ON pa.donor_id = d.id")->fetch_assoc() ?: [];
+LEFT JOIN payments pa ON pa.donor_id = d.id");
+
+$stats = $statsResult ? $statsResult->fetch_assoc() : [];
+$stats = $stats ?: [];
 
 // ==== FILTER & PAGINATION ====
 $page = max(1, (int)($_GET['page'] ?? 1));
