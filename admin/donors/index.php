@@ -150,8 +150,8 @@ $currency = '£';
                 <h2 class="mb-4"><i class="fas fa-users"></i> Donor Management</h2>
 
                 <!-- STATISTICS GRID -->
-                <div class="row mb-4">
-                    <div class="col-md-2">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-6 g-3 mb-4">
+                    <div class="col">
                         <div class="card stat-card">
                             <div class="card-body">
                                 <h6 class="text-muted">Total Donors</h6>
@@ -159,7 +159,7 @@ $currency = '£';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col">
                         <div class="card stat-card">
                             <div class="card-body">
                                 <h6 class="text-muted">Pledged</h6>
@@ -167,7 +167,7 @@ $currency = '£';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col">
                         <div class="card stat-card">
                             <div class="card-body">
                                 <h6 class="text-muted">Paid</h6>
@@ -175,7 +175,7 @@ $currency = '£';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col">
                         <div class="card stat-card">
                             <div class="card-body">
                                 <h6 class="text-muted">Actively Paying</h6>
@@ -183,7 +183,7 @@ $currency = '£';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col">
                         <div class="card stat-card">
                             <div class="card-body">
                                 <h6 class="text-muted">Active Plans</h6>
@@ -191,7 +191,7 @@ $currency = '£';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col">
                         <div class="card stat-card">
                             <div class="card-body">
                                 <h6 class="text-muted">Flagged</h6>
