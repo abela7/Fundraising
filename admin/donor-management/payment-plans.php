@@ -899,13 +899,63 @@ foreach ($templates_all as $t) {
                                         <?php echo htmlspecialchars($template['name']); ?>
                                         <?php if ($template['duration_months'] > 0): ?>
                                             (<?php echo $template['duration_months']; ?> months)
+                                        <?php else: ?>
+                                            (Custom)
                                         <?php endif; ?>
                                     </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             
-                            <div class="row g-3">
+                            <!-- Custom Plan Options (Hidden by default) -->
+                            <div id="custom_plan_options" style="display: none;">
+                                <div class="card border-info mb-3">
+                                    <div class="card-header bg-info bg-opacity-10">
+                                        <h6 class="mb-0 text-info">
+                                            <i class="fas fa-cog me-2"></i>Custom Payment Plan Configuration
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Payment Frequency <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">Every</span>
+                                                <input type="number" class="form-control" id="custom_frequency_number" 
+                                                       min="1" max="24" value="1" placeholder="1">
+                                                <select class="form-select" id="custom_frequency_unit" style="max-width: 120px;">
+                                                    <option value="week">Week(s)</option>
+                                                    <option value="month" selected>Month(s)</option>
+                                                </select>
+                                            </div>
+                                            <small class="text-muted">How often payments will be made</small>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Number of Payments <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="custom_total_payments" 
+                                                   min="1" max="120" value="1" placeholder="e.g., 12">
+                                            <small class="text-muted">Total number of payments to complete the plan</small>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Payment Day/Date</label>
+                                            <div class="input-group">
+                                                <select class="form-select" id="custom_payment_day_type">
+                                                    <option value="day_of_month" selected>Day of Month (1-28)</option>
+                                                    <option value="weekday">Same Weekday</option>
+                                                </select>
+                                                <input type="number" class="form-control" id="custom_payment_day" 
+                                                       min="1" max="28" value="1" placeholder="Day" style="max-width: 100px;">
+                                            </div>
+                                            <small class="text-muted" id="custom_day_help">
+                                                Payment will be on this day of each month
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-3" id="standard_date_options">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Start Date <span class="text-danger">*</span></label>
                                     <input type="date" class="form-control" id="preview_start_date" 
@@ -1216,15 +1266,80 @@ $(document).on('click', '.plan-card .btn, .plan-card .form-check-input, .plan-ca
     e.stopPropagation();
 });
 
-// Plan Preview Calculation
+// Show/hide custom plan options based on template selection
+document.getElementById('preview_template').addEventListener('change', function() {
+    const selectedTemplate = this.options[this.selectedIndex];
+    const duration = parseInt(selectedTemplate.getAttribute('data-duration') || 0);
+    const customOptions = document.getElementById('custom_plan_options');
+    const standardDateOptions = document.getElementById('standard_date_options');
+    
+    if (duration === 0) {
+        // Custom plan - show custom options, hide standard date options
+        customOptions.style.display = 'block';
+        standardDateOptions.style.display = 'none';
+        
+        // Clear standard date inputs requirement
+        document.getElementById('preview_payment_day').required = false;
+    } else {
+        // Standard plan - hide custom options, show standard date options
+        customOptions.style.display = 'none';
+        standardDateOptions.style.display = 'flex';
+        document.getElementById('preview_payment_day').required = true;
+    }
+});
+
+// Update help text for custom payment day type
+document.getElementById('custom_payment_day_type').addEventListener('change', function() {
+    const helpText = document.getElementById('custom_day_help');
+    if (this.value === 'weekday') {
+        helpText.textContent = 'Payment will be on the same weekday (e.g., every Monday, every Friday)';
+        document.getElementById('custom_payment_day').style.display = 'none';
+    } else {
+        helpText.textContent = 'Payment will be on this day of each month (1-28)';
+        document.getElementById('custom_payment_day').style.display = 'block';
+    }
+});
+
+// Helper function to add weeks to a date
+function addWeeks(date, weeks) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + (weeks * 7));
+    return result;
+}
+
+// Helper function to add months to a date
+function addMonths(date, months) {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() + months);
+    return result;
+}
+
+// Helper function to get days in month
+function getDaysInMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+}
+
+// Helper function to get next occurrence of a weekday
+function getNextWeekday(date, targetWeekday) {
+    const currentWeekday = date.getDay();
+    let daysToAdd = (targetWeekday - currentWeekday + 7) % 7;
+    // If already on the target weekday, always move to next week (add 7 days)
+    if (daysToAdd === 0) {
+        daysToAdd = 7;
+    }
+    const result = new Date(date);
+    result.setDate(result.getDate() + daysToAdd);
+    return result;
+}
+
+// Plan Preview Calculation - Robust System
 function calculatePaymentSchedule() {
     const donorSelect = document.getElementById('preview_donor');
     const templateSelect = document.getElementById('preview_template');
     const startDateInput = document.getElementById('preview_start_date');
-    const paymentDayInput = document.getElementById('preview_payment_day');
     
     // Validation
-    if (!donorSelect.value || !templateSelect.value || !startDateInput.value || !paymentDayInput.value) {
+    if (!donorSelect.value || !templateSelect.value || !startDateInput.value) {
         alert('Please fill in all required fields');
         return;
     }
@@ -1233,68 +1348,202 @@ function calculatePaymentSchedule() {
     const selectedTemplate = templateSelect.options[templateSelect.selectedIndex];
     
     const balance = parseFloat(selectedDonor.getAttribute('data-balance'));
-    const donorName = selectedDonor.getAttribute('data-name');
-    const duration = parseInt(selectedTemplate.getAttribute('data-duration'));
+    const duration = parseInt(selectedTemplate.getAttribute('data-duration') || '0');
     const templateName = selectedTemplate.getAttribute('data-name');
     const startDate = new Date(startDateInput.value);
-    const paymentDay = parseInt(paymentDayInput.value);
     
     if (isNaN(balance) || balance <= 0) {
         alert('Invalid donor balance');
         return;
     }
     
-    if (duration <= 0) {
-        alert('Please select a valid payment plan template with duration');
-        return;
-    }
+    let schedule = [];
+    let paymentAmount = 0;
+    let totalPayments = 0;
+    let frequencyDescription = '';
     
-    if (isNaN(paymentDay) || paymentDay < 1 || paymentDay > 28) {
-        alert('Payment day must be between 1 and 28');
-        return;
-    }
+    // Check if custom plan
+    const customOptions = document.getElementById('custom_plan_options');
+    const isCustom = customOptions.style.display !== 'none';
     
-    // Calculate monthly payment (divide evenly, last payment may be adjusted)
-    const monthlyAmount = balance / duration;
-    const roundedMonthly = Math.floor(monthlyAmount * 100) / 100; // Round down to 2 decimals
-    const remainder = balance - (roundedMonthly * duration);
-    
-    // Generate payment schedule
-    const schedule = [];
-    let currentDate = new Date(startDate);
-    
-    // Set the first payment date to the payment day of the month
-    if (currentDate.getDate() > paymentDay) {
-        // If start date is after payment day, move to next month
-        currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-    currentDate.setDate(Math.min(paymentDay, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()));
-    
-    for (let i = 0; i < duration; i++) {
-        const paymentDate = new Date(currentDate);
+    if (isCustom) {
+        // CUSTOM PLAN LOGIC
+        const frequencyNumber = parseInt(document.getElementById('custom_frequency_number').value || '1');
+        const frequencyUnit = document.getElementById('custom_frequency_unit').value;
+        totalPayments = parseInt(document.getElementById('custom_total_payments').value || '1');
+        const paymentDayType = document.getElementById('custom_payment_day_type').value;
+        const paymentDay = parseInt(document.getElementById('custom_payment_day').value || '1');
         
-        // Last payment gets the remainder added
-        const amount = (i === duration - 1) 
-            ? roundedMonthly + remainder 
-            : roundedMonthly;
+        // Validation for custom plan
+        if (frequencyNumber < 1 || frequencyNumber > 24) {
+            alert('Frequency must be between 1 and 24');
+            return;
+        }
         
-        schedule.push({
-            installment: i + 1,
-            date: new Date(paymentDate),
-            amount: amount,
-            status: 'pending'
-        });
+        if (totalPayments < 1 || totalPayments > 120) {
+            alert('Number of payments must be between 1 and 120');
+            return;
+        }
         
-        // Move to next month
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+        if (paymentDayType === 'day_of_month' && (paymentDay < 1 || paymentDay > 28)) {
+            alert('Payment day must be between 1 and 28');
+            return;
+        }
+        
+        // Calculate payment amount
+        paymentAmount = balance / totalPayments;
+        const roundedAmount = Math.floor(paymentAmount * 100) / 100;
+        const remainder = balance - (roundedAmount * totalPayments);
+        
+        // Generate schedule based on frequency
+        let currentDate = new Date(startDate);
+        
+        // Set initial payment date
+        if (paymentDayType === 'day_of_month') {
+            if (frequencyUnit === 'week') {
+                // For weekly frequency, start from the start date, then adjust to nearest payment day if desired
+                // First payment uses start date, then adjust if user wants specific day preference
+                const daysInStartMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+                const preferredDay = Math.min(paymentDay, daysInStartMonth);
+                
+                // If start date is after preferred day, move to next week interval
+                if (startDate.getDate() > preferredDay) {
+                    currentDate = addWeeks(startDate, frequencyNumber);
+                    // Adjust new date to preferred day if possible
+                    const daysInNewMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+                    currentDate.setDate(Math.min(preferredDay, daysInNewMonth));
+                } else {
+                    // Use start date but adjust to preferred day if user wants consistency
+                    currentDate.setDate(Math.min(preferredDay, daysInStartMonth));
+                }
+            } else {
+                // Monthly frequency: set to specific day of month
+                const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+                currentDate.setDate(Math.min(paymentDay, daysInMonth));
+                
+                // If start date is after payment day, move to next month interval
+                if (startDate.getDate() > paymentDay) {
+                    currentDate = addMonths(currentDate, frequencyNumber);
+                    const daysInNewMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+                    currentDate.setDate(Math.min(paymentDay, daysInNewMonth));
+                }
+            }
+        } else {
+            // Weekday-based: use the start date's weekday
+            const targetWeekday = startDate.getDay();
+            currentDate = getNextWeekday(startDate, targetWeekday);
+        }
+        
+        // Generate all payments
+        for (let i = 0; i < totalPayments; i++) {
+            const paymentDate = new Date(currentDate);
+            
+            // Last payment gets remainder
+            const amount = (i === totalPayments - 1) 
+                ? roundedAmount + remainder 
+                : roundedAmount;
+            
+            schedule.push({
+                installment: i + 1,
+                date: new Date(paymentDate),
+                amount: amount,
+                status: 'pending'
+            });
+            
+            // Calculate next payment date
+            if (i < totalPayments - 1) {
+                if (frequencyUnit === 'week') {
+                    // Weekly frequency: add weeks directly
+                    currentDate = addWeeks(currentDate, frequencyNumber);
+                    
+                    if (paymentDayType === 'day_of_month') {
+                        // For weekly + day_of_month preference, adjust to preferred day if in same month
+                        // This is optional preference - don't force it if it would skip too far
+                        const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+                        const preferredDay = Math.min(paymentDay, daysInMonth);
+                        
+                        // Only adjust if the preferred day is within 3 days of the calculated date
+                        // This prevents jumping around too much
+                        const dayDifference = Math.abs(currentDate.getDate() - preferredDay);
+                        if (dayDifference <= 3) {
+                            currentDate.setDate(preferredDay);
+                        }
+                    }
+                } else {
+                    // Monthly frequency
+                    currentDate = addMonths(currentDate, frequencyNumber);
+                    
+                    if (paymentDayType === 'day_of_month') {
+                        // Set to specific day of month
+                        const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+                        currentDate.setDate(Math.min(paymentDay, daysInMonth));
+                    } else {
+                        // Weekday-based: maintain same weekday
+                        const targetWeekday = startDate.getDay();
+                        currentDate = getNextWeekday(currentDate, targetWeekday);
+                    }
+                }
+            }
+        }
+        
+        frequencyDescription = `Every ${frequencyNumber} ${frequencyUnit}${frequencyNumber > 1 ? 's' : ''} (${totalPayments} payments)`;
+        
+    } else {
+        // STANDARD PLAN LOGIC (existing monthly logic)
+        if (duration <= 0) {
+            alert('Please select a valid payment plan template with duration');
+            return;
+        }
+        
+        const paymentDay = parseInt(document.getElementById('preview_payment_day').value || '1');
+        
+        if (isNaN(paymentDay) || paymentDay < 1 || paymentDay > 28) {
+            alert('Payment day must be between 1 and 28');
+            return;
+        }
+        
+        // Calculate monthly payment
+        paymentAmount = balance / duration;
+        const roundedMonthly = Math.floor(paymentAmount * 100) / 100;
+        const remainder = balance - (roundedMonthly * duration);
+        
+        // Generate payment schedule
+        let currentDate = new Date(startDate);
+        
+        // Set the first payment date to the payment day of the month
+        if (currentDate.getDate() > paymentDay) {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
         currentDate.setDate(Math.min(paymentDay, daysInMonth));
+        
+        for (let i = 0; i < duration; i++) {
+            const paymentDate = new Date(currentDate);
+            const amount = (i === duration - 1) 
+                ? roundedMonthly + remainder 
+                : roundedMonthly;
+            
+            schedule.push({
+                installment: i + 1,
+                date: new Date(paymentDate),
+                amount: amount,
+                status: 'pending'
+            });
+            
+            // Move to next month
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            const daysInNextMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+            currentDate.setDate(Math.min(paymentDay, daysInNextMonth));
+        }
+        
+        totalPayments = duration;
+        frequencyDescription = `${duration} months`;
     }
     
     // Update UI
     document.getElementById('preview_total_amount').textContent = '£' + balance.toFixed(2);
-    document.getElementById('preview_monthly_amount').textContent = '£' + roundedMonthly.toFixed(2);
-    document.getElementById('preview_duration').textContent = duration + ' months';
+    document.getElementById('preview_monthly_amount').textContent = '£' + (schedule[0]?.amount || 0).toFixed(2);
+    document.getElementById('preview_duration').textContent = frequencyDescription || `${totalPayments} payments`;
     document.getElementById('preview_donor_balance').textContent = '£' + balance.toFixed(2);
     
     // Check if plan matches balance perfectly
@@ -1345,7 +1594,8 @@ function calculatePaymentSchedule() {
 document.getElementById('calculatePlanBtn').addEventListener('click', calculatePaymentSchedule);
 
 // Allow Enter key to calculate
-['preview_donor', 'preview_template', 'preview_start_date', 'preview_payment_day'].forEach(id => {
+['preview_donor', 'preview_template', 'preview_start_date', 'preview_payment_day', 
+ 'custom_frequency_number', 'custom_total_payments', 'custom_payment_day'].forEach(id => {
     const element = document.getElementById(id);
     if (element) {
         element.addEventListener('keypress', function(e) {
@@ -1555,6 +1805,17 @@ $('#previewPlanModal').on('show.bs.modal', function() {
     document.getElementById('preview_template').value = '';
     document.getElementById('preview_start_date').value = '<?php echo date('Y-m-d'); ?>';
     document.getElementById('preview_payment_day').value = '1';
+    
+    // Reset custom plan options
+    document.getElementById('custom_plan_options').style.display = 'none';
+    document.getElementById('standard_date_options').style.display = 'flex';
+    document.getElementById('custom_frequency_number').value = '1';
+    document.getElementById('custom_frequency_unit').value = 'month';
+    document.getElementById('custom_total_payments').value = '1';
+    document.getElementById('custom_payment_day_type').value = 'day_of_month';
+    document.getElementById('custom_payment_day').value = '1';
+    document.getElementById('custom_payment_day').style.display = 'block';
+    document.getElementById('preview_payment_day').required = true;
     
     // Reset filters
     resetDonorFilters();
