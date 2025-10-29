@@ -1,6 +1,6 @@
 /**
  * Donor Management Styles
- * Custom styles for the donor management section
+ * Professional styling for donor management section
  */
 
 /* Card hover effects */
@@ -15,7 +15,8 @@
 
 /* Animate fade in */
 .animate-fade-in {
-    animation: fadeIn 0.5s ease-in;
+    animation: fadeIn 0.6s ease-in-out forwards;
+    opacity: 0;
 }
 
 @keyframes fadeIn {
@@ -31,12 +32,26 @@
 
 /* Card styling improvements */
 .card {
-    border: none;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
     transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card:hover {
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
 }
 
 /* Text decoration for linked cards */
@@ -46,10 +61,45 @@ a.text-decoration-none:hover {
 
 a.text-decoration-none .card-title {
     color: #212529;
+    transition: color 0.2s ease;
 }
 
 a.text-decoration-none:hover .card-title {
     color: #0d6efd;
+}
+
+/* Progress bars */
+.progress {
+    background-color: #e5e7eb;
+}
+
+/* Table styling */
+.table {
+    font-size: 0.875rem;
+}
+
+.table thead th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Border utilities for quality metrics */
+.border-start {
+    border-left-width: 4px !important;
 }
 
 /* Print styles */
@@ -70,6 +120,29 @@ a.text-decoration-none:hover .card-title {
     .card {
         break-inside: avoid;
         page-break-inside: avoid;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+    
+    .card-header {
+        background-color: #f5f5f5 !important;
+    }
+    
+    .animate-fade-in {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-header h5,
+    .card-header h6 {
+        font-size: 0.95rem;
+    }
+    
+    .h2 {
+        font-size: 1.5rem;
     }
 }
 
