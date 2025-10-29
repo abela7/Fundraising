@@ -82,17 +82,10 @@ $donorSQL = "SELECT
     d.has_active_plan,
     d.last_payment_date,
     d.created_at,
-    COUNT(DISTINCT p.id) as pledge_count,
-    COUNT(DISTINCT pa.id) as payment_count,
-    SUM(CASE WHEN p.status = 'approved' THEN p.amount ELSE 0 END) as total_pledges_approved,
-    SUM(CASE WHEN pa.status = 'approved' THEN pa.amount ELSE 0 END) as total_payments_approved
+    d.pledge_count,
+    d.payment_count
 FROM donors d
-LEFT JOIN pledges p ON p.donor_id = d.id
-LEFT JOIN payments pa ON pa.donor_id = d.id
 {$whereSQL}
-GROUP BY d.id, d.name, d.phone, d.total_pledged, d.total_paid, d.balance, 
-         d.payment_status, d.achievement_badge, d.preferred_language, 
-         d.preferred_payment_method, d.has_active_plan, d.last_payment_date, d.created_at
 ORDER BY d.balance DESC, d.total_pledged DESC
 LIMIT ? OFFSET ?";
 
