@@ -400,14 +400,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $overdue_reminder_date = date('Y-m-d', $next_due_timestamp + (7 * 24 * 60 * 60)); // 7 days after payment due (if still not paid)
             
             // Determine total_months for standard plans (estimate from total_payments if custom)
-            if ($total_months === null && $total_payments !== null) {
-                // For custom plans, estimate months based on frequency
-                if ($plan_frequency_unit === 'week') {
-                    // Rough estimate: 4.33 weeks per month
-                    $total_months = ceil(($total_payments * $plan_frequency_number) / 4.33);
+            // total_months is NOT NULL in database, so we must have a value
+            if ($total_months === null || $total_months <= 0) {
+                if ($total_payments !== null && $total_payments > 0) {
+                    // For custom plans, estimate months based on frequency
+                    if ($plan_frequency_unit === 'week') {
+                        // Rough estimate: 4.33 weeks per month
+                        $total_months = max(1, ceil(($total_payments * $plan_frequency_number) / 4.33));
+                    } else {
+                        // Monthly frequency
+                        $total_months = max(1, $total_payments * $plan_frequency_number);
+                    }
                 } else {
-                    // Monthly frequency
-                    $total_months = $total_payments * $plan_frequency_number;
+                    // Default to 1 month if we can't calculate
+                    $total_months = 1;
                 }
             }
             
@@ -586,13 +592,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
         }
         
     } catch (Exception $e) {
-        $db->rollback();
+        if ($db_connection_ok) {
+            $db->rollback();
+        }
         if (isset($_POST['action']) && ($_POST['action'] === 'save_payment_plan' || $_POST['action'] === 'clear_payment_plan')) {
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            // Include more detailed error info in development
+            $error_msg = $e->getMessage();
+            if ($e->getCode() > 0) {
+                $error_msg .= ' (Code: ' . $e->getCode() . ')';
+            }
+            echo json_encode([
+                'success' => false, 
+                'message' => $error_msg,
+                'error_details' => $e->getFile() . ':' . $e->getLine()
+            ]);
             exit;
         }
         $error_message = $e->getMessage();
+    } catch (mysqli_sql_exception $e) {
+        if ($db_connection_ok) {
+            $db->rollback();
+        }
+        if (isset($_POST['action']) && ($_POST['action'] === 'save_payment_plan' || $_POST['action'] === 'clear_payment_plan')) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Database error: ' . $e->getMessage(),
+                'error_details' => $e->getFile() . ':' . $e->getLine(),
+                'sql_error' => $db->error ?? 'No SQL error info'
+            ]);
+            exit;
+        }
+        $error_message = 'Database error: ' . $e->getMessage();
     }
 }
 
@@ -2067,8 +2099,29 @@ document.getElementById('savePlanBtn').addEventListener('click', function() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Save error:', error);
-            alert('Server error. Please try again.');
+            console.error('Save error:', error, xhr);
+            let errorMsg = 'Server error. Please try again.';
+            
+            // Try to parse error response
+            if (xhr.responseJSON) {
+                errorMsg = xhr.responseJSON.message || errorMsg;
+                if (xhr.responseJSON.error_details) {
+                    console.error('Error details:', xhr.responseJSON.error_details);
+                }
+                if (xhr.responseJSON.sql_error) {
+                    console.error('SQL error:', xhr.responseJSON.sql_error);
+                }
+            } else if (xhr.responseText) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    errorMsg = response.message || errorMsg;
+                } catch (e) {
+                    // Not JSON, might be HTML error page
+                    console.error('Response text:', xhr.responseText.substring(0, 500));
+                }
+            }
+            
+            alert('Error: ' + errorMsg);
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
