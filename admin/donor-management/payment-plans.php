@@ -264,67 +264,53 @@ foreach ($templates as $t) {
     <link rel="stylesheet" href="assets/donor-management.css">
     <style>
     .plan-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s ease;
         cursor: move;
-        border-radius: 12px !important;
-        overflow: hidden;
     }
     .plan-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
     }
     .plan-card.dragging {
-        opacity: 0.6;
-        transform: scale(0.95);
+        opacity: 0.5;
     }
     .plan-card .card-header {
-        padding: 1.5rem;
-        border: none;
-        font-weight: 600;
+        padding: 1.25rem 1.5rem;
     }
     .plan-card .card-body {
         padding: 1.5rem;
     }
     .default-badge {
         position: absolute;
-        top: -8px;
+        top: -10px;
         right: 15px;
-        padding: 0.4rem 0.9rem;
-        font-size: 0.75rem;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.7rem;
         font-weight: 700;
         letter-spacing: 0.5px;
-        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
         z-index: 10;
     }
     .duration-badge {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         font-weight: 600;
-        padding: 0.4rem 0.9rem;
+        padding: 0.35rem 0.75rem;
     }
     .drag-handle {
-        opacity: 0.4;
+        opacity: 0.3;
         transition: opacity 0.3s;
+        cursor: move;
     }
     .plan-card:hover .drag-handle {
-        opacity: 1;
-    }
-    .suggested-amount {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 8px;
-        padding: 1rem;
+        opacity: 0.7;
     }
     .plan-description {
-        min-height: 48px;
+        min-height: 40px;
         line-height: 1.6;
-        color: #6c757d;
     }
     .plan-actions {
         padding-top: 1rem;
         margin-top: 1rem;
-        border-top: 2px solid #f8f9fa;
-    }
-    .btn-group-sm .btn {
-        padding: 0.4rem 0.65rem;
+        border-top: 1px solid #e9ecef;
     }
     </style>
 </head>
@@ -435,47 +421,43 @@ foreach ($templates as $t) {
                 <div class="row g-4 mb-4" id="templatesGrid">
                     <?php foreach ($templates as $template): ?>
                     <div class="col-12 col-md-6 col-lg-4" data-template-id="<?php echo $template['id']; ?>">
-                        <div class="plan-card card border-0 shadow h-100 position-relative animate-fade-in" 
+                        <div class="plan-card card border-0 shadow-sm h-100 position-relative animate-fade-in" 
                              style="animation-delay: <?php echo (array_search($template, $templates) * 0.05); ?>s;">
                             
                             <?php if ($template['is_default']): ?>
                             <span class="badge bg-warning text-dark default-badge">
-                                <i class="fas fa-crown me-1"></i>DEFAULT
+                                <i class="fas fa-star me-1"></i>DEFAULT
                             </span>
                             <?php endif; ?>
                             
-                            <div class="card-header bg-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> text-white">
+                            <div class="card-header bg-white border-bottom">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-grip-vertical me-2 drag-handle"></i>
-                                        <h5 class="mb-0"><?php echo htmlspecialchars($template['name']); ?></h5>
+                                        <i class="fas fa-grip-vertical me-2 drag-handle text-muted"></i>
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-calendar-check text-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> me-2"></i>
+                                            <?php echo htmlspecialchars($template['name']); ?>
+                                        </h5>
                                     </div>
-                                    <span class="badge bg-light text-dark duration-badge">
+                                    <span class="badge bg-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> text-white duration-badge">
                                         <?php if ($template['duration_months'] == 0): ?>
-                                            <i class="fas fa-infinity me-1"></i>Custom
+                                            Custom
                                         <?php else: ?>
-                                            <i class="fas fa-calendar-alt me-1"></i><?php echo $template['duration_months']; ?>mo
+                                            <?php echo $template['duration_months']; ?>mo
                                         <?php endif; ?>
                                     </span>
                                 </div>
                             </div>
                             
                             <div class="card-body d-flex flex-column">
-                                <p class="plan-description mb-3">
+                                <p class="plan-description mb-3 text-muted">
                                     <?php echo htmlspecialchars($template['description'] ?: 'No description provided'); ?>
                                 </p>
                                 
                                 <?php if ($template['suggested_monthly_amount']): ?>
-                                <div class="suggested-amount mb-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <small class="text-muted d-block mb-1">
-                                                <i class="fas fa-lightbulb me-1"></i>Suggested Monthly
-                                            </small>
-                                            <h4 class="mb-0 text-success">£<?php echo number_format($template['suggested_monthly_amount'], 2); ?></h4>
-                                        </div>
-                                        <i class="fas fa-pound-sign fa-2x text-success opacity-25"></i>
-                                    </div>
+                                <div class="border-start border-4 border-success ps-3 mb-3">
+                                    <small class="text-muted d-block mb-1">Suggested Monthly Amount</small>
+                                    <h4 class="mb-0 text-success">£<?php echo number_format($template['suggested_monthly_amount'], 2); ?></h4>
                                 </div>
                                 <?php endif; ?>
                                 
@@ -514,6 +496,11 @@ foreach ($templates as $t) {
 
                 <?php if (empty($templates)): ?>
                 <div class="card border-0 shadow-sm animate-fade-in">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">
+                            <i class="fas fa-th-list text-primary me-2"></i>Payment Plan Templates
+                        </h5>
+                    </div>
                     <div class="card-body text-center py-5">
                         <div class="mb-4">
                             <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle" 
@@ -542,9 +529,11 @@ foreach ($templates as $t) {
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="create_template">
                 
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Create Payment Plan Template</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header bg-white border-bottom">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus-circle text-primary me-2"></i>Create Payment Plan Template
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 
                 <div class="modal-body p-4">
@@ -611,9 +600,11 @@ foreach ($templates as $t) {
                 <input type="hidden" name="action" value="edit_template">
                 <input type="hidden" name="template_id" id="edit_template_id">
                 
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Payment Plan Template</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header bg-white border-bottom">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit text-primary me-2"></i>Edit Payment Plan Template
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 
                 <div class="modal-body p-4">
