@@ -307,12 +307,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             // Save payment plan to donor
             header('Content-Type: application/json');
             
+            // STEP 4: Log all received POST data
+            $debug_log = [];
+            $debug_log[] = '=== BACKEND STEP 4: Received POST Data ===';
+            $debug_log[] = 'All POST keys: ' . implode(', ', array_keys($_POST));
+            foreach ($_POST as $key => $value) {
+                if ($key !== 'schedule') {
+                    $debug_log[] = "POST[$key] = " . (is_array($value) ? json_encode($value) : $value);
+                }
+            }
+            
             $donor_id = (int)($_POST['donor_id'] ?? 0);
-            $template_id = isset($_POST['template_id']) && $_POST['template_id'] !== '' ? (int)$_POST['template_id'] : null;
+            // Handle template_id - can be empty string for custom plans
+            $template_id_raw = $_POST['template_id'] ?? '';
+            $template_id = ($template_id_raw !== '' && $template_id_raw !== null) ? (int)$template_id_raw : null;
             $total_amount = (float)($_POST['total_amount'] ?? 0);
             $monthly_amount = (float)($_POST['monthly_amount'] ?? 0);
-            $total_months = isset($_POST['total_months']) ? (int)$_POST['total_months'] : null;
-            $total_payments = isset($_POST['total_payments']) ? (int)$_POST['total_payments'] : null;
+            $total_months = isset($_POST['total_months']) && $_POST['total_months'] !== '' ? (int)$_POST['total_months'] : null;
+            $total_payments = isset($_POST['total_payments']) && $_POST['total_payments'] !== '' ? (int)$_POST['total_payments'] : null;
             $start_date = $_POST['start_date'] ?? '';
             $payment_day = isset($_POST['payment_day']) ? (int)$_POST['payment_day'] : 1;
             $next_payment_due = $_POST['next_payment_due'] ?? '';
@@ -324,82 +336,160 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $plan_frequency_number = isset($_POST['plan_frequency_number']) ? (int)$_POST['plan_frequency_number'] : 1;
             $plan_payment_day_type = $_POST['plan_payment_day_type'] ?? 'day_of_month';
             
+            $debug_log[] = '=== BACKEND STEP 5: Parsed Values ===';
+            $debug_log[] = "donor_id: $donor_id";
+            $debug_log[] = "template_id: " . ($template_id ?? 'NULL');
+            $debug_log[] = "total_amount: $total_amount";
+            $debug_log[] = "monthly_amount: $monthly_amount";
+            $debug_log[] = "total_months: " . ($total_months ?? 'NULL');
+            $debug_log[] = "total_payments: " . ($total_payments ?? 'NULL');
+            $debug_log[] = "start_date: $start_date";
+            $debug_log[] = "payment_day: $payment_day";
+            $debug_log[] = "next_payment_due: $next_payment_due";
+            $debug_log[] = "payment_method: $payment_method";
+            $debug_log[] = "plan_frequency_unit: $plan_frequency_unit";
+            $debug_log[] = "plan_frequency_number: $plan_frequency_number";
+            $debug_log[] = "plan_payment_day_type: $plan_payment_day_type";
+            
             // Validate
+            $debug_log[] = '=== BACKEND STEP 6: Validation ===';
             if ($donor_id <= 0) {
-                throw new Exception('Invalid donor ID');
+                throw new Exception('STEP 6 FAILED: Invalid donor ID: ' . $donor_id);
             }
             if ($total_amount <= 0) {
-                throw new Exception('Total amount must be greater than 0');
+                throw new Exception('STEP 6 FAILED: Total amount must be greater than 0, got: ' . $total_amount);
             }
             if ($monthly_amount <= 0) {
-                throw new Exception('Monthly amount must be greater than 0');
+                throw new Exception('STEP 6 FAILED: Monthly amount must be greater than 0, got: ' . $monthly_amount);
             }
             if (empty($start_date)) {
-                throw new Exception('Start date is required');
+                throw new Exception('STEP 6 FAILED: Start date is required, got: ' . var_export($start_date, true));
             }
             if (empty($next_payment_due)) {
-                throw new Exception('Next payment due date is required');
+                throw new Exception('STEP 6 FAILED: Next payment due date is required, got: ' . var_export($next_payment_due, true));
             }
             
             // Validate date format
             $start_date_obj = DateTime::createFromFormat('Y-m-d', $start_date);
             $next_due_obj = DateTime::createFromFormat('Y-m-d', $next_payment_due);
             if (!$start_date_obj || !$next_due_obj) {
-                throw new Exception('Invalid date format');
+                throw new Exception('STEP 6 FAILED: Invalid date format. start_date: ' . var_export($start_date, true) . ', next_payment_due: ' . var_export($next_payment_due, true));
             }
+            
+            $debug_log[] = 'Validation passed';
             
             // Check if donor exists
+            $debug_log[] = '=== BACKEND STEP 7: Check Donor Exists ===';
             $donor_check = $db->prepare("SELECT id, total_pledged, last_pledge_id FROM donors WHERE id = ?");
+            if (!$donor_check) {
+                throw new Exception('STEP 7 FAILED: Prepare failed: ' . $db->error);
+            }
             $donor_check->bind_param('i', $donor_id);
             $donor_check->execute();
+            if ($donor_check->error) {
+                throw new Exception('STEP 7 FAILED: Execute failed: ' . $donor_check->error);
+            }
             $donor = $donor_check->get_result()->fetch_assoc();
             if (!$donor) {
-                throw new Exception('Donor not found');
+                throw new Exception('STEP 7 FAILED: Donor not found with ID: ' . $donor_id);
             }
+            $debug_log[] = 'Donor found: ' . json_encode($donor);
             
             // Get or create pledge_id
+            $debug_log[] = '=== BACKEND STEP 8: Get/Create Pledge ID ===';
             $pledge_id = $donor['last_pledge_id'];
+            $debug_log[] = "Existing pledge_id: " . ($pledge_id ?? 'NULL');
+            
             if (!$pledge_id) {
+                $debug_log[] = 'Creating new pledge...';
                 // Create a pledge record if none exists
                 $donor_info = $db->prepare("SELECT name, phone FROM donors WHERE id = ?");
+                if (!$donor_info) {
+                    throw new Exception('STEP 8 FAILED: Prepare failed - ' . $db->error);
+                }
                 $donor_info->bind_param('i', $donor_id);
                 $donor_info->execute();
+                if ($donor_info->error) {
+                    throw new Exception('STEP 8 FAILED: Execute failed - ' . $donor_info->error);
+                }
                 $donor_data = $donor_info->get_result()->fetch_assoc();
+                if (!$donor_data) {
+                    throw new Exception('STEP 8 FAILED: Could not fetch donor data');
+                }
+                $debug_log[] = "Donor data: " . json_encode($donor_data);
                 
                 $create_pledge = $db->prepare("
                     INSERT INTO pledges (donor_id, donor_phone, donor_name, amount, type, status, approved_by_user_id, created_at)
                     VALUES (?, ?, ?, ?, 'pledge', 'approved', ?, NOW())
                 ");
+                if (!$create_pledge) {
+                    throw new Exception('STEP 8 FAILED: Prepare INSERT failed - ' . $db->error);
+                }
                 $create_pledge->bind_param('issdi', $donor_id, $donor_data['phone'], $donor_data['name'], $total_amount, $current_user['id']);
                 $create_pledge->execute();
+                if ($create_pledge->error) {
+                    throw new Exception('STEP 8 FAILED: Execute INSERT failed - ' . $create_pledge->error);
+                }
                 $pledge_id = $db->insert_id;
+                $debug_log[] = "Created pledge_id: $pledge_id";
                 
                 // Update donor's last_pledge_id
                 $update_pledge_id = $db->prepare("UPDATE donors SET last_pledge_id = ? WHERE id = ?");
+                if (!$update_pledge_id) {
+                    throw new Exception('STEP 8 FAILED: Prepare UPDATE failed - ' . $db->error);
+                }
                 $update_pledge_id->bind_param('ii', $pledge_id, $donor_id);
                 $update_pledge_id->execute();
+                if ($update_pledge_id->error) {
+                    throw new Exception('STEP 8 FAILED: Execute UPDATE failed - ' . $update_pledge_id->error);
+                }
             }
             
             // Check if donor already has an active plan
+            $debug_log[] = '=== BACKEND STEP 9: Check Existing Active Plan ===';
             $existing_plan = $db->prepare("SELECT id FROM donor_payment_plans WHERE donor_id = ? AND status = 'active'");
+            if (!$existing_plan) {
+                throw new Exception('STEP 9 FAILED: Prepare failed - ' . $db->error);
+            }
             $existing_plan->bind_param('i', $donor_id);
             $existing_plan->execute();
+            if ($existing_plan->error) {
+                throw new Exception('STEP 9 FAILED: Execute failed - ' . $existing_plan->error);
+            }
             $existing = $existing_plan->get_result()->fetch_assoc();
             
             if ($existing) {
+                $debug_log[] = 'Found existing active plan, pausing it...';
                 // Pause existing plan
                 $pause_existing = $db->prepare("UPDATE donor_payment_plans SET status = 'paused', updated_at = NOW() WHERE id = ?");
+                if (!$pause_existing) {
+                    throw new Exception('STEP 9 FAILED: Prepare UPDATE failed - ' . $db->error);
+                }
                 $pause_existing->bind_param('i', $existing['id']);
                 $pause_existing->execute();
+                if ($pause_existing->error) {
+                    throw new Exception('STEP 9 FAILED: Execute UPDATE failed - ' . $pause_existing->error);
+                }
+                $debug_log[] = 'Existing plan paused';
+            } else {
+                $debug_log[] = 'No existing active plan found';
             }
             
             // Calculate reminder dates
+            $debug_log[] = '=== BACKEND STEP 10: Calculate Reminder Dates ===';
             $next_due_timestamp = strtotime($next_payment_due);
+            if ($next_due_timestamp === false) {
+                throw new Exception('STEP 10 FAILED: Could not parse next_payment_due: ' . $next_payment_due);
+            }
             $reminder_date = date('Y-m-d', $next_due_timestamp - (2 * 24 * 60 * 60)); // 2 days before payment
             $miss_notification_date = date('Y-m-d', $next_due_timestamp + (1 * 24 * 60 * 60)); // 1 day after payment due
             $overdue_reminder_date = date('Y-m-d', $next_due_timestamp + (7 * 24 * 60 * 60)); // 7 days after payment due (if still not paid)
+            $debug_log[] = "reminder_date: $reminder_date";
+            $debug_log[] = "miss_notification_date: $miss_notification_date";
+            $debug_log[] = "overdue_reminder_date: $overdue_reminder_date";
             
             // Determine total_months for standard plans (estimate from total_payments if custom)
+            $debug_log[] = '=== BACKEND STEP 11: Calculate total_months ===';
             // total_months is NOT NULL in database, so we must have a value
             if ($total_months === null || $total_months <= 0) {
                 if ($total_payments !== null && $total_payments > 0) {
@@ -416,8 +506,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     $total_months = 1;
                 }
             }
+            $debug_log[] = "Final total_months: $total_months";
             
             // Insert new payment plan
+            $debug_log[] = '=== BACKEND STEP 12: Insert Payment Plan ===';
+            $debug_log[] = "About to insert with values:";
+            $debug_log[] = "  donor_id: $donor_id";
+            $debug_log[] = "  pledge_id: $pledge_id";
+            $debug_log[] = "  template_id: " . ($template_id ?? 'NULL');
+            $debug_log[] = "  total_amount: $total_amount";
+            $debug_log[] = "  monthly_amount: $monthly_amount";
+            $debug_log[] = "  total_months: $total_months";
+            $debug_log[] = "  total_payments: " . ($total_payments ?? 'NULL');
+            $debug_log[] = "  start_date: $start_date";
+            $debug_log[] = "  payment_day: $payment_day";
+            $debug_log[] = "  plan_frequency_unit: $plan_frequency_unit";
+            $debug_log[] = "  plan_frequency_number: $plan_frequency_number";
+            $debug_log[] = "  plan_payment_day_type: $plan_payment_day_type";
+            $debug_log[] = "  payment_method: $payment_method";
+            $debug_log[] = "  next_payment_due: $next_payment_due";
+            $debug_log[] = "  reminder_date: $reminder_date";
+            $debug_log[] = "  miss_notification_date: $miss_notification_date";
+            $debug_log[] = "  overdue_reminder_date: $overdue_reminder_date";
+            
             $insert_plan = $db->prepare("
                 INSERT INTO donor_payment_plans (
                     donor_id, pledge_id, template_id, total_amount, monthly_amount, 
@@ -428,14 +539,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
             ");
+            if (!$insert_plan) {
+                throw new Exception('STEP 12 FAILED: Prepare INSERT failed - ' . $db->error);
+            }
+            
+            // For nullable integers in bind_param, we need to pass NULL explicitly
+            // mysqli can handle NULL for 'i' type, but we need to ensure it's actually NULL, not 0
+            $template_id_bind = $template_id ?? null;
+            $total_months_bind = $total_months ?? null;
+            $total_payments_bind = $total_payments ?? null;
+            
+            $debug_log[] = "Binding parameters - template_id: " . ($template_id_bind ?? 'NULL') . ", total_months: " . ($total_months_bind ?? 'NULL') . ", total_payments: " . ($total_payments_bind ?? 'NULL');
+            
             $insert_plan->bind_param('iiiddiisisisssss',
                 $donor_id,              // i - integer
                 $pledge_id,             // i - integer
-                $template_id,           // i - integer (nullable)
+                $template_id_bind,      // i - integer (nullable) - can be NULL
                 $total_amount,          // d - decimal
                 $monthly_amount,        // d - decimal
-                $total_months,          // i - integer (nullable)
-                $total_payments,        // i - integer (nullable)
+                $total_months_bind,     // i - integer (nullable) - can be NULL
+                $total_payments_bind,   // i - integer (nullable) - can be NULL
                 $start_date,            // s - string/date
                 $payment_day,           // i - integer
                 $plan_frequency_unit,    // s - string/enum
@@ -448,9 +571,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $overdue_reminder_date  // s - string/date
             );
             $insert_plan->execute();
+            if ($insert_plan->error) {
+                throw new Exception('STEP 12 FAILED: Execute INSERT failed - ' . $insert_plan->error . ' | SQL Error: ' . $db->error);
+            }
             $plan_id = $db->insert_id;
+            $debug_log[] = "Payment plan created with ID: $plan_id";
             
             // Update donor table
+            $debug_log[] = '=== BACKEND STEP 13: Update Donor Table ===';
+            $plan_duration_for_donor = $total_months ?? ($total_payments ?? 0);
+            $debug_log[] = "plan_duration_for_donor: $plan_duration_for_donor";
+            $debug_log[] = "About to update donor with plan_id: $plan_id";
+            
             $update_donor = $db->prepare("
                 UPDATE donors SET 
                     has_active_plan = 1,
@@ -463,9 +595,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     updated_at = NOW()
                 WHERE id = ?
             ");
-            $plan_duration_for_donor = $total_months ?? ($total_payments ?? 0);
+            if (!$update_donor) {
+                throw new Exception('STEP 13 FAILED: Prepare UPDATE failed - ' . $db->error);
+            }
             $update_donor->bind_param('idissi', $plan_id, $monthly_amount, $plan_duration_for_donor, $start_date, $next_payment_due, $donor_id);
             $update_donor->execute();
+            if ($update_donor->error) {
+                throw new Exception('STEP 13 FAILED: Execute UPDATE failed - ' . $update_donor->error);
+            }
+            $debug_log[] = 'Donor table updated successfully';
             
             // Audit log
             $audit_data = json_encode([
@@ -602,11 +740,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             if ($e->getCode() > 0) {
                 $error_msg .= ' (Code: ' . $e->getCode() . ')';
             }
-            echo json_encode([
+            
+            // Include debug log if available
+            $response = [
                 'success' => false, 
                 'message' => $error_msg,
-                'error_details' => $e->getFile() . ':' . $e->getLine()
-            ]);
+                'error_details' => $e->getFile() . ':' . $e->getLine(),
+                'sql_error' => $db->error ?? null
+            ];
+            
+            if (isset($debug_log)) {
+                $response['debug_log'] = $debug_log;
+            }
+            
+            echo json_encode($response);
             exit;
         }
         $error_message = $e->getMessage();
@@ -616,12 +763,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
         }
         if (isset($_POST['action']) && ($_POST['action'] === 'save_payment_plan' || $_POST['action'] === 'clear_payment_plan')) {
             header('Content-Type: application/json');
-            echo json_encode([
+            
+            $response = [
                 'success' => false, 
                 'message' => 'Database error: ' . $e->getMessage(),
                 'error_details' => $e->getFile() . ':' . $e->getLine(),
-                'sql_error' => $db->error ?? 'No SQL error info'
-            ]);
+                'sql_error' => $db->error ?? 'No SQL error info',
+                'mysqli_errno' => $e->getCode()
+            ];
+            
+            if (isset($debug_log)) {
+                $response['debug_log'] = $debug_log;
+            }
+            
+            echo json_encode($response);
             exit;
         }
         $error_message = 'Database error: ' . $e->getMessage();
@@ -2048,6 +2203,9 @@ document.getElementById('savePlanBtn').addEventListener('click', function() {
     }
     
     // Prepare data for submission
+    console.log('=== STEP 1: Preparing formData ===');
+    console.log('currentPlanData:', currentPlanData);
+    
     const formData = {
         action: 'save_payment_plan',
         csrf_token: getCSRFToken(),
@@ -2072,12 +2230,17 @@ document.getElementById('savePlanBtn').addEventListener('click', function() {
         })))
     };
     
+    console.log('=== STEP 2: FormData prepared ===');
+    console.log('FormData being sent:', JSON.stringify(formData, null, 2));
+    console.log('CSRF Token:', formData.csrf_token ? 'Present' : 'MISSING!');
+    
     // Show loading state
     const btn = this;
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
     
+    console.log('=== STEP 3: Sending AJAX request ===');
     // Submit via AJAX
     $.ajax({
         url: '',
@@ -2099,29 +2262,54 @@ document.getElementById('savePlanBtn').addEventListener('click', function() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Save error:', error, xhr);
+            console.error('=== STEP 4: AJAX ERROR ===');
+            console.error('Status:', status);
+            console.error('Error:', error);
+            console.error('XHR Status:', xhr.status);
+            console.error('XHR StatusText:', xhr.statusText);
+            console.error('Full XHR:', xhr);
+            
             let errorMsg = 'Server error. Please try again.';
+            let fullErrorDetails = '';
             
             // Try to parse error response
             if (xhr.responseJSON) {
+                console.error('=== Response JSON ===');
+                console.error(JSON.stringify(xhr.responseJSON, null, 2));
+                
                 errorMsg = xhr.responseJSON.message || errorMsg;
                 if (xhr.responseJSON.error_details) {
                     console.error('Error details:', xhr.responseJSON.error_details);
+                    fullErrorDetails += '\n\nDetails: ' + xhr.responseJSON.error_details;
                 }
                 if (xhr.responseJSON.sql_error) {
                     console.error('SQL error:', xhr.responseJSON.sql_error);
+                    fullErrorDetails += '\n\nSQL Error: ' + xhr.responseJSON.sql_error;
+                }
+                if (xhr.responseJSON.debug_log) {
+                    console.error('=== DEBUG LOG ===');
+                    xhr.responseJSON.debug_log.forEach(line => console.error(line));
+                    fullErrorDetails += '\n\nCheck console for full debug log';
                 }
             } else if (xhr.responseText) {
                 try {
                     const response = JSON.parse(xhr.responseText);
+                    console.error('=== Parsed Response ===');
+                    console.error(JSON.stringify(response, null, 2));
+                    
                     errorMsg = response.message || errorMsg;
+                    if (response.debug_log) {
+                        console.error('=== DEBUG LOG ===');
+                        response.debug_log.forEach(line => console.error(line));
+                    }
                 } catch (e) {
                     // Not JSON, might be HTML error page
-                    console.error('Response text:', xhr.responseText.substring(0, 500));
+                    console.error('=== Response Text (first 2000 chars) ===');
+                    console.error(xhr.responseText.substring(0, 2000));
                 }
             }
             
-            alert('Error: ' + errorMsg);
+            alert('Error: ' + errorMsg + fullErrorDetails);
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
