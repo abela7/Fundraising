@@ -3,63 +3,31 @@
  * Professional styling for donor management section
  */
 
-/* Stat Cards - Dashboard Style */
-.stat-card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    transition: all 0.3s ease;
-    border: 1px solid #e5e7eb;
-    height: 100%;
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    border-color: #0d6efd;
-}
-
-.stat-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
+/* Icon Circles - Match comprehensive report style */
+.icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-    color: #fff;
+    font-size: 1.1rem;
     flex-shrink: 0;
+    transition: all 0.3s ease;
 }
 
-.stat-content {
-    flex: 1;
+/* Card Hover Effects */
+.card {
+    transition: all 0.3s ease;
 }
 
-.stat-value {
-    font-size: 1.875rem;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-    color: #1f2937;
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
 }
 
-.stat-label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-}
-
-.stat-trend {
-    font-size: 0.875rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+.card:hover .icon-circle {
+    transform: scale(1.1);
 }
 
 /* Card hover effects */
@@ -204,18 +172,26 @@ a.text-decoration-none:hover .card-title {
         font-size: 1.5rem;
     }
     
-    .stat-card {
-        padding: 1.25rem;
+    .icon-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
     }
     
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        font-size: 1.25rem;
+    .card-body {
+        padding: 1rem;
     }
     
-    .stat-value {
-        font-size: 1.5rem;
+    .h5 {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .icon-circle {
+        width: 35px;
+        height: 35px;
+        font-size: 0.9rem;
     }
 }
 
