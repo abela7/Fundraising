@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+set_time_limit(60); // Prevent timeout
+ini_set('max_execution_time', 60);
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
@@ -8,94 +11,47 @@ require_admin();
 
 $database = db();
 
-// ==== DONOR DATA CLARITY METRICS ====
-
+// ==== COMBINED QUERY - Get all metrics at once ====
 $metrics = $database->query("SELECT 
-    -- Total Records
-    COUNT(*) as total_records,
-    COUNT(DISTINCT id) as total_unique_donors,
-    
-    -- NAME DATA
-    COUNT(CASE WHEN name IS NOT NULL AND name != '' THEN 1 END) as donors_with_name,
-    COUNT(CASE WHEN name IS NULL OR name = '' THEN 1 END) as donors_without_name,
-    
-    -- PHONE DATA
-    COUNT(CASE WHEN phone IS NOT NULL AND phone != '' THEN 1 END) as donors_with_phone,
-    COUNT(CASE WHEN phone IS NULL OR phone = '' THEN 1 END) as donors_without_phone,
-    
-    -- BOTH NAME & PHONE
-    COUNT(CASE WHEN (name IS NOT NULL AND name != '') AND (phone IS NOT NULL AND phone != '') THEN 1 END) as donors_with_complete_contact,
-    COUNT(CASE WHEN (name IS NULL OR name = '') OR (phone IS NULL OR phone = '') THEN 1 END) as donors_with_incomplete_contact,
-    
-    -- PLEDGE DATA
-    COUNT(CASE WHEN total_pledged > 0 THEN 1 END) as donors_with_pledges,
-    COUNT(CASE WHEN total_pledged = 0 OR total_pledged IS NULL THEN 1 END) as donors_without_pledges,
-    
-    -- PAYMENT DATA
-    COUNT(CASE WHEN total_paid > 0 THEN 1 END) as donors_with_payments,
-    COUNT(CASE WHEN total_paid = 0 OR total_paid IS NULL THEN 1 END) as donors_without_payments,
-    
-    -- LANGUAGE PREFERENCE
-    COUNT(CASE WHEN preferred_language IS NOT NULL AND preferred_language != '' THEN 1 END) as donors_with_language,
-    COUNT(CASE WHEN preferred_language IS NULL OR preferred_language = '' THEN 1 END) as donors_without_language,
-    
-    -- PAYMENT METHOD
-    COUNT(CASE WHEN preferred_payment_method IS NOT NULL AND preferred_payment_method != '' THEN 1 END) as donors_with_payment_method,
-    COUNT(CASE WHEN preferred_payment_method IS NULL OR preferred_payment_method = '' THEN 1 END) as donors_without_payment_method,
-    
-    -- FINANCIAL DATA
-    SUM(COALESCE(total_pledged, 0)) as total_pledged_all,
-    SUM(COALESCE(total_paid, 0)) as total_paid_all,
-    SUM(COALESCE(balance, 0)) as total_balance_all
-FROM donors")->fetch_assoc() ?: [];
+    COUNT(DISTINCT d.id) as total_unique_donors,
+    COUNT(DISTINCT CASE WHEN d.name IS NOT NULL AND d.name != '' THEN d.id END) as donors_with_name,
+    COUNT(DISTINCT CASE WHEN d.name IS NULL OR d.name = '' THEN d.id END) as donors_without_name,
+    COUNT(DISTINCT CASE WHEN d.phone IS NOT NULL AND d.phone != '' THEN d.id END) as donors_with_phone,
+    COUNT(DISTINCT CASE WHEN d.phone IS NULL OR d.phone = '' THEN d.id END) as donors_without_phone,
+    COUNT(DISTINCT CASE WHEN (d.name IS NOT NULL AND d.name != '') AND (d.phone IS NOT NULL AND d.phone != '') THEN d.id END) as donors_with_complete_contact,
+    COUNT(DISTINCT CASE WHEN (d.name IS NULL OR d.name = '') OR (d.phone IS NULL OR d.phone = '') THEN d.id END) as donors_without_complete_contact,
+    COUNT(DISTINCT CASE WHEN d.total_pledged > 0 THEN d.id END) as donors_with_pledges,
+    COUNT(DISTINCT CASE WHEN d.total_paid > 0 THEN d.id END) as donors_with_payments,
+    COUNT(DISTINCT CASE WHEN d.preferred_language IS NOT NULL AND d.preferred_language != '' THEN d.id END) as donors_with_language,
+    COUNT(DISTINCT CASE WHEN d.preferred_payment_method IS NOT NULL AND d.preferred_payment_method != '' THEN d.id END) as donors_with_payment_method,
+    SUM(COALESCE(d.total_pledged, 0)) as total_pledged_all,
+    SUM(COALESCE(d.total_paid, 0)) as total_paid_all,
+    SUM(COALESCE(d.balance, 0)) as total_balance_all
+FROM donors d")->fetch_assoc() ?: [];
 
-// ==== PLEDGES TABLE ANALYSIS ====
+// ==== PLEDGES ANALYSIS ====
 $pledgesMetrics = $database->query("SELECT 
     COUNT(*) as total_pledges,
     COUNT(CASE WHEN status = 'approved' THEN 1 END) as pledges_approved,
     COUNT(CASE WHEN status = 'pending' THEN 1 END) as pledges_pending,
-    COUNT(CASE WHEN status = 'rejected' THEN 1 END) as pledges_rejected,
-    COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as pledges_cancelled,
-    COUNT(CASE WHEN donor_id IS NOT NULL THEN 1 END) as pledges_linked_to_donors,
-    COUNT(CASE WHEN donor_id IS NULL THEN 1 END) as pledges_not_linked,
-    COUNT(CASE WHEN donor_name IS NOT NULL AND donor_name != '' THEN 1 END) as pledges_with_name,
-    COUNT(CASE WHEN donor_phone IS NOT NULL AND donor_phone != '' THEN 1 END) as pledges_with_phone,
-    COUNT(CASE WHEN anonymous = 1 THEN 1 END) as pledges_anonymous,
-    COUNT(CASE WHEN anonymous = 0 THEN 1 END) as pledges_named,
+    COUNT(CASE WHEN donor_id IS NOT NULL THEN 1 END) as pledges_with_donor_id,
+    COUNT(CASE WHEN donor_id IS NULL THEN 1 END) as pledges_missing_donor_id,
     SUM(COALESCE(amount, 0)) as pledges_total_amount
 FROM pledges")->fetch_assoc() ?: [];
 
-// ==== PAYMENTS TABLE ANALYSIS ====
+// ==== PAYMENTS ANALYSIS ====
 $paymentsMetrics = $database->query("SELECT 
     COUNT(*) as total_payments,
     COUNT(CASE WHEN status = 'approved' THEN 1 END) as payments_approved,
     COUNT(CASE WHEN status = 'pending' THEN 1 END) as payments_pending,
-    COUNT(CASE WHEN status = 'voided' THEN 1 END) as payments_voided,
-    COUNT(CASE WHEN donor_id IS NOT NULL THEN 1 END) as payments_linked_to_donors,
-    COUNT(CASE WHEN donor_id IS NULL THEN 1 END) as payments_not_linked,
-    COUNT(CASE WHEN donor_name IS NOT NULL AND donor_name != '' THEN 1 END) as payments_with_name,
-    COUNT(CASE WHEN donor_phone IS NOT NULL AND donor_phone != '' THEN 1 END) as payments_with_phone,
+    COUNT(CASE WHEN donor_id IS NOT NULL THEN 1 END) as payments_with_donor_id,
+    COUNT(CASE WHEN donor_id IS NULL THEN 1 END) as payments_missing_donor_id,
     COUNT(CASE WHEN method = 'cash' THEN 1 END) as payments_cash,
     COUNT(CASE WHEN method = 'card' THEN 1 END) as payments_card,
     COUNT(CASE WHEN method = 'bank' THEN 1 END) as payments_bank,
     COUNT(CASE WHEN method = 'other' THEN 1 END) as payments_other,
     SUM(COALESCE(amount, 0)) as payments_total_amount
 FROM payments")->fetch_assoc() ?: [];
-
-// ==== DATA LINKING ANALYSIS ====
-$linkingAnalysis = $database->query("SELECT 
-    -- Pledges linking
-    (SELECT COUNT(*) FROM pledges WHERE donor_id IS NOT NULL) as pledges_with_donor_id,
-    (SELECT COUNT(*) FROM pledges WHERE donor_id IS NULL) as pledges_missing_donor_id,
-    
-    -- Payments linking
-    (SELECT COUNT(*) FROM payments WHERE donor_id IS NOT NULL) as payments_with_donor_id,
-    (SELECT COUNT(*) FROM payments WHERE donor_id IS NULL) as payments_missing_donor_id,
-    
-    -- Donor completeness
-    (SELECT COUNT(*) FROM donors WHERE name IS NOT NULL AND phone IS NOT NULL AND name != '' AND phone != '') as donors_complete,
-    (SELECT COUNT(*) FROM donors WHERE name IS NULL OR phone IS NULL OR name = '' OR phone = '') as donors_incomplete
-")->fetch_assoc() ?: [];
 
 $currency = '£';
 ?>
@@ -272,7 +228,7 @@ $currency = '£';
                                     </h4>
                                     <small>
                                         <strong><?= number_format($metrics['donors_with_complete_contact'] ?? 0) ?></strong> have both name and phone<br>
-                                        <strong><?= number_format($metrics['donors_with_incomplete_contact'] ?? 0) ?></strong> missing one or both
+                                        <strong><?= number_format($metrics['donors_without_complete_contact'] ?? 0) ?></strong> missing one or both
                                     </small>
                                 </div>
                             </div>
@@ -333,11 +289,11 @@ $currency = '£';
                         <!-- Pledge Linking -->
                         <div class="alert alert-warning mt-3 mb-0">
                             <i class="fas fa-link"></i> <strong>Data Linking:</strong>
-                            <?= number_format($linkingAnalysis['pledges_with_donor_id'] ?? 0) ?> pledges linked to donors |
-                            <?= number_format($linkingAnalysis['pledges_missing_donor_id'] ?? 0) ?> pledges <strong>NOT linked</strong>
+                            <?= number_format($pledgesMetrics['pledges_with_donor_id'] ?? 0) ?> pledges linked to donors |
+                            <?= number_format($pledgesMetrics['pledges_missing_donor_id'] ?? 0) ?> pledges <strong>NOT linked</strong>
                             (<?php 
                                 $pledgeLinkPercent = ($pledgesMetrics['total_pledges'] > 0) ? 
-                                    round(($linkingAnalysis['pledges_with_donor_id'] / $pledgesMetrics['total_pledges']) * 100, 1) : 0;
+                                    round(($pledgesMetrics['pledges_with_donor_id'] / $pledgesMetrics['total_pledges']) * 100, 1) : 0;
                                 echo $pledgeLinkPercent . '% linked';
                             ?>)
                         </div>
@@ -396,11 +352,11 @@ $currency = '£';
                                 <!-- Payment Linking -->
                                 <div class="alert alert-warning mb-0">
                                     <i class="fas fa-link"></i> <strong>Data Linking:</strong>
-                                    <?= number_format($linkingAnalysis['payments_with_donor_id'] ?? 0) ?> payments linked to donors |
-                                    <?= number_format($linkingAnalysis['payments_missing_donor_id'] ?? 0) ?> payments <strong>NOT linked</strong>
+                                    <?= number_format($paymentsMetrics['payments_with_donor_id'] ?? 0) ?> payments linked to donors |
+                                    <?= number_format($paymentsMetrics['payments_missing_donor_id'] ?? 0) ?> payments <strong>NOT linked</strong>
                                     (<?php 
                                         $paymentLinkPercent = ($paymentsMetrics['total_payments'] > 0) ? 
-                                            round(($linkingAnalysis['payments_with_donor_id'] / $paymentsMetrics['total_payments']) * 100, 1) : 0;
+                                            round(($paymentsMetrics['payments_with_donor_id'] / $paymentsMetrics['total_payments']) * 100, 1) : 0;
                                         echo $paymentLinkPercent . '% linked';
                                     ?>)
                                 </div>
@@ -444,12 +400,12 @@ $currency = '£';
                                     </tr>
                                     <tr>
                                         <td><strong>Pledges Linked to Donors</strong></td>
-                                        <td class="text-end"><strong><?= number_format($linkingAnalysis['pledges_with_donor_id'] ?? 0) ?></strong> / <?= number_format($pledgesMetrics['total_pledges'] ?? 0) ?></td>
+                                        <td class="text-end"><strong><?= number_format($pledgesMetrics['pledges_with_donor_id'] ?? 0) ?></strong> / <?= number_format($pledgesMetrics['total_pledges'] ?? 0) ?></td>
                                         <td class="text-end"><span class="badge bg-<?= $pledgeLinkPercent >= 95 ? 'success' : 'warning' ?>"><?= $pledgeLinkPercent ?>%</span></td>
                                     </tr>
                                     <tr>
                                         <td><strong>Payments Linked to Donors</strong></td>
-                                        <td class="text-end"><strong><?= number_format($linkingAnalysis['payments_with_donor_id'] ?? 0) ?></strong> / <?= number_format($paymentsMetrics['total_payments'] ?? 0) ?></td>
+                                        <td class="text-end"><strong><?= number_format($paymentsMetrics['payments_with_donor_id'] ?? 0) ?></strong> / <?= number_format($paymentsMetrics['total_payments'] ?? 0) ?></td>
                                         <td class="text-end"><span class="badge bg-<?= $paymentLinkPercent >= 95 ? 'success' : 'warning' ?>"><?= $paymentLinkPercent ?>%</span></td>
                                     </tr>
                                     <tr style="background-color: rgba(10, 98, 134, 0.1);">
