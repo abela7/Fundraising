@@ -3,5 +3,73 @@
  * Custom styles for the donor management section
  */
 
-/* Add custom styles here as needed */
+/* Card hover effects */
+.hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Animate fade in */
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Card styling improvements */
+.card {
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Text decoration for linked cards */
+a.text-decoration-none:hover {
+    text-decoration: none !important;
+}
+
+a.text-decoration-none .card-title {
+    color: #212529;
+}
+
+a.text-decoration-none:hover .card-title {
+    color: #0d6efd;
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .sidebar-overlay,
+    .admin-content > header,
+    .btn,
+    .no-print {
+        display: none !important;
+    }
+    
+    .admin-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
 

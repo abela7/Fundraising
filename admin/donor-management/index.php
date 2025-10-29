@@ -44,24 +44,125 @@ $db = db();
                         </h1>
                         <p class="text-muted mb-0">Manage donor profiles, history, and relationships</p>
                     </div>
+                    <div class="d-flex gap-2">
+                        <a href="donor.php" class="btn btn-primary">
+                            <i class="fas fa-chart-line me-2"></i>View Donor Report
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Main Content Area -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card animate-fade-in">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-info-circle me-2"></i>Overview
-                                </h5>
+                <div class="row g-4">
+                    <!-- Quick Access Cards -->
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <a href="donor.php" class="text-decoration-none">
+                            <div class="card h-100 border-0 shadow-sm hover-lift">
+                                <div class="card-body text-center p-4">
+                                    <div class="mb-3">
+                                        <i class="fas fa-database fa-3x text-primary"></i>
+                                    </div>
+                                    <h5 class="card-title">Donor Database Report</h5>
+                                    <p class="card-text text-muted">
+                                        View comprehensive statistics and data quality metrics for all donors
+                                    </p>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-3">
-                                    Welcome to the Donor Management section. This area will help you manage all donor-related activities.
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
+                            <div class="card-body text-center p-4">
+                                <div class="mb-3">
+                                    <i class="fas fa-list fa-3x text-secondary"></i>
+                                </div>
+                                <h5 class="card-title">Donor List</h5>
+                                <p class="card-text text-muted">
+                                    Browse and search all registered donors
                                 </p>
-                                <div class="alert alert-info mb-0">
-                                    <i class="fas fa-lightbulb me-2"></i>
-                                    <strong>Ready for implementation!</strong> This section is set up and ready to build out donor management features.
+                                <span class="badge bg-secondary">Coming Soon</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
+                            <div class="card-body text-center p-4">
+                                <div class="mb-3">
+                                    <i class="fas fa-calendar-alt fa-3x text-secondary"></i>
+                                </div>
+                                <h5 class="card-title">Payment Plans</h5>
+                                <p class="card-text text-muted">
+                                    Manage donor payment plans and schedules
+                                </p>
+                                <span class="badge bg-secondary">Coming Soon</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
+                            <div class="card-body text-center p-4">
+                                <div class="mb-3">
+                                    <i class="fas fa-bell fa-3x text-secondary"></i>
+                                </div>
+                                <h5 class="card-title">SMS Reminders</h5>
+                                <p class="card-text text-muted">
+                                    Send payment reminders and updates via SMS
+                                </p>
+                                <span class="badge bg-secondary">Coming Soon</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
+                            <div class="card-body text-center p-4">
+                                <div class="mb-3">
+                                    <i class="fas fa-globe fa-3x text-secondary"></i>
+                                </div>
+                                <h5 class="card-title">Donor Portal</h5>
+                                <p class="card-text text-muted">
+                                    Manage donor portal access and tokens
+                                </p>
+                                <span class="badge bg-secondary">Coming Soon</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
+                            <div class="card-body text-center p-4">
+                                <div class="mb-3">
+                                    <i class="fas fa-flag fa-3x text-secondary"></i>
+                                </div>
+                                <h5 class="card-title">Follow-ups</h5>
+                                <p class="card-text text-muted">
+                                    Track flagged donors requiring attention
+                                </p>
+                                <span class="badge bg-secondary">Coming Soon</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Section -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i class="fas fa-info-circle fa-2x text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1">About Donor Management</h6>
+                                        <p class="mb-0 text-muted small">
+                                            This module provides comprehensive donor management capabilities including database reports, 
+                                            payment plan tracking, SMS reminders, portal access management, and follow-up tracking. 
+                                            Start with the <strong>Donor Database Report</strong> to get an overview of your donor data.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
