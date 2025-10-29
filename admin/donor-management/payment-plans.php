@@ -367,8 +367,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $donor_data = $donor_info->get_result()->fetch_assoc();
                 
                 $create_pledge = $db->prepare("
-                    INSERT INTO pledges (donor_id, donor_phone, donor_name, amount, status, approved_by_user_id, created_at)
-                    VALUES (?, ?, ?, ?, 'approved', ?, NOW())
+                    INSERT INTO pledges (donor_id, donor_phone, donor_name, amount, type, status, approved_by_user_id, created_at)
+                    VALUES (?, ?, ?, ?, 'pledge', 'approved', ?, NOW())
                 ");
                 $create_pledge->bind_param('issdi', $donor_id, $donor_data['phone'], $donor_data['name'], $total_amount, $current_user['id']);
                 $create_pledge->execute();
@@ -464,7 +464,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 WHERE id = ?
             ");
             $plan_duration_for_donor = $total_months ?? ($total_payments ?? 0);
-            $update_donor->bind_param('idddsi', $plan_id, $monthly_amount, $plan_duration_for_donor, $start_date, $next_payment_due, $donor_id);
+            $update_donor->bind_param('idissi', $plan_id, $monthly_amount, $plan_duration_for_donor, $start_date, $next_payment_due, $donor_id);
             $update_donor->execute();
             
             // Audit log
