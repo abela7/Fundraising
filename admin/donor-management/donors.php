@@ -364,7 +364,7 @@ unset($donor); // Break reference
                                     <select class="form-select form-select-sm" id="filter_donor_type">
                                         <option value="">All Types</option>
                                         <option value="pledge">Pledge Donors</option>
-                                        <option value="immediate_payment">Immediate Payers</option>
+                                        <option value="immediate">Immediate Payers</option>
                                     </select>
                                 </div>
                                 
