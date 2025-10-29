@@ -367,11 +367,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $donor_data = $donor_info->get_result()->fetch_assoc();
                 
                 $create_pledge = $db->prepare("
-                    INSERT INTO pledges (donor_phone, donor_name, amount, status, approved_by_user_id, pledge_date, created_at)
-                    VALUES (?, ?, ?, 'approved', ?, ?, NOW())
+                    INSERT INTO pledges (donor_id, donor_phone, donor_name, amount, status, approved_by_user_id, created_at)
+                    VALUES (?, ?, ?, ?, 'approved', ?, NOW())
                 ");
-                $pledge_date = $start_date;
-                $create_pledge->bind_param('ssdis', $donor_data['phone'], $donor_data['name'], $total_amount, $current_user['id'], $pledge_date);
+                $create_pledge->bind_param('issdi', $donor_id, $donor_data['phone'], $donor_data['name'], $total_amount, $current_user['id']);
                 $create_pledge->execute();
                 $pledge_id = $db->insert_id;
                 
@@ -493,6 +492,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             }
             
             // Get donor info and current plan for audit
+            // Note: We match the plan regardless of status to allow clearing inconsistent states
             $donor_check = $db->prepare("
                 SELECT d.id, d.name, d.active_payment_plan_id, d.has_active_plan,
                        pp.id as plan_id, pp.total_amount, pp.monthly_amount, pp.status as plan_status
@@ -508,20 +508,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 throw new Exception('Donor not found');
             }
             
-            if (!$donor['has_active_plan'] || !$donor['active_payment_plan_id']) {
-                throw new Exception('Donor does not have an active payment plan');
+            // Allow clearing if there's a plan reference, regardless of actual plan status
+            // This handles cases where has_active_plan flag doesn't match actual plan status
+            if (!$donor['active_payment_plan_id']) {
+                throw new Exception('Donor does not have a payment plan assigned');
             }
             
             $plan_id = (int)$donor['active_payment_plan_id'];
             
-            // Cancel the payment plan
-            $cancel_plan = $db->prepare("
-                UPDATE donor_payment_plans 
-                SET status = 'cancelled', updated_at = NOW() 
-                WHERE id = ? AND donor_id = ?
-            ");
-            $cancel_plan->bind_param('ii', $plan_id, $donor_id);
-            $cancel_plan->execute();
+            // Verify the plan actually exists (handle orphaned references)
+            if (!$donor['plan_id']) {
+                // Plan doesn't exist - just clear the reference from donor table
+                // Don't try to update non-existent plan
+            } else {
+                // Plan exists - update its status to cancelled if not already cancelled/completed
+                if (!in_array($donor['plan_status'], ['cancelled', 'completed'])) {
+                    $cancel_plan = $db->prepare("
+                        UPDATE donor_payment_plans 
+                        SET status = 'cancelled', updated_at = NOW() 
+                        WHERE id = ? AND donor_id = ?
+                    ");
+                    $cancel_plan->bind_param('ii', $plan_id, $donor_id);
+                    $cancel_plan->execute();
+                }
+            }
             
             // Clear payment plan info from donor table
             $clear_donor = $db->prepare("
@@ -543,18 +553,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $clear_donor->bind_param('i', $donor_id);
             $clear_donor->execute();
             
-            // Audit log
-            $audit_data = json_encode([
-                'donor_id' => $donor_id,
-                'donor_name' => $donor['name'],
-                'plan_id' => $plan_id,
-                'plan_total_amount' => $donor['total_amount'] ?? null,
-                'plan_monthly_amount' => $donor['monthly_amount'] ?? null,
-                'previous_status' => $donor['plan_status'] ?? null
-            ], JSON_UNESCAPED_SLASHES);
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, source) VALUES(?, 'donor_payment_plan', ?, 'cancel', ?, 'admin')");
-            $audit->bind_param('iis', $current_user['id'], $plan_id, $audit_data);
-            $audit->execute();
+            // Audit log (only if plan exists)
+            if ($donor['plan_id']) {
+                $audit_data = json_encode([
+                    'donor_id' => $donor_id,
+                    'donor_name' => $donor['name'],
+                    'plan_id' => $plan_id,
+                    'plan_total_amount' => $donor['total_amount'] ?? null,
+                    'plan_monthly_amount' => $donor['monthly_amount'] ?? null,
+                    'previous_status' => $donor['plan_status'] ?? null
+                ], JSON_UNESCAPED_SLASHES);
+                $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, source) VALUES(?, 'donor_payment_plan', ?, 'cancel', ?, 'admin')");
+                $audit->bind_param('iis', $current_user['id'], $plan_id, $audit_data);
+                $audit->execute();
+            } else {
+                // Audit log for orphaned reference cleanup
+                $audit_data = json_encode([
+                    'donor_id' => $donor_id,
+                    'donor_name' => $donor['name'],
+                    'plan_id' => $plan_id,
+                    'note' => 'Orphaned plan reference - plan record does not exist'
+                ], JSON_UNESCAPED_SLASHES);
+                $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, source) VALUES(?, 'donor', ?, 'clear_orphaned_plan', ?, 'admin')");
+                $audit->bind_param('iis', $current_user['id'], $donor_id, $audit_data);
+                $audit->execute();
+            }
             
             $db->commit();
             echo json_encode(['success' => true, 'message' => 'Payment plan cleared successfully!']);
