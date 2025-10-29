@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             
             // Update donor
             $upd = $db->prepare("UPDATE donors SET has_active_plan = 1, active_payment_plan_id = ?, plan_monthly_amount = ?, plan_duration_months = ?, plan_start_date = ?, plan_next_due_date = ? WHERE id = ?");
-            $upd->bind_param('iddissi', $plan_id, $monthly_amount, $duration_months, $start_date, $first_due->format('Y-m-d'), $donor_id);
+            $upd->bind_param('iddssi', $plan_id, $monthly_amount, $duration_months, $start_date, $first_due->format('Y-m-d'), $donor_id);
             $upd->execute();
             
             // Audit log
@@ -162,68 +162,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $_SESSION['success_message'] = "Payment plan status updated to: " . ucfirst($new_status);
             header('Location: payment-plans.php');
             exit;
-            
-        } elseif ($action === 'edit_plan') {
-            // Edit existing plan
-            $plan_id = (int)($_POST['plan_id'] ?? 0);
-            $monthly_amount = (float)($_POST['monthly_amount'] ?? 0);
-            $duration_months = (int)($_POST['duration_months'] ?? 0);
-            $payment_day = (int)($_POST['payment_day'] ?? 1);
-            $next_payment_due = $_POST['next_payment_due'] ?? null;
-            
-            // Get current plan
-            $stmt = $db->prepare("SELECT * FROM donor_payment_plans WHERE id = ? FOR UPDATE");
-            $stmt->bind_param('i', $plan_id);
-            $stmt->execute();
-            $plan = $stmt->get_result()->fetch_assoc();
-            if (!$plan) {
-                throw new Exception('Payment plan not found');
-            }
-            
-            // Cannot edit completed or cancelled plans
-            if (in_array($plan['status'], ['completed', 'cancelled'])) {
-                throw new Exception('Cannot edit completed or cancelled plans');
-            }
-            
-            // Recalculate totals
-            $total_amount = $monthly_amount * $duration_months;
-            $balance = $total_amount - $plan['amount_paid'];
-            
-            // Update plan
-            $upd = $db->prepare("
-                UPDATE donor_payment_plans 
-                SET monthly_amount = ?, duration_months = ?, total_amount = ?, 
-                    balance = ?, payment_day = ?, next_payment_due = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
-            $upd->bind_param('dididsi', $monthly_amount, $duration_months, $total_amount, 
-                $balance, $payment_day, $next_payment_due, $plan_id);
-            $upd->execute();
-            
-            // Update donor
-            $donor_upd = $db->prepare("UPDATE donors SET plan_monthly_amount = ?, plan_duration_months = ?, plan_next_due_date = ? WHERE id = ?");
-            $donor_upd->bind_param('ddsi', $monthly_amount, $duration_months, $next_payment_due, $plan['donor_id']);
-            $donor_upd->execute();
-            
-            // Audit log
-            $before_data = json_encode([
-                'monthly_amount' => $plan['monthly_amount'],
-                'duration_months' => $plan['duration_months'],
-                'payment_day' => $plan['payment_day']
-            ], JSON_UNESCAPED_SLASHES);
-            $after_data = json_encode([
-                'monthly_amount' => $monthly_amount,
-                'duration_months' => $duration_months,
-                'payment_day' => $payment_day
-            ], JSON_UNESCAPED_SLASHES);
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment_plan', ?, 'update', ?, ?, 'admin')");
-            $audit->bind_param('iiss', $current_user['id'], $plan_id, $before_data, $after_data);
-            $audit->execute();
-            
-            $db->commit();
-            $_SESSION['success_message'] = "Payment plan updated successfully!";
-            header('Location: payment-plans.php');
-            exit;
         }
         
     } catch (Exception $e) {
@@ -238,6 +176,42 @@ if (isset($_SESSION['success_message'])) {
     unset($_SESSION['success_message']);
 }
 
+// Load statistics
+$stats = [
+    'active_count' => 0,
+    'paused_count' => 0,
+    'completed_count' => 0,
+    'overdue_count' => 0,
+    'total_monthly_expected' => 0,
+    'total_collected' => 0,
+    'total_outstanding' => 0
+];
+
+if ($db_connection_ok) {
+    try {
+        $today = date('Y-m-d');
+        
+        // Get counts
+        $result = $db->query("
+            SELECT 
+                COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+                COUNT(CASE WHEN status = 'paused' THEN 1 END) as paused_count,
+                COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
+                COUNT(CASE WHEN status = 'active' AND next_payment_due < '$today' THEN 1 END) as overdue_count,
+                COALESCE(SUM(CASE WHEN status = 'active' THEN monthly_amount ELSE 0 END), 0) as total_monthly_expected,
+                COALESCE(SUM(amount_paid), 0) as total_collected,
+                COALESCE(SUM(balance), 0) as total_outstanding
+            FROM donor_payment_plans
+        ");
+        
+        if ($result) {
+            $stats = array_merge($stats, $result->fetch_assoc());
+        }
+    } catch (Exception $e) {
+        // Silent fail
+    }
+}
+
 // Load all payment plans with donor info
 $plans = [];
 if ($db_connection_ok) {
@@ -249,13 +223,17 @@ if ($db_connection_ok) {
                 d.phone as donor_phone,
                 d.total_pledged,
                 d.total_paid,
-                d.balance as donor_balance,
-                pl.amount as pledge_amount,
-                pl.status as pledge_status
+                d.balance as donor_balance
             FROM donor_payment_plans pp
             INNER JOIN donors d ON pp.donor_id = d.id
-            LEFT JOIN pledges pl ON pp.pledge_id = pl.id
-            ORDER BY pp.created_at DESC
+            ORDER BY 
+                CASE pp.status
+                    WHEN 'active' THEN 1
+                    WHEN 'paused' THEN 2
+                    WHEN 'completed' THEN 3
+                    WHEN 'cancelled' THEN 4
+                END,
+                pp.next_payment_due ASC
         ";
         $result = $db->query($query);
         if ($result) {
@@ -311,34 +289,31 @@ if ($db_connection_ok) {
     
     <div class="admin-content">
         <?php include '../includes/topbar.php'; ?>
-        <?php include '../includes/db_error_banner.php'; ?>
         
         <main class="main-content">
             <div class="container-fluid">
-                <!-- Breadcrumb -->
-                <nav aria-label="breadcrumb" class="mb-3">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="../dashboard/">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="./">Donor Management</a></li>
-                        <li class="breadcrumb-item active">Payment Plans</li>
-                    </ol>
-                </nav>
-
+                <?php include '../includes/db_error_banner.php'; ?>
+                
                 <!-- Page Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h1 class="h3 mb-1">
-                            <i class="fas fa-calendar-check me-2 text-primary"></i>Payment Plans
+                        <h1 class="h3 mb-1 text-primary">
+                            <i class="fas fa-calendar-check me-2"></i>Payment Plans Management
                         </h1>
-                        <p class="text-muted mb-0">Manage recurring payment plans for pledge donors</p>
+                        <p class="text-muted mb-0">Track and manage recurring payment schedules for pledge donors</p>
                     </div>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlanModal">
-                        <i class="fas fa-plus me-2"></i>Create Payment Plan
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+                            <i class="fas fa-print me-2"></i>Print
+                        </button>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlanModal">
+                            <i class="fas fa-plus me-2"></i>Create Plan
+                        </button>
+                    </div>
                 </div>
 
                 <?php if ($success_message): ?>
-                    <div class="alert alert-success alert-dismissible fade show">
+                    <div class="alert alert-success alert-dismissible fade show animate-fade-in">
                         <i class="fas fa-check-circle me-2"></i>
                         <?php echo htmlspecialchars($success_message); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -346,96 +321,126 @@ if ($db_connection_ok) {
                 <?php endif; ?>
 
                 <?php if ($error_message): ?>
-                    <div class="alert alert-danger alert-dismissible fade show">
+                    <div class="alert alert-danger alert-dismissible fade show animate-fade-in">
                         <i class="fas fa-exclamation-circle me-2"></i>
                         <?php echo htmlspecialchars($error_message); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
-                <!-- Quick Stats -->
-                <div class="row g-3 mb-4">
-                    <div class="col-md-3">
-                        <div class="card stat-card border-0 shadow-sm">
+                <!-- Summary Statistics -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="color: #0d7f4d;">
+                            <div class="stat-icon bg-success">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo number_format((int)$stats['active_count']); ?></h3>
+                                <p class="stat-label">Active Plans</p>
+                                <div class="stat-trend text-success">
+                                    <i class="fas fa-play-circle"></i> Running
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s; color: #b91c1c;">
+                            <div class="stat-icon bg-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value text-danger"><?php echo number_format((int)$stats['overdue_count']); ?></h3>
+                                <p class="stat-label">Overdue</p>
+                                <div class="stat-trend text-danger">
+                                    <i class="fas fa-clock"></i> Need attention
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s; color: #0a6286;">
+                            <div class="stat-icon bg-primary">
+                                <i class="fas fa-pound-sign"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value">£ <?php echo number_format((float)$stats['total_monthly_expected'], 0); ?></h3>
+                                <p class="stat-label">Monthly Expected</p>
+                                <div class="stat-trend text-primary">
+                                    <i class="fas fa-calendar"></i> Per month
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.3s; color: #b88a1a;">
+                            <div class="stat-icon bg-warning">
+                                <i class="fas fa-hourglass-half"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value">£ <?php echo number_format((float)$stats['total_outstanding'], 0); ?></h3>
+                                <p class="stat-label">Outstanding</p>
+                                <div class="stat-trend text-warning">
+                                    <i class="fas fa-arrow-down"></i> Remaining
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Stats -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12 col-lg-4">
+                        <div class="card animate-fade-in border-0 shadow-sm" style="animation-delay: 0.4s;">
                             <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <div class="stat-label">ACTIVE PLANS</div>
-                                        <div class="stat-value">
-                                            <?php 
-                                            $active_count = count(array_filter($plans, fn($p) => $p['status'] === 'active'));
-                                            echo $active_count;
-                                            ?>
+                                <div class="border-start border-4 border-primary ps-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1 fw-semibold">Total Collected</h6>
+                                            <p class="mb-0 small text-muted">From all payment plans</p>
                                         </div>
-                                    </div>
-                                    <div class="stat-icon bg-success">
-                                        <i class="fas fa-check-circle"></i>
+                                        <div class="text-end">
+                                            <h4 class="mb-0 text-primary">£<?php echo number_format((float)$stats['total_collected'], 0); ?></h4>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-md-3">
-                        <div class="card stat-card border-0 shadow-sm">
+                    <div class="col-12 col-lg-4">
+                        <div class="card animate-fade-in border-0 shadow-sm" style="animation-delay: 0.5s;">
                             <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <div class="stat-label">PAUSED</div>
-                                        <div class="stat-value">
-                                            <?php 
-                                            $paused_count = count(array_filter($plans, fn($p) => $p['status'] === 'paused'));
-                                            echo $paused_count;
-                                            ?>
+                                <div class="border-start border-4 border-warning ps-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1 fw-semibold">Paused Plans</h6>
+                                            <p class="mb-0 small text-muted">Temporarily suspended</p>
                                         </div>
-                                    </div>
-                                    <div class="stat-icon bg-warning">
-                                        <i class="fas fa-pause-circle"></i>
+                                        <div class="text-end">
+                                            <h4 class="mb-0 text-warning"><?php echo number_format((int)$stats['paused_count']); ?></h4>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-md-3">
-                        <div class="card stat-card border-0 shadow-sm">
+                    <div class="col-12 col-lg-4">
+                        <div class="card animate-fade-in border-0 shadow-sm" style="animation-delay: 0.6s;">
                             <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <div class="stat-label">COMPLETED</div>
-                                        <div class="stat-value">
-                                            <?php 
-                                            $completed_count = count(array_filter($plans, fn($p) => $p['status'] === 'completed'));
-                                            echo $completed_count;
-                                            ?>
+                                <div class="border-start border-4 border-success ps-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1 fw-semibold">Completed Plans</h6>
+                                            <p class="mb-0 small text-muted">Successfully finished</p>
                                         </div>
-                                    </div>
-                                    <div class="stat-icon bg-primary">
-                                        <i class="fas fa-flag-checkered"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3">
-                        <div class="card stat-card border-0 shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <div class="stat-label">OVERDUE</div>
-                                        <div class="stat-value text-danger">
-                                            <?php 
-                                            $today = date('Y-m-d');
-                                            $overdue_count = count(array_filter($plans, function($p) use ($today) {
-                                                return $p['status'] === 'active' && $p['next_payment_due'] && $p['next_payment_due'] < $today;
-                                            }));
-                                            echo $overdue_count;
-                                            ?>
+                                        <div class="text-end">
+                                            <h4 class="mb-0 text-success"><?php echo number_format((int)$stats['completed_count']); ?></h4>
                                         </div>
-                                    </div>
-                                    <div class="stat-icon bg-danger">
-                                        <i class="fas fa-exclamation-triangle"></i>
                                     </div>
                                 </div>
                             </div>
@@ -444,12 +449,17 @@ if ($db_connection_ok) {
                 </div>
 
                 <!-- Payment Plans Table -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap">
-                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Payment Plans</h5>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="filterToggle">
-                            <i class="fas fa-filter me-1"></i>Filters
-                        </button>
+                <div class="card border-0 shadow-sm animate-fade-in" style="animation-delay: 0.7s;">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <h5 class="mb-0">
+                                <i class="fas fa-list me-2 text-primary"></i>
+                                All Payment Plans (<?php echo count($plans); ?>)
+                            </h5>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="filterToggle">
+                                <i class="fas fa-filter me-1"></i>Filters
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- Filter Panel -->
@@ -468,12 +478,12 @@ if ($db_connection_ok) {
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold">Overdue Only</label>
                                 <select class="form-select form-select-sm" id="filterOverdue">
-                                    <option value="">All</option>
+                                    <option value="">All Plans</option>
                                     <option value="yes">Yes - Overdue Only</option>
                                 </select>
                             </div>
                             <div class="col-md-6 d-flex align-items-end">
-                                <button type="button" class="btn btn-sm btn-secondary me-2" id="clearFilters">
+                                <button type="button" class="btn btn-sm btn-secondary" id="clearFilters">
                                     <i class="fas fa-times me-1"></i>Clear Filters
                                 </button>
                             </div>
@@ -482,17 +492,15 @@ if ($db_connection_ok) {
                     
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-hover" id="plansTable">
-                                <thead>
+                            <table class="table table-hover align-middle" id="plansTable">
+                                <thead class="table-light">
                                     <tr>
                                         <th>Donor</th>
-                                        <th>Phone</th>
-                                        <th>Monthly Amount</th>
-                                        <th>Duration</th>
+                                        <th>Monthly</th>
                                         <th>Progress</th>
                                         <th>Next Due</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
+                                        <th class="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -501,22 +509,34 @@ if ($db_connection_ok) {
                                         $payments_made = $plan['total_amount'] > 0 && $plan['monthly_amount'] > 0 ? floor($plan['amount_paid'] / $plan['monthly_amount']) : 0;
                                         $is_overdue = $plan['status'] === 'active' && $plan['next_payment_due'] && $plan['next_payment_due'] < date('Y-m-d');
                                     ?>
-                                    <tr class="plan-row" data-plan='<?php echo htmlspecialchars(json_encode($plan), ENT_QUOTES); ?>'>
-                                        <td>
-                                            <strong><?php echo htmlspecialchars($plan['donor_name']); ?></strong>
-                                        </td>
-                                        <td class="text-muted"><?php echo htmlspecialchars($plan['donor_phone']); ?></td>
-                                        <td><strong>£<?php echo number_format($plan['monthly_amount'], 2); ?></strong>/month</td>
-                                        <td><?php echo $plan['duration_months']; ?> months</td>
+                                    <tr class="plan-row" style="cursor: pointer;" data-plan='<?php echo htmlspecialchars(json_encode($plan), ENT_QUOTES); ?>'>
                                         <td>
                                             <div class="d-flex align-items-center">
-                                                <div class="progress flex-grow-1 me-2" style="height: 20px;">
-                                                    <div class="progress-bar <?php echo $progress_pct >= 100 ? 'bg-success' : 'bg-primary'; ?>" 
-                                                         style="width: <?php echo min($progress_pct, 100); ?>%">
-                                                        <?php echo number_format($progress_pct, 0); ?>%
+                                                <div class="me-3">
+                                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                        <i class="fas fa-user"></i>
                                                     </div>
                                                 </div>
-                                                <small class="text-muted"><?php echo $payments_made; ?> of <?php echo $plan['duration_months']; ?></small>
+                                                <div>
+                                                    <strong class="d-block"><?php echo htmlspecialchars($plan['donor_name']); ?></strong>
+                                                    <small class="text-muted"><?php echo htmlspecialchars($plan['donor_phone']); ?></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong class="text-primary">£<?php echo number_format($plan['monthly_amount'], 2); ?></strong>
+                                            <small class="text-muted d-block"><?php echo $plan['duration_months']; ?> months</small>
+                                        </td>
+                                        <td>
+                                            <div style="min-width: 150px;">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <small class="text-muted"><?php echo $payments_made; ?> of <?php echo $plan['duration_months']; ?></small>
+                                                    <small class="fw-bold text-<?php echo $progress_pct >= 100 ? 'success' : 'primary'; ?>"><?php echo number_format($progress_pct, 0); ?>%</small>
+                                                </div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-<?php echo $progress_pct >= 100 ? 'success' : 'primary'; ?>" 
+                                                         style="width: <?php echo min($progress_pct, 100); ?>%"></div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td>
@@ -524,7 +544,7 @@ if ($db_connection_ok) {
                                                 <span class="<?php echo $is_overdue ? 'text-danger fw-bold' : ''; ?>">
                                                     <?php echo date('d M Y', strtotime($plan['next_payment_due'])); ?>
                                                     <?php if ($is_overdue): ?>
-                                                        <i class="fas fa-exclamation-circle ms-1"></i>
+                                                        <i class="fas fa-exclamation-circle ms-1" title="Overdue"></i>
                                                     <?php endif; ?>
                                                 </span>
                                             <?php else: ?>
@@ -539,28 +559,31 @@ if ($db_connection_ok) {
                                                 'completed' => 'primary',
                                                 'cancelled' => 'secondary'
                                             ];
+                                            $badge_icons = [
+                                                'active' => 'fa-check-circle',
+                                                'paused' => 'fa-pause-circle',
+                                                'completed' => 'fa-flag-checkered',
+                                                'cancelled' => 'fa-times-circle'
+                                            ];
                                             $badge_color = $badge_colors[$plan['status']] ?? 'secondary';
+                                            $badge_icon = $badge_icons[$plan['status']] ?? 'fa-circle';
                                             ?>
                                             <span class="badge bg-<?php echo $badge_color; ?>">
-                                                <?php echo ucfirst($plan['status']); ?>
+                                                <i class="fas <?php echo $badge_icon; ?> me-1"></i><?php echo ucfirst($plan['status']); ?>
                                             </span>
                                         </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary view-plan" 
-                                                        data-plan-id="<?php echo $plan['id']; ?>">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm" role="group">
                                                 <?php if ($plan['status'] === 'active'): ?>
                                                 <button type="button" class="btn btn-outline-warning change-status" 
                                                         data-plan-id="<?php echo $plan['id']; ?>" data-status="paused" 
-                                                        title="Pause Plan">
+                                                        title="Pause Plan" onclick="event.stopPropagation();">
                                                     <i class="fas fa-pause"></i>
                                                 </button>
                                                 <?php elseif ($plan['status'] === 'paused'): ?>
                                                 <button type="button" class="btn btn-outline-success change-status" 
                                                         data-plan-id="<?php echo $plan['id']; ?>" data-status="active" 
-                                                        title="Resume Plan">
+                                                        title="Resume Plan" onclick="event.stopPropagation();">
                                                     <i class="fas fa-play"></i>
                                                 </button>
                                                 <?php endif; ?>
@@ -580,22 +603,22 @@ if ($db_connection_ok) {
 
 <!-- Create Payment Plan Modal -->
 <div class="modal fade" id="createPlanModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
             <form method="POST" action="" id="createPlanForm">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="create_plan">
                 
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Create Payment Plan</h5>
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Create New Payment Plan</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 
-                <div class="modal-body">
-                    <div class="row g-3">
+                <div class="modal-body p-4">
+                    <div class="row g-4">
                         <div class="col-12">
                             <label class="form-label fw-bold">Select Donor <span class="text-danger">*</span></label>
-                            <select class="form-select" name="donor_id" id="donor_select" required>
+                            <select class="form-select form-select-lg" name="donor_id" id="donor_select" required>
                                 <option value="">Choose a donor...</option>
                                 <?php foreach ($donors_with_pledges as $donor): ?>
                                 <option value="<?php echo $donor['id']; ?>" 
@@ -604,7 +627,7 @@ if ($db_connection_ok) {
                                     <?php echo htmlspecialchars($donor['name']); ?> - 
                                     Balance: £<?php echo number_format($donor['balance'], 2); ?>
                                     <?php if ($donor['has_active_plan']): ?>
-                                        <span class="text-danger">(Already has active plan)</span>
+                                        (Already has plan)
                                     <?php endif; ?>
                                 </option>
                                 <?php endforeach; ?>
@@ -613,30 +636,33 @@ if ($db_connection_ok) {
                         
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Monthly Amount (£) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="monthly_amount" id="monthly_amount" 
-                                   min="1" step="0.01" required>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">£</span>
+                                <input type="number" class="form-control" name="monthly_amount" id="monthly_amount" 
+                                       min="1" step="0.01" placeholder="0.00" required>
+                            </div>
                         </div>
                         
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Duration (Months) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="duration_months" id="duration_months" 
-                                   min="1" max="60" required>
+                            <input type="number" class="form-control form-control-lg" name="duration_months" id="duration_months" 
+                                   min="1" max="60" placeholder="6" required>
                         </div>
                         
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="start_date" value="<?php echo date('Y-m-d'); ?>" required>
+                            <input type="date" class="form-control form-control-lg" name="start_date" value="<?php echo date('Y-m-d'); ?>" required>
                         </div>
                         
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Payment Day (1-28) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="payment_day" min="1" max="28" value="1" required>
+                            <input type="number" class="form-control form-control-lg" name="payment_day" min="1" max="28" value="1" required>
                             <small class="text-muted">Day of month for recurring payments</small>
                         </div>
                         
                         <div class="col-12">
                             <label class="form-label fw-bold">Preferred Payment Method</label>
-                            <select class="form-select" name="payment_method">
+                            <select class="form-select form-select-lg" name="payment_method">
                                 <option value="bank_transfer">Bank Transfer</option>
                                 <option value="cash">Cash</option>
                                 <option value="card">Card</option>
@@ -645,18 +671,20 @@ if ($db_connection_ok) {
                         </div>
                         
                         <div class="col-12">
-                            <div class="alert alert-info" id="planSummary" style="display: none;">
-                                <strong>Plan Summary:</strong>
+                            <div class="alert alert-info border-info" id="planSummary" style="display: none;">
+                                <h6 class="alert-heading"><i class="fas fa-calculator me-2"></i>Plan Summary</h6>
                                 <div id="summaryContent"></div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Create Plan
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Create Payment Plan
                     </button>
                 </div>
             </form>
@@ -666,13 +694,13 @@ if ($db_connection_ok) {
 
 <!-- Plan Detail Modal -->
 <div class="modal fade" id="planDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>Payment Plan Details</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="planDetailContent">
+            <div class="modal-body p-4" id="planDetailContent">
                 <!-- Content loaded dynamically -->
             </div>
         </div>
@@ -689,24 +717,28 @@ if ($db_connection_ok) {
 $(document).ready(function() {
     // Initialize DataTables
     const table = $('#plansTable').DataTable({
-        order: [[5, 'asc']], // Sort by next due date
+        order: [[3, 'asc']], // Sort by next due date
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         language: {
             search: "Search plans:",
-            lengthMenu: "Show _MENU_ plans per page"
-        }
+            lengthMenu: "Show _MENU_ plans"
+        },
+        columnDefs: [
+            { orderable: false, targets: [5] } // Disable sorting on Actions column
+        ]
     });
     
     // Toggle filter panel
     $('#filterToggle').click(function() {
         $('#filterPanel').slideToggle(300);
+        $(this).find('i').toggleClass('fa-filter fa-times');
     });
     
     // Status filter
     $('#filterStatus').on('change', function() {
         const status = $(this).val().toLowerCase();
-        table.column(6).search(status).draw();
+        table.column(4).search(status).draw();
     });
     
     // Overdue filter
@@ -734,14 +766,15 @@ $(document).ready(function() {
         $('#filterStatus').val('');
         $('#filterOverdue').val('');
         table.search('').columns().search('').draw();
+        $('#filterToggle').find('i').removeClass('fa-times').addClass('fa-filter');
+        $('#filterPanel').slideUp(300);
     });
     
     // View plan details
-    $(document).on('click', '.view-plan, .plan-row', function(e) {
-        if ($(e.target).closest('button').hasClass('change-status')) return;
+    $(document).on('click', '.plan-row', function(e) {
+        if ($(e.target).closest('button').length) return;
         
-        const $row = $(this).closest('tr');
-        const planData = $row.attr('data-plan');
+        const planData = $(this).attr('data-plan');
         if (!planData) return;
         
         const plan = JSON.parse(planData);
@@ -753,70 +786,99 @@ $(document).ready(function() {
         const content = `
             <div class="row g-4">
                 <div class="col-md-6">
-                    <h6 class="text-muted">Donor Information</h6>
-                    <table class="table table-sm">
-                        <tr><th>Name:</th><td>${plan.donor_name}</td></tr>
-                        <tr><th>Phone:</th><td>${plan.donor_phone}</td></tr>
-                        <tr><th>Total Pledged:</th><td>£${parseFloat(plan.total_pledged).toFixed(2)}</td></tr>
-                        <tr><th>Total Paid:</th><td>£${parseFloat(plan.total_paid).toFixed(2)}</td></tr>
-                        <tr><th>Balance:</th><td>£${parseFloat(plan.donor_balance).toFixed(2)}</td></tr>
-                    </table>
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-user text-primary me-2"></i>Donor Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="border-start border-4 border-primary ps-3 mb-3">
+                                <div><strong>Name:</strong> ${plan.donor_name}</div>
+                                <div class="text-muted small">${plan.donor_phone}</div>
+                            </div>
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr><td class="text-muted">Total Pledged:</td><td class="text-end fw-bold">£${parseFloat(plan.total_pledged).toFixed(2)}</td></tr>
+                                <tr><td class="text-muted">Total Paid:</td><td class="text-end fw-bold text-success">£${parseFloat(plan.total_paid).toFixed(2)}</td></tr>
+                                <tr><td class="text-muted">Balance:</td><td class="text-end fw-bold text-danger">£${parseFloat(plan.donor_balance).toFixed(2)}</td></tr>
+                            </table>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="col-md-6">
-                    <h6 class="text-muted">Plan Details</h6>
-                    <table class="table table-sm">
-                        <tr><th>Monthly Amount:</th><td>£${parseFloat(plan.monthly_amount).toFixed(2)}</td></tr>
-                        <tr><th>Duration:</th><td>${plan.duration_months} months</td></tr>
-                        <tr><th>Total Amount:</th><td>£${parseFloat(plan.total_amount).toFixed(2)}</td></tr>
-                        <tr><th>Amount Paid:</th><td>£${parseFloat(plan.amount_paid).toFixed(2)}</td></tr>
-                        <tr><th>Balance:</th><td>£${parseFloat(plan.balance).toFixed(2)}</td></tr>
-                        <tr><th>Status:</th><td><span class="badge bg-success">${plan.status}</span></td></tr>
-                    </table>
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-calendar-check text-success me-2"></i>Plan Details</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless">
+                                <tr><td class="text-muted">Monthly Amount:</td><td class="text-end fw-bold text-primary">£${parseFloat(plan.monthly_amount).toFixed(2)}</td></tr>
+                                <tr><td class="text-muted">Duration:</td><td class="text-end fw-bold">${plan.duration_months} months</td></tr>
+                                <tr><td class="text-muted">Total Amount:</td><td class="text-end fw-bold">£${parseFloat(plan.total_amount).toFixed(2)}</td></tr>
+                                <tr><td class="text-muted">Amount Paid:</td><td class="text-end fw-bold text-success">£${parseFloat(plan.amount_paid).toFixed(2)}</td></tr>
+                                <tr><td class="text-muted">Balance:</td><td class="text-end fw-bold text-danger">£${parseFloat(plan.balance).toFixed(2)}</td></tr>
+                                <tr><td class="text-muted">Start Date:</td><td class="text-end">${plan.start_date ? new Date(plan.start_date).toLocaleDateString('en-GB') : '-'}</td></tr>
+                                <tr><td class="text-muted">Next Due:</td><td class="text-end">${plan.next_payment_due ? new Date(plan.next_payment_due).toLocaleDateString('en-GB') : '-'}</td></tr>
+                                <tr><td class="text-muted">Payment Day:</td><td class="text-end">Day ${plan.payment_day}</td></tr>
+                            </table>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="col-12">
-                    <h6 class="text-muted">Payment Progress</h6>
-                    <div class="progress" style="height: 30px;">
-                        <div class="progress-bar ${progressPct >= 100 ? 'bg-success' : 'bg-primary'}" 
-                             style="width: ${Math.min(progressPct, 100)}%">
-                            ${progressPct.toFixed(1)}% Complete
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-chart-line text-info me-2"></i>Payment Progress</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>${paymentsMade} of ${plan.duration_months} payments made</span>
+                                <span class="fw-bold text-${progressPct >= 100 ? 'success' : 'primary'}">${progressPct.toFixed(1)}% Complete</span>
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar bg-${progressPct >= 100 ? 'success' : 'primary'}" 
+                                     style="width: ${Math.min(progressPct, 100)}%">
+                                    ${progressPct.toFixed(1)}%
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <p class="mt-2 text-muted">${paymentsMade} of ${plan.duration_months} payments made</p>
                 </div>
                 
-                <div class="col-md-6">
-                    <h6 class="text-muted">Timeline</h6>
-                    <table class="table table-sm">
-                        <tr><th>Start Date:</th><td>${plan.start_date ? new Date(plan.start_date).toLocaleDateString('en-GB') : '-'}</td></tr>
-                        <tr><th>Next Due:</th><td>${plan.next_payment_due ? new Date(plan.next_payment_due).toLocaleDateString('en-GB') : '-'}</td></tr>
-                        <tr><th>Payment Day:</th><td>Day ${plan.payment_day} of each month</td></tr>
-                        <tr><th>Preferred Method:</th><td>${plan.preferred_method}</td></tr>
-                    </table>
-                </div>
-                
-                <div class="col-md-6">
-                    <h6 class="text-muted">Actions</h6>
-                    <div class="d-grid gap-2">
-                        ${plan.status === 'active' ? `
-                            <button type="button" class="btn btn-warning change-status-modal" data-plan-id="${plan.id}" data-status="paused">
-                                <i class="fas fa-pause me-2"></i>Pause Plan
-                            </button>
-                        ` : ''}
-                        ${plan.status === 'paused' ? `
-                            <button type="button" class="btn btn-success change-status-modal" data-plan-id="${plan.id}" data-status="active">
-                                <i class="fas fa-play me-2"></i>Resume Plan
-                            </button>
-                        ` : ''}
-                        ${plan.status === 'active' || plan.status === 'paused' ? `
-                            <button type="button" class="btn btn-danger change-status-modal" data-plan-id="${plan.id}" data-status="cancelled">
-                                <i class="fas fa-times me-2"></i>Cancel Plan
-                            </button>
-                            <button type="button" class="btn btn-primary change-status-modal" data-plan-id="${plan.id}" data-status="completed">
-                                <i class="fas fa-check me-2"></i>Mark as Completed
-                            </button>
-                        ` : ''}
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-cog text-secondary me-2"></i>Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                                ${plan.status === 'active' ? `
+                                    <div class="col-md-6">
+                                        <button type="button" class="btn btn-warning w-100 change-status-modal" data-plan-id="${plan.id}" data-status="paused">
+                                            <i class="fas fa-pause me-2"></i>Pause Plan
+                                        </button>
+                                    </div>
+                                ` : ''}
+                                ${plan.status === 'paused' ? `
+                                    <div class="col-md-6">
+                                        <button type="button" class="btn btn-success w-100 change-status-modal" data-plan-id="${plan.id}" data-status="active">
+                                            <i class="fas fa-play me-2"></i>Resume Plan
+                                        </button>
+                                    </div>
+                                ` : ''}
+                                ${plan.status === 'active' || plan.status === 'paused' ? `
+                                    <div class="col-md-6">
+                                        <button type="button" class="btn btn-danger w-100 change-status-modal" data-plan-id="${plan.id}" data-status="cancelled">
+                                            <i class="fas fa-times me-2"></i>Cancel Plan
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button type="button" class="btn btn-primary w-100 change-status-modal" data-plan-id="${plan.id}" data-status="completed">
+                                            <i class="fas fa-check me-2"></i>Mark Completed
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -857,18 +919,22 @@ $(document).ready(function() {
             const diff = total - donorBalance;
             
             let summaryHtml = `
-                <div>Total Plan Amount: <strong>£${total.toFixed(2)}</strong></div>
-                <div>Donor Balance: <strong>£${donorBalance.toFixed(2)}</strong></div>
+                <div class="row g-2">
+                    <div class="col-6">Total Plan Amount:</div>
+                    <div class="col-6 text-end"><strong>£${total.toFixed(2)}</strong></div>
+                    <div class="col-6">Donor Balance:</div>
+                    <div class="col-6 text-end"><strong>£${donorBalance.toFixed(2)}</strong></div>
+                </div>
             `;
             
             if (Math.abs(diff) > 0.01) {
                 if (diff > 0) {
-                    summaryHtml += `<div class="text-warning mt-2">⚠️ Plan exceeds balance by £${Math.abs(diff).toFixed(2)}</div>`;
+                    summaryHtml += `<div class="alert alert-warning mt-2 mb-0">⚠️ Plan exceeds balance by £${Math.abs(diff).toFixed(2)}</div>`;
                 } else {
-                    summaryHtml += `<div class="text-info mt-2">ℹ️ Plan is £${Math.abs(diff).toFixed(2)} less than balance</div>`;
+                    summaryHtml += `<div class="alert alert-info mt-2 mb-0">ℹ️ Plan is £${Math.abs(diff).toFixed(2)} less than balance</div>`;
                 }
             } else {
-                summaryHtml += `<div class="text-success mt-2">✓ Plan matches donor balance perfectly!</div>`;
+                summaryHtml += `<div class="alert alert-success mt-2 mb-0">✓ Plan matches donor balance perfectly!</div>`;
             }
             
             $('#summaryContent').html(summaryHtml);
@@ -901,4 +967,3 @@ $(document).ready(function() {
 </script>
 </body>
 </html>
-
