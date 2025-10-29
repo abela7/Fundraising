@@ -450,9 +450,14 @@ foreach ($templates_all as $t) {
     }
     
     #preview_donor {
-        min-height: 180px;
+        min-height: 60px;
         max-height: 250px;
         font-size: 0.95rem;
+    }
+    
+    #preview_donor[size="2"] {
+        min-height: 60px;
+        max-height: 80px;
     }
     
     #preview_donor option {
@@ -798,7 +803,7 @@ foreach ($templates_all as $t) {
                                     </small>
                                 </div>
                                 
-                                <select class="form-select" id="preview_donor" required size="6" style="overflow-y: auto;">
+                                <select class="form-select" id="preview_donor" required size="6" style="overflow-y: auto; transition: height 0.2s ease;">
                                     <option value="">-- Select a donor --</option>
                                     <?php 
                                     $payment_method_labels = [
@@ -1296,6 +1301,11 @@ function filterDonors() {
     const countElement = document.getElementById('donor_filter_count');
     const options = donorSelect.querySelectorAll('option:not([value=""])');
     
+    // If searching, make sure dropdown is expanded
+    if (searchTerm !== '' || !donorSelect.value) {
+        donorSelect.size = 6;
+    }
+    
     let visibleCount = 0;
     
     options.forEach(option => {
@@ -1312,8 +1322,10 @@ function filterDonors() {
     
     // Update count - simple display
     if (searchTerm === '') {
-        countElement.textContent = `${options.length} donor${options.length !== 1 ? 's' : ''} available`;
-        countElement.className = 'text-muted';
+        if (!donorSelect.value) {
+            countElement.textContent = `${options.length} donor${options.length !== 1 ? 's' : ''} available`;
+            countElement.className = 'text-muted';
+        }
     } else {
         if (visibleCount === 0) {
             countElement.textContent = 'No donors found';
@@ -1344,6 +1356,9 @@ document.getElementById('preview_donor').addEventListener('change', function() {
             }
         });
         
+        // Reduce dropdown size to show only selected option + placeholder
+        donorSelect.size = 2;
+        
         // Update count
         document.getElementById('donor_filter_count').textContent = '1 donor selected';
         document.getElementById('donor_filter_count').className = 'text-success';
@@ -1356,6 +1371,9 @@ document.getElementById('preview_donor').addEventListener('change', function() {
         options.forEach(option => {
             option.style.display = '';
         });
+        
+        // Restore dropdown size for selection
+        donorSelect.size = 6;
         
         // Reset count
         const totalDonors = options.length;
