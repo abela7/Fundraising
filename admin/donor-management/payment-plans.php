@@ -282,7 +282,7 @@ foreach ($templates as $t) {
     }
     .default-badge {
         position: absolute;
-        top: -10px;
+        top: 12px;
         right: 15px;
         padding: 0.35rem 0.75rem;
         font-size: 0.7rem;
@@ -424,13 +424,13 @@ foreach ($templates as $t) {
                         <div class="plan-card card border-0 shadow-sm h-100 position-relative animate-fade-in" 
                              style="animation-delay: <?php echo (array_search($template, $templates) * 0.05); ?>s;">
                             
-                            <?php if ($template['is_default']): ?>
-                            <span class="badge bg-warning text-dark default-badge">
-                                <i class="fas fa-star me-1"></i>DEFAULT
-                            </span>
-                            <?php endif; ?>
-                            
-                            <div class="card-header bg-white border-bottom">
+                            <div class="card-header bg-white border-bottom position-relative">
+                                <?php if ($template['is_default']): ?>
+                                <span class="badge bg-warning text-dark default-badge">
+                                    <i class="fas fa-star me-1"></i>DEFAULT
+                                </span>
+                                <?php endif; ?>
+                                
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-grip-vertical me-2 drag-handle text-muted"></i>
