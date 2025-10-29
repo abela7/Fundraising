@@ -352,3 +352,37 @@ a.text-decoration-none:hover .card-title {
     }
 }
 
+/* Prevent horizontal scrolling on main content */
+.admin-content {
+    overflow-x: hidden;
+}
+
+/* Table responsive styles */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Make table more compact and readable */
+.table td, .table th {
+    white-space: nowrap;
+}
+
+/* Responsive table adjustments for mobile */
+@media (max-width: 768px) {
+    .table td, .table th {
+        padding: 0.5rem 0.35rem;
+        font-size: 0.85rem;
+    }
+    
+    .table .btn-sm {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    
+    .table .badge {
+        font-size: 0.7rem;
+        padding: 0.25em 0.5em;
+    }
+}
+

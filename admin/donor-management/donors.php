@@ -343,13 +343,13 @@ unset($donor); // Break reference
                 <!-- Donors Table -->
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white border-bottom">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h5 class="mb-0">
                                 <i class="fas fa-table me-2 text-primary"></i>
                                 All Donors
                             </h5>
                             <button class="btn btn-sm btn-outline-primary" id="toggleFilter" type="button">
-                                <i class="fas fa-filter me-2"></i>Filters
+                                <i class="fas fa-filter me-1"></i>Filters
                                 <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
                             </button>
                         </div>
@@ -358,9 +358,9 @@ unset($donor); // Break reference
                     <!-- Filter Panel -->
                     <div id="filterPanel" class="border-bottom" style="display: none;">
                         <div class="p-3 bg-light">
-                            <div class="row g-3">
-                                <div class="col-12 col-md-6 col-lg-3">
-                                    <label class="form-label small fw-bold">Donor Type</label>
+                            <div class="row g-2">
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1">Donor Type</label>
                                     <select class="form-select form-select-sm" id="filter_donor_type">
                                         <option value="">All Types</option>
                                         <option value="pledge">Pledge Donors</option>
@@ -368,8 +368,8 @@ unset($donor); // Break reference
                                     </select>
                                 </div>
                                 
-                                <div class="col-12 col-md-6 col-lg-3">
-                                    <label class="form-label small fw-bold">Payment Status</label>
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1">Payment Status</label>
                                     <select class="form-select form-select-sm" id="filter_payment_status">
                                         <option value="">All Statuses</option>
                                         <option value="no_pledge">No Pledge</option>
@@ -381,8 +381,8 @@ unset($donor); // Break reference
                                     </select>
                                 </div>
                                 
-                                <div class="col-12 col-md-6 col-lg-2">
-                                    <label class="form-label small fw-bold">Language</label>
+                                <div class="col-12 col-sm-6 col-lg-2">
+                                    <label class="form-label small fw-bold mb-1">Language</label>
                                     <select class="form-select form-select-sm" id="filter_language">
                                         <option value="">All Languages</option>
                                         <option value="en">English</option>
@@ -391,8 +391,8 @@ unset($donor); // Break reference
                                     </select>
                                 </div>
                                 
-                                <div class="col-12 col-md-6 col-lg-2">
-                                    <label class="form-label small fw-bold">Payment Method</label>
+                                <div class="col-12 col-sm-6 col-lg-2">
+                                    <label class="form-label small fw-bold mb-1">Payment Method</label>
                                     <select class="form-select form-select-sm" id="filter_payment_method">
                                         <option value="">All Methods</option>
                                         <option value="bank_transfer">Bank Transfer</option>
@@ -401,21 +401,21 @@ unset($donor); // Break reference
                                     </select>
                                 </div>
                                 
-                                <div class="col-12 col-md-6 col-lg-2">
-                                    <label class="form-label small fw-bold">Balance</label>
+                                <div class="col-12 col-sm-6 col-lg-2">
+                                    <label class="form-label small fw-bold mb-1">Balance</label>
                                     <select class="form-select form-select-sm" id="filter_balance">
                                         <option value="">All</option>
-                                        <option value="has_balance">Has Balance (> £0)</option>
-                                        <option value="no_balance">No Balance (£0)</option>
+                                        <option value="has_balance">Has Balance</option>
+                                        <option value="no_balance">No Balance</option>
                                     </select>
                                 </div>
                                 
-                                <div class="col-12">
-                                    <div class="d-flex gap-2">
+                                <div class="col-12 mt-2">
+                                    <div class="d-flex flex-wrap gap-2 align-items-center">
                                         <button class="btn btn-sm btn-danger" id="clearFilters">
-                                            <i class="fas fa-times me-1"></i>Clear All Filters
+                                            <i class="fas fa-times me-1"></i>Clear
                                         </button>
-                                        <span class="ms-auto text-muted small align-self-center" id="filterResultCount"></span>
+                                        <span class="text-muted small" id="filterResultCount"></span>
                                     </div>
                                 </div>
                             </div>
@@ -435,9 +435,7 @@ unset($donor); // Break reference
                                         <th>Pledged</th>
                                         <th>Paid</th>
                                         <th>Balance</th>
-                                        <th>Language</th>
                                         <th>Payment Method</th>
-                                        <th>Added</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -470,10 +468,8 @@ unset($donor); // Break reference
                                         <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['balance'], 2); ?></td>
-                                        <td><?php echo strtoupper($donor['preferred_language'] ?? 'EN'); ?></td>
                                         <td><?php echo ucwords(str_replace('_', ' ', $donor['preferred_payment_method'] ?? 'Bank Transfer')); ?></td>
-                                        <td><?php echo date('d M Y', strtotime($donor['created_at'])); ?></td>
-                                        <td>
+                                        <td class="text-nowrap">
                                             <button class="btn btn-sm btn-outline-primary edit-donor" 
                                                     data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>'>
                                                 <i class="fas fa-edit"></i>
@@ -658,12 +654,11 @@ $(document).ready(function() {
         const balance = $('#filter_balance').val();
         
         // Get data from table columns
-        // Column indices: 0=ID, 1=Name, 2=Type, 3=Phone, 4=Status, 5=Pledged, 6=Paid, 7=Balance, 8=Language, 9=Payment Method, 10=Added, 11=Actions
+        // Column indices: 0=ID, 1=Name, 2=Type, 3=Phone, 4=Status, 5=Pledged, 6=Paid, 7=Balance, 8=Payment Method, 9=Actions
         const rowDonorType = data[2].toLowerCase(); // Type column
         const rowPaymentStatus = data[4].toLowerCase(); // Status column
         const rowBalance = parseFloat(data[7].replace('£', '').replace(',', '')); // Balance column
-        const rowLanguage = data[8].toLowerCase(); // Language column
-        const rowPaymentMethod = data[9].toLowerCase(); // Payment Method column
+        const rowPaymentMethod = data[8].toLowerCase(); // Payment Method column
         
         // Apply filters
         if (donorType && !rowDonorType.includes(donorType.toLowerCase())) {
@@ -674,8 +669,16 @@ $(document).ready(function() {
             return false;
         }
         
-        if (language && rowLanguage !== language.toLowerCase()) {
-            return false;
+        if (language) {
+            // Language filter - check from donor data in edit button
+            const row = table.row(dataIndex).node();
+            const donorData = $(row).find('.edit-donor').attr('data-donor');
+            if (donorData) {
+                const donor = JSON.parse(donorData);
+                if (donor.preferred_language.toLowerCase() !== language.toLowerCase()) {
+                    return false;
+                }
+            }
         }
         
         if (paymentMethod && !rowPaymentMethod.includes(paymentMethod.toLowerCase().replace('_', ' '))) {
