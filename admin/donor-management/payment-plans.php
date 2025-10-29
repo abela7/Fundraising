@@ -353,7 +353,8 @@ if ($db_connection_ok) {
         
         $result = $db->query("
             SELECT 
-                id, name, preferred_payment_method, total_pledged, total_paid, balance
+                id, name, preferred_payment_method, payment_status, 
+                total_pledged, total_paid, balance
             FROM donors 
             WHERE {$pledge_filter} 
                 AND balance > 0
@@ -788,7 +789,64 @@ foreach ($templates_all as $t) {
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Select Donor <span class="text-danger">*</span></label>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0">Select Donor <span class="text-danger">*</span></label>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle_filter_btn">
+                                        <i class="fas fa-filter me-1"></i>Filter
+                                    </button>
+                                </div>
+                                
+                                <!-- Filter Panel (Hidden by default) -->
+                                <div class="card border mb-2" id="donor_filter_panel" style="display: none;">
+                                    <div class="card-body p-3">
+                                        <h6 class="mb-3">
+                                            <i class="fas fa-filter text-primary me-2"></i>Filter Donors
+                                        </h6>
+                                        
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-12">
+                                                <label class="form-label small fw-semibold">Payment Method</label>
+                                                <select class="form-select form-select-sm" id="filter_payment_method">
+                                                    <option value="">All Methods</option>
+                                                    <option value="cash">Cash</option>
+                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                    <option value="card">Card</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="col-12">
+                                                <label class="form-label small fw-semibold">Payment Status</label>
+                                                <select class="form-select form-select-sm" id="filter_payment_status">
+                                                    <option value="">All Statuses</option>
+                                                    <option value="not_started">Not Started</option>
+                                                    <option value="paying">Paying</option>
+                                                    <option value="overdue">Overdue</option>
+                                                    <option value="completed">Completed</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="col-12">
+                                                <label class="form-label small fw-semibold">Balance Range</label>
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" class="form-control" id="filter_balance_min" 
+                                                           placeholder="Min £" min="0" step="0.01">
+                                                    <span class="input-group-text">-</span>
+                                                    <input type="number" class="form-control" id="filter_balance_max" 
+                                                           placeholder="Max £" min="0" step="0.01">
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-12 mt-2">
+                                                <button type="button" class="btn btn-sm btn-primary w-100" id="apply_filter_btn">
+                                                    <i class="fas fa-check me-1"></i>Apply Filters
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-1" id="reset_filter_btn">
+                                                    <i class="fas fa-times me-1"></i>Reset
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 
                                 <div class="input-group mb-2">
                                     <span class="input-group-text bg-light">
@@ -803,7 +861,7 @@ foreach ($templates_all as $t) {
                                 
                                 <div class="mb-2">
                                     <small class="text-muted" id="donor_filter_count">
-                                        <?php echo count($donors_for_preview); ?> donor<?php echo count($donors_for_preview) !== 1 ? 's' : ''; ?> available
+                                        <?php echo count($donors_for_preview); ?> pledge donor<?php echo count($donors_for_preview) !== 1 ? 's' : ''; ?> available
                                     </small>
                                 </div>
                                 
@@ -823,6 +881,7 @@ foreach ($templates_all as $t) {
                                             data-balance="<?php echo $donor['balance']; ?>"
                                             data-name="<?php echo htmlspecialchars($donor['name']); ?>"
                                             data-payment-method="<?php echo htmlspecialchars($payment_method); ?>"
+                                            data-payment-status="<?php echo htmlspecialchars($donor['payment_status'] ?? 'not_started'); ?>"
                                             data-search-text="<?php echo strtolower(htmlspecialchars($donor['name'] . ' ' . $payment_label)); ?>">
                                         <?php echo htmlspecialchars($donor['name']); ?> • <?php echo htmlspecialchars($payment_label); ?> • £<?php echo number_format($donor['balance'], 2); ?>
                                     </option>
@@ -1298,25 +1357,75 @@ document.getElementById('calculatePlanBtn').addEventListener('click', calculateP
     }
 });
 
-// Donor Search/Filter Functionality - Simple & Clean
-function filterDonors() {
-    const searchTerm = document.getElementById('donor_search').value.toLowerCase().trim();
-    const donorSelect = document.getElementById('preview_donor');
-    const countElement = document.getElementById('donor_filter_count');
+// Donor Search/Filter Functionality - Now integrated with applyDonorFilters
+
+// Store all donors data for filtering
+let allDonorsData = [];
+const donorSelect = document.getElementById('preview_donor');
+if (donorSelect) {
     const options = donorSelect.querySelectorAll('option:not([value=""])');
-    
-    // If searching, make sure dropdown is expanded
-    if (searchTerm !== '' || !donorSelect.value) {
-        donorSelect.size = 6;
+    options.forEach(option => {
+        allDonorsData.push({
+            element: option,
+            balance: parseFloat(option.getAttribute('data-balance') || 0),
+            paymentMethod: option.getAttribute('data-payment-method') || '',
+            paymentStatus: option.getAttribute('data-payment-status') || 'not_started'
+        });
+    });
+}
+
+// Toggle filter panel
+document.getElementById('toggle_filter_btn').addEventListener('click', function() {
+    const panel = document.getElementById('donor_filter_panel');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        this.innerHTML = '<i class="fas fa-filter me-1"></i>Hide Filter';
+        this.classList.add('active');
+    } else {
+        panel.style.display = 'none';
+        this.innerHTML = '<i class="fas fa-filter me-1"></i>Filter';
+        this.classList.remove('active');
     }
+});
+
+// Apply filters
+function applyDonorFilters() {
+    const paymentMethod = document.getElementById('filter_payment_method').value;
+    const paymentStatus = document.getElementById('filter_payment_status').value;
+    const balanceMin = parseFloat(document.getElementById('filter_balance_min').value) || 0;
+    const balanceMax = parseFloat(document.getElementById('filter_balance_max').value) || Infinity;
+    const searchTerm = document.getElementById('donor_search').value.toLowerCase().trim();
     
     let visibleCount = 0;
     
-    options.forEach(option => {
-        const searchText = option.getAttribute('data-search-text') || '';
-        const matches = searchText.includes(searchTerm);
+    allDonorsData.forEach(donor => {
+        const option = donor.element;
+        let show = true;
         
-        if (matches || searchTerm === '') {
+        // Payment method filter
+        if (paymentMethod && donor.paymentMethod !== paymentMethod) {
+            show = false;
+        }
+        
+        // Payment status filter
+        if (paymentStatus && donor.paymentStatus !== paymentStatus) {
+            show = false;
+        }
+        
+        // Balance range filter
+        if (donor.balance < balanceMin || donor.balance > balanceMax) {
+            show = false;
+        }
+        
+        // Name search filter
+        if (searchTerm) {
+            const searchText = option.getAttribute('data-search-text') || '';
+            if (!searchText.includes(searchTerm)) {
+                show = false;
+            }
+        }
+        
+        if (show) {
             option.style.display = '';
             visibleCount++;
         } else {
@@ -1324,25 +1433,67 @@ function filterDonors() {
         }
     });
     
-    // Update count - simple display
-    if (searchTerm === '') {
-        if (!donorSelect.value) {
-            countElement.textContent = `${options.length} donor${options.length !== 1 ? 's' : ''} available`;
-            countElement.className = 'text-muted';
-        }
+    // Update count
+    const countElement = document.getElementById('donor_filter_count');
+    const totalDonors = allDonorsData.length;
+    
+    if (visibleCount === 0) {
+        countElement.textContent = 'No donors match the filters';
+        countElement.className = 'text-danger';
+    } else if (visibleCount === totalDonors && !paymentMethod && !paymentStatus && balanceMin === 0 && balanceMax === Infinity && !searchTerm) {
+        countElement.textContent = `${totalDonors} pledge donor${totalDonors !== 1 ? 's' : ''} available`;
+        countElement.className = 'text-muted';
     } else {
-        if (visibleCount === 0) {
-            countElement.textContent = 'No donors found';
-            countElement.className = 'text-danger';
-        } else {
-            countElement.textContent = `${visibleCount} donor${visibleCount !== 1 ? 's' : ''} found`;
-            countElement.className = 'text-success';
-        }
+        countElement.textContent = `${visibleCount} of ${totalDonors} pledge donor${totalDonors !== 1 ? 's' : ''} found`;
+        countElement.className = 'text-success';
+    }
+    
+    // Expand dropdown if filters are active
+    if (paymentMethod || paymentStatus || balanceMin > 0 || balanceMax < Infinity) {
+        donorSelect.size = 6;
     }
 }
 
+// Reset filters
+function resetDonorFilters() {
+    document.getElementById('filter_payment_method').value = '';
+    document.getElementById('filter_payment_status').value = '';
+    document.getElementById('filter_balance_min').value = '';
+    document.getElementById('filter_balance_max').value = '';
+    document.getElementById('donor_search').value = '';
+    
+    // Show all donors
+    allDonorsData.forEach(donor => {
+        donor.element.style.display = '';
+    });
+    
+    // Reset count
+    const totalDonors = allDonorsData.length;
+    document.getElementById('donor_filter_count').textContent = `${totalDonors} pledge donor${totalDonors !== 1 ? 's' : ''} available`;
+    document.getElementById('donor_filter_count').className = 'text-muted';
+}
+
+// Event listeners for filters
+document.getElementById('apply_filter_btn').addEventListener('click', applyDonorFilters);
+document.getElementById('reset_filter_btn').addEventListener('click', resetDonorFilters);
+
+// Allow Enter key in filter inputs
+['filter_payment_method', 'filter_payment_status', 'filter_balance_min', 'filter_balance_max'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+        element.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                applyDonorFilters();
+            }
+        });
+    }
+});
+
 // Setup donor search
-document.getElementById('donor_search').addEventListener('input', filterDonors);
+document.getElementById('donor_search').addEventListener('input', function() {
+    // When searching, combine with active filters
+    applyDonorFilters();
+});
 
 // Handle donor selection - hide other options when one is selected
 document.getElementById('preview_donor').addEventListener('change', function() {
@@ -1394,18 +1545,8 @@ document.getElementById('preview_donor').addEventListener('change', function() {
 // Clear search button
 document.getElementById('clear_donor_search').addEventListener('click', function() {
     document.getElementById('donor_search').value = '';
-    filterDonors();
+    applyDonorFilters();
     document.getElementById('donor_search').focus();
-    
-    // Also reset selection if needed
-    const donorSelect = document.getElementById('preview_donor');
-    if (donorSelect.value) {
-        // When clearing search, show all options again but keep selection
-        const options = donorSelect.querySelectorAll('option:not([value=""])');
-        options.forEach(option => {
-            option.style.display = '';
-        });
-    }
 });
 
 // Reset modal when opened
@@ -1416,9 +1557,13 @@ $('#previewPlanModal').on('show.bs.modal', function() {
     document.getElementById('preview_start_date').value = '<?php echo date('Y-m-d'); ?>';
     document.getElementById('preview_payment_day').value = '1';
     
-    // Reset search
-    document.getElementById('donor_search').value = '';
-    filterDonors();
+    // Reset filters
+    resetDonorFilters();
+    
+    // Hide filter panel
+    document.getElementById('donor_filter_panel').style.display = 'none';
+    document.getElementById('toggle_filter_btn').innerHTML = '<i class="fas fa-filter me-1"></i>Filter';
+    document.getElementById('toggle_filter_btn').classList.remove('active');
     
     // Hide results
     document.getElementById('planPreviewResults').style.display = 'none';
