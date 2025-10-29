@@ -167,11 +167,11 @@ $db = db();
                                 <div class="card-body p-4">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="feature-icon bg-warning-subtle text-warning me-2">
-                                            <i class="fas fa-calendar-check"></i>
+                                            <i class="fas fa-th-list"></i>
                                         </div>
-                                        <h6 class="mb-0">Payment Plans</h6>
+                                        <h6 class="mb-0">Payment Plan Templates</h6>
                                     </div>
-                                    <p class="card-text text-muted small">Manage recurring payment schedules.</p>
+                                    <p class="card-text text-muted small">Create plan options donors can choose from.</p>
                                     <span class="badge bg-success badge-sm">Active</span>
                                 </div>
                             </div>

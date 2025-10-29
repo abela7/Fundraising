@@ -6,12 +6,53 @@ require_once __DIR__ . '/../includes/resilient_db_loader.php';
 require_login();
 require_admin();
 
-$page_title = 'Payment Plans';
+$page_title = 'Payment Plan Templates';
 $current_user = current_user();
 $db = db();
 
 $success_message = '';
 $error_message = '';
+
+// Check if payment_plan_templates table exists, if not create it
+if ($db_connection_ok) {
+    $table_check = $db->query("SHOW TABLES LIKE 'payment_plan_templates'");
+    if ($table_check->num_rows === 0) {
+        $create_table = "CREATE TABLE IF NOT EXISTS payment_plan_templates (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            duration_months INT NOT NULL,
+            suggested_monthly_amount DECIMAL(10,2) NULL COMMENT 'Optional suggested amount per month',
+            is_active TINYINT(1) DEFAULT 1,
+            is_default TINYINT(1) DEFAULT 0,
+            sort_order INT DEFAULT 0,
+            created_by_user_id INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_active (is_active),
+            INDEX idx_sort (sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        $db->query($create_table);
+        
+        // Insert default templates
+        $defaults = [
+            ['3-Month Plan', 'Pay your pledge in 3 monthly installments', 3, 0],
+            ['6-Month Plan', 'Pay your pledge in 6 monthly installments', 6, 1],
+            ['12-Month Plan', 'Pay your pledge in 12 monthly installments', 12, 0],
+            ['18-Month Plan', 'Pay your pledge in 18 monthly installments', 18, 0],
+            ['24-Month Plan', 'Pay your pledge in 24 monthly installments', 24, 0],
+            ['Custom Plan', 'Create a custom payment schedule', 0, 0]
+        ];
+        
+        $sort = 1;
+        foreach ($defaults as $default) {
+            $stmt = $db->prepare("INSERT INTO payment_plan_templates (name, description, duration_months, is_default, sort_order) VALUES (?, ?, ?, ?, ?)");
+            $stmt->bind_param('ssiii', $default[0], $default[1], $default[2], $default[3], $sort);
+            $stmt->execute();
+            $sort++;
+        }
+    }
+}
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
@@ -22,145 +63,151 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     try {
         $db->begin_transaction();
         
-        if ($action === 'create_plan') {
-            // Create new payment plan
-            $donor_id = (int)($_POST['donor_id'] ?? 0);
-            $pledge_id = isset($_POST['pledge_id']) ? (int)$_POST['pledge_id'] : null;
-            $monthly_amount = (float)($_POST['monthly_amount'] ?? 0);
+        if ($action === 'create_template') {
+            // Create new payment plan template
+            $name = trim($_POST['name'] ?? '');
+            $description = trim($_POST['description'] ?? '');
             $duration_months = (int)($_POST['duration_months'] ?? 0);
-            $start_date = $_POST['start_date'] ?? date('Y-m-d');
-            $payment_day = (int)($_POST['payment_day'] ?? 1);
-            $payment_method = $_POST['payment_method'] ?? 'bank_transfer';
+            $suggested_monthly_amount = isset($_POST['suggested_monthly_amount']) && $_POST['suggested_monthly_amount'] !== '' 
+                ? (float)$_POST['suggested_monthly_amount'] 
+                : null;
+            $is_default = isset($_POST['is_default']) ? 1 : 0;
             
             // Validation
-            if ($donor_id <= 0) {
-                throw new Exception('Please select a valid donor');
+            if (empty($name)) {
+                throw new Exception('Plan name is required');
             }
-            if ($monthly_amount <= 0) {
-                throw new Exception('Monthly amount must be greater than 0');
-            }
-            if ($duration_months <= 0) {
-                throw new Exception('Duration must be at least 1 month');
-            }
-            if ($payment_day < 1 || $payment_day > 28) {
-                throw new Exception('Payment day must be between 1 and 28');
+            if ($duration_months < 0 || $duration_months > 60) {
+                throw new Exception('Duration must be between 0 and 60 months (0 for custom)');
             }
             
-            // Check if donor already has an active plan
-            $check = $db->prepare("SELECT id FROM donor_payment_plans WHERE donor_id = ? AND status = 'active' LIMIT 1");
-            $check->bind_param('i', $donor_id);
-            $check->execute();
-            if ($check->get_result()->fetch_assoc()) {
-                throw new Exception('This donor already has an active payment plan. Please complete or cancel it first.');
+            // If setting as default, unset other defaults
+            if ($is_default) {
+                $db->query("UPDATE payment_plan_templates SET is_default = 0");
             }
             
-            // Get donor info
-            $donor_stmt = $db->prepare("SELECT id, name, phone, total_pledged, total_paid, balance FROM donors WHERE id = ?");
-            $donor_stmt->bind_param('i', $donor_id);
-            $donor_stmt->execute();
-            $donor = $donor_stmt->get_result()->fetch_assoc();
-            if (!$donor) {
-                throw new Exception('Donor not found');
-            }
+            // Get next sort order
+            $sort_result = $db->query("SELECT COALESCE(MAX(sort_order), 0) + 1 as next_sort FROM payment_plan_templates");
+            $next_sort = $sort_result->fetch_assoc()['next_sort'];
             
-            // Calculate plan totals
-            $total_amount = $monthly_amount * $duration_months;
-            
-            // Calculate first payment due date
-            $start_dt = new DateTime($start_date);
-            $first_due = clone $start_dt;
-            $first_due->setDate($start_dt->format('Y'), $start_dt->format('m'), $payment_day);
-            if ($first_due < $start_dt) {
-                $first_due->modify('+1 month');
-            }
-            
-            // Insert payment plan
+            // Insert template
             $stmt = $db->prepare("
-                INSERT INTO donor_payment_plans (
-                    donor_id, pledge_id, monthly_amount, duration_months, 
-                    total_amount, amount_paid, balance, status, 
-                    start_date, next_payment_due, payment_day, 
-                    preferred_method, created_by_user_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, 0, ?, 'active', ?, ?, ?, ?, ?, NOW())
+                INSERT INTO payment_plan_templates (
+                    name, description, duration_months, suggested_monthly_amount,
+                    is_default, sort_order, created_by_user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param('iidiidssisi', 
-                $donor_id, $pledge_id, $monthly_amount, $duration_months,
-                $total_amount, $total_amount, $start_date, $first_due->format('Y-m-d'), 
-                $payment_day, $payment_method, $current_user['id']
-            );
+            $stmt->bind_param('ssdidii', $name, $description, $duration_months, 
+                $suggested_monthly_amount, $is_default, $next_sort, $current_user['id']);
             $stmt->execute();
-            $plan_id = $db->insert_id;
-            
-            // Update donor
-            $upd = $db->prepare("UPDATE donors SET has_active_plan = 1, active_payment_plan_id = ?, plan_monthly_amount = ?, plan_duration_months = ?, plan_start_date = ?, plan_next_due_date = ? WHERE id = ?");
-            $upd->bind_param('iddssi', $plan_id, $monthly_amount, $duration_months, $start_date, $first_due->format('Y-m-d'), $donor_id);
-            $upd->execute();
+            $template_id = $db->insert_id;
             
             // Audit log
             $audit_data = json_encode([
-                'donor' => $donor['name'],
-                'monthly_amount' => $monthly_amount,
+                'name' => $name,
                 'duration_months' => $duration_months,
-                'total_amount' => $total_amount,
-                'start_date' => $start_date
+                'is_default' => $is_default
             ], JSON_UNESCAPED_SLASHES);
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment_plan', ?, 'create', ?, 'admin')");
-            $audit->bind_param('iis', $current_user['id'], $plan_id, $audit_data);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment_plan_template', ?, 'create', ?, 'admin')");
+            $audit->bind_param('iis', $current_user['id'], $template_id, $audit_data);
             $audit->execute();
             
             $db->commit();
-            $_SESSION['success_message'] = "Payment plan created successfully for {$donor['name']}!";
+            $_SESSION['success_message'] = "Payment plan template '{$name}' created successfully!";
             header('Location: payment-plans.php');
             exit;
             
-        } elseif ($action === 'update_status') {
-            // Update plan status (pause/resume/cancel/complete)
-            $plan_id = (int)($_POST['plan_id'] ?? 0);
-            $new_status = $_POST['new_status'] ?? '';
+        } elseif ($action === 'edit_template') {
+            // Edit existing template
+            $template_id = (int)($_POST['template_id'] ?? 0);
+            $name = trim($_POST['name'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+            $duration_months = (int)($_POST['duration_months'] ?? 0);
+            $suggested_monthly_amount = isset($_POST['suggested_monthly_amount']) && $_POST['suggested_monthly_amount'] !== '' 
+                ? (float)$_POST['suggested_monthly_amount'] 
+                : null;
+            $is_default = isset($_POST['is_default']) ? 1 : 0;
             
-            if (!in_array($new_status, ['active', 'paused', 'cancelled', 'completed'])) {
-                throw new Exception('Invalid status');
+            if (empty($name)) {
+                throw new Exception('Plan name is required');
             }
             
-            // Get current plan
-            $stmt = $db->prepare("SELECT * FROM donor_payment_plans WHERE id = ? FOR UPDATE");
-            $stmt->bind_param('i', $plan_id);
+            // If setting as default, unset other defaults
+            if ($is_default) {
+                $db->query("UPDATE payment_plan_templates SET is_default = 0");
+            }
+            
+            // Update template
+            $stmt = $db->prepare("
+                UPDATE payment_plan_templates 
+                SET name = ?, description = ?, duration_months = ?, 
+                    suggested_monthly_amount = ?, is_default = ?
+                WHERE id = ?
+            ");
+            $stmt->bind_param('ssdidi', $name, $description, $duration_months, 
+                $suggested_monthly_amount, $is_default, $template_id);
             $stmt->execute();
-            $plan = $stmt->get_result()->fetch_assoc();
-            if (!$plan) {
-                throw new Exception('Payment plan not found');
-            }
-            
-            // Update status
-            $upd = $db->prepare("UPDATE donor_payment_plans SET status = ?, updated_at = NOW() WHERE id = ?");
-            $upd->bind_param('si', $new_status, $plan_id);
-            $upd->execute();
-            
-            // If cancelling or completing, update donor
-            if (in_array($new_status, ['cancelled', 'completed'])) {
-                $donor_upd = $db->prepare("UPDATE donors SET has_active_plan = 0, active_payment_plan_id = NULL WHERE id = ?");
-                $donor_upd->bind_param('i', $plan['donor_id']);
-                $donor_upd->execute();
-            } elseif ($new_status === 'active' && $plan['status'] !== 'active') {
-                // Resuming plan
-                $donor_upd = $db->prepare("UPDATE donors SET has_active_plan = 1, active_payment_plan_id = ? WHERE id = ?");
-                $donor_upd->bind_param('ii', $plan_id, $plan['donor_id']);
-                $donor_upd->execute();
-            }
             
             // Audit log
             $audit_data = json_encode([
-                'old_status' => $plan['status'],
-                'new_status' => $new_status
+                'name' => $name,
+                'duration_months' => $duration_months
             ], JSON_UNESCAPED_SLASHES);
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment_plan', ?, 'status_change', ?, ?, 'admin')");
-            $before = json_encode(['status' => $plan['status']], JSON_UNESCAPED_SLASHES);
-            $audit->bind_param('iiss', $current_user['id'], $plan_id, $before, $audit_data);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment_plan_template', ?, 'update', ?, 'admin')");
+            $audit->bind_param('iis', $current_user['id'], $template_id, $audit_data);
             $audit->execute();
             
             $db->commit();
-            $_SESSION['success_message'] = "Payment plan status updated to: " . ucfirst($new_status);
+            $_SESSION['success_message'] = "Payment plan template updated successfully!";
             header('Location: payment-plans.php');
+            exit;
+            
+        } elseif ($action === 'toggle_active') {
+            $template_id = (int)($_POST['template_id'] ?? 0);
+            $is_active = (int)($_POST['is_active'] ?? 0);
+            
+            $stmt = $db->prepare("UPDATE payment_plan_templates SET is_active = ? WHERE id = ?");
+            $stmt->bind_param('ii', $is_active, $template_id);
+            $stmt->execute();
+            
+            // Audit log
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment_plan_template', ?, 'toggle_active', ?, 'admin')");
+            $audit_data = json_encode(['is_active' => $is_active], JSON_UNESCAPED_SLASHES);
+            $audit->bind_param('iis', $current_user['id'], $template_id, $audit_data);
+            $audit->execute();
+            
+            $db->commit();
+            $_SESSION['success_message'] = $is_active ? "Plan activated" : "Plan deactivated";
+            header('Location: payment-plans.php');
+            exit;
+            
+        } elseif ($action === 'delete_template') {
+            $template_id = (int)($_POST['template_id'] ?? 0);
+            
+            $stmt = $db->prepare("DELETE FROM payment_plan_templates WHERE id = ?");
+            $stmt->bind_param('i', $template_id);
+            $stmt->execute();
+            
+            // Audit log
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, source) VALUES(?, 'payment_plan_template', ?, 'delete', 'admin')");
+            $audit->bind_param('ii', $current_user['id'], $template_id);
+            $audit->execute();
+            
+            $db->commit();
+            $_SESSION['success_message'] = "Payment plan template deleted successfully!";
+            header('Location: payment-plans.php');
+            exit;
+            
+        } elseif ($action === 'reorder') {
+            $order = json_decode($_POST['order'] ?? '[]', true);
+            foreach ($order as $index => $id) {
+                $stmt = $db->prepare("UPDATE payment_plan_templates SET sort_order = ? WHERE id = ?");
+                $stmt->bind_param('ii', $index, $id);
+                $stmt->execute();
+            }
+            
+            $db->commit();
+            echo json_encode(['success' => true]);
             exit;
         }
         
@@ -176,97 +223,31 @@ if (isset($_SESSION['success_message'])) {
     unset($_SESSION['success_message']);
 }
 
-// Load statistics
+// Load all payment plan templates
+$templates = [];
+if ($db_connection_ok) {
+    try {
+        $result = $db->query("SELECT * FROM payment_plan_templates ORDER BY sort_order ASC, created_at ASC");
+        if ($result) {
+            $templates = $result->fetch_all(MYSQLI_ASSOC);
+        }
+    } catch (Exception $e) {
+        // Silent fail
+    }
+}
+
+// Calculate statistics
 $stats = [
-    'active_count' => 0,
-    'paused_count' => 0,
-    'completed_count' => 0,
-    'overdue_count' => 0,
-    'total_monthly_expected' => 0,
-    'total_collected' => 0,
-    'total_outstanding' => 0
+    'total_templates' => count($templates),
+    'active_templates' => count(array_filter($templates, fn($t) => $t['is_active'])),
+    'inactive_templates' => count(array_filter($templates, fn($t) => !$t['is_active'])),
+    'default_template' => ''
 ];
 
-if ($db_connection_ok) {
-    try {
-        $today = date('Y-m-d');
-        
-        // Get counts
-        $result = $db->query("
-            SELECT 
-                COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
-                COUNT(CASE WHEN status = 'paused' THEN 1 END) as paused_count,
-                COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
-                COUNT(CASE WHEN status = 'active' AND next_payment_due < '$today' THEN 1 END) as overdue_count,
-                COALESCE(SUM(CASE WHEN status = 'active' THEN monthly_amount ELSE 0 END), 0) as total_monthly_expected,
-                COALESCE(SUM(amount_paid), 0) as total_collected,
-                COALESCE(SUM(balance), 0) as total_outstanding
-            FROM donor_payment_plans
-        ");
-        
-        if ($result) {
-            $stats = array_merge($stats, $result->fetch_assoc());
-        }
-    } catch (Exception $e) {
-        // Silent fail
-    }
-}
-
-// Load all payment plans with donor info
-$plans = [];
-if ($db_connection_ok) {
-    try {
-        $query = "
-            SELECT 
-                pp.*,
-                d.name as donor_name,
-                d.phone as donor_phone,
-                d.total_pledged,
-                d.total_paid,
-                d.balance as donor_balance
-            FROM donor_payment_plans pp
-            INNER JOIN donors d ON pp.donor_id = d.id
-            ORDER BY 
-                CASE pp.status
-                    WHEN 'active' THEN 1
-                    WHEN 'paused' THEN 2
-                    WHEN 'completed' THEN 3
-                    WHEN 'cancelled' THEN 4
-                END,
-                pp.next_payment_due ASC
-        ";
-        $result = $db->query($query);
-        if ($result) {
-            $plans = $result->fetch_all(MYSQLI_ASSOC);
-        }
-    } catch (Exception $e) {
-        // Silent fail
-    }
-}
-
-// Load donors with open pledges for create modal
-$donors_with_pledges = [];
-if ($db_connection_ok) {
-    try {
-        $query = "
-            SELECT DISTINCT
-                d.id,
-                d.name,
-                d.phone,
-                d.total_pledged,
-                d.total_paid,
-                d.balance,
-                d.has_active_plan
-            FROM donors d
-            WHERE d.total_pledged > 0 AND d.balance > 0
-            ORDER BY d.name ASC
-        ";
-        $result = $db->query($query);
-        if ($result) {
-            $donors_with_pledges = $result->fetch_all(MYSQLI_ASSOC);
-        }
-    } catch (Exception $e) {
-        // Silent fail
+foreach ($templates as $t) {
+    if ($t['is_default']) {
+        $stats['default_template'] = $t['name'];
+        break;
     }
 }
 ?>
@@ -279,9 +260,26 @@ if ($db_connection_ok) {
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/donor-management.css">
+    <style>
+    .plan-card {
+        transition: all 0.3s ease;
+        cursor: move;
+    }
+    .plan-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+    .plan-card.dragging {
+        opacity: 0.5;
+    }
+    .default-badge {
+        position: absolute;
+        top: -10px;
+        right: 10px;
+    }
+    </style>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -298,18 +296,13 @@ if ($db_connection_ok) {
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-calendar-check me-2"></i>Payment Plans Management
+                            <i class="fas fa-th-list me-2"></i>Payment Plan Templates
                         </h1>
-                        <p class="text-muted mb-0">Track and manage recurring payment schedules for pledge donors</p>
+                        <p class="text-muted mb-0">Create and manage payment plan options that donors can choose from</p>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
-                            <i class="fas fa-print me-2"></i>Print
-                        </button>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlanModal">
-                            <i class="fas fa-plus me-2"></i>Create Plan
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                        <i class="fas fa-plus me-2"></i>Create Template
+                    </button>
                 </div>
 
                 <?php if ($success_message): ?>
@@ -331,45 +324,45 @@ if ($db_connection_ok) {
                 <!-- Summary Statistics -->
                 <div class="row g-4 mb-4">
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card animate-fade-in" style="color: #0d7f4d;">
+                        <div class="stat-card animate-fade-in" style="color: #0a6286;">
+                            <div class="stat-icon bg-primary">
+                                <i class="fas fa-th-list"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo $stats['total_templates']; ?></h3>
+                                <p class="stat-label">Total Templates</p>
+                                <div class="stat-trend text-primary">
+                                    <i class="fas fa-layer-group"></i> Available
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s; color: #0d7f4d;">
                             <div class="stat-icon bg-success">
                                 <i class="fas fa-check-circle"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format((int)$stats['active_count']); ?></h3>
+                                <h3 class="stat-value"><?php echo $stats['active_templates']; ?></h3>
                                 <p class="stat-label">Active Plans</p>
                                 <div class="stat-trend text-success">
-                                    <i class="fas fa-play-circle"></i> Running
+                                    <i class="fas fa-toggle-on"></i> Enabled
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s; color: #b91c1c;">
-                            <div class="stat-icon bg-danger">
-                                <i class="fas fa-exclamation-triangle"></i>
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s; color: #6c757d;">
+                            <div class="stat-icon bg-secondary">
+                                <i class="fas fa-toggle-off"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value text-danger"><?php echo number_format((int)$stats['overdue_count']); ?></h3>
-                                <p class="stat-label">Overdue</p>
-                                <div class="stat-trend text-danger">
-                                    <i class="fas fa-clock"></i> Need attention
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s; color: #0a6286;">
-                            <div class="stat-icon bg-primary">
-                                <i class="fas fa-pound-sign"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value">£ <?php echo number_format((float)$stats['total_monthly_expected'], 0); ?></h3>
-                                <p class="stat-label">Monthly Expected</p>
-                                <div class="stat-trend text-primary">
-                                    <i class="fas fa-calendar"></i> Per month
+                                <h3 class="stat-value"><?php echo $stats['inactive_templates']; ?></h3>
+                                <p class="stat-label">Inactive Plans</p>
+                                <div class="stat-trend text-secondary">
+                                    <i class="fas fa-pause"></i> Disabled
                                 </div>
                             </div>
                         </div>
@@ -378,302 +371,173 @@ if ($db_connection_ok) {
                     <div class="col-12 col-sm-6 col-lg-3">
                         <div class="stat-card animate-fade-in" style="animation-delay: 0.3s; color: #b88a1a;">
                             <div class="stat-icon bg-warning">
-                                <i class="fas fa-hourglass-half"></i>
+                                <i class="fas fa-star"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value">£ <?php echo number_format((float)$stats['total_outstanding'], 0); ?></h3>
-                                <p class="stat-label">Outstanding</p>
+                                <h3 class="stat-value" style="font-size: 1rem;"><?php echo $stats['default_template'] ?: 'None'; ?></h3>
+                                <p class="stat-label">Default Plan</p>
                                 <div class="stat-trend text-warning">
-                                    <i class="fas fa-arrow-down"></i> Remaining
+                                    <i class="fas fa-crown"></i> Recommended
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Additional Stats -->
-                <div class="row g-4 mb-4">
-                    <div class="col-12 col-lg-4">
-                        <div class="card animate-fade-in border-0 shadow-sm" style="animation-delay: 0.4s;">
-                            <div class="card-body">
-                                <div class="border-start border-4 border-primary ps-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1 fw-semibold">Total Collected</h6>
-                                            <p class="mb-0 small text-muted">From all payment plans</p>
-                                        </div>
-                                        <div class="text-end">
-                                            <h4 class="mb-0 text-primary">£<?php echo number_format((float)$stats['total_collected'], 0); ?></h4>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <!-- Info Alert -->
+                <div class="alert alert-info border-info animate-fade-in" style="animation-delay: 0.4s;">
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="fas fa-info-circle fa-2x"></i>
                         </div>
-                    </div>
-                    
-                    <div class="col-12 col-lg-4">
-                        <div class="card animate-fade-in border-0 shadow-sm" style="animation-delay: 0.5s;">
-                            <div class="card-body">
-                                <div class="border-start border-4 border-warning ps-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1 fw-semibold">Paused Plans</h6>
-                                            <p class="mb-0 small text-muted">Temporarily suspended</p>
-                                        </div>
-                                        <div class="text-end">
-                                            <h4 class="mb-0 text-warning"><?php echo number_format((int)$stats['paused_count']); ?></h4>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12 col-lg-4">
-                        <div class="card animate-fade-in border-0 shadow-sm" style="animation-delay: 0.6s;">
-                            <div class="card-body">
-                                <div class="border-start border-4 border-success ps-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1 fw-semibold">Completed Plans</h6>
-                                            <p class="mb-0 small text-muted">Successfully finished</p>
-                                        </div>
-                                        <div class="text-end">
-                                            <h4 class="mb-0 text-success"><?php echo number_format((int)$stats['completed_count']); ?></h4>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div>
+                            <h6 class="alert-heading mb-2">How Payment Plan Templates Work</h6>
+                            <p class="mb-2">Create templates that donors can choose from when setting up their payment schedule. For example:</p>
+                            <ul class="mb-0">
+                                <li><strong>6-Month Plan:</strong> Donors can spread their pledge over 6 equal monthly payments</li>
+                                <li><strong>12-Month Plan:</strong> Donors can pay their pledge over a full year</li>
+                                <li><strong>Custom Plan:</strong> Allow donors to create their own custom schedule</li>
+                            </ul>
+                            <p class="mt-2 mb-0"><i class="fas fa-lightbulb me-1"></i><strong>Tip:</strong> Drag and drop cards to reorder. Mark one as "default" to recommend it to donors.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Payment Plans Table -->
-                <div class="card border-0 shadow-sm animate-fade-in" style="animation-delay: 0.7s;">
-                    <div class="card-header bg-white border-bottom">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap">
-                            <h5 class="mb-0">
-                                <i class="fas fa-list me-2 text-primary"></i>
-                                All Payment Plans (<?php echo count($plans); ?>)
-                            </h5>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="filterToggle">
-                                <i class="fas fa-filter me-1"></i>Filters
-                            </button>
+                <!-- Payment Plan Templates Grid -->
+                <div class="row g-4" id="templatesGrid">
+                    <?php foreach ($templates as $template): ?>
+                    <div class="col-12 col-md-6 col-lg-4" data-template-id="<?php echo $template['id']; ?>">
+                        <div class="plan-card card border-0 shadow-sm h-100 position-relative animate-fade-in" 
+                             style="animation-delay: <?php echo (array_search($template, $templates) * 0.1); ?>s;">
+                            
+                            <?php if ($template['is_default']): ?>
+                            <span class="badge bg-warning default-badge">
+                                <i class="fas fa-star me-1"></i>Default
+                            </span>
+                            <?php endif; ?>
+                            
+                            <div class="card-header bg-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-grip-vertical me-2 drag-handle" style="cursor: move;"></i>
+                                        <?php echo htmlspecialchars($template['name']); ?>
+                                    </h5>
+                                    <span class="badge bg-light text-dark">
+                                        <?php if ($template['duration_months'] == 0): ?>
+                                            Custom
+                                        <?php else: ?>
+                                            <?php echo $template['duration_months']; ?> months
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <p class="card-text text-muted">
+                                    <?php echo htmlspecialchars($template['description'] ?: 'No description'); ?>
+                                </p>
+                                
+                                <?php if ($template['suggested_monthly_amount']): ?>
+                                <div class="border-start border-4 border-success ps-3 mb-3">
+                                    <small class="text-muted d-block">Suggested Monthly Amount</small>
+                                    <h5 class="mb-0 text-success">£<?php echo number_format($template['suggested_monthly_amount'], 2); ?></h5>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" 
+                                               id="active_<?php echo $template['id']; ?>"
+                                               <?php echo $template['is_active'] ? 'checked' : ''; ?>
+                                               onchange="toggleActive(<?php echo $template['id']; ?>, this.checked)">
+                                        <label class="form-check-label" for="active_<?php echo $template['id']; ?>">
+                                            <?php echo $template['is_active'] ? 'Active' : 'Inactive'; ?>
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary edit-template" 
+                                                data-template='<?php echo htmlspecialchars(json_encode($template), ENT_QUOTES); ?>'>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger delete-template" 
+                                                data-id="<?php echo $template['id']; ?>"
+                                                data-name="<?php echo htmlspecialchars($template['name']); ?>">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <!-- Filter Panel -->
-                    <div class="card-body border-bottom bg-light" id="filterPanel" style="display: none;">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold">Status</label>
-                                <select class="form-select form-select-sm" id="filterStatus">
-                                    <option value="">All Statuses</option>
-                                    <option value="active">Active</option>
-                                    <option value="paused">Paused</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="cancelled">Cancelled</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold">Overdue Only</label>
-                                <select class="form-select form-select-sm" id="filterOverdue">
-                                    <option value="">All Plans</option>
-                                    <option value="yes">Yes - Overdue Only</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 d-flex align-items-end">
-                                <button type="button" class="btn btn-sm btn-secondary" id="clearFilters">
-                                    <i class="fas fa-times me-1"></i>Clear Filters
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle" id="plansTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Donor</th>
-                                        <th>Monthly</th>
-                                        <th>Progress</th>
-                                        <th>Next Due</th>
-                                        <th>Status</th>
-                                        <th class="text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($plans as $plan): 
-                                        $progress_pct = $plan['total_amount'] > 0 ? ($plan['amount_paid'] / $plan['total_amount']) * 100 : 0;
-                                        $payments_made = $plan['total_amount'] > 0 && $plan['monthly_amount'] > 0 ? floor($plan['amount_paid'] / $plan['monthly_amount']) : 0;
-                                        $is_overdue = $plan['status'] === 'active' && $plan['next_payment_due'] && $plan['next_payment_due'] < date('Y-m-d');
-                                    ?>
-                                    <tr class="plan-row" style="cursor: pointer;" data-plan='<?php echo htmlspecialchars(json_encode($plan), ENT_QUOTES); ?>'>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="me-3">
-                                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                        <i class="fas fa-user"></i>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <strong class="d-block"><?php echo htmlspecialchars($plan['donor_name']); ?></strong>
-                                                    <small class="text-muted"><?php echo htmlspecialchars($plan['donor_phone']); ?></small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <strong class="text-primary">£<?php echo number_format($plan['monthly_amount'], 2); ?></strong>
-                                            <small class="text-muted d-block"><?php echo $plan['duration_months']; ?> months</small>
-                                        </td>
-                                        <td>
-                                            <div style="min-width: 150px;">
-                                                <div class="d-flex justify-content-between mb-1">
-                                                    <small class="text-muted"><?php echo $payments_made; ?> of <?php echo $plan['duration_months']; ?></small>
-                                                    <small class="fw-bold text-<?php echo $progress_pct >= 100 ? 'success' : 'primary'; ?>"><?php echo number_format($progress_pct, 0); ?>%</small>
-                                                </div>
-                                                <div class="progress" style="height: 6px;">
-                                                    <div class="progress-bar bg-<?php echo $progress_pct >= 100 ? 'success' : 'primary'; ?>" 
-                                                         style="width: <?php echo min($progress_pct, 100); ?>%"></div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <?php if ($plan['next_payment_due']): ?>
-                                                <span class="<?php echo $is_overdue ? 'text-danger fw-bold' : ''; ?>">
-                                                    <?php echo date('d M Y', strtotime($plan['next_payment_due'])); ?>
-                                                    <?php if ($is_overdue): ?>
-                                                        <i class="fas fa-exclamation-circle ms-1" title="Overdue"></i>
-                                                    <?php endif; ?>
-                                                </span>
-                                            <?php else: ?>
-                                                <span class="text-muted">-</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php 
-                                            $badge_colors = [
-                                                'active' => 'success',
-                                                'paused' => 'warning',
-                                                'completed' => 'primary',
-                                                'cancelled' => 'secondary'
-                                            ];
-                                            $badge_icons = [
-                                                'active' => 'fa-check-circle',
-                                                'paused' => 'fa-pause-circle',
-                                                'completed' => 'fa-flag-checkered',
-                                                'cancelled' => 'fa-times-circle'
-                                            ];
-                                            $badge_color = $badge_colors[$plan['status']] ?? 'secondary';
-                                            $badge_icon = $badge_icons[$plan['status']] ?? 'fa-circle';
-                                            ?>
-                                            <span class="badge bg-<?php echo $badge_color; ?>">
-                                                <i class="fas <?php echo $badge_icon; ?> me-1"></i><?php echo ucfirst($plan['status']); ?>
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <?php if ($plan['status'] === 'active'): ?>
-                                                <button type="button" class="btn btn-outline-warning change-status" 
-                                                        data-plan-id="<?php echo $plan['id']; ?>" data-status="paused" 
-                                                        title="Pause Plan" onclick="event.stopPropagation();">
-                                                    <i class="fas fa-pause"></i>
-                                                </button>
-                                                <?php elseif ($plan['status'] === 'paused'): ?>
-                                                <button type="button" class="btn btn-outline-success change-status" 
-                                                        data-plan-id="<?php echo $plan['id']; ?>" data-status="active" 
-                                                        title="Resume Plan" onclick="event.stopPropagation();">
-                                                    <i class="fas fa-play"></i>
-                                                </button>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <?php endforeach; ?>
                 </div>
+
+                <?php if (empty($templates)): ?>
+                <div class="text-center py-5">
+                    <i class="fas fa-th-list fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">No payment plan templates yet</h5>
+                    <p class="text-muted">Create your first template to get started</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                        <i class="fas fa-plus me-2"></i>Create Your First Template
+                    </button>
+                </div>
+                <?php endif; ?>
             </div>
         </main>
     </div>
 </div>
 
-<!-- Create Payment Plan Modal -->
-<div class="modal fade" id="createPlanModal" tabindex="-1">
+<!-- Create Template Modal -->
+<div class="modal fade" id="createTemplateModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <form method="POST" action="" id="createPlanForm">
+            <form method="POST" action="" id="createTemplateForm">
                 <?php echo csrf_input(); ?>
-                <input type="hidden" name="action" value="create_plan">
+                <input type="hidden" name="action" value="create_template">
                 
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Create New Payment Plan</h5>
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Create Payment Plan Template</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 
                 <div class="modal-body p-4">
                     <div class="row g-4">
                         <div class="col-12">
-                            <label class="form-label fw-bold">Select Donor <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-lg" name="donor_id" id="donor_select" required>
-                                <option value="">Choose a donor...</option>
-                                <?php foreach ($donors_with_pledges as $donor): ?>
-                                <option value="<?php echo $donor['id']; ?>" 
-                                        data-balance="<?php echo $donor['balance']; ?>"
-                                        data-has-plan="<?php echo $donor['has_active_plan']; ?>">
-                                    <?php echo htmlspecialchars($donor['name']); ?> - 
-                                    Balance: £<?php echo number_format($donor['balance'], 2); ?>
-                                    <?php if ($donor['has_active_plan']): ?>
-                                        (Already has plan)
-                                    <?php endif; ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label class="form-label fw-bold">Plan Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" name="name" 
+                                   placeholder="e.g., 6-Month Plan" required>
                         </div>
                         
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Monthly Amount (£) <span class="text-danger">*</span></label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text">£</span>
-                                <input type="number" class="form-control" name="monthly_amount" id="monthly_amount" 
-                                       min="1" step="0.01" placeholder="0.00" required>
-                            </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Description</label>
+                            <textarea class="form-control" name="description" rows="3" 
+                                      placeholder="Describe this payment plan option..."></textarea>
                         </div>
                         
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Duration (Months) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control form-control-lg" name="duration_months" id="duration_months" 
-                                   min="1" max="60" placeholder="6" required>
+                            <input type="number" class="form-control form-control-lg" name="duration_months" 
+                                   min="0" max="60" placeholder="6" required>
+                            <small class="text-muted">Enter 0 for custom/flexible duration</small>
                         </div>
                         
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control form-control-lg" name="start_date" value="<?php echo date('Y-m-d'); ?>" required>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Payment Day (1-28) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control form-control-lg" name="payment_day" min="1" max="28" value="1" required>
-                            <small class="text-muted">Day of month for recurring payments</small>
-                        </div>
-                        
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Preferred Payment Method</label>
-                            <select class="form-select form-select-lg" name="payment_method">
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="cash">Cash</option>
-                                <option value="card">Card</option>
-                                <option value="other">Other</option>
-                            </select>
+                            <label class="form-label fw-bold">Suggested Monthly Amount (Optional)</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">£</span>
+                                <input type="number" class="form-control" name="suggested_monthly_amount" 
+                                       min="0" step="0.01" placeholder="Leave blank">
+                            </div>
                         </div>
                         
                         <div class="col-12">
-                            <div class="alert alert-info border-info" id="planSummary" style="display: none;">
-                                <h6 class="alert-heading"><i class="fas fa-calculator me-2"></i>Plan Summary</h6>
-                                <div id="summaryContent"></div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_default" id="is_default_create">
+                                <label class="form-check-label fw-bold" for="is_default_create">
+                                    <i class="fas fa-star text-warning me-1"></i>
+                                    Set as Default (Recommended to donors)
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -684,7 +548,7 @@ if ($db_connection_ok) {
                         <i class="fas fa-times me-2"></i>Cancel
                     </button>
                     <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="fas fa-save me-2"></i>Create Payment Plan
+                        <i class="fas fa-save me-2"></i>Create Template
                     </button>
                 </div>
             </form>
@@ -692,277 +556,143 @@ if ($db_connection_ok) {
     </div>
 </div>
 
-<!-- Plan Detail Modal -->
-<div class="modal fade" id="planDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
+<!-- Edit Template Modal -->
+<div class="modal fade" id="editTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>Payment Plan Details</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4" id="planDetailContent">
-                <!-- Content loaded dynamically -->
-            </div>
+            <form method="POST" action="" id="editTemplateForm">
+                <?php echo csrf_input(); ?>
+                <input type="hidden" name="action" value="edit_template">
+                <input type="hidden" name="template_id" id="edit_template_id">
+                
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Payment Plan Template</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                
+                <div class="modal-body p-4">
+                    <div class="row g-4">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Plan Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" name="name" id="edit_name" required>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Description</label>
+                            <textarea class="form-control" name="description" id="edit_description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Duration (Months) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control form-control-lg" name="duration_months" 
+                                   id="edit_duration_months" min="0" max="60" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Suggested Monthly Amount</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">£</span>
+                                <input type="number" class="form-control" name="suggested_monthly_amount" 
+                                       id="edit_suggested_monthly_amount" min="0" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_default" id="edit_is_default">
+                                <label class="form-check-label fw-bold" for="edit_is_default">
+                                    <i class="fas fa-star text-warning me-1"></i>
+                                    Set as Default
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Update Template
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="../assets/admin.js"></script>
 
 <script>
-$(document).ready(function() {
-    // Initialize DataTables
-    const table = $('#plansTable').DataTable({
-        order: [[3, 'asc']], // Sort by next due date
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        language: {
-            search: "Search plans:",
-            lengthMenu: "Show _MENU_ plans"
-        },
-        columnDefs: [
-            { orderable: false, targets: [5] } // Disable sorting on Actions column
-        ]
-    });
-    
-    // Toggle filter panel
-    $('#filterToggle').click(function() {
-        $('#filterPanel').slideToggle(300);
-        $(this).find('i').toggleClass('fa-filter fa-times');
-    });
-    
-    // Status filter
-    $('#filterStatus').on('change', function() {
-        const status = $(this).val().toLowerCase();
-        table.column(4).search(status).draw();
-    });
-    
-    // Overdue filter
-    $('#filterOverdue').on('change', function() {
-        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-            const filterOverdue = $('#filterOverdue').val();
-            if (!filterOverdue) return true;
-            
-            const row = table.row(dataIndex).node();
-            const planData = $(row).attr('data-plan');
-            if (!planData) return true;
-            
-            const plan = JSON.parse(planData);
-            const today = new Date().toISOString().split('T')[0];
-            const isOverdue = plan.status === 'active' && plan.next_payment_due && plan.next_payment_due < today;
-            
-            return filterOverdue === 'yes' ? isOverdue : true;
+// Initialize drag-and-drop sorting
+new Sortable(document.getElementById('templatesGrid'), {
+    animation: 150,
+    handle: '.drag-handle',
+    ghostClass: 'dragging',
+    onEnd: function(evt) {
+        // Get new order
+        const order = [];
+        $('#templatesGrid > div').each(function() {
+            order.push($(this).data('template-id'));
         });
-        table.draw();
-        $.fn.dataTable.ext.search.pop();
+        
+        // Save to server
+        $.post('', {
+            action: 'reorder',
+            order: JSON.stringify(order),
+            <?php echo str_replace(['"', "'"], '', csrf_input()); ?>
+        });
+    }
+});
+
+// Toggle active status
+function toggleActive(templateId, isActive) {
+    const form = $('<form>', {
+        method: 'POST',
+        action: ''
     });
+    form.append('<?php echo csrf_input(); ?>');
+    form.append($('<input>', { type: 'hidden', name: 'action', value: 'toggle_active' }));
+    form.append($('<input>', { type: 'hidden', name: 'template_id', value: templateId }));
+    form.append($('<input>', { type: 'hidden', name: 'is_active', value: isActive ? 1 : 0 }));
+    $('body').append(form);
+    form.submit();
+}
+
+// Edit template
+$(document).on('click', '.edit-template', function() {
+    const template = JSON.parse($(this).attr('data-template'));
     
-    // Clear filters
-    $('#clearFilters').click(function() {
-        $('#filterStatus').val('');
-        $('#filterOverdue').val('');
-        table.search('').columns().search('').draw();
-        $('#filterToggle').find('i').removeClass('fa-times').addClass('fa-filter');
-        $('#filterPanel').slideUp(300);
-    });
+    $('#edit_template_id').val(template.id);
+    $('#edit_name').val(template.name);
+    $('#edit_description').val(template.description);
+    $('#edit_duration_months').val(template.duration_months);
+    $('#edit_suggested_monthly_amount').val(template.suggested_monthly_amount);
+    $('#edit_is_default').prop('checked', template.is_default == 1);
     
-    // View plan details
-    $(document).on('click', '.plan-row', function(e) {
-        if ($(e.target).closest('button').length) return;
-        
-        const planData = $(this).attr('data-plan');
-        if (!planData) return;
-        
-        const plan = JSON.parse(planData);
-        
-        // Build detail view
-        const progressPct = plan.total_amount > 0 ? (plan.amount_paid / plan.total_amount * 100) : 0;
-        const paymentsMade = plan.total_amount > 0 && plan.monthly_amount > 0 ? Math.floor(plan.amount_paid / plan.monthly_amount) : 0;
-        
-        const content = `
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-user text-primary me-2"></i>Donor Information</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="border-start border-4 border-primary ps-3 mb-3">
-                                <div><strong>Name:</strong> ${plan.donor_name}</div>
-                                <div class="text-muted small">${plan.donor_phone}</div>
-                            </div>
-                            <table class="table table-sm table-borderless mb-0">
-                                <tr><td class="text-muted">Total Pledged:</td><td class="text-end fw-bold">£${parseFloat(plan.total_pledged).toFixed(2)}</td></tr>
-                                <tr><td class="text-muted">Total Paid:</td><td class="text-end fw-bold text-success">£${parseFloat(plan.total_paid).toFixed(2)}</td></tr>
-                                <tr><td class="text-muted">Balance:</td><td class="text-end fw-bold text-danger">£${parseFloat(plan.donor_balance).toFixed(2)}</td></tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-calendar-check text-success me-2"></i>Plan Details</h6>
-                        </div>
-                        <div class="card-body">
-                            <table class="table table-sm table-borderless">
-                                <tr><td class="text-muted">Monthly Amount:</td><td class="text-end fw-bold text-primary">£${parseFloat(plan.monthly_amount).toFixed(2)}</td></tr>
-                                <tr><td class="text-muted">Duration:</td><td class="text-end fw-bold">${plan.duration_months} months</td></tr>
-                                <tr><td class="text-muted">Total Amount:</td><td class="text-end fw-bold">£${parseFloat(plan.total_amount).toFixed(2)}</td></tr>
-                                <tr><td class="text-muted">Amount Paid:</td><td class="text-end fw-bold text-success">£${parseFloat(plan.amount_paid).toFixed(2)}</td></tr>
-                                <tr><td class="text-muted">Balance:</td><td class="text-end fw-bold text-danger">£${parseFloat(plan.balance).toFixed(2)}</td></tr>
-                                <tr><td class="text-muted">Start Date:</td><td class="text-end">${plan.start_date ? new Date(plan.start_date).toLocaleDateString('en-GB') : '-'}</td></tr>
-                                <tr><td class="text-muted">Next Due:</td><td class="text-end">${plan.next_payment_due ? new Date(plan.next_payment_due).toLocaleDateString('en-GB') : '-'}</td></tr>
-                                <tr><td class="text-muted">Payment Day:</td><td class="text-end">Day ${plan.payment_day}</td></tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-chart-line text-info me-2"></i>Payment Progress</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span>${paymentsMade} of ${plan.duration_months} payments made</span>
-                                <span class="fw-bold text-${progressPct >= 100 ? 'success' : 'primary'}">${progressPct.toFixed(1)}% Complete</span>
-                            </div>
-                            <div class="progress" style="height: 25px;">
-                                <div class="progress-bar bg-${progressPct >= 100 ? 'success' : 'primary'}" 
-                                     style="width: ${Math.min(progressPct, 100)}%">
-                                    ${progressPct.toFixed(1)}%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-cog text-secondary me-2"></i>Actions</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-2">
-                                ${plan.status === 'active' ? `
-                                    <div class="col-md-6">
-                                        <button type="button" class="btn btn-warning w-100 change-status-modal" data-plan-id="${plan.id}" data-status="paused">
-                                            <i class="fas fa-pause me-2"></i>Pause Plan
-                                        </button>
-                                    </div>
-                                ` : ''}
-                                ${plan.status === 'paused' ? `
-                                    <div class="col-md-6">
-                                        <button type="button" class="btn btn-success w-100 change-status-modal" data-plan-id="${plan.id}" data-status="active">
-                                            <i class="fas fa-play me-2"></i>Resume Plan
-                                        </button>
-                                    </div>
-                                ` : ''}
-                                ${plan.status === 'active' || plan.status === 'paused' ? `
-                                    <div class="col-md-6">
-                                        <button type="button" class="btn btn-danger w-100 change-status-modal" data-plan-id="${plan.id}" data-status="cancelled">
-                                            <i class="fas fa-times me-2"></i>Cancel Plan
-                                        </button>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <button type="button" class="btn btn-primary w-100 change-status-modal" data-plan-id="${plan.id}" data-status="completed">
-                                            <i class="fas fa-check me-2"></i>Mark Completed
-                                        </button>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        $('#planDetailContent').html(content);
-        $('#planDetailModal').modal('show');
-    });
+    $('#editTemplateModal').modal('show');
+});
+
+// Delete template
+$(document).on('click', '.delete-template', function() {
+    const id = $(this).data('id');
+    const name = $(this).data('name');
     
-    // Change status
-    $(document).on('click', '.change-status, .change-status-modal', function(e) {
-        e.stopPropagation();
-        const planId = $(this).data('plan-id');
-        const newStatus = $(this).data('status');
-        
-        if (confirm(`Are you sure you want to change this plan status to "${newStatus}"?`)) {
-            const form = $('<form>', {
-                method: 'POST',
-                action: ''
-            });
-            form.append('<?php echo csrf_input(); ?>');
-            form.append($('<input>', { type: 'hidden', name: 'action', value: 'update_status' }));
-            form.append($('<input>', { type: 'hidden', name: 'plan_id', value: planId }));
-            form.append($('<input>', { type: 'hidden', name: 'new_status', value: newStatus }));
-            $('body').append(form);
-            form.submit();
-        }
-    });
-    
-    // Plan summary calculator
-    $('#monthly_amount, #duration_months').on('input', function() {
-        const monthly = parseFloat($('#monthly_amount').val()) || 0;
-        const duration = parseInt($('#duration_months').val()) || 0;
-        const donorBalance = parseFloat($('#donor_select option:selected').data('balance')) || 0;
-        
-        if (monthly > 0 && duration > 0) {
-            const total = monthly * duration;
-            const diff = total - donorBalance;
-            
-            let summaryHtml = `
-                <div class="row g-2">
-                    <div class="col-6">Total Plan Amount:</div>
-                    <div class="col-6 text-end"><strong>£${total.toFixed(2)}</strong></div>
-                    <div class="col-6">Donor Balance:</div>
-                    <div class="col-6 text-end"><strong>£${donorBalance.toFixed(2)}</strong></div>
-                </div>
-            `;
-            
-            if (Math.abs(diff) > 0.01) {
-                if (diff > 0) {
-                    summaryHtml += `<div class="alert alert-warning mt-2 mb-0">⚠️ Plan exceeds balance by £${Math.abs(diff).toFixed(2)}</div>`;
-                } else {
-                    summaryHtml += `<div class="alert alert-info mt-2 mb-0">ℹ️ Plan is £${Math.abs(diff).toFixed(2)} less than balance</div>`;
-                }
-            } else {
-                summaryHtml += `<div class="alert alert-success mt-2 mb-0">✓ Plan matches donor balance perfectly!</div>`;
-            }
-            
-            $('#summaryContent').html(summaryHtml);
-            $('#planSummary').slideDown(300);
-        } else {
-            $('#planSummary').slideUp(300);
-        }
-    });
-    
-    // Auto-suggest plan when donor is selected
-    $('#donor_select').change(function() {
-        const balance = parseFloat($(this).find(':selected').data('balance')) || 0;
-        const hasActivePlan = $(this).find(':selected').data('has-plan');
-        
-        if (hasActivePlan == 1) {
-            alert('This donor already has an active payment plan!');
-            $(this).val('');
-            return;
-        }
-        
-        if (balance > 0) {
-            // Suggest 6-month plan
-            const suggestedMonthly = balance / 6;
-            $('#monthly_amount').val(suggestedMonthly.toFixed(2));
-            $('#duration_months').val(6);
-            $('#monthly_amount').trigger('input');
-        }
-    });
+    if (confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+        const form = $('<form>', {
+            method: 'POST',
+            action: ''
+        });
+        form.append('<?php echo csrf_input(); ?>');
+        form.append($('<input>', { type: 'hidden', name: 'action', value: 'delete_template' }));
+        form.append($('<input>', { type: 'hidden', name: 'template_id', value: id }));
+        $('body').append(form);
+        form.submit();
+    }
 });
 </script>
 </body>
