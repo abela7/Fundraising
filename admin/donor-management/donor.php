@@ -232,73 +232,60 @@ $currency = $settings['currency_code'] ?? 'GBP';
                 <!-- Summary Statistics -->
                 <div class="row g-4 mb-4">
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="card animate-fade-in">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1">
-                                        <div class="text-muted text-uppercase small fw-semibold mb-1">Pledge Donors</div>
-                                        <div class="h2 mb-0 fw-bold"><?php echo number_format((int)$stats['total_donors']); ?></div>
-                                        <small class="text-muted">Need tracking</small>
-                                    </div>
-                                    <div class="ms-3">
-                                        <div class="text-primary" style="font-size: 2.5rem;">
-                                            <i class="fas fa-users"></i>
-                                        </div>
-                                    </div>
+                        <div class="stat-card animate-fade-in">
+                            <div class="stat-icon bg-primary">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo number_format((int)$stats['total_donors']); ?></h3>
+                                <p class="stat-label">Pledge Donors</p>
+                                <div class="stat-trend text-muted">
+                                    <i class="fas fa-clipboard-check"></i> Need tracking
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="card animate-fade-in" style="animation-delay: 0.1s;">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1">
-                                        <div class="text-muted text-uppercase small fw-semibold mb-1">Total Pledged</div>
-                                        <div class="h2 mb-0 fw-bold text-warning"><?php echo $currency; ?><?php echo number_format((float)$stats['total_pledged'], 2); ?></div>
-                                    </div>
-                                    <div class="ms-3">
-                                        <div class="text-warning" style="font-size: 2.5rem;">
-                                            <i class="fas fa-hand-holding-usd"></i>
-                                        </div>
-                                    </div>
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s;">
+                            <div class="stat-icon bg-warning">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo $currency; ?> <?php echo number_format((float)$stats['total_pledged'], 0); ?></h3>
+                                <p class="stat-label">Total Pledged</p>
+                                <div class="stat-trend text-warning">
+                                    <i class="fas fa-handshake"></i> Promised
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="card animate-fade-in" style="animation-delay: 0.2s;">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1">
-                                        <div class="text-muted text-uppercase small fw-semibold mb-1">Total Paid</div>
-                                        <div class="h2 mb-0 fw-bold text-success"><?php echo $currency; ?><?php echo number_format((float)$stats['total_paid'], 2); ?></div>
-                                    </div>
-                                    <div class="ms-3">
-                                        <div class="text-success" style="font-size: 2.5rem;">
-                                            <i class="fas fa-check-circle"></i>
-                                        </div>
-                                    </div>
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s;">
+                            <div class="stat-icon bg-success">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value"><?php echo $currency; ?> <?php echo number_format((float)$stats['total_paid'], 0); ?></h3>
+                                <p class="stat-label">Total Paid</p>
+                                <div class="stat-trend text-success">
+                                    <i class="fas fa-arrow-up"></i> Collected
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="card animate-fade-in" style="animation-delay: 0.3s;">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1">
-                                        <div class="text-muted text-uppercase small fw-semibold mb-1">Outstanding Balance</div>
-                                        <div class="h2 mb-0 fw-bold text-danger"><?php echo $currency; ?><?php echo number_format((float)$stats['total_balance'], 2); ?></div>
-                                    </div>
-                                    <div class="ms-3">
-                                        <div class="text-danger" style="font-size: 2.5rem;">
-                                            <i class="fas fa-exclamation-circle"></i>
-                                        </div>
-                                    </div>
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.3s;">
+                            <div class="stat-icon bg-danger">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value text-danger"><?php echo $currency; ?> <?php echo number_format((float)$stats['total_balance'], 0); ?></h3>
+                                <p class="stat-label">Outstanding Balance</p>
+                                <div class="stat-trend text-danger">
+                                    <i class="fas fa-hourglass-half"></i> Remaining
                                 </div>
                             </div>
                         </div>
