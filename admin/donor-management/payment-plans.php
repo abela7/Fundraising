@@ -280,16 +280,6 @@ foreach ($templates as $t) {
     .plan-card .card-body {
         padding: 1.5rem;
     }
-    .default-badge {
-        position: absolute;
-        top: 12px;
-        right: 15px;
-        padding: 0.35rem 0.75rem;
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        z-index: 10;
-    }
     .duration-badge {
         font-size: 0.8rem;
         font-weight: 600;
@@ -425,19 +415,20 @@ foreach ($templates as $t) {
                              style="animation-delay: <?php echo (array_search($template, $templates) * 0.05); ?>s;">
                             
                             <div class="card-header bg-white border-bottom position-relative">
-                                <?php if ($template['is_default']): ?>
-                                <span class="badge bg-warning text-dark default-badge">
-                                    <i class="fas fa-star me-1"></i>DEFAULT
-                                </span>
-                                <?php endif; ?>
-                                
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-grip-vertical me-2 drag-handle text-muted"></i>
-                                        <h5 class="mb-0">
-                                            <i class="fas fa-calendar-check text-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> me-2"></i>
-                                            <?php echo htmlspecialchars($template['name']); ?>
-                                        </h5>
+                                        <div class="d-flex align-items-center">
+                                            <?php if ($template['is_default']): ?>
+                                            <span class="badge bg-warning text-dark me-2">
+                                                <i class="fas fa-star me-1"></i>DEFAULT
+                                            </span>
+                                            <?php endif; ?>
+                                            <h5 class="mb-0">
+                                                <i class="fas fa-calendar-check text-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> me-2"></i>
+                                                <?php echo htmlspecialchars($template['name']); ?>
+                                            </h5>
+                                        </div>
                                     </div>
                                     <span class="badge bg-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> text-white duration-badge">
                                         <?php if ($template['duration_months'] == 0): ?>
