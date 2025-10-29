@@ -213,17 +213,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
 
 // Get donors list
 $donors = [];
-$donors_result = $db->query("
-    SELECT 
-        id, name, email, phone, donor_type, preferred_language, 
-        preferred_payment_method, source, total_pledged, total_paid, 
-        balance, payment_status, created_at, updated_at
-    FROM donors 
-    ORDER BY created_at DESC
-");
+try {
+    $donors_result = $db->query("
+        SELECT 
+            id, name, email, phone, donor_type, preferred_language, 
+            preferred_payment_method, source, total_pledged, total_paid, 
+            balance, payment_status, created_at, updated_at
+        FROM donors 
+        ORDER BY created_at DESC
+    ");
+    
+    if ($donors_result) {
+        $donors = $donors_result->fetch_all(MYSQLI_ASSOC);
+    }
+} catch (Exception $e) {
+    $error_message = "Error loading donors: " . $e->getMessage();
+}
 
-if ($donors_result) {
-    $donors = $donors_result->fetch_all(MYSQLI_ASSOC);
+// Calculate stats
+$total_donors = count($donors);
+$pledge_donors = 0;
+$immediate_payers = 0;
+$donors_with_phone = 0;
+
+foreach ($donors as $donor) {
+    if (($donor['donor_type'] ?? '') === 'pledge') {
+        $pledge_donors++;
+    }
+    if (($donor['donor_type'] ?? '') === 'immediate_payment') {
+        $immediate_payers++;
+    }
+    if (!empty($donor['phone'])) {
+        $donors_with_phone++;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -273,7 +295,7 @@ if ($donors_result) {
                                 <i class="fas fa-users"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format(count($donors)); ?></h3>
+                                <h3 class="stat-value"><?php echo number_format($total_donors); ?></h3>
                                 <p class="stat-label">Total Donors</p>
                                 <div class="stat-trend text-muted">
                                     <i class="fas fa-database"></i> In system
@@ -288,7 +310,7 @@ if ($donors_result) {
                                 <i class="fas fa-handshake"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format(count(array_filter($donors, fn($d) => $d['donor_type'] === 'pledge'))); ?></h3>
+                                <h3 class="stat-value"><?php echo number_format($pledge_donors); ?></h3>
                                 <p class="stat-label">Pledge Donors</p>
                                 <div class="stat-trend text-warning">
                                     <i class="fas fa-hourglass-half"></i> Tracking
@@ -303,7 +325,7 @@ if ($donors_result) {
                                 <i class="fas fa-check-double"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format(count(array_filter($donors, fn($d) => $d['donor_type'] === 'immediate_payment'))); ?></h3>
+                                <h3 class="stat-value"><?php echo number_format($immediate_payers); ?></h3>
                                 <p class="stat-label">Immediate Payers</p>
                                 <div class="stat-trend text-success">
                                     <i class="fas fa-bolt"></i> Direct
@@ -318,7 +340,7 @@ if ($donors_result) {
                                 <i class="fas fa-phone"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format(count(array_filter($donors, fn($d) => !empty($d['phone'])))); ?></h3>
+                                <h3 class="stat-value"><?php echo number_format($donors_with_phone); ?></h3>
                                 <p class="stat-label">With Phone</p>
                                 <div class="stat-trend text-danger">
                                     <i class="fas fa-mobile-alt"></i> Reachable
