@@ -414,21 +414,14 @@ foreach ($templates as $t) {
                         <div class="plan-card card border-0 shadow-sm h-100 position-relative animate-fade-in" 
                              style="animation-delay: <?php echo (array_search($template, $templates) * 0.05); ?>s;">
                             
-                            <div class="card-header bg-white border-bottom position-relative">
+                            <div class="card-header bg-white border-bottom">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-grip-vertical me-2 drag-handle text-muted"></i>
-                                        <div class="d-flex align-items-center">
-                                            <?php if ($template['is_default']): ?>
-                                            <span class="badge bg-warning text-dark me-2">
-                                                <i class="fas fa-star me-1"></i>DEFAULT
-                                            </span>
-                                            <?php endif; ?>
-                                            <h5 class="mb-0">
-                                                <i class="fas fa-calendar-check text-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> me-2"></i>
-                                                <?php echo htmlspecialchars($template['name']); ?>
-                                            </h5>
-                                        </div>
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-calendar-check text-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> me-2"></i>
+                                            <?php echo htmlspecialchars($template['name']); ?>
+                                        </h5>
                                     </div>
                                     <span class="badge bg-<?php echo $template['is_active'] ? 'primary' : 'secondary'; ?> text-white duration-badge">
                                         <?php if ($template['duration_months'] == 0): ?>
@@ -464,18 +457,25 @@ foreach ($templates as $t) {
                                             </label>
                                         </div>
                                         
-                                        <div class="btn-group btn-group-sm">
-                                            <button type="button" class="btn btn-outline-primary edit-template" 
-                                                    data-template='<?php echo htmlspecialchars(json_encode($template), ENT_QUOTES); ?>'
-                                                    title="Edit Template">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-danger delete-template" 
-                                                    data-id="<?php echo $template['id']; ?>"
-                                                    data-name="<?php echo htmlspecialchars($template['name']); ?>"
-                                                    title="Delete Template">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <?php if ($template['is_default']): ?>
+                                            <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
+                                                <i class="fas fa-star me-1"></i>DEFAULT
+                                            </span>
+                                            <?php endif; ?>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary edit-template" 
+                                                        data-template='<?php echo htmlspecialchars(json_encode($template), ENT_QUOTES); ?>'
+                                                        title="Edit Template">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger delete-template" 
+                                                        data-id="<?php echo $template['id']; ?>"
+                                                        data-name="<?php echo htmlspecialchars($template['name']); ?>"
+                                                        title="Delete Template">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
