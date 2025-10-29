@@ -1,9 +1,4 @@
 <?php
-declare(strict_types=1);
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
@@ -2104,62 +2099,29 @@ document.getElementById('savePlanBtn').addEventListener('click', function() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('=== SAVE ERROR DEBUG ===');
-            console.error('Status:', status);
-            console.error('Error:', error);
-            console.error('XHR Status:', xhr.status);
-            console.error('XHR StatusText:', xhr.statusText);
-            console.error('XHR ResponseText (first 1000 chars):', xhr.responseText ? xhr.responseText.substring(0, 1000) : 'empty');
-            console.error('XHR ResponseJSON:', xhr.responseJSON);
-            console.error('========================');
-            
+            console.error('Save error:', error, xhr);
             let errorMsg = 'Server error. Please try again.';
-            let detailMsg = '';
             
             // Try to parse error response
             if (xhr.responseJSON) {
                 errorMsg = xhr.responseJSON.message || errorMsg;
                 if (xhr.responseJSON.error_details) {
-                    detailMsg = '\n\nDetails: ' + xhr.responseJSON.error_details;
                     console.error('Error details:', xhr.responseJSON.error_details);
                 }
                 if (xhr.responseJSON.sql_error) {
-                    detailMsg += '\n\nSQL: ' + xhr.responseJSON.sql_error;
                     console.error('SQL error:', xhr.responseJSON.sql_error);
                 }
             } else if (xhr.responseText) {
                 try {
                     const response = JSON.parse(xhr.responseText);
                     errorMsg = response.message || errorMsg;
-                    if (response.error_details) {
-                        detailMsg = '\n\nDetails: ' + response.error_details;
-                    }
                 } catch (e) {
-                    // Not JSON, might be HTML error page or PHP error
-                    console.error('Failed to parse response as JSON:', e);
-                    
-                    // Try to extract useful info from HTML error
-                    const text = xhr.responseText;
-                    if (text) {
-                        // Look for common PHP error patterns
-                        const fatalMatch = text.match(/Fatal error:([^\n<]+)/i);
-                        const warningMatch = text.match(/Warning:([^\n<]+)/i);
-                        const noticeMatch = text.match(/Notice:([^\n<]+)/i);
-                        
-                        if (fatalMatch) {
-                            errorMsg = 'PHP Fatal Error: ' + fatalMatch[1].trim();
-                        } else if (warningMatch) {
-                            errorMsg = 'PHP Warning: ' + warningMatch[1].trim();
-                        } else if (noticeMatch) {
-                            errorMsg = 'PHP Notice: ' + noticeMatch[1].trim();
-                        } else {
-                            errorMsg = 'Server returned an error. Check console for details.';
-                        }
-                    }
+                    // Not JSON, might be HTML error page
+                    console.error('Response text:', xhr.responseText.substring(0, 500));
                 }
             }
             
-            alert('Error: ' + errorMsg + detailMsg);
+            alert('Error: ' + errorMsg);
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
