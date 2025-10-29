@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
-            $stmt->bind_param('ssssissdddsdiii', 
+            $stmt->bind_param('ssssissdddsidiii', 
                 $name, $phone, $preferred_language, $preferred_payment_method,
                 $sms_opt_in, $admin_notes, $source,
                 $total_pledged, $total_paid, $balance, $payment_status,
