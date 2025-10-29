@@ -392,9 +392,9 @@ unset($donor); // Break reference
                         <p class="text-muted mb-0">Manage all donors and their information</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDonorModal">
-                            <i class="fas fa-plus me-2"></i>Add Donor
-                        </button>
+                        <a href="add-donor.php" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Add New Donor
+                        </a>
                     </div>
                 </div>
 
@@ -601,208 +601,7 @@ unset($donor); // Break reference
     </div>
 </div>
 
-<!-- Add Donor Modal -->
-<div class="modal fade" id="addDonorModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-user-plus me-2"></i>Add New Donor
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="addDonorForm">
-                    <?php echo csrf_input(); ?>
-                    <input type="hidden" name="ajax_action" value="add_donor">
-                    
-                    <!-- Step 1: Basic Information -->
-                    <div class="card border-primary mb-3">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0"><i class="fas fa-user me-2"></i>Step 1: Basic Information</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" name="name" id="add_name" required>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Phone (UK Format) <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" name="phone" id="add_phone" placeholder="07XXXXXXXXX" pattern="07[0-9]{9}" required>
-                                    <small class="text-muted">Format: 07XXXXXXXXX</small>
-                                </div>
-                                
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Preferred Language</label>
-                                    <select class="form-select" name="preferred_language" id="add_language">
-                                        <option value="en">English</option>
-                                        <option value="am">Amharic</option>
-                                        <option value="ti">Tigrinya</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Preferred Payment Method</label>
-                                    <select class="form-select" name="preferred_payment_method" id="add_payment_method">
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="cash">Cash</option>
-                                        <option value="card">Card</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">SMS Opt-In</label>
-                                    <select class="form-select" name="sms_opt_in">
-                                        <option value="1">Yes - Send SMS Reminders</option>
-                                        <option value="0">No - Do Not Send SMS</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 2: Donation Type -->
-                    <div class="card border-warning mb-3">
-                        <div class="card-header bg-warning">
-                            <h6 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>Step 2: Donation Type <span class="text-danger">*</span></h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label fw-bold">How is this donor contributing?</label>
-                                    <div class="btn-group w-100" role="group">
-                                        <input type="radio" class="btn-check" name="donation_type" id="type_pledge" value="pledge" checked>
-                                        <label class="btn btn-outline-warning" for="type_pledge">
-                                            <i class="fas fa-handshake me-2"></i>Pledge (Pay Later)
-                                        </label>
-                                        
-                                        <input type="radio" class="btn-check" name="donation_type" id="type_immediate" value="immediate">
-                                        <label class="btn btn-outline-success" for="type_immediate">
-                                            <i class="fas fa-bolt me-2"></i>Immediate Payment
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Pledge Section (Shows if Pledge is selected) -->
-                    <div id="pledgeSection" class="card border-info mb-3">
-                        <div class="card-header bg-info text-white">
-                            <h6 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Step 3: Pledge Details</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Pledge Amount (£) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" name="pledge_amount" id="pledge_amount" min="0" step="0.01" placeholder="0.00">
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Pledge Date</label>
-                                    <input type="date" class="form-control" name="pledge_date" id="pledge_date" value="<?php echo date('Y-m-d'); ?>">
-                                </div>
-                                
-                                <div class="col-12">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="create_payment_plan" id="create_payment_plan">
-                                        <label class="form-check-label fw-bold" for="create_payment_plan">
-                                            Create Payment Plan (Optional)
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <div id="paymentPlanFields" style="display: none;" class="col-12">
-                                    <div class="alert alert-light border">
-                                        <div class="row g-3">
-                                            <div class="col-md-4">
-                                                <label class="form-label">Monthly Amount (£)</label>
-                                                <input type="number" class="form-control" name="plan_monthly_amount" min="0" step="0.01" placeholder="0.00">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label">Duration (Months)</label>
-                                                <input type="number" class="form-control" name="plan_duration_months" min="1" placeholder="12">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label">Preferred Payment Day</label>
-                                                <input type="number" class="form-control" name="preferred_payment_day" min="1" max="28" value="1" placeholder="1">
-                                                <small class="text-muted">Day of month (1-28)</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-12">
-                                    <label class="form-label fw-bold">Pledge Notes (Optional)</label>
-                                    <textarea class="form-control" name="pledge_notes" rows="2" placeholder="Any additional notes about this pledge..."></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Immediate Payment Section (Shows if Immediate is selected) -->
-                    <div id="immediateSection" class="card border-success mb-3" style="display: none;">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Step 3: Payment Details</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Payment Amount (£) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" name="payment_amount" id="payment_amount" min="0" step="0.01" placeholder="0.00">
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Payment Date</label>
-                                    <input type="date" class="form-control" name="payment_date" id="payment_date" value="<?php echo date('Y-m-d'); ?>">
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Payment Method Used</label>
-                                    <select class="form-select" name="payment_method_used">
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="cash">Cash</option>
-                                        <option value="card">Card</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label class="form-label">Transaction Reference (Optional)</label>
-                                    <input type="text" class="form-control" name="transaction_ref" placeholder="e.g., Receipt #123">
-                                </div>
-                                
-                                <div class="col-12">
-                                    <label class="form-label fw-bold">Payment Notes (Optional)</label>
-                                    <textarea class="form-control" name="payment_notes" rows="2" placeholder="Any additional notes about this payment..."></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Admin Notes -->
-                    <div class="card border-secondary mb-3">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Admin Notes (Optional)</h6>
-                        </div>
-                        <div class="card-body">
-                            <textarea class="form-control" name="admin_notes" rows="3" placeholder="Internal notes for admin reference only..."></textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-primary btn-lg" id="saveAddDonor">
-                    <i class="fas fa-save me-2"></i>Save Donor & Create Records
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Add Donor is now a separate page: add-donor.php -->
 
 <!-- Edit Donor Modal -->
 <div class="modal fade" id="editDonorModal" tabindex="-1">
@@ -1180,29 +979,7 @@ $(document).ready(function() {
     // Initialize count
     updateFilterCount();
     
-    // Toggle donation type sections
-    $('input[name="donation_type"]').change(function() {
-        if ($(this).val() === 'pledge') {
-            $('#pledgeSection').slideDown(300);
-            $('#immediateSection').slideUp(300);
-            $('#pledge_amount').prop('required', true);
-            $('#payment_amount').prop('required', false);
-        } else {
-            $('#pledgeSection').slideUp(300);
-            $('#immediateSection').slideDown(300);
-            $('#pledge_amount').prop('required', false);
-            $('#payment_amount').prop('required', true);
-        }
-    });
-    
-    // Toggle payment plan fields
-    $('#create_payment_plan').change(function() {
-        if ($(this).is(':checked')) {
-            $('#paymentPlanFields').slideDown(300);
-        } else {
-            $('#paymentPlanFields').slideUp(300);
-        }
-    });
+    // Form toggles moved to add-donor.php
     
     // Click on table row to view details
     let currentDonorData = null;
@@ -1327,21 +1104,7 @@ $(document).ready(function() {
         }
     });
     
-    // Add Donor
-    $('#saveAddDonor').click(function() {
-        const formData = $('#addDonorForm').serialize();
-        
-        $.post('', formData, function(response) {
-            if (response.success) {
-                alert(response.message);
-                location.reload();
-            } else {
-                alert('Error: ' + response.message);
-            }
-        }, 'json').fail(function() {
-            alert('Server error. Please try again.');
-        });
-    });
+    // Add Donor is now on a separate page (add-donor.php)
     
     // Save Edit Donor
     $('#saveEditDonor').click(function() {
