@@ -628,6 +628,7 @@ $(document).ready(function() {
     const table = $('#donorsTable').DataTable({
         order: [[0, 'desc']],
         pageLength: 25,
+        lengthMenu: [[25, 50, 100, 250, 500, -1], [25, 50, 100, 250, 500, "All"]],
         language: {
             search: "Search donors:",
             lengthMenu: "Show _MENU_ donors per page"
