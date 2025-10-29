@@ -32,12 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
         $db->begin_transaction();
         
         if ($action === 'add_donor') {
-            // Validate inputs
+            // Validate basic inputs
             $name = trim($_POST['name'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
             $preferred_language = $_POST['preferred_language'] ?? 'en';
             $preferred_payment_method = $_POST['preferred_payment_method'] ?? 'bank_transfer';
-            $source = 'admin'; // Always admin since added via admin panel
+            $sms_opt_in = isset($_POST['sms_opt_in']) ? (int)$_POST['sms_opt_in'] : 1;
+            $admin_notes = trim($_POST['admin_notes'] ?? '');
+            $donation_type = $_POST['donation_type'] ?? 'pledge';
+            $source = 'admin';
             
             if (empty($name)) {
                 throw new Exception('Donor name is required');
@@ -55,28 +58,146 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 throw new Exception('A donor with this phone number already exists');
             }
             
+            // Prepare donor data based on donation type
+            $total_pledged = 0;
+            $total_paid = 0;
+            $balance = 0;
+            $payment_status = 'no_pledge';
+            $has_active_plan = 0;
+            $plan_monthly_amount = null;
+            $plan_duration_months = null;
+            $preferred_payment_day = isset($_POST['preferred_payment_day']) ? (int)$_POST['preferred_payment_day'] : 1;
+            
+            if ($donation_type === 'pledge') {
+                $pledge_amount = isset($_POST['pledge_amount']) ? (float)$_POST['pledge_amount'] : 0;
+                if ($pledge_amount <= 0) {
+                    throw new Exception('Pledge amount must be greater than 0');
+                }
+                $total_pledged = $pledge_amount;
+                $balance = $pledge_amount;
+                $payment_status = 'not_started';
+                
+                // Payment plan
+                if (isset($_POST['create_payment_plan']) && $_POST['create_payment_plan']) {
+                    $has_active_plan = 1;
+                    $plan_monthly_amount = isset($_POST['plan_monthly_amount']) ? (float)$_POST['plan_monthly_amount'] : 0;
+                    $plan_duration_months = isset($_POST['plan_duration_months']) ? (int)$_POST['plan_duration_months'] : 0;
+                }
+            } elseif ($donation_type === 'immediate') {
+                $payment_amount = isset($_POST['payment_amount']) ? (float)$_POST['payment_amount'] : 0;
+                if ($payment_amount <= 0) {
+                    throw new Exception('Payment amount must be greater than 0');
+                }
+                $total_paid = $payment_amount;
+                $payment_status = 'completed';
+            }
+            
             // Insert donor
             $stmt = $db->prepare("
                 INSERT INTO donors (
-                    name, phone, preferred_language, 
-                    preferred_payment_method, source, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                    name, phone, preferred_language, preferred_payment_method, 
+                    sms_opt_in, admin_notes, source, 
+                    total_pledged, total_paid, balance, payment_status,
+                    has_active_plan, plan_monthly_amount, plan_duration_months, 
+                    preferred_payment_day, registered_by_user_id,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
-            $stmt->bind_param('sssss', $name, $phone, 
-                $preferred_language, $preferred_payment_method, $source);
+            $stmt->bind_param('ssssissdddsdiii', 
+                $name, $phone, $preferred_language, $preferred_payment_method,
+                $sms_opt_in, $admin_notes, $source,
+                $total_pledged, $total_paid, $balance, $payment_status,
+                $has_active_plan, $plan_monthly_amount, $plan_duration_months,
+                $preferred_payment_day, $current_user['id']
+            );
             $stmt->execute();
             
             $donor_id = $db->insert_id;
             
-            // Audit log
+            // Create pledge record if pledge donation
+            if ($donation_type === 'pledge') {
+                $pledge_amount = (float)$_POST['pledge_amount'];
+                $pledge_date = $_POST['pledge_date'] ?? date('Y-m-d');
+                $pledge_notes = trim($_POST['pledge_notes'] ?? '');
+                
+                $pledge_stmt = $db->prepare("
+                    INSERT INTO pledges (
+                        donor_phone, donor_name, amount, status, 
+                        approved_by_user_id, pledge_date, notes, created_at
+                    ) VALUES (?, ?, ?, 'approved', ?, ?, ?, NOW())
+                ");
+                $pledge_stmt->bind_param('ssdiss', $phone, $name, $pledge_amount, 
+                    $current_user['id'], $pledge_date, $pledge_notes);
+                $pledge_stmt->execute();
+                
+                $pledge_id = $db->insert_id;
+                
+                // Update donor's last_pledge_id and pledge_count
+                $update_donor = $db->prepare("UPDATE donors SET last_pledge_id = ?, pledge_count = 1 WHERE id = ?");
+                $update_donor->bind_param('ii', $pledge_id, $donor_id);
+                $update_donor->execute();
+                
+                // Audit pledge creation
+                $audit_pledge = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'pledge', ?, 'create', ?, 'admin')");
+                $pledge_data = json_encode(['amount' => $pledge_amount, 'donor' => $name, 'phone' => $phone]);
+                $audit_pledge->bind_param('iis', $current_user['id'], $pledge_id, $pledge_data);
+                $audit_pledge->execute();
+            }
+            
+            // Create payment record if immediate payment
+            if ($donation_type === 'immediate') {
+                $payment_amount = (float)$_POST['payment_amount'];
+                $payment_date = $_POST['payment_date'] ?? date('Y-m-d');
+                $payment_method_used = $_POST['payment_method_used'] ?? 'bank_transfer';
+                $transaction_ref = trim($_POST['transaction_ref'] ?? '');
+                $payment_notes = trim($_POST['payment_notes'] ?? '');
+                
+                $payment_stmt = $db->prepare("
+                    INSERT INTO payments (
+                        donor_phone, donor_name, amount, payment_method, 
+                        transaction_ref, status, approved_by_user_id, 
+                        payment_date, notes, created_at
+                    ) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, NOW())
+                ");
+                $payment_stmt->bind_param('ssdsisis', $phone, $name, $payment_amount, 
+                    $payment_method_used, $transaction_ref, $current_user['id'], 
+                    $payment_date, $payment_notes);
+                $payment_stmt->execute();
+                
+                $payment_id = $db->insert_id;
+                
+                // Update donor's payment_count and last_payment_date
+                $update_donor = $db->prepare("UPDATE donors SET payment_count = 1, last_payment_date = ? WHERE id = ?");
+                $update_donor->bind_param('si', $payment_date, $donor_id);
+                $update_donor->execute();
+                
+                // Audit payment creation
+                $audit_payment = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment', ?, 'create', ?, 'admin')");
+                $payment_data = json_encode(['amount' => $payment_amount, 'donor' => $name, 'phone' => $phone, 'method' => $payment_method_used]);
+                $audit_payment->bind_param('iis', $current_user['id'], $payment_id, $payment_data);
+                $audit_payment->execute();
+            }
+            
+            // Audit donor creation
             $user_id = (int)$current_user['id'];
-            $after = json_encode(['name' => $name, 'phone' => $phone]);
+            $donor_data = json_encode([
+                'name' => $name, 
+                'phone' => $phone, 
+                'type' => $donation_type,
+                'total_pledged' => $total_pledged,
+                'total_paid' => $total_paid
+            ]);
             $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'donor', ?, 'create', ?, 'admin')");
-            $audit->bind_param('iis', $user_id, $donor_id, $after);
+            $audit->bind_param('iis', $user_id, $donor_id, $donor_data);
             $audit->execute();
             
             $db->commit();
-            echo json_encode(['success' => true, 'message' => 'Donor added successfully']);
+            
+            $message = $donation_type === 'pledge' 
+                ? 'Donor and pledge record created successfully' 
+                : 'Donor and payment record created successfully';
+            
+            echo json_encode(['success' => true, 'message' => $message]);
             exit;
             
         } elseif ($action === 'update_donor') {
@@ -482,59 +603,201 @@ unset($donor); // Break reference
 
 <!-- Add Donor Modal -->
 <div class="modal fade" id="addDonorModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-user-plus me-2 text-primary"></i>Add New Donor
+                    <i class="fas fa-user-plus me-2"></i>Add New Donor
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="addDonorForm">
                     <?php echo csrf_input(); ?>
                     <input type="hidden" name="ajax_action" value="add_donor">
                     
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Donor Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="name" required>
+                    <!-- Step 1: Basic Information -->
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="fas fa-user me-2"></i>Step 1: Basic Information</h6>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Phone (UK Format) <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="phone" placeholder="07XXXXXXXXX" pattern="07[0-9]{9}" required>
-                            <small class="text-muted">Format: 07XXXXXXXXX</small>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Preferred Language</label>
-                            <select class="form-select" name="preferred_language">
-                                <option value="en">English</option>
-                                <option value="am">Amharic</option>
-                                <option value="ti">Tigrinya</option>
-                            </select>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Preferred Payment Method</label>
-                            <select class="form-select" name="preferred_payment_method">
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="cash">Cash</option>
-                                <option value="card">Card</option>
-                            </select>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="name" id="add_name" required>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Phone (UK Format) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="phone" id="add_phone" placeholder="07XXXXXXXXX" pattern="07[0-9]{9}" required>
+                                    <small class="text-muted">Format: 07XXXXXXXXX</small>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Preferred Language</label>
+                                    <select class="form-select" name="preferred_language" id="add_language">
+                                        <option value="en">English</option>
+                                        <option value="am">Amharic</option>
+                                        <option value="ti">Tigrinya</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Preferred Payment Method</label>
+                                    <select class="form-select" name="preferred_payment_method" id="add_payment_method">
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">SMS Opt-In</label>
+                                    <select class="form-select" name="sms_opt_in">
+                                        <option value="1">Yes - Send SMS Reminders</option>
+                                        <option value="0">No - Do Not Send SMS</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="alert alert-info mt-3 mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Note:</strong> Donor type (Pledge vs Immediate) is automatically determined based on whether they make pledges.
+                    
+                    <!-- Step 2: Donation Type -->
+                    <div class="card border-warning mb-3">
+                        <div class="card-header bg-warning">
+                            <h6 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>Step 2: Donation Type <span class="text-danger">*</span></h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">How is this donor contributing?</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="donation_type" id="type_pledge" value="pledge" checked>
+                                        <label class="btn btn-outline-warning" for="type_pledge">
+                                            <i class="fas fa-handshake me-2"></i>Pledge (Pay Later)
+                                        </label>
+                                        
+                                        <input type="radio" class="btn-check" name="donation_type" id="type_immediate" value="immediate">
+                                        <label class="btn btn-outline-success" for="type_immediate">
+                                            <i class="fas fa-bolt me-2"></i>Immediate Payment
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pledge Section (Shows if Pledge is selected) -->
+                    <div id="pledgeSection" class="card border-info mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Step 3: Pledge Details</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Pledge Amount (£) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" name="pledge_amount" id="pledge_amount" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Pledge Date</label>
+                                    <input type="date" class="form-control" name="pledge_date" id="pledge_date" value="<?php echo date('Y-m-d'); ?>">
+                                </div>
+                                
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="create_payment_plan" id="create_payment_plan">
+                                        <label class="form-check-label fw-bold" for="create_payment_plan">
+                                            Create Payment Plan (Optional)
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div id="paymentPlanFields" style="display: none;" class="col-12">
+                                    <div class="alert alert-light border">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Monthly Amount (£)</label>
+                                                <input type="number" class="form-control" name="plan_monthly_amount" min="0" step="0.01" placeholder="0.00">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Duration (Months)</label>
+                                                <input type="number" class="form-control" name="plan_duration_months" min="1" placeholder="12">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Preferred Payment Day</label>
+                                                <input type="number" class="form-control" name="preferred_payment_day" min="1" max="28" value="1" placeholder="1">
+                                                <small class="text-muted">Day of month (1-28)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Pledge Notes (Optional)</label>
+                                    <textarea class="form-control" name="pledge_notes" rows="2" placeholder="Any additional notes about this pledge..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Immediate Payment Section (Shows if Immediate is selected) -->
+                    <div id="immediateSection" class="card border-success mb-3" style="display: none;">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Step 3: Payment Details</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Payment Amount (£) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" name="payment_amount" id="payment_amount" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Payment Date</label>
+                                    <input type="date" class="form-control" name="payment_date" id="payment_date" value="<?php echo date('Y-m-d'); ?>">
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Payment Method Used</label>
+                                    <select class="form-select" name="payment_method_used">
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label">Transaction Reference (Optional)</label>
+                                    <input type="text" class="form-control" name="transaction_ref" placeholder="e.g., Receipt #123">
+                                </div>
+                                
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Payment Notes (Optional)</label>
+                                    <textarea class="form-control" name="payment_notes" rows="2" placeholder="Any additional notes about this payment..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Notes -->
+                    <div class="card border-secondary mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Admin Notes (Optional)</h6>
+                        </div>
+                        <div class="card-body">
+                            <textarea class="form-control" name="admin_notes" rows="3" placeholder="Internal notes for admin reference only..."></textarea>
+                        </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveAddDonor">
-                    <i class="fas fa-save me-2"></i>Save Donor
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary btn-lg" id="saveAddDonor">
+                    <i class="fas fa-save me-2"></i>Save Donor & Create Records
                 </button>
             </div>
         </div>
@@ -849,12 +1112,12 @@ $(document).ready(function() {
         }
         
         if (language) {
-            // Language filter - check from donor data in edit button
+            // Language filter - check from donor data on row itself
             const row = table.row(dataIndex).node();
-            const donorData = $(row).find('.edit-donor').attr('data-donor');
+            const donorData = $(row).attr('data-donor');
             if (donorData) {
                 const donor = JSON.parse(donorData);
-                if (donor.preferred_language.toLowerCase() !== language.toLowerCase()) {
+                if (donor.preferred_language && donor.preferred_language.toLowerCase() !== language.toLowerCase()) {
                     return false;
                 }
             }
@@ -916,6 +1179,30 @@ $(document).ready(function() {
     
     // Initialize count
     updateFilterCount();
+    
+    // Toggle donation type sections
+    $('input[name="donation_type"]').change(function() {
+        if ($(this).val() === 'pledge') {
+            $('#pledgeSection').slideDown(300);
+            $('#immediateSection').slideUp(300);
+            $('#pledge_amount').prop('required', true);
+            $('#payment_amount').prop('required', false);
+        } else {
+            $('#pledgeSection').slideUp(300);
+            $('#immediateSection').slideDown(300);
+            $('#pledge_amount').prop('required', false);
+            $('#payment_amount').prop('required', true);
+        }
+    });
+    
+    // Toggle payment plan fields
+    $('#create_payment_plan').change(function() {
+        if ($(this).is(':checked')) {
+            $('#paymentPlanFields').slideDown(300);
+        } else {
+            $('#paymentPlanFields').slideUp(300);
+        }
+    });
     
     // Click on table row to view details
     let currentDonorData = null;
