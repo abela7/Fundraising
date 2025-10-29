@@ -130,22 +130,14 @@ $db = db();
                         <a href="donor.php" class="text-decoration-none">
                             <div class="feature-card card h-100 border-0 shadow-sm">
                                 <div class="card-body p-4">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="feature-icon bg-primary-subtle text-primary me-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="feature-icon bg-primary-subtle text-primary me-2">
                                             <i class="fas fa-database"></i>
                                         </div>
-                                        <div>
-                                            <h6 class="mb-0">Pledge Donor Report</h6>
-                                            <span class="badge bg-success badge-sm">Active</span>
-                                        </div>
+                                        <h6 class="mb-0">Pledge Donor Report</h6>
                                     </div>
-                                    <p class="card-text text-muted small mb-3">
-                                        Comprehensive tracking of 186 pledge donors with payment progress, status breakdown, and detailed analytics.
-                                    </p>
-                                    <div class="d-flex align-items-center text-primary small fw-bold">
-                                        <span class="me-2">Open Report</span>
-                                        <i class="fas fa-arrow-right"></i>
-                                    </div>
+                                    <p class="card-text text-muted small">View detailed analytics and payment tracking.</p>
+                                    <span class="badge bg-success badge-sm">Active</span>
                                 </div>
                             </div>
                         </a>
@@ -155,18 +147,14 @@ $db = db();
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
                             <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-2">
                                         <i class="fas fa-list"></i>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-0">Donor List</h6>
-                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
-                                    </div>
+                                    <h6 class="mb-0">Donor List</h6>
                                 </div>
-                                <p class="card-text text-muted small mb-3">
-                                    Browse, search, and filter all donors with advanced sorting and export capabilities.
-                                </p>
+                                <p class="card-text text-muted small">Browse and search all donors easily.</p>
+                                <span class="badge bg-secondary badge-sm">Coming Soon</span>
                             </div>
                         </div>
                     </div>
@@ -174,18 +162,14 @@ $db = db();
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
                             <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-2">
                                         <i class="fas fa-calendar-alt"></i>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-0">Payment Plans</h6>
-                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
-                                    </div>
+                                    <h6 class="mb-0">Payment Plans</h6>
                                 </div>
-                                <p class="card-text text-muted small mb-3">
-                                    Create and manage flexible payment plans with automated tracking and notifications.
-                                </p>
+                                <p class="card-text text-muted small">Create flexible payment schedules.</p>
+                                <span class="badge bg-secondary badge-sm">Coming Soon</span>
                             </div>
                         </div>
                     </div>
@@ -193,18 +177,14 @@ $db = db();
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
                             <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-2">
                                         <i class="fas fa-bell"></i>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-0">SMS Reminders</h6>
-                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
-                                    </div>
+                                    <h6 class="mb-0">SMS Reminders</h6>
                                 </div>
-                                <p class="card-text text-muted small mb-3">
-                                    Send automated payment reminders and updates via SMS with customizable templates.
-                                </p>
+                                <p class="card-text text-muted small">Automated payment notifications.</p>
+                                <span class="badge bg-secondary badge-sm">Coming Soon</span>
                             </div>
                         </div>
                     </div>
@@ -212,18 +192,14 @@ $db = db();
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
                             <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-2">
                                         <i class="fas fa-globe"></i>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-0">Donor Portal</h6>
-                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
-                                    </div>
+                                    <h6 class="mb-0">Donor Portal</h6>
                                 </div>
-                                <p class="card-text text-muted small mb-3">
-                                    Self-service portal for donors to manage pledges, make payments, and update info.
-                                </p>
+                                <p class="card-text text-muted small">Self-service access for donors.</p>
+                                <span class="badge bg-secondary badge-sm">Coming Soon</span>
                             </div>
                         </div>
                     </div>
@@ -231,41 +207,14 @@ $db = db();
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
                             <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-2">
                                         <i class="fas fa-flag"></i>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-0">Follow-ups</h6>
-                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
-                                    </div>
+                                    <h6 class="mb-0">Follow-ups</h6>
                                 </div>
-                                <p class="card-text text-muted small mb-3">
-                                    Track and manage flagged donors requiring special attention or follow-up.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Info Section -->
-                <div class="row mt-5 mb-4">
-                    <div class="col-12">
-                        <div class="card border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px;">
-                            <div class="card-body p-4">
-                                <div class="d-flex align-items-center text-white">
-                                    <div class="me-3">
-                                        <i class="fas fa-lightbulb fa-3x opacity-75"></i>
-                                    </div>
-                                    <div>
-                                        <h6 class="mb-2 text-white">About Donor Management</h6>
-                                        <p class="mb-0 small opacity-90">
-                                            This comprehensive module helps you track ~186 pledge donors, monitor their payment progress, 
-                                            send automated reminders, and provide self-service portal access. Start with the 
-                                            <strong>Pledge Donor Report</strong> to get detailed insights into your pledge donor network.
-                                        </p>
-                                    </div>
-                                </div>
+                                <p class="card-text text-muted small">Track flagged donors for attention.</p>
+                                <span class="badge bg-secondary badge-sm">Coming Soon</span>
                             </div>
                         </div>
                     </div>
