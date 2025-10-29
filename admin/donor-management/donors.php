@@ -34,37 +34,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
         if ($action === 'add_donor') {
             // Validate inputs
             $name = trim($_POST['name'] ?? '');
-            $email = trim($_POST['email'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
-            $donor_type = $_POST['donor_type'] ?? 'pledge';
             $preferred_language = $_POST['preferred_language'] ?? 'en';
             $preferred_payment_method = $_POST['preferred_payment_method'] ?? 'bank_transfer';
-            $source = $_POST['source'] ?? 'website';
+            $source = 'admin'; // Always admin since added via admin panel
             
             if (empty($name)) {
                 throw new Exception('Donor name is required');
             }
             
-            if (!in_array($donor_type, ['pledge', 'immediate_payment'])) {
-                throw new Exception('Invalid donor type');
+            if (empty($phone)) {
+                throw new Exception('Phone number is required');
             }
             
             // Check for duplicate
-            $check = $db->prepare("SELECT id FROM donors WHERE name = ? AND (phone = ? OR email = ?) LIMIT 1");
-            $check->bind_param('sss', $name, $phone, $email);
+            $check = $db->prepare("SELECT id FROM donors WHERE phone = ? LIMIT 1");
+            $check->bind_param('s', $phone);
             $check->execute();
             if ($check->get_result()->num_rows > 0) {
-                throw new Exception('A donor with this name and contact already exists');
+                throw new Exception('A donor with this phone number already exists');
             }
             
             // Insert donor
             $stmt = $db->prepare("
                 INSERT INTO donors (
-                    name, email, phone, donor_type, preferred_language, 
+                    name, phone, preferred_language, 
                     preferred_payment_method, source, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
             ");
-            $stmt->bind_param('sssssss', $name, $email, $phone, $donor_type, 
+            $stmt->bind_param('sssss', $name, $phone, 
                 $preferred_language, $preferred_payment_method, $source);
             $stmt->execute();
             
@@ -72,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             
             // Audit log
             $user_id = (int)$current_user['id'];
-            $after = json_encode(['name' => $name, 'donor_type' => $donor_type, 'email' => $email, 'phone' => $phone]);
+            $after = json_encode(['name' => $name, 'phone' => $phone]);
             $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'donor', ?, 'create', ?, 'admin')");
             $audit->bind_param('iis', $user_id, $donor_id, $after);
             $audit->execute();
@@ -100,9 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             
             // Validate inputs
             $name = trim($_POST['name'] ?? '');
-            $email = trim($_POST['email'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
-            $donor_type = $_POST['donor_type'] ?? 'pledge';
             $preferred_language = $_POST['preferred_language'] ?? 'en';
             $preferred_payment_method = $_POST['preferred_payment_method'] ?? 'bank_transfer';
             
@@ -110,43 +106,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 throw new Exception('Donor name is required');
             }
             
-            if (!in_array($donor_type, ['pledge', 'immediate_payment'])) {
-                throw new Exception('Invalid donor type');
+            if (empty($phone)) {
+                throw new Exception('Phone number is required');
             }
             
-            // Check if changing donor_type
-            if ($donor['donor_type'] !== $donor_type) {
-                // Check if donor has pledges or payments
-                $check_pledges = $db->prepare("SELECT COUNT(*) as cnt FROM pledges WHERE donor_phone = ? OR donor_email = ?");
-                $check_pledges->bind_param('ss', $donor['phone'], $donor['email']);
-                $check_pledges->execute();
-                $pledge_count = $check_pledges->get_result()->fetch_assoc()['cnt'];
-                
-                $check_payments = $db->prepare("SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ? OR donor_email = ?");
-                $check_payments->bind_param('ss', $donor['phone'], $donor['email']);
-                $check_payments->execute();
-                $payment_count = $check_payments->get_result()->fetch_assoc()['cnt'];
-                
-                if ($pledge_count > 0 || $payment_count > 0) {
-                    throw new Exception('Cannot change donor type for donors with existing pledges or payments');
-                }
+            // Check for duplicate phone (excluding current donor)
+            $check = $db->prepare("SELECT id FROM donors WHERE phone = ? AND id != ? LIMIT 1");
+            $check->bind_param('si', $phone, $donor_id);
+            $check->execute();
+            if ($check->get_result()->num_rows > 0) {
+                throw new Exception('Another donor with this phone number already exists');
             }
             
             // Update donor
             $stmt = $db->prepare("
                 UPDATE donors SET 
-                    name = ?, email = ?, phone = ?, donor_type = ?, 
+                    name = ?, phone = ?, 
                     preferred_language = ?, preferred_payment_method = ?, updated_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->bind_param('ssssssi', $name, $email, $phone, $donor_type, 
+            $stmt->bind_param('ssssi', $name, $phone, 
                 $preferred_language, $preferred_payment_method, $donor_id);
             $stmt->execute();
             
             // Audit log
             $user_id = (int)$current_user['id'];
             $before = json_encode($donor);
-            $after = json_encode(['name' => $name, 'donor_type' => $donor_type, 'email' => $email, 'phone' => $phone]);
+            $after = json_encode(['name' => $name, 'phone' => $phone]);
             $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'donor', ?, 'update', ?, ?, 'admin')");
             $audit->bind_param('iiss', $user_id, $donor_id, $before, $after);
             $audit->execute();
@@ -173,13 +159,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             }
             
             // Safety check: Don't delete if has pledges or payments
-            $check_pledges = $db->prepare("SELECT COUNT(*) as cnt FROM pledges WHERE donor_phone = ? OR donor_email = ?");
-            $check_pledges->bind_param('ss', $donor['phone'], $donor['email']);
+            $check_pledges = $db->prepare("SELECT COUNT(*) as cnt FROM pledges WHERE donor_phone = ?");
+            $check_pledges->bind_param('s', $donor['phone']);
             $check_pledges->execute();
             $pledge_count = $check_pledges->get_result()->fetch_assoc()['cnt'];
             
-            $check_payments = $db->prepare("SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ? OR donor_email = ?");
-            $check_payments->bind_param('ss', $donor['phone'], $donor['email']);
+            $check_payments = $db->prepare("SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ?");
+            $check_payments->bind_param('s', $donor['phone']);
             $check_payments->execute();
             $payment_count = $check_payments->get_result()->fetch_assoc()['cnt'];
             
@@ -216,7 +202,7 @@ $donors = [];
 try {
     $donors_result = $db->query("
         SELECT 
-            id, name, email, phone, donor_type, preferred_language, 
+            id, name, phone, preferred_language, 
             preferred_payment_method, source, total_pledged, total_paid, 
             balance, payment_status, created_at, updated_at
         FROM donors 
@@ -230,23 +216,27 @@ try {
     $error_message = "Error loading donors: " . $e->getMessage();
 }
 
-// Calculate stats
+// Calculate stats (using total_pledged to determine donor type)
 $total_donors = count($donors);
 $pledge_donors = 0;
 $immediate_payers = 0;
 $donors_with_phone = 0;
 
-foreach ($donors as $donor) {
-    if (($donor['donor_type'] ?? '') === 'pledge') {
+foreach ($donors as &$donor) {
+    // Determine donor type based on pledges
+    if ((float)$donor['total_pledged'] > 0) {
         $pledge_donors++;
-    }
-    if (($donor['donor_type'] ?? '') === 'immediate_payment') {
+        $donor['donor_type'] = 'pledge'; // Add for display
+    } else {
         $immediate_payers++;
+        $donor['donor_type'] = 'immediate_payment'; // Add for display
     }
+    
     if (!empty($donor['phone'])) {
         $donors_with_phone++;
     }
 }
+unset($donor); // Break reference
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -444,21 +434,9 @@ foreach ($donors as $donor) {
                         </div>
                         
                         <div class="col-md-6">
-                            <label class="form-label">Donor Type <span class="text-danger">*</span></label>
-                            <select class="form-select" name="donor_type" required>
-                                <option value="pledge">Pledge (Pay Later)</option>
-                                <option value="immediate_payment">Immediate Payment</option>
-                            </select>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-control" name="email">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Phone</label>
-                            <input type="text" class="form-control" name="phone">
+                            <label class="form-label">Phone (UK Format) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone" placeholder="07XXXXXXXXX" pattern="07[0-9]{9}" required>
+                            <small class="text-muted">Format: 07XXXXXXXXX</small>
                         </div>
                         
                         <div class="col-md-6">
@@ -475,21 +453,13 @@ foreach ($donors as $donor) {
                             <select class="form-select" name="preferred_payment_method">
                                 <option value="bank_transfer">Bank Transfer</option>
                                 <option value="cash">Cash</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="online">Online</option>
+                                <option value="card">Card</option>
                             </select>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Source</label>
-                            <select class="form-select" name="source">
-                                <option value="website">Website</option>
-                                <option value="phone">Phone</option>
-                                <option value="in_person">In Person</option>
-                                <option value="event">Event</option>
-                                <option value="referral">Referral</option>
-                            </select>
-                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Donor type (Pledge vs Immediate) is automatically determined based on whether they make pledges.
                     </div>
                 </form>
             </div>
@@ -526,22 +496,9 @@ foreach ($donors as $donor) {
                         </div>
                         
                         <div class="col-md-6">
-                            <label class="form-label">Donor Type <span class="text-danger">*</span></label>
-                            <select class="form-select" name="donor_type" id="edit_donor_type" required>
-                                <option value="pledge">Pledge (Pay Later)</option>
-                                <option value="immediate_payment">Immediate Payment</option>
-                            </select>
-                            <small class="text-muted">Cannot change if donor has pledges/payments</small>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-control" name="email" id="edit_email">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Phone</label>
-                            <input type="text" class="form-control" name="phone" id="edit_phone">
+                            <label class="form-label">Phone (UK Format) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone" id="edit_phone" placeholder="07XXXXXXXXX" pattern="07[0-9]{9}" required>
+                            <small class="text-muted">Format: 07XXXXXXXXX</small>
                         </div>
                         
                         <div class="col-md-6">
@@ -558,10 +515,13 @@ foreach ($donors as $donor) {
                             <select class="form-select" name="preferred_payment_method" id="edit_preferred_payment_method">
                                 <option value="bank_transfer">Bank Transfer</option>
                                 <option value="cash">Cash</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="online">Online</option>
+                                <option value="card">Card</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Type:</strong> <span id="edit_donor_type_display"></span>
                     </div>
                 </form>
             </div>
@@ -616,11 +576,15 @@ $(document).ready(function() {
         
         $('#edit_donor_id').val(donor.id);
         $('#edit_name').val(donor.name);
-        $('#edit_email').val(donor.email || '');
         $('#edit_phone').val(donor.phone || '');
-        $('#edit_donor_type').val(donor.donor_type);
         $('#edit_preferred_language').val(donor.preferred_language);
         $('#edit_preferred_payment_method').val(donor.preferred_payment_method);
+        
+        // Display donor type (readonly)
+        const donorTypeText = donor.donor_type === 'pledge' 
+            ? '<span class="badge bg-warning">Pledge Donor</span>' 
+            : '<span class="badge bg-success">Immediate Payer</span>';
+        $('#edit_donor_type_display').html(donorTypeText);
         
         $('#editDonorModal').modal('show');
     });
