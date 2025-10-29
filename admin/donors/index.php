@@ -25,8 +25,12 @@ $statsResult = $database->query("SELECT
     (SELECT COUNT(*) FROM payments) as total_payments
 FROM donors");
 
-$stats = $statsResult ? $statsResult->fetch_assoc() : [];
-$stats = $stats ?: [];
+if (!$statsResult) {
+    error_log("Donors page statistics query failed: " . $database->error);
+    $stats = [];
+} else {
+    $stats = $statsResult->fetch_assoc() ?: [];
+}
 
 // ==== FILTER & PAGINATION ====
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -398,6 +402,6 @@ $currency = '£';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/admin.js"></script>
+<script src="../assets/admin.js?v=<?php echo filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 </body>
 </html>
