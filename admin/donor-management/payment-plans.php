@@ -1401,20 +1401,23 @@ function calculatePaymentSchedule() {
         // Set initial payment date
         if (paymentDayType === 'day_of_month') {
             if (frequencyUnit === 'week') {
-                // For weekly frequency, start from the start date, then adjust to nearest payment day if desired
-                // First payment uses start date, then adjust if user wants specific day preference
+                // For weekly frequency with day preference, find the next occurrence
+                // Try to use preferred day in current month if it hasn't passed
                 const daysInStartMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
                 const preferredDay = Math.min(paymentDay, daysInStartMonth);
                 
-                // If start date is after preferred day, move to next week interval
-                if (startDate.getDate() > preferredDay) {
-                    currentDate = addWeeks(startDate, frequencyNumber);
-                    // Adjust new date to preferred day if possible
-                    const daysInNewMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-                    currentDate.setDate(Math.min(preferredDay, daysInNewMonth));
+                // Check if preferred day in current month is still available (not in the past)
+                if (startDate.getDate() < preferredDay) {
+                    // Start date is before preferred day - use current month's preferred day
+                    // This is in the future relative to start date, so it's valid
+                    currentDate.setDate(preferredDay);
                 } else {
-                    // Use start date but adjust to preferred day if user wants consistency
-                    currentDate.setDate(Math.min(preferredDay, daysInStartMonth));
+                    // Start date is on or after preferred day - move to next week interval
+                    // Then adjust to preferred day in the new month
+                    currentDate = addWeeks(startDate, frequencyNumber);
+                    const daysInNewMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+                    const newPreferredDay = Math.min(paymentDay, daysInNewMonth);
+                    currentDate.setDate(newPreferredDay);
                 }
             } else {
                 // Monthly frequency: set to specific day of month

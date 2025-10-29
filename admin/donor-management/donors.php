@@ -1089,7 +1089,7 @@ $(document).ready(function() {
                 return;
             }
             
-            const formData = $('#addDonorForm').serialize() + '&ajax_action=delete_donor&donor_id=' + currentDonorData.id;
+            const formData = $('#editDonorForm').serialize() + '&ajax_action=delete_donor&donor_id=' + currentDonorData.id;
             
             $.post('', formData, function(response) {
                 if (response.success) {
