@@ -49,17 +49,24 @@ $payment_method_breakdown = [];
 $recent_donors = [];
 
 if ($donors_table_exists) {
+    // Check if donor_type column exists
+    $check_column = $db->query("SHOW COLUMNS FROM donors LIKE 'donor_type'");
+    $has_donor_type = $check_column && $check_column->num_rows > 0;
+    
+    // Build WHERE clause based on available columns
+    $pledge_filter = $has_donor_type ? "donor_type = 'pledge'" : "total_pledged > 0";
+    
     // Get basic donor statistics - PLEDGE DONORS ONLY
-    // These are people who made pledges and need tracking
+    // Filter using donor_type if available, otherwise fallback to total_pledged
     $result = $db->query("
         SELECT 
             COUNT(*) as total_donors,
             COUNT(CASE WHEN phone IS NOT NULL AND phone != '' THEN 1 END) as donors_with_phone,
             COUNT(CASE WHEN phone IS NULL OR phone = '' THEN 1 END) as donors_without_phone,
-            COUNT(CASE WHEN total_pledged > 0 THEN 1 END) as donors_with_pledges,
-            COUNT(CASE WHEN total_paid >= total_pledged AND total_pledged > 0 THEN 1 END) as donors_fully_paid,
+            COUNT(*) as donors_with_pledges,
+            COUNT(CASE WHEN total_paid >= total_pledged THEN 1 END) as donors_fully_paid,
             COUNT(CASE WHEN total_paid > 0 AND total_paid < total_pledged THEN 1 END) as donors_partially_paid,
-            COUNT(CASE WHEN total_paid = 0 AND total_pledged > 0 THEN 1 END) as donors_not_paid,
+            COUNT(CASE WHEN total_paid = 0 THEN 1 END) as donors_not_paid,
             COALESCE(SUM(total_pledged), 0) as total_pledged,
             COALESCE(SUM(total_paid), 0) as total_paid,
             COALESCE(SUM(balance), 0) as total_balance,
@@ -68,16 +75,18 @@ if ($donors_table_exists) {
             COUNT(CASE WHEN sms_opt_in = 1 THEN 1 END) as donors_sms_opted_in,
             COUNT(CASE WHEN flagged_for_followup = 1 THEN 1 END) as donors_flagged
         FROM donors
+        WHERE {$pledge_filter}
     ");
     
     if ($result) {
         $stats = array_merge($stats, $result->fetch_assoc());
     }
     
-    // Payment status breakdown
+    // Payment status breakdown - PLEDGE DONORS ONLY
     $result = $db->query("
         SELECT payment_status, COUNT(*) as count 
         FROM donors 
+        WHERE {$pledge_filter}
         GROUP BY payment_status 
         ORDER BY FIELD(payment_status, 'no_pledge', 'not_started', 'paying', 'overdue', 'completed', 'defaulted')
     ");
@@ -87,10 +96,11 @@ if ($donors_table_exists) {
         }
     }
     
-    // Achievement badge breakdown
+    // Achievement badge breakdown - PLEDGE DONORS ONLY
     $result = $db->query("
         SELECT achievement_badge, COUNT(*) as count 
         FROM donors 
+        WHERE {$pledge_filter}
         GROUP BY achievement_badge 
         ORDER BY FIELD(achievement_badge, 'pending', 'started', 'on_track', 'fast_finisher', 'completed', 'champion')
     ");
@@ -100,10 +110,11 @@ if ($donors_table_exists) {
         }
     }
     
-    // Source breakdown
+    // Source breakdown - PLEDGE DONORS ONLY
     $result = $db->query("
         SELECT source, COUNT(*) as count 
         FROM donors 
+        WHERE {$pledge_filter}
         GROUP BY source 
         ORDER BY count DESC
     ");
@@ -113,10 +124,11 @@ if ($donors_table_exists) {
         }
     }
     
-    // Language preferences
+    // Language preferences - PLEDGE DONORS ONLY
     $result = $db->query("
         SELECT preferred_language, COUNT(*) as count 
         FROM donors 
+        WHERE {$pledge_filter}
         GROUP BY preferred_language 
         ORDER BY count DESC
     ");
@@ -126,10 +138,11 @@ if ($donors_table_exists) {
         }
     }
     
-    // Payment method preferences
+    // Payment method preferences - PLEDGE DONORS ONLY
     $result = $db->query("
         SELECT preferred_payment_method, COUNT(*) as count 
         FROM donors 
+        WHERE {$pledge_filter}
         GROUP BY preferred_payment_method 
         ORDER BY count DESC
     ");
@@ -139,12 +152,13 @@ if ($donors_table_exists) {
         }
     }
     
-    // Recent donors
+    // Recent donors - PLEDGE DONORS ONLY
     $result = $db->query("
         SELECT 
             id, name, phone, total_pledged, total_paid, balance, 
             payment_status, achievement_badge, created_at 
         FROM donors 
+        WHERE {$pledge_filter}
         ORDER BY created_at DESC 
         LIMIT 10
     ");

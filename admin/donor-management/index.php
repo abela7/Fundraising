@@ -55,15 +55,32 @@ $db = db();
                 <div class="row g-4">
                     <!-- Quick Access Cards -->
                     <div class="col-12 col-md-6 col-lg-4">
+                        <a href="setup_donor_type.php" class="text-decoration-none">
+                            <div class="card h-100 border-0 shadow-sm hover-lift">
+                                <div class="card-body text-center p-4">
+                                    <div class="mb-3">
+                                        <i class="fas fa-tag fa-3x text-success"></i>
+                                    </div>
+                                    <h5 class="card-title">Setup Donor Types</h5>
+                                    <p class="card-text text-muted">
+                                        Add identifier to distinguish immediate payers from pledge donors
+                                    </p>
+                                    <span class="badge bg-success">Recommended First</span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
                         <a href="donor.php" class="text-decoration-none">
                             <div class="card h-100 border-0 shadow-sm hover-lift">
                                 <div class="card-body text-center p-4">
                                     <div class="mb-3">
                                         <i class="fas fa-database fa-3x text-primary"></i>
                                     </div>
-                                    <h5 class="card-title">Donor Database Report</h5>
+                                    <h5 class="card-title">Pledge Donor Report</h5>
                                     <p class="card-text text-muted">
-                                        View comprehensive statistics and data quality metrics for all donors
+                                        Track your ~186 pledge donors and monitor payment progress
                                     </p>
                                 </div>
                             </div>
