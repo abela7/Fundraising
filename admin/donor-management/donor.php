@@ -252,7 +252,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                 <i class="fas fa-hand-holding-usd"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value"><?php echo $currency . ' ' . number_format((float)$stats['total_pledged'], 0); ?></h3>
+                                <h3 class="stat-value"><?php echo '£ ' . number_format((float)$stats['total_pledged'], 0); ?></h3>
                                 <p class="stat-label">Total Pledged</p>
                                 <div class="stat-trend text-warning">
                                     <i class="fas fa-handshake"></i> Promised
@@ -267,7 +267,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                 <i class="fas fa-check-circle"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value"><?php echo $currency . ' ' . number_format((float)$stats['total_paid'], 0); ?></h3>
+                                <h3 class="stat-value"><?php echo '£ ' . number_format((float)$stats['total_paid'], 0); ?></h3>
                                 <p class="stat-label">Total Paid</p>
                                 <div class="stat-trend text-success">
                                     <i class="fas fa-arrow-up"></i> Collected
@@ -282,7 +282,7 @@ $currency = $settings['currency_code'] ?? 'GBP';
                                 <i class="fas fa-exclamation-triangle"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value text-danger"><?php echo $currency . ' ' . number_format((float)$stats['total_balance'], 0); ?></h3>
+                                <h3 class="stat-value text-danger"><?php echo '£ ' . number_format((float)$stats['total_balance'], 0); ?></h3>
                                 <p class="stat-label">Outstanding Balance</p>
                                 <div class="stat-trend text-danger">
                                     <i class="fas fa-hourglass-half"></i> Remaining
