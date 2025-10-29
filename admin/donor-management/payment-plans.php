@@ -428,7 +428,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
             ");
-            $insert_plan->bind_param('iiiddiisisissss',
+            $insert_plan->bind_param('iiiddiisisisssss',
                 $donor_id,              // i - integer
                 $pledge_id,             // i - integer
                 $template_id,           // i - integer (nullable)
