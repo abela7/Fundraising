@@ -42,142 +42,227 @@ $db = db();
                         <h1 class="h3 mb-1 text-primary">
                             <i class="fas fa-users-cog me-2"></i>Donor Management
                         </h1>
-                        <p class="text-muted mb-0">Manage donor profiles, history, and relationships</p>
+                        <p class="text-muted mb-0">Comprehensive donor tracking and engagement tools</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a href="donor.php" class="btn btn-primary">
-                            <i class="fas fa-chart-line me-2"></i>View Donor Report
+                            <i class="fas fa-chart-line me-2"></i>View Reports
                         </a>
                     </div>
                 </div>
 
-                <!-- Main Content Area -->
-                <div class="row g-4">
-                    <!-- Quick Access Cards -->
-                    <div class="col-12 col-md-6 col-lg-4">
-                        <a href="setup_donor_type.php" class="text-decoration-none">
-                            <div class="card h-100 border-0 shadow-sm hover-lift">
-                                <div class="card-body text-center p-4">
-                                    <div class="mb-3">
-                                        <i class="fas fa-tag fa-3x text-success"></i>
-                                    </div>
-                                    <h5 class="card-title">Setup Donor Types</h5>
-                                    <p class="card-text text-muted">
-                                        Add identifier to distinguish immediate payers from pledge donors
-                                    </p>
-                                    <span class="badge bg-success">Recommended First</span>
+                <!-- Quick Stats Overview -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card animate-fade-in" style="color: #0a6286;">
+                            <div class="stat-icon bg-primary">
+                                <i class="fas fa-handshake"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value">~186</h3>
+                                <p class="stat-label">Pledge Donors</p>
+                                <div class="stat-trend text-primary">
+                                    <i class="fas fa-users"></i> Being tracked
                                 </div>
                             </div>
-                        </a>
+                        </div>
                     </div>
+                    
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.1s; color: #0d7f4d;">
+                            <div class="stat-icon bg-success">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value">Real-time</h3>
+                                <p class="stat-label">Payment Tracking</p>
+                                <div class="stat-trend text-success">
+                                    <i class="fas fa-sync"></i> Live updates
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.2s; color: #b88a1a;">
+                            <div class="stat-icon bg-warning">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value">Automated</h3>
+                                <p class="stat-label">SMS Reminders</p>
+                                <div class="stat-trend text-warning">
+                                    <i class="fas fa-mobile-alt"></i> Coming soon
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card animate-fade-in" style="animation-delay: 0.3s; color: #6366f1;">
+                            <div class="stat-icon" style="background: #6366f1;">
+                                <i class="fas fa-globe"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-value">Portal</h3>
+                                <p class="stat-label">Self-Service Access</p>
+                                <div class="stat-trend" style="color: #6366f1;">
+                                    <i class="fas fa-user-check"></i> Coming soon
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- Main Feature Cards -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12">
+                        <h5 class="mb-3">
+                            <i class="fas fa-th-large me-2 text-primary"></i>
+                            Available Features
+                        </h5>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <!-- Active Features -->
                     <div class="col-12 col-md-6 col-lg-4">
                         <a href="donor.php" class="text-decoration-none">
-                            <div class="card h-100 border-0 shadow-sm hover-lift">
-                                <div class="card-body text-center p-4">
-                                    <div class="mb-3">
-                                        <i class="fas fa-database fa-3x text-primary"></i>
+                            <div class="feature-card card h-100 border-0 shadow-sm hover-lift">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="feature-icon bg-primary-subtle text-primary me-3">
+                                            <i class="fas fa-database"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="card-title mb-0">Pledge Donor Report</h5>
+                                            <span class="badge bg-success badge-sm">Active</span>
+                                        </div>
                                     </div>
-                                    <h5 class="card-title">Pledge Donor Report</h5>
-                                    <p class="card-text text-muted">
-                                        Track your ~186 pledge donors and monitor payment progress
+                                    <p class="card-text text-muted mb-3">
+                                        Comprehensive tracking of ~186 pledge donors with payment progress monitoring, status tracking, and detailed analytics.
                                     </p>
+                                    <div class="d-flex align-items-center text-primary">
+                                        <span class="me-2">Open Report</span>
+                                        <i class="fas fa-arrow-right"></i>
+                                    </div>
                                 </div>
                             </div>
                         </a>
                     </div>
 
+                    <!-- Coming Soon Features -->
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
-                            <div class="card-body text-center p-4">
-                                <div class="mb-3">
-                                    <i class="fas fa-list fa-3x text-secondary"></i>
+                        <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.7;">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                        <i class="fas fa-list"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="card-title mb-0">Donor List</h5>
+                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
+                                    </div>
                                 </div>
-                                <h5 class="card-title">Donor List</h5>
-                                <p class="card-text text-muted">
-                                    Browse and search all registered donors
+                                <p class="card-text text-muted mb-3">
+                                    Browse, search, and filter all registered donors with advanced sorting and export capabilities.
                                 </p>
-                                <span class="badge bg-secondary">Coming Soon</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
-                            <div class="card-body text-center p-4">
-                                <div class="mb-3">
-                                    <i class="fas fa-calendar-alt fa-3x text-secondary"></i>
+                        <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.7;">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                        <i class="fas fa-calendar-alt"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="card-title mb-0">Payment Plans</h5>
+                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
+                                    </div>
                                 </div>
-                                <h5 class="card-title">Payment Plans</h5>
-                                <p class="card-text text-muted">
-                                    Manage donor payment plans and schedules
+                                <p class="card-text text-muted mb-3">
+                                    Create and manage flexible payment plans with automated tracking and milestone notifications.
                                 </p>
-                                <span class="badge bg-secondary">Coming Soon</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
-                            <div class="card-body text-center p-4">
-                                <div class="mb-3">
-                                    <i class="fas fa-bell fa-3x text-secondary"></i>
+                        <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.7;">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                        <i class="fas fa-bell"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="card-title mb-0">SMS Reminders</h5>
+                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
+                                    </div>
                                 </div>
-                                <h5 class="card-title">SMS Reminders</h5>
-                                <p class="card-text text-muted">
-                                    Send payment reminders and updates via SMS
+                                <p class="card-text text-muted mb-3">
+                                    Send automated payment reminders and updates via SMS with customizable templates.
                                 </p>
-                                <span class="badge bg-secondary">Coming Soon</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
-                            <div class="card-body text-center p-4">
-                                <div class="mb-3">
-                                    <i class="fas fa-globe fa-3x text-secondary"></i>
+                        <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.7;">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                        <i class="fas fa-globe"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="card-title mb-0">Donor Portal</h5>
+                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
+                                    </div>
                                 </div>
-                                <h5 class="card-title">Donor Portal</h5>
-                                <p class="card-text text-muted">
-                                    Manage donor portal access and tokens
+                                <p class="card-text text-muted mb-3">
+                                    Self-service portal for donors to view their pledges, make payments, and update information.
                                 </p>
-                                <span class="badge bg-secondary">Coming Soon</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card h-100 border-0 shadow-sm" style="opacity: 0.6;">
-                            <div class="card-body text-center p-4">
-                                <div class="mb-3">
-                                    <i class="fas fa-flag fa-3x text-secondary"></i>
+                        <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.7;">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="feature-icon bg-secondary-subtle text-secondary me-3">
+                                        <i class="fas fa-flag"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="card-title mb-0">Follow-ups</h5>
+                                        <span class="badge bg-secondary badge-sm">Coming Soon</span>
+                                    </div>
                                 </div>
-                                <h5 class="card-title">Follow-ups</h5>
-                                <p class="card-text text-muted">
-                                    Track flagged donors requiring attention
+                                <p class="card-text text-muted mb-3">
+                                    Track and manage flagged donors requiring special attention or follow-up actions.
                                 </p>
-                                <span class="badge bg-secondary">Coming Soon</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Info Section -->
-                <div class="row mt-4">
+                <div class="row mt-5">
                     <div class="col-12">
-                        <div class="card border-0 bg-light">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center">
+                        <div class="card border-0 bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center text-white">
                                     <div class="me-3">
-                                        <i class="fas fa-info-circle fa-2x text-primary"></i>
+                                        <i class="fas fa-lightbulb fa-3x"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1">About Donor Management</h6>
-                                        <p class="mb-0 text-muted small">
-                                            This module provides comprehensive donor management capabilities including database reports, 
-                                            payment plan tracking, SMS reminders, portal access management, and follow-up tracking. 
-                                            Start with the <strong>Donor Database Report</strong> to get an overview of your donor data.
+                                        <h5 class="mb-2 text-white">About Donor Management</h5>
+                                        <p class="mb-0 opacity-90">
+                                            This comprehensive module helps you track pledge donors, monitor payment progress, send automated reminders, 
+                                            and provide self-service portal access. Start with the <strong>Pledge Donor Report</strong> to get detailed 
+                                            insights into your ~186 pledge donors and their payment status.
                                         </p>
                                     </div>
                                 </div>
@@ -213,4 +298,3 @@ if (typeof window.toggleSidebar !== 'function') {
 </script>
 </body>
 </html>
-
