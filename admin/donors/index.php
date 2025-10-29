@@ -421,14 +421,42 @@ $currency = '£';
 <script>
 // Fallback toggle function in case admin.js doesn't load
 if (typeof toggleSidebar === 'undefined') {
+    console.log('DEBUG: toggleSidebar not found, creating fallback');
     window.toggleSidebar = function() {
+        console.log('DEBUG: toggleSidebar called');
         const sidebar = document.getElementById('sidebar');
         const body = document.body;
+        console.log('DEBUG: Sidebar element:', sidebar);
+        console.log('DEBUG: Body element:', body);
         if (sidebar) {
             body.classList.toggle('sidebar-collapsed');
+            console.log('DEBUG: Sidebar toggled. Class list:', body.classList.toString());
+        } else {
+            console.log('DEBUG ERROR: Sidebar element not found!');
         }
     };
+} else {
+    console.log('DEBUG: toggleSidebar already defined');
 }
+
+// Test if admin.js loaded
+console.log('DEBUG: Admin.js loaded:', typeof toggleSidebar !== 'undefined');
+console.log('DEBUG: Bootstrap loaded:', typeof bootstrap !== 'undefined');
+console.log('DEBUG: jQuery loaded:', typeof jQuery !== 'undefined');
+
+// Add click handler to all buttons with onclick="toggleSidebar()"
+document.querySelectorAll('[onclick="toggleSidebar()"]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        console.log('DEBUG: Button clicked:', this);
+        if (typeof toggleSidebar !== 'undefined') {
+            e.preventDefault();
+            toggleSidebar();
+        } else {
+            console.log('DEBUG ERROR: toggleSidebar still undefined on button click!');
+        }
+    });
+});
+console.log('DEBUG: Found', document.querySelectorAll('[onclick="toggleSidebar()"]').length, 'buttons with toggleSidebar() onclick');
 </script>
 </body>
 </html>
