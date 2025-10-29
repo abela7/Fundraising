@@ -482,11 +482,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             echo json_encode(['success' => true, 'message' => 'Payment plan saved successfully!']);
             exit;
             
+        } elseif ($action === 'clear_payment_plan') {
+            // Clear payment plan from donor
+            header('Content-Type: application/json');
+            
+            $donor_id = (int)($_POST['donor_id'] ?? 0);
+            
+            if ($donor_id <= 0) {
+                throw new Exception('Invalid donor ID');
+            }
+            
+            // Get donor info and current plan for audit
+            $donor_check = $db->prepare("
+                SELECT d.id, d.name, d.active_payment_plan_id, d.has_active_plan,
+                       pp.id as plan_id, pp.total_amount, pp.monthly_amount, pp.status as plan_status
+                FROM donors d
+                LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id
+                WHERE d.id = ?
+            ");
+            $donor_check->bind_param('i', $donor_id);
+            $donor_check->execute();
+            $donor = $donor_check->get_result()->fetch_assoc();
+            
+            if (!$donor) {
+                throw new Exception('Donor not found');
+            }
+            
+            if (!$donor['has_active_plan'] || !$donor['active_payment_plan_id']) {
+                throw new Exception('Donor does not have an active payment plan');
+            }
+            
+            $plan_id = (int)$donor['active_payment_plan_id'];
+            
+            // Cancel the payment plan
+            $cancel_plan = $db->prepare("
+                UPDATE donor_payment_plans 
+                SET status = 'cancelled', updated_at = NOW() 
+                WHERE id = ? AND donor_id = ?
+            ");
+            $cancel_plan->bind_param('ii', $plan_id, $donor_id);
+            $cancel_plan->execute();
+            
+            // Clear payment plan info from donor table
+            $clear_donor = $db->prepare("
+                UPDATE donors SET 
+                    has_active_plan = 0,
+                    active_payment_plan_id = NULL,
+                    plan_monthly_amount = NULL,
+                    plan_duration_months = NULL,
+                    plan_start_date = NULL,
+                    plan_next_due_date = NULL,
+                    payment_status = CASE 
+                        WHEN total_paid >= total_pledged THEN 'completed'
+                        WHEN total_paid > 0 THEN 'paying'
+                        ELSE 'not_started'
+                    END,
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $clear_donor->bind_param('i', $donor_id);
+            $clear_donor->execute();
+            
+            // Audit log
+            $audit_data = json_encode([
+                'donor_id' => $donor_id,
+                'donor_name' => $donor['name'],
+                'plan_id' => $plan_id,
+                'plan_total_amount' => $donor['total_amount'] ?? null,
+                'plan_monthly_amount' => $donor['monthly_amount'] ?? null,
+                'previous_status' => $donor['plan_status'] ?? null
+            ], JSON_UNESCAPED_SLASHES);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, source) VALUES(?, 'donor_payment_plan', ?, 'cancel', ?, 'admin')");
+            $audit->bind_param('iis', $current_user['id'], $plan_id, $audit_data);
+            $audit->execute();
+            
+            $db->commit();
+            echo json_encode(['success' => true, 'message' => 'Payment plan cleared successfully!']);
+            exit;
+            
         }
         
     } catch (Exception $e) {
         $db->rollback();
-        if (isset($_POST['action']) && $_POST['action'] === 'save_payment_plan') {
+        if (isset($_POST['action']) && ($_POST['action'] === 'save_payment_plan' || $_POST['action'] === 'clear_payment_plan')) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
             exit;
@@ -531,21 +609,31 @@ if ($db_connection_ok) {
 $donors_for_preview = [];
 if ($db_connection_ok) {
     try {
-        // Get pledge donors with outstanding balances
+        // Get pledge donors with outstanding balances, including payment plan info
         $check_column = $db->query("SHOW COLUMNS FROM donors LIKE 'donor_type'");
         $has_donor_type = $check_column && $check_column->num_rows > 0;
         $pledge_filter = $has_donor_type ? "donor_type = 'pledge'" : "total_pledged > 0";
         
         $result = $db->query("
             SELECT 
-                id, name, preferred_payment_method, payment_status, 
-                total_pledged, total_paid, balance
-            FROM donors 
+                d.id, d.name, d.preferred_payment_method, d.payment_status, 
+                d.total_pledged, d.total_paid, d.balance,
+                d.has_active_plan, d.active_payment_plan_id,
+                d.plan_monthly_amount as donor_plan_monthly_amount, 
+                d.plan_duration_months, d.plan_start_date, d.plan_next_due_date,
+                pp.status as plan_status, pp.total_amount as plan_total_amount,
+                pp.monthly_amount as plan_monthly_amount, pp.total_payments as plan_total_payments,
+                pp.start_date as plan_start_date_db, pp.next_payment_due as plan_next_due,
+                pp.payments_made as plan_payments_made, pp.amount_paid as plan_amount_paid,
+                t.name as template_name
+            FROM donors d
+            LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id AND pp.status = 'active'
+            LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
             WHERE {$pledge_filter} 
-                AND balance > 0
-                AND name IS NOT NULL 
-                AND TRIM(name) != ''
-            ORDER BY name ASC
+                AND d.balance > 0
+                AND d.name IS NOT NULL 
+                AND TRIM(d.name) != ''
+            ORDER BY d.name ASC
         ");
         if ($result) {
             $donors_for_preview = $result->fetch_all(MYSQLI_ASSOC);
@@ -1060,17 +1148,77 @@ foreach ($templates_all as $t) {
                                     foreach ($donors_for_preview as $donor): 
                                         $payment_method = $donor['preferred_payment_method'] ?? 'bank_transfer';
                                         $payment_label = $payment_method_labels[$payment_method] ?? ucfirst(str_replace('_', ' ', $payment_method));
+                                        $has_plan = !empty($donor['has_active_plan']) && !empty($donor['active_payment_plan_id']);
+                                        $plan_data = $has_plan ? json_encode([
+                                            'plan_id' => $donor['active_payment_plan_id'],
+                                            'template_name' => $donor['template_name'] ?? 'Custom Plan',
+                                            'monthly_amount' => $donor['plan_monthly_amount'] ?? $donor['donor_plan_monthly_amount'] ?? 0,
+                                            'duration_months' => $donor['plan_duration_months'] ?? 0,
+                                            'start_date' => $donor['plan_start_date'] ?? $donor['plan_start_date_db'] ?? '',
+                                            'next_due' => $donor['plan_next_due_date'] ?? $donor['plan_next_due'] ?? '',
+                                            'total_amount' => $donor['plan_total_amount'] ?? 0,
+                                            'payments_made' => $donor['plan_payments_made'] ?? 0,
+                                            'total_payments' => $donor['plan_total_payments'] ?? 0,
+                                            'amount_paid' => $donor['plan_amount_paid'] ?? 0
+                                        ], JSON_UNESCAPED_SLASHES) : '';
                                     ?>
                                     <option value="<?php echo $donor['id']; ?>" 
                                             data-balance="<?php echo $donor['balance']; ?>"
                                             data-name="<?php echo htmlspecialchars($donor['name']); ?>"
                                             data-payment-method="<?php echo htmlspecialchars($payment_method); ?>"
                                             data-payment-status="<?php echo htmlspecialchars($donor['payment_status'] ?? 'not_started'); ?>"
+                                            data-has-plan="<?php echo $has_plan ? '1' : '0'; ?>"
+                                            data-plan-data="<?php echo htmlspecialchars($plan_data, ENT_QUOTES); ?>"
                                             data-search-text="<?php echo strtolower(htmlspecialchars($donor['name'] . ' ' . $payment_label)); ?>">
                                         <?php echo htmlspecialchars($donor['name']); ?> • <?php echo htmlspecialchars($payment_label); ?> • £<?php echo number_format($donor['balance'], 2); ?>
                                     </option>
                                     <?php endforeach; ?>
                                 </select>
+                            </div>
+                            
+                            <!-- Existing Plan Info (Hidden by default) -->
+                            <div id="existing_plan_info" class="card border-warning mb-3" style="display: none;">
+                                <div class="card-header bg-warning bg-opacity-10">
+                                    <h6 class="mb-0 text-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Existing Payment Plan
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Plan Type</small>
+                                            <strong id="existing_plan_type">-</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Monthly Amount</small>
+                                            <strong id="existing_plan_monthly">-</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Start Date</small>
+                                            <strong id="existing_plan_start">-</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Next Payment Due</small>
+                                            <strong id="existing_plan_next_due">-</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Payments Made</small>
+                                            <strong id="existing_plan_payments">-</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Amount Paid</small>
+                                            <strong class="text-success" id="existing_plan_paid">-</strong>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 pt-2 border-top">
+                                        <button type="button" class="btn btn-sm btn-danger w-100" id="clearPlanBtn">
+                                            <i class="fas fa-times-circle me-2"></i>Clear Existing Plan
+                                        </button>
+                                        <small class="text-muted d-block mt-2 text-center">
+                                            Clear this plan to assign a new one
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div class="mb-3">
@@ -2059,8 +2207,47 @@ document.getElementById('donor_search').addEventListener('input', function() {
 document.getElementById('preview_donor').addEventListener('change', function() {
     const donorSelect = this;
     const selectedValue = donorSelect.value;
+    const existingPlanInfo = document.getElementById('existing_plan_info');
     
     if (selectedValue) {
+        const selectedOption = donorSelect.options[donorSelect.selectedIndex];
+        const hasPlan = selectedOption.getAttribute('data-has-plan') === '1';
+        const planDataStr = selectedOption.getAttribute('data-plan-data');
+        
+        // Show/hide existing plan info
+        if (hasPlan && planDataStr) {
+            try {
+                const planData = JSON.parse(planDataStr);
+                
+                // Populate existing plan info
+                document.getElementById('existing_plan_type').textContent = planData.template_name || 'Custom Plan';
+                document.getElementById('existing_plan_monthly').textContent = '£' + parseFloat(planData.monthly_amount || 0).toFixed(2);
+                document.getElementById('existing_plan_start').textContent = planData.start_date || '-';
+                document.getElementById('existing_plan_next_due').textContent = planData.next_due || '-';
+                document.getElementById('existing_plan_payments').textContent = 
+                    (planData.payments_made || 0) + ' / ' + (planData.total_payments || 0);
+                document.getElementById('existing_plan_paid').textContent = 
+                    '£' + parseFloat(planData.amount_paid || 0).toFixed(2);
+                
+                existingPlanInfo.style.display = 'block';
+                
+                // Store plan_id for clearing
+                existingPlanInfo.setAttribute('data-plan-id', planData.plan_id || '');
+                existingPlanInfo.setAttribute('data-donor-id', selectedValue);
+                
+                // Disable template selection until plan is cleared
+                document.getElementById('preview_template').disabled = true;
+                
+            } catch (e) {
+                console.error('Error parsing plan data:', e);
+                existingPlanInfo.style.display = 'none';
+                document.getElementById('preview_template').disabled = false;
+            }
+        } else {
+            existingPlanInfo.style.display = 'none';
+            document.getElementById('preview_template').disabled = false;
+        }
+        
         // Hide all other options except the selected one and placeholder
         const options = donorSelect.querySelectorAll('option:not([value=""])');
         options.forEach(option => {
@@ -2082,6 +2269,9 @@ document.getElementById('preview_donor').addEventListener('change', function() {
         document.getElementById('donor_search').value = '';
     } else {
         // Reset: show all options when "Choose a donor..." is selected
+        existingPlanInfo.style.display = 'none';
+        document.getElementById('preview_template').disabled = false;
+        
         const options = donorSelect.querySelectorAll('option:not([value=""])');
         options.forEach(option => {
             option.style.display = '';
@@ -2149,10 +2339,77 @@ $('#previewPlanModal').on('show.bs.modal', function() {
     // Reset plan data
     currentPlanData = null;
     
+    // Hide existing plan info
+    document.getElementById('existing_plan_info').style.display = 'none';
+    document.getElementById('preview_template').disabled = false;
+    
     // Focus on search input
     setTimeout(() => {
         document.getElementById('donor_search').focus();
     }, 300);
+});
+
+// Clear Plan button
+document.getElementById('clearPlanBtn').addEventListener('click', function() {
+    const existingPlanInfo = document.getElementById('existing_plan_info');
+    const donorId = existingPlanInfo.getAttribute('data-donor-id');
+    const planId = existingPlanInfo.getAttribute('data-plan-id');
+    
+    if (!donorId || donorId <= 0) {
+        alert('Invalid donor ID');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to clear the existing payment plan?\n\nThis will cancel the current plan and allow you to assign a new one. This action cannot be undone.')) {
+        return;
+    }
+    
+    // Show loading state
+    const btn = this;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Clearing...';
+    
+    // Submit via AJAX
+    $.ajax({
+        url: '',
+        method: 'POST',
+        data: {
+            action: 'clear_payment_plan',
+            csrf_token: getCSRFToken(),
+            donor_id: donorId
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                // Hide existing plan info
+                existingPlanInfo.style.display = 'none';
+                
+                // Enable template selection
+                document.getElementById('preview_template').disabled = false;
+                
+                // Reset donor selection to trigger reload
+                const donorSelect = document.getElementById('preview_donor');
+                const currentValue = donorSelect.value;
+                donorSelect.value = '';
+                
+                // Reload page to refresh donor list
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            } else {
+                alert('Error: ' + (response.message || 'Failed to clear payment plan'));
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Clear error:', error);
+            alert('Server error. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
 });
 </script>
 </body>
