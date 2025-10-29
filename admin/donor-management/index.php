@@ -101,13 +101,13 @@ $db = db();
                     <div class="col-12 col-sm-6 col-lg-3">
                         <div class="stat-card animate-fade-in" style="animation-delay: 0.3s; color: #b91c1c;">
                             <div class="stat-icon bg-danger">
-                                <i class="fas fa-bell"></i>
+                                <i class="fas fa-star"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value">5</h3>
-                                <p class="stat-label">Features</p>
+                                <h3 class="stat-value">2</h3>
+                                <p class="stat-label">Active Features</p>
                                 <div class="stat-trend text-danger">
-                                    <i class="fas fa-star"></i> Total
+                                    <i class="fas fa-check"></i> Available
                                 </div>
                             </div>
                         </div>
@@ -143,20 +143,22 @@ $db = db();
                         </a>
                     </div>
 
-                    <!-- Coming Soon Features -->
+                    <!-- Active Features -->
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
-                            <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="feature-icon bg-secondary-subtle text-secondary me-2">
-                                        <i class="fas fa-list"></i>
+                        <a href="donors.php" class="text-decoration-none">
+                            <div class="feature-card card h-100 border-0 shadow-sm">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="feature-icon bg-success-subtle text-success me-2">
+                                            <i class="fas fa-list"></i>
+                                        </div>
+                                        <h6 class="mb-0">Donor List</h6>
                                     </div>
-                                    <h6 class="mb-0">Donor List</h6>
+                                    <p class="card-text text-muted small">Browse and search all donors easily.</p>
+                                    <span class="badge bg-success badge-sm">Active</span>
                                 </div>
-                                <p class="card-text text-muted small">Browse and search all donors easily.</p>
-                                <span class="badge bg-secondary badge-sm">Coming Soon</span>
                             </div>
-                        </div>
+                        </a>
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">

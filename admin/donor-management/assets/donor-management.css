@@ -197,6 +197,10 @@ a.text-decoration-none:hover .card-title {
     background-color: rgba(13, 110, 253, 0.1);
 }
 
+.bg-success-subtle {
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
 .bg-secondary-subtle {
     background-color: rgba(108, 117, 125, 0.1);
 }
