@@ -104,7 +104,7 @@ $db = db();
                                 <i class="fas fa-star"></i>
                             </div>
                             <div class="stat-content">
-                                <h3 class="stat-value">2</h3>
+                                <h3 class="stat-value">3</h3>
                                 <p class="stat-label">Active Features</p>
                                 <div class="stat-trend text-danger">
                                     <i class="fas fa-check"></i> Available
@@ -162,18 +162,20 @@ $db = db();
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
-                            <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="feature-icon bg-secondary-subtle text-secondary me-2">
-                                        <i class="fas fa-calendar-alt"></i>
+                        <a href="payment-plans.php" class="text-decoration-none">
+                            <div class="feature-card card h-100 border-0 shadow-sm">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="feature-icon bg-warning-subtle text-warning me-2">
+                                            <i class="fas fa-calendar-check"></i>
+                                        </div>
+                                        <h6 class="mb-0">Payment Plans</h6>
                                     </div>
-                                    <h6 class="mb-0">Payment Plans</h6>
+                                    <p class="card-text text-muted small">Manage recurring payment schedules.</p>
+                                    <span class="badge bg-success badge-sm">Active</span>
                                 </div>
-                                <p class="card-text text-muted small">Create flexible payment schedules.</p>
-                                <span class="badge bg-secondary badge-sm">Coming Soon</span>
                             </div>
-                        </div>
+                        </a>
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
