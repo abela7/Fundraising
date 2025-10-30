@@ -170,70 +170,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 error_log("Donor pledge update: Column check results - donor_id: " . ($has_donor_id_column ? 'YES' : 'NO') . ", donor_email: " . ($has_donor_email_column ? 'YES' : 'NO'));
             
-            // Create new pending pledge for the additional amount
-            $status = 'pending';
-            $packageId = (int)($selectedPackage['id'] ?? 0);
-            $packageIdNullable = $packageId > 0 ? $packageId : null;
-            $donorId = (int)($donor['id'] ?? 0);
-            $donorIdNullable = $donorId > 0 ? $donorId : null;
+                // Determine created_by_user_id: Use System Admin (ID 0) if exists, otherwise NULL
+                error_log("Donor pledge update: Checking for System Admin user (ID 0)...");
+                $created_by_user_id = null;
+                try {
+                    $check_system_admin = $db->prepare("SELECT id FROM users WHERE id = 0 LIMIT 1");
+                    if ($check_system_admin && $check_system_admin->execute()) {
+                        $sys_admin_result = $check_system_admin->get_result();
+                        if ($sys_admin_result->fetch_assoc()) {
+                            $created_by_user_id = 0;
+                            error_log("Donor pledge update: System Admin (ID 0) found, using it as created_by_user_id");
+                        } else {
+                            error_log("Donor pledge update: System Admin (ID 0) not found, using NULL for created_by_user_id");
+                        }
+                        $check_system_admin->close();
+                    }
+                } catch (Exception $e) {
+                    error_log("Donor pledge update: Error checking System Admin: " . $e->getMessage() . " - Using NULL");
+                    // Use NULL if check fails
+                }
             
-            // Get donor email if available
-            $donorEmail = null;
-            if ($has_donor_email_column && isset($donor['email']) && !empty($donor['email'])) {
-                $donorEmail = trim($donor['email']);
-            }
-            
-            // Build INSERT query dynamically based on column existence
-            if ($has_donor_id_column && $has_donor_email_column) {
-                $stmt = $db->prepare("
-                    INSERT INTO pledges (
-                      donor_id, donor_name, donor_phone, donor_email, source, anonymous,
-                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
-                    ) VALUES (?, ?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
-                ");
-                $stmt->bind_param(
-                    'isssdsssi',
-                    $donorIdNullable, $donorName, $donorPhone, $donorEmail,
-                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
-                );
-            } elseif ($has_donor_id_column && !$has_donor_email_column) {
-                $stmt = $db->prepare("
-                    INSERT INTO pledges (
-                      donor_id, donor_name, donor_phone, source, anonymous,
-                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
-                    ) VALUES (?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
-                ");
-                $stmt->bind_param(
-                    'issdsssi',
-                    $donorIdNullable, $donorName, $donorPhone,
-                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
-                );
-            } elseif (!$has_donor_id_column && $has_donor_email_column) {
-                $stmt = $db->prepare("
-                    INSERT INTO pledges (
-                      donor_name, donor_phone, donor_email, source, anonymous,
-                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
-                    ) VALUES (?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
-                ");
-                $stmt->bind_param(
-                    'sssdsssi',
-                    $donorName, $donorPhone, $donorEmail,
-                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
-                );
-            } else {
-                // Neither column exists (match registrar pattern)
-                $stmt = $db->prepare("
-                    INSERT INTO pledges (
-                      donor_name, donor_phone, source, anonymous,
-                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
-                    ) VALUES (?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
-                ");
-                $stmt->bind_param(
-                    'ssdsssi',
-                    $donorName, $donorPhone,
-                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
-                );
-            }
+                // Create new pending pledge for the additional amount
+                $status = 'pending';
+                $packageId = (int)($selectedPackage['id'] ?? 0);
+                $packageIdNullable = $packageId > 0 ? $packageId : null;
+                $donorId = (int)($donor['id'] ?? 0);
+                $donorIdNullable = $donorId > 0 ? $donorId : null;
+                
+                // Get donor email if available
+                $donorEmail = null;
+                if ($has_donor_email_column && isset($donor['email']) && !empty($donor['email'])) {
+                    $donorEmail = trim($donor['email']);
+                }
+                
+                // Build INSERT query dynamically based on column existence
+                // Handle NULL for created_by_user_id properly in bind_param
+                $created_by_bind = $created_by_user_id;
+                if ($created_by_user_id === null) {
+                    // For NULL values in mysqli, we need to pass null explicitly
+                    $created_by_bind = null;
+                }
+                
+                if ($has_donor_id_column && $has_donor_email_column) {
+                    $stmt = $db->prepare("
+                        INSERT INTO pledges (
+                          donor_id, donor_name, donor_phone, donor_email, source, anonymous,
+                          amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                        ) VALUES (?, ?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, ?, ?)
+                    ");
+                    if (!$stmt) {
+                        throw new Exception("Failed to prepare INSERT query: " . $db->error);
+                    }
+                    $stmt->bind_param(
+                        'isssdsssii',
+                        $donorIdNullable, $donorName, $donorPhone, $donorEmail,
+                        $amount, $status, $final_notes, $client_uuid, $created_by_bind, $packageIdNullable
+                    );
+                } elseif ($has_donor_id_column && !$has_donor_email_column) {
+                    $stmt = $db->prepare("
+                        INSERT INTO pledges (
+                          donor_id, donor_name, donor_phone, source, anonymous,
+                          amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                        ) VALUES (?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, ?, ?)
+                    ");
+                    if (!$stmt) {
+                        throw new Exception("Failed to prepare INSERT query: " . $db->error);
+                    }
+                    $stmt->bind_param(
+                        'issdsssii',
+                        $donorIdNullable, $donorName, $donorPhone,
+                        $amount, $status, $final_notes, $client_uuid, $created_by_bind, $packageIdNullable
+                    );
+                } elseif (!$has_donor_id_column && $has_donor_email_column) {
+                    $stmt = $db->prepare("
+                        INSERT INTO pledges (
+                          donor_name, donor_phone, donor_email, source, anonymous,
+                          amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                        ) VALUES (?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, ?, ?)
+                    ");
+                    if (!$stmt) {
+                        throw new Exception("Failed to prepare INSERT query: " . $db->error);
+                    }
+                    $stmt->bind_param(
+                        'sssdsssii',
+                        $donorName, $donorPhone, $donorEmail,
+                        $amount, $status, $final_notes, $client_uuid, $created_by_bind, $packageIdNullable
+                    );
+                } else {
+                    // Neither column exists (match registrar pattern)
+                    $stmt = $db->prepare("
+                        INSERT INTO pledges (
+                          donor_name, donor_phone, source, anonymous,
+                          amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                        ) VALUES (?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, ?, ?)
+                    ");
+                    if (!$stmt) {
+                        throw new Exception("Failed to prepare INSERT query: " . $db->error);
+                    }
+                    $stmt->bind_param(
+                        'ssdsssii',
+                        $donorName, $donorPhone,
+                        $amount, $status, $final_notes, $client_uuid, $created_by_bind, $packageIdNullable
+                    );
+                }
             
                 error_log("Donor pledge update: Executing INSERT statement...");
                 if (!$stmt->execute()) {
