@@ -11,7 +11,7 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
 <!-- Sidebar -->
 <aside class="sidebar collapsed" id="sidebar">
     <div class="sidebar-header">
-        <a href="index.php" class="sidebar-brand">
+        <a href="<?php echo htmlspecialchars(url_for('donor/index.php')); ?>" class="sidebar-brand">
             <i class="fas fa-user-heart"></i>
             <div class="sidebar-brand-text">
                 Donor Portal

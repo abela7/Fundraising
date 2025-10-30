@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
+require_once __DIR__ . '/../shared/url.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 // Check if donor is logged in via token
@@ -277,10 +278,10 @@ $badge_labels = [
                         </div>
                         
                         <div class="d-flex gap-2 flex-wrap">
-                            <a href="payment-plan.php" class="btn btn-outline-primary">
+                            <a href="<?php echo htmlspecialchars(url_for('donor/payment-plan.php')); ?>" class="btn btn-outline-primary">
                                 <i class="fas fa-eye me-2"></i>View Full Schedule
                             </a>
-                            <a href="make-payment.php" class="btn btn-success">
+                            <a href="<?php echo htmlspecialchars(url_for('donor/make-payment.php')); ?>" class="btn btn-success">
                                 <i class="fas fa-credit-card me-2"></i>Make a Payment
                             </a>
                         </div>
@@ -293,7 +294,7 @@ $badge_labels = [
                         <i class="fas fa-calendar-times fa-3x text-warning mb-3"></i>
                         <h5>No Active Payment Plan</h5>
                         <p class="text-muted mb-3">You have a remaining balance of <strong>£<?php echo number_format($donor['balance'], 2); ?></strong></p>
-                        <a href="make-payment.php" class="btn btn-success btn-lg">
+                        <a href="<?php echo htmlspecialchars(url_for('donor/make-payment.php')); ?>" class="btn btn-success btn-lg">
                             <i class="fas fa-credit-card me-2"></i>Make a Payment
                         </a>
                     </div>
@@ -385,7 +386,7 @@ $badge_labels = [
                                 </table>
                             </div>
                             <div class="mt-3">
-                                <a href="payment-history.php" class="btn btn-outline-primary">
+                                <a href="<?php echo htmlspecialchars(url_for('donor/payment-history.php')); ?>" class="btn btn-outline-primary">
                                     <i class="fas fa-list me-2"></i>View All Payments
                                 </a>
                             </div>

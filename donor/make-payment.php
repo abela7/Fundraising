@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
+require_once __DIR__ . '/../shared/url.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 function current_donor(): ?array {
@@ -316,7 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                             <button type="submit" class="btn btn-success btn-lg">
                                                 <i class="fas fa-paper-plane me-2"></i>Submit Payment
                                             </button>
-                                            <a href="index.php" class="btn btn-outline-secondary">
+                                            <a href="<?php echo htmlspecialchars(url_for('donor/index.php')); ?>" class="btn btn-outline-secondary">
                                                 <i class="fas fa-arrow-left me-2"></i>Cancel
                                             </a>
                                         </div>

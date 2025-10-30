@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../shared/url.php';
 // Get donor initials for avatar
 $donor_initials = '';
 $display_name = $current_donor['name'] ?? 'Donor';
@@ -39,18 +40,18 @@ $donor_initials = substr($donor_initials ?: 'D', 0, 2);
                 
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <a class="dropdown-item" href="profile.php">
+                        <a class="dropdown-item" href="<?php echo htmlspecialchars(url_for('donor/profile.php')); ?>">
                             <i class="fas fa-cog me-2"></i>Preferences
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="contact.php">
+                        <a class="dropdown-item" href="<?php echo htmlspecialchars(url_for('donor/contact.php')); ?>">
                             <i class="fas fa-envelope me-2"></i>Contact Support
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <a class="dropdown-item text-danger" href="logout.php">
+                        <a class="dropdown-item text-danger" href="<?php echo htmlspecialchars(url_for('donor/logout.php')); ?>">
                             <i class="fas fa-sign-out-alt me-2"></i>Logout
                         </a>
                     </li>
