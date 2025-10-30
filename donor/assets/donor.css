@@ -68,6 +68,27 @@ body {
   left: 0;
 }
 
+/* On mobile, always show full sidebar with text when visible */
+@media (max-width: 767px) {
+  .sidebar.show {
+    width: 280px;
+  }
+  
+  .sidebar.show .sidebar-brand-text,
+  .sidebar.show .nav-link-text,
+  .sidebar.show .nav-section-title {
+    display: block !important;
+  }
+  
+  .sidebar.show .sidebar-brand {
+    justify-content: flex-start !important;
+  }
+  
+  .sidebar.show .nav-link {
+    justify-content: flex-start !important;
+  }
+}
+
 /* Sidebar overlay for mobile */
 .sidebar-overlay {
   position: fixed;
