@@ -54,12 +54,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $batchTracker = new GridAllocationBatchTracker($db);
                 
-                // Check if this is an update request (source='self' and there's an original pledge)
-                $pledgeSource = (string)($pledge['source'] ?? 'volunteer');
-                $isUpdateRequest = ($pledgeSource === 'self');
-                
                 // Find batch(s) associated with this pledge
                 $batches = $batchTracker->getBatchesForPledge($pledgeId);
+                
+                // Check if this pledge was updated (has batches with original_pledge_id matching this pledge)
+                $isUpdateRequest = false;
+                $latestBatch = null;
+                if (!empty($batches)) {
+                    // Check if any batch has this pledge as the original (meaning this pledge was updated)
+                    foreach ($batches as $batch) {
+                        if ((int)($batch['original_pledge_id'] ?? 0) === $pledgeId && $batch['batch_type'] === 'pledge_update') {
+                            $isUpdateRequest = true;
+                            $latestBatch = $batch;
+                            break;
+                        }
+                    }
+                    // If no batch found with this as original, get the latest batch (this might be the update request itself)
+                    if (!$isUpdateRequest && !empty($batches)) {
+                        $latestBatch = $batches[count($batches) - 1];
+                        // Check if this batch is an update request for a different original pledge
+                        if ($latestBatch['batch_type'] === 'pledge_update' && (int)($latestBatch['original_pledge_id'] ?? 0) > 0) {
+                            // This pledge might be the update request itself (but it was deleted, so this won't happen)
+                            // Or this batch is for updating THIS pledge
+                            $isUpdateRequest = false; // We'll handle this case separately
+                        }
+                    }
+                }
+                
+                // Also check source field as fallback
+                $pledgeSource = (string)($pledge['source'] ?? 'volunteer');
+                if ($pledgeSource === 'self' && !$isUpdateRequest) {
+                    // This is an update request pledge itself (shouldn't happen if deleted, but check anyway)
+                    $isUpdateRequest = true;
+                }
                 
                 // If no batches found, use fallback deallocation
                 if (empty($batches)) {
@@ -80,75 +107,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                // If this is an update request, we need to restore the original pledge amount
-                if ($isUpdateRequest && !empty($batches)) {
-                    // Find the original pledge that was updated
-                    $latestBatch = $batches[count($batches) - 1]; // Last batch is the latest
-                    $originalPledgeId = (int)($latestBatch['original_pledge_id'] ?? 0);
+                // If this pledge was updated (has batches where this is the original_pledge_id), restore original amount
+                if ($isUpdateRequest && !empty($batches) && $latestBatch) {
+                    // This pledge was updated - restore it to original amount
+                    $additionalAmount = (float)($latestBatch['additional_amount'] ?? 0);
+                    $originalAmount = (float)($latestBatch['original_amount'] ?? 0);
                     
-                    if ($originalPledgeId > 0) {
-                        // Lock original pledge
-                        $lockOriginal = $db->prepare("SELECT id, amount FROM pledges WHERE id = ? FOR UPDATE");
-                        $lockOriginal->bind_param('i', $originalPledgeId);
-                        $lockOriginal->execute();
-                        $originalPledge = $lockOriginal->get_result()->fetch_assoc();
-                        $lockOriginal->close();
+                    // Current amount should be original_amount + additional_amount
+                    // We want to restore it to original_amount
+                    $currentAmount = (float)$pledge['amount'];
+                    $restoredAmount = max(0, $currentAmount - $additionalAmount);
+                    
+                    // Update this pledge back to original amount (keep it approved!)
+                    $updatePledge = $db->prepare("UPDATE pledges SET amount = ? WHERE id = ?");
+                    $updatePledge->bind_param('di', $restoredAmount, $pledgeId);
+                    $updatePledge->execute();
+                    $updatePledge->close();
+                    
+                    // Update donor totals
+                    $donorPhone = (string)($pledge['donor_phone'] ?? '');
+                    if ($donorPhone) {
+                        $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
+                        if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                            $normalized_phone = '0' . substr($normalized_phone, 2);
+                        }
                         
-                        if ($originalPledge) {
-                            // Subtract the additional amount from original pledge
-                            $originalAmount = (float)$originalPledge['amount'];
-                            $additionalAmount = (float)($latestBatch['additional_amount'] ?? 0);
-                            $newOriginalAmount = max(0, $originalAmount - $additionalAmount);
+                        if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
+                            $findDonor = $db->prepare("SELECT id, total_pledged, total_paid FROM donors WHERE phone = ? LIMIT 1");
+                            $findDonor->bind_param('s', $normalized_phone);
+                            $findDonor->execute();
+                            $donorRecord = $findDonor->get_result()->fetch_assoc();
+                            $findDonor->close();
                             
-                            $updateOriginal = $db->prepare("UPDATE pledges SET amount = ? WHERE id = ?");
-                            $updateOriginal->bind_param('di', $newOriginalAmount, $originalPledgeId);
-                            $updateOriginal->execute();
-                            $updateOriginal->close();
-                            
-                            // Update donor totals
-                            $donorPhone = (string)($pledge['donor_phone'] ?? '');
-                            if ($donorPhone) {
-                                $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
-                                if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
-                                    $normalized_phone = '0' . substr($normalized_phone, 2);
-                                }
-                                
-                                if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
-                                    $findDonor = $db->prepare("SELECT id, total_pledged, total_paid FROM donors WHERE phone = ? LIMIT 1");
-                                    $findDonor->bind_param('s', $normalized_phone);
-                                    $findDonor->execute();
-                                    $donorRecord = $findDonor->get_result()->fetch_assoc();
-                                    $findDonor->close();
-                                    
-                                    if ($donorRecord) {
-                                        $donorId = (int)$donorRecord['id'];
-                                        $updateDonor = $db->prepare("
-                                            UPDATE donors SET
-                                                total_pledged = total_pledged - ?,
-                                                balance = (total_pledged - ?) - total_paid,
-                                                payment_status = CASE
-                                                    WHEN total_paid = 0 THEN 'not_started'
-                                                    WHEN total_paid >= (total_pledged - ?) THEN 'completed'
-                                                    WHEN total_paid > 0 THEN 'paying'
-                                                    ELSE 'not_started'
-                                                END,
-                                                updated_at = NOW()
-                                            WHERE id = ?
-                                        ");
-                                        $updateDonor->bind_param('dddi', $additionalAmount, $additionalAmount, $additionalAmount, $donorId);
-                                        $updateDonor->execute();
-                                        $updateDonor->close();
-                                    }
-                                }
+                            if ($donorRecord) {
+                                $donorId = (int)$donorRecord['id'];
+                                $updateDonor = $db->prepare("
+                                    UPDATE donors SET
+                                        total_pledged = total_pledged - ?,
+                                        balance = (total_pledged - ?) - total_paid,
+                                        payment_status = CASE
+                                            WHEN total_paid = 0 THEN 'not_started'
+                                            WHEN total_paid >= (total_pledged - ?) THEN 'completed'
+                                            WHEN total_paid > 0 THEN 'paying'
+                                            ELSE 'not_started'
+                                        END,
+                                        updated_at = NOW()
+                                    WHERE id = ?
+                                ");
+                                $updateDonor->bind_param('dddi', $additionalAmount, $additionalAmount, $additionalAmount, $donorId);
+                                $updateDonor->execute();
+                                $updateDonor->close();
                             }
                         }
                     }
-                    
-                    // Delete the update request pledge (it was merged into original)
-                    $deleteUpdateRequest = $db->prepare("DELETE FROM pledges WHERE id = ?");
-                    $deleteUpdateRequest->bind_param('i', $pledgeId);
-                    $deleteUpdateRequest->execute();
-                    $deleteUpdateRequest->close();
                 } else {
                     // Regular pledge - revert to pending
                     $upd = $db->prepare("UPDATE pledges SET status='pending' WHERE id=?");
@@ -161,10 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ((string)$pledge['type'] === 'paid') { 
                     $deltaPaid = -1 * (float)$pledge['amount']; 
                 } else { 
-                    // For update requests, use the additional amount, not the full amount
-                    if ($isUpdateRequest && !empty($batches)) {
-                        $latestBatch = $batches[count($batches) - 1];
-                        $deltaPledged = -1 * (float)($latestBatch['additional_amount'] ?? $pledge['amount']);
+                    // For update requests, use the additional amount from batch, not the full pledge amount
+                    if ($isUpdateRequest && $latestBatch) {
+                        $deltaPledged = -1 * (float)($latestBatch['additional_amount'] ?? 0);
                     } else {
                         $deltaPledged = -1 * (float)$pledge['amount']; 
                     }
@@ -186,14 +196,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Audit log
                 $uid = (int)(current_user()['id'] ?? 0);
-                $before = json_encode(['status' => 'approved'], JSON_UNESCAPED_SLASHES);
-                $after = json_encode(['status' => $isUpdateRequest ? 'deleted' : 'pending'], JSON_UNESCAPED_SLASHES);
+                $beforeAmount = (float)$pledge['amount'];
+                $afterAmount = $isUpdateRequest && $latestBatch ? ($beforeAmount - (float)($latestBatch['additional_amount'] ?? 0)) : $beforeAmount;
+                $before = json_encode([
+                    'status' => 'approved',
+                    'amount' => $beforeAmount
+                ], JSON_UNESCAPED_SLASHES);
+                $after = json_encode([
+                    'status' => $isUpdateRequest ? 'approved' : 'pending',
+                    'amount' => $afterAmount,
+                    'is_update_undo' => $isUpdateRequest
+                ], JSON_UNESCAPED_SLASHES);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'undo_approve', ?, ?, 'admin')");
                 $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
                 $log->execute();
 
                 $db->commit();
-                $actionMsg = $isUpdateRequest ? 'Update request undone and removed' : 'Approval undone';
+                $actionMsg = $isUpdateRequest ? 'Pledge update undone (amount restored)' : 'Approval undone';
                 
                 // Set a flag to trigger floor map refresh on page load
                 $_SESSION['trigger_floor_refresh'] = true;

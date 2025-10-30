@@ -57,7 +57,7 @@ class IntelligentGridAllocator
 
             // Step 3: Update the found cells in the database
             $cellIds = array_column($availableCells, 'cell_id');
-            $this->updateCells($cellIds, $pledgeId, $paymentId, $donorName, $amount / $blocksToAllocate, $status);
+            $this->updateCells($cellIds, $pledgeId, $paymentId, $donorName, $amount / $blocksToAllocate, $status, $allocationBatchId);
 
             $this->db->commit();
 
