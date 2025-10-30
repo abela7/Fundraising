@@ -503,7 +503,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                                     updated_at = NOW()
                                 WHERE id = ?
                             ");
-                            $updateDonor->bind_param('sddddii', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $originalPledgeId, $donorId);
+                            // Parameters: donorName(s), pledgeAmount(d), pledgeAmount(d), pledgeAmount(d), originalPledgeId(i), donorId(i)
+                            // Type string: s + d + d + d + i + i = 'sddiii' (6 chars)
+                            $updateDonor->bind_param('sddiii', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $originalPledgeId, $donorId);
                             $updateDonor->execute();
                             $updateDonor->close();
                         }
@@ -571,7 +573,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                                             updated_at = NOW()
                                         WHERE id = ?
                                     ");
-                                    $updateDonor->bind_param('sdddddi', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeAmount, $donorId);
+                                    // Parameters: donorName(s), pledgeAmount(d), pledgeAmount(d), pledgeAmount(d), pledgeAmount(d), donorId(i)
+                                    // Type string: s + d + d + d + d + i = 'sddddi' (6 chars)
+                                    $updateDonor->bind_param('sddddi', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeAmount, $donorId);
                                     $updateDonor->execute();
                                     $updateDonor->close();
                                 } else {
@@ -617,7 +621,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                                             updated_at = NOW()
                                         WHERE id = ?
                                     ");
-                                    $updateDonor->bind_param('sddddii', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeId, $donorId);
+                                    // Parameters: donorName(s), pledgeAmount(d), pledgeAmount(d), pledgeAmount(d), pledgeId(i), donorId(i)
+                                    // Type string: s + d + d + d + i + i = 'sddiii' (6 chars)
+                                    $updateDonor->bind_param('sddiii', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeId, $donorId);
                                     $updateDonor->execute();
                                     $updateDonor->close();
                                 } else {
@@ -888,7 +894,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                                             updated_at = NOW()
                                         WHERE id = ?
                                     ");
-                                    $updateDonor->bind_param('sdddddi', $donorName, $paymentAmount, $paymentAmount, $paymentAmount, $paymentAmount, $donorId);
+                                    // Parameters: donorName(s), paymentAmount(d), paymentAmount(d), paymentAmount(d), paymentAmount(d), donorId(i)
+                                    // Type string: s + d + d + d + d + i = 'sddddi' (6 chars)
+                                    $updateDonor->bind_param('sddddi', $donorName, $paymentAmount, $paymentAmount, $paymentAmount, $paymentAmount, $donorId);
                                     $updateDonor->execute();
                                     $updateDonor->close();
                                 } else {
