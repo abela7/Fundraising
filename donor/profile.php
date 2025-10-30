@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/url.php';
+require_once __DIR__ . '/../shared/security.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 function current_donor(): ?array {
@@ -32,34 +33,53 @@ $error_message = '';
 
 // Handle profile update (name, phone, email)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
-    verify_csrf();
+    // Security: Verify CSRF token
+    if (!validate_csrf()) {
+        http_response_code(403);
+        die('Invalid security token. Please refresh the page and try again.');
+    }
     
-    $name = trim($_POST['name'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    
-    // Validation
-    if (empty($name)) {
-        $error_message = 'Name is required.';
-    } elseif (strlen($name) < 2) {
-        $error_message = 'Name must be at least 2 characters.';
-    } elseif (empty($phone)) {
-        $error_message = 'Phone number is required.';
+    // Security: Rate limiting
+    $rate_limit_key = 'profile_update_' . get_client_ip() . '_' . ($donor['id'] ?? '0');
+    if (!check_rate_limit($rate_limit_key, 5, 300)) {
+        $error_message = 'Too many requests. Please wait a few minutes before trying again.';
     } else {
-        // Normalize phone number (remove all non-digits, handle +44)
-        $username = preg_replace('/[^0-9]/', '', $phone);
-        if (substr($username, 0, 2) === '44') {
-            $username = '0' . substr($username, 2);
-        }
+        // Security: Sanitize inputs
+        $name_raw = $_POST['name'] ?? '';
+        $phone_raw = $_POST['phone'] ?? '';
+        $email_raw = $_POST['email'] ?? '';
         
-        // Validate UK mobile format
-        if (strlen($username) !== 11 || substr($username, 0, 2) !== '07') {
-            $error_message = 'Please enter a valid UK mobile number (e.g., 07123456789).';
-        } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error_message = 'Please enter a valid email address.';
+        // Security: Check for SQL injection patterns
+        if (contains_sql_injection($name_raw) || contains_sql_injection($phone_raw) || contains_sql_injection($email_raw)) {
+            error_log('SQL injection attempt detected from IP: ' . get_client_ip());
+            $error_message = 'Invalid input detected. Please try again.';
         } else {
-            // Update profile
-            if ($db_connection_ok) {
+            // Sanitize name
+            $name = sanitize_name($name_raw, 255);
+            
+            // Sanitize phone
+            $phone_normalized = sanitize_phone($phone_raw);
+            
+            // Sanitize email
+            $email = sanitize_email($email_raw, 255);
+            
+            // Validation
+            if (empty($name)) {
+                $error_message = 'Name is required.';
+            } elseif (!validate_length($name, 2, 255)) {
+                $error_message = 'Name must be between 2 and 255 characters.';
+            } elseif (empty($phone_normalized)) {
+                $error_message = 'Phone number is required.';
+            } elseif (!validate_uk_mobile($phone_normalized)) {
+                $error_message = 'Please enter a valid UK mobile number (e.g., 07123456789).';
+            } elseif ($email !== null && !validate_email($email)) {
+                $error_message = 'Please enter a valid email address.';
+            } else {
+                // Use sanitized values
+                $username = $phone_normalized;
+                
+                // Update profile
+                if ($db_connection_ok) {
                 try {
                     // Start transaction by disabling autocommit
                     $db->autocommit(false);
@@ -69,8 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $has_email_column = $check_email->num_rows > 0;
                     $check_email->close();
                     
-                    // Normalize email (trim and convert empty string to NULL)
-                    $email_normalized = !empty($email) ? trim($email) : null;
+                    // Email is already sanitized and validated, ensure NULL if empty
+                    $email_normalized = !empty($email) ? $email : null;
                     
                     // Build UPDATE query based on whether email column exists
                     if ($has_email_column) {
@@ -101,10 +121,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     // Audit log (wrap in try-catch to not fail profile update if audit fails)
                     try {
                         $audit_data = json_encode([
-                            'donor_id' => $donor['id'],
-                            'name' => $name,
-                            'phone' => $username,
-                            'email' => $has_email_column ? $email_normalized : null
+                            'donor_id' => (int)$donor['id'],
+                            'name' => escape_html($name),
+                            'phone' => escape_html($username),
+                            'email' => $has_email_column && $email_normalized ? escape_html($email_normalized) : null,
+                            'ip_address' => get_client_ip()
                         ], JSON_UNESCAPED_SLASHES);
                         $audit_stmt = $db->prepare("
                             INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
@@ -160,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     error_log('Profile update SQL error: ' . $e->getMessage());
                     error_log('SQL State: ' . $e->getSqlState());
                     error_log('SQL Error Number: ' . $e->getCode());
-                    $error_message = 'Database error: ' . htmlspecialchars($e->getMessage()) . '. Please try again.';
+                    $error_message = 'Database error: ' . escape_html($e->getMessage()) . '. Please try again.';
                 } catch (Exception $e) {
                     $db->rollback();
                     $db->autocommit(true); // Re-enable autocommit
@@ -168,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     error_log('Profile update error: ' . $e->getMessage());
                     error_log('Profile update trace: ' . $e->getTraceAsString());
                     // Display detailed error message for debugging
-                    $error_message = 'An error occurred while updating your profile: ' . htmlspecialchars($e->getMessage()) . '. Please try again.';
+                    $error_message = 'An error occurred while updating your profile: ' . escape_html($e->getMessage()) . '. Please try again.';
                 }
             }
         }
@@ -177,23 +198,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle preferences update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_preferences') {
-    verify_csrf();
+    // Security: Verify CSRF token
+    if (!validate_csrf()) {
+        http_response_code(403);
+        die('Invalid security token. Please refresh the page and try again.');
+    }
     
-    $preferred_language = trim($_POST['preferred_language'] ?? 'en');
-    $preferred_payment_method = trim($_POST['preferred_payment_method'] ?? 'bank_transfer');
-    $preferred_payment_day = (int)($_POST['preferred_payment_day'] ?? 1);
-    $sms_opt_in = isset($_POST['sms_opt_in']) ? 1 : 0;
-    $email_opt_in = isset($_POST['email_opt_in']) ? 1 : 0;
-    
-    if (!in_array($preferred_language, ['en', 'am', 'ti'])) {
-        $error_message = 'Invalid language selection.';
-    } elseif (!in_array($preferred_payment_method, ['cash', 'bank_transfer', 'card'])) {
-        $error_message = 'Invalid payment method selection.';
-    } elseif ($preferred_payment_day < 1 || $preferred_payment_day > 28) {
-        $error_message = 'Preferred payment day must be between 1 and 28.';
+    // Security: Rate limiting
+    $rate_limit_key = 'preferences_update_' . get_client_ip() . '_' . ($donor['id'] ?? '0');
+    if (!check_rate_limit($rate_limit_key, 10, 300)) {
+        $error_message = 'Too many requests. Please wait a few minutes before trying again.';
     } else {
-        // Update preferences
-        if ($db_connection_ok) {
+        // Security: Sanitize and validate inputs
+        $preferred_language_raw = $_POST['preferred_language'] ?? 'en';
+        $preferred_payment_method_raw = $_POST['preferred_payment_method'] ?? 'bank_transfer';
+        $preferred_payment_day_raw = $_POST['preferred_payment_day'] ?? 1;
+        
+        // Security: Check for SQL injection patterns
+        if (contains_sql_injection($preferred_language_raw) || contains_sql_injection($preferred_payment_method_raw)) {
+            error_log('SQL injection attempt detected from IP: ' . get_client_ip());
+            $error_message = 'Invalid input detected. Please try again.';
+        } else {
+            // Sanitize enum values
+            $preferred_language = sanitize_enum($preferred_language_raw, ['en', 'am', 'ti'], 'en');
+            $preferred_payment_method = sanitize_enum($preferred_payment_method_raw, ['cash', 'bank_transfer', 'card'], 'bank_transfer');
+            
+            // Sanitize integer
+            $preferred_payment_day = sanitize_int($preferred_payment_day_raw, 1, 28);
+            
+            // Sanitize boolean values
+            $sms_opt_in = sanitize_bool($_POST['sms_opt_in'] ?? false) ? 1 : 0;
+            $email_opt_in = sanitize_bool($_POST['email_opt_in'] ?? false) ? 1 : 0;
+            
+            if ($preferred_language === null) {
+                $error_message = 'Invalid language selection.';
+            } elseif ($preferred_payment_method === null) {
+                $error_message = 'Invalid payment method selection.';
+            } elseif ($preferred_payment_day === null) {
+                $error_message = 'Preferred payment day must be between 1 and 28.';
+            } else {
+                // Update preferences
+                if ($db_connection_ok) {
             try {
                 // Start transaction by disabling autocommit
                 $db->autocommit(false);
@@ -248,16 +293,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
                 $update_stmt->close();
                 
-                // Audit log (wrap in try-catch to not fail preferences update if audit fails)
-                try {
-                    $audit_data = json_encode([
-                        'donor_id' => $donor['id'],
-                        'preferred_language' => $preferred_language,
-                        'preferred_payment_method' => $preferred_payment_method,
-                        'preferred_payment_day' => $preferred_payment_day,
-                        'sms_opt_in' => $sms_opt_in,
-                        'email_opt_in' => $has_email_opt_in_column ? $email_opt_in : null
-                    ], JSON_UNESCAPED_SLASHES);
+                    // Audit log (wrap in try-catch to not fail preferences update if audit fails)
+                    try {
+                        $audit_data = json_encode([
+                            'donor_id' => (int)$donor['id'],
+                            'preferred_language' => escape_html($preferred_language),
+                            'preferred_payment_method' => escape_html($preferred_payment_method),
+                            'preferred_payment_day' => (int)$preferred_payment_day,
+                            'sms_opt_in' => (int)$sms_opt_in,
+                            'email_opt_in' => $has_email_opt_in_column ? (int)$email_opt_in : null,
+                            'ip_address' => get_client_ip()
+                        ], JSON_UNESCAPED_SLASHES);
                     $audit_stmt = $db->prepare("
                         INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
                         VALUES(?, 'donor', ?, 'update_preferences', ?, 'donor_portal')
@@ -323,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 error_log('Preferences update SQL error: ' . $e->getMessage());
                 error_log('SQL State: ' . $e->getSqlState());
                 error_log('SQL Error Number: ' . $e->getCode());
-                $error_message = 'Database error: ' . htmlspecialchars($e->getMessage()) . '. Please try again.';
+                $error_message = 'Database error: ' . escape_html($e->getMessage()) . '. Please try again.';
             } catch (Exception $e) {
                 $db->rollback();
                 $db->autocommit(true); // Re-enable autocommit
@@ -331,7 +377,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 error_log('Preferences update error: ' . $e->getMessage());
                 error_log('Preferences update trace: ' . $e->getTraceAsString());
                 // Display detailed error message for debugging
-                $error_message = 'An error occurred while updating your preferences: ' . htmlspecialchars($e->getMessage()) . '. Please try again.';
+                $error_message = 'An error occurred while updating your preferences: ' . escape_html($e->getMessage()) . '. Please try again.';
+            }
+                }
             }
         }
     }
@@ -388,14 +436,14 @@ if ($has_email_opt_in_column && !isset($donor['email_opt_in'])) {
 
                 <?php if ($success_message): ?>
                     <div class="alert alert-success alert-dismissible fade show">
-                        <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success_message); ?>
+                        <i class="fas fa-check-circle me-2"></i><?php echo escape_html($success_message); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
                 <?php if ($error_message): ?>
                     <div class="alert alert-danger alert-dismissible fade show">
-                        <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+                        <i class="fas fa-exclamation-circle me-2"></i><?php echo escape_html($error_message); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
@@ -422,7 +470,7 @@ if ($has_email_opt_in_column && !isset($donor['email_opt_in'])) {
                                         <input type="text" 
                                                class="form-control" 
                                                name="name" 
-                                               value="<?php echo htmlspecialchars($donor['name']); ?>"
+                                               value="<?php echo escape_html($donor['name']); ?>"
                                                required
                                                minlength="2"
                                                placeholder="Enter your full name">
@@ -437,9 +485,10 @@ if ($has_email_opt_in_column && !isset($donor['email_opt_in'])) {
                                         <input type="tel" 
                                                class="form-control" 
                                                name="phone" 
-                                               value="<?php echo htmlspecialchars($donor['phone']); ?>"
+                                               value="<?php echo escape_html($donor['phone']); ?>"
                                                required
-                                               pattern="[0-9+\-\s\(\)]+"
+                                               pattern="[0-9+\-\s\(\)]{10,15}"
+                                               maxlength="15"
                                                placeholder="07123456789">
                                         <div class="form-text">UK mobile number (e.g., 07123456789)</div>
                                     </div>
@@ -453,7 +502,8 @@ if ($has_email_opt_in_column && !isset($donor['email_opt_in'])) {
                                         <input type="email" 
                                                class="form-control" 
                                                name="email" 
-                                               value="<?php echo htmlspecialchars($donor['email'] ?? ''); ?>"
+                                               value="<?php echo escape_html($donor['email'] ?? ''); ?>"
+                                               maxlength="255"
                                                placeholder="your.email@example.com">
                                         <div class="form-text">Optional: Your email address for notifications</div>
                                     </div>
@@ -502,13 +552,13 @@ if ($has_email_opt_in_column && !isset($donor['email_opt_in'])) {
                                             <i class="fas fa-credit-card me-2"></i>Preferred Payment Method <span class="text-danger">*</span>
                                         </label>
                                         <select class="form-select" name="preferred_payment_method" required>
-                                            <option value="bank_transfer" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'bank_transfer' ? 'selected' : ''; ?>>
+                                            <option value="bank_transfer" <?php echo escape_html($donor['preferred_payment_method'] ?? 'bank_transfer') === 'bank_transfer' ? 'selected' : ''; ?>>
                                                 Bank Transfer
                                             </option>
-                                            <option value="cash" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'cash' ? 'selected' : ''; ?>>
+                                            <option value="cash" <?php echo escape_html($donor['preferred_payment_method'] ?? 'bank_transfer') === 'cash' ? 'selected' : ''; ?>>
                                                 Cash
                                             </option>
-                                            <option value="card" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'card' ? 'selected' : ''; ?>>
+                                            <option value="card" <?php echo escape_html($donor['preferred_payment_method'] ?? 'bank_transfer') === 'card' ? 'selected' : ''; ?>>
                                                 Card
                                             </option>
                                         </select>
@@ -523,7 +573,7 @@ if ($has_email_opt_in_column && !isset($donor['email_opt_in'])) {
                                         <input type="number" 
                                                class="form-control" 
                                                name="preferred_payment_day" 
-                                               value="<?php echo $donor['preferred_payment_day'] ?? 1; ?>"
+                                               value="<?php echo (int)($donor['preferred_payment_day'] ?? 1); ?>"
                                                min="1" 
                                                max="28" 
                                                required>
