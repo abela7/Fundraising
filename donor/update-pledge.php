@@ -6,16 +6,53 @@
 
 // Enable error reporting for debugging (remove in production)
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // Don't display errors, but log them
+ini_set('display_errors', 1); // Show errors for debugging
 ini_set('log_errors', 1);
 
-require_once __DIR__ . '/../shared/auth.php';
-require_once __DIR__ . '/../shared/csrf.php';
-require_once __DIR__ . '/../shared/url.php';
-require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
-require_once __DIR__ . '/../shared/GridAllocationBatchTracker.php';
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+try {
+    require_once __DIR__ . '/../shared/auth.php';
+} catch (Throwable $e) {
+    error_log("Donor update-pledge: Error loading auth.php - " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+    die("Error loading authentication: " . htmlspecialchars($e->getMessage()) . " in " . $e->getFile() . ":" . $e->getLine());
+}
+
+try {
+    require_once __DIR__ . '/../shared/csrf.php';
+} catch (Throwable $e) {
+    error_log("Donor update-pledge: Error loading csrf.php - " . $e->getMessage());
+    die("Error loading CSRF: " . htmlspecialchars($e->getMessage()));
+}
+
+try {
+    require_once __DIR__ . '/../shared/url.php';
+} catch (Throwable $e) {
+    error_log("Donor update-pledge: Error loading url.php - " . $e->getMessage());
+    die("Error loading URL helper: " . htmlspecialchars($e->getMessage()));
+}
+
+try {
+    require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
+} catch (Throwable $e) {
+    error_log("Donor update-pledge: Error loading resilient_db_loader.php - " . $e->getMessage());
+    die("Error loading database: " . htmlspecialchars($e->getMessage()));
+}
+
+try {
+    require_once __DIR__ . '/../shared/GridAllocationBatchTracker.php';
+} catch (Throwable $e) {
+    error_log("Donor update-pledge: Error loading GridAllocationBatchTracker.php - " . $e->getMessage());
+    die("Error loading batch tracker: " . htmlspecialchars($e->getMessage()));
+}
 
 function current_donor(): ?array {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     if (isset($_SESSION['donor'])) {
         return $_SESSION['donor'];
     }
@@ -40,9 +77,9 @@ try {
     $current_donor = $donor;
 
     // Load donation packages for amount selection
-    $currency = $settings['currency_code'] ?? 'GBP';
+    $currency = isset($settings) && is_array($settings) ? ($settings['currency_code'] ?? 'GBP') : 'GBP';
     $pkgRows = [];
-    if ($db_connection_ok && isset($db) && $db instanceof mysqli) {
+    if (isset($db_connection_ok) && $db_connection_ok && isset($db) && $db instanceof mysqli) {
         try {
             $pkg_table_exists = $db->query("SHOW TABLES LIKE 'donation_packages'")->num_rows > 0;
             if ($pkg_table_exists) {
@@ -55,8 +92,9 @@ try {
     }
 } catch (Throwable $e) {
     error_log("Donor update-pledge: Fatal error during initialization - " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+    error_log("Donor update-pledge: Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
-    die("An error occurred while loading the page. Please contact support.");
+    die("An error occurred while loading the page: " . htmlspecialchars($e->getMessage()) . "<br>File: " . $e->getFile() . "<br>Line: " . $e->getLine() . "<br><pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>");
 }
 
 $pkgByLabel = [];
