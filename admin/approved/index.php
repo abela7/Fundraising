@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
+require_once __DIR__ . '/../../shared/GridAllocationBatchTracker.php';
 
 // Helper function to build redirect URL preserving current filter parameters
 function buildRedirectUrl($message, $postData = []) {
@@ -43,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->begin_transaction();
             try {
                 // Lock pledge and verify approved
-                $sel = $db->prepare("SELECT id, amount, type, status FROM pledges WHERE id=? FOR UPDATE");
+                $sel = $db->prepare("SELECT id, amount, type, status, source FROM pledges WHERE id=? FOR UPDATE");
                 $sel->bind_param('i', $pledgeId);
                 $sel->execute();
                 $pledge = $sel->get_result()->fetch_assoc();
@@ -51,15 +52,124 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Invalid state');
                 }
 
-                // Revert pledge to pending
-                $upd = $db->prepare("UPDATE pledges SET status='pending' WHERE id=?");
-                $upd->bind_param('i', $pledgeId);
-                $upd->execute();
+                $batchTracker = new GridAllocationBatchTracker($db);
+                
+                // Check if this is an update request (source='self' and there's an original pledge)
+                $pledgeSource = (string)($pledge['source'] ?? 'volunteer');
+                $isUpdateRequest = ($pledgeSource === 'self');
+                
+                // Find batch(s) associated with this pledge
+                $batches = $batchTracker->getBatchesForPledge($pledgeId);
+                
+                // If no batches found, use fallback deallocation
+                if (empty($batches)) {
+                    // Fallback: Use old method if no batch tracking exists
+                    $gridAllocator = new IntelligentGridAllocator($db);
+                    $deallocationResult = $gridAllocator->deallocate($pledgeId, null);
+                    if (!$deallocationResult['success']) {
+                        throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                    }
+                } else {
+                    // Deallocate all batches associated with this pledge (in reverse order)
+                    foreach (array_reverse($batches) as $batch) {
+                        $batchId = (int)$batch['id'];
+                        $deallocationResult = $batchTracker->deallocateBatch($batchId);
+                        if (!$deallocationResult['success']) {
+                            throw new RuntimeException('Batch deallocation failed: ' . ($deallocationResult['error'] ?? 'Unknown error'));
+                        }
+                    }
+                }
+                
+                // If this is an update request, we need to restore the original pledge amount
+                if ($isUpdateRequest && !empty($batches)) {
+                    // Find the original pledge that was updated
+                    $latestBatch = $batches[count($batches) - 1]; // Last batch is the latest
+                    $originalPledgeId = (int)($latestBatch['original_pledge_id'] ?? 0);
+                    
+                    if ($originalPledgeId > 0) {
+                        // Lock original pledge
+                        $lockOriginal = $db->prepare("SELECT id, amount FROM pledges WHERE id = ? FOR UPDATE");
+                        $lockOriginal->bind_param('i', $originalPledgeId);
+                        $lockOriginal->execute();
+                        $originalPledge = $lockOriginal->get_result()->fetch_assoc();
+                        $lockOriginal->close();
+                        
+                        if ($originalPledge) {
+                            // Subtract the additional amount from original pledge
+                            $originalAmount = (float)$originalPledge['amount'];
+                            $additionalAmount = (float)($latestBatch['additional_amount'] ?? 0);
+                            $newOriginalAmount = max(0, $originalAmount - $additionalAmount);
+                            
+                            $updateOriginal = $db->prepare("UPDATE pledges SET amount = ? WHERE id = ?");
+                            $updateOriginal->bind_param('di', $newOriginalAmount, $originalPledgeId);
+                            $updateOriginal->execute();
+                            $updateOriginal->close();
+                            
+                            // Update donor totals
+                            $donorPhone = (string)($pledge['donor_phone'] ?? '');
+                            if ($donorPhone) {
+                                $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
+                                if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                                    $normalized_phone = '0' . substr($normalized_phone, 2);
+                                }
+                                
+                                if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
+                                    $findDonor = $db->prepare("SELECT id, total_pledged, total_paid FROM donors WHERE phone = ? LIMIT 1");
+                                    $findDonor->bind_param('s', $normalized_phone);
+                                    $findDonor->execute();
+                                    $donorRecord = $findDonor->get_result()->fetch_assoc();
+                                    $findDonor->close();
+                                    
+                                    if ($donorRecord) {
+                                        $donorId = (int)$donorRecord['id'];
+                                        $updateDonor = $db->prepare("
+                                            UPDATE donors SET
+                                                total_pledged = total_pledged - ?,
+                                                balance = (total_pledged - ?) - total_paid,
+                                                payment_status = CASE
+                                                    WHEN total_paid = 0 THEN 'not_started'
+                                                    WHEN total_paid >= (total_pledged - ?) THEN 'completed'
+                                                    WHEN total_paid > 0 THEN 'paying'
+                                                    ELSE 'not_started'
+                                                END,
+                                                updated_at = NOW()
+                                            WHERE id = ?
+                                        ");
+                                        $updateDonor->bind_param('dddi', $additionalAmount, $additionalAmount, $additionalAmount, $donorId);
+                                        $updateDonor->execute();
+                                        $updateDonor->close();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Delete the update request pledge (it was merged into original)
+                    $deleteUpdateRequest = $db->prepare("DELETE FROM pledges WHERE id = ?");
+                    $deleteUpdateRequest->bind_param('i', $pledgeId);
+                    $deleteUpdateRequest->execute();
+                    $deleteUpdateRequest->close();
+                } else {
+                    // Regular pledge - revert to pending
+                    $upd = $db->prepare("UPDATE pledges SET status='pending' WHERE id=?");
+                    $upd->bind_param('i', $pledgeId);
+                    $upd->execute();
+                }
 
                 // Decrement counters by the amount previously added
                 $deltaPaid = 0.0; $deltaPledged = 0.0;
-                if ((string)$pledge['type'] === 'paid') { $deltaPaid = -1 * (float)$pledge['amount']; }
-                else { $deltaPledged = -1 * (float)$pledge['amount']; }
+                if ((string)$pledge['type'] === 'paid') { 
+                    $deltaPaid = -1 * (float)$pledge['amount']; 
+                } else { 
+                    // For update requests, use the additional amount, not the full amount
+                    if ($isUpdateRequest && !empty($batches)) {
+                        $latestBatch = $batches[count($batches) - 1];
+                        $deltaPledged = -1 * (float)($latestBatch['additional_amount'] ?? $pledge['amount']);
+                    } else {
+                        $deltaPledged = -1 * (float)$pledge['amount']; 
+                    }
+                }
+                
                 $ctr = $db->prepare(
                     "INSERT INTO counters (id, paid_total, pledged_total, grand_total, version, recalc_needed)
                      VALUES (1, ?, ?, ?, 1, 0)
@@ -74,25 +184,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
                 $ctr->execute();
 
-                // Deallocate floor grid cells for this pledge
-                $gridAllocator = new IntelligentGridAllocator($db);
-                $deallocationResult = $gridAllocator->deallocate($pledgeId, null);
-                if (!$deallocationResult['success']) {
-                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
-                }
-
-                // Note: payments are standalone; no pledge_id linkage anymore
-
                 // Audit log
                 $uid = (int)(current_user()['id'] ?? 0);
                 $before = json_encode(['status' => 'approved'], JSON_UNESCAPED_SLASHES);
-                $after = json_encode(['status' => 'pending'], JSON_UNESCAPED_SLASHES);
+                $after = json_encode(['status' => $isUpdateRequest ? 'deleted' : 'pending'], JSON_UNESCAPED_SLASHES);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'undo_approve', ?, ?, 'admin')");
                 $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
                 $log->execute();
 
                 $db->commit();
-                $actionMsg = 'Approval undone';
+                $actionMsg = $isUpdateRequest ? 'Update request undone and removed' : 'Approval undone';
                 
                 // Set a flag to trigger floor map refresh on page load
                 $_SESSION['trigger_floor_refresh'] = true;
@@ -263,11 +364,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
 
-                // Deallocate floor grid cells for this payment
-                $gridAllocator = new IntelligentGridAllocator($db);
-                $deallocationResult = $gridAllocator->deallocate(null, $paymentId);
-                if (!$deallocationResult['success']) {
-                    throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                // Deallocate floor grid cells using batch tracking
+                $batchTracker = new GridAllocationBatchTracker($db);
+                $batches = $batchTracker->getBatchesForPayment($paymentId);
+                
+                if (empty($batches)) {
+                    // Fallback: Use old method if no batch tracking exists
+                    $gridAllocator = new IntelligentGridAllocator($db);
+                    $deallocationResult = $gridAllocator->deallocate(null, $paymentId);
+                    if (!$deallocationResult['success']) {
+                        throw new RuntimeException('Floor deallocation failed: ' . $deallocationResult['error']);
+                    }
+                } else {
+                    // Deallocate all batches associated with this payment (in reverse order)
+                    foreach (array_reverse($batches) as $batch) {
+                        $batchId = (int)$batch['id'];
+                        $deallocationResult = $batchTracker->deallocateBatch($batchId);
+                        if (!$deallocationResult['success']) {
+                            throw new RuntimeException('Batch deallocation failed: ' . ($deallocationResult['error'] ?? 'Unknown error'));
+                        }
+                    }
                 }
 
                 // Audit
