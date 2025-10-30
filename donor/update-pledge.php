@@ -1,0 +1,443 @@
+<?php
+/**
+ * Donor Portal - Update Pledge Amount
+ * Allows donors to request an increase to their pledge amount
+ */
+
+require_once __DIR__ . '/../shared/auth.php';
+require_once __DIR__ . '/../shared/csrf.php';
+require_once __DIR__ . '/../shared/url.php';
+require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
+
+function current_donor(): ?array {
+    if (isset($_SESSION['donor'])) {
+        return $_SESSION['donor'];
+    }
+    return null;
+}
+
+function require_donor_login(): void {
+    if (!current_donor()) {
+        header('Location: login.php');
+        exit;
+    }
+}
+
+require_donor_login();
+$donor = current_donor();
+$page_title = 'Update Pledge Amount';
+$current_donor = $donor;
+
+// Load donation packages for amount selection
+$currency = $settings['currency_code'] ?? 'GBP';
+$pkgRows = [];
+if ($db_connection_ok) {
+    try {
+        $pkg_table_exists = $db->query("SHOW TABLES LIKE 'donation_packages'")->num_rows > 0;
+        if ($pkg_table_exists) {
+            $pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
+        }
+    } catch(Exception $e) {
+        // Silent fail
+    }
+}
+
+$pkgByLabel = [];
+foreach ($pkgRows as $r) { $pkgByLabel[$r['label']] = $r; }
+$pkgOne     = $pkgByLabel['1 m²']   ?? null;
+$pkgHalf    = $pkgByLabel['1/2 m²'] ?? null;
+$pkgQuarter = $pkgByLabel['1/4 m²'] ?? null;
+$pkgCustom  = $pkgByLabel['Custom'] ?? null;
+
+$success = '';
+$error = '';
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+
+    // Collect form inputs
+    $notes = trim((string)($_POST['notes'] ?? '')); // Optional notes
+    $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
+    $custom_amount = (float)($_POST['custom_amount'] ?? 0);
+    $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
+    if ($client_uuid === '') {
+        try { $client_uuid = bin2hex(random_bytes(16)); } catch (Throwable $e) { $client_uuid = uniqid('uuid_', true); }
+    }
+
+    // Validation
+    $error = '';
+    if (empty($client_uuid)) {
+        $error = 'A unique submission ID is required. Please refresh and try again.';
+    }
+
+    // Calculate donation amount based on selection
+    $amount = 0.0;
+    $selectedPackage = null;
+    if ($sqm_unit === '1') { $selectedPackage = $pkgOne; }
+    elseif ($sqm_unit === '0.5') { $selectedPackage = $pkgHalf; }
+    elseif ($sqm_unit === '0.25') { $selectedPackage = $pkgQuarter; }
+    elseif ($sqm_unit === 'custom') { $selectedPackage = $pkgCustom; }
+    else { $selectedPackage = null; }
+
+    if ($selectedPackage) {
+        if ($sqm_unit === 'custom') {
+            $amount = max(0, $custom_amount);
+        } else {
+            $amount = (float)$selectedPackage['price'];
+        }
+    } else {
+        $error = 'Please select a valid donation package.';
+    }
+
+    if ($amount <= 0 && !$error) {
+        $error = 'Please select a valid amount greater than zero.';
+    }
+
+    // Process the database transaction
+    if (empty($error)) {
+        try {
+            $db->autocommit(false);
+            
+            // Donor data from session
+            $donorName = $donor['name'] ?? 'Anonymous';
+            $donorPhone = $donor['phone'] ?? '';
+            $donorEmail = null;
+
+            // Normalize notes (tombola code if provided, otherwise empty)
+            $notesDigits = preg_replace('/\D+/', '', $notes);
+            $final_notes = !empty($notesDigits) ? $notesDigits : '';
+
+            // Check for duplicate UUID
+            $stmt = $db->prepare("SELECT id FROM pledges WHERE client_uuid = ?");
+            $stmt->bind_param("s", $client_uuid);
+            $stmt->execute();
+            if ($stmt->get_result()->fetch_assoc()) {
+                throw new Exception("Duplicate submission detected. Please do not click submit twice.");
+            }
+            $stmt->close();
+
+            // Create new pending pledge for the additional amount
+            $status = 'pending';
+            $stmt = $db->prepare("
+                INSERT INTO pledges (
+                  donor_id, donor_name, donor_phone, donor_email, source, anonymous,
+                  amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                ) VALUES (?, ?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
+            ");
+            $packageId = (int)($selectedPackage['id'] ?? 0);
+            $packageIdNullable = $packageId > 0 ? $packageId : null;
+            $donorId = (int)($donor['id'] ?? 0);
+            $donorIdNullable = $donorId > 0 ? $donorId : null;
+            $stmt->bind_param(
+                'isssdsssi',
+                $donorIdNullable, $donorName, $donorPhone, $donorEmail,
+                $amount, $status, $final_notes, $client_uuid, $packageIdNullable
+            );
+            $stmt->execute();
+            if ($stmt->affected_rows === 0) { throw new Exception('Failed to create pledge request.'); }
+            $entityId = $db->insert_id;
+
+            // Audit log
+            $afterJson = json_encode([
+                'amount'=>$amount,
+                'type'=>'pledge',
+                'donor'=>$donorName,
+                'status'=>'pending',
+                'source'=>'donor_portal',
+                'current_total_pledged'=>$donor['total_pledged'] ?? 0
+            ]);
+            $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, 'pledge', ?, 'create_pending', ?, 'donor_portal')");
+            $log->bind_param('is', $entityId, $afterJson);
+            $log->execute();
+
+            $db->commit();
+            $db->autocommit(true);
+            
+            $_SESSION['success_message'] = "Your pledge increase request for {$currency} " . number_format($amount, 2) . " has been submitted for approval!";
+            header('Location: update-pledge.php');
+            exit;
+        } catch (Exception $e) {
+            $db->rollback();
+            $db->autocommit(true);
+            error_log("Donor pledge update error: " . $e->getMessage() . " on line " . $e->getLine());
+            $error = (defined('ENVIRONMENT') && ENVIRONMENT !== 'production')
+                ? ('Error saving request: ' . $e->getMessage())
+                : 'Error saving request. Please try again or contact support.';
+        }
+    }
+}
+
+// Check for success message from redirect
+if (isset($_SESSION['success_message'])) {
+    $success = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
+}
+?>
+<!DOCTYPE html>
+<html lang="<?php echo htmlspecialchars($donor['preferred_language'] ?? 'en'); ?>">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?php echo htmlspecialchars($page_title); ?> - Donor Portal</title>
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
+</head>
+<body>
+<div class="app-wrapper">
+    <?php include 'includes/sidebar.php'; ?>
+    
+    <div class="app-content">
+        <?php include 'includes/topbar.php'; ?>
+        
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="fas fa-handshake me-2"></i>Update Pledge Amount
+                </h1>
+            </div>
+
+            <?php if ($error): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
+            
+            <?php if ($success): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
+
+            <div class="row g-4">
+                <!-- Current Pledge Info -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-info-circle text-primary"></i>Current Pledge
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Total Pledged</label>
+                                <p class="mb-0"><strong class="fs-4">£<?php echo number_format($donor['total_pledged'] ?? 0, 2); ?></strong></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Total Paid</label>
+                                <p class="mb-0"><strong>£<?php echo number_format($donor['total_paid'] ?? 0, 2); ?></strong></p>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label text-muted">Remaining Balance</label>
+                                <p class="mb-0"><strong>£<?php echo number_format($donor['balance'] ?? 0, 2); ?></strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Form -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-plus-circle text-primary"></i>Request Pledge Increase
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-4">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Select an additional amount to add to your current pledge. Your request will be reviewed by an administrator before approval.
+                            </p>
+
+                            <form method="POST" class="needs-validation" novalidate>
+                                <?php echo csrf_input(); ?>
+                                <input type="hidden" name="client_uuid" value="">
+                                
+                                <!-- Amount Selection -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-pound-sign me-2"></i>Select Additional Amount <span class="text-danger">*</span>
+                                    </label>
+                                    
+                                    <div class="quick-amounts" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
+                                        <?php if ($pkgOne): ?>
+                                        <label class="quick-amount-btn" data-pack="1" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                            <input type="radio" name="pack" value="1" class="d-none" required>
+                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;"><?php echo $currency; ?> <?php echo number_format((float)$pkgOne['price'], 0); ?></span>
+                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">1 Square Meter</span>
+                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                        </label>
+                                        <?php endif; ?>
+                                        
+                                        <?php if ($pkgHalf): ?>
+                                        <label class="quick-amount-btn" data-pack="0.5" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                            <input type="radio" name="pack" value="0.5" class="d-none" required>
+                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;"><?php echo $currency; ?> <?php echo number_format((float)$pkgHalf['price'], 0); ?></span>
+                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">½ Square Meter</span>
+                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                        </label>
+                                        <?php endif; ?>
+                                        
+                                        <?php if ($pkgQuarter): ?>
+                                        <label class="quick-amount-btn" data-pack="0.25" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                            <input type="radio" name="pack" value="0.25" class="d-none" required>
+                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;"><?php echo $currency; ?> <?php echo number_format((float)$pkgQuarter['price'], 0); ?></span>
+                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">¼ Square Meter</span>
+                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                        </label>
+                                        <?php endif; ?>
+                                        
+                                        <label class="quick-amount-btn" data-pack="custom" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                            <input type="radio" name="pack" value="custom" class="d-none" required>
+                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;">Custom</span>
+                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">Enter Amount</span>
+                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                        </label>
+                                    </div>
+                                    
+                                    <style>
+                                    .quick-amount-btn:hover {
+                                        border-color: #0a6286;
+                                        background: #f8f9fa;
+                                    }
+                                    .quick-amount-btn.active {
+                                        border-color: #0a6286;
+                                        background: #0a6286;
+                                        color: white;
+                                        box-shadow: 0 4px 12px rgba(10, 98, 134, 0.2);
+                                    }
+                                    .quick-amount-btn.active .quick-amount-value,
+                                    .quick-amount-btn.active .quick-amount-label {
+                                        color: white;
+                                    }
+                                    .quick-amount-btn.active .checkmark {
+                                        opacity: 1;
+                                        transform: scale(1);
+                                        color: white;
+                                    }
+                                    @media (min-width: 768px) {
+                                        .quick-amounts {
+                                            grid-template-columns: repeat(4, 1fr) !important;
+                                        }
+                                    }
+                                    </style>
+                                    
+                                    <div class="mb-3 d-none mt-3" id="customAmountDiv">
+                                        <label for="custom_amount" class="form-label">Custom Amount</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><?php echo $currency; ?></span>
+                                            <input type="number" class="form-control" id="custom_amount" name="custom_amount" 
+                                                   min="1" step="0.01" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Optional Notes -->
+                                <div class="mb-4">
+                                    <label for="notes" class="form-label">
+                                        <i class="fas fa-sticky-note me-2"></i>Optional Notes
+                                    </label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                              placeholder="Any additional information about your pledge increase..."></textarea>
+                                    <div class="form-text">This information will be visible to administrators when reviewing your request.</div>
+                                </div>
+
+                                <!-- Submit Button -->
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-paper-plane me-2"></i>Submit Request for Approval
+                                    </button>
+                                    <a href="<?php echo htmlspecialchars(url_for('donor/index.php')); ?>" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/donor.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Generate UUID for form
+    const uuidv4 = () => {
+        if (self.crypto && typeof self.crypto.randomUUID === 'function') {
+            try { return self.crypto.randomUUID(); } catch (e) {}
+        }
+        const bytes = new Uint8Array(16);
+        if (self.crypto && self.crypto.getRandomValues) {
+            self.crypto.getRandomValues(bytes);
+        } else {
+            for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+        }
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const toHex = (n) => n.toString(16).padStart(2, '0');
+        const b = Array.from(bytes, toHex);
+        return `${b[0]}${b[1]}${b[2]}${b[3]}-${b[4]}${b[5]}-${b[6]}${b[7]}-${b[8]}${b[9]}-${b[10]}${b[11]}${b[12]}${b[13]}${b[14]}${b[15]}`;
+    };
+    
+    const uuidInput = document.querySelector('input[name="client_uuid"]');
+    if (uuidInput) {
+        uuidInput.value = uuidv4();
+    }
+
+    // Quick amount selection
+    document.querySelectorAll('.quick-amount-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.quick-amount-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            const pack = this.dataset.pack;
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+            
+            if (pack === 'custom') {
+                document.getElementById('customAmountDiv').classList.remove('d-none');
+                document.getElementById('custom_amount').focus();
+                document.getElementById('custom_amount').required = true;
+            } else {
+                document.getElementById('customAmountDiv').classList.add('d-none');
+                document.getElementById('custom_amount').required = false;
+                document.getElementById('custom_amount').value = '';
+            }
+        });
+    });
+
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!form.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+    }
+
+    // Auto-dismiss success message
+    const successAlert = document.querySelector('.alert-success');
+    if (successAlert) {
+        setTimeout(function() {
+            const bsAlert = new bootstrap.Alert(successAlert);
+            bsAlert.close();
+        }, 5000);
+    }
+});
+</script>
+</body>
+</html>
+

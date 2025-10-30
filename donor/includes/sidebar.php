@@ -44,6 +44,13 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
                     <span class="nav-link-text">Make a Payment</span>
                 </a>
             </div>
+            <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('donor/update-pledge.php')); ?>" 
+                   class="nav-link <?php echo $current_page === 'update-pledge' ? 'active' : ''; ?>">
+                    <i class="fas fa-handshake"></i>
+                    <span class="nav-link-text">Update Pledge</span>
+                </a>
+            </div>
             <?php if (isset($current_donor) && $current_donor['has_active_plan']): ?>
             <div class="nav-item">
                 <a href="<?php echo htmlspecialchars(url_for('donor/payment-plan.php')); ?>" 
