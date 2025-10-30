@@ -61,7 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             // Update profile
             if ($db_connection_ok) {
                 try {
-                    $db->begin_transaction();
+                    // Start transaction by disabling autocommit
+                    $db->autocommit(false);
                     
                     // Check if email column exists
                     $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
@@ -92,25 +93,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         ");
                         $update_stmt->bind_param('ssi', $name, $username, $donor['id']);
                     }
-                    $update_stmt->execute();
+                    if (!$update_stmt->execute()) {
+                        throw new RuntimeException('Failed to update donor profile: ' . $update_stmt->error);
+                    }
                     $update_stmt->close();
                     
-                    // Audit log
-                    $audit_data = json_encode([
-                        'donor_id' => $donor['id'],
-                        'name' => $name,
-                        'phone' => $username,
-                        'email' => $has_email_column ? $email : null
-                    ], JSON_UNESCAPED_SLASHES);
-                    $audit_stmt = $db->prepare("
-                        INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
-                        VALUES(?, 'donor', ?, 'update_profile', ?, 'donor_portal')
-                    ");
-                    $user_id = 0;
-                    $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_data);
-                    $audit_stmt->execute();
+                    // Audit log (wrap in try-catch to not fail profile update if audit fails)
+                    try {
+                        $audit_data = json_encode([
+                            'donor_id' => $donor['id'],
+                            'name' => $name,
+                            'phone' => $username,
+                            'email' => $has_email_column ? $email_normalized : null
+                        ], JSON_UNESCAPED_SLASHES);
+                        $audit_stmt = $db->prepare("
+                            INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
+                            VALUES(?, 'donor', ?, 'update_profile', ?, 'donor_portal')
+                        ");
+                        if ($audit_stmt) {
+                            $user_id = 0;
+                            $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_data);
+                            if (!$audit_stmt->execute()) {
+                                error_log('Audit log insert failed: ' . $audit_stmt->error);
+                            }
+                            $audit_stmt->close();
+                        } else {
+                            error_log('Audit log prepare failed: ' . $db->error);
+                        }
+                    } catch (Exception $audit_ex) {
+                        // Log but don't fail the update
+                        error_log('Audit log error (non-fatal): ' . $audit_ex->getMessage());
+                    }
                     
                     $db->commit();
+                    $db->autocommit(true); // Re-enable autocommit
                     
                     // Refresh donor data with all fields including email if column exists
                     $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
@@ -138,9 +154,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     }
                     
                     $success_message = 'Profile updated successfully!';
+                } catch (mysqli_sql_exception $e) {
+                    $db->rollback();
+                    $db->autocommit(true); // Re-enable autocommit
+                    error_log('Profile update SQL error: ' . $e->getMessage());
+                    error_log('SQL State: ' . $e->getSqlState());
+                    error_log('SQL Error Number: ' . $e->getCode());
+                    $error_message = 'Database error: ' . htmlspecialchars($e->getMessage()) . '. Please try again.';
                 } catch (Exception $e) {
                     $db->rollback();
-                    $error_message = 'An error occurred while updating your profile. Please try again.';
+                    $db->autocommit(true); // Re-enable autocommit
+                    // Log the actual error for debugging
+                    error_log('Profile update error: ' . $e->getMessage());
+                    error_log('Profile update trace: ' . $e->getTraceAsString());
+                    // Display detailed error message for debugging
+                    $error_message = 'An error occurred while updating your profile: ' . htmlspecialchars($e->getMessage()) . '. Please try again.';
                 }
             }
         }
