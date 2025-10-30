@@ -9,7 +9,7 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <!-- Sidebar -->
-<aside class="sidebar collapsed" id="sidebar">
+<aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <a href="index.php" class="sidebar-brand">
             <i class="fas fa-user-heart"></i>

@@ -25,17 +25,17 @@ function initSidebar() {
         });
     }
 
-    // Ensure collapsed by default on desktop
-    if (sidebar && window.matchMedia('(min-width: 768px)').matches) {
-        sidebar.classList.add('collapsed');
-        if (appContent) { appContent.classList.add('collapsed'); }
-    }
-
     // Toggle sidebar (desktop)
-    if (desktopSidebarToggle) {
-        desktopSidebarToggle.addEventListener('click', function() {
+    if (desktopSidebarToggle && sidebar && appContent) {
+        desktopSidebarToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             sidebar.classList.toggle('collapsed');
             appContent.classList.toggle('collapsed');
+            
+            // Debug log (remove in production)
+            console.log('Sidebar toggled. Collapsed:', sidebar.classList.contains('collapsed'));
         });
     }
     

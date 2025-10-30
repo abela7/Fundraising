@@ -54,10 +54,6 @@ body {
   border-right: 1px solid var(--gray-200);
 }
 
-.sidebar.collapsed {
-    width: 240px; /* Reduced from 280px but still shows text */
-}
-
 /* Always show text labels - never hide them */
 .sidebar-brand-text,
 .nav-link-text,
@@ -251,6 +247,12 @@ body {
 
 .desktop-sidebar-toggle {
     display: none;
+}
+
+@media (min-width: 768px) {
+    .desktop-sidebar-toggle {
+        display: block;
+    }
 }
 
 .topbar-title {
@@ -644,6 +646,11 @@ body {
     flex-shrink: 0;
     height: 100vh;
     overflow-y: auto;
+    transition: width 0.3s ease;
+  }
+  
+  .sidebar.collapsed {
+    width: 240px;
   }
   
   .sidebar-overlay,
@@ -664,6 +671,7 @@ body {
     width: calc(100% - 280px);
     height: 100vh;
     overflow: hidden;
+    transition: width 0.3s ease;
   }
   
   .app-content.collapsed {
@@ -672,10 +680,6 @@ body {
 
   .sidebar-toggle {
     display: none;
-  }
-  
-  .desktop-sidebar-toggle {
-      display: block;
   }
 
   .topbar {
