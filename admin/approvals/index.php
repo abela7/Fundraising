@@ -178,30 +178,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         }
                     }
                     
+                    // Ensure donorName is set (use from pledge or session)
+                    if (empty($donorName)) {
+                        $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
+                    }
+                    
+                    // Ensure packageId is properly set (can be null)
+                    if (!isset($packageId)) {
+                        $packageId = isset($pledge['package_id']) ? ((int)$pledge['package_id'] ?: null) : null;
+                    }
+                    
                     // Create batch for pledge update
+                    // Ensure all required fields are set correctly
                     $batchData = [
                         'batch_type' => 'pledge_update',
                         'request_type' => ($pledgeSource === 'self') ? 'donor_portal' : 'registrar',
-                        'original_pledge_id' => $originalPledgeId,
+                        'original_pledge_id' => $originalPledgeId ?: null,
                         'original_payment_id' => null, // Explicitly set to null for pledge updates
-                        'new_pledge_id' => $pledgeId,
+                        'new_pledge_id' => $pledgeId ?: null,
                         'new_payment_id' => null, // Explicitly set to null for pledge updates
-                        'donor_id' => $donorId,
-                        'donor_name' => $donorName,
-                        'donor_phone' => $normalized_phone ?: null, // Convert empty string to null
-                        'original_amount' => $originalAmount,
-                        'additional_amount' => $amount,
-                        'total_amount' => $originalAmount + $amount,
-                        'requested_by_user_id' => ($pledgeSource === 'self') ? null : ($pledge['created_by_user_id'] ?? null),
-                        'requested_by_donor_id' => ($pledgeSource === 'self') ? $donorId : null,
-                        'request_source' => $pledgeSource,
-                        'package_id' => $packageId,
+                        'donor_id' => $donorId ?: null,
+                        'donor_name' => $donorName ?: 'Anonymous',
+                        'donor_phone' => (!empty($normalized_phone)) ? $normalized_phone : null, // Convert empty string to null
+                        'original_amount' => (float)$originalAmount,
+                        'additional_amount' => (float)$amount,
+                        'total_amount' => (float)($originalAmount + $amount),
+                        'requested_by_user_id' => ($pledgeSource === 'self') ? null : (isset($pledge['created_by_user_id']) ? (int)$pledge['created_by_user_id'] : null),
+                        'requested_by_donor_id' => ($pledgeSource === 'self') ? ($donorId ?: null) : null,
+                        'request_source' => $pledgeSource ?: 'volunteer',
+                        'package_id' => isset($packageId) ? ($packageId ?: null) : null,
                         'metadata' => [
                             'client_uuid' => $pledge['client_uuid'] ?? null,
                             'notes' => $pledge['notes'] ?? null
                         ]
                     ];
+                    
+                    // Validate required fields before creating batch
+                    if (empty($batchData['donor_name'])) {
+                        error_log("Admin approvals: ERROR - donor_name is empty for batch creation");
+                        $batchData['donor_name'] = 'Anonymous';
+                    }
+                    
+                    error_log("Admin approvals: Creating batch for pledge update - pledgeId: {$pledgeId}, originalPledgeId: {$originalPledgeId}, donorName: " . substr($batchData['donor_name'], 0, 20));
                     $allocationBatchId = $batchTracker->createBatch($batchData);
+                    if (!$allocationBatchId) {
+                        error_log("Admin approvals: ERROR - Failed to create batch for pledge update");
+                    }
                     }
                 } elseif (!$isPaidType) {
                     // New pledge - create batch
