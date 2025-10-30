@@ -58,13 +58,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $has_email = $email_check->num_rows > 0;
                     $email_check->close();
                     
-                    // Build SELECT query with or without email
+                    // Check if email_opt_in column exists
+                    $email_opt_in_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+                    $has_email_opt_in = $email_opt_in_check->num_rows > 0;
+                    $email_opt_in_check->close();
+                    
+                    // Build SELECT query with or without email and email_opt_in
                     $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
                                has_active_plan, active_payment_plan_id, plan_monthly_amount,
                                plan_duration_months, plan_start_date, plan_next_due_date,
                                payment_status, preferred_payment_method, preferred_language";
                     if ($has_email) {
                         $select_fields .= ", email";
+                    }
+                    if ($has_email_opt_in) {
+                        $select_fields .= ", email_opt_in";
                     }
                     
                     // Try exact match with normalized phone first (most common case)
@@ -159,13 +167,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $has_email2 = $email_check2->num_rows > 0;
                             $email_check2->close();
                             
-                            // Build SELECT query with or without email
+                            // Check if email_opt_in column exists
+                            $email_opt_in_check2 = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+                            $has_email_opt_in2 = $email_opt_in_check2->num_rows > 0;
+                            $email_opt_in_check2->close();
+                            
+                            // Build SELECT query with or without email and email_opt_in
                             $select_fields2 = "id, name, phone, total_pledged, total_paid, balance, 
                                        has_active_plan, active_payment_plan_id, plan_monthly_amount,
                                        plan_duration_months, plan_start_date, plan_next_due_date,
                                        payment_status, preferred_payment_method, preferred_language";
                             if ($has_email2) {
                                 $select_fields2 .= ", email";
+                            }
+                            if ($has_email_opt_in2) {
+                                $select_fields2 .= ", email_opt_in";
                             }
                             
                             // Now fetch the donor we just created/updated

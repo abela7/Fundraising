@@ -155,6 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $preferred_payment_method = trim($_POST['preferred_payment_method'] ?? 'bank_transfer');
     $preferred_payment_day = (int)($_POST['preferred_payment_day'] ?? 1);
     $sms_opt_in = isset($_POST['sms_opt_in']) ? 1 : 0;
+    $email_opt_in = isset($_POST['email_opt_in']) ? 1 : 0;
     
     if (!in_array($preferred_language, ['en', 'am', 'ti'])) {
         $error_message = 'Invalid language selection.';
@@ -168,24 +169,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             try {
                 $db->begin_transaction();
                 
-                $update_stmt = $db->prepare("
-                    UPDATE donors SET 
-                        preferred_language = ?,
-                        preferred_payment_method = ?,
-                        preferred_payment_day = ?,
-                        sms_opt_in = ?,
-                        updated_at = NOW()
-                    WHERE id = ?
-                ");
-                $update_stmt->bind_param(
-                    'ssiii',
-                    $preferred_language,
-                    $preferred_payment_method,
-                    $preferred_payment_day,
-                    $sms_opt_in,
-                    $donor['id']
-                );
+                // Check if email_opt_in column exists
+                $check_email_opt_in = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+                $has_email_opt_in_column = $check_email_opt_in->num_rows > 0;
+                $check_email_opt_in->close();
+                
+                // Build UPDATE query based on whether email_opt_in column exists
+                if ($has_email_opt_in_column) {
+                    $update_stmt = $db->prepare("
+                        UPDATE donors SET 
+                            preferred_language = ?,
+                            preferred_payment_method = ?,
+                            preferred_payment_day = ?,
+                            sms_opt_in = ?,
+                            email_opt_in = ?,
+                            updated_at = NOW()
+                        WHERE id = ?
+                    ");
+                    $update_stmt->bind_param(
+                        'ssiiii',
+                        $preferred_language,
+                        $preferred_payment_method,
+                        $preferred_payment_day,
+                        $sms_opt_in,
+                        $email_opt_in,
+                        $donor['id']
+                    );
+                } else {
+                    $update_stmt = $db->prepare("
+                        UPDATE donors SET 
+                            preferred_language = ?,
+                            preferred_payment_method = ?,
+                            preferred_payment_day = ?,
+                            sms_opt_in = ?,
+                            updated_at = NOW()
+                        WHERE id = ?
+                    ");
+                    $update_stmt->bind_param(
+                        'ssiii',
+                        $preferred_language,
+                        $preferred_payment_method,
+                        $preferred_payment_day,
+                        $sms_opt_in,
+                        $donor['id']
+                    );
+                }
                 $update_stmt->execute();
+                $update_stmt->close();
                 
                 // Audit log
                 $audit_data = json_encode([
@@ -193,7 +223,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     'preferred_language' => $preferred_language,
                     'preferred_payment_method' => $preferred_payment_method,
                     'preferred_payment_day' => $preferred_payment_day,
-                    'sms_opt_in' => $sms_opt_in
+                    'sms_opt_in' => $sms_opt_in,
+                    'email_opt_in' => $has_email_opt_in_column ? $email_opt_in : null
                 ], JSON_UNESCAPED_SLASHES);
                 $audit_stmt = $db->prepare("
                     INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
@@ -202,13 +233,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $user_id = 0;
                 $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_data);
                 $audit_stmt->execute();
+                $audit_stmt->close();
                 
                 $db->commit();
                 
-                // Refresh donor data with all fields including email if column exists
+                // Refresh donor data with all fields including email and email_opt_in if columns exist
                 $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
                 $has_email_for_refresh = $check_email->num_rows > 0;
                 $check_email->close();
+                
+                $check_email_opt_in_refresh = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+                $has_email_opt_in_for_refresh = $check_email_opt_in_refresh->num_rows > 0;
+                $check_email_opt_in_refresh->close();
                 
                 $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
                            has_active_plan, active_payment_plan_id, plan_monthly_amount,
@@ -217,6 +253,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                            preferred_payment_day, sms_opt_in";
                 if ($has_email_for_refresh) {
                     $refresh_fields .= ", email";
+                }
+                if ($has_email_opt_in_for_refresh) {
+                    $refresh_fields .= ", email_opt_in";
                 }
                 $refresh_stmt = $db->prepare("
                     SELECT $refresh_fields
@@ -243,21 +282,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Check if email column exists for UI display
+// Check if email and email_opt_in columns exist for UI display
 $has_email_column = false;
+$has_email_opt_in_column = false;
 if ($db_connection_ok) {
     try {
         $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
         $has_email_column = $check_email->num_rows > 0;
         $check_email->close();
+        
+        $check_email_opt_in = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+        $has_email_opt_in_column = $check_email_opt_in->num_rows > 0;
+        $check_email_opt_in->close();
     } catch (Exception $e) {
         // Silent fail
     }
 }
 
-// Ensure donor has email field in session if column exists (for initial page load)
+// Ensure donor has email and email_opt_in fields in session if columns exist (for initial page load)
 if ($has_email_column && !isset($donor['email'])) {
     $donor['email'] = '';
+}
+if ($has_email_opt_in_column && !isset($donor['email_opt_in'])) {
+    $donor['email_opt_in'] = 1; // Default to ON
 }
 ?>
 <!DOCTYPE html>
@@ -442,6 +489,23 @@ if ($has_email_column && !isset($donor['email'])) {
                                         </div>
                                         <div class="form-text">Receive SMS reminders about upcoming payments and important updates</div>
                                     </div>
+
+                                    <!-- Email Opt-in (if column exists) -->
+                                    <?php if ($has_email_opt_in_column): ?>
+                                    <div class="mb-4">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   name="email_opt_in" 
+                                                   id="email_opt_in"
+                                                   <?php echo ($donor['email_opt_in'] ?? 1) ? 'checked' : ''; ?>>
+                                            <label class="form-check-label fw-bold" for="email_opt_in">
+                                                <i class="fas fa-envelope me-2"></i>Enable Email Notifications
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Receive email notifications about upcoming payments and important updates</div>
+                                    </div>
+                                    <?php endif; ?>
 
                                     <!-- Submit Button -->
                                     <div class="d-grid gap-2">
