@@ -4,6 +4,11 @@
  * Allows donors to request an increase to their pledge amount
  */
 
+// Enable error reporting for debugging (remove in production)
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Don't display errors, but log them
+ini_set('log_errors', 1);
+
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/url.php';
@@ -24,23 +29,34 @@ function require_donor_login(): void {
     }
 }
 
-require_donor_login();
-$donor = current_donor();
-$page_title = 'Update Pledge Amount';
-$current_donor = $donor;
-
-// Load donation packages for amount selection
-$currency = $settings['currency_code'] ?? 'GBP';
-$pkgRows = [];
-if ($db_connection_ok) {
-    try {
-        $pkg_table_exists = $db->query("SHOW TABLES LIKE 'donation_packages'")->num_rows > 0;
-        if ($pkg_table_exists) {
-            $pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
-        }
-    } catch(Exception $e) {
-        // Silent fail
+try {
+    require_donor_login();
+    $donor = current_donor();
+    if (!$donor) {
+        header('Location: login.php');
+        exit;
     }
+    $page_title = 'Update Pledge Amount';
+    $current_donor = $donor;
+
+    // Load donation packages for amount selection
+    $currency = $settings['currency_code'] ?? 'GBP';
+    $pkgRows = [];
+    if ($db_connection_ok && isset($db) && $db instanceof mysqli) {
+        try {
+            $pkg_table_exists = $db->query("SHOW TABLES LIKE 'donation_packages'")->num_rows > 0;
+            if ($pkg_table_exists) {
+                $pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
+            }
+        } catch(Exception $e) {
+            error_log("Donor update-pledge: Error loading packages - " . $e->getMessage());
+            // Silent fail
+        }
+    }
+} catch (Throwable $e) {
+    error_log("Donor update-pledge: Fatal error during initialization - " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+    http_response_code(500);
+    die("An error occurred while loading the page. Please contact support.");
 }
 
 $pkgByLabel = [];
@@ -298,56 +314,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->close();
 
                 // Create allocation batch record for tracking
-                $batchTracker = new GridAllocationBatchTracker($db);
-                $donorId = (int)($donor['id'] ?? 0);
-                $donorIdNullable = $donorId > 0 ? $donorId : null;
-                
-                // Find original approved pledge for this donor
-                $originalPledgeId = null;
-                $originalAmount = 0.00;
-                if ($donorIdNullable) {
-                    $findOriginal = $db->prepare("
-                        SELECT id, amount 
-                        FROM pledges 
-                        WHERE donor_id = ? AND status = 'approved' AND type = 'pledge' 
-                        ORDER BY approved_at DESC, id DESC 
-                        LIMIT 1
-                    ");
-                    $findOriginal->bind_param('i', $donorIdNullable);
-                    $findOriginal->execute();
-                    $originalPledge = $findOriginal->get_result()->fetch_assoc();
-                    $findOriginal->close();
-                    if ($originalPledge) {
-                        $originalPledgeId = (int)$originalPledge['id'];
-                        $originalAmount = (float)$originalPledge['amount'];
+                // Check if grid_allocation_batches table exists first
+                try {
+                    $tableExists = $db->query("SHOW TABLES LIKE 'grid_allocation_batches'")->num_rows > 0;
+                    if ($tableExists) {
+                        $batchTracker = new GridAllocationBatchTracker($db);
+                        $donorId = (int)($donor['id'] ?? 0);
+                        $donorIdNullable = $donorId > 0 ? $donorId : null;
+                        
+                        // Find original approved pledge for this donor
+                        $originalPledgeId = null;
+                        $originalAmount = 0.00;
+                        if ($donorIdNullable) {
+                            $findOriginal = $db->prepare("
+                                SELECT id, amount 
+                                FROM pledges 
+                                WHERE donor_id = ? AND status = 'approved' AND type = 'pledge' 
+                                ORDER BY approved_at DESC, id DESC 
+                                LIMIT 1
+                            ");
+                            $findOriginal->bind_param('i', $donorIdNullable);
+                            $findOriginal->execute();
+                            $originalPledge = $findOriginal->get_result()->fetch_assoc();
+                            $findOriginal->close();
+                            if ($originalPledge) {
+                                $originalPledgeId = (int)$originalPledge['id'];
+                                $originalAmount = (float)$originalPledge['amount'];
+                            }
+                        }
+                        
+                        // Create batch record
+                        $batchData = [
+                            'batch_type' => $originalPledgeId ? 'pledge_update' : 'new_pledge',
+                            'request_type' => 'donor_portal',
+                            'original_pledge_id' => $originalPledgeId,
+                            'new_pledge_id' => $entityId,
+                            'donor_id' => $donorIdNullable,
+                            'donor_name' => $donorName,
+                            'donor_phone' => $normalized_phone,
+                            'original_amount' => $originalAmount,
+                            'additional_amount' => $amount,
+                            'total_amount' => $originalAmount + $amount,
+                            'requested_by_donor_id' => $donorIdNullable,
+                            'request_source' => 'self',
+                            'package_id' => $packageIdNullable,
+                            'metadata' => [
+                                'client_uuid' => $client_uuid,
+                                'notes' => $final_notes
+                            ]
+                        ];
+                        $batchId = $batchTracker->createBatch($batchData);
+                        if ($batchId) {
+                            error_log("Donor pledge update: Created allocation batch #{$batchId}");
+                        } else {
+                            error_log("Donor pledge update: WARNING - Failed to create allocation batch");
+                        }
+                    } else {
+                        error_log("Donor pledge update: WARNING - grid_allocation_batches table does not exist, skipping batch creation");
                     }
-                }
-                
-                // Create batch record
-                $batchData = [
-                    'batch_type' => $originalPledgeId ? 'pledge_update' : 'new_pledge',
-                    'request_type' => 'donor_portal',
-                    'original_pledge_id' => $originalPledgeId,
-                    'new_pledge_id' => $entityId,
-                    'donor_id' => $donorIdNullable,
-                    'donor_name' => $donorName,
-                    'donor_phone' => $normalized_phone,
-                    'original_amount' => $originalAmount,
-                    'additional_amount' => $amount,
-                    'total_amount' => $originalAmount + $amount,
-                    'requested_by_donor_id' => $donorIdNullable,
-                    'request_source' => 'self',
-                    'package_id' => $packageIdNullable,
-                    'metadata' => [
-                        'client_uuid' => $client_uuid,
-                        'notes' => $final_notes
-                    ]
-                ];
-                $batchId = $batchTracker->createBatch($batchData);
-                if ($batchId) {
-                    error_log("Donor pledge update: Created allocation batch #{$batchId}");
-                } else {
-                    error_log("Donor pledge update: WARNING - Failed to create allocation batch");
+                } catch (Exception $batchError) {
+                    error_log("Donor pledge update: Error creating batch - " . $batchError->getMessage());
+                    // Don't fail the whole transaction if batch creation fails
                 }
 
                 // Audit log
