@@ -47,23 +47,34 @@ class GridAllocationBatchTracker
         $metadataJson = isset($data['metadata']) ? json_encode($data['metadata']) : null;
 
         // Extract values into variables for bind_param (must be variables, not expressions)
-        $batch_type = $data['batch_type'];
-        $request_type = $data['request_type'];
-        $original_pledge_id = $data['original_pledge_id'] ?? null;
-        $original_payment_id = $data['original_payment_id'] ?? null;
-        $new_pledge_id = $data['new_pledge_id'] ?? null;
-        $new_payment_id = $data['new_payment_id'] ?? null;
-        $donor_id = $data['donor_id'] ?? null;
-        $donor_name = $data['donor_name'];
-        $donor_phone = $data['donor_phone'] ?? null;
-        $original_amount = $data['original_amount'] ?? 0.00;
-        $additional_amount = $data['additional_amount'];
-        $total_amount = $data['total_amount'];
-        $requested_by_user_id = $data['requested_by_user_id'] ?? null;
-        $requested_by_donor_id = $data['requested_by_donor_id'] ?? null;
-        $request_source = $data['request_source'] ?? 'volunteer';
-        $request_date = $data['request_date'] ?? date('Y-m-d H:i:s');
-        $package_id = $data['package_id'] ?? null;
+        $batch_type = (string)($data['batch_type'] ?? '');
+        $request_type = (string)($data['request_type'] ?? '');
+        $original_pledge_id = isset($data['original_pledge_id']) ? ((int)$data['original_pledge_id'] ?: null) : null;
+        $original_payment_id = isset($data['original_payment_id']) ? ((int)$data['original_payment_id'] ?: null) : null;
+        $new_pledge_id = isset($data['new_pledge_id']) ? ((int)$data['new_pledge_id'] ?: null) : null;
+        $new_payment_id = isset($data['new_payment_id']) ? ((int)$data['new_payment_id'] ?: null) : null;
+        $donor_id = isset($data['donor_id']) ? ((int)$data['donor_id'] ?: null) : null;
+        $donor_name = (string)($data['donor_name'] ?? 'Anonymous');
+        $donor_phone = isset($data['donor_phone']) && $data['donor_phone'] !== '' ? (string)$data['donor_phone'] : null;
+        $original_amount = (float)($data['original_amount'] ?? 0.00);
+        $additional_amount = (float)($data['additional_amount'] ?? 0.00);
+        $total_amount = (float)($data['total_amount'] ?? 0.00);
+        $requested_by_user_id = isset($data['requested_by_user_id']) ? ((int)$data['requested_by_user_id'] ?: null) : null;
+        $requested_by_donor_id = isset($data['requested_by_donor_id']) ? ((int)$data['requested_by_donor_id'] ?: null) : null;
+        $request_source = (string)($data['request_source'] ?? 'volunteer');
+        $request_date = (string)($data['request_date'] ?? date('Y-m-d H:i:s'));
+        $package_id = isset($data['package_id']) ? ((int)$data['package_id'] ?: null) : null;
+        
+        // Validate required fields
+        if (empty($batch_type) || empty($request_type) || empty($donor_name)) {
+            error_log("GridAllocationBatchTracker: Missing required fields - batch_type: " . ($batch_type ?: 'EMPTY') . ", request_type: " . ($request_type ?: 'EMPTY') . ", donor_name: " . ($donor_name ?: 'EMPTY'));
+            $stmt->close();
+            return null;
+        }
+        
+        // Log parameter count for debugging
+        $paramCount = 18;
+        error_log("GridAllocationBatchTracker: Creating batch - batch_type: {$batch_type}, donor_name: " . substr($donor_name, 0, 20) . ", param count: {$paramCount}");
 
         // Type string: s=string, i=integer, d=double
         // Parameters in order (18 total):
@@ -78,33 +89,51 @@ class GridAllocationBatchTracker
         $typeString = 'ssiiiiissdddiissis';
         
         // Verify type string matches parameter count before binding
-        if (strlen($typeString) !== 18) {
-            error_log("GridAllocationBatchTracker: CRITICAL - Type string length mismatch: " . strlen($typeString) . " (expected 18)");
+        $typeStringLength = strlen($typeString);
+        if ($typeStringLength !== 18) {
+            error_log("GridAllocationBatchTracker: CRITICAL - Type string length mismatch: {$typeStringLength} (expected 18)");
             $stmt->close();
             return null;
         }
         
-        $stmt->bind_param(
-            $typeString,
-            $batch_type,                // 1. s
-            $request_type,              // 2. s
-            $original_pledge_id,        // 3. i
-            $original_payment_id,       // 4. i
-            $new_pledge_id,             // 5. i
-            $new_payment_id,            // 6. i
-            $donor_id,                  // 7. i
-            $donor_name,                // 8. s
-            $donor_phone,               // 9. s
-            $original_amount,           // 10. d
-            $additional_amount,         // 11. d
-            $total_amount,              // 12. d
-            $requested_by_user_id,      // 13. i
-            $requested_by_donor_id,     // 14. i
-            $request_source,            // 15. s
-            $request_date,              // 16. s
-            $package_id,                // 17. i
-            $metadataJson               // 18. s
-        );
+        // Convert null strings to empty strings for bind_param compatibility
+        // bind_param with type 's' can handle null, but we'll ensure strings are not null
+        if ($donor_phone === null) {
+            $donor_phone = '';
+        }
+        if ($metadataJson === null) {
+            $metadataJson = '';
+        }
+        
+        try {
+            $stmt->bind_param(
+                $typeString,
+                $batch_type,                // 1. s
+                $request_type,              // 2. s
+                $original_pledge_id,        // 3. i
+                $original_payment_id,       // 4. i
+                $new_pledge_id,             // 5. i
+                $new_payment_id,            // 6. i
+                $donor_id,                  // 7. i
+                $donor_name,                // 8. s
+                $donor_phone,               // 9. s
+                $original_amount,           // 10. d
+                $additional_amount,         // 11. d
+                $total_amount,              // 12. d
+                $requested_by_user_id,      // 13. i
+                $requested_by_donor_id,     // 14. i
+                $request_source,            // 15. s
+                $request_date,              // 16. s
+                $package_id,                // 17. i
+                $metadataJson               // 18. s
+            );
+        } catch (Exception $e) {
+            error_log("GridAllocationBatchTracker: bind_param failed - " . $e->getMessage());
+            error_log("GridAllocationBatchTracker: Type string: {$typeString}, Length: {$typeStringLength}");
+            error_log("GridAllocationBatchTracker: Parameters - donor_name: " . substr($donor_name, 0, 20) . ", donor_phone: " . ($donor_phone ?: 'NULL/EMPTY'));
+            $stmt->close();
+            return null;
+        }
 
         if ($stmt->execute()) {
             $batchId = (int)$this->db->insert_id;
