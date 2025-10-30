@@ -26,10 +26,21 @@ function countDonorDonations(mysqli $db, string $donorPhone): int {
     return $total;
 }
 
+// Check if source column exists before including it
+$has_source_column = false;
+try {
+    $check_source = $db->query("SHOW COLUMNS FROM pledges LIKE 'source'");
+    if ($check_source && $check_source->num_rows > 0) {
+        $has_source_column = true;
+    }
+} catch (Exception $e) {
+    // Column doesn't exist, that's fine
+}
+
 $sql = "
     SELECT 
         p.id, p.amount, p.type, p.notes, p.created_at, p.anonymous,
-        p.donor_name, p.donor_phone, p.donor_email, p.source,
+        p.donor_name, p.donor_phone, p.donor_email" . ($has_source_column ? ", p.source" : ", '' as source") . ",
         u.name as registrar_name,
         dp.label AS package_label, dp.price AS package_price, dp.sqm_meters AS package_sqm
     FROM pledges p
