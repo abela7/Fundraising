@@ -25,7 +25,8 @@ class CustomAmountAllocator {
         int $pledgeId,
         float $amount,
         string $donorName,
-        string $status
+        string $status,
+        ?int $allocationBatchId = null
     ): array {
         try {
             // DEBUG: Log the pledge processing
@@ -53,7 +54,7 @@ class CustomAmountAllocator {
             
             // Rule 2: £100+ = allocate appropriate cells
             error_log("CustomAmountAllocator: Amount £{$amount} >= £100, allocating cells");
-            $allocationResult = $this->allocateAppropriateCells($pledgeId, $amount, $donorName, $status);
+            $allocationResult = $this->allocateAppropriateCells($pledgeId, $amount, $donorName, $status, $allocationBatchId);
             
             $this->db->commit();
             
@@ -256,7 +257,7 @@ class CustomAmountAllocator {
     /**
      * Allocate appropriate cells for £100+ amounts
      */
-    private function allocateAppropriateCells(?int $pledgeId, float $amount, string $donorName, string $status, ?int $paymentId = null): array {
+    private function allocateAppropriateCells(?int $pledgeId, float $amount, string $donorName, string $status, ?int $allocationBatchId = null, ?int $paymentId = null): array {
         // Calculate how many cells to allocate
         $cellsToAllocate = $this->calculateCellsForAmount($amount);
         $allocatedAmount = $cellsToAllocate * 100; // £100 per 0.25m²
@@ -270,7 +271,8 @@ class CustomAmountAllocator {
             $allocatedAmount,
             null, // No package ID
             $donorName,
-            $status
+            $status,
+            $allocationBatchId
         );
         
         // If there's remaining amount, track it
@@ -332,7 +334,8 @@ class CustomAmountAllocator {
         int $paymentId,
         float $amount,
         string $donorName,
-        string $status
+        string $status,
+        ?int $allocationBatchId = null
     ): array {
         try {
             $this->db->begin_transaction();

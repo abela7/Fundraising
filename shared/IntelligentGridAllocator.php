@@ -26,6 +26,7 @@ class IntelligentGridAllocator
      * @param int|null $packageId The donation package ID, if applicable.
      * @param string $donorName The name of the donor.
      * @param string $status The status of the allocation ('pledged' or 'paid').
+     * @param int|null $allocationBatchId The allocation batch ID for tracking updates.
      * @return array The result of the allocation.
      */
     public function allocate(
@@ -34,7 +35,8 @@ class IntelligentGridAllocator
         float $amount,
         ?int $packageId,
         string $donorName,
-        string $status
+        string $status,
+        ?int $allocationBatchId = null
     ): array {
         // Step 1: Determine the number of 0.25m² blocks to allocate
         $blocksToAllocate = $this->getBlocksForAmount($amount, $packageId);
@@ -122,30 +124,63 @@ class IntelligentGridAllocator
     /**
      * Updates a list of cells to mark them as allocated.
      */
-    private function updateCells(array $cellIds, ?int $pledgeId, ?int $paymentId, string $donorName, float $amountPerBlock, string $status): void
+    private function updateCells(array $cellIds, ?int $pledgeId, ?int $paymentId, string $donorName, float $amountPerBlock, string $status, ?int $allocationBatchId = null): void
     {
         $placeholders = implode(',', array_fill(0, count($cellIds), '?'));
         
-        $sql = "
-            UPDATE floor_grid_cells
-            SET
-                status = ?,
-                pledge_id = ?,
-                payment_id = ?,
-                donor_name = ?,
-                amount = ?,
-                assigned_date = NOW()
-            WHERE cell_id IN ($placeholders)
-        ";
+        // Check if allocation_batch_id column exists
+        $hasBatchColumn = false;
+        try {
+            $check = $this->db->query("SHOW COLUMNS FROM floor_grid_cells LIKE 'allocation_batch_id'");
+            $hasBatchColumn = ($check && $check->num_rows > 0);
+        } catch (Exception $e) {
+            // Column doesn't exist yet, skip it
+        }
         
-        $stmt = $this->db->prepare($sql);
-        
-        // Dynamically bind parameters
-        $types = 'siisd' . str_repeat('s', count($cellIds));
-        $params = array_merge([$status, $pledgeId, $paymentId, $donorName, $amountPerBlock], $cellIds);
-        $stmt->bind_param($types, ...$params);
+        if ($hasBatchColumn) {
+            $sql = "
+                UPDATE floor_grid_cells
+                SET
+                    status = ?,
+                    pledge_id = ?,
+                    payment_id = ?,
+                    allocation_batch_id = ?,
+                    donor_name = ?,
+                    amount = ?,
+                    assigned_date = NOW()
+                WHERE cell_id IN ($placeholders)
+            ";
+            
+            $stmt = $this->db->prepare($sql);
+            
+            // Dynamically bind parameters
+            $types = 'siiisid' . str_repeat('s', count($cellIds));
+            $params = array_merge([$status, $pledgeId, $paymentId, $allocationBatchId, $donorName, $amountPerBlock], $cellIds);
+            $stmt->bind_param($types, ...$params);
+        } else {
+            // Fallback if column doesn't exist yet
+            $sql = "
+                UPDATE floor_grid_cells
+                SET
+                    status = ?,
+                    pledge_id = ?,
+                    payment_id = ?,
+                    donor_name = ?,
+                    amount = ?,
+                    assigned_date = NOW()
+                WHERE cell_id IN ($placeholders)
+            ";
+            
+            $stmt = $this->db->prepare($sql);
+            
+            // Dynamically bind parameters
+            $types = 'siisd' . str_repeat('s', count($cellIds));
+            $params = array_merge([$status, $pledgeId, $paymentId, $donorName, $amountPerBlock], $cellIds);
+            $stmt->bind_param($types, ...$params);
+        }
         
         $stmt->execute();
+        $stmt->close();
     }
     
     /**

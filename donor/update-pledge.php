@@ -8,6 +8,7 @@ require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/url.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
+require_once __DIR__ . '/../shared/GridAllocationBatchTracker.php';
 
 function current_donor(): ?array {
     if (isset($_SESSION['donor'])) {
@@ -289,6 +290,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $entityId = $db->insert_id;
                 error_log("Donor pledge update: INSERT successful, new pledge ID: $entityId");
                 $stmt->close();
+
+                // Create allocation batch record for tracking
+                $batchTracker = new GridAllocationBatchTracker($db);
+                $donorId = (int)($donor['id'] ?? 0);
+                $donorIdNullable = $donorId > 0 ? $donorId : null;
+                
+                // Find original approved pledge for this donor
+                $originalPledgeId = null;
+                $originalAmount = 0.00;
+                if ($donorIdNullable) {
+                    $findOriginal = $db->prepare("
+                        SELECT id, amount 
+                        FROM pledges 
+                        WHERE donor_id = ? AND status = 'approved' AND type = 'pledge' 
+                        ORDER BY approved_at DESC, id DESC 
+                        LIMIT 1
+                    ");
+                    $findOriginal->bind_param('i', $donorIdNullable);
+                    $findOriginal->execute();
+                    $originalPledge = $findOriginal->get_result()->fetch_assoc();
+                    $findOriginal->close();
+                    if ($originalPledge) {
+                        $originalPledgeId = (int)$originalPledge['id'];
+                        $originalAmount = (float)$originalPledge['amount'];
+                    }
+                }
+                
+                // Create batch record
+                $batchData = [
+                    'batch_type' => $originalPledgeId ? 'pledge_update' : 'new_pledge',
+                    'request_type' => 'donor_portal',
+                    'original_pledge_id' => $originalPledgeId,
+                    'new_pledge_id' => $entityId,
+                    'donor_id' => $donorIdNullable,
+                    'donor_name' => $donorName,
+                    'donor_phone' => $normalized_phone,
+                    'original_amount' => $originalAmount,
+                    'additional_amount' => $amount,
+                    'total_amount' => $originalAmount + $amount,
+                    'requested_by_donor_id' => $donorIdNullable,
+                    'request_source' => 'self',
+                    'package_id' => $packageIdNullable,
+                    'metadata' => [
+                        'client_uuid' => $client_uuid,
+                        'notes' => $final_notes
+                    ]
+                ];
+                $batchId = $batchTracker->createBatch($batchData);
+                if ($batchId) {
+                    error_log("Donor pledge update: Created allocation batch #{$batchId}");
+                } else {
+                    error_log("Donor pledge update: WARNING - Failed to create allocation batch");
+                }
 
                 // Audit log
                 error_log("Donor pledge update: Creating audit log...");

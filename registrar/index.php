@@ -4,6 +4,7 @@ require_once __DIR__ . '/../shared/csrf.php';
 
 // Resiliently load DB data. This must come after auth/csrf but before using $db.
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
+require_once __DIR__ . '/../shared/GridAllocationBatchTracker.php';
 
 // Check if logged in and has registrar or admin role
 require_login();
@@ -274,6 +275,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
                 if ($stmt->affected_rows === 0) { throw new Exception('Failed to insert pledge.'); }
                 $entityId = $db->insert_id;
+
+                // Create allocation batch record if this is an additional donation
+                if ($additional_donation && $donorPhone) {
+                    $batchTracker = new GridAllocationBatchTracker($db);
+                    
+                    // Normalize phone
+                    $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
+                    if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                        $normalized_phone = '0' . substr($normalized_phone, 2);
+                    }
+                    
+                    // Find donor ID
+                    $donorId = null;
+                    if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
+                        $findDonor = $db->prepare("SELECT id FROM donors WHERE phone = ? LIMIT 1");
+                        $findDonor->bind_param('s', $normalized_phone);
+                        $findDonor->execute();
+                        $donorRecord = $findDonor->get_result()->fetch_assoc();
+                        $findDonor->close();
+                        if ($donorRecord) {
+                            $donorId = (int)$donorRecord['id'];
+                        }
+                    }
+                    
+                    // Find original approved pledge
+                    $originalPledgeId = null;
+                    $originalAmount = 0.00;
+                    if ($donorId) {
+                        $findOriginal = $db->prepare("
+                            SELECT id, amount 
+                            FROM pledges 
+                            WHERE donor_id = ? AND status = 'approved' AND type = 'pledge' 
+                            ORDER BY approved_at DESC, id DESC 
+                            LIMIT 1
+                        ");
+                        $findOriginal->bind_param('i', $donorId);
+                        $findOriginal->execute();
+                        $originalPledge = $findOriginal->get_result()->fetch_assoc();
+                        $findOriginal->close();
+                        if ($originalPledge) {
+                            $originalPledgeId = (int)$originalPledge['id'];
+                            $originalAmount = (float)$originalPledge['amount'];
+                        }
+                    }
+                    
+                    // Create batch for additional donation
+                    $batchData = [
+                        'batch_type' => $originalPledgeId ? 'pledge_update' : 'new_pledge',
+                        'request_type' => 'registrar',
+                        'original_pledge_id' => $originalPledgeId,
+                        'new_pledge_id' => $entityId,
+                        'donor_id' => $donorId,
+                        'donor_name' => $donorName,
+                        'donor_phone' => $normalized_phone,
+                        'original_amount' => $originalAmount,
+                        'additional_amount' => $amount,
+                        'total_amount' => $originalAmount + $amount,
+                        'requested_by_user_id' => $createdBy,
+                        'request_source' => 'volunteer',
+                        'package_id' => $packageIdNullable,
+                        'metadata' => [
+                            'client_uuid' => $client_uuid,
+                            'notes' => $final_notes,
+                            'additional_donation' => true
+                        ]
+                    ];
+                    $batchId = $batchTracker->createBatch($batchData);
+                    if ($batchId) {
+                        error_log("Registrar: Created allocation batch #{$batchId} for additional donation");
+                    }
+                }
 
                 $afterJson = json_encode(['amount'=>$amount,'type'=>'pledge','anonymous'=>$anonymousFlag,'donor'=>$donorName,'status'=>'pending']);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'pledge', ?, 'create_pending', ?, 'registrar')");
