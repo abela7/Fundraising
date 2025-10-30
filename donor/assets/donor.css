@@ -18,10 +18,17 @@ body {
 
 /* App Shell - Mobile First */
 .app-wrapper {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+}
+
+/* Desktop: Fixed height layout */
+@media (min-width: 768px) {
+  .app-wrapper {
+    height: 100vh;
+    overflow: hidden;
+  }
 }
 
 .app-content {
@@ -315,6 +322,8 @@ body {
   flex: 1;
   padding: 1rem;
   margin-bottom: 60px; /* Space for mobile action button */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Page Header */
@@ -413,6 +422,41 @@ body {
 .achievement-badge:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Achievement Badge Colors - Modern & Professional */
+.achievement-badge.badge-pending {
+  background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
+  color: white;
+}
+
+.achievement-badge.badge-started {
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+  color: white;
+}
+
+.achievement-badge.badge-on-track {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+}
+
+.achievement-badge.badge-fast-finisher {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  color: white;
+}
+
+.achievement-badge.badge-completed {
+  background: linear-gradient(135deg, #0a6286 0%, #0ea5e9 100%);
+  color: white;
+}
+
+.achievement-badge.badge-champion {
+  background: linear-gradient(135deg, #e2ca18 0%, #fbbf24 100%);
+  color: #0a6286;
+}
+
+.achievement-badge.badge-champion i {
+  color: #0a6286;
 }
 
 .breadcrumb {
@@ -598,6 +642,8 @@ body {
     width: 280px;
     box-shadow: none;
     flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
   }
   
   .sidebar-overlay,
@@ -607,6 +653,8 @@ body {
   
   .app-wrapper {
     flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
   }
   
   .app-content {
@@ -614,6 +662,8 @@ body {
     display: flex;
     flex-direction: column;
     width: calc(100% - 280px);
+    height: 100vh;
+    overflow: hidden;
   }
   
   .app-content.collapsed {
@@ -635,6 +685,8 @@ body {
   .main-content {
     padding: 1.5rem;
     margin-bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   
   /* Show user info on tablets */
@@ -689,6 +741,8 @@ body {
   
   .main-content {
     padding: 2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   
   .card {

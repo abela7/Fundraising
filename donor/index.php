@@ -101,12 +101,12 @@ $progress_percentage = $donor['total_pledged'] > 0
 // Get achievement badge info
 $achievement_badge = $donor['achievement_badge'] ?? 'pending';
 $badge_classes = [
-    'pending' => 'bg-secondary',
-    'started' => 'bg-info',
-    'on_track' => 'bg-success',
-    'fast_finisher' => 'bg-warning',
-    'completed' => 'bg-primary',
-    'champion' => 'bg-danger'
+    'pending' => 'badge-pending',
+    'started' => 'badge-started',
+    'on_track' => 'badge-on-track',
+    'fast_finisher' => 'badge-fast-finisher',
+    'completed' => 'badge-completed',
+    'champion' => 'badge-champion'
 ];
 $badge_labels = [
     'pending' => 'Pending',
@@ -145,7 +145,7 @@ $badge_labels = [
                             <h1 class="welcome-name"><?php echo htmlspecialchars($donor['name']); ?></h1>
                         </div>
                         <div class="welcome-badge-wrapper">
-                            <span class="achievement-badge <?php echo $badge_classes[$achievement_badge] ?? 'bg-secondary'; ?>">
+                            <span class="achievement-badge <?php echo $badge_classes[$achievement_badge] ?? 'badge-pending'; ?>">
                                 <i class="fas fa-trophy"></i>
                                 <span class="badge-text"><?php echo $badge_labels[$achievement_badge] ?? 'Pending'; ?></span>
                             </span>
