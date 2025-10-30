@@ -25,6 +25,9 @@ if ($filter_status !== 'all' && in_array($filter_status, ['available', 'pledged'
     $where_conditions[] = 'c.status = ?';
     $params[] = $filter_status;
     $types .= 's';
+} elseif ($filter_status === 'all') {
+    // Only show allocated cells (not available ones) when status is 'all'
+    $where_conditions[] = "c.status IN ('pledged', 'paid', 'blocked')";
 }
 
 // Rectangle filter (A, B, C, D, E, F, G)
@@ -34,30 +37,26 @@ if ($filter_rectangle !== 'all' && preg_match('/^[A-G]$/', $filter_rectangle)) {
     $types .= 's';
 }
 
-// Search filter (cell_id, donor_name, donor_phone)
+// Search filter (cell_id, donor_name from cells table)
+// We'll search in cell-level data first, then the JOINs will handle donor table matching
 if ($search) {
-    $where_conditions[] = '(c.cell_id LIKE ? OR c.donor_name LIKE ? OR d.phone LIKE ? OR d.name LIKE ?)';
+    $where_conditions[] = '(c.cell_id LIKE ? OR c.donor_name LIKE ?)';
     $searchTerm = '%' . $search . '%';
     $params[] = $searchTerm;
     $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= 'ssss';
+    $types .= 'ss';
 }
 
-// Donor filter (by donor ID)
+// Donor filter (by donor ID) - use subquery to avoid JOIN issues in WHERE
 if ($filter_donor && is_numeric($filter_donor)) {
-    $where_conditions[] = '(d.id = ? OR p.donor_id = ? OR pay.donor_id = ?)';
+    $where_conditions[] = '(
+        c.pledge_id IN (SELECT id FROM pledges WHERE donor_id = ?)
+        OR c.payment_id IN (SELECT id FROM payments WHERE donor_id = ?)
+    )';
     $donorId = (int)$filter_donor;
     $params[] = $donorId;
     $params[] = $donorId;
-    $params[] = $donorId;
-    $types .= 'iii';
-}
-
-// Only show allocated cells (not available ones) unless specifically filtering for available
-if ($filter_status !== 'available') {
-    $where_conditions[] = "c.status IN ('pledged', 'paid', 'blocked')";
+    $types .= 'ii';
 }
 
 $where_clause = '';
@@ -75,10 +74,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             c.cell_type,
             c.area_size,
             c.status,
-            COALESCE(d_pledge.name, d_payment.name, d_name.name, c.donor_name) as donor_name,
-            COALESCE(d_pledge.id, d_payment.id, d_name.id) as donor_id,
-            COALESCE(d_pledge.phone, d_payment.phone, d_name.phone) as donor_phone,
-            COALESCE(d_pledge.email, d_payment.email, d_name.email) as donor_email,
+        COALESCE(d_pledge.name, d_payment.name, d_name.name, c.donor_name, p.donor_name, pay.donor_name) as donor_name,
+        COALESCE(d_pledge.id, d_payment.id, d_name.id) as donor_id,
+        COALESCE(d_pledge.phone, d_payment.phone, d_name.phone, p.donor_phone, pay.donor_phone) as donor_phone,
+        COALESCE(d_pledge.email, d_payment.email, d_name.email, p.donor_email, pay.donor_email) as donor_email,
             c.amount as cell_amount,
             c.pledge_id,
             p.amount as pledge_amount,
@@ -99,10 +98,27 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     ";
     
     $export_stmt = $db->prepare($export_sql);
-    if (!empty($params)) {
-        $export_stmt->bind_param($types, ...$params);
+    if (!$export_stmt) {
+        error_log("Grid Allocation Export: SQL Prepare Error: " . $db->error);
+        die("Database error. Please try again.");
     }
-    $export_stmt->execute();
+    
+    if (!empty($params)) {
+        if (!$export_stmt->bind_param($types, ...$params)) {
+            error_log("Grid Allocation Export: Bind Param Error: " . $export_stmt->error);
+            error_log("Types: $types, Params count: " . count($params));
+            $export_stmt->close();
+            die("Database error. Please try again.");
+        }
+    }
+    
+    if (!$export_stmt->execute()) {
+        error_log("Grid Allocation Export: Execute Error: " . $export_stmt->error);
+        error_log("SQL: " . $export_sql);
+        $export_stmt->close();
+        die("Database error. Please try again.");
+    }
+    
     $export_results = $export_stmt->get_result();
     
     header('Content-Type: text/csv');
@@ -163,9 +179,9 @@ $sql = "
         
         -- Donor information from donors table (via pledge or payment)
         COALESCE(d_pledge.id, d_payment.id, d_name.id) as donor_id,
-        COALESCE(d_pledge.name, d_payment.name, d_name.name, c.donor_name) as donor_name,
-        COALESCE(d_pledge.phone, d_payment.phone, d_name.phone) as donor_phone,
-        COALESCE(d_pledge.email, d_payment.email, d_name.email) as donor_email,
+        COALESCE(d_pledge.name, d_payment.name, d_name.name, c.donor_name, p.donor_name, pay.donor_name) as donor_name,
+        COALESCE(d_pledge.phone, d_payment.phone, d_name.phone, p.donor_phone, pay.donor_phone) as donor_phone,
+        COALESCE(d_pledge.email, d_payment.email, d_name.email, p.donor_email, pay.donor_email) as donor_email,
         COALESCE(d_pledge.total_pledged, d_payment.total_pledged, d_name.total_pledged) as total_pledged,
         COALESCE(d_pledge.total_paid, d_payment.total_paid, d_name.total_paid) as total_paid,
         COALESCE(d_pledge.balance, d_payment.balance, d_name.balance) as balance,
@@ -206,12 +222,47 @@ $sql = "
 ";
 
 $stmt = $db->prepare($sql);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
+if (!$stmt) {
+    $error_msg = "SQL Prepare Error: " . $db->error . "\nSQL: " . substr($sql, 0, 500);
+    error_log("Grid Allocation: " . $error_msg);
+    // Display error on page for debugging
+    $page_error = "Database error: " . htmlspecialchars($db->error);
+    $allocations = [];
+} else {
+    if (!empty($params)) {
+        if (!$stmt->bind_param($types, ...$params)) {
+            $error_msg = "Bind Param Error: " . $stmt->error . "\nTypes: $types, Params count: " . count($params);
+            error_log("Grid Allocation: " . $error_msg);
+            $page_error = "Database binding error: " . htmlspecialchars($stmt->error);
+            $stmt->close();
+            $allocations = [];
+        } else {
+            if (!$stmt->execute()) {
+                $error_msg = "Execute Error: " . $stmt->error . "\nSQL: " . substr($sql, 0, 500);
+                error_log("Grid Allocation: " . $error_msg);
+                $page_error = "Database execution error: " . htmlspecialchars($stmt->error);
+                $stmt->close();
+                $allocations = [];
+            } else {
+                $allocations = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                $stmt->close();
+                $page_error = null;
+            }
+        }
+    } else {
+        if (!$stmt->execute()) {
+            $error_msg = "Execute Error: " . $stmt->error . "\nSQL: " . substr($sql, 0, 500);
+            error_log("Grid Allocation: " . $error_msg);
+            $page_error = "Database execution error: " . htmlspecialchars($stmt->error);
+            $stmt->close();
+            $allocations = [];
+        } else {
+            $allocations = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+            $page_error = null;
+        }
+    }
 }
-$stmt->execute();
-$allocations = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
 
 // Get statistics
 $stats_sql = "
@@ -222,13 +273,26 @@ $stats_sql = "
         SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_cells,
         SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocked_cells,
         COUNT(DISTINCT donor_name) as unique_donors,
-        SUM(amount) as total_amount
+        SUM(COALESCE(amount, 0)) as total_amount
     FROM floor_grid_cells
     WHERE status IN ('pledged', 'paid', 'blocked')
 ";
 $stats_result = $db->query($stats_sql);
-$stats = $stats_result->fetch_assoc();
-$stats_result->free();
+if ($stats_result) {
+    $stats = $stats_result->fetch_assoc();
+    $stats_result->free();
+} else {
+    // Fallback if query fails
+    $stats = [
+        'total_cells' => 0,
+        'available_cells' => 0,
+        'pledged_cells' => 0,
+        'paid_cells' => 0,
+        'blocked_cells' => 0,
+        'unique_donors' => 0,
+        'total_amount' => 0
+    ];
+}
 
 // Get unique rectangles for filter
 $rectangles_sql = "SELECT DISTINCT rectangle_id FROM floor_grid_cells ORDER BY rectangle_id";
@@ -261,6 +325,15 @@ $rectangles_result->free();
     <main class="main-content">
       <div class="container-fluid">
         <?php include '../includes/db_error_banner.php'; ?>
+        
+        <?php if (isset($page_error) && $page_error): ?>
+          <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-top: 1rem;">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Error:</strong> <?php echo $page_error; ?>
+            <br><small>Please check the server logs for more details.</small>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        <?php endif; ?>
         
         <!-- Page Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
