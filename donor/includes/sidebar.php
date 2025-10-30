@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../shared/url.php';
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 $request_uri = $_SERVER['REQUEST_URI'] ?? '';
 ?>
+
 <!-- Sidebar Overlay (Mobile) -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -66,7 +67,7 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
             <div class="nav-item">
                 <a href="<?php echo htmlspecialchars(url_for('donor/profile.php')); ?>" 
                    class="nav-link <?php echo $current_page === 'profile' ? 'active' : ''; ?>">
-                    <i class="fas fa-user"></i>
+                    <i class="fas fa-cog"></i>
                     <span class="nav-link-text">Preferences</span>
                 </a>
             </div>
@@ -86,34 +87,4 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
         </div>
     </nav>
 </aside>
-
-<script>
-// Sidebar toggle functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
-    const sidebarClose = document.getElementById('sidebarClose');
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    
-    function openSidebar() {
-        sidebar.classList.remove('collapsed');
-        sidebarOverlay.classList.add('active');
-    }
-    
-    function closeSidebar() {
-        sidebar.classList.add('collapsed');
-        sidebarOverlay.classList.remove('active');
-    }
-    
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', openSidebar);
-    }
-    if (sidebarClose) {
-        sidebarClose.addEventListener('click', closeSidebar);
-    }
-    if (sidebarOverlay) {
-        sidebarOverlay.addEventListener('click', closeSidebar);
-    }
-});
-</script>
 

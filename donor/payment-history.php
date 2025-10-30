@@ -54,31 +54,25 @@ if ($db_connection_ok) {
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css">
-    <link rel="stylesheet" href="assets/donor.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
 <body>
-<div class="donor-wrapper">
+<div class="app-wrapper">
     <?php include 'includes/sidebar.php'; ?>
     
-    <div class="donor-content">
+    <div class="app-content">
         <?php include 'includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-history me-2"></i>Payment History
-                        </h1>
-                        <p class="text-muted mb-0">View all your payment records</p>
-                    </div>
+                <div class="page-header">
+                    <h1 class="page-title">Payment History</h1>
                 </div>
 
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">
-                            <i class="fas fa-list text-primary me-2"></i>All Payments
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-list text-primary"></i>All Payments
                         </h5>
                     </div>
                     <div class="card-body p-0">
@@ -132,7 +126,6 @@ if ($db_connection_ok) {
                         <?php endif; ?>
                     </div>
                 </div>
-            </div>
         </main>
     </div>
 </div>

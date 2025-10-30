@@ -97,25 +97,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css">
-    <link rel="stylesheet" href="assets/donor.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
 <body>
-<div class="donor-wrapper">
+<div class="app-wrapper">
     <?php include 'includes/sidebar.php'; ?>
     
-    <div class="donor-content">
+    <div class="app-content">
         <?php include 'includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-envelope me-2"></i>Contact Support
-                        </h1>
-                        <p class="text-muted mb-0">Have a question or need help? We're here for you!</p>
-                    </div>
+                <div class="page-header">
+                    <h1 class="page-title">Contact Support</h1>
                 </div>
 
                 <?php if ($success_message): ?>
@@ -135,10 +129,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <div class="row g-4">
                     <!-- Contact Form -->
                     <div class="col-lg-8">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-paper-plane text-primary me-2"></i>Send us a Message
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-paper-plane text-primary"></i>Send us a Message
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -207,10 +201,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                     <!-- Help & Info -->
                     <div class="col-lg-4">
-                        <div class="card border-0 shadow-sm mb-3">
-                            <div class="card-header bg-info text-white">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-info-circle me-2"></i>Quick Help
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-info-circle text-primary"></i>Quick Help
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -232,10 +226,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             </div>
                         </div>
 
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-phone me-2"></i>Contact Details
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-phone text-primary"></i>Contact Details
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -250,7 +244,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         </div>
                     </div>
                 </div>
-            </div>
         </main>
     </div>
 </div>

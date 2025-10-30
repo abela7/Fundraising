@@ -168,42 +168,45 @@ $badge_labels = [
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css">
-    <link rel="stylesheet" href="assets/donor.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
 <body>
-<div class="donor-wrapper">
+<div class="app-wrapper">
     <?php include 'includes/sidebar.php'; ?>
     
-    <div class="donor-content">
+    <div class="app-content">
         <?php include 'includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid">
                 <!-- Page Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-home me-2"></i>Dashboard
-                        </h1>
-                        <p class="text-muted mb-0">Welcome back, <?php echo htmlspecialchars($donor['name']); ?>!</p>
-                    </div>
-                    <div>
-                        <span class="badge <?php echo $badge_classes[$achievement_badge] ?? 'bg-secondary'; ?> fs-6 px-3 py-2">
-                            <i class="fas fa-trophy me-1"></i><?php echo $badge_labels[$achievement_badge] ?? 'Pending'; ?>
-                        </span>
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="page-title">
+                                Welcome back, <?php echo htmlspecialchars($donor['name']); ?>!
+                            </h1>
+                        </div>
+                        <div>
+                            <span class="badge <?php echo $badge_classes[$achievement_badge] ?? 'bg-secondary'; ?> fs-6 px-3 py-2">
+                                <i class="fas fa-trophy me-1"></i><?php echo $badge_labels[$achievement_badge] ?? 'Pending'; ?>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Progress Bar Toward Pledge Goal -->
                 <?php if ($donor['total_pledged'] > 0): ?>
-                <div class="card border-0 shadow-sm mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-bullseye text-primary"></i>Pledge Progress
+                        </h5>
+                    </div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h5 class="mb-0">
-                                <i class="fas fa-bullseye text-primary me-2"></i>Pledge Progress
-                            </h5>
-                            <span class="text-muted">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted">Amount Paid</span>
+                            <span class="fw-bold">
                                 £<?php echo number_format($donor['total_paid'], 2); ?> / £<?php echo number_format($donor['total_pledged'], 2); ?>
                             </span>
                         </div>
@@ -233,72 +236,44 @@ $badge_labels = [
                 <?php endif; ?>
 
                 <!-- Quick Stats -->
-                <div class="row g-4 mb-4">
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-primary">
-                                <i class="fas fa-pound-sign"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value">£<?php echo number_format($donor['total_pledged'], 2); ?></h3>
-                                <p class="stat-label">Total Pledged</p>
-                            </div>
-                        </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <p class="stat-label">Total Pledged</p>
+                        <div class="stat-value">£<?php echo number_format($donor['total_pledged'], 2); ?></div>
                     </div>
                     
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-success">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value">£<?php echo number_format($donor['total_paid'], 2); ?></h3>
-                                <p class="stat-label">Total Paid</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <p class="stat-label">Total Paid</p>
+                        <div class="stat-value">£<?php echo number_format($donor['total_paid'], 2); ?></div>
                     </div>
                     
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'secondary'; ?>">
-                                <i class="fas fa-wallet"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value">£<?php echo number_format($donor['balance'], 2); ?></h3>
-                                <p class="stat-label">Remaining Balance</p>
-                            </div>
-                        </div>
+                    <div class="stat-card">
+                        <p class="stat-label">Remaining Balance</p>
+                        <div class="stat-value">£<?php echo number_format($donor['balance'], 2); ?></div>
                     </div>
                     
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-info">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value">
-                                    <?php 
-                                    if ($payment_plan) {
-                                        echo $payment_plan['payments_made'] ?? 0;
-                                        echo ' / ';
-                                        echo $payment_plan['total_payments'] ?? 0;
-                                    } else {
-                                        echo '-';
-                                    }
-                                    ?>
-                                </h3>
-                                <p class="stat-label">Payments Made</p>
-                            </div>
+                    <div class="stat-card">
+                        <p class="stat-label">Payments Made</p>
+                        <div class="stat-value">
+                            <?php 
+                            if ($payment_plan) {
+                                echo $payment_plan['payments_made'] ?? 0;
+                                echo ' / ';
+                                echo $payment_plan['total_payments'] ?? 0;
+                            } else {
+                                echo '-';
+                            }
+                            ?>
                         </div>
                     </div>
                 </div>
 
                 <!-- Current Payment Plan Summary -->
                 <?php if ($payment_plan): ?>
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">
-                            <i class="fas fa-calendar-alt text-primary me-2"></i>Current Payment Plan
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-calendar-alt text-primary"></i>Current Payment Plan
                         </h5>
                     </div>
                     <div class="card-body">
@@ -355,7 +330,7 @@ $badge_labels = [
                 </div>
                 <?php elseif ($donor['balance'] > 0): ?>
                 <!-- No Active Plan but Has Balance -->
-                <div class="card border-0 shadow-sm mb-4 border-warning">
+                <div class="card">
                     <div class="card-body text-center py-4">
                         <i class="fas fa-calendar-times fa-3x text-warning mb-3"></i>
                         <h5>No Active Payment Plan</h5>
@@ -369,13 +344,15 @@ $badge_labels = [
 
                 <!-- Last Payment Made -->
                 <?php if ($last_payment): ?>
-                <div class="card border-0 shadow-sm mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-check-circle text-success"></i>Last Payment Made
+                        </h5>
+                    </div>
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="mb-1">
-                                    <i class="fas fa-check-circle text-success me-2"></i>Last Payment Made
-                                </h6>
                                 <p class="mb-0 text-muted">
                                     <?php 
                                     $date = $last_payment['received_at'] ?? $last_payment['created_at'];
@@ -395,10 +372,10 @@ $badge_labels = [
                 <?php endif; ?>
 
                 <!-- Recent Payments -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">
-                            <i class="fas fa-history text-primary me-2"></i>Recent Payments
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-history text-primary"></i>Recent Payments
                         </h5>
                     </div>
                     <div class="card-body">
@@ -457,7 +434,6 @@ $badge_labels = [
                         <?php endif; ?>
                     </div>
                 </div>
-            </div>
         </main>
     </div>
 </div>

@@ -95,33 +95,27 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css">
-    <link rel="stylesheet" href="assets/donor.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
 <body>
-<div class="donor-wrapper">
+<div class="app-wrapper">
     <?php include 'includes/sidebar.php'; ?>
     
-    <div class="donor-content">
+    <div class="app-content">
         <?php include 'includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-calendar-alt me-2"></i>Pledges & Plans
-                        </h1>
-                        <p class="text-muted mb-0">View your pledges and payment schedule</p>
-                    </div>
+                <div class="page-header">
+                    <h1 class="page-title">Pledges & Plans</h1>
                 </div>
 
                 <!-- Pledges Table -->
                 <?php if (!empty($pledges)): ?>
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">
-                            <i class="fas fa-handshake text-primary me-2"></i>Your Pledges
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-handshake text-primary"></i>Your Pledges
                         </h5>
                     </div>
                     <div class="card-body p-0">
@@ -173,10 +167,10 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                 <!-- Payment Plan -->
                 <?php if ($payment_plan): ?>
                     <!-- Plan Summary -->
-                    <div class="card border-0 shadow-sm mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">
-                                <i class="fas fa-info-circle text-primary me-2"></i>Plan Summary
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-info-circle text-primary"></i>Plan Summary
                             </h5>
                         </div>
                         <div class="card-body">
@@ -224,10 +218,10 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                     </div>
 
                     <!-- Payment Schedule -->
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">
-                                <i class="fas fa-list text-primary me-2"></i>Payment Schedule
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-list text-primary"></i>Payment Schedule
                             </h5>
                         </div>
                         <div class="card-body p-0">
@@ -268,7 +262,7 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                         </div>
                     </div>
                 <?php else: ?>
-                    <div class="card border-0 shadow-sm">
+                    <div class="card">
                         <div class="card-body text-center py-5">
                             <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
                             <h5>No Active Payment Plan</h5>

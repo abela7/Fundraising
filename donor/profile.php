@@ -125,25 +125,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css">
-    <link rel="stylesheet" href="assets/donor.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
 <body>
-<div class="donor-wrapper">
+<div class="app-wrapper">
     <?php include 'includes/sidebar.php'; ?>
     
-    <div class="donor-content">
+    <div class="app-content">
         <?php include 'includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-cog me-2"></i>Preferences
-                        </h1>
-                        <p class="text-muted mb-0">Manage your account preferences and settings</p>
-                    </div>
+                <div class="page-header">
+                    <h1 class="page-title">Preferences</h1>
                 </div>
 
                 <?php if ($success_message): ?>
@@ -163,10 +157,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <div class="row g-4">
                     <!-- Preferences Form -->
                     <div class="col-lg-8">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-cog text-primary me-2"></i>Update Preferences
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-cog text-primary"></i>Update Preferences
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -255,10 +249,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                     <!-- Account Information (Read-only) -->
                     <div class="col-lg-4">
-                        <div class="card border-0 shadow-sm mb-3">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-info-circle text-primary me-2"></i>Account Information
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-info-circle text-primary"></i>Account Information
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -280,7 +274,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         </div>
                     </div>
                 </div>
-            </div>
         </main>
     </div>
 </div>
