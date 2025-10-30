@@ -41,13 +41,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     if ($pledgeId && in_array($action, ['approve','reject','update'], true)) {
         $db->begin_transaction();
         try {
-            $stmt = $db->prepare('SELECT id, amount, type, status, donor_name, donor_phone, donor_id, source FROM pledges WHERE id = ? FOR UPDATE');
+            // Check if source column exists
+            $has_source_column = false;
+            try {
+                $check_source = $db->query("SHOW COLUMNS FROM pledges LIKE 'source'");
+                if ($check_source && $check_source->num_rows > 0) {
+                    $has_source_column = true;
+                }
+            } catch (Exception $e) {
+                // Column doesn't exist, that's fine
+            }
+            
+            $selectFields = 'id, amount, type, status, donor_name, donor_phone, donor_id';
+            if ($has_source_column) {
+                $selectFields .= ', source';
+            }
+            
+            $stmt = $db->prepare("SELECT {$selectFields} FROM pledges WHERE id = ? FOR UPDATE");
             $stmt->bind_param('i', $pledgeId);
             $stmt->execute();
             $pledge = $stmt->get_result()->fetch_assoc();
             if (!$pledge || $pledge['status'] !== 'pending') { throw new RuntimeException('Invalid state'); }
 
-                if ($action === 'approve') {
+            if ($action === 'approve') {
                 $uid = (int)current_user()['id'];
                 
                 // Check if this is an update request BEFORE any database modifications
@@ -184,6 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         ]
                     ];
                     $allocationBatchId = $batchTracker->createBatch($batchData);
+                    }
                 } elseif (!$isPaidType) {
                     // New pledge - create batch
                     $donorPhone = (string)($pledge['donor_phone'] ?? '');
