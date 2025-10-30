@@ -71,59 +71,108 @@ $error = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
-
-    // Collect form inputs
-    $notes = trim((string)($_POST['notes'] ?? '')); // Optional notes
-    $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
-    $custom_amount = (float)($_POST['custom_amount'] ?? 0);
-    $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
-    if ($client_uuid === '') {
-        try { $client_uuid = bin2hex(random_bytes(16)); } catch (Throwable $e) { $client_uuid = uniqid('uuid_', true); }
+    error_log("Donor pledge update: POST request received");
+    error_log("Donor pledge update: POST data keys: " . implode(', ', array_keys($_POST)));
+    
+    try {
+        verify_csrf();
+        error_log("Donor pledge update: CSRF verified");
+    } catch (Exception $csrfError) {
+        error_log("Donor pledge update: CSRF verification failed - " . $csrfError->getMessage());
+        $error = 'Security verification failed. Please refresh and try again.';
     }
 
-    // Validation
-    $error = '';
-    if (empty($client_uuid)) {
-        $error = 'A unique submission ID is required. Please refresh and try again.';
-    }
-
-    // Calculate donation amount based on selection
-    $amount = 0.0;
-    $selectedPackage = null;
-    if ($sqm_unit === '1') { $selectedPackage = $pkgOne; }
-    elseif ($sqm_unit === '0.5') { $selectedPackage = $pkgHalf; }
-    elseif ($sqm_unit === '0.25') { $selectedPackage = $pkgQuarter; }
-    elseif ($sqm_unit === 'custom') { $selectedPackage = $pkgCustom; }
-    else { $selectedPackage = null; }
-
-    if ($selectedPackage) {
-        if ($sqm_unit === 'custom') {
-            $amount = max(0, $custom_amount);
-        } else {
-            $amount = (float)$selectedPackage['price'];
+    if (empty($error)) {
+        // Collect form inputs
+        error_log("Donor pledge update: Collecting form inputs...");
+        $notes = trim((string)($_POST['notes'] ?? '')); // Optional notes
+        $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
+        $custom_amount = (float)($_POST['custom_amount'] ?? 0);
+        $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
+        error_log("Donor pledge update: Form inputs - sqm_unit=$sqm_unit, custom_amount=$custom_amount, client_uuid=" . substr($client_uuid, 0, 20));
+        
+        if ($client_uuid === '') {
+            try { 
+                $client_uuid = bin2hex(random_bytes(16)); 
+                error_log("Donor pledge update: Generated new client_uuid");
+            } catch (Throwable $e) { 
+                $client_uuid = uniqid('uuid_', true); 
+                error_log("Donor pledge update: Generated fallback client_uuid");
+            }
         }
-    } else {
-        $error = 'Please select a valid donation package.';
-    }
 
-    if ($amount <= 0 && !$error) {
-        $error = 'Please select a valid amount greater than zero.';
+        // Validation
+        $error = '';
+        if (empty($client_uuid)) {
+            $error = 'A unique submission ID is required. Please refresh and try again.';
+            error_log("Donor pledge update: ERROR - client_uuid is empty");
+        }
+
+        // Calculate donation amount based on selection
+        error_log("Donor pledge update: Calculating amount...");
+        $amount = 0.0;
+        $selectedPackage = null;
+        if ($sqm_unit === '1') { 
+            $selectedPackage = $pkgOne; 
+            error_log("Donor pledge update: Selected 1 m² package");
+        }
+        elseif ($sqm_unit === '0.5') { 
+            $selectedPackage = $pkgHalf; 
+            error_log("Donor pledge update: Selected 1/2 m² package");
+        }
+        elseif ($sqm_unit === '0.25') { 
+            $selectedPackage = $pkgQuarter; 
+            error_log("Donor pledge update: Selected 1/4 m² package");
+        }
+        elseif ($sqm_unit === 'custom') { 
+            $selectedPackage = $pkgCustom; 
+            error_log("Donor pledge update: Selected custom package");
+        }
+        else { 
+            $selectedPackage = null; 
+            error_log("Donor pledge update: No package selected, sqm_unit=$sqm_unit");
+        }
+
+        if ($selectedPackage) {
+            if ($sqm_unit === 'custom') {
+                $amount = max(0, $custom_amount);
+                error_log("Donor pledge update: Custom amount = $amount");
+            } else {
+                $amount = (float)$selectedPackage['price'];
+                error_log("Donor pledge update: Package amount = $amount (from package ID: " . ($selectedPackage['id'] ?? 'N/A') . ")");
+            }
+        } else {
+            $error = 'Please select a valid donation package.';
+            error_log("Donor pledge update: ERROR - No valid package selected. Available packages: pkgOne=" . ($pkgOne ? 'YES' : 'NO') . ", pkgHalf=" . ($pkgHalf ? 'YES' : 'NO') . ", pkgQuarter=" . ($pkgQuarter ? 'YES' : 'NO') . ", pkgCustom=" . ($pkgCustom ? 'YES' : 'NO'));
+        }
+
+        if ($amount <= 0 && !$error) {
+            $error = 'Please select a valid amount greater than zero.';
+            error_log("Donor pledge update: ERROR - Amount is $amount (must be > 0)");
+        }
+    } catch (Throwable $validationError) {
+        error_log("Donor pledge update: ERROR during validation - " . $validationError->getMessage() . " in " . $validationError->getFile() . ":" . $validationError->getLine());
+        $error = 'Validation error: ' . htmlspecialchars($validationError->getMessage());
     }
 
     // Process the database transaction
     if (empty($error)) {
         // Debug: Check database connection
+        error_log("Donor pledge update: Checking database connection...");
         if (!$db_connection_ok) {
             $error = 'Database connection is not available. Please contact support.';
+            error_log("Donor pledge update: ERROR - db_connection_ok is false");
         } elseif (!isset($db) || !($db instanceof mysqli)) {
             $error = 'Database object is not available. Please contact support.';
+            error_log("Donor pledge update: ERROR - db is not set or not mysqli instance. isset(db)=" . (isset($db) ? 'YES' : 'NO') . ", instanceof=" . (isset($db) && $db instanceof mysqli ? 'YES' : 'NO'));
         } else {
             try {
                 // Debug: Log step
                 error_log("Donor pledge update: Starting transaction. Donor ID: " . ($donor['id'] ?? 'N/A') . ", Amount: $amount, Package: " . ($selectedPackage['label'] ?? 'N/A'));
+                error_log("Donor pledge update: Database connection OK, db_connection_ok=" . ($db_connection_ok ? 'true' : 'false'));
                 
                 $db->autocommit(false);
+                error_log("Donor pledge update: autocommit set to false");
                 
                 // Donor data from session
                 $donorName = $donor['name'] ?? 'Anonymous';
@@ -263,6 +312,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                     }
                 } elseif ($has_donor_id_column && !$has_donor_email_column) {
+                    error_log("Donor pledge update: Using query variant: has_donor_id only");
                     if ($includeCreatedBy) {
                         $stmt = $db->prepare("
                             INSERT INTO pledges (
@@ -295,6 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                     }
                 } elseif (!$has_donor_id_column && $has_donor_email_column) {
+                    error_log("Donor pledge update: Using query variant: has_donor_email only");
                     if ($includeCreatedBy) {
                         $stmt = $db->prepare("
                             INSERT INTO pledges (
@@ -328,6 +379,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } else {
                     // Neither column exists (match registrar pattern)
+                    error_log("Donor pledge update: Using query variant: neither donor_id nor donor_email");
                     if ($includeCreatedBy) {
                         $stmt = $db->prepare("
                             INSERT INTO pledges (
@@ -362,19 +414,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             
                 error_log("Donor pledge update: Executing INSERT statement...");
+                error_log("Donor pledge update: bind_param types: " . (isset($stmt) ? 'prepared' : 'NOT PREPARED'));
+                error_log("Donor pledge update: donorIdNullable=" . var_export($donorIdNullable, true) . ", donorName=" . substr($donorName, 0, 20) . ", amount=$amount");
+                
                 if (!$stmt->execute()) {
                     $error_msg = $stmt->error ?: $db->error ?: 'Unknown SQL error';
-                    error_log("Donor pledge update: INSERT failed - " . $error_msg);
+                    error_log("Donor pledge update: INSERT FAILED - SQL Error: " . $error_msg);
+                    error_log("Donor pledge update: MySQL Error Code: " . $stmt->errno);
+                    error_log("Donor pledge update: Database Error: " . $db->error);
                     $stmt->close();
-                    throw new Exception('Failed to create pledge request: ' . $error_msg);
+                    throw new Exception('Failed to create pledge request: ' . $error_msg . ' (Error Code: ' . $stmt->errno . ')');
                 }
                 if ($stmt->affected_rows === 0) { 
                     error_log("Donor pledge update: INSERT succeeded but no rows affected!");
+                    error_log("Donor pledge update: affected_rows=" . $stmt->affected_rows);
                     $stmt->close();
                     throw new Exception('Failed to create pledge request (no rows affected).'); 
                 }
                 $entityId = $db->insert_id;
-                error_log("Donor pledge update: INSERT successful, new pledge ID: $entityId");
+                error_log("Donor pledge update: INSERT successful, new pledge ID: $entityId, affected_rows=" . $stmt->affected_rows);
                 $stmt->close();
 
                 // Create allocation batch record for tracking
@@ -442,50 +500,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Audit log
-                error_log("Donor pledge update: Creating audit log...");
-                $afterJson = json_encode([
-                    'amount'=>$amount,
-                    'type'=>'pledge',
-                    'donor'=>$donorName,
-                    'status'=>'pending',
-                    'source'=>'donor_portal',
-                    'current_total_pledged'=>$donor['total_pledged'] ?? 0
-                ]);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, 'pledge', ?, 'create_pending', ?, 'donor_portal')");
-                if (!$log) {
-                    throw new Exception("Failed to prepare audit log query: " . $db->error);
-                }
-                $log->bind_param('is', $entityId, $afterJson);
-                if (!$log->execute()) {
-                    error_log("Donor pledge update: Audit log failed but continuing: " . $log->error);
+                error_log("Donor pledge update: Creating audit log for entity ID: $entityId");
+                try {
+                    $afterJson = json_encode([
+                        'amount'=>$amount,
+                        'type'=>'pledge',
+                        'donor'=>$donorName,
+                        'status'=>'pending',
+                        'source'=>'donor_portal',
+                        'current_total_pledged'=>$donor['total_pledged'] ?? 0
+                    ]);
+                    error_log("Donor pledge update: Audit JSON prepared: " . substr($afterJson, 0, 100));
+                    
+                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, 'pledge', ?, 'create_pending', ?, 'donor_portal')");
+                    if (!$log) {
+                        error_log("Donor pledge update: WARNING - Failed to prepare audit log query: " . $db->error);
+                        throw new Exception("Failed to prepare audit log query: " . $db->error);
+                    }
+                    $log->bind_param('is', $entityId, $afterJson);
+                    if (!$log->execute()) {
+                        error_log("Donor pledge update: WARNING - Audit log execution failed: " . $log->error . " (Error code: " . $log->errno . ")");
+                        // Don't fail the whole transaction if audit log fails
+                    } else {
+                        error_log("Donor pledge update: Audit log created successfully");
+                    }
+                    $log->close();
+                } catch (Exception $auditError) {
+                    error_log("Donor pledge update: ERROR creating audit log - " . $auditError->getMessage());
                     // Don't fail the whole transaction if audit log fails
                 }
-                $log->close();
 
                 error_log("Donor pledge update: Committing transaction...");
-                $db->commit();
+                if (!$db->commit()) {
+                    error_log("Donor pledge update: ERROR - Commit failed: " . $db->error);
+                    throw new Exception("Transaction commit failed: " . $db->error);
+                }
                 $db->autocommit(true);
+                error_log("Donor pledge update: Transaction committed successfully");
                 
                 $_SESSION['success_message'] = "Your pledge increase request for {$currency} " . number_format($amount, 2) . " has been submitted for approval!";
                 error_log("Donor pledge update: Success! Redirecting...");
                 header('Location: update-pledge.php');
                 exit;
             } catch (mysqli_sql_exception $e) {
+                error_log("Donor pledge update: CATCH mysqli_sql_exception");
+                error_log("Donor pledge update: Exception message: " . $e->getMessage());
+                error_log("Donor pledge update: Exception code: " . $e->getCode());
+                error_log("Donor pledge update: Exception file: " . $e->getFile());
+                error_log("Donor pledge update: Exception line: " . $e->getLine());
+                error_log("Donor pledge update: Exception trace: " . $e->getTraceAsString());
+                
                 if (isset($db) && $db instanceof mysqli) {
+                    error_log("Donor pledge update: Rolling back transaction...");
                     $db->rollback();
                     $db->autocommit(true);
+                    error_log("Donor pledge update: Database error code: " . $db->errno);
+                    error_log("Donor pledge update: Database error message: " . $db->error);
                 }
+                
                 $error_msg = $e->getMessage() . " | SQL Error: " . (isset($db) && $db instanceof mysqli ? ($db->error ?? 'N/A') : 'DB not available') . " | Line: " . $e->getLine();
                 error_log("Donor pledge update SQL error: " . $error_msg);
-                $error = 'Database error: ' . htmlspecialchars($e->getMessage()) . (isset($db) && $db instanceof mysqli && $db->error ? ' | SQL: ' . htmlspecialchars($db->error) : '');
+                
+                // Show detailed error - always show full details for debugging
+                $dbError = (isset($db) && $db instanceof mysqli) ? $db->error : 'N/A';
+                $dbErrno = (isset($db) && $db instanceof mysqli) ? $db->errno : 'N/A';
+                $error = 'Database error: ' . htmlspecialchars($e->getMessage()) . 
+                    '<br><strong>SQL Error:</strong> ' . htmlspecialchars($dbError) . 
+                    '<br><strong>Error Code:</strong> ' . $dbErrno . 
+                    '<br><strong>File:</strong> ' . $e->getFile() . 
+                    '<br><strong>Line:</strong> ' . $e->getLine() .
+                    '<br><strong>Trace:</strong> <pre style="background:#f5f5f5;padding:10px;overflow:auto;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
             } catch (Exception $e) {
+                error_log("Donor pledge update: CATCH Exception");
+                error_log("Donor pledge update: Exception message: " . $e->getMessage());
+                error_log("Donor pledge update: Exception code: " . $e->getCode());
+                error_log("Donor pledge update: Exception file: " . $e->getFile());
+                error_log("Donor pledge update: Exception line: " . $e->getLine());
+                error_log("Donor pledge update: Exception trace: " . $e->getTraceAsString());
+                
+                if (isset($db) && $db instanceof mysqli) {
+                    error_log("Donor pledge update: Rolling back transaction...");
+                    $db->rollback();
+                    $db->autocommit(true);
+                    if ($db->error) {
+                        error_log("Donor pledge update: Database error: " . $db->error);
+                    }
+                }
+                
+                $error_msg = $e->getMessage() . " on line " . $e->getLine() . " | File: " . $e->getFile();
+                error_log("Donor pledge update error: " . $error_msg);
+                
+                // Show detailed error - always show full details for debugging
+                $error = 'Error saving request: ' . htmlspecialchars($e->getMessage()) . 
+                    '<br><strong>File:</strong> ' . $e->getFile() . 
+                    '<br><strong>Line:</strong> ' . $e->getLine() . 
+                    '<br><strong>Code:</strong> ' . $e->getCode() .
+                    '<br><strong>Trace:</strong> <pre style="background:#f5f5f5;padding:10px;overflow:auto;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+            } catch (Throwable $e) {
+                error_log("Donor pledge update: CATCH Throwable (fatal error)");
+                error_log("Donor pledge update: Throwable message: " . $e->getMessage());
+                error_log("Donor pledge update: Throwable file: " . $e->getFile());
+                error_log("Donor pledge update: Throwable line: " . $e->getLine());
+                error_log("Donor pledge update: Throwable trace: " . $e->getTraceAsString());
+                
                 if (isset($db) && $db instanceof mysqli) {
                     $db->rollback();
                     $db->autocommit(true);
                 }
-                $error_msg = $e->getMessage() . " on line " . $e->getLine() . " | File: " . $e->getFile();
-                error_log("Donor pledge update error: " . $error_msg);
-                $error = 'Error saving request: ' . htmlspecialchars($e->getMessage()) . ' (Line: ' . $e->getLine() . ')';
+                
+                // Show detailed error - always show full details for debugging
+                $error = 'Fatal error: ' . htmlspecialchars($e->getMessage()) . 
+                    '<br><strong>File:</strong> ' . $e->getFile() . 
+                    '<br><strong>Line:</strong> ' . $e->getLine() . 
+                    '<br><strong>Trace:</strong> <pre style="background:#f5f5f5;padding:10px;overflow:auto;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
             }
         }
     }
@@ -525,7 +652,10 @@ if (isset($_SESSION['success_message'])) {
 
             <?php if ($error): ?>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error); ?>
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <div style="margin-top: 10px;">
+                    <?php echo $error; // Error already contains safe HTML ?>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             <?php endif; ?>
