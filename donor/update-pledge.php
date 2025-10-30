@@ -96,44 +96,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Process the database transaction
     if (empty($error)) {
-        try {
-            $db->autocommit(false);
-            
-            // Donor data from session
-            $donorName = $donor['name'] ?? 'Anonymous';
-            $donorPhone = $donor['phone'] ?? '';
-            $donorEmail = null;
-
-            // Normalize notes (tombola code if provided, otherwise empty)
-            $notesDigits = preg_replace('/\D+/', '', $notes);
-            $final_notes = !empty($notesDigits) ? $notesDigits : '';
-
-            // Check for duplicate UUID
-            $stmt = $db->prepare("SELECT id FROM pledges WHERE client_uuid = ?");
-            $stmt->bind_param("s", $client_uuid);
-            $stmt->execute();
-            if ($stmt->get_result()->fetch_assoc()) {
-                throw new Exception("Duplicate submission detected. Please do not click submit twice.");
-            }
-            $stmt->close();
-
-            // Check if donor_email column exists in pledges table
-            $has_donor_email_column = false;
+        // Debug: Check database connection
+        if (!$db_connection_ok) {
+            $error = 'Database connection is not available. Please contact support.';
+        } elseif (!isset($db) || !($db instanceof mysqli)) {
+            $error = 'Database object is not available. Please contact support.';
+        } else {
             try {
-                $check_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_email'");
-                $has_donor_email_column = $check_col->num_rows > 0;
-            } catch (Exception $e) {
-                // Column doesn't exist, that's fine
-            }
-            
-            // Check if donor_id column exists in pledges table
-            $has_donor_id_column = false;
-            try {
-                $check_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'");
-                $has_donor_id_column = $check_col->num_rows > 0;
-            } catch (Exception $e) {
-                // Column doesn't exist, that's fine
-            }
+                // Debug: Log step
+                error_log("Donor pledge update: Starting transaction. Donor ID: " . ($donor['id'] ?? 'N/A') . ", Amount: $amount, Package: " . ($selectedPackage['label'] ?? 'N/A'));
+                
+                $db->autocommit(false);
+                
+                // Donor data from session
+                $donorName = $donor['name'] ?? 'Anonymous';
+                $donorPhone = $donor['phone'] ?? '';
+                $donorEmail = null;
+                
+                if (empty($donorPhone)) {
+                    throw new Exception("Donor phone number is missing from session.");
+                }
+                if (empty($donorName)) {
+                    $donorName = 'Anonymous';
+                }
+
+                // Normalize notes (tombola code if provided, otherwise empty)
+                $notesDigits = preg_replace('/\D+/', '', $notes);
+                $final_notes = !empty($notesDigits) ? $notesDigits : '';
+
+                // Check for duplicate UUID
+                error_log("Donor pledge update: Checking for duplicate UUID: $client_uuid");
+                $stmt = $db->prepare("SELECT id FROM pledges WHERE client_uuid = ?");
+                if (!$stmt) {
+                    throw new Exception("Failed to prepare duplicate check query: " . $db->error);
+                }
+                $stmt->bind_param("s", $client_uuid);
+                if (!$stmt->execute()) {
+                    throw new Exception("Failed to execute duplicate check: " . $stmt->error);
+                }
+                $result = $stmt->get_result();
+                if ($result->fetch_assoc()) {
+                    $stmt->close();
+                    throw new Exception("Duplicate submission detected. Please do not click submit twice.");
+                }
+                $stmt->close();
+                error_log("Donor pledge update: No duplicate found, proceeding...");
+
+                // Check if donor_email column exists in pledges table
+                error_log("Donor pledge update: Checking for donor_email column...");
+                $has_donor_email_column = false;
+                try {
+                    $check_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_email'");
+                    if ($check_col) {
+                        $has_donor_email_column = $check_col->num_rows > 0;
+                    }
+                } catch (Exception $e) {
+                    error_log("Donor pledge update: donor_email column check failed: " . $e->getMessage());
+                    // Column doesn't exist, that's fine
+                }
+                
+                // Check if donor_id column exists in pledges table
+                error_log("Donor pledge update: Checking for donor_id column...");
+                $has_donor_id_column = false;
+                try {
+                    $check_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'");
+                    if ($check_col) {
+                        $has_donor_id_column = $check_col->num_rows > 0;
+                    }
+                } catch (Exception $e) {
+                    error_log("Donor pledge update: donor_id column check failed: " . $e->getMessage());
+                    // Column doesn't exist, that's fine
+                }
+                
+                error_log("Donor pledge update: Column check results - donor_id: " . ($has_donor_id_column ? 'YES' : 'NO') . ", donor_email: " . ($has_donor_email_column ? 'YES' : 'NO'));
             
             // Create new pending pledge for the additional amount
             $status = 'pending';
@@ -200,49 +235,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
             }
             
-            $stmt->execute();
-            if ($stmt->error) {
-                throw new Exception('Failed to create pledge request: ' . $stmt->error);
-            }
-            if ($stmt->affected_rows === 0) { 
-                throw new Exception('Failed to create pledge request (no rows affected).'); 
-            }
-            $entityId = $db->insert_id;
-            $stmt->close();
+                error_log("Donor pledge update: Executing INSERT statement...");
+                if (!$stmt->execute()) {
+                    $error_msg = $stmt->error ?: $db->error ?: 'Unknown SQL error';
+                    error_log("Donor pledge update: INSERT failed - " . $error_msg);
+                    $stmt->close();
+                    throw new Exception('Failed to create pledge request: ' . $error_msg);
+                }
+                if ($stmt->affected_rows === 0) { 
+                    error_log("Donor pledge update: INSERT succeeded but no rows affected!");
+                    $stmt->close();
+                    throw new Exception('Failed to create pledge request (no rows affected).'); 
+                }
+                $entityId = $db->insert_id;
+                error_log("Donor pledge update: INSERT successful, new pledge ID: $entityId");
+                $stmt->close();
 
-            // Audit log
-            $afterJson = json_encode([
-                'amount'=>$amount,
-                'type'=>'pledge',
-                'donor'=>$donorName,
-                'status'=>'pending',
-                'source'=>'donor_portal',
-                'current_total_pledged'=>$donor['total_pledged'] ?? 0
-            ]);
-            $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, 'pledge', ?, 'create_pending', ?, 'donor_portal')");
-            $log->bind_param('is', $entityId, $afterJson);
-            $log->execute();
+                // Audit log
+                error_log("Donor pledge update: Creating audit log...");
+                $afterJson = json_encode([
+                    'amount'=>$amount,
+                    'type'=>'pledge',
+                    'donor'=>$donorName,
+                    'status'=>'pending',
+                    'source'=>'donor_portal',
+                    'current_total_pledged'=>$donor['total_pledged'] ?? 0
+                ]);
+                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, 'pledge', ?, 'create_pending', ?, 'donor_portal')");
+                if (!$log) {
+                    throw new Exception("Failed to prepare audit log query: " . $db->error);
+                }
+                $log->bind_param('is', $entityId, $afterJson);
+                if (!$log->execute()) {
+                    error_log("Donor pledge update: Audit log failed but continuing: " . $log->error);
+                    // Don't fail the whole transaction if audit log fails
+                }
+                $log->close();
 
-            $db->commit();
-            $db->autocommit(true);
-            
-            $_SESSION['success_message'] = "Your pledge increase request for {$currency} " . number_format($amount, 2) . " has been submitted for approval!";
-            header('Location: update-pledge.php');
-            exit;
-        } catch (mysqli_sql_exception $e) {
-            $db->rollback();
-            $db->autocommit(true);
-            error_log("Donor pledge update SQL error: " . $e->getMessage() . " | SQL Error: " . ($db->error ?? 'N/A') . " | Line: " . $e->getLine());
-            $error = (defined('ENVIRONMENT') && ENVIRONMENT !== 'production')
-                ? ('Database error: ' . htmlspecialchars($e->getMessage()) . (isset($db->error) && $db->error ? ' | SQL: ' . htmlspecialchars($db->error) : ''))
-                : 'Error saving request. Please try again or contact support.';
-        } catch (Exception $e) {
-            $db->rollback();
-            $db->autocommit(true);
-            error_log("Donor pledge update error: " . $e->getMessage() . " on line " . $e->getLine() . " | File: " . $e->getFile());
-            $error = (defined('ENVIRONMENT') && ENVIRONMENT !== 'production')
-                ? ('Error saving request: ' . htmlspecialchars($e->getMessage()) . ' (Line: ' . $e->getLine() . ')')
-                : 'Error saving request. Please try again or contact support.';
+                error_log("Donor pledge update: Committing transaction...");
+                $db->commit();
+                $db->autocommit(true);
+                
+                $_SESSION['success_message'] = "Your pledge increase request for {$currency} " . number_format($amount, 2) . " has been submitted for approval!";
+                error_log("Donor pledge update: Success! Redirecting...");
+                header('Location: update-pledge.php');
+                exit;
+            } catch (mysqli_sql_exception $e) {
+                if (isset($db) && $db instanceof mysqli) {
+                    $db->rollback();
+                    $db->autocommit(true);
+                }
+                $error_msg = $e->getMessage() . " | SQL Error: " . (isset($db) && $db instanceof mysqli ? ($db->error ?? 'N/A') : 'DB not available') . " | Line: " . $e->getLine();
+                error_log("Donor pledge update SQL error: " . $error_msg);
+                $error = 'Database error: ' . htmlspecialchars($e->getMessage()) . (isset($db) && $db instanceof mysqli && $db->error ? ' | SQL: ' . htmlspecialchars($db->error) : '');
+            } catch (Exception $e) {
+                if (isset($db) && $db instanceof mysqli) {
+                    $db->rollback();
+                    $db->autocommit(true);
+                }
+                $error_msg = $e->getMessage() . " on line " . $e->getLine() . " | File: " . $e->getFile();
+                error_log("Donor pledge update error: " . $error_msg);
+                $error = 'Error saving request: ' . htmlspecialchars($e->getMessage()) . ' (Line: ' . $e->getLine() . ')';
+            }
         }
     }
 }
