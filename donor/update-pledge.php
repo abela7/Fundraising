@@ -266,59 +266,130 @@ if (isset($_SESSION['success_message'])) {
                                     
                                     <div class="quick-amounts" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
                                         <?php if ($pkgOne): ?>
-                                        <label class="quick-amount-btn" data-pack="1" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                        <label class="quick-amount-btn" data-pack="1">
                                             <input type="radio" name="pack" value="1" class="d-none" required>
-                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;"><?php echo $currency; ?> <?php echo number_format((float)$pkgOne['price'], 0); ?></span>
-                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">1 Square Meter</span>
-                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                            <span class="quick-amount-value"><?php echo $currency; ?> <?php echo number_format((float)$pkgOne['price'], 0); ?></span>
+                                            <span class="quick-amount-label">1 Square Meter</span>
+                                            <i class="fas fa-check-circle checkmark"></i>
                                         </label>
                                         <?php endif; ?>
                                         
                                         <?php if ($pkgHalf): ?>
-                                        <label class="quick-amount-btn" data-pack="0.5" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                        <label class="quick-amount-btn" data-pack="0.5">
                                             <input type="radio" name="pack" value="0.5" class="d-none" required>
-                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;"><?php echo $currency; ?> <?php echo number_format((float)$pkgHalf['price'], 0); ?></span>
-                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">½ Square Meter</span>
-                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                            <span class="quick-amount-value"><?php echo $currency; ?> <?php echo number_format((float)$pkgHalf['price'], 0); ?></span>
+                                            <span class="quick-amount-label">½ Square Meter</span>
+                                            <i class="fas fa-check-circle checkmark"></i>
                                         </label>
                                         <?php endif; ?>
                                         
                                         <?php if ($pkgQuarter): ?>
-                                        <label class="quick-amount-btn" data-pack="0.25" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                        <label class="quick-amount-btn" data-pack="0.25">
                                             <input type="radio" name="pack" value="0.25" class="d-none" required>
-                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;"><?php echo $currency; ?> <?php echo number_format((float)$pkgQuarter['price'], 0); ?></span>
-                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">¼ Square Meter</span>
-                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                            <span class="quick-amount-value"><?php echo $currency; ?> <?php echo number_format((float)$pkgQuarter['price'], 0); ?></span>
+                                            <span class="quick-amount-label">¼ Square Meter</span>
+                                            <i class="fas fa-check-circle checkmark"></i>
                                         </label>
                                         <?php endif; ?>
                                         
-                                        <label class="quick-amount-btn" data-pack="custom" style="padding: 1rem; border: 2px solid #dee2e6; border-radius: 12px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; position: relative;">
+                                        <label class="quick-amount-btn" data-pack="custom">
                                             <input type="radio" name="pack" value="custom" class="d-none" required>
-                                            <span class="quick-amount-value" style="font-size: 1.25rem; font-weight: 700; display: block; margin-bottom: 0.25rem;">Custom</span>
-                                            <span class="quick-amount-label" style="font-size: 0.75rem; opacity: 0.8;">Enter Amount</span>
-                                            <i class="fas fa-check-circle checkmark" style="position: absolute; top: 8px; right: 8px; font-size: 1.2rem; color: #0a6286; opacity: 0; transform: scale(0.5); transition: all 0.3s ease;"></i>
+                                            <span class="quick-amount-value">Custom</span>
+                                            <span class="quick-amount-label">Enter Amount</span>
+                                            <i class="fas fa-check-circle checkmark"></i>
                                         </label>
                                     </div>
                                     
                                     <style>
+                                    .quick-amount-btn {
+                                        padding: 1rem;
+                                        border: 2px solid #dee2e6;
+                                        border-radius: 12px;
+                                        background: white;
+                                        cursor: pointer;
+                                        transition: all 0.3s ease;
+                                        text-align: center;
+                                        position: relative;
+                                        color: #333;
+                                    }
                                     .quick-amount-btn:hover {
                                         border-color: #0a6286;
-                                        background: #f8f9fa;
+                                        background: #f0f8ff;
+                                        transform: translateY(-2px);
+                                        box-shadow: 0 2px 8px rgba(10, 98, 134, 0.15);
                                     }
                                     .quick-amount-btn.active {
-                                        border-color: #0a6286;
-                                        background: #0a6286;
-                                        color: white;
-                                        box-shadow: 0 4px 12px rgba(10, 98, 134, 0.2);
+                                        border-color: #0a6286 !important;
+                                        border-width: 3px !important;
+                                        background: linear-gradient(135deg, #0a6286 0%, #0d7ba8 100%) !important;
+                                        color: white !important;
+                                        box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4) !important;
+                                        transform: translateY(-3px) scale(1.02);
+                                        animation: selectedPulse 0.5s ease-out;
                                     }
-                                    .quick-amount-btn.active .quick-amount-value,
+                                    @keyframes selectedPulse {
+                                        0% {
+                                            transform: translateY(-3px) scale(1);
+                                            box-shadow: 0 4px 12px rgba(10, 98, 134, 0.3);
+                                        }
+                                        50% {
+                                            transform: translateY(-3px) scale(1.05);
+                                            box-shadow: 0 8px 24px rgba(10, 98, 134, 0.5);
+                                        }
+                                        100% {
+                                            transform: translateY(-3px) scale(1.02);
+                                            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+                                        }
+                                    }
+                                    .quick-amount-btn.active .quick-amount-value {
+                                        color: white !important;
+                                        font-size: 1.35rem;
+                                        font-weight: 800;
+                                    }
                                     .quick-amount-btn.active .quick-amount-label {
-                                        color: white;
+                                        color: rgba(255, 255, 255, 0.95) !important;
+                                        font-weight: 600;
                                     }
                                     .quick-amount-btn.active .checkmark {
-                                        opacity: 1;
-                                        transform: scale(1);
-                                        color: white;
+                                        opacity: 1 !important;
+                                        transform: scale(1.2) !important;
+                                        color: white !important;
+                                        animation: checkmarkPop 0.4s ease-out 0.1s both;
+                                    }
+                                    @keyframes checkmarkPop {
+                                        0% {
+                                            transform: scale(0.5);
+                                            opacity: 0;
+                                        }
+                                        50% {
+                                            transform: scale(1.4);
+                                        }
+                                        100% {
+                                            transform: scale(1.2);
+                                            opacity: 1;
+                                        }
+                                    }
+                                    .quick-amount-value {
+                                        font-size: 1.25rem;
+                                        font-weight: 700;
+                                        display: block;
+                                        margin-bottom: 0.25rem;
+                                        transition: all 0.3s ease;
+                                    }
+                                    .quick-amount-label {
+                                        font-size: 0.75rem;
+                                        opacity: 0.8;
+                                        transition: all 0.3s ease;
+                                    }
+                                    .checkmark {
+                                        position: absolute;
+                                        top: 8px;
+                                        right: 8px;
+                                        font-size: 1.2rem;
+                                        color: #0a6286;
+                                        opacity: 0;
+                                        transform: scale(0.5);
+                                        transition: all 0.3s ease;
                                     }
                                     @media (min-width: 768px) {
                                         .quick-amounts {
