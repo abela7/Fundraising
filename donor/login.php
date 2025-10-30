@@ -1,10 +1,11 @@
 <?php
 /**
- * Donor Portal Login - Token-based Access
- * Donors access via secure token link (sent via SMS/email)
+ * Donor Portal Login - Phone-based Access
+ * Simple phone-only login (can be enhanced later with PIN/password)
  */
 
 require_once __DIR__ . '/../shared/auth.php';
+require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 // Check if already logged in
@@ -23,50 +24,99 @@ if (current_donor()) {
 $error = '';
 $success = '';
 
-// Handle token-based login
-if (isset($_GET['token'])) {
-    $token = trim($_GET['token']);
+// Handle logout message
+if (isset($_GET['logout']) && $_GET['logout'] === 'success') {
+    $success = 'You have been logged out successfully.';
+}
+
+// Handle phone-based login
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
     
-    if ($token && $db_connection_ok) {
-        // Verify token
-        $stmt = $db->prepare("
-            SELECT id, name, phone, total_pledged, total_paid, balance, 
-                   has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                   plan_duration_months, plan_start_date, plan_next_due_date,
-                   payment_status, preferred_payment_method, preferred_language
-            FROM donors 
-            WHERE portal_token = ? 
-              AND token_expires_at > NOW()
-              AND portal_token IS NOT NULL
-            LIMIT 1
-        ");
-        $stmt->bind_param('s', $token);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $donor = $result->fetch_assoc();
-        
-        if ($donor) {
-            // Set donor session
-            $_SESSION['donor'] = $donor;
-            
-            // Update login tracking
-            $update_stmt = $db->prepare("
-                UPDATE donors 
-                SET last_login_at = NOW(), 
-                    login_count = login_count + 1 
-                WHERE id = ?
-            ");
-            $update_stmt->bind_param('i', $donor['id']);
-            $update_stmt->execute();
-            
-            // Redirect to dashboard
-            header('Location: index.php');
-            exit;
-        } else {
-            $error = 'Invalid or expired access token. Please contact the church office for a new access link.';
-        }
+    $phone = trim($_POST['phone'] ?? '');
+    
+    if ($phone === '') {
+        $error = 'Please enter your phone number.';
     } else {
-        $error = 'Invalid token format.';
+        // Normalize phone number (remove spaces, dashes, etc.)
+        $normalized_phone = preg_replace('/\D+/', '', $phone);
+        
+        // Handle +44 format
+        if (strpos($normalized_phone, '44') === 0 && strlen($normalized_phone) === 12) {
+            $normalized_phone = '0' . substr($normalized_phone, 2);
+        }
+        
+        if (strlen($normalized_phone) < 10) {
+            $error = 'Please enter a valid UK mobile number.';
+        } else {
+            // Look up donor by phone
+            if ($db_connection_ok) {
+                try {
+                    // Try exact match first
+                    $stmt = $db->prepare("
+                        SELECT id, name, phone, total_pledged, total_paid, balance, 
+                               has_active_plan, active_payment_plan_id, plan_monthly_amount,
+                               plan_duration_months, plan_start_date, plan_next_due_date,
+                               payment_status, preferred_payment_method, preferred_language
+                        FROM donors 
+                        WHERE phone = ? 
+                        LIMIT 1
+                    ");
+                    $stmt->bind_param('s', $phone);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    $donor = $result->fetch_assoc();
+                    
+                    // If no exact match, try normalized match
+                    if (!$donor && $normalized_phone) {
+                        $stmt2 = $db->prepare("
+                            SELECT id, name, phone, total_pledged, total_paid, balance, 
+                                   has_active_plan, active_payment_plan_id, plan_monthly_amount,
+                                   plan_duration_months, plan_start_date, plan_next_due_date,
+                                   payment_status, preferred_payment_method, preferred_language
+                            FROM donors 
+                            WHERE REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', '') = ?
+                            LIMIT 1
+                        ");
+                        $stmt2->bind_param('s', $normalized_phone);
+                        $stmt2->execute();
+                        $result2 = $stmt2->get_result();
+                        $donor = $result2->fetch_assoc();
+                        $stmt2->close();
+                    }
+                    $stmt->close();
+                    
+                    if ($donor) {
+                        // Set donor session
+                        $_SESSION['donor'] = $donor;
+                        
+                        // Update login tracking
+                        $update_stmt = $db->prepare("
+                            UPDATE donors 
+                            SET last_login_at = NOW(), 
+                                login_count = login_count + 1 
+                            WHERE id = ?
+                        ");
+                        $update_stmt->bind_param('i', $donor['id']);
+                        $update_stmt->execute();
+                        $update_stmt->close();
+                        
+                        // Regenerate session ID for security
+                        session_regenerate_id(true);
+                        
+                        // Redirect to dashboard
+                        header('Location: index.php');
+                        exit;
+                    } else {
+                        $error = 'No donor account found with this phone number. Please contact the church office if you believe this is an error.';
+                    }
+                } catch (Exception $e) {
+                    $error = 'An error occurred. Please try again or contact support.';
+                }
+            } else {
+                $error = 'Database connection error. Please try again later.';
+            }
+        }
     }
 }
 ?>
@@ -75,12 +125,12 @@ if (isset($_GET['token'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donor Portal Access - Church Fundraising</title>
+    <title>Donor Portal Login - Church Fundraising</title>
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css">
-    <link rel="stylesheet" href="assets/auth.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/auth.css?v=<?php echo @filemtime(__DIR__ . '/assets/auth.css'); ?>">
 </head>
 <body>
     <div class="auth-wrapper">
@@ -108,25 +158,30 @@ if (isset($_GET['token'])) {
                 </div>
                 <?php endif; ?>
 
-                <div class="auth-info-card">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-lock fa-3x text-primary mb-3"></i>
-                        <h5>Secure Access</h5>
-                        <p class="text-muted mb-0">
-                            Access your donor portal using the secure link sent to your phone or email.
-                        </p>
-                    </div>
+                <form method="POST" class="auth-form">
+                    <?php echo csrf_input(); ?>
                     
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>How to access:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>Check your SMS messages for the access link</li>
-                            <li>Click the link to automatically log in</li>
-                            <li>If your link expired, contact the church office</li>
-                        </ul>
+                    <div class="form-floating mb-4">
+                        <input type="tel" 
+                               class="form-control" 
+                               id="phone" 
+                               name="phone" 
+                               placeholder="Phone number" 
+                               pattern="[0-9+\s\-\(\)]+"
+                               required 
+                               autofocus>
+                        <label for="phone">
+                            <i class="fas fa-phone me-2"></i>Phone Number
+                        </label>
+                        <div class="form-text">
+                            Enter your UK mobile number (e.g., 07123456789)
+                        </div>
                     </div>
-                </div>
+
+                    <button type="submit" class="btn btn-primary btn-login w-100">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </button>
+                </form>
 
                 <div class="auth-footer">
                     <p class="mb-2">
@@ -135,8 +190,7 @@ if (isset($_GET['token'])) {
                         </a>
                     </p>
                     <p class="text-muted small mb-0">
-                        Need help? Contact the church office at 
-                        <a href="tel:+44" class="text-decoration-none">+44 XXX XXX XXXX</a>
+                        Need help? Contact the church office for assistance.
                     </p>
                     <p class="text-muted small mb-0">
                         © <?php echo date('Y'); ?> Church Fundraising. All rights reserved.
@@ -154,6 +208,29 @@ if (isset($_GET['token'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Phone number formatting (optional enhancement)
+    document.getElementById('phone').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        
+        // Handle +44 format
+        if (value.startsWith('44') && value.length === 12) {
+            value = '0' + value.slice(2);
+        }
+        
+        // Format as UK mobile (07123456789 or 07123 456789)
+        if (value.length > 0) {
+            if (value.length <= 5) {
+                value = value;
+            } else if (value.length <= 10) {
+                value = value.slice(0, 5) + ' ' + value.slice(5);
+            } else {
+                value = value.slice(0, 5) + ' ' + value.slice(5, 10);
+            }
+        }
+        
+        e.target.value = value;
+    });
+    </script>
 </body>
 </html>
-

@@ -23,50 +23,8 @@ function require_donor_login(): void {
     }
 }
 
-// Check token authentication
-$donor = current_donor();
-if (!$donor && isset($_GET['token'])) {
-    // Token-based login
-    $token = trim($_GET['token'] ?? '');
-    
-    if ($token && $db_connection_ok) {
-        // Check token in donors table
-        $stmt = $db->prepare("
-            SELECT id, name, phone, total_pledged, total_paid, balance, 
-                   has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                   plan_duration_months, plan_start_date, plan_next_due_date,
-                   payment_status, preferred_payment_method, preferred_language
-            FROM donors 
-            WHERE portal_token = ? 
-              AND token_expires_at > NOW()
-              AND portal_token IS NOT NULL
-            LIMIT 1
-        ");
-        $stmt->bind_param('s', $token);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $donor_data = $result->fetch_assoc();
-        
-        if ($donor_data) {
-            // Set donor session
-            $_SESSION['donor'] = $donor_data;
-            
-            // Update login tracking
-            $update_stmt = $db->prepare("
-                UPDATE donors 
-                SET last_login_at = NOW(), 
-                    login_count = login_count + 1 
-                WHERE id = ?
-            ");
-            $update_stmt->bind_param('i', $donor_data['id']);
-            $update_stmt->execute();
-            
-            // Redirect to remove token from URL
-            header('Location: index.php');
-            exit;
-        }
-    }
-}
+// Note: Token-based login can be added later if needed
+// For now, donors login via phone number on login.php
 
 // Require donor login to access
 require_donor_login();
