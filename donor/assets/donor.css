@@ -48,21 +48,22 @@ body {
 }
 
 .sidebar.collapsed {
-    width: 88px;
+    width: 240px; /* Reduced from 280px but still shows text */
 }
 
-.sidebar.collapsed .sidebar-brand-text,
-.sidebar.collapsed .nav-link-text,
-.sidebar.collapsed .nav-section-title {
-    display: none;
+/* Always show text labels - never hide them */
+.sidebar-brand-text,
+.nav-link-text,
+.nav-section-title {
+    display: block !important;
 }
 
 .sidebar.collapsed .sidebar-brand {
-    justify-content: center;
+    justify-content: flex-start; /* Keep text aligned left */
 }
 
 .sidebar.collapsed .nav-link {
-    justify-content: center;
+    justify-content: flex-start; /* Keep text aligned left */
 }
 
 .sidebar.show {
@@ -510,7 +511,7 @@ body {
   }
   
   .app-content.collapsed {
-      width: calc(100% - 88px);
+      width: calc(100% - 240px);
   }
 
   .sidebar-toggle {
