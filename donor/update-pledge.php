@@ -117,26 +117,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $stmt->close();
 
+            // Check if donor_email column exists in pledges table
+            $has_donor_email_column = false;
+            try {
+                $check_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_email'");
+                $has_donor_email_column = $check_col->num_rows > 0;
+            } catch (Exception $e) {
+                // Column doesn't exist, that's fine
+            }
+            
+            // Check if donor_id column exists in pledges table
+            $has_donor_id_column = false;
+            try {
+                $check_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'");
+                $has_donor_id_column = $check_col->num_rows > 0;
+            } catch (Exception $e) {
+                // Column doesn't exist, that's fine
+            }
+            
             // Create new pending pledge for the additional amount
             $status = 'pending';
-            $stmt = $db->prepare("
-                INSERT INTO pledges (
-                  donor_id, donor_name, donor_phone, donor_email, source, anonymous,
-                  amount, type, status, notes, client_uuid, created_by_user_id, package_id
-                ) VALUES (?, ?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
-            ");
             $packageId = (int)($selectedPackage['id'] ?? 0);
             $packageIdNullable = $packageId > 0 ? $packageId : null;
             $donorId = (int)($donor['id'] ?? 0);
             $donorIdNullable = $donorId > 0 ? $donorId : null;
-            $stmt->bind_param(
-                'isssdsssi',
-                $donorIdNullable, $donorName, $donorPhone, $donorEmail,
-                $amount, $status, $final_notes, $client_uuid, $packageIdNullable
-            );
+            
+            // Get donor email if available
+            $donorEmail = null;
+            if ($has_donor_email_column && isset($donor['email']) && !empty($donor['email'])) {
+                $donorEmail = trim($donor['email']);
+            }
+            
+            // Build INSERT query dynamically based on column existence
+            if ($has_donor_id_column && $has_donor_email_column) {
+                $stmt = $db->prepare("
+                    INSERT INTO pledges (
+                      donor_id, donor_name, donor_phone, donor_email, source, anonymous,
+                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                    ) VALUES (?, ?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
+                ");
+                $stmt->bind_param(
+                    'isssdsssi',
+                    $donorIdNullable, $donorName, $donorPhone, $donorEmail,
+                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
+                );
+            } elseif ($has_donor_id_column && !$has_donor_email_column) {
+                $stmt = $db->prepare("
+                    INSERT INTO pledges (
+                      donor_id, donor_name, donor_phone, source, anonymous,
+                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                    ) VALUES (?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
+                ");
+                $stmt->bind_param(
+                    'issdsssi',
+                    $donorIdNullable, $donorName, $donorPhone,
+                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
+                );
+            } elseif (!$has_donor_id_column && $has_donor_email_column) {
+                $stmt = $db->prepare("
+                    INSERT INTO pledges (
+                      donor_name, donor_phone, donor_email, source, anonymous,
+                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                    ) VALUES (?, ?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
+                ");
+                $stmt->bind_param(
+                    'sssdsssi',
+                    $donorName, $donorPhone, $donorEmail,
+                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
+                );
+            } else {
+                // Neither column exists (match registrar pattern)
+                $stmt = $db->prepare("
+                    INSERT INTO pledges (
+                      donor_name, donor_phone, source, anonymous,
+                      amount, type, status, notes, client_uuid, created_by_user_id, package_id
+                    ) VALUES (?, ?, 'self', 0, ?, 'pledge', ?, ?, ?, 0, ?)
+                ");
+                $stmt->bind_param(
+                    'ssdsssi',
+                    $donorName, $donorPhone,
+                    $amount, $status, $final_notes, $client_uuid, $packageIdNullable
+                );
+            }
+            
             $stmt->execute();
-            if ($stmt->affected_rows === 0) { throw new Exception('Failed to create pledge request.'); }
+            if ($stmt->error) {
+                throw new Exception('Failed to create pledge request: ' . $stmt->error);
+            }
+            if ($stmt->affected_rows === 0) { 
+                throw new Exception('Failed to create pledge request (no rows affected).'); 
+            }
             $entityId = $db->insert_id;
+            $stmt->close();
 
             // Audit log
             $afterJson = json_encode([
@@ -157,12 +229,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['success_message'] = "Your pledge increase request for {$currency} " . number_format($amount, 2) . " has been submitted for approval!";
             header('Location: update-pledge.php');
             exit;
+        } catch (mysqli_sql_exception $e) {
+            $db->rollback();
+            $db->autocommit(true);
+            error_log("Donor pledge update SQL error: " . $e->getMessage() . " | SQL Error: " . ($db->error ?? 'N/A') . " | Line: " . $e->getLine());
+            $error = (defined('ENVIRONMENT') && ENVIRONMENT !== 'production')
+                ? ('Database error: ' . htmlspecialchars($e->getMessage()) . (isset($db->error) && $db->error ? ' | SQL: ' . htmlspecialchars($db->error) : ''))
+                : 'Error saving request. Please try again or contact support.';
         } catch (Exception $e) {
             $db->rollback();
             $db->autocommit(true);
-            error_log("Donor pledge update error: " . $e->getMessage() . " on line " . $e->getLine());
+            error_log("Donor pledge update error: " . $e->getMessage() . " on line " . $e->getLine() . " | File: " . $e->getFile());
             $error = (defined('ENVIRONMENT') && ENVIRONMENT !== 'production')
-                ? ('Error saving request: ' . $e->getMessage())
+                ? ('Error saving request: ' . htmlspecialchars($e->getMessage()) . ' (Line: ' . $e->getLine() . ')')
                 : 'Error saving request. Please try again or contact support.';
         }
     }
