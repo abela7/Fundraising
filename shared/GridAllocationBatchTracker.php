@@ -66,32 +66,35 @@ class GridAllocationBatchTracker
         $package_id = $data['package_id'] ?? null;
 
         // Type string: s=string, i=integer, d=double
-        // Parameters: batch_type(s), request_type(s), original_pledge_id(i), original_payment_id(i),
-        //              new_pledge_id(i), new_payment_id(i), donor_id(i), donor_name(s), donor_phone(s),
-        //              original_amount(d), additional_amount(d), total_amount(d),
-        //              requested_by_user_id(i), requested_by_donor_id(i), request_source(s), request_date(s),
-        //              package_id(i), metadataJson(s)
-        // Total: 18 parameters
+        // Parameters in order (18 total):
+        //  1. batch_type(s), 2. request_type(s), 3. original_pledge_id(i), 4. original_payment_id(i),
+        //  5. new_pledge_id(i), 6. new_payment_id(i), 7. donor_id(i), 8. donor_name(s), 9. donor_phone(s),
+        //  10. original_amount(d), 11. additional_amount(d), 12. total_amount(d),
+        //  13. requested_by_user_id(i), 14. requested_by_donor_id(i), 15. request_source(s), 16. request_date(s),
+        //  17. package_id(i), 18. metadataJson(s)
+        // Type string must match exactly 18 parameters
+        // Breakdown: ss(2) + iiiii(5) + ss(2) + ddd(3) + ii(2) + ss(2) + i(1) + s(1) = 18 chars
+        // Original had 'sss' (3) but we only have 2 strings (donor_name, donor_phone), so it's 'ss'
         $stmt->bind_param(
-            'ssiiiiisssdddiissis',
-            $batch_type,
-            $request_type,
-            $original_pledge_id,
-            $original_payment_id,
-            $new_pledge_id,
-            $new_payment_id,
-            $donor_id,
-            $donor_name,
-            $donor_phone,
-            $original_amount,
-            $additional_amount,
-            $total_amount,
-            $requested_by_user_id,
-            $requested_by_donor_id,
-            $request_source,
-            $request_date,
-            $package_id,
-            $metadataJson
+            'ssiiiiissdddiissis',
+            $batch_type,                // 1. s
+            $request_type,              // 2. s
+            $original_pledge_id,        // 3. i
+            $original_payment_id,       // 4. i
+            $new_pledge_id,             // 5. i
+            $new_payment_id,            // 6. i
+            $donor_id,                  // 7. i
+            $donor_name,                // 8. s
+            $donor_phone,               // 9. s
+            $original_amount,           // 10. d
+            $additional_amount,         // 11. d
+            $total_amount,              // 12. d
+            $requested_by_user_id,      // 13. i
+            $requested_by_donor_id,     // 14. i
+            $request_source,            // 15. s
+            $request_date,              // 16. s
+            $package_id,                // 17. i
+            $metadataJson               // 18. s
         );
 
         if ($stmt->execute()) {
