@@ -139,15 +139,15 @@ $badge_labels = [
         <main class="main-content">
                 <!-- Page Header -->
                 <div class="page-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h1 class="page-title">
-                                Welcome back, <?php echo htmlspecialchars($donor['name']); ?>!
-                            </h1>
+                    <div class="welcome-header">
+                        <div class="welcome-content">
+                            <p class="welcome-greeting">Welcome back,</p>
+                            <h1 class="welcome-name"><?php echo htmlspecialchars($donor['name']); ?></h1>
                         </div>
-                        <div>
-                            <span class="badge <?php echo $badge_classes[$achievement_badge] ?? 'bg-secondary'; ?> fs-6 px-3 py-2">
-                                <i class="fas fa-trophy me-1"></i><?php echo $badge_labels[$achievement_badge] ?? 'Pending'; ?>
+                        <div class="welcome-badge-wrapper">
+                            <span class="achievement-badge <?php echo $badge_classes[$achievement_badge] ?? 'bg-secondary'; ?>">
+                                <i class="fas fa-trophy"></i>
+                                <span class="badge-text"><?php echo $badge_labels[$achievement_badge] ?? 'Pending'; ?></span>
                             </span>
                         </div>
                     </div>
