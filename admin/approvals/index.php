@@ -84,6 +84,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $status = ($pledge['type'] === 'paid') ? 'paid' : 'pledged';
                 $amount = (float)$pledge['amount'];
                 
+                // Check if this is an update request BEFORE grid allocation
+                $pledgeSource = (string)($pledge['source'] ?? 'volunteer');
+                $isUpdateRequest = ($pledgeSource === 'self' && !$isPaidType);
+                $isPledgeUpdate = false;
+                $originalPledgeId = null;
+                $updateAmount = $amount; // Default: use full amount
+                
+                if ($isUpdateRequest) {
+                    $donorPhone = (string)($pledge['donor_phone'] ?? '');
+                    if ($donorPhone) {
+                        // Normalize phone number
+                        $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
+                        if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                            $normalized_phone = '0' . substr($normalized_phone, 2);
+                        }
+                        
+                        if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
+                            // Find existing approved pledge for this donor
+                            $findOriginalPledge = $db->prepare("
+                                SELECT id, amount 
+                                FROM pledges 
+                                WHERE donor_phone = ? AND status = 'approved' AND type = 'pledge' AND id != ?
+                                ORDER BY approved_at DESC, id DESC 
+                                LIMIT 1
+                            ");
+                            $findOriginalPledge->bind_param('si', $normalized_phone, $pledgeId);
+                            $findOriginalPledge->execute();
+                            $originalPledge = $findOriginalPledge->get_result()->fetch_assoc();
+                            $findOriginalPledge->close();
+                            
+                            if ($originalPledge) {
+                                $isPledgeUpdate = true;
+                                $originalPledgeId = (int)$originalPledge['id'];
+                                // For grid allocation, use the INCREASE amount (not full amount)
+                                // The grid allocator will allocate cells for the additional amount
+                            }
+                        }
+                    }
+                }
+                
                 // Use custom amount allocator for smart allocation
                 $customAllocator = new CustomAmountAllocator($db);
                 
@@ -96,12 +136,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         $status
                     );
                 } else {
-                    $allocationResult = $customAllocator->processCustomAmount(
-                        $pledgeId,
-                        $amount,
-                        $donorName,
-                        $status
-                    );
+                    // For update requests, allocate cells for the INCREASE amount using the original pledge ID
+                    if ($isPledgeUpdate && $originalPledgeId) {
+                        // Allocate cells for the additional amount only, linked to original pledge
+                        $allocationResult = $customAllocator->processCustomAmount(
+                            $originalPledgeId, // Use original pledge ID for grid allocation
+                            $amount, // This is the INCREASE amount
+                            $donorName,
+                            $status
+                        );
+                    } else {
+                        // Regular new pledge - allocate for full amount
+                        $allocationResult = $customAllocator->processCustomAmount(
+                            $pledgeId,
+                            $amount,
+                            $donorName,
+                            $status
+                        );
+                    }
                 }
                 
                 // Audit log
@@ -136,110 +188,236 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     $actionMsg = "Approved (Custom allocation failed: {$allocationResult['error']})";
                 }
                 
-                // Update donors table based on pledge type
-                $donorPhone = (string)($pledge['donor_phone'] ?? '');
-                $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
-                $pledgeAmount = (float)$pledge['amount'];
-                $isPaidType = ((string)$pledge['type'] === 'paid');
-                
-                if ($donorPhone) {
-                    // Normalize phone number (same logic as donor/login.php)
-                    $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
-                    if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
-                        $normalized_phone = '0' . substr($normalized_phone, 2);
-                    }
-                    
-                    if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
-                        // Find or create donor
-                        $findDonor = $db->prepare("SELECT id, total_pledged, total_paid, donor_type FROM donors WHERE phone = ? LIMIT 1");
-                        $findDonor->bind_param('s', $normalized_phone);
-                        $findDonor->execute();
-                        $donorRecord = $findDonor->get_result()->fetch_assoc();
-                        $findDonor->close();
+                // If it's an update request, process the update
+                if ($isPledgeUpdate && $originalPledgeId) {
+                    $donorPhone = (string)($pledge['donor_phone'] ?? '');
+                    if ($donorPhone) {
+                        // Normalize phone number
+                        $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
+                        if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                            $normalized_phone = '0' . substr($normalized_phone, 2);
+                        }
                         
-                        if ($isPaidType) {
-                            // PAYMENT APPROVAL: Immediate payer
-                            if ($donorRecord) {
-                                // Update existing donor
-                                $updateDonor = $db->prepare("
-                                    UPDATE donors SET
-                                        name = ?,
-                                        total_paid = total_paid + ?,
-                                        balance = total_pledged - (total_paid + ?),
-                                        donor_type = CASE 
-                                            WHEN total_pledged = 0 THEN 'immediate_payment'
-                                            ELSE 'pledge'
-                                        END,
-                                        payment_status = CASE
-                                            WHEN total_pledged = 0 THEN 'completed'
-                                            WHEN (total_paid + ?) >= total_pledged THEN 'completed'
-                                            WHEN (total_paid + ?) > 0 THEN 'paying'
-                                            ELSE payment_status
-                                        END,
-                                        last_payment_date = NOW(),
-                                        payment_count = COALESCE(payment_count, 0) + 1,
-                                        updated_at = NOW()
-                                    WHERE id = ?
-                                ");
-                                $updateDonor->bind_param('sdddddi', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeAmount, $donorRecord['id']);
-                                $updateDonor->execute();
-                                $updateDonor->close();
-                            } else {
-                                // Create new immediate payer donor
-                                $createDonor = $db->prepare("
-                                    INSERT INTO donors (
-                                        phone, name, total_paid, balance, donor_type, 
-                                        payment_status, payment_count, last_payment_date, source, created_at, updated_at
-                                    ) VALUES (?, ?, ?, 0, 'immediate_payment', 'completed', 1, NOW(), 'approval', NOW(), NOW())
-                                ");
-                                $createDonor->bind_param('ssd', $normalized_phone, $donorName, $pledgeAmount);
-                                $createDonor->execute();
-                                $createDonor->close();
+                        if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
+                            // Find existing approved pledge for this donor
+                            $findOriginalPledge = $db->prepare("
+                                SELECT id, amount 
+                                FROM pledges 
+                                WHERE donor_phone = ? AND status = 'approved' AND type = 'pledge' AND id != ?
+                                ORDER BY approved_at DESC, id DESC 
+                                LIMIT 1
+                            ");
+                            $findOriginalPledge->bind_param('si', $normalized_phone, $pledgeId);
+                            $findOriginalPledge->execute();
+                            $originalPledge = $findOriginalPledge->get_result()->fetch_assoc();
+                            $findOriginalPledge->close();
+                            
+                            if ($originalPledge) {
+                                $isPledgeUpdate = true;
+                                $originalPledgeId = (int)$originalPledge['id'];
+                                $originalAmount = (float)$originalPledge['amount'];
+                                $newTotalAmount = $originalAmount + $pledgeAmount;
+                                
+                                // UPDATE existing pledge amount instead of creating new one
+                                $updateOriginalPledge = $db->prepare("UPDATE pledges SET amount = ? WHERE id = ?");
+                                $updateOriginalPledge->bind_param('di', $newTotalAmount, $originalPledgeId);
+                                $updateOriginalPledge->execute();
+                                $updateOriginalPledge->close();
+                                
+                                // Update grid allocation for the new total amount (this will be handled by grid allocator)
+                                // The grid allocator should handle the increased amount automatically
+                                
+                                // Update donor totals using the INCREASE amount (not the new total)
+                                $findDonor = $db->prepare("SELECT id, total_pledged, total_paid, donor_type FROM donors WHERE phone = ? LIMIT 1");
+                                $findDonor->bind_param('s', $normalized_phone);
+                                $findDonor->execute();
+                                $donorRecord = $findDonor->get_result()->fetch_assoc();
+                                $findDonor->close();
+                                
+                                if ($donorRecord) {
+                                    $donorId = (int)$donorRecord['id'];
+                                    $updateDonor = $db->prepare("
+                                        UPDATE donors SET
+                                            name = ?,
+                                            total_pledged = total_pledged + ?,
+                                            balance = (total_pledged + ?) - total_paid,
+                                            donor_type = 'pledge',
+                                            payment_status = CASE
+                                                WHEN total_paid = 0 THEN 'not_started'
+                                                WHEN total_paid >= (total_pledged + ?) THEN 'completed'
+                                                WHEN total_paid > 0 THEN 'paying'
+                                                ELSE 'not_started'
+                                            END,
+                                            last_pledge_id = ?,
+                                            updated_at = NOW()
+                                        WHERE id = ?
+                                    ");
+                                    $updateDonor->bind_param('sddddii', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $originalPledgeId, $donorId);
+                                    $updateDonor->execute();
+                                    $updateDonor->close();
+                                }
+                                
+                                // DELETE the pending update request pledge (it's been merged into original)
+                                $deleteUpdateRequest = $db->prepare("DELETE FROM pledges WHERE id = ?");
+                                $deleteUpdateRequest->bind_param('i', $pledgeId);
+                                $deleteUpdateRequest->execute();
+                                $deleteUpdateRequest->close();
+                                
+                                // Update action message
+                                $actionMsg = "Pledge update approved: Original pledge #{$originalPledgeId} updated from £" . number_format($originalAmount, 2) . " to £" . number_format($newTotalAmount, 2);
+                                
+                                // Skip the rest of the donor update logic for update requests
+                                // (we've already handled it above)
                             }
-                        } else {
-                            // PLEDGE APPROVAL: Needs tracking
-                            if ($donorRecord) {
-                                // Update existing donor
-                                $updateDonor = $db->prepare("
-                                    UPDATE donors SET
-                                        name = ?,
-                                        total_pledged = total_pledged + ?,
-                                        balance = (total_pledged + ?) - total_paid,
-                                        donor_type = 'pledge',
-                                        payment_status = CASE
-                                            WHEN total_paid = 0 THEN 'not_started'
-                                            WHEN total_paid >= (total_pledged + ?) THEN 'completed'
-                                            WHEN total_paid > 0 THEN 'paying'
-                                            ELSE 'not_started'
-                                        END,
-                                        last_pledge_id = ?,
-                                        pledge_count = COALESCE(pledge_count, 0) + 1,
-                                        updated_at = NOW()
-                                    WHERE id = ?
-                                ");
-                                $updateDonor->bind_param('sddddii', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeId, $donorRecord['id']);
-                                $updateDonor->execute();
-                                $updateDonor->close();
+                        }
+                    }
+                }
+                
+                // Only process as new pledge if it's NOT an update request
+                if (!$isPledgeUpdate) {
+                    // Update donors table based on pledge type
+                    $donorPhone = (string)($pledge['donor_phone'] ?? '');
+                    $donorName = (string)($pledge['donor_name'] ?? 'Anonymous');
+                    $pledgeAmount = (float)$pledge['amount'];
+                    
+                    if ($donorPhone) {
+                        // Normalize phone number (same logic as donor/login.php)
+                        $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
+                        if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                            $normalized_phone = '0' . substr($normalized_phone, 2);
+                        }
+                        
+                        if (strlen($normalized_phone) === 11 && substr($normalized_phone, 0, 2) === '07') {
+                            // Find or create donor
+                            $findDonor = $db->prepare("SELECT id, total_pledged, total_paid, donor_type FROM donors WHERE phone = ? LIMIT 1");
+                            $findDonor->bind_param('s', $normalized_phone);
+                            $findDonor->execute();
+                            $donorRecord = $findDonor->get_result()->fetch_assoc();
+                            $findDonor->close();
+                            
+                            $donorId = null;
+                            
+                            if ($isPaidType) {
+                                // PAYMENT APPROVAL: Immediate payer
+                                if ($donorRecord) {
+                                    $donorId = (int)$donorRecord['id'];
+                                    // Update existing donor
+                                    $updateDonor = $db->prepare("
+                                        UPDATE donors SET
+                                            name = ?,
+                                            total_paid = total_paid + ?,
+                                            balance = total_pledged - (total_paid + ?),
+                                            donor_type = CASE 
+                                                WHEN total_pledged = 0 THEN 'immediate_payment'
+                                                ELSE 'pledge'
+                                            END,
+                                            payment_status = CASE
+                                                WHEN total_pledged = 0 THEN 'completed'
+                                                WHEN (total_paid + ?) >= total_pledged THEN 'completed'
+                                                WHEN (total_paid + ?) > 0 THEN 'paying'
+                                                ELSE payment_status
+                                            END,
+                                            last_payment_date = NOW(),
+                                            payment_count = COALESCE(payment_count, 0) + 1,
+                                            updated_at = NOW()
+                                        WHERE id = ?
+                                    ");
+                                    $updateDonor->bind_param('sdddddi', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeAmount, $donorId);
+                                    $updateDonor->execute();
+                                    $updateDonor->close();
+                                } else {
+                                    // Create new immediate payer donor
+                                    $createDonor = $db->prepare("
+                                        INSERT INTO donors (
+                                            phone, name, total_paid, balance, donor_type, 
+                                            payment_status, payment_count, last_payment_date, source, created_at, updated_at
+                                        ) VALUES (?, ?, ?, 0, 'immediate_payment', 'completed', 1, NOW(), 'approval', NOW(), NOW())
+                                    ");
+                                    $createDonor->bind_param('ssd', $normalized_phone, $donorName, $pledgeAmount);
+                                    $createDonor->execute();
+                                    $donorId = (int)$db->insert_id;
+                                    $createDonor->close();
+                                }
+                                
+                                // Link pledge to donor (if pledge has donor_id column)
+                                if ($donorId) {
+                                    $linkPledge = $db->prepare("UPDATE pledges SET donor_id = ? WHERE id = ?");
+                                    $linkPledge->bind_param('ii', $donorId, $pledgeId);
+                                    $linkPledge->execute();
+                                    $linkPledge->close();
+                                }
                             } else {
-                                // Create new pledge donor
-                                $createDonor = $db->prepare("
-                                    INSERT INTO donors (
-                                        phone, name, total_pledged, balance, donor_type, 
-                                        payment_status, last_pledge_id, pledge_count, source, created_at, updated_at
-                                    ) VALUES (?, ?, ?, ?, 'pledge', 'not_started', ?, 1, 'approval', NOW(), NOW())
-                                ");
-                                $createDonor->bind_param('ssdii', $normalized_phone, $donorName, $pledgeAmount, $pledgeAmount, $pledgeId);
-                                $createDonor->execute();
-                                $createDonor->close();
+                                // PLEDGE APPROVAL: Needs tracking
+                                if ($donorRecord) {
+                                    $donorId = (int)$donorRecord['id'];
+                                    // Update existing donor - handle all scenarios
+                                    $updateDonor = $db->prepare("
+                                        UPDATE donors SET
+                                            name = ?,
+                                            total_pledged = total_pledged + ?,
+                                            balance = (total_pledged + ?) - total_paid,
+                                            donor_type = 'pledge',
+                                            payment_status = CASE
+                                                WHEN total_paid = 0 THEN 'not_started'
+                                                WHEN total_paid >= (total_pledged + ?) THEN 'completed'
+                                                WHEN total_paid > 0 THEN 'paying'
+                                                ELSE 'not_started'
+                                            END,
+                                            last_pledge_id = ?,
+                                            pledge_count = COALESCE(pledge_count, 0) + 1,
+                                            updated_at = NOW()
+                                        WHERE id = ?
+                                    ");
+                                    $updateDonor->bind_param('sddddii', $donorName, $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeId, $donorId);
+                                    $updateDonor->execute();
+                                    $updateDonor->close();
+                                } else {
+                                    // Create new pledge donor
+                                    $createDonor = $db->prepare("
+                                        INSERT INTO donors (
+                                            phone, name, total_pledged, balance, donor_type, 
+                                            payment_status, last_pledge_id, pledge_count, source, created_at, updated_at
+                                        ) VALUES (?, ?, ?, ?, 'pledge', 'not_started', ?, 1, 'approval', NOW(), NOW())
+                                    ");
+                                    $createDonor->bind_param('ssdii', $normalized_phone, $donorName, $pledgeAmount, $pledgeAmount, $pledgeId);
+                                    $createDonor->execute();
+                                    $donorId = (int)$db->insert_id;
+                                    $createDonor->close();
+                                }
+                                
+                                // Link pledge to donor (if pledge has donor_id column)
+                                if ($donorId) {
+                                    $linkPledge = $db->prepare("UPDATE pledges SET donor_id = ? WHERE id = ?");
+                                    $linkPledge->bind_param('ii', $donorId, $pledgeId);
+                                    $linkPledge->execute();
+                                    $linkPledge->close();
+                                }
                             }
                         }
                     }
                 }
             } elseif ($action === 'reject') {
                 $uid = (int)current_user()['id'];
-                $rej = $db->prepare("UPDATE pledges SET status='rejected' WHERE id = ?");
-                $rej->bind_param('i', $pledgeId);
-                $rej->execute();
+                
+                // Check if this is an update request from donor portal
+                $pledgeSource = (string)($pledge['source'] ?? 'volunteer');
+                $isUpdateRequest = ($pledgeSource === 'self' && (string)$pledge['type'] === 'pledge');
+                
+                if ($isUpdateRequest) {
+                    // For update requests, DELETE the pending request (don't keep rejected updates)
+                    $deleteUpdateRequest = $db->prepare("DELETE FROM pledges WHERE id = ?");
+                    $deleteUpdateRequest->bind_param('i', $pledgeId);
+                    $deleteUpdateRequest->execute();
+                    $deleteUpdateRequest->close();
+                    
+                    $actionMsg = "Pledge update request rejected and removed.";
+                } else {
+                    // For regular pledges, mark as rejected
+                    $rej = $db->prepare("UPDATE pledges SET status='rejected' WHERE id = ?");
+                    $rej->bind_param('i', $pledgeId);
+                    $rej->execute();
+                    $rej->close();
+                }
 
                 // Audit log
                 $ip = $_SERVER['REMOTE_ADDR'] ?? null;
@@ -398,7 +576,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                                 $donorRecord = $findDonor->get_result()->fetch_assoc();
                                 $findDonor->close();
                                 
+                                $donorId = null;
+                                
                                 if ($donorRecord) {
+                                    $donorId = (int)$donorRecord['id'];
                                     // Update existing donor - Immediate payer
                                     $updateDonor = $db->prepare("
                                         UPDATE donors SET
@@ -420,7 +601,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                                             updated_at = NOW()
                                         WHERE id = ?
                                     ");
-                                    $updateDonor->bind_param('sdddddi', $donorName, $paymentAmount, $paymentAmount, $paymentAmount, $paymentAmount, $donorRecord['id']);
+                                    $updateDonor->bind_param('sdddddi', $donorName, $paymentAmount, $paymentAmount, $paymentAmount, $paymentAmount, $donorId);
                                     $updateDonor->execute();
                                     $updateDonor->close();
                                 } else {
@@ -433,7 +614,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                                     ");
                                     $createDonor->bind_param('ssd', $normalized_phone, $donorName, $paymentAmount);
                                     $createDonor->execute();
+                                    $donorId = (int)$db->insert_id;
                                     $createDonor->close();
+                                }
+                                
+                                // Link payment to donor (if payment has donor_id column)
+                                if ($donorId) {
+                                    $linkPayment = $db->prepare("UPDATE payments SET donor_id = ? WHERE id = ?");
+                                    $linkPayment->bind_param('ii', $donorId, $paymentId);
+                                    $linkPayment->execute();
+                                    $linkPayment->close();
                                 }
                             }
                         }
