@@ -267,14 +267,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     }
                     
                     // For payments, we need to get payment_id - but this is a pledge with type='paid'
-                    // So we'll track it as a payment batch
+                    // Even though it's a payment, the record exists in the pledges table, so we need to track new_pledge_id
+                    // This allows getBatchByRequest() to find the batch later for rejection/deallocation operations
                     $batchData = [
                         'batch_type' => 'new_payment',
                         'request_type' => ($pledgeSource === 'self') ? 'donor_portal' : 'registrar',
                         'original_pledge_id' => null, // Explicitly set to null for new payments
                         'original_payment_id' => null, // Explicitly set to null for new payments
-                        'new_pledge_id' => null, // No pledge ID for payments
-                        'new_payment_id' => null, // Will be set when actual payment record exists
+                        'new_pledge_id' => $pledgeId, // CRITICAL: Set to pledgeId so batch can be tracked via getBatchByRequest()
+                        'new_payment_id' => null, // No separate payment record exists yet
                         'donor_id' => $donorId,
                         'donor_name' => $donorName,
                         'donor_phone' => $normalized_phone ?: null, // Convert empty string to null
