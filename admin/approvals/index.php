@@ -255,8 +255,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     error_log("Calling createBatch()...");
                     $allocationBatchId = $batchTracker->createBatch($batchData);
                     if (!$allocationBatchId) {
+                        $errorMsg = "Failed to create allocation batch. This may cause tracking issues. Please check server logs.";
                         error_log("=== ADMIN APPROVALS: CRITICAL ERROR - Failed to create batch for pledge update ===");
                         error_log("Batch creation returned NULL - check GridAllocationBatchTracker logs above");
+                        // Don't throw exception - continue with approval but log the issue
+                        // The batch might have been created earlier when donor submitted the request
                     } else {
                         error_log("Batch created successfully with ID: {$allocationBatchId}");
                     }
@@ -748,7 +751,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $db->commit();
         } catch (Throwable $e) {
             $db->rollback();
-            $actionMsg = 'Error: ' . $e->getMessage();
+            $errorMessage = $e->getMessage();
+            $errorFile = $e->getFile();
+            $errorLine = $e->getLine();
+            $errorTrace = $e->getTraceAsString();
+            
+            // Log full error details
+            error_log("=== ADMIN APPROVALS: EXCEPTION CAUGHT ===");
+            error_log("Message: {$errorMessage}");
+            error_log("File: {$errorFile}");
+            error_log("Line: {$errorLine}");
+            error_log("Trace: {$errorTrace}");
+            
+            // Build detailed error message for display (always show details for debugging)
+            $actionMsg = '<strong>Error:</strong> ' . htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8');
+            $actionMsg .= '<br><small><strong>File:</strong> ' . htmlspecialchars(basename($errorFile)) . ':' . $errorLine . '</small>';
+            
+            // Check if it's a bind_param error and add helpful details
+            if (stripos($errorMessage, 'bind_param') !== false || stripos($errorMessage, 'type definition string') !== false) {
+                $actionMsg .= '<br><small><strong>Debug Info:</strong> This is a database parameter binding error. Check console for full details.</small>';
+            }
+            
+            // Also set error in session for JavaScript to pick up
+            $_SESSION['approval_error'] = [
+                'message' => $errorMessage,
+                'file' => basename($errorFile),
+                'line' => $errorLine,
+                'full_trace' => $errorTrace
+            ];
+            
+            // Redirect to show error on page
+            header('Location: ' . buildRedirectUrl(urlencode($actionMsg), $_POST));
+            exit;
         }
     }
 
@@ -934,15 +968,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $db->commit();
             } catch (Throwable $e) {
                 $db->rollback();
-                $actionMsg = 'Error: ' . $e->getMessage();
+                $errorMessage = $e->getMessage();
+                $errorFile = $e->getFile();
+                $errorLine = $e->getLine();
+                
+                error_log("=== ADMIN APPROVALS PAYMENT: EXCEPTION CAUGHT ===");
+                error_log("Message: {$errorMessage}");
+                error_log("File: {$errorFile}");
+                error_log("Line: {$errorLine}");
+                
+                $actionMsg = '<strong>Error:</strong> ' . htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8');
+                $actionMsg .= '<br><small><strong>File:</strong> ' . htmlspecialchars(basename($errorFile)) . ':' . $errorLine . '</small>';
+                
+                $_SESSION['approval_error'] = [
+                    'message' => $errorMessage,
+                    'file' => basename($errorFile),
+                    'line' => $errorLine
+                ];
             }
         }
-        header('Location: ' . buildRedirectUrl($actionMsg, $_POST));
+        header('Location: ' . buildRedirectUrl(urlencode($actionMsg), $_POST));
         exit;
     }
     // PRG: redirect to avoid resubmission and show flash message
     header('Location: ' . buildRedirectUrl($actionMsg, $_POST));
     exit;
+}
+
+// Get message from URL if redirected after error
+$urlMsg = $_GET['msg'] ?? '';
+if ($urlMsg && !$actionMsg) {
+    $actionMsg = urldecode($urlMsg);
 }
 
 // Filter and sort parameters
@@ -1117,11 +1173,43 @@ if ($cntRes) {
         <?php include '../includes/db_error_banner.php'; ?>
 
           <?php if ($actionMsg): ?>
-            <div class="alert alert-info alert-dismissible fade show" role="alert">
-              <i class="fas fa-info-circle me-2"></i>
-              <?php echo htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8'); ?>
+            <?php 
+            $isError = (stripos($actionMsg, 'error') !== false || stripos($actionMsg, 'failed') !== false);
+            $alertClass = $isError ? 'alert-danger' : 'alert-info';
+            $alertIcon = $isError ? 'fa-exclamation-triangle' : 'fa-info-circle';
+            $msgText = strip_tags($actionMsg);
+            ?>
+            <div class="alert <?php echo $alertClass; ?> alert-dismissible fade show" role="alert" id="actionMessage" style="max-height: 500px; overflow-y: auto;">
+              <i class="fas <?php echo $alertIcon; ?> me-2"></i>
+              <div><?php echo $actionMsg; ?></div>
               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
+            <script>
+              console.group('<?php echo $isError ? '❌ APPROVAL ERROR' : '✅ APPROVAL SUCCESS'; ?>');
+              console.<?php echo $isError ? 'error' : 'log'; ?>('<?php echo addslashes($msgText); ?>');
+              <?php if ($isError): ?>
+              console.error('Full Error Message:', <?php echo json_encode($actionMsg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+              <?php endif; ?>
+              <?php if (isset($_SESSION['approval_error'])): ?>
+              console.error('Error Details:', <?php echo json_encode($_SESSION['approval_error'], JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+              <?php unset($_SESSION['approval_error']); ?>
+              <?php endif; ?>
+              console.groupEnd();
+              
+              // Keep error visible for longer if it's an error
+              <?php if ($isError): ?>
+              setTimeout(function() {
+                var alertEl = document.getElementById('actionMessage');
+                if (alertEl) {
+                  alertEl.style.display = 'block';
+                  alertEl.classList.remove('fade');
+                  alertEl.classList.add('show');
+                  // Scroll to error
+                  alertEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }, 100);
+              <?php endif; ?>
+            </script>
           <?php endif; ?>
           
           <div class="card animate-fade-in">
@@ -1452,6 +1540,60 @@ if ($cntRes) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 <script src="assets/approvals.js?v=<?php echo @filemtime(__DIR__ . '/assets/approvals.js'); ?>"></script>
+
+<script>
+// Global error handler and debugging
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== ADMIN APPROVALS PAGE LOADED ===');
+    
+    // Check URL for error messages
+    var urlParams = new URLSearchParams(window.location.search);
+    var msgParam = urlParams.get('msg');
+    if (msgParam) {
+        var decodedMsg = decodeURIComponent(msgParam);
+        if (decodedMsg.toLowerCase().includes('error') || decodedMsg.toLowerCase().includes('failed')) {
+            console.error('Error message from URL:', decodedMsg);
+        } else {
+            console.log('Message from URL:', decodedMsg);
+        }
+    }
+    
+    // Log any existing error messages on page load
+    var errorAlert = document.getElementById('actionMessage');
+    if (errorAlert) {
+        if (errorAlert.classList.contains('alert-danger')) {
+            console.error('Error alert found on page:', errorAlert.textContent);
+        } else {
+            console.log('Info alert found on page:', errorAlert.textContent);
+        }
+    }
+    
+    // Intercept form submissions to log errors
+    var forms = document.querySelectorAll('form[method="post"]');
+    forms.forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            console.log('Form submitting:', form.action || 'current page');
+            var formData = new FormData(form);
+            var formDataObj = {};
+            for (var pair of formData.entries()) {
+                formDataObj[pair[0]] = pair[1];
+            }
+            console.log('Form data:', formDataObj);
+            
+            // Check for existing errors before submission
+            var existingError = document.getElementById('actionMessage');
+            if (existingError && existingError.classList.contains('alert-danger')) {
+                console.warn('Previous error still visible, submitting anyway...');
+            }
+        });
+    });
+    
+    // Global error handler for uncaught errors
+    window.addEventListener('error', function(e) {
+        console.error('Uncaught JavaScript Error:', e.message, 'at', e.filename + ':' + e.lineno);
+    });
+});
+</script>
 
 <script>
 function openEditModal(id, name, phone, email, amount, sqm, notes, kind) {

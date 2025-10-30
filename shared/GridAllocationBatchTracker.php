@@ -179,15 +179,17 @@ class GridAllocationBatchTracker
             );
             
             if (!$bindResult) {
+                $errorMsg = "bind_param failed: Type string length mismatch or invalid parameters. Type string: '{$typeString}' (length: {$typeStringLength}), Expected: 18 parameters. MySQL Error: " . $stmt->error;
                 error_log("=== CRITICAL ERROR: bind_param returned FALSE ===");
                 error_log("MySQL Error: " . $stmt->error);
                 error_log("MySQL Error Code: " . $stmt->errno);
                 error_log("Database Error: " . $this->db->error);
                 $stmt->close();
-                return null;
+                throw new RuntimeException($errorMsg);
             }
             error_log("bind_param succeeded");
         } catch (Exception $e) {
+            $errorMsg = "bind_param Exception: " . $e->getMessage() . " in " . basename($e->getFile()) . ":" . $e->getLine();
             error_log("=== CRITICAL ERROR: Exception in bind_param ===");
             error_log("Exception message: " . $e->getMessage());
             error_log("Exception code: " . $e->getCode());
@@ -198,15 +200,16 @@ class GridAllocationBatchTracker
             error_log("MySQL Error: " . $stmt->error);
             error_log("MySQL Error Code: " . $stmt->errno);
             $stmt->close();
-            return null;
+            throw new RuntimeException($errorMsg, 0, $e);
         } catch (Throwable $e) {
+            $errorMsg = "bind_param Error: " . $e->getMessage() . " in " . basename($e->getFile()) . ":" . $e->getLine();
             error_log("=== CRITICAL ERROR: Throwable in bind_param ===");
             error_log("Error message: " . $e->getMessage());
             error_log("Error file: " . $e->getFile());
             error_log("Error line: " . $e->getLine());
             error_log("Type string: '{$typeString}', Length: {$typeStringLength}");
             $stmt->close();
-            return null;
+            throw new RuntimeException($errorMsg, 0, $e);
         }
 
         error_log("Executing INSERT statement...");
@@ -218,12 +221,13 @@ class GridAllocationBatchTracker
             return $batchId;
         }
 
+        $errorMsg = "Failed to execute INSERT into grid_allocation_batches. MySQL Error: " . $stmt->error . " (Code: " . $stmt->errno . ")";
         error_log("=== CRITICAL ERROR: Failed to execute INSERT ===");
         error_log("MySQL Error: " . $stmt->error);
         error_log("MySQL Error Code: " . $stmt->errno);
         error_log("Database Error: " . $this->db->error);
         $stmt->close();
-        return null;
+        throw new RuntimeException($errorMsg);
     }
 
     /**
