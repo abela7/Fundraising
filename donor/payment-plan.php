@@ -23,8 +23,27 @@ function require_donor_login(): void {
 
 require_donor_login();
 $donor = current_donor();
-$page_title = 'Payment Plan';
+$page_title = 'Pledges & Plans';
 $current_donor = $donor;
+
+// Load all pledges
+$pledges = [];
+if ($db_connection_ok) {
+    try {
+        $pledges_stmt = $db->prepare("
+            SELECT id, amount, type, status, notes, created_at, approved_at
+            FROM pledges
+            WHERE donor_phone = ?
+            ORDER BY created_at DESC
+        ");
+        $pledges_stmt->bind_param('s', $donor['phone']);
+        $pledges_stmt->execute();
+        $pledges_result = $pledges_stmt->get_result();
+        $pledges = $pledges_result->fetch_all(MYSQLI_ASSOC);
+    } catch (Exception $e) {
+        // Silent fail
+    }
+}
 
 // Load payment plan details
 $payment_plan = null;
@@ -91,12 +110,67 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-calendar-alt me-2"></i>Payment Plan
+                            <i class="fas fa-calendar-alt me-2"></i>Pledges & Plans
                         </h1>
-                        <p class="text-muted mb-0">View your payment schedule and progress</p>
+                        <p class="text-muted mb-0">View your pledges and payment schedule</p>
                     </div>
                 </div>
 
+                <!-- Pledges Table -->
+                <?php if (!empty($pledges)): ?>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="fas fa-handshake text-primary me-2"></i>Your Pledges
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($pledges as $pledge): ?>
+                                    <tr>
+                                        <td>
+                                            <?php echo date('d M Y', strtotime($pledge['created_at'])); ?>
+                                        </td>
+                                        <td><strong>£<?php echo number_format($pledge['amount'], 2); ?></strong></td>
+                                        <td>
+                                            <span class="badge bg-info">
+                                                <?php echo ucfirst($pledge['type']); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                            $status = $pledge['status'];
+                                            $status_classes = [
+                                                'pending' => 'bg-warning',
+                                                'approved' => 'bg-success',
+                                                'rejected' => 'bg-danger',
+                                                'cancelled' => 'bg-secondary'
+                                            ];
+                                            ?>
+                                            <span class="badge <?php echo $status_classes[$status] ?? 'bg-secondary'; ?>">
+                                                <?php echo ucfirst($status); ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Payment Plan -->
                 <?php if ($payment_plan): ?>
                     <!-- Plan Summary -->
                     <div class="card border-0 shadow-sm mb-4">

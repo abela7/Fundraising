@@ -95,6 +95,26 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
     }
 }
 
+// Load last payment
+$last_payment = null;
+if ($db_connection_ok) {
+    try {
+        $last_payment_stmt = $db->prepare("
+            SELECT amount, method, reference, status, received_at, created_at
+            FROM payments
+            WHERE donor_phone = ? AND status = 'approved'
+            ORDER BY received_at DESC, created_at DESC
+            LIMIT 1
+        ");
+        $last_payment_stmt->bind_param('s', $donor['phone']);
+        $last_payment_stmt->execute();
+        $last_payment_result = $last_payment_stmt->get_result();
+        $last_payment = $last_payment_result->fetch_assoc();
+    } catch (Exception $e) {
+        // Silent fail
+    }
+}
+
 // Load recent payments
 $recent_payments = [];
 if ($db_connection_ok) {
@@ -104,7 +124,7 @@ if ($db_connection_ok) {
             FROM payments
             WHERE donor_phone = ?
             ORDER BY received_at DESC, created_at DESC
-            LIMIT 10
+            LIMIT 5
         ");
         $payments_stmt->bind_param('s', $donor['phone']);
         $payments_stmt->execute();
@@ -114,6 +134,30 @@ if ($db_connection_ok) {
         // Silent fail
     }
 }
+
+// Calculate progress percentage
+$progress_percentage = $donor['total_pledged'] > 0 
+    ? min(100, ($donor['total_paid'] / $donor['total_pledged']) * 100) 
+    : 0;
+
+// Get achievement badge info
+$achievement_badge = $donor['achievement_badge'] ?? 'pending';
+$badge_classes = [
+    'pending' => 'bg-secondary',
+    'started' => 'bg-info',
+    'on_track' => 'bg-success',
+    'fast_finisher' => 'bg-warning',
+    'completed' => 'bg-primary',
+    'champion' => 'bg-danger'
+];
+$badge_labels = [
+    'pending' => 'Pending',
+    'started' => 'Started',
+    'on_track' => 'On Track',
+    'fast_finisher' => 'Fast Finisher',
+    'completed' => 'Completed',
+    'champion' => 'Champion ⭐'
+];
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars($donor['preferred_language'] ?? 'en'); ?>">
@@ -144,7 +188,49 @@ if ($db_connection_ok) {
                         </h1>
                         <p class="text-muted mb-0">Welcome back, <?php echo htmlspecialchars($donor['name']); ?>!</p>
                     </div>
+                    <div>
+                        <span class="badge <?php echo $badge_classes[$achievement_badge] ?? 'bg-secondary'; ?> fs-6 px-3 py-2">
+                            <i class="fas fa-trophy me-1"></i><?php echo $badge_labels[$achievement_badge] ?? 'Pending'; ?>
+                        </span>
+                    </div>
                 </div>
+
+                <!-- Progress Bar Toward Pledge Goal -->
+                <?php if ($donor['total_pledged'] > 0): ?>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">
+                                <i class="fas fa-bullseye text-primary me-2"></i>Pledge Progress
+                            </h5>
+                            <span class="text-muted">
+                                £<?php echo number_format($donor['total_paid'], 2); ?> / £<?php echo number_format($donor['total_pledged'], 2); ?>
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" 
+                                 style="width: <?php echo $progress_percentage; ?>%"
+                                 aria-valuenow="<?php echo $progress_percentage; ?>" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                <strong class="px-2"><?php echo round($progress_percentage, 1); ?>%</strong>
+                            </div>
+                        </div>
+                        <?php if ($donor['balance'] > 0): ?>
+                            <p class="text-muted mt-2 mb-0">
+                                <i class="fas fa-info-circle me-1"></i>
+                                £<?php echo number_format($donor['balance'], 2); ?> remaining to complete your pledge
+                            </p>
+                        <?php else: ?>
+                            <p class="text-success mt-2 mb-0">
+                                <i class="fas fa-check-circle me-1"></i>
+                                Congratulations! You've completed your pledge!
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <!-- Quick Stats -->
                 <div class="row g-4 mb-4">
@@ -207,29 +293,29 @@ if ($db_connection_ok) {
                     </div>
                 </div>
 
-                <!-- Active Payment Plan -->
+                <!-- Current Payment Plan Summary -->
                 <?php if ($payment_plan): ?>
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-light">
                         <h5 class="mb-0">
-                            <i class="fas fa-calendar-alt text-primary me-2"></i>Active Payment Plan
+                            <i class="fas fa-calendar-alt text-primary me-2"></i>Current Payment Plan
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="row g-4">
-                            <div class="col-md-6">
+                        <div class="row g-4 mb-3">
+                            <div class="col-md-3">
                                 <div class="border-start border-4 border-primary ps-3">
                                     <small class="text-muted d-block">Plan Type</small>
                                     <h5 class="mb-0"><?php echo htmlspecialchars($payment_plan['template_name'] ?? 'Custom Plan'); ?></h5>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="border-start border-4 border-success ps-3">
                                     <small class="text-muted d-block">Monthly Amount</small>
                                     <h5 class="mb-0 text-success">£<?php echo number_format($payment_plan['monthly_amount'] ?? 0, 2); ?></h5>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="border-start border-4 border-info ps-3">
                                     <small class="text-muted d-block">Next Payment Due</small>
                                     <h5 class="mb-0 text-info">
@@ -243,29 +329,66 @@ if ($db_connection_ok) {
                                     </h5>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="border-start border-4 border-warning ps-3">
-                                    <small class="text-muted d-block">Progress</small>
+                                    <small class="text-muted d-block">Status</small>
                                     <h5 class="mb-0">
                                         <?php 
                                         $payments_made = $payment_plan['payments_made'] ?? 0;
                                         $total_payments = $payment_plan['total_payments'] ?? 1;
-                                        $progress = $total_payments > 0 ? ($payments_made / $total_payments) * 100 : 0;
-                                        echo round($progress, 1); 
-                                        ?>%
+                                        echo $payments_made . ' / ' . $total_payments;
+                                        ?>
                                     </h5>
-                                    <div class="progress mt-2" style="height: 8px;">
-                                        <div class="progress-bar bg-success" role="progressbar" 
-                                             style="width: <?php echo $progress; ?>%"></div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="mt-4">
-                            <a href="payment-plan.php" class="btn btn-primary">
-                                <i class="fas fa-eye me-2"></i>View Full Payment Schedule
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="payment-plan.php" class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-2"></i>View Full Schedule
                             </a>
+                            <a href="make-payment.php" class="btn btn-success">
+                                <i class="fas fa-credit-card me-2"></i>Make a Payment
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php elseif ($donor['balance'] > 0): ?>
+                <!-- No Active Plan but Has Balance -->
+                <div class="card border-0 shadow-sm mb-4 border-warning">
+                    <div class="card-body text-center py-4">
+                        <i class="fas fa-calendar-times fa-3x text-warning mb-3"></i>
+                        <h5>No Active Payment Plan</h5>
+                        <p class="text-muted mb-3">You have a remaining balance of <strong>£<?php echo number_format($donor['balance'], 2); ?></strong></p>
+                        <a href="make-payment.php" class="btn btn-success btn-lg">
+                            <i class="fas fa-credit-card me-2"></i>Make a Payment
+                        </a>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Last Payment Made -->
+                <?php if ($last_payment): ?>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    <i class="fas fa-check-circle text-success me-2"></i>Last Payment Made
+                                </h6>
+                                <p class="mb-0 text-muted">
+                                    <?php 
+                                    $date = $last_payment['received_at'] ?? $last_payment['created_at'];
+                                    echo $date ? date('d M Y', strtotime($date)) : '-';
+                                    ?>
+                                </p>
+                            </div>
+                            <div class="text-end">
+                                <h4 class="mb-0 text-success">£<?php echo number_format($last_payment['amount'], 2); ?></h4>
+                                <span class="badge bg-secondary">
+                                    <?php echo ucfirst(str_replace('_', ' ', $last_payment['method'] ?? 'N/A')); ?>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>

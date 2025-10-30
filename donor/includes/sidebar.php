@@ -36,12 +36,19 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
         
         <div class="nav-section">
             <div class="nav-section-title">Payment</div>
+            <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('donor/make-payment.php')); ?>" 
+                   class="nav-link <?php echo $current_page === 'make-payment' ? 'active' : ''; ?>">
+                    <i class="fas fa-credit-card"></i>
+                    <span class="nav-link-text">Make a Payment</span>
+                </a>
+            </div>
             <?php if (isset($current_donor) && $current_donor['has_active_plan']): ?>
             <div class="nav-item">
                 <a href="<?php echo htmlspecialchars(url_for('donor/payment-plan.php')); ?>" 
                    class="nav-link <?php echo $current_page === 'payment-plan' ? 'active' : ''; ?>">
                     <i class="fas fa-calendar-alt"></i>
-                    <span class="nav-link-text">Payment Plan</span>
+                    <span class="nav-link-text">Pledges & Plans</span>
                 </a>
             </div>
             <?php endif; ?>
@@ -60,7 +67,14 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
                 <a href="<?php echo htmlspecialchars(url_for('donor/profile.php')); ?>" 
                    class="nav-link <?php echo $current_page === 'profile' ? 'active' : ''; ?>">
                     <i class="fas fa-user"></i>
-                    <span class="nav-link-text">My Profile</span>
+                    <span class="nav-link-text">Preferences</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('donor/contact.php')); ?>" 
+                   class="nav-link <?php echo $current_page === 'contact' ? 'active' : ''; ?>">
+                    <i class="fas fa-envelope"></i>
+                    <span class="nav-link-text">Contact Support</span>
                 </a>
             </div>
             <div class="nav-item">
