@@ -45,12 +45,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $error_message = 'Too many requests. Please wait a few minutes before trying again.';
     } else {
         // Security: Sanitize inputs
-        $name_raw = $_POST['name'] ?? '';
-        $phone_raw = $_POST['phone'] ?? '';
-        $email_raw = $_POST['email'] ?? '';
+        $name_raw = isset($_POST['name']) ? (string)$_POST['name'] : '';
+        $phone_raw = isset($_POST['phone']) ? (string)$_POST['phone'] : '';
+        $email_raw = isset($_POST['email']) ? (string)$_POST['email'] : '';
         
-        // Security: Check for SQL injection patterns
-        if (contains_sql_injection($name_raw) || contains_sql_injection($phone_raw) || contains_sql_injection($email_raw)) {
+        // Security: Check for SQL injection patterns (only on non-empty strings)
+        $sql_injection_detected = false;
+        if (!empty($name_raw) && contains_sql_injection($name_raw)) {
+            $sql_injection_detected = true;
+        }
+        if (!empty($phone_raw) && contains_sql_injection($phone_raw)) {
+            $sql_injection_detected = true;
+        }
+        if (!empty($email_raw) && contains_sql_injection($email_raw)) {
+            $sql_injection_detected = true;
+        }
+        
+        if ($sql_injection_detected) {
             error_log('SQL injection attempt detected from IP: ' . get_client_ip());
             $error_message = 'Invalid input detected. Please try again.';
         } else {
@@ -239,146 +250,146 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             } else {
                 // Update preferences
                 if ($db_connection_ok) {
-            try {
-                // Start transaction by disabling autocommit
-                $db->autocommit(false);
-                
-                // Check if email_opt_in column exists
-                $check_email_opt_in = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
-                $has_email_opt_in_column = $check_email_opt_in->num_rows > 0;
-                $check_email_opt_in->close();
-                
-                // Build UPDATE query based on whether email_opt_in column exists
-                if ($has_email_opt_in_column) {
-                    $update_stmt = $db->prepare("
-                        UPDATE donors SET 
-                            preferred_language = ?,
-                            preferred_payment_method = ?,
-                            preferred_payment_day = ?,
-                            sms_opt_in = ?,
-                            email_opt_in = ?,
-                            updated_at = NOW()
-                        WHERE id = ?
-                    ");
-                    $update_stmt->bind_param(
-                        'ssiiii',
-                        $preferred_language,
-                        $preferred_payment_method,
-                        $preferred_payment_day,
-                        $sms_opt_in,
-                        $email_opt_in,
-                        $donor['id']
-                    );
-                } else {
-                    $update_stmt = $db->prepare("
-                        UPDATE donors SET 
-                            preferred_language = ?,
-                            preferred_payment_method = ?,
-                            preferred_payment_day = ?,
-                            sms_opt_in = ?,
-                            updated_at = NOW()
-                        WHERE id = ?
-                    ");
-                    $update_stmt->bind_param(
-                        'ssiii',
-                        $preferred_language,
-                        $preferred_payment_method,
-                        $preferred_payment_day,
-                        $sms_opt_in,
-                        $donor['id']
-                    );
-                }
-                if (!$update_stmt->execute()) {
-                    throw new RuntimeException('Failed to update preferences: ' . $update_stmt->error);
-                }
-                $update_stmt->close();
-                
-                    // Audit log (wrap in try-catch to not fail preferences update if audit fails)
                     try {
-                        $audit_data = json_encode([
-                            'donor_id' => (int)$donor['id'],
-                            'preferred_language' => escape_html($preferred_language),
-                            'preferred_payment_method' => escape_html($preferred_payment_method),
-                            'preferred_payment_day' => (int)$preferred_payment_day,
-                            'sms_opt_in' => (int)$sms_opt_in,
-                            'email_opt_in' => $has_email_opt_in_column ? (int)$email_opt_in : null,
-                            'ip_address' => get_client_ip()
-                        ], JSON_UNESCAPED_SLASHES);
-                    $audit_stmt = $db->prepare("
-                        INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
-                        VALUES(?, 'donor', ?, 'update_preferences', ?, 'donor_portal')
-                    ");
-                    if ($audit_stmt) {
-                        $user_id = 0;
-                        $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_data);
-                        if (!$audit_stmt->execute()) {
-                            error_log('Audit log insert failed: ' . $audit_stmt->error);
+                        // Start transaction by disabling autocommit
+                        $db->autocommit(false);
+                        
+                        // Check if email_opt_in column exists
+                        $check_email_opt_in = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+                        $has_email_opt_in_column = $check_email_opt_in->num_rows > 0;
+                        $check_email_opt_in->close();
+                        
+                        // Build UPDATE query based on whether email_opt_in column exists
+                        if ($has_email_opt_in_column) {
+                            $update_stmt = $db->prepare("
+                                UPDATE donors SET 
+                                    preferred_language = ?,
+                                    preferred_payment_method = ?,
+                                    preferred_payment_day = ?,
+                                    sms_opt_in = ?,
+                                    email_opt_in = ?,
+                                    updated_at = NOW()
+                                WHERE id = ?
+                            ");
+                            $update_stmt->bind_param(
+                                'ssiiii',
+                                $preferred_language,
+                                $preferred_payment_method,
+                                $preferred_payment_day,
+                                $sms_opt_in,
+                                $email_opt_in,
+                                $donor['id']
+                            );
+                        } else {
+                            $update_stmt = $db->prepare("
+                                UPDATE donors SET 
+                                    preferred_language = ?,
+                                    preferred_payment_method = ?,
+                                    preferred_payment_day = ?,
+                                    sms_opt_in = ?,
+                                    updated_at = NOW()
+                                WHERE id = ?
+                            ");
+                            $update_stmt->bind_param(
+                                'ssiii',
+                                $preferred_language,
+                                $preferred_payment_method,
+                                $preferred_payment_day,
+                                $sms_opt_in,
+                                $donor['id']
+                            );
                         }
-                        $audit_stmt->close();
-                    } else {
-                        error_log('Audit log prepare failed: ' . $db->error);
+                        if (!$update_stmt->execute()) {
+                            throw new RuntimeException('Failed to update preferences: ' . $update_stmt->error);
+                        }
+                        $update_stmt->close();
+                        
+                        // Audit log (wrap in try-catch to not fail preferences update if audit fails)
+                        try {
+                            $audit_data = json_encode([
+                                'donor_id' => (int)$donor['id'],
+                                'preferred_language' => escape_html($preferred_language),
+                                'preferred_payment_method' => escape_html($preferred_payment_method),
+                                'preferred_payment_day' => (int)$preferred_payment_day,
+                                'sms_opt_in' => (int)$sms_opt_in,
+                                'email_opt_in' => $has_email_opt_in_column ? (int)$email_opt_in : null,
+                                'ip_address' => get_client_ip()
+                            ], JSON_UNESCAPED_SLASHES);
+                            $audit_stmt = $db->prepare("
+                                INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
+                                VALUES(?, 'donor', ?, 'update_preferences', ?, 'donor_portal')
+                            ");
+                            if ($audit_stmt) {
+                                $user_id = 0;
+                                $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_data);
+                                if (!$audit_stmt->execute()) {
+                                    error_log('Audit log insert failed: ' . $audit_stmt->error);
+                                }
+                                $audit_stmt->close();
+                            } else {
+                                error_log('Audit log prepare failed: ' . $db->error);
+                            }
+                        } catch (Exception $audit_ex) {
+                            // Log but don't fail the update
+                            error_log('Audit log error (non-fatal): ' . $audit_ex->getMessage());
+                        }
+                        
+                        $db->commit();
+                        $db->autocommit(true); // Re-enable autocommit
+                        
+                        // Refresh donor data with all fields including email and email_opt_in if columns exist
+                        $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+                        $has_email_for_refresh = $check_email->num_rows > 0;
+                        $check_email->close();
+                        
+                        $check_email_opt_in_refresh = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+                        $has_email_opt_in_for_refresh = $check_email_opt_in_refresh->num_rows > 0;
+                        $check_email_opt_in_refresh->close();
+                        
+                        $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
+                               has_active_plan, active_payment_plan_id, plan_monthly_amount,
+                               plan_duration_months, plan_start_date, plan_next_due_date,
+                               payment_status, preferred_payment_method, preferred_language,
+                               preferred_payment_day, sms_opt_in";
+                        if ($has_email_for_refresh) {
+                            $refresh_fields .= ", email";
+                        }
+                        if ($has_email_opt_in_for_refresh) {
+                            $refresh_fields .= ", email_opt_in";
+                        }
+                        $refresh_stmt = $db->prepare("
+                            SELECT $refresh_fields
+                            FROM donors 
+                            WHERE id = ?
+                            LIMIT 1
+                        ");
+                        $refresh_stmt->bind_param('i', $donor['id']);
+                        $refresh_stmt->execute();
+                        $refresh_result = $refresh_stmt->get_result();
+                        $updated_donor = $refresh_result->fetch_assoc();
+                        $refresh_stmt->close();
+                        if ($updated_donor) {
+                            $_SESSION['donor'] = $updated_donor;
+                            $donor = $updated_donor;
+                        }
+                        
+                        $success_message = 'Preferences updated successfully!';
+                    } catch (mysqli_sql_exception $e) {
+                        $db->rollback();
+                        $db->autocommit(true); // Re-enable autocommit
+                        error_log('Preferences update SQL error: ' . $e->getMessage());
+                        error_log('SQL State: ' . $e->getSqlState());
+                        error_log('SQL Error Number: ' . $e->getCode());
+                        $error_message = 'Database error: ' . escape_html($e->getMessage()) . '. Please try again.';
+                    } catch (Exception $e) {
+                        $db->rollback();
+                        $db->autocommit(true); // Re-enable autocommit
+                        // Log the actual error for debugging
+                        error_log('Preferences update error: ' . $e->getMessage());
+                        error_log('Preferences update trace: ' . $e->getTraceAsString());
+                        // Display detailed error message for debugging
+                        $error_message = 'An error occurred while updating your preferences: ' . escape_html($e->getMessage()) . '. Please try again.';
                     }
-                } catch (Exception $audit_ex) {
-                    // Log but don't fail the update
-                    error_log('Audit log error (non-fatal): ' . $audit_ex->getMessage());
-                }
-                
-                $db->commit();
-                $db->autocommit(true); // Re-enable autocommit
-                
-                // Refresh donor data with all fields including email and email_opt_in if columns exist
-                $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
-                $has_email_for_refresh = $check_email->num_rows > 0;
-                $check_email->close();
-                
-                $check_email_opt_in_refresh = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
-                $has_email_opt_in_for_refresh = $check_email_opt_in_refresh->num_rows > 0;
-                $check_email_opt_in_refresh->close();
-                
-                $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
-                           has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                           plan_duration_months, plan_start_date, plan_next_due_date,
-                           payment_status, preferred_payment_method, preferred_language,
-                           preferred_payment_day, sms_opt_in";
-                if ($has_email_for_refresh) {
-                    $refresh_fields .= ", email";
-                }
-                if ($has_email_opt_in_for_refresh) {
-                    $refresh_fields .= ", email_opt_in";
-                }
-                $refresh_stmt = $db->prepare("
-                    SELECT $refresh_fields
-                    FROM donors 
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-                $refresh_stmt->bind_param('i', $donor['id']);
-                $refresh_stmt->execute();
-                $refresh_result = $refresh_stmt->get_result();
-                $updated_donor = $refresh_result->fetch_assoc();
-                $refresh_stmt->close();
-                if ($updated_donor) {
-                    $_SESSION['donor'] = $updated_donor;
-                    $donor = $updated_donor;
-                }
-                
-                $success_message = 'Preferences updated successfully!';
-            } catch (mysqli_sql_exception $e) {
-                $db->rollback();
-                $db->autocommit(true); // Re-enable autocommit
-                error_log('Preferences update SQL error: ' . $e->getMessage());
-                error_log('SQL State: ' . $e->getSqlState());
-                error_log('SQL Error Number: ' . $e->getCode());
-                $error_message = 'Database error: ' . escape_html($e->getMessage()) . '. Please try again.';
-            } catch (Exception $e) {
-                $db->rollback();
-                $db->autocommit(true); // Re-enable autocommit
-                // Log the actual error for debugging
-                error_log('Preferences update error: ' . $e->getMessage());
-                error_log('Preferences update trace: ' . $e->getTraceAsString());
-                // Display detailed error message for debugging
-                $error_message = 'An error occurred while updating your preferences: ' . escape_html($e->getMessage()) . '. Please try again.';
-            }
                 }
             }
         }

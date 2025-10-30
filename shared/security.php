@@ -22,7 +22,10 @@ function sanitize_string(string $input, int $max_length = 255): string {
 /**
  * Sanitize name - allows letters, spaces, apostrophes, hyphens, and unicode characters
  */
-function sanitize_name(string $input, int $max_length = 255): string {
+function sanitize_name($input, int $max_length = 255): string {
+    if (empty($input) || !is_string($input)) {
+        return '';
+    }
     $sanitized = trim($input);
     // Remove any HTML tags
     $sanitized = strip_tags($sanitized);
@@ -43,20 +46,26 @@ function sanitize_name(string $input, int $max_length = 255): string {
 /**
  * Sanitize phone number - digits only, handles UK format
  */
-function sanitize_phone(string $input): string {
+function sanitize_phone($input): string {
+    if (empty($input) || !is_string($input)) {
+        return '';
+    }
     // Remove all non-digits
     $sanitized = preg_replace('/[^0-9]/', '', $input);
     // Handle +44 or 44 prefix (convert to 07xxx)
-    if (substr($sanitized, 0, 2) === '44' && strlen($sanitized) === 12) {
+    if (!empty($sanitized) && substr($sanitized, 0, 2) === '44' && strlen($sanitized) === 12) {
         $sanitized = '0' . substr($sanitized, 2);
     }
-    return $sanitized;
+    return $sanitized ?: '';
 }
 
 /**
  * Validate UK mobile phone number
  */
-function validate_uk_mobile(string $phone): bool {
+function validate_uk_mobile($phone): bool {
+    if (empty($phone)) {
+        return false;
+    }
     $normalized = sanitize_phone($phone);
     return strlen($normalized) === 11 && substr($normalized, 0, 2) === '07';
 }
@@ -64,7 +73,10 @@ function validate_uk_mobile(string $phone): bool {
 /**
  * Sanitize email address
  */
-function sanitize_email(string $input, int $max_length = 255): ?string {
+function sanitize_email($input, int $max_length = 255): ?string {
+    if (empty($input) || !is_string($input)) {
+        return null;
+    }
     $sanitized = trim($input);
     if (empty($sanitized)) {
         return null;
@@ -76,13 +88,16 @@ function sanitize_email(string $input, int $max_length = 255): ?string {
     if ($max_length > 0 && mb_strlen($sanitized) > $max_length) {
         $sanitized = mb_substr($sanitized, 0, $max_length);
     }
-    return $sanitized;
+    return $sanitized ?: null;
 }
 
 /**
  * Validate email address
  */
-function validate_email(string $email): bool {
+function validate_email($email): bool {
+    if (empty($email) || !is_string($email)) {
+        return false;
+    }
     return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
 }
 
@@ -148,8 +163,11 @@ function sanitize_bool($input): bool {
 /**
  * Escape output for HTML display (XSS prevention)
  */
-function escape_html(string $input): string {
-    return htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+function escape_html($input): string {
+    if ($input === null || $input === '' || (!is_string($input) && !is_numeric($input))) {
+        return '';
+    }
+    return htmlspecialchars((string)$input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
 /**
@@ -170,7 +188,10 @@ function validate_length(string $input, int $min = 0, int $max = PHP_INT_MAX): b
 /**
  * Check for SQL injection patterns (basic check)
  */
-function contains_sql_injection(string $input): bool {
+function contains_sql_injection($input): bool {
+    if (empty($input) || !is_string($input)) {
+        return false;
+    }
     $dangerous_patterns = [
         '/(\b(ALTER|CREATE|DELETE|DROP|EXEC(UTE)?|INSERT|MERGE|SELECT|UNION|UPDATE)\b)/i',
         '/(--|#|\/\*|\*\/|;|\'|"|`)/',
@@ -234,7 +255,9 @@ function check_rate_limit(string $identifier, int $max_attempts = 5, int $time_w
  * Validate CSRF token (wrapper for verify_csrf)
  */
 function validate_csrf(): bool {
-    require_once __DIR__ . '/csrf.php';
+    if (!function_exists('verify_csrf')) {
+        require_once __DIR__ . '/csrf.php';
+    }
     return verify_csrf(false);
 }
 
