@@ -1,0 +1,88 @@
+/* Donor Portal Styles - Similar to Registrar Portal */
+.donor-wrapper {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+.donor-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-left: 0;
+    transition: margin-left 0.3s ease;
+}
+
+.donor-content.sidebar-open {
+    margin-left: 260px;
+}
+
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+/* Stat Cards */
+.stat-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+    color: #212529;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 1rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+}
+

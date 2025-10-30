@@ -1,0 +1,126 @@
+/* Auth Pages Styles - Shared with Registrar */
+.auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: relative;
+    overflow: hidden;
+    padding: 2rem;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 450px;
+    z-index: 10;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    padding: 2.5rem;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-logo {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: white;
+}
+
+.auth-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #212529;
+}
+
+.auth-subtitle {
+    color: #6c757d;
+    margin: 0;
+}
+
+.auth-form .form-floating {
+    margin-bottom: 1rem;
+}
+
+.auth-form .btn-login {
+    padding: 0.75rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.auth-info-card {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.auth-decoration {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+}
+
+.circle-1 {
+    width: 300px;
+    height: 300px;
+    top: -100px;
+    right: -100px;
+}
+
+.circle-2 {
+    width: 200px;
+    height: 200px;
+    bottom: -50px;
+    left: -50px;
+}
+
+.circle-3 {
+    width: 150px;
+    height: 150px;
+    top: 50%;
+    left: 10%;
+}
+
+@media (max-width: 576px) {
+    .auth-card {
+        padding: 1.5rem;
+    }
+    
+    .auth-title {
+        font-size: 1.5rem;
+    }
+}
+
