@@ -139,6 +139,13 @@ try {
         </span>
         <span class="nav-label">Projector Control</span>
       </a>
+      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'grid-allocation' ? './' : '../grid-allocation/'; ?>" 
+         class="nav-link <?php echo $current_dir === 'grid-allocation' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-th"></i>
+        </span>
+        <span class="nav-label">Grid Allocation</span>
+      </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'audit' ? './' : '../audit/'; ?>" 
          class="nav-link <?php echo $current_dir === 'audit' ? 'active' : ''; ?>">
         <span class="nav-icon">
