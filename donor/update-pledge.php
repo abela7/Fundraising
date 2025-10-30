@@ -4,50 +4,40 @@
  * Allows donors to request an increase to their pledge amount
  */
 
-// Enable error reporting for debugging (remove in production)
+// Enable error reporting for debugging
 error_reporting(E_ALL);
-ini_set('display_errors', 1); // Show errors for debugging
+ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+    @session_start();
 }
 
-try {
-    require_once __DIR__ . '/../shared/auth.php';
-} catch (Throwable $e) {
-    error_log("Donor update-pledge: Error loading auth.php - " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
-    die("Error loading authentication: " . htmlspecialchars($e->getMessage()) . " in " . $e->getFile() . ":" . $e->getLine());
-}
+// Set up error handler to catch fatal errors
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        error_log("Donor update-pledge: FATAL ERROR - " . $error['message'] . " in " . $error['file'] . ":" . $error['line']);
+        http_response_code(500);
+        if (!headers_sent()) {
+            header('Content-Type: text/html; charset=utf-8');
+        }
+        echo "<!DOCTYPE html><html><head><title>Error</title></head><body>";
+        echo "<h1>Fatal Error</h1>";
+        echo "<p><strong>Message:</strong> " . htmlspecialchars($error['message']) . "</p>";
+        echo "<p><strong>File:</strong> " . htmlspecialchars($error['file']) . "</p>";
+        echo "<p><strong>Line:</strong> " . $error['line'] . "</p>";
+        echo "</body></html>";
+        exit;
+    }
+});
 
-try {
-    require_once __DIR__ . '/../shared/csrf.php';
-} catch (Throwable $e) {
-    error_log("Donor update-pledge: Error loading csrf.php - " . $e->getMessage());
-    die("Error loading CSRF: " . htmlspecialchars($e->getMessage()));
-}
-
-try {
-    require_once __DIR__ . '/../shared/url.php';
-} catch (Throwable $e) {
-    error_log("Donor update-pledge: Error loading url.php - " . $e->getMessage());
-    die("Error loading URL helper: " . htmlspecialchars($e->getMessage()));
-}
-
-try {
-    require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
-} catch (Throwable $e) {
-    error_log("Donor update-pledge: Error loading resilient_db_loader.php - " . $e->getMessage());
-    die("Error loading database: " . htmlspecialchars($e->getMessage()));
-}
-
-try {
-    require_once __DIR__ . '/../shared/GridAllocationBatchTracker.php';
-} catch (Throwable $e) {
-    error_log("Donor update-pledge: Error loading GridAllocationBatchTracker.php - " . $e->getMessage());
-    die("Error loading batch tracker: " . htmlspecialchars($e->getMessage()));
-}
+require_once __DIR__ . '/../shared/auth.php';
+require_once __DIR__ . '/../shared/csrf.php';
+require_once __DIR__ . '/../shared/url.php';
+require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
+require_once __DIR__ . '/../shared/GridAllocationBatchTracker.php';
 
 function current_donor(): ?array {
     if (session_status() === PHP_SESSION_NONE) {
@@ -121,76 +111,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($error)) {
-        // Collect form inputs
-        error_log("Donor pledge update: Collecting form inputs...");
-        $notes = trim((string)($_POST['notes'] ?? '')); // Optional notes
-        $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
-        $custom_amount = (float)($_POST['custom_amount'] ?? 0);
-        $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
-        error_log("Donor pledge update: Form inputs - sqm_unit=$sqm_unit, custom_amount=$custom_amount, client_uuid=" . substr($client_uuid, 0, 20));
-        
-        if ($client_uuid === '') {
-            try { 
-                $client_uuid = bin2hex(random_bytes(16)); 
-                error_log("Donor pledge update: Generated new client_uuid");
-            } catch (Throwable $e) { 
-                $client_uuid = uniqid('uuid_', true); 
-                error_log("Donor pledge update: Generated fallback client_uuid");
+        try {
+            // Collect form inputs
+            error_log("Donor pledge update: Collecting form inputs...");
+            $notes = trim((string)($_POST['notes'] ?? '')); // Optional notes
+            $sqm_unit = (string)($_POST['pack'] ?? ''); // '1', '0.5', '0.25', 'custom'
+            $custom_amount = (float)($_POST['custom_amount'] ?? 0);
+            $client_uuid = trim((string)($_POST['client_uuid'] ?? ''));
+            error_log("Donor pledge update: Form inputs - sqm_unit=$sqm_unit, custom_amount=$custom_amount, client_uuid=" . substr($client_uuid, 0, 20));
+            
+            if ($client_uuid === '') {
+                try { 
+                    $client_uuid = bin2hex(random_bytes(16)); 
+                    error_log("Donor pledge update: Generated new client_uuid");
+                } catch (Throwable $e) { 
+                    $client_uuid = uniqid('uuid_', true); 
+                    error_log("Donor pledge update: Generated fallback client_uuid");
+                }
             }
-        }
 
-        // Validation
-        $error = '';
-        if (empty($client_uuid)) {
-            $error = 'A unique submission ID is required. Please refresh and try again.';
-            error_log("Donor pledge update: ERROR - client_uuid is empty");
-        }
+            // Validation
+            if (empty($client_uuid)) {
+                $error = 'A unique submission ID is required. Please refresh and try again.';
+                error_log("Donor pledge update: ERROR - client_uuid is empty");
+            }
 
-        // Calculate donation amount based on selection
-        error_log("Donor pledge update: Calculating amount...");
-        $amount = 0.0;
-        $selectedPackage = null;
-        if ($sqm_unit === '1') { 
-            $selectedPackage = $pkgOne; 
-            error_log("Donor pledge update: Selected 1 m² package");
-        }
-        elseif ($sqm_unit === '0.5') { 
-            $selectedPackage = $pkgHalf; 
-            error_log("Donor pledge update: Selected 1/2 m² package");
-        }
-        elseif ($sqm_unit === '0.25') { 
-            $selectedPackage = $pkgQuarter; 
-            error_log("Donor pledge update: Selected 1/4 m² package");
-        }
-        elseif ($sqm_unit === 'custom') { 
-            $selectedPackage = $pkgCustom; 
-            error_log("Donor pledge update: Selected custom package");
-        }
-        else { 
-            $selectedPackage = null; 
-            error_log("Donor pledge update: No package selected, sqm_unit=$sqm_unit");
-        }
+            // Calculate donation amount based on selection
+            error_log("Donor pledge update: Calculating amount...");
+            $amount = 0.0;
+            $selectedPackage = null;
+            if ($sqm_unit === '1') { 
+                $selectedPackage = $pkgOne; 
+                error_log("Donor pledge update: Selected 1 m² package");
+            }
+            elseif ($sqm_unit === '0.5') { 
+                $selectedPackage = $pkgHalf; 
+                error_log("Donor pledge update: Selected 1/2 m² package");
+            }
+            elseif ($sqm_unit === '0.25') { 
+                $selectedPackage = $pkgQuarter; 
+                error_log("Donor pledge update: Selected 1/4 m² package");
+            }
+            elseif ($sqm_unit === 'custom') { 
+                $selectedPackage = $pkgCustom; 
+                error_log("Donor pledge update: Selected custom package");
+            }
+            else { 
+                $selectedPackage = null; 
+                error_log("Donor pledge update: No package selected, sqm_unit=$sqm_unit");
+            }
 
-        if ($selectedPackage) {
-            if ($sqm_unit === 'custom') {
-                $amount = max(0, $custom_amount);
-                error_log("Donor pledge update: Custom amount = $amount");
+            if ($selectedPackage) {
+                if ($sqm_unit === 'custom') {
+                    $amount = max(0, $custom_amount);
+                    error_log("Donor pledge update: Custom amount = $amount");
+                } else {
+                    $amount = (float)$selectedPackage['price'];
+                    error_log("Donor pledge update: Package amount = $amount (from package ID: " . ($selectedPackage['id'] ?? 'N/A') . ")");
+                }
             } else {
-                $amount = (float)$selectedPackage['price'];
-                error_log("Donor pledge update: Package amount = $amount (from package ID: " . ($selectedPackage['id'] ?? 'N/A') . ")");
+                $error = 'Please select a valid donation package.';
+                error_log("Donor pledge update: ERROR - No valid package selected. Available packages: pkgOne=" . ($pkgOne ? 'YES' : 'NO') . ", pkgHalf=" . ($pkgHalf ? 'YES' : 'NO') . ", pkgQuarter=" . ($pkgQuarter ? 'YES' : 'NO') . ", pkgCustom=" . ($pkgCustom ? 'YES' : 'NO'));
             }
-        } else {
-            $error = 'Please select a valid donation package.';
-            error_log("Donor pledge update: ERROR - No valid package selected. Available packages: pkgOne=" . ($pkgOne ? 'YES' : 'NO') . ", pkgHalf=" . ($pkgHalf ? 'YES' : 'NO') . ", pkgQuarter=" . ($pkgQuarter ? 'YES' : 'NO') . ", pkgCustom=" . ($pkgCustom ? 'YES' : 'NO'));
-        }
 
-        if ($amount <= 0 && !$error) {
-            $error = 'Please select a valid amount greater than zero.';
-            error_log("Donor pledge update: ERROR - Amount is $amount (must be > 0)");
+            if ($amount <= 0 && !$error) {
+                $error = 'Please select a valid amount greater than zero.';
+                error_log("Donor pledge update: ERROR - Amount is $amount (must be > 0)");
+            }
+        } catch (Throwable $validationError) {
+            error_log("Donor pledge update: ERROR during validation - " . $validationError->getMessage() . " in " . $validationError->getFile() . ":" . $validationError->getLine());
+            $error = 'Validation error: ' . htmlspecialchars($validationError->getMessage());
         }
-    } catch (Throwable $validationError) {
-        error_log("Donor pledge update: ERROR during validation - " . $validationError->getMessage() . " in " . $validationError->getFile() . ":" . $validationError->getLine());
-        $error = 'Validation error: ' . htmlspecialchars($validationError->getMessage());
     }
 
     // Process the database transaction
