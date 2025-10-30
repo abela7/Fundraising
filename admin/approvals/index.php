@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     if ($pledgeId && in_array($action, ['approve','reject','update'], true)) {
         $db->begin_transaction();
         try {
-            $stmt = $db->prepare('SELECT id, amount, type, status, donor_name, donor_phone, donor_id FROM pledges WHERE id = ? FOR UPDATE');
+            $stmt = $db->prepare('SELECT id, amount, type, status, donor_name, donor_phone, donor_id, source FROM pledges WHERE id = ? FOR UPDATE');
             $stmt->bind_param('i', $pledgeId);
             $stmt->execute();
             $pledge = $stmt->get_result()->fetch_assoc();
