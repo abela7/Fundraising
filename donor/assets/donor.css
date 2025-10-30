@@ -54,19 +54,22 @@ body {
   border-right: 1px solid var(--gray-200);
 }
 
-/* Always show text labels - never hide them */
-.sidebar-brand-text,
-.nav-link-text,
-.nav-section-title {
-    display: block !important;
+.sidebar.collapsed {
+    width: 88px;
+}
+
+.sidebar.collapsed .sidebar-brand-text,
+.sidebar.collapsed .nav-link-text,
+.sidebar.collapsed .nav-section-title {
+    display: none;
 }
 
 .sidebar.collapsed .sidebar-brand {
-    justify-content: flex-start; /* Keep text aligned left */
+    justify-content: center;
 }
 
 .sidebar.collapsed .nav-link {
-    justify-content: flex-start; /* Keep text aligned left */
+    justify-content: center;
 }
 
 .sidebar.show {
@@ -646,11 +649,6 @@ body {
     flex-shrink: 0;
     height: 100vh;
     overflow-y: auto;
-    transition: width 0.3s ease;
-  }
-  
-  .sidebar.collapsed {
-    width: 240px;
   }
   
   .sidebar-overlay,
@@ -671,11 +669,10 @@ body {
     width: calc(100% - 280px);
     height: 100vh;
     overflow: hidden;
-    transition: width 0.3s ease;
   }
   
   .app-content.collapsed {
-      width: calc(100% - 240px);
+      width: calc(100% - 88px);
   }
 
   .sidebar-toggle {
