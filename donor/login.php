@@ -38,21 +38,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($phone === '') {
         $error = 'Please enter your phone number.';
     } else {
-        // Normalize phone number (remove spaces, dashes, etc.)
-        $normalized_phone = preg_replace('/\D+/', '', $phone);
+        // Normalize phone number using the same logic as the API
+        // Remove all non-digit characters except +
+        $normalized_phone = preg_replace('/[^0-9+]/', '', $phone);
         
-        // Handle +44 format
-        if (strpos($normalized_phone, '44') === 0 && strlen($normalized_phone) === 12) {
+        // Handle +44 format (convert to 07xxx)
+        if (strpos($normalized_phone, '+44') === 0) {
+            $normalized_phone = '0' . substr($normalized_phone, 3);
+        } elseif (strpos($normalized_phone, '44') === 0 && strlen($normalized_phone) === 12) {
             $normalized_phone = '0' . substr($normalized_phone, 2);
         }
         
-        if (strlen($normalized_phone) < 10) {
-            $error = 'Please enter a valid UK mobile number.';
+        // Validate UK mobile format (must start with 07 and be 11 digits)
+        if (!preg_match('/^07\d{9}$/', $normalized_phone)) {
+            $error = 'Please enter a valid UK mobile number (e.g., 07123456789).';
         } else {
             // Look up donor by phone
             if ($db_connection_ok) {
                 try {
-                    // Try exact match first
+                    // Try exact match with normalized phone first (most common case)
                     $stmt = $db->prepare("
                         SELECT id, name, phone, total_pledged, total_paid, balance, 
                                has_active_plan, active_payment_plan_id, plan_monthly_amount,
@@ -62,20 +66,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         WHERE phone = ? 
                         LIMIT 1
                     ");
-                    $stmt->bind_param('s', $phone);
+                    $stmt->bind_param('s', $normalized_phone);
                     $stmt->execute();
                     $result = $stmt->get_result();
                     $donor = $result->fetch_assoc();
                     
-                    // If no exact match, try normalized match
-                    if (!$donor && $normalized_phone) {
+                    // If no exact match, try with SQL normalization (handles spaces/dashes in DB)
+                    if (!$donor) {
                         $stmt2 = $db->prepare("
                             SELECT id, name, phone, total_pledged, total_paid, balance, 
                                    has_active_plan, active_payment_plan_id, plan_monthly_amount,
                                    plan_duration_months, plan_start_date, plan_next_due_date,
                                    payment_status, preferred_payment_method, preferred_language
                             FROM donors 
-                            WHERE REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', '') = ?
+                            WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') = ?
                             LIMIT 1
                         ");
                         $stmt2->bind_param('s', $normalized_phone);
@@ -94,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $update_stmt = $db->prepare("
                             UPDATE donors 
                             SET last_login_at = NOW(), 
-                                login_count = login_count + 1 
+                                login_count = COALESCE(login_count, 0) + 1 
                             WHERE id = ?
                         ");
                         $update_stmt->bind_param('i', $donor['id']);
@@ -111,6 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $error = 'No donor account found with this phone number. Please contact the church office if you believe this is an error.';
                     }
                 } catch (Exception $e) {
+                    // Log error for debugging (remove in production or use proper logging)
+                    error_log('Donor login error: ' . $e->getMessage());
                     $error = 'An error occurred. Please try again or contact support.';
                 }
             } else {
