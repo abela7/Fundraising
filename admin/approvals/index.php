@@ -442,7 +442,7 @@ $total_pages = (int)ceil($total_items / $per_page);
 // Combined pending items (pledges + payments) with filtering and sorting
 $combinedSql = "
 SELECT 'pledge' AS item_type, p.id AS item_id, p.amount, NULL AS method, p.notes, p.created_at,
-       NULL AS sqm_meters, p.anonymous, p.donor_name, p.donor_phone, p.donor_email,
+       NULL AS sqm_meters, p.anonymous, p.donor_name, p.donor_phone, p.donor_email, p.source,
        u.name AS registrar_name, NULL AS sqm_unit, NULL AS sqm_quantity, NULL AS price_per_sqm,
        dp.label AS package_label, dp.price AS package_price, dp.sqm_meters AS package_sqm, p.package_id AS package_id
 FROM pledges p
@@ -451,7 +451,7 @@ LEFT JOIN donation_packages dp ON dp.id = p.package_id
 WHERE $where_clause
 UNION ALL
 SELECT 'payment' AS item_type, pay.id AS item_id, pay.amount, pay.method, pay.reference AS notes, pay.created_at,
-       NULL AS sqm_meters, 0 AS anonymous, pay.donor_name, pay.donor_phone, pay.donor_email,
+       NULL AS sqm_meters, 0 AS anonymous, pay.donor_name, pay.donor_phone, pay.donor_email, pay.source,
        u2.name AS registrar_name, NULL AS sqm_unit, NULL AS sqm_quantity, NULL AS price_per_sqm,
        dp2.label AS package_label, dp2.price AS package_price, dp2.sqm_meters AS package_sqm, pay.package_id AS package_id
 FROM payments pay

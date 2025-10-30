@@ -29,7 +29,7 @@ function countDonorDonations(mysqli $db, string $donorPhone): int {
 $sql = "
     SELECT 
         p.id, p.amount, p.type, p.notes, p.created_at, p.anonymous,
-        p.donor_name, p.donor_phone, p.donor_email,
+        p.donor_name, p.donor_phone, p.donor_email, p.source,
         u.name as registrar_name,
         dp.label AS package_label, dp.price AS package_price, dp.sqm_meters AS package_sqm
     FROM pledges p
@@ -92,6 +92,8 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
         $pledge_donor_phone = (string)($pledge['donor_phone'] ?? '');
         $pledge_donor_email = (string)($pledge['donor_email'] ?? '');
         $pledge_registrar = (string)($pledge['registrar_name'] ?? 'System');
+        $pledge_source = (string)($pledge['source'] ?? '');
+        $is_donor_update = ($pledge_source === 'self' || $pledge_source === 'donor_portal');
 
         // Display logic
         $isPayment = ($pledge_type === 'payment');
@@ -163,6 +165,14 @@ $items = isset($pending_items) ? $pending_items : $pending_pledges;
                 ?>
                     <span class="badge bg-info ms-2" title="This donor has <?php echo $donationCount; ?> total donations">
                         <i class="fas fa-redo-alt me-1"></i>Repeat Donor
+                    </span>
+                <?php endif; ?>
+                <?php
+                    // Check if this is an update request from donor portal
+                    if ($is_donor_update):
+                ?>
+                    <span class="badge bg-warning ms-2" title="This donor updated their pledge amount via the donor portal">
+                        <i class="fas fa-edit me-1"></i>Update Request
                     </span>
                 <?php endif; ?>
             </div>
