@@ -23,14 +23,6 @@ body {
   flex-direction: column;
 }
 
-/* Desktop: Fixed height layout */
-@media (min-width: 768px) {
-  .app-wrapper {
-    height: 100vh;
-    overflow: hidden;
-  }
-}
-
 .app-content {
     flex: 1;
     display: flex;
@@ -647,8 +639,6 @@ body {
     width: 280px;
     box-shadow: none;
     flex-shrink: 0;
-    height: 100vh;
-    overflow-y: auto;
   }
   
   .sidebar-overlay,
@@ -658,8 +648,6 @@ body {
   
   .app-wrapper {
     flex-direction: row;
-    height: 100vh;
-    overflow: hidden;
   }
   
   .app-content {
@@ -667,8 +655,6 @@ body {
     display: flex;
     flex-direction: column;
     width: calc(100% - 280px);
-    height: 100vh;
-    overflow: hidden;
   }
   
   .app-content.collapsed {
@@ -678,6 +664,10 @@ body {
   .sidebar-toggle {
     display: none;
   }
+  
+  .desktop-sidebar-toggle {
+      display: block;
+  }
 
   .topbar {
     padding: 1rem 1.5rem;
@@ -686,8 +676,6 @@ body {
   .main-content {
     padding: 1.5rem;
     margin-bottom: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
   }
   
   /* Show user info on tablets */
