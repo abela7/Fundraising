@@ -183,10 +183,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         'batch_type' => 'pledge_update',
                         'request_type' => ($pledgeSource === 'self') ? 'donor_portal' : 'registrar',
                         'original_pledge_id' => $originalPledgeId,
+                        'original_payment_id' => null, // Explicitly set to null for pledge updates
                         'new_pledge_id' => $pledgeId,
+                        'new_payment_id' => null, // Explicitly set to null for pledge updates
                         'donor_id' => $donorId,
                         'donor_name' => $donorName,
-                        'donor_phone' => $normalized_phone,
+                        'donor_phone' => $normalized_phone ?: null, // Convert empty string to null
                         'original_amount' => $originalAmount,
                         'additional_amount' => $amount,
                         'total_amount' => $originalAmount + $amount,
@@ -224,10 +226,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     $batchData = [
                         'batch_type' => 'new_pledge',
                         'request_type' => ($pledgeSource === 'self') ? 'donor_portal' : 'registrar',
+                        'original_pledge_id' => null, // Explicitly set to null for new pledges
+                        'original_payment_id' => null, // Explicitly set to null for new pledges
                         'new_pledge_id' => $pledgeId,
+                        'new_payment_id' => null, // Explicitly set to null for new pledges
                         'donor_id' => $donorId,
                         'donor_name' => $donorName,
-                        'donor_phone' => $normalized_phone,
+                        'donor_phone' => $normalized_phone ?: null, // Convert empty string to null
                         'original_amount' => 0.00,
                         'additional_amount' => $amount,
                         'total_amount' => $amount,
@@ -266,10 +271,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     $batchData = [
                         'batch_type' => 'new_payment',
                         'request_type' => ($pledgeSource === 'self') ? 'donor_portal' : 'registrar',
+                        'original_pledge_id' => null, // Explicitly set to null for new payments
+                        'original_payment_id' => null, // Explicitly set to null for new payments
+                        'new_pledge_id' => null, // No pledge ID for payments
                         'new_payment_id' => null, // Will be set when actual payment record exists
                         'donor_id' => $donorId,
                         'donor_name' => $donorName,
-                        'donor_phone' => $normalized_phone,
+                        'donor_phone' => $normalized_phone ?: null, // Convert empty string to null
                         'original_amount' => 0.00,
                         'additional_amount' => $amount,
                         'total_amount' => $amount,

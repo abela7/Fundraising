@@ -73,10 +73,19 @@ class GridAllocationBatchTracker
         //  13. requested_by_user_id(i), 14. requested_by_donor_id(i), 15. request_source(s), 16. request_date(s),
         //  17. package_id(i), 18. metadataJson(s)
         // Type string must match exactly 18 parameters
-        // Breakdown: ss(2) + iiiii(5) + ss(2) + ddd(3) + ii(2) + ss(2) + i(1) + s(1) = 18 chars
-        // Original had 'sss' (3) but we only have 2 strings (donor_name, donor_phone), so it's 'ss'
+        // Type string: 'ssiiiiissdddiissis' = 18 characters
+        // Parameters: 18 variables
+        $typeString = 'ssiiiiissdddiissis';
+        
+        // Verify type string matches parameter count before binding
+        if (strlen($typeString) !== 18) {
+            error_log("GridAllocationBatchTracker: CRITICAL - Type string length mismatch: " . strlen($typeString) . " (expected 18)");
+            $stmt->close();
+            return null;
+        }
+        
         $stmt->bind_param(
-            'ssiiiiissdddiissis',
+            $typeString,
             $batch_type,                // 1. s
             $request_type,              // 2. s
             $original_pledge_id,        // 3. i
