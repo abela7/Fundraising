@@ -34,6 +34,8 @@ $db = db();
 $actionMsg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
+    error_log("=== ADMIN APPROVALS: POST REQUEST RECEIVED ===");
+    error_log("POST data keys: " . implode(', ', array_keys($_POST)));
     // htmx posts will include HX-Request header; still support normal POST
     verify_csrf();
     $pledgeId = (int)($_POST['pledge_id'] ?? 0);
@@ -57,11 +59,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $selectFields .= ', source';
             }
             
+            error_log("=== ADMIN APPROVALS: Processing pledge ID: {$pledgeId}, Action: {$action} ===");
+            
             $stmt = $db->prepare("SELECT {$selectFields} FROM pledges WHERE id = ? FOR UPDATE");
+            if (!$stmt) {
+                error_log("ERROR: Failed to prepare SELECT - " . $db->error);
+                throw new RuntimeException('Failed to prepare query: ' . $db->error);
+            }
             $stmt->bind_param('i', $pledgeId);
             $stmt->execute();
             $pledge = $stmt->get_result()->fetch_assoc();
-            if (!$pledge || $pledge['status'] !== 'pending') { throw new RuntimeException('Invalid state'); }
+            if (!$pledge || $pledge['status'] !== 'pending') { 
+                error_log("ERROR: Invalid pledge state - status: " . ($pledge['status'] ?? 'NOT FOUND'));
+                throw new RuntimeException('Invalid state'); 
+            }
+            error_log("Pledge found - Amount: " . ($pledge['amount'] ?? 'N/A') . ", Type: " . ($pledge['type'] ?? 'N/A') . ", Source: " . ($pledge['source'] ?? 'N/A'));
 
             if ($action === 'approve') {
                 $uid = (int)current_user()['id'];
@@ -147,18 +159,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $amount = (float)$pledge['amount'];
                 
                 // Find or create allocation batch record BEFORE grid allocation
+                error_log("=== ADMIN APPROVALS: Starting batch tracking ===");
                 $batchTracker = new GridAllocationBatchTracker($db);
                 $allocationBatchId = null;
                 
                 // Try to find existing batch first (created when request was made)
+                error_log("Looking for existing batch with pledgeId: {$pledgeId}");
                 $existingBatch = $batchTracker->getBatchByRequest($pledgeId, null);
                 if ($existingBatch) {
                     $allocationBatchId = (int)$existingBatch['id'];
+                    error_log("Found existing batch ID: {$allocationBatchId}");
+                } else {
+                    error_log("No existing batch found - will create new one");
                 }
                 
                 // If no existing batch found, create one (for backward compatibility)
                 if (!$allocationBatchId) {
+                    error_log("=== ADMIN APPROVALS: Creating new batch ===");
+                    error_log("isPledgeUpdate: " . ($isPledgeUpdate ? 'YES' : 'NO') . ", originalPledgeId: " . ($originalPledgeId ?? 'NULL'));
                     if ($isPledgeUpdate && $originalPledgeId) {
+                    error_log("Creating batch for PLEDGE UPDATE");
                     // Get donor ID and original pledge details for batch tracking
                     $donorPhone = (string)($pledge['donor_phone'] ?? '');
                     $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
@@ -219,10 +239,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         $batchData['donor_name'] = 'Anonymous';
                     }
                     
-                    error_log("Admin approvals: Creating batch for pledge update - pledgeId: {$pledgeId}, originalPledgeId: {$originalPledgeId}, donorName: " . substr($batchData['donor_name'], 0, 20));
+                    error_log("=== ADMIN APPROVALS: Batch data for pledge update ===");
+                    error_log("batch_type: " . ($batchData['batch_type'] ?? 'MISSING'));
+                    error_log("request_type: " . ($batchData['request_type'] ?? 'MISSING'));
+                    error_log("original_pledge_id: " . ($batchData['original_pledge_id'] ?? 'NULL'));
+                    error_log("new_pledge_id: " . ($batchData['new_pledge_id'] ?? 'NULL'));
+                    error_log("donor_id: " . ($batchData['donor_id'] ?? 'NULL'));
+                    error_log("donor_name: " . substr($batchData['donor_name'] ?? 'MISSING', 0, 30));
+                    error_log("donor_phone: " . ($batchData['donor_phone'] ?? 'NULL'));
+                    error_log("original_amount: " . ($batchData['original_amount'] ?? 'MISSING'));
+                    error_log("additional_amount: " . ($batchData['additional_amount'] ?? 'MISSING'));
+                    error_log("total_amount: " . ($batchData['total_amount'] ?? 'MISSING'));
+                    error_log("package_id: " . ($batchData['package_id'] ?? 'NULL'));
+                    
+                    error_log("Calling createBatch()...");
                     $allocationBatchId = $batchTracker->createBatch($batchData);
                     if (!$allocationBatchId) {
-                        error_log("Admin approvals: ERROR - Failed to create batch for pledge update");
+                        error_log("=== ADMIN APPROVALS: CRITICAL ERROR - Failed to create batch for pledge update ===");
+                        error_log("Batch creation returned NULL - check GridAllocationBatchTracker logs above");
+                    } else {
+                        error_log("Batch created successfully with ID: {$allocationBatchId}");
                     }
                     }
                 } elseif (!$isPaidType) {

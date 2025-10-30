@@ -28,6 +28,9 @@ class GridAllocationBatchTracker
      */
     public function createBatch(array $data): ?int
     {
+        error_log("=== GridAllocationBatchTracker::createBatch() CALLED ===");
+        error_log("Input data keys: " . implode(', ', array_keys($data)));
+        
         $sql = "
             INSERT INTO grid_allocation_batches (
                 batch_type, request_type, original_pledge_id, original_payment_id,
@@ -38,11 +41,15 @@ class GridAllocationBatchTracker
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
         ";
 
+        error_log("Preparing SQL statement...");
         $stmt = $this->db->prepare($sql);
         if (!$stmt) {
-            error_log("GridAllocationBatchTracker: Failed to prepare INSERT - " . $this->db->error);
+            error_log("=== GridAllocationBatchTracker: CRITICAL ERROR - Failed to prepare INSERT ===");
+            error_log("MySQL Error: " . $this->db->error);
+            error_log("MySQL Error Code: " . $this->db->errno);
             return null;
         }
+        error_log("SQL statement prepared successfully");
 
         $metadataJson = isset($data['metadata']) ? json_encode($data['metadata']) : null;
 
@@ -74,7 +81,26 @@ class GridAllocationBatchTracker
         
         // Log parameter count for debugging
         $paramCount = 18;
-        error_log("GridAllocationBatchTracker: Creating batch - batch_type: {$batch_type}, donor_name: " . substr($donor_name, 0, 20) . ", param count: {$paramCount}");
+        error_log("=== GridAllocationBatchTracker: Extracted Variables ===");
+        error_log("1. batch_type: " . var_export($batch_type, true));
+        error_log("2. request_type: " . var_export($request_type, true));
+        error_log("3. original_pledge_id: " . var_export($original_pledge_id, true) . " (type: " . gettype($original_pledge_id) . ")");
+        error_log("4. original_payment_id: " . var_export($original_payment_id, true) . " (type: " . gettype($original_payment_id) . ")");
+        error_log("5. new_pledge_id: " . var_export($new_pledge_id, true) . " (type: " . gettype($new_pledge_id) . ")");
+        error_log("6. new_payment_id: " . var_export($new_payment_id, true) . " (type: " . gettype($new_payment_id) . ")");
+        error_log("7. donor_id: " . var_export($donor_id, true) . " (type: " . gettype($donor_id) . ")");
+        error_log("8. donor_name: " . var_export(substr($donor_name, 0, 30), true) . " (type: " . gettype($donor_name) . ")");
+        error_log("9. donor_phone: " . var_export($donor_phone, true) . " (type: " . gettype($donor_phone) . ")");
+        error_log("10. original_amount: " . var_export($original_amount, true) . " (type: " . gettype($original_amount) . ")");
+        error_log("11. additional_amount: " . var_export($additional_amount, true) . " (type: " . gettype($additional_amount) . ")");
+        error_log("12. total_amount: " . var_export($total_amount, true) . " (type: " . gettype($total_amount) . ")");
+        error_log("13. requested_by_user_id: " . var_export($requested_by_user_id, true) . " (type: " . gettype($requested_by_user_id) . ")");
+        error_log("14. requested_by_donor_id: " . var_export($requested_by_donor_id, true) . " (type: " . gettype($requested_by_donor_id) . ")");
+        error_log("15. request_source: " . var_export($request_source, true));
+        error_log("16. request_date: " . var_export($request_date, true));
+        error_log("17. package_id: " . var_export($package_id, true) . " (type: " . gettype($package_id) . ")");
+        error_log("18. metadataJson: " . var_export(substr($metadataJson ?? 'NULL', 0, 50), true) . " (type: " . gettype($metadataJson) . ")");
+        error_log("Total parameters: {$paramCount}");
 
         // Type string: s=string, i=integer, d=double
         // Parameters in order (18 total):
@@ -100,13 +126,37 @@ class GridAllocationBatchTracker
         // bind_param with type 's' can handle null, but we'll ensure strings are not null
         if ($donor_phone === null) {
             $donor_phone = '';
+            error_log("Converted donor_phone from NULL to empty string");
         }
         if ($metadataJson === null) {
             $metadataJson = '';
+            error_log("Converted metadataJson from NULL to empty string");
+        }
+        
+        error_log("=== GridAllocationBatchTracker: About to call bind_param ===");
+        error_log("Type string: '{$typeString}' (length: {$typeStringLength})");
+        error_log("Expected parameters: 18");
+        
+        // Count actual parameters being passed
+        $actualParams = [
+            $batch_type, $request_type, $original_pledge_id, $original_payment_id,
+            $new_pledge_id, $new_payment_id, $donor_id, $donor_name, $donor_phone,
+            $original_amount, $additional_amount, $total_amount,
+            $requested_by_user_id, $requested_by_donor_id, $request_source, $request_date,
+            $package_id, $metadataJson
+        ];
+        error_log("Actual parameters count: " . count($actualParams));
+        
+        if (count($actualParams) !== 18) {
+            error_log("=== CRITICAL ERROR: Parameter count mismatch! ===");
+            error_log("Expected: 18, Actual: " . count($actualParams));
+            $stmt->close();
+            return null;
         }
         
         try {
-            $stmt->bind_param(
+            error_log("Calling bind_param with type string: '{$typeString}'");
+            $bindResult = $stmt->bind_param(
                 $typeString,
                 $batch_type,                // 1. s
                 $request_type,              // 2. s
@@ -127,21 +177,51 @@ class GridAllocationBatchTracker
                 $package_id,                // 17. i
                 $metadataJson               // 18. s
             );
+            
+            if (!$bindResult) {
+                error_log("=== CRITICAL ERROR: bind_param returned FALSE ===");
+                error_log("MySQL Error: " . $stmt->error);
+                error_log("MySQL Error Code: " . $stmt->errno);
+                error_log("Database Error: " . $this->db->error);
+                $stmt->close();
+                return null;
+            }
+            error_log("bind_param succeeded");
         } catch (Exception $e) {
-            error_log("GridAllocationBatchTracker: bind_param failed - " . $e->getMessage());
-            error_log("GridAllocationBatchTracker: Type string: {$typeString}, Length: {$typeStringLength}");
-            error_log("GridAllocationBatchTracker: Parameters - donor_name: " . substr($donor_name, 0, 20) . ", donor_phone: " . ($donor_phone ?: 'NULL/EMPTY'));
+            error_log("=== CRITICAL ERROR: Exception in bind_param ===");
+            error_log("Exception message: " . $e->getMessage());
+            error_log("Exception code: " . $e->getCode());
+            error_log("Exception file: " . $e->getFile());
+            error_log("Exception line: " . $e->getLine());
+            error_log("Exception trace: " . $e->getTraceAsString());
+            error_log("Type string: '{$typeString}', Length: {$typeStringLength}");
+            error_log("MySQL Error: " . $stmt->error);
+            error_log("MySQL Error Code: " . $stmt->errno);
+            $stmt->close();
+            return null;
+        } catch (Throwable $e) {
+            error_log("=== CRITICAL ERROR: Throwable in bind_param ===");
+            error_log("Error message: " . $e->getMessage());
+            error_log("Error file: " . $e->getFile());
+            error_log("Error line: " . $e->getLine());
+            error_log("Type string: '{$typeString}', Length: {$typeStringLength}");
             $stmt->close();
             return null;
         }
 
-        if ($stmt->execute()) {
+        error_log("Executing INSERT statement...");
+        $executeResult = $stmt->execute();
+        if ($executeResult) {
             $batchId = (int)$this->db->insert_id;
+            error_log("=== GridAllocationBatchTracker: Batch created successfully with ID: {$batchId} ===");
             $stmt->close();
             return $batchId;
         }
 
-        error_log("GridAllocationBatchTracker: Failed to execute INSERT - " . $stmt->error);
+        error_log("=== CRITICAL ERROR: Failed to execute INSERT ===");
+        error_log("MySQL Error: " . $stmt->error);
+        error_log("MySQL Error Code: " . $stmt->errno);
+        error_log("Database Error: " . $this->db->error);
         $stmt->close();
         return null;
     }
