@@ -120,6 +120,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (empty($donorName)) {
                     $donorName = 'Anonymous';
                 }
+                
+                // Normalize phone number
+                $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
+                if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                    $normalized_phone = '0' . substr($normalized_phone, 2);
+                }
 
                 // Normalize notes (tombola code if provided, otherwise empty)
                 $notesDigits = preg_replace('/\D+/', '', $notes);
