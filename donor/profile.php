@@ -30,6 +30,123 @@ $current_donor = $donor;
 $success_message = '';
 $error_message = '';
 
+// Handle profile update (name, phone, email)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+    verify_csrf();
+    
+    $name = trim($_POST['name'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    
+    // Validation
+    if (empty($name)) {
+        $error_message = 'Name is required.';
+    } elseif (strlen($name) < 2) {
+        $error_message = 'Name must be at least 2 characters.';
+    } elseif (empty($phone)) {
+        $error_message = 'Phone number is required.';
+    } else {
+        // Normalize phone number (remove all non-digits, handle +44)
+        $username = preg_replace('/[^0-9]/', '', $phone);
+        if (substr($username, 0, 2) === '44') {
+            $username = '0' . substr($username, 2);
+        }
+        
+        // Validate UK mobile format
+        if (strlen($username) !== 11 || substr($username, 0, 2) !== '07') {
+            $error_message = 'Please enter a valid UK mobile number (e.g., 07123456789).';
+        } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error_message = 'Please enter a valid email address.';
+        } else {
+            // Update profile
+            if ($db_connection_ok) {
+                try {
+                    $db->begin_transaction();
+                    
+                    // Check if email column exists
+                    $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+                    $has_email_column = $check_email->num_rows > 0;
+                    $check_email->close();
+                    
+                    // Normalize email (trim and convert empty string to NULL)
+                    $email_normalized = !empty($email) ? trim($email) : null;
+                    
+                    // Build UPDATE query based on whether email column exists
+                    if ($has_email_column) {
+                        $update_stmt = $db->prepare("
+                            UPDATE donors SET 
+                                name = ?,
+                                phone = ?,
+                                email = ?,
+                                updated_at = NOW()
+                            WHERE id = ?
+                        ");
+                        $update_stmt->bind_param('sssi', $name, $username, $email_normalized, $donor['id']);
+                    } else {
+                        $update_stmt = $db->prepare("
+                            UPDATE donors SET 
+                                name = ?,
+                                phone = ?,
+                                updated_at = NOW()
+                            WHERE id = ?
+                        ");
+                        $update_stmt->bind_param('ssi', $name, $username, $donor['id']);
+                    }
+                    $update_stmt->execute();
+                    $update_stmt->close();
+                    
+                    // Audit log
+                    $audit_data = json_encode([
+                        'donor_id' => $donor['id'],
+                        'name' => $name,
+                        'phone' => $username,
+                        'email' => $has_email_column ? $email : null
+                    ], JSON_UNESCAPED_SLASHES);
+                    $audit_stmt = $db->prepare("
+                        INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
+                        VALUES(?, 'donor', ?, 'update_profile', ?, 'donor_portal')
+                    ");
+                    $user_id = 0;
+                    $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_data);
+                    $audit_stmt->execute();
+                    
+                    $db->commit();
+                    
+                    // Refresh donor data with all fields including email if column exists
+                    $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
+                           has_active_plan, active_payment_plan_id, plan_monthly_amount,
+                           plan_duration_months, plan_start_date, plan_next_due_date,
+                           payment_status, preferred_payment_method, preferred_language,
+                           preferred_payment_day, sms_opt_in";
+                    if ($has_email_column) {
+                        $refresh_fields .= ", email";
+                    }
+                    $refresh_stmt = $db->prepare("
+                        SELECT $refresh_fields
+                        FROM donors 
+                        WHERE id = ?
+                        LIMIT 1
+                    ");
+                    $refresh_stmt->bind_param('i', $donor['id']);
+                    $refresh_stmt->execute();
+                    $refresh_result = $refresh_stmt->get_result();
+                    $updated_donor = $refresh_result->fetch_assoc();
+                    $refresh_stmt->close();
+                    if ($updated_donor) {
+                        $_SESSION['donor'] = $updated_donor;
+                        $donor = $updated_donor;
+                    }
+                    
+                    $success_message = 'Profile updated successfully!';
+                } catch (Exception $e) {
+                    $db->rollback();
+                    $error_message = 'An error occurred while updating your profile. Please try again.';
+                }
+            }
+        }
+    }
+}
+
 // Handle preferences update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_preferences') {
     verify_csrf();
@@ -88,13 +205,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 
                 $db->commit();
                 
-                // Refresh donor data
-                $refresh_stmt = $db->prepare("
-                    SELECT id, name, phone, total_pledged, total_paid, balance, 
+                // Refresh donor data with all fields including email if column exists
+                $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+                $has_email_for_refresh = $check_email->num_rows > 0;
+                $check_email->close();
+                
+                $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
                            has_active_plan, active_payment_plan_id, plan_monthly_amount,
                            plan_duration_months, plan_start_date, plan_next_due_date,
                            payment_status, preferred_payment_method, preferred_language,
-                           preferred_payment_day, sms_opt_in
+                           preferred_payment_day, sms_opt_in";
+                if ($has_email_for_refresh) {
+                    $refresh_fields .= ", email";
+                }
+                $refresh_stmt = $db->prepare("
+                    SELECT $refresh_fields
                     FROM donors 
                     WHERE id = ?
                     LIMIT 1
@@ -103,6 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $refresh_stmt->execute();
                 $refresh_result = $refresh_stmt->get_result();
                 $updated_donor = $refresh_result->fetch_assoc();
+                $refresh_stmt->close();
                 if ($updated_donor) {
                     $_SESSION['donor'] = $updated_donor;
                     $donor = $updated_donor;
@@ -115,6 +241,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
         }
     }
+}
+
+// Check if email column exists for UI display
+$has_email_column = false;
+if ($db_connection_ok) {
+    try {
+        $check_email = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+        $has_email_column = $check_email->num_rows > 0;
+        $check_email->close();
+    } catch (Exception $e) {
+        // Silent fail
+    }
+}
+
+// Ensure donor has email field in session if column exists (for initial page load)
+if ($has_email_column && !isset($donor['email'])) {
+    $donor['email'] = '';
 }
 ?>
 <!DOCTYPE html>
@@ -156,15 +299,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <?php endif; ?>
 
                 <div class="row g-4">
-                    <!-- Preferences Form -->
+                    <!-- Profile Information Form -->
                     <div class="col-lg-8">
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="card-title">
-                                    <i class="fas fa-cog text-primary"></i>Update Preferences
+                                    <i class="fas fa-user-edit text-primary"></i>Update Profile Information
                                 </h5>
                             </div>
                             <div class="card-body">
+                                <form method="POST" id="profileForm" class="mb-4">
+                                    <?php echo csrf_input(); ?>
+                                    <input type="hidden" name="action" value="update_profile">
+                                    
+                                    <!-- Name -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-user me-2"></i>Full Name <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               name="name" 
+                                               value="<?php echo htmlspecialchars($donor['name']); ?>"
+                                               required
+                                               minlength="2"
+                                               placeholder="Enter your full name">
+                                        <div class="form-text">Your full name as it appears on your account</div>
+                                    </div>
+
+                                    <!-- Phone -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-phone me-2"></i>Phone Number <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="tel" 
+                                               class="form-control" 
+                                               name="phone" 
+                                               value="<?php echo htmlspecialchars($donor['phone']); ?>"
+                                               required
+                                               pattern="[0-9+\-\s\(\)]+"
+                                               placeholder="07123456789">
+                                        <div class="form-text">UK mobile number (e.g., 07123456789)</div>
+                                    </div>
+
+                                    <!-- Email (if column exists) -->
+                                    <?php if ($has_email_column): ?>
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-envelope me-2"></i>Email Address
+                                        </label>
+                                        <input type="email" 
+                                               class="form-control" 
+                                               name="email" 
+                                               value="<?php echo htmlspecialchars($donor['email'] ?? ''); ?>"
+                                               placeholder="your.email@example.com">
+                                        <div class="form-text">Optional: Your email address for notifications</div>
+                                    </div>
+                                    <?php endif; ?>
+
+                                    <!-- Submit Button -->
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-save me-2"></i>Save Profile
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <hr class="my-4">
+
+                                <!-- Preferences Form -->
+                                <h5 class="mb-3">
+                                    <i class="fas fa-cog text-primary"></i>Preferences
+                                </h5>
                                 <form method="POST" id="preferencesForm">
                                     <?php echo csrf_input(); ?>
                                     <input type="hidden" name="action" value="update_preferences">
@@ -248,22 +454,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         </div>
                     </div>
 
-                    <!-- Account Information (Read-only) -->
+                    <!-- Account Summary (Read-only) -->
                     <div class="col-lg-4">
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="card-title">
-                                    <i class="fas fa-info-circle text-primary"></i>Account Information
+                                    <i class="fas fa-info-circle text-primary"></i>Account Summary
                                 </h5>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label class="form-label text-muted">Name</label>
-                                    <p class="mb-0"><strong><?php echo htmlspecialchars($donor['name']); ?></strong></p>
+                                    <label class="form-label text-muted">Total Pledged</label>
+                                    <p class="mb-0"><strong>£<?php echo number_format($donor['total_pledged'] ?? 0, 2); ?></strong></p>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label text-muted">Phone</label>
-                                    <p class="mb-0"><strong><?php echo htmlspecialchars($donor['phone']); ?></strong></p>
+                                    <label class="form-label text-muted">Total Paid</label>
+                                    <p class="mb-0"><strong>£<?php echo number_format($donor['total_paid'] ?? 0, 2); ?></strong></p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Remaining Balance</label>
+                                    <p class="mb-0"><strong>£<?php echo number_format($donor['balance'] ?? 0, 2); ?></strong></p>
                                 </div>
                                 <div class="mb-0">
                                     <label class="form-label text-muted">Account Status</label>
@@ -281,6 +491,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/donor.js"></script>
+<script>
+// Phone number formatting for better UX
+document.addEventListener('DOMContentLoaded', function() {
+    const phoneInput = document.querySelector('input[name="phone"]');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            // Remove all non-digits
+            let value = e.target.value.replace(/\D/g, '');
+            
+            // Handle +44 or 44 prefix
+            if (value.startsWith('44') && value.length === 12) {
+                value = '0' + value.substring(2);
+            }
+            
+            // Format: 07XXX XXX XXX (if UK format)
+            if (value.length > 2 && value.startsWith('07')) {
+                if (value.length <= 5) {
+                    e.target.value = value;
+                } else if (value.length <= 8) {
+                    e.target.value = value.substring(0, 5) + ' ' + value.substring(5);
+                } else {
+                    e.target.value = value.substring(0, 5) + ' ' + value.substring(5, 8) + ' ' + value.substring(8, 11);
+                }
+            } else {
+                e.target.value = value;
+            }
+        });
+        
+        // Normalize before form submission
+        const profileForm = document.getElementById('profileForm');
+        if (profileForm) {
+            profileForm.addEventListener('submit', function(e) {
+                if (phoneInput.value) {
+                    // Remove all non-digits before submit
+                    let normalized = phoneInput.value.replace(/\D/g, '');
+                    if (normalized.startsWith('44') && normalized.length === 12) {
+                        normalized = '0' + normalized.substring(2);
+                    }
+                    phoneInput.value = normalized;
+                }
+            });
+        }
+    }
+    
+    // Show success message fade out after 5 seconds
+    const successAlert = document.querySelector('.alert-success');
+    if (successAlert) {
+        setTimeout(function() {
+            const bsAlert = new bootstrap.Alert(successAlert);
+            bsAlert.close();
+        }, 5000);
+    }
+});
+</script>
 </body>
 </html>
 

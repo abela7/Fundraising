@@ -53,12 +53,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Look up donor by phone
             if ($db_connection_ok) {
                 try {
-                    // Try exact match with normalized phone first (most common case)
-                    $stmt = $db->prepare("
-                        SELECT id, name, phone, total_pledged, total_paid, balance, 
+                    // Check if email column exists
+                    $email_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+                    $has_email = $email_check->num_rows > 0;
+                    $email_check->close();
+                    
+                    // Build SELECT query with or without email
+                    $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
                                has_active_plan, active_payment_plan_id, plan_monthly_amount,
                                plan_duration_months, plan_start_date, plan_next_due_date,
-                               payment_status, preferred_payment_method, preferred_language
+                               payment_status, preferred_payment_method, preferred_language";
+                    if ($has_email) {
+                        $select_fields .= ", email";
+                    }
+                    
+                    // Try exact match with normalized phone first (most common case)
+                    $stmt = $db->prepare("
+                        SELECT $select_fields
                         FROM donors 
                         WHERE phone = ? 
                         LIMIT 1
@@ -71,10 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // If no exact match, try with SQL normalization (handles spaces/dashes in DB)
                     if (!$donor) {
                         $stmt2 = $db->prepare("
-                            SELECT id, name, phone, total_pledged, total_paid, balance, 
-                                   has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                                   plan_duration_months, plan_start_date, plan_next_due_date,
-                                   payment_status, preferred_payment_method, preferred_language
+                            SELECT $select_fields
                             FROM donors 
                             WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') = ?
                             LIMIT 1
@@ -146,12 +154,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $insert_stmt->execute();
                             $insert_stmt->close();
                             
-                            // Now fetch the donor we just created/updated
-                            $fetch_stmt = $db->prepare("
-                                SELECT id, name, phone, total_pledged, total_paid, balance, 
+                            // Check if email column exists
+                            $email_check2 = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+                            $has_email2 = $email_check2->num_rows > 0;
+                            $email_check2->close();
+                            
+                            // Build SELECT query with or without email
+                            $select_fields2 = "id, name, phone, total_pledged, total_paid, balance, 
                                        has_active_plan, active_payment_plan_id, plan_monthly_amount,
                                        plan_duration_months, plan_start_date, plan_next_due_date,
-                                       payment_status, preferred_payment_method, preferred_language
+                                       payment_status, preferred_payment_method, preferred_language";
+                            if ($has_email2) {
+                                $select_fields2 .= ", email";
+                            }
+                            
+                            // Now fetch the donor we just created/updated
+                            $fetch_stmt = $db->prepare("
+                                SELECT $select_fields2
                                 FROM donors 
                                 WHERE phone = ? 
                                 LIMIT 1
