@@ -152,11 +152,56 @@ class IntelligentGridAllocator
             ";
             
             $stmt = $this->db->prepare($sql);
+            if (!$stmt) {
+                throw new RuntimeException("Failed to prepare UPDATE query: " . $this->db->error);
+            }
             
             // Dynamically bind parameters
-            $types = 'siiisid' . str_repeat('s', count($cellIds));
+            // Parameters: status(s), pledgeId(i), paymentId(i), allocationBatchId(i), donorName(s), amountPerBlock(d), cellIds(s...)
+            // Type string: s + i + i + i + s + d + (s repeated for each cellId) = 'siiisd' + 's'*cellIdsCount
+            $cellIdsCount = count($cellIds);
+            $types = 'siiisd' . str_repeat('s', $cellIdsCount); // Fixed: was 'siiisid' (7 chars), now 'siiisd' (6 chars)
             $params = array_merge([$status, $pledgeId, $paymentId, $allocationBatchId, $donorName, $amountPerBlock], $cellIds);
-            $stmt->bind_param($types, ...$params);
+            
+            // Verify parameter count matches type string length
+            $expectedParamCount = 6 + $cellIdsCount; // 6 fixed params + cellIds
+            $actualParamCount = count($params);
+            $typeStringLength = strlen($types);
+            
+            if ($typeStringLength !== $actualParamCount) {
+                error_log("IntelligentGridAllocator: Parameter mismatch - Type string length: {$typeStringLength}, Actual params: {$actualParamCount}, Expected: {$expectedParamCount}");
+                error_log("Types: '{$types}', Cell IDs count: {$cellIdsCount}");
+                throw new RuntimeException("Parameter count mismatch in updateCells: Type string has {$typeStringLength} chars but {$actualParamCount} parameters provided");
+            }
+            
+            // Extract params into variables for bind_param (must be variables, not array elements)
+            $param_status = $status;
+            $param_pledgeId = $pledgeId;
+            $param_paymentId = $paymentId;
+            $param_allocationBatchId = $allocationBatchId;
+            $param_donorName = $donorName;
+            $param_amountPerBlock = $amountPerBlock;
+            
+            // Build bind_param call with all parameters using references
+            // Note: bind_param requires variables passed by reference, not array elements
+            $bindParams = [$types];
+            $bindParams[] = &$param_status;
+            $bindParams[] = &$param_pledgeId;
+            $bindParams[] = &$param_paymentId;
+            $bindParams[] = &$param_allocationBatchId;
+            $bindParams[] = &$param_donorName;
+            $bindParams[] = &$param_amountPerBlock;
+            
+            // Add cell IDs as references
+            $cellIdRefs = [];
+            foreach ($cellIds as $idx => $cellId) {
+                $cellIdRefs[$idx] = $cellId;
+                $bindParams[] = &$cellIdRefs[$idx];
+            }
+            
+            if (!call_user_func_array([$stmt, 'bind_param'], $bindParams)) {
+                throw new RuntimeException("bind_param failed: " . $stmt->error);
+            }
         } else {
             // Fallback if column doesn't exist yet
             $sql = "
@@ -172,11 +217,54 @@ class IntelligentGridAllocator
             ";
             
             $stmt = $this->db->prepare($sql);
+            if (!$stmt) {
+                throw new RuntimeException("Failed to prepare UPDATE query (fallback): " . $this->db->error);
+            }
             
             // Dynamically bind parameters
-            $types = 'siisd' . str_repeat('s', count($cellIds));
+            // Parameters: status(s), pledgeId(i), paymentId(i), donorName(s), amountPerBlock(d), cellIds(s...)
+            // Type string: s + i + i + s + d + (s repeated for each cellId)
+            $cellIdsCount = count($cellIds);
+            $types = 'siisd' . str_repeat('s', $cellIdsCount);
             $params = array_merge([$status, $pledgeId, $paymentId, $donorName, $amountPerBlock], $cellIds);
-            $stmt->bind_param($types, ...$params);
+            
+            // Verify parameter count matches type string length
+            $expectedParamCount = 5 + $cellIdsCount; // 5 fixed params + cellIds
+            $actualParamCount = count($params);
+            $typeStringLength = strlen($types);
+            
+            if ($typeStringLength !== $actualParamCount) {
+                error_log("IntelligentGridAllocator: Parameter mismatch (fallback) - Type string length: {$typeStringLength}, Actual params: {$actualParamCount}, Expected: {$expectedParamCount}");
+                error_log("Types: '{$types}', Cell IDs count: {$cellIdsCount}");
+                throw new RuntimeException("Parameter count mismatch in updateCells (fallback): Type string has {$typeStringLength} chars but {$actualParamCount} parameters provided");
+            }
+            
+            // Extract params into variables for bind_param (must be variables, not array elements)
+            $param_status = $status;
+            $param_pledgeId = $pledgeId;
+            $param_paymentId = $paymentId;
+            $param_donorName = $donorName;
+            $param_amountPerBlock = $amountPerBlock;
+            
+            // Build bind_param call with all parameters using references
+            // Note: bind_param requires variables passed by reference, not array elements
+            $bindParams = [$types];
+            $bindParams[] = &$param_status;
+            $bindParams[] = &$param_pledgeId;
+            $bindParams[] = &$param_paymentId;
+            $bindParams[] = &$param_donorName;
+            $bindParams[] = &$param_amountPerBlock;
+            
+            // Add cell IDs as references
+            $cellIdRefs = [];
+            foreach ($cellIds as $idx => $cellId) {
+                $cellIdRefs[$idx] = $cellId;
+                $bindParams[] = &$cellIdRefs[$idx];
+            }
+            
+            if (!call_user_func_array([$stmt, 'bind_param'], $bindParams)) {
+                throw new RuntimeException("bind_param failed (fallback): " . $stmt->error);
+            }
         }
         
         $stmt->execute();
