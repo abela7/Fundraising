@@ -320,17 +320,24 @@ class GridAllocationBatchTracker
         $types = '';
 
         if ($pledgeId !== null) {
-            $whereClause[] = "new_pledge_id = ?";
+            // For pending batches: match by new_pledge_id
+            // For approved update requests: new_pledge_id is NULL (pledge was deleted), so also check original_pledge_id
+            // This handles the case where update requests are approved and the pending pledge is deleted
+            $whereClause[] = "(new_pledge_id = ? OR (batch_type = 'pledge_update' AND original_pledge_id = ? AND approval_status = 'approved'))";
             $params[] = $pledgeId;
-            $types .= 'i';
+            $params[] = $pledgeId;
+            $types .= 'ii';
         }
 
         if ($paymentId !== null) {
-            $whereClause[] = "new_payment_id = ?";
+            // Similar logic for payments
+            $whereClause[] = "(new_payment_id = ? OR (batch_type = 'payment_update' AND original_payment_id = ? AND approval_status = 'approved'))";
             $params[] = $paymentId;
-            $types .= 'i';
+            $params[] = $paymentId;
+            $types .= 'ii';
         }
 
+        // First try to find pending batches (normal case)
         $sql = "
             SELECT * FROM grid_allocation_batches
             WHERE (" . implode(' OR ', $whereClause) . ")
@@ -347,10 +354,28 @@ class GridAllocationBatchTracker
         if (!empty($params)) {
             $stmt->bind_param($types, ...$params);
         }
-
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
         $stmt->close();
+
+        // If no pending batch found, also check approved batches (for update requests where pledge was deleted)
+        if (!$result && $pledgeId !== null) {
+            $sqlApproved = "
+                SELECT * FROM grid_allocation_batches
+                WHERE batch_type = 'pledge_update'
+                AND original_pledge_id = ?
+                AND approval_status = 'approved'
+                ORDER BY approved_at DESC
+                LIMIT 1
+            ";
+            $stmtApproved = $this->db->prepare($sqlApproved);
+            if ($stmtApproved) {
+                $stmtApproved->bind_param('i', $pledgeId);
+                $stmtApproved->execute();
+                $result = $stmtApproved->get_result()->fetch_assoc();
+                $stmtApproved->close();
+            }
+        }
 
         return $result ?: null;
     }
