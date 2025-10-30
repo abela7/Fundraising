@@ -46,25 +46,51 @@ class GridAllocationBatchTracker
 
         $metadataJson = isset($data['metadata']) ? json_encode($data['metadata']) : null;
 
+        // Extract values into variables for bind_param (must be variables, not expressions)
+        $batch_type = $data['batch_type'];
+        $request_type = $data['request_type'];
+        $original_pledge_id = $data['original_pledge_id'] ?? null;
+        $original_payment_id = $data['original_payment_id'] ?? null;
+        $new_pledge_id = $data['new_pledge_id'] ?? null;
+        $new_payment_id = $data['new_payment_id'] ?? null;
+        $donor_id = $data['donor_id'] ?? null;
+        $donor_name = $data['donor_name'];
+        $donor_phone = $data['donor_phone'] ?? null;
+        $original_amount = $data['original_amount'] ?? 0.00;
+        $additional_amount = $data['additional_amount'];
+        $total_amount = $data['total_amount'];
+        $requested_by_user_id = $data['requested_by_user_id'] ?? null;
+        $requested_by_donor_id = $data['requested_by_donor_id'] ?? null;
+        $request_source = $data['request_source'] ?? 'volunteer';
+        $request_date = $data['request_date'] ?? date('Y-m-d H:i:s');
+        $package_id = $data['package_id'] ?? null;
+
+        // Type string: s=string, i=integer, d=double
+        // Parameters: batch_type(s), request_type(s), original_pledge_id(i), original_payment_id(i),
+        //              new_pledge_id(i), new_payment_id(i), donor_id(i), donor_name(s), donor_phone(s),
+        //              original_amount(d), additional_amount(d), total_amount(d),
+        //              requested_by_user_id(i), requested_by_donor_id(i), request_source(s), request_date(s),
+        //              package_id(i), metadataJson(s)
+        // Total: 18 parameters
         $stmt->bind_param(
-            'ssiiiiisssdddiissss',
-            $data['batch_type'],
-            $data['request_type'],
-            $data['original_pledge_id'] ?? null,
-            $data['original_payment_id'] ?? null,
-            $data['new_pledge_id'] ?? null,
-            $data['new_payment_id'] ?? null,
-            $data['donor_id'] ?? null,
-            $data['donor_name'],
-            $data['donor_phone'] ?? null,
-            $data['original_amount'] ?? 0.00,
-            $data['additional_amount'],
-            $data['total_amount'],
-            $data['requested_by_user_id'] ?? null,
-            $data['requested_by_donor_id'] ?? null,
-            $data['request_source'] ?? 'volunteer',
-            $data['request_date'] ?? date('Y-m-d H:i:s'),
-            $data['package_id'] ?? null,
+            'ssiiiiisssdddiissis',
+            $batch_type,
+            $request_type,
+            $original_pledge_id,
+            $original_payment_id,
+            $new_pledge_id,
+            $new_payment_id,
+            $donor_id,
+            $donor_name,
+            $donor_phone,
+            $original_amount,
+            $additional_amount,
+            $total_amount,
+            $requested_by_user_id,
+            $requested_by_donor_id,
+            $request_source,
+            $request_date,
+            $package_id,
             $metadataJson
         );
 
