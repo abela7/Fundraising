@@ -712,16 +712,7 @@ if ($filter_date_to) {
 $where_clause = implode(' AND ', $where_conditions);
 $payment_where_clause = implode(' AND ', $payment_where_conditions);
 
-// Check if 'source' column exists in pledges table (similar to approvals page)
-$has_source_column = false;
-try {
-    $check_source = $db->query("SHOW COLUMNS FROM pledges LIKE 'source'");
-    if ($check_source && $check_source->num_rows > 0) {
-        $has_source_column = true;
-    }
-} catch (Exception $e) {
-    // Column doesn't exist, that's fine - will default to 'volunteer'
-}
+// Source column exists in pledges table (verified from schema)
 
 // Get total count for pagination (including batches)
 $batch_where = $filter_donor ? "AND (b.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%' OR p.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%')" : "";
@@ -791,7 +782,7 @@ $sql = "
     NULL AS original_pledge_id,
     NULL AS additional_amount,
     NULL AS original_amount,
-    " . ($has_source_column ? "COALESCE(p.source, 'volunteer')" : "'volunteer'") . " AS pledge_source,
+    COALESCE(p.source, 'volunteer') AS pledge_source,
     CASE 
         WHEN EXISTS (
             SELECT 1 FROM grid_allocation_batches b 

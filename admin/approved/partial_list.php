@@ -159,11 +159,40 @@ if (empty($approved)) {
             <div class="donor-name">
                 <?php echo htmlspecialchars($displayName); ?>
                 <?php
-                    // Check if this is a repeat donor (has multiple donations total)
-                    $donationCount = countDonorDonations($db, $pledge_donor_phone);
-                    if ($donationCount > 1):
+                    // Check if this is an update request from donor portal (same logic as approvals page)
+                    $is_donor_update = ($pledge_source === 'self' || $pledge_source === 'donor_portal');
+                    if ($is_donor_update && !$isBatch):
                 ?>
-                    <span class="badge bg-info ms-2" title="This donor has <?php echo $donationCount; ?> total donations">
+                    <span class="badge bg-warning ms-2" title="This donor updated their pledge amount via the donor portal">
+                        <i class="fas fa-edit me-1"></i>Update Request
+                    </span>
+                <?php endif; ?>
+                <?php
+                    // Check if this is a repeat donor (has multiple donations total) - same as approvals
+                    // Helper function to count approved donations for a donor
+                    if (!function_exists('countDonorDonationsApproved')) {
+                        function countDonorDonationsApproved(mysqli $db, string $donorPhone): int {
+                            if (!$donorPhone) return 0;
+                            $stmt = $db->prepare("
+                                (SELECT COUNT(*) as cnt FROM pledges WHERE donor_phone = ? AND status = 'approved')
+                                UNION ALL
+                                (SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ? AND status = 'approved')
+                            ");
+                            $stmt->bind_param('ss', $donorPhone, $donorPhone);
+                            $stmt->execute();
+                            $result = $stmt->get_result();
+                            $total = 0;
+                            while ($row = $result->fetch_assoc()) {
+                                $total += (int)$row['cnt'];
+                            }
+                            $stmt->close();
+                            return $total;
+                        }
+                    }
+                    $donationCount = countDonorDonationsApproved($db, $pledge_donor_phone);
+                    if ($donationCount > 1 && !$isBatch):
+                ?>
+                    <span class="badge bg-info ms-2" title="This donor has <?php echo $donationCount; ?> total approved donations">
                         <i class="fas fa-redo-alt me-1"></i>Repeat Donor
                     </span>
                 <?php endif; ?>
