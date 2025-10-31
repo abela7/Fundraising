@@ -32,7 +32,73 @@ $actionMsg = '';
 // Load active donation packages for edit modal
 $pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
 
-// No helpers needed currently
+// Handle AJAX request for batch details
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_batch_details') {
+    header('Content-Type: application/json');
+    $batchId = (int)($_GET['batch_id'] ?? 0);
+    
+    if ($batchId > 0) {
+        require_once __DIR__ . '/../../shared/GridAllocationBatchTracker.php';
+        $batchTracker = new GridAllocationBatchTracker($db);
+        $batch = $batchTracker->getBatchById($batchId);
+        
+        if ($batch) {
+            // Get approver name
+            $approverName = 'Unknown';
+            if ((int)($batch['approved_by_user_id'] ?? 0) > 0) {
+                $userStmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+                $userStmt->bind_param('i', $batch['approved_by_user_id']);
+                $userStmt->execute();
+                $userResult = $userStmt->get_result();
+                if ($userRow = $userResult->fetch_assoc()) {
+                    $approverName = $userRow['name'];
+                }
+                $userStmt->close();
+            }
+            
+            // Get donor email from pledge if available
+            $donorEmail = '';
+            if ((int)($batch['original_pledge_id'] ?? 0) > 0) {
+                $pledgeStmt = $db->prepare("SELECT donor_email FROM pledges WHERE id = ?");
+                $pledgeStmt->bind_param('i', $batch['original_pledge_id']);
+                $pledgeStmt->execute();
+                $pledgeResult = $pledgeStmt->get_result();
+                if ($pledgeRow = $pledgeResult->fetch_assoc()) {
+                    $donorEmail = $pledgeRow['donor_email'] ?? '';
+                }
+                $pledgeStmt->close();
+            }
+            
+            // Parse allocated cells JSON
+            $allocatedCells = [];
+            if (!empty($batch['allocated_cell_ids'])) {
+                $allocatedCells = json_decode($batch['allocated_cell_ids'], true) ?: [];
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'batch' => [
+                    'donor_name' => $batch['donor_name'] ?? '',
+                    'donor_phone' => $batch['donor_phone'] ?? '',
+                    'donor_email' => $donorEmail,
+                    'original_pledge_id' => $batch['original_pledge_id'] ?? 0,
+                    'original_amount' => $batch['original_amount'] ?? 0,
+                    'additional_amount' => $batch['additional_amount'] ?? 0,
+                    'total_amount' => $batch['total_amount'] ?? 0,
+                    'request_date' => $batch['request_date'] ?? '',
+                    'approved_at' => $batch['approved_at'] ?? '',
+                    'approved_by_name' => $approverName,
+                    'allocated_cell_ids' => $allocatedCells
+                ]
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Batch not found']);
+        }
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Invalid batch ID']);
+    }
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -772,7 +838,12 @@ UNION ALL
     b.batch_type AS batch_type,
     b.original_pledge_id AS original_pledge_id,
     b.additional_amount AS additional_amount,
-    b.original_amount AS original_amount
+    b.original_amount AS original_amount,
+    b.approved_at AS batch_approved_at,
+    b.approved_by_user_id AS batch_approved_by_user_id,
+    b.request_date AS batch_request_date,
+    b.total_amount AS batch_total_amount,
+    b.allocated_cell_ids AS batch_allocated_cells
   FROM grid_allocation_batches b
   LEFT JOIN pledges p ON b.original_pledge_id = p.id
   LEFT JOIN users u ON b.requested_by_user_id = u.id
@@ -1123,6 +1194,70 @@ $approved = $result->fetch_all(MYSQLI_ASSOC);
     </div>
 </div>
 
+<!-- Batch Update Details Modal -->
+<div class="modal fade" id="batchDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-info-circle me-2"></i>Update Request Details
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <h6 class="text-muted mb-1">Donor Information</h6>
+            <p class="mb-2"><strong>Name:</strong> <span id="batchDonorName">-</span></p>
+            <p class="mb-2"><strong>Phone:</strong> <span id="batchDonorPhone">-</span></p>
+            <p class="mb-0"><strong>Email:</strong> <span id="batchDonorEmail">-</span></p>
+          </div>
+          <div class="col-md-6">
+            <h6 class="text-muted mb-1">Original Pledge</h6>
+            <p class="mb-2"><strong>Pledge ID:</strong> #<span id="batchOriginalPledgeId">-</span></p>
+            <p class="mb-2"><strong>Original Amount:</strong> £<span id="batchOriginalAmount">-</span></p>
+            <p class="mb-0"><strong>Updated Amount:</strong> £<span id="batchTotalAmount">-</span></p>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <h6 class="text-muted mb-1">Update Request</h6>
+            <p class="mb-2"><strong>Additional Amount:</strong> <span class="text-success fw-bold">+£<span id="batchAdditionalAmount">-</span></span></p>
+            <p class="mb-2"><strong>Request Date:</strong> <span id="batchRequestDate">-</span></p>
+            <p class="mb-0"><strong>Request Source:</strong> <span class="badge bg-primary">Donor Portal</span></p>
+          </div>
+          <div class="col-md-6">
+            <h6 class="text-muted mb-1">Approval Information</h6>
+            <p class="mb-2"><strong>Approved By:</strong> <span id="batchApprovedBy">-</span></p>
+            <p class="mb-2"><strong>Approved At:</strong> <span id="batchApprovedAt">-</span></p>
+            <p class="mb-0"><strong>Status:</strong> <span class="badge bg-success">Approved</span></p>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <div class="mb-3">
+          <h6 class="text-muted mb-2">Allocated Cells</h6>
+          <div id="batchAllocatedCells" class="d-flex flex-wrap gap-2">
+            <span class="text-muted">Loading...</span>
+          </div>
+        </div>
+        
+        <div class="alert alert-info mb-0">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Note:</strong> This update was requested by the donor through the portal. The original pledge amount has been increased by the additional amount shown above.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Details Modal (like approvals page) -->
 <div class="modal fade details-modal" id="detailsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -1258,12 +1393,71 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// Open batch details modal when clicking on batch items
+document.addEventListener('DOMContentLoaded', function() {
+  const batchItems = document.querySelectorAll('.batch-item');
+  batchItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      // Don't open modal if clicking on action buttons
+      if (e.target.closest('.approval-actions')) {
+        return;
+      }
+      
+      const batchId = this.dataset.batchId;
+      if (!batchId) return;
+      
+      // Fetch batch details via AJAX
+      fetch(`index.php?action=get_batch_details&batch_id=${batchId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const batch = data.batch;
+            
+            // Populate modal
+            document.getElementById('batchDonorName').textContent = batch.donor_name || '-';
+            document.getElementById('batchDonorPhone').textContent = batch.donor_phone || '-';
+            document.getElementById('batchDonorEmail').textContent = batch.donor_email || '-';
+            document.getElementById('batchOriginalPledgeId').textContent = batch.original_pledge_id || '-';
+            document.getElementById('batchOriginalAmount').textContent = batch.original_amount ? parseFloat(batch.original_amount).toFixed(2) : '-';
+            document.getElementById('batchTotalAmount').textContent = batch.total_amount ? parseFloat(batch.total_amount).toFixed(2) : '-';
+            document.getElementById('batchAdditionalAmount').textContent = batch.additional_amount ? parseFloat(batch.additional_amount).toFixed(2) : '-';
+            document.getElementById('batchRequestDate').textContent = batch.request_date ? new Date(batch.request_date).toLocaleString() : '-';
+            document.getElementById('batchApprovedBy').textContent = batch.approved_by_name || '-';
+            document.getElementById('batchApprovedAt').textContent = batch.approved_at ? new Date(batch.approved_at).toLocaleString() : '-';
+            
+            // Display allocated cells
+            const cellsContainer = document.getElementById('batchAllocatedCells');
+            if (batch.allocated_cell_ids && batch.allocated_cell_ids.length > 0) {
+              cellsContainer.innerHTML = batch.allocated_cell_ids.map(cellId => 
+                `<span class="badge bg-primary">${cellId}</span>`
+              ).join('');
+            } else {
+              cellsContainer.innerHTML = '<span class="text-muted">No cells allocated</span>';
+            }
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('batchDetailsModal'));
+            modal.show();
+          } else {
+            alert('Error loading batch details: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error loading batch details. Please try again.');
+        });
+    });
+  });
+});
+
 // Click-to-open details modal for approved cards (like approvals page)
 document.addEventListener('click', function(e){
   const card = e.target.closest('.approval-item');
   if (!card) return;
   // ignore if clicking on action buttons/forms
   if (e.target.closest('.approval-actions')) return;
+  // ignore batch items (they have their own handler)
+  if (card.classList.contains('batch-item')) return;
   const fmt = (n) => new Intl.NumberFormat('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(Number(n)||0);
   const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
   const type = (card.dataset.type||'—').toUpperCase();

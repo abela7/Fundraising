@@ -88,7 +88,8 @@ if (empty($approved)) {
             $meters = (float)$row['sqm_meters'];
         }
     ?>
-<div class="approval-item" id="pledge-<?php echo $pledge_id; ?>"
+<div class="approval-item <?php echo $isBatch ? 'batch-item' : ''; ?>" 
+     id="<?php echo $isBatch ? 'batch-' : 'pledge-'; ?><?php echo $pledge_id; ?>"
      role="button" tabindex="0"
      data-pledge-id="<?php echo $pledge_id; ?>"
      data-type="<?php echo htmlspecialchars($pledge_type, ENT_QUOTES); ?>"
@@ -103,6 +104,14 @@ if (empty($approved)) {
      data-sqm-meters="<?php echo $meters; ?>"
      data-created-at="<?php echo htmlspecialchars($pledge_created, ENT_QUOTES); ?>"
      data-registrar="<?php echo htmlspecialchars($pledge_registrar, ENT_QUOTES); ?>"
+     <?php if ($isBatch && $batch_id): ?>
+     data-batch-id="<?php echo $batch_id; ?>"
+     data-batch-type="<?php echo htmlspecialchars($row['batch_type'] ?? '', ENT_QUOTES); ?>"
+     data-original-pledge-id="<?php echo $original_pledge_id; ?>"
+     data-additional-amount="<?php echo $additional_amount; ?>"
+     data-original-amount="<?php echo $original_amount; ?>"
+     data-approved-at="<?php echo htmlspecialchars($row['approved_at'] ?? '', ENT_QUOTES); ?>"
+     <?php endif; ?>
 >
     <div class="approval-content" style="<?php echo $isBatch ? 'border-left: 4px solid #0d6efd;' : ''; ?>">
         <div class="amount-section">
@@ -123,6 +132,11 @@ if (empty($approved)) {
             ?>
             <div class="type-badge">
                 <span class="badge bg-<?php echo $badgeClass; ?>"><?php echo $label; ?></span>
+                <?php if ($isBatch): ?>
+                    <span class="badge bg-primary ms-1" title="This update was requested from the donor portal">
+                        <i class="fas fa-globe me-1"></i>Requested from Portal
+                    </span>
+                <?php endif; ?>
             </div>
         </div>
         
