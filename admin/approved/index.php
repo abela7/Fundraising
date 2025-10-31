@@ -777,24 +777,34 @@ $sql = "
     NULL AS payment_amount,
     NULL AS payment_method,
     NULL AS payment_reference,
-    NULL AS batch_id,
-    NULL AS batch_type,
-    NULL AS original_pledge_id,
-    NULL AS additional_amount,
-    NULL AS original_amount,
+    b.id AS batch_id,
+    b.batch_type AS batch_type,
+    b.original_pledge_id AS original_pledge_id,
+    b.additional_amount AS additional_amount,
+    b.original_amount AS original_amount,
     COALESCE(p.source, 'volunteer') AS pledge_source,
     CASE 
-        WHEN EXISTS (
-            SELECT 1 FROM grid_allocation_batches b 
-            WHERE b.original_pledge_id = p.id 
-            AND b.approval_status = 'approved'
-            AND b.batch_type IN ('pledge_update', 'payment_update')
-        ) THEN 1 
+        WHEN b.id IS NOT NULL THEN 1 
         ELSE 0 
     END AS has_updates
   FROM pledges p
   LEFT JOIN donation_packages dp ON dp.id = p.package_id
   LEFT JOIN users u ON p.created_by_user_id = u.id
+  LEFT JOIN (
+    SELECT b1.original_pledge_id, b1.id AS batch_id, b1.batch_type, b1.additional_amount, b1.original_amount
+    FROM grid_allocation_batches b1
+    INNER JOIN (
+      SELECT original_pledge_id, MAX(approved_at) AS max_approved_at
+      FROM grid_allocation_batches
+      WHERE approval_status = 'approved'
+        AND batch_type IN ('pledge_update', 'payment_update')
+        AND original_pledge_id IS NOT NULL
+      GROUP BY original_pledge_id
+    ) b2 ON b1.original_pledge_id = b2.original_pledge_id 
+      AND b1.approved_at = b2.max_approved_at
+      AND b1.approval_status = 'approved'
+      AND b1.batch_type IN ('pledge_update', 'payment_update')
+  ) b ON b.original_pledge_id = p.id
   WHERE $where_clause)
 UNION ALL
 (SELECT 
@@ -1302,6 +1312,31 @@ $approved = $result->fetch_all(MYSQLI_ASSOC);
           </div>
         </div>
         
+        <!-- Update Information Section (shown for updated pledges) -->
+        <div class="update-info-section mt-4 d-none" id="updateInfoSection">
+          <div class="detail-card border-success">
+            <div class="detail-title text-success">
+              <i class="fas fa-arrow-up me-2"></i>Pledge Update Information
+            </div>
+            <div class="detail-row">
+              <span>Original Amount</span>
+              <span id="dOriginalAmount" class="fw-bold">—</span>
+            </div>
+            <div class="detail-row">
+              <span>Additional Amount</span>
+              <span id="dAdditionalAmount" class="text-success fw-bold">—</span>
+            </div>
+            <div class="detail-row">
+              <span>Current Total</span>
+              <span id="dCurrentTotal" class="fw-bold">—</span>
+            </div>
+            <div class="detail-row">
+              <span>Update Batch ID</span>
+              <span id="dBatchId">—</span>
+            </div>
+          </div>
+        </div>
+        
         <!-- Donation History Section (shown for repeat donors) -->
         <div class="donation-history-section mt-4 d-none" id="donationHistorySection">
           <div class="detail-card">
@@ -1494,6 +1529,26 @@ document.addEventListener('click', function(e){
   const registrarValue = card.dataset.registrar||'';
   registrarEl.textContent = registrarValue.trim() === '' ? 'Self Pledged' : registrarValue;
   document.getElementById('dNotes').textContent = card.dataset.notes||'—';
+  
+  // Show update information if this pledge has been updated
+  const updateSection = document.getElementById('updateInfoSection');
+  const hasUpdates = card.dataset.hasUpdates === '1' || (card.dataset.additionalAmount && parseFloat(card.dataset.additionalAmount) > 0);
+  const batchId = card.dataset.batchId;
+  const additionalAmount = parseFloat(card.dataset.additionalAmount || 0);
+  const originalAmount = parseFloat(card.dataset.originalAmount || 0);
+  const currentAmount = parseFloat(card.dataset.amount || 0);
+  
+  if (hasUpdates && additionalAmount > 0 && originalAmount > 0) {
+    // Show update information section
+    updateSection.classList.remove('d-none');
+    document.getElementById('dOriginalAmount').textContent = '£' + fmt(originalAmount);
+    document.getElementById('dAdditionalAmount').textContent = '+£' + fmt(additionalAmount);
+    document.getElementById('dCurrentTotal').textContent = '£' + fmt(currentAmount);
+    document.getElementById('dBatchId').textContent = batchId ? '#' + batchId : '—';
+  } else {
+    // Hide update information section
+    updateSection.classList.add('d-none');
+  }
   
   // Fetch and display donation history if donor phone is available
   const donorPhone = card.dataset.donorPhoneForHistory;

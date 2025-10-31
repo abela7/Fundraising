@@ -76,10 +76,10 @@ if (empty($approved)) {
 
         // Check if this is a batch (update)
         $isBatch = ($pledge_type === 'pledge_update' || $pledge_type === 'payment_update' || $pledge_type === 'batch');
-        $batch_id = $isBatch ? (int)($row['batch_id'] ?? 0) : null;
-        $original_pledge_id = $isBatch ? (int)($row['original_pledge_id'] ?? 0) : null;
-        $additional_amount = $isBatch ? (float)($row['additional_amount'] ?? 0) : 0;
-        $original_amount = $isBatch ? (float)($row['original_amount'] ?? 0) : 0;
+        $batch_id = $isBatch ? (int)($row['batch_id'] ?? 0) : (($has_updates > 0 && isset($row['batch_id'])) ? (int)($row['batch_id'] ?? 0) : null);
+        $original_pledge_id = $isBatch ? (int)($row['original_pledge_id'] ?? 0) : (($has_updates > 0 && isset($row['original_pledge_id'])) ? (int)($row['original_pledge_id'] ?? 0) : null);
+        $additional_amount = $isBatch ? (float)($row['additional_amount'] ?? 0) : (($has_updates > 0 && isset($row['additional_amount'])) ? (float)($row['additional_amount'] ?? 0) : 0);
+        $original_amount = $isBatch ? (float)($row['original_amount'] ?? 0) : (($has_updates > 0 && isset($row['original_amount'])) ? (float)($row['original_amount'] ?? 0) : 0);
         
         // Display logic (same as approvals)
         $isPayment = ($pledge_type === 'payment' || $pledge_type === 'paid');
@@ -117,6 +117,13 @@ if (empty($approved)) {
      data-additional-amount="<?php echo $additional_amount; ?>"
      data-original-amount="<?php echo $original_amount; ?>"
      data-approved-at="<?php echo htmlspecialchars($row['approved_at'] ?? '', ENT_QUOTES); ?>"
+     <?php elseif ($has_updates > 0 && $batch_id): ?>
+     data-batch-id="<?php echo $batch_id; ?>"
+     data-batch-type="<?php echo htmlspecialchars($row['batch_type'] ?? '', ENT_QUOTES); ?>"
+     data-original-pledge-id="<?php echo $original_pledge_id; ?>"
+     data-additional-amount="<?php echo $additional_amount; ?>"
+     data-original-amount="<?php echo $original_amount; ?>"
+     data-has-updates="1"
      <?php endif; ?>
 >
     <div class="approval-content" style="<?php echo $isBatch ? 'border-left: 4px solid #0d6efd;' : ''; ?>">
@@ -147,7 +154,11 @@ if (empty($approved)) {
                         <i class="fas fa-globe me-1"></i>Requested from Portal
                     </span>
                 <?php endif; ?>
-                <?php if ($isAdditional && !$isBatch): ?>
+                <?php if ($isAdditional && !$isBatch && $additional_amount > 0): ?>
+                    <span class="badge bg-success ms-1" title="This pledge was updated with an additional £<?php echo number_format($additional_amount, 2); ?>">
+                        <i class="fas fa-plus-circle me-1"></i>+£<?php echo number_format($additional_amount, 0); ?> Added
+                    </span>
+                <?php elseif ($isAdditional && !$isBatch): ?>
                     <span class="badge bg-info ms-1" title="This pledge has been updated with additional donations">
                         <i class="fas fa-plus-circle me-1"></i>Additional
                     </span>
