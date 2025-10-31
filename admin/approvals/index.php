@@ -162,20 +162,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 error_log("=== ADMIN APPROVALS: Starting batch tracking ===");
                 $batchTracker = new GridAllocationBatchTracker($db);
                 $allocationBatchId = null;
+                $foundExistingBatch = false;
                 
                 // Try to find existing batch first (created when request was made)
                 error_log("Looking for existing batch with pledgeId: {$pledgeId}");
                 $existingBatch = $batchTracker->getBatchByRequest($pledgeId, null);
                 if ($existingBatch) {
                     $allocationBatchId = (int)$existingBatch['id'];
-                    error_log("Found existing batch ID: {$allocationBatchId}");
+                    $foundExistingBatch = true;
+                    error_log("Found existing batch ID: {$allocationBatchId} - will UPDATE this batch, not create new one");
                 } else {
                     error_log("No existing batch found - will create new one");
                 }
                 
-                // If no existing batch found, create one (for backward compatibility)
-                if (!$allocationBatchId) {
-                    error_log("=== ADMIN APPROVALS: Creating new batch ===");
+                // ONLY create a new batch if no existing batch was found
+                if (!$foundExistingBatch) {
+                    error_log("=== ADMIN APPROVALS: Creating new batch (no existing batch found) ===");
                     error_log("isPledgeUpdate: " . ($isPledgeUpdate ? 'YES' : 'NO') . ", originalPledgeId: " . ($originalPledgeId ?? 'NULL'));
                     if ($isPledgeUpdate && $originalPledgeId) {
                     error_log("Creating batch for PLEDGE UPDATE");
@@ -263,9 +265,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     } else {
                         error_log("Batch created successfully with ID: {$allocationBatchId}");
                     }
-                    }
-                } elseif (!$isPaidType) {
-                    // New pledge - create batch
+                } elseif (!$isPaidType && !$isPledgeUpdate) {
+                    // New pledge - create batch (BUT NOT for pledge updates!)
+                    error_log("Creating batch for NEW PLEDGE (not an update)");
                     $donorPhone = (string)($pledge['donor_phone'] ?? '');
                     $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
                     if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
@@ -307,8 +309,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         ]
                     ];
                     $allocationBatchId = $batchTracker->createBatch($batchData);
-                } elseif ($isPaidType) {
-                    // New payment - create batch
+                    error_log("New pledge batch created with ID: {$allocationBatchId}");
+                } elseif ($isPaidType && !$isPledgeUpdate) {
+                    // New payment - create batch (BUT NOT for pledge updates!)
+                    error_log("Creating batch for NEW PAYMENT (not an update)");
                     $donorPhone = (string)($pledge['donor_phone'] ?? '');
                     $normalized_phone = preg_replace('/[^0-9]/', '', $donorPhone);
                     if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
@@ -353,7 +357,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         ]
                     ];
                     $allocationBatchId = $batchTracker->createBatch($batchData);
+                    error_log("New payment batch created with ID: {$allocationBatchId}");
+                } else {
+                    error_log("Skipping batch creation - existing batch found or update request");
                 }
+                } // End of if (!$foundExistingBatch) block
                 
                 // Use custom amount allocator for smart allocation
                 $customAllocator = new CustomAmountAllocator($db);
