@@ -29,16 +29,12 @@ $db = db();
 $page_title = 'Approved Items';
 $actionMsg = '';
 
-// Load active donation packages for edit modal
-$pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
-
-// Handle AJAX request for batch details
+// Handle AJAX request for batch details (must be after auth)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_batch_details') {
     header('Content-Type: application/json');
     $batchId = (int)($_GET['batch_id'] ?? 0);
     
     if ($batchId > 0) {
-        require_once __DIR__ . '/../../shared/GridAllocationBatchTracker.php';
         $batchTracker = new GridAllocationBatchTracker($db);
         $batch = $batchTracker->getBatchById($batchId);
         
@@ -99,6 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
     }
     exit;
 }
+
+// Load active donation packages for edit modal
+$pkgRows = $db->query("SELECT id, label, sqm_meters, price FROM donation_packages WHERE active=1 ORDER BY sort_order, id")->fetch_all(MYSQLI_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -838,12 +837,7 @@ UNION ALL
     b.batch_type AS batch_type,
     b.original_pledge_id AS original_pledge_id,
     b.additional_amount AS additional_amount,
-    b.original_amount AS original_amount,
-    b.approved_at AS batch_approved_at,
-    b.approved_by_user_id AS batch_approved_by_user_id,
-    b.request_date AS batch_request_date,
-    b.total_amount AS batch_total_amount,
-    b.allocated_cell_ids AS batch_allocated_cells
+    b.original_amount AS original_amount
   FROM grid_allocation_batches b
   LEFT JOIN pledges p ON b.original_pledge_id = p.id
   LEFT JOIN users u ON b.requested_by_user_id = u.id
