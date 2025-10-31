@@ -68,10 +68,17 @@ if (empty($approved)) {
         $pledge_donor_email = (string)($row['donor_email'] ?? '');
         $pledge_registrar = (string)($row['registrar_name'] ?? '');
 
+        // Check if this is a batch (update)
+        $isBatch = ($pledge_type === 'pledge_update' || $pledge_type === 'payment_update' || $pledge_type === 'batch');
+        $batch_id = $isBatch ? (int)($row['batch_id'] ?? 0) : null;
+        $original_pledge_id = $isBatch ? (int)($row['original_pledge_id'] ?? 0) : null;
+        $additional_amount = $isBatch ? (float)($row['additional_amount'] ?? 0) : 0;
+        $original_amount = $isBatch ? (float)($row['original_amount'] ?? 0) : 0;
+        
         // Display logic (same as approvals)
         $isPayment = ($pledge_type === 'payment' || $pledge_type === 'paid');
         $isPaid = $isPayment;
-        $isPledge = ($pledge_type === 'pledge');
+        $isPledge = ($pledge_type === 'pledge' || $pledge_type === 'pledge_update');
         $displayName = $pledge_donor_name ?: 'N/A';
         $displayPhone = $pledge_donor_phone ?: '';
 
@@ -97,14 +104,22 @@ if (empty($approved)) {
      data-created-at="<?php echo htmlspecialchars($pledge_created, ENT_QUOTES); ?>"
      data-registrar="<?php echo htmlspecialchars($pledge_registrar, ENT_QUOTES); ?>"
 >
-    <div class="approval-content">
+    <div class="approval-content" style="<?php echo $isBatch ? 'border-left: 4px solid #0d6efd;' : ''; ?>">
         <div class="amount-section">
-            <div class="amount">£<?php echo number_format($pledge_amount, 0); ?></div>
+            <div class="amount">
+                <?php if ($isBatch): ?>
+                    +£<?php echo number_format($additional_amount, 0); ?>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Update to Pledge #<?php echo $original_pledge_id; ?></small>
+                <?php else: ?>
+                    £<?php echo number_format($pledge_amount, 0); ?>
+                <?php endif; ?>
+            </div>
             <?php
                 $badgeClass = 'secondary';
-                if ($isPaid) { $badgeClass = 'success'; }
+                if ($isBatch) { $badgeClass = 'info'; }
+                elseif ($isPaid) { $badgeClass = 'success'; }
                 elseif ($isPledge) { $badgeClass = 'warning'; }
-                $label = $isPaid ? 'Payment' : ($isPledge ? 'Pledge' : ucfirst($pledge_type));
+                $label = $isBatch ? 'Update' : ($isPaid ? 'Payment' : ($isPledge ? 'Pledge' : ucfirst($pledge_type)));
             ?>
             <div class="type-badge">
                 <span class="badge bg-<?php echo $badgeClass; ?>"><?php echo $label; ?></span>
@@ -157,17 +172,27 @@ if (empty($approved)) {
     </div>
     
     <div class="approval-actions">
-        <button type="button" class="btn btn-edit" data-bs-toggle="modal" data-bs-target="#editPledgeModal" 
-                onclick="openEditPledgeModal(<?php echo $pledge_id; ?>, '<?php echo htmlspecialchars($pledge_donor_name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_email ?? '', ENT_QUOTES); ?>', <?php echo $pledge_amount; ?>, <?php echo $meters; ?>, '<?php echo htmlspecialchars($pledge_notes ?? '', ENT_QUOTES); ?>')">
-            <i class="fas fa-edit"></i>
-        </button>
+        <?php if (!$isBatch): ?>
+            <button type="button" class="btn btn-edit" data-bs-toggle="modal" data-bs-target="#editPledgeModal" 
+                    onclick="openEditPledgeModal(<?php echo $pledge_id; ?>, '<?php echo htmlspecialchars($pledge_donor_name, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_phone, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pledge_donor_email ?? '', ENT_QUOTES); ?>', <?php echo $pledge_amount; ?>, <?php echo $meters; ?>, '<?php echo htmlspecialchars($pledge_notes ?? '', ENT_QUOTES); ?>')">
+                <i class="fas fa-edit"></i>
+            </button>
+        <?php endif; ?>
         <form method="post" class="action-form" action="index.php" onclick="event.stopPropagation();">
             <?php echo csrf_input(); ?>
-            <input type="hidden" name="action" value="undo">
-            <input type="hidden" name="pledge_id" value="<?php echo $pledge_id; ?>">
-            <button type="submit" class="btn btn-reject">
-                <i class="fas fa-undo"></i>
-            </button>
+            <?php if ($isBatch && $batch_id): ?>
+                <input type="hidden" name="action" value="undo_batch">
+                <input type="hidden" name="batch_id" value="<?php echo $batch_id; ?>">
+                <button type="submit" class="btn btn-reject" title="Undo this update batch">
+                    <i class="fas fa-undo"></i>
+                </button>
+            <?php else: ?>
+                <input type="hidden" name="action" value="undo">
+                <input type="hidden" name="pledge_id" value="<?php echo $pledge_id; ?>">
+                <button type="submit" class="btn btn-reject">
+                    <i class="fas fa-undo"></i>
+                </button>
+            <?php endif; ?>
         </form>
     </div>
 </div>

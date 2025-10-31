@@ -38,7 +38,155 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $action = (string)($_POST['action'] ?? '');
 
-    if ($action === 'undo') {
+    if ($action === 'undo_batch') {
+        $batchId = (int)($_POST['batch_id'] ?? 0);
+        if ($batchId > 0) {
+            $db->begin_transaction();
+            try {
+                $batchTracker = new GridAllocationBatchTracker($db);
+                
+                // Get batch details
+                $batch = $batchTracker->getBatchById($batchId);
+                if (!$batch || $batch['approval_status'] !== 'approved') {
+                    throw new RuntimeException('Invalid batch state');
+                }
+                
+                // Deallocate the batch
+                $deallocationResult = $batchTracker->deallocateBatch($batchId);
+                if (!$deallocationResult['success']) {
+                    throw new RuntimeException('Batch deallocation failed: ' . ($deallocationResult['error'] ?? 'Unknown error'));
+                }
+                
+                // If this is a pledge_update batch, restore the original pledge amount
+                if ($batch['batch_type'] === 'pledge_update' && (int)($batch['original_pledge_id'] ?? 0) > 0) {
+                    $pledgeId = (int)$batch['original_pledge_id'];
+                    $originalAmount = (float)($batch['original_amount'] ?? 0);
+                    $additionalAmount = (float)($batch['additional_amount'] ?? 0);
+                    
+                    // Lock and update pledge
+                    $sel = $db->prepare("SELECT id, amount, status FROM pledges WHERE id=? FOR UPDATE");
+                    $sel->bind_param('i', $pledgeId);
+                    $sel->execute();
+                    $pledge = $sel->get_result()->fetch_assoc();
+                    if (!$pledge || (string)($pledge['status'] ?? '') !== 'approved') {
+                        throw new RuntimeException('Invalid pledge state');
+                    }
+                    
+                    // Restore original amount
+                    $upd = $db->prepare("UPDATE pledges SET amount=? WHERE id=?");
+                    $upd->bind_param('di', $originalAmount, $pledgeId);
+                    $upd->execute();
+                    
+                    // Update donor totals
+                    $donorId = (int)($batch['donor_id'] ?? 0);
+                    if ($donorId > 0) {
+                        $donorUpd = $db->prepare("
+                            UPDATE donors SET
+                                total_pledged = total_pledged - ?,
+                                balance = balance - ?,
+                                updated_at = NOW()
+                            WHERE id = ?
+                        ");
+                        $donorUpd->bind_param('ddi', $additionalAmount, $additionalAmount, $donorId);
+                        $donorUpd->execute();
+                    }
+                    
+                    // Update counters
+                    $deltaPledged = -1 * $additionalAmount;
+                    $grandDelta = $deltaPledged;
+                    $ctr = $db->prepare(
+                        "INSERT INTO counters (id, pledged_total, grand_total, version, recalc_needed)
+                         VALUES (1, ?, ?, 1, 0)
+                         ON DUPLICATE KEY UPDATE
+                           pledged_total = pledged_total + VALUES(pledged_total),
+                           grand_total = grand_total + VALUES(grand_total),
+                           version = version + 1,
+                           recalc_needed = 0"
+                    );
+                    $ctr->bind_param('dd', $deltaPledged, $grandDelta);
+                    $ctr->execute();
+                    
+                    // Audit log
+                    $uid = (int)(current_user()['id'] ?? 0);
+                    $before = json_encode([
+                        'pledge_id' => $pledgeId,
+                        'amount' => (float)$pledge['amount'],
+                        'batch_id' => $batchId
+                    ], JSON_UNESCAPED_SLASHES);
+                    $after = json_encode([
+                        'pledge_id' => $pledgeId,
+                        'amount' => $originalAmount,
+                        'batch_id' => $batchId,
+                        'action' => 'batch_undo'
+                    ], JSON_UNESCAPED_SLASHES);
+                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'undo_batch', ?, ?, 'admin')");
+                    $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
+                    $log->execute();
+                } else {
+                    // For payment_update or new batches, handle differently
+                    // Update counters based on batch type
+                    $deltaPledged = 0;
+                    $deltaPaid = 0;
+                    if (in_array($batch['batch_type'], ['new_pledge', 'pledge_update'])) {
+                        $deltaPledged = -1 * (float)($batch['additional_amount'] ?? 0);
+                    } elseif (in_array($batch['batch_type'], ['new_payment', 'payment_update'])) {
+                        $deltaPaid = -1 * (float)($batch['additional_amount'] ?? 0);
+                    }
+                    $grandDelta = $deltaPledged + $deltaPaid;
+                    
+                    if ($grandDelta != 0) {
+                        $ctr = $db->prepare(
+                            "INSERT INTO counters (id, paid_total, pledged_total, grand_total, version, recalc_needed)
+                             VALUES (1, ?, ?, ?, 1, 0)
+                             ON DUPLICATE KEY UPDATE
+                               paid_total = paid_total + VALUES(paid_total),
+                               pledged_total = pledged_total + VALUES(pledged_total),
+                               grand_total = grand_total + VALUES(grand_total),
+                               version = version + 1,
+                               recalc_needed = 0"
+                        );
+                        $ctr->bind_param('ddd', $deltaPaid, $deltaPledged, $grandDelta);
+                        $ctr->execute();
+                    }
+                    
+                    // Update donor totals (subtract since we're undoing)
+                    $donorId = (int)($batch['donor_id'] ?? 0);
+                    if ($donorId > 0) {
+                        $donorUpd = $db->prepare("
+                            UPDATE donors SET
+                                total_pledged = total_pledged + ?,
+                                total_paid = total_paid + ?,
+                                balance = balance + ?,
+                                updated_at = NOW()
+                            WHERE id = ?
+                        ");
+                        // deltaPledged and deltaPaid are already negative, so adding them subtracts
+                        $donorUpd->bind_param('dddi', $deltaPledged, $deltaPaid, $grandDelta, $donorId);
+                        $donorUpd->execute();
+                    }
+                    
+                    // Audit log
+                    $uid = (int)(current_user()['id'] ?? 0);
+                    $entityId = (int)($batch['original_pledge_id'] ?? $batch['original_payment_id'] ?? $batchId);
+                    $entityType = ($batch['batch_type'] === 'pledge_update' || $batch['batch_type'] === 'new_pledge') ? 'pledge' : 'payment';
+                    $before = json_encode(['batch_id' => $batchId, 'status' => 'approved'], JSON_UNESCAPED_SLASHES);
+                    $after = json_encode(['batch_id' => $batchId, 'status' => 'cancelled', 'action' => 'batch_undo'], JSON_UNESCAPED_SLASHES);
+                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, ?, ?, 'undo_batch', ?, ?, 'admin')");
+                    $log->bind_param('isiiss', $uid, $entityType, $entityId, $before, $after);
+                    $log->execute();
+                }
+                
+                $db->commit();
+                $actionMsg = 'Batch update undone successfully';
+                
+                // Set a flag to trigger floor map refresh on page load
+                $_SESSION['trigger_floor_refresh'] = true;
+            } catch (Throwable $e) {
+                $db->rollback();
+                $actionMsg = 'Error: ' . $e->getMessage();
+            }
+        }
+    } elseif ($action === 'undo') {
         $pledgeId = (int)($_POST['pledge_id'] ?? 0);
         if ($pledgeId > 0) {
             $db->begin_transaction();
@@ -499,7 +647,8 @@ if ($filter_date_to) {
 $where_clause = implode(' AND ', $where_conditions);
 $payment_where_clause = implode(' AND ', $payment_where_conditions);
 
-// Get total count for pagination
+// Get total count for pagination (including batches)
+$batch_where = $filter_donor ? "AND (b.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%' OR p.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%')" : "";
 $count_sql = "
 SELECT COUNT(*) as total FROM (
   (SELECT p.id FROM pledges p 
@@ -509,6 +658,13 @@ SELECT COUNT(*) as total FROM (
   (SELECT pay.id FROM payments pay 
    LEFT JOIN users u ON pay.received_by_user_id = u.id 
    WHERE $payment_where_clause)
+  UNION ALL
+  (SELECT b.id FROM grid_allocation_batches b
+   LEFT JOIN pledges p ON b.original_pledge_id = p.id
+   WHERE b.approval_status = 'approved'
+     AND b.batch_type IN ('pledge_update', 'payment_update')
+     AND b.original_pledge_id IS NOT NULL
+     $batch_where)
 ) as combined_count";
 
 // Execute count query with parameters (simplified version for count)
@@ -574,6 +730,40 @@ UNION ALL
   LEFT JOIN donation_packages dp ON dp.id = pay.package_id
   LEFT JOIN users u ON pay.received_by_user_id = u.id
   WHERE $payment_where_clause)
+UNION ALL
+(SELECT 
+    b.id AS id,
+    b.additional_amount AS amount,
+    CASE 
+        WHEN b.batch_type = 'pledge_update' THEN 'pledge_update'
+        WHEN b.batch_type = 'payment_update' THEN 'payment_update'
+        ELSE 'batch'
+    END AS type,
+    CONCAT('Update batch for ', COALESCE(p.donor_name, b.donor_name)) AS notes,
+    b.request_date AS created_at,
+    b.approved_at,
+    NULL AS sqm_meters,
+    0 AS anonymous,
+    COALESCE(p.donor_name, b.donor_name) AS donor_name,
+    COALESCE(p.donor_phone, b.donor_phone) AS donor_phone,
+    COALESCE(p.donor_email, '') AS donor_email,
+    COALESCE(u.name, 'Donor Portal') AS registrar_name,
+    NULL AS payment_id,
+    NULL AS payment_amount,
+    NULL AS payment_method,
+    NULL AS payment_reference,
+    b.id AS batch_id,
+    b.batch_type AS batch_type,
+    b.original_pledge_id AS original_pledge_id,
+    b.additional_amount AS additional_amount,
+    b.original_amount AS original_amount
+  FROM grid_allocation_batches b
+  LEFT JOIN pledges p ON b.original_pledge_id = p.id
+  LEFT JOIN users u ON b.requested_by_user_id = u.id
+  WHERE b.approval_status = 'approved'
+    AND b.batch_type IN ('pledge_update', 'payment_update')
+    AND b.original_pledge_id IS NOT NULL
+    " . ($filter_donor ? "AND (b.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%' OR p.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%')" : "") . ")
 ORDER BY $order_clause, created_at DESC
 LIMIT $per_page OFFSET $offset";
 

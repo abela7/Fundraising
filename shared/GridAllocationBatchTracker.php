@@ -553,7 +553,7 @@ class GridAllocationBatchTracker
      * @param int $batchId Batch ID
      * @return array|null Batch data or null
      */
-    private function getBatchById(int $batchId): ?array
+    public function getBatchById(int $batchId): ?array
     {
         $stmt = $this->db->prepare("SELECT * FROM grid_allocation_batches WHERE id = ?");
         if (!$stmt) {
