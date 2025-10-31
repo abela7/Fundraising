@@ -669,6 +669,11 @@ SELECT COUNT(*) as total FROM (
 
 // Execute count query with parameters (simplified version for count)
 $count_result = $db->query($count_sql);
+if (!$count_result) {
+    error_log("Admin Approved Page Count SQL Error: " . $db->error);
+    error_log("Count SQL Query: " . $count_sql);
+    die("Database error. Please check server logs for details. Error: " . htmlspecialchars($db->error));
+}
 $total_items = (int)$count_result->fetch_assoc()['total'];
 $total_pages = (int)ceil($total_items / $per_page);
 
@@ -686,6 +691,7 @@ $sort_column = $sort_mapping[$sort_by] ?? 'approved_at';
 $order_clause = "$sort_column $sort_order";
 
 // List approved pledges and approved standalone payments with filtering and sorting
+// Note: Batches are included but must have same column count as pledges/payments
 $sql = "
 (SELECT 
     p.id,
@@ -703,7 +709,12 @@ $sql = "
     NULL AS payment_id,
     NULL AS payment_amount,
     NULL AS payment_method,
-    NULL AS payment_reference
+    NULL AS payment_reference,
+    NULL AS batch_id,
+    NULL AS batch_type,
+    NULL AS original_pledge_id,
+    NULL AS additional_amount,
+    NULL AS original_amount
   FROM pledges p
   LEFT JOIN donation_packages dp ON dp.id = p.package_id
   LEFT JOIN users u ON p.created_by_user_id = u.id
@@ -725,7 +736,12 @@ UNION ALL
     pay.id AS payment_id,
     pay.amount AS payment_amount,
     pay.method AS payment_method,
-    pay.reference AS payment_reference
+    pay.reference AS payment_reference,
+    NULL AS batch_id,
+    NULL AS batch_type,
+    NULL AS original_pledge_id,
+    NULL AS additional_amount,
+    NULL AS original_amount
   FROM payments pay
   LEFT JOIN donation_packages dp ON dp.id = pay.package_id
   LEFT JOIN users u ON pay.received_by_user_id = u.id
@@ -739,13 +755,13 @@ UNION ALL
         WHEN b.batch_type = 'payment_update' THEN 'payment_update'
         ELSE 'batch'
     END AS type,
-    CONCAT('Update batch for ', COALESCE(p.donor_name, b.donor_name)) AS notes,
+    CONCAT('Update batch for ', COALESCE(p.donor_name, b.donor_name, 'Unknown')) AS notes,
     b.request_date AS created_at,
     b.approved_at,
     NULL AS sqm_meters,
     0 AS anonymous,
-    COALESCE(p.donor_name, b.donor_name) AS donor_name,
-    COALESCE(p.donor_phone, b.donor_phone) AS donor_phone,
+    COALESCE(p.donor_name, b.donor_name, 'Unknown') AS donor_name,
+    COALESCE(p.donor_phone, b.donor_phone, '') AS donor_phone,
     COALESCE(p.donor_email, '') AS donor_email,
     COALESCE(u.name, 'Donor Portal') AS registrar_name,
     NULL AS payment_id,
@@ -767,7 +783,14 @@ UNION ALL
 ORDER BY $order_clause, created_at DESC
 LIMIT $per_page OFFSET $offset";
 
-$approved = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
+// Execute with error handling
+$result = $db->query($sql);
+if (!$result) {
+    error_log("Admin Approved Page SQL Error: " . $db->error);
+    error_log("SQL Query: " . $sql);
+    die("Database error. Please check server logs for details. Error: " . htmlspecialchars($db->error));
+}
+$approved = $result->fetch_all(MYSQLI_ASSOC);
 
 ?>
 <!DOCTYPE html>
