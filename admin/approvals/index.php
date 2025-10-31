@@ -391,32 +391,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 }
                 
                 // Update batch with allocation details after grid allocation
-                if ($allocationBatchId && $allocationResult['success']) {
+                if ($allocationBatchId) {
                     // Extract cell IDs and area from nested structure
                     $cellIds = [];
                     $area = 0.0;
                     
-                    // Check if cells are directly in allocation result (IntelligentGridAllocator)
-                    if (isset($allocationResult['allocated_cells'])) {
-                        $cellIds = $allocationResult['allocated_cells'] ?? [];
-                        $area = (float)($allocationResult['area_allocated'] ?? 0.0);
-                    }
-                    // Check if nested in allocation_result -> grid_allocation (CustomAmountAllocator)
-                    elseif (isset($allocationResult['allocation_result']['grid_allocation'])) {
-                        $gridAlloc = $allocationResult['allocation_result']['grid_allocation'];
-                        $cellIds = $gridAlloc['allocated_cells'] ?? [];
-                        $area = (float)($gridAlloc['area_allocated'] ?? 0.0);
-                    }
-                    // Check if nested in allocation_result directly (CustomAmountAllocator alternative structure)
-                    elseif (isset($allocationResult['allocation_result']['allocated_cells'])) {
-                        $cellIds = $allocationResult['allocation_result']['allocated_cells'] ?? [];
-                        $area = (float)($allocationResult['allocation_result']['area_allocated'] ?? 0.0);
+                    if ($allocationResult['success']) {
+                        // Check if cells are directly in allocation result (IntelligentGridAllocator)
+                        if (isset($allocationResult['allocated_cells'])) {
+                            $cellIds = $allocationResult['allocated_cells'] ?? [];
+                            $area = (float)($allocationResult['area_allocated'] ?? 0.0);
+                        }
+                        // Check if nested in allocation_result -> grid_allocation (CustomAmountAllocator)
+                        elseif (isset($allocationResult['allocation_result']['grid_allocation'])) {
+                            $gridAlloc = $allocationResult['allocation_result']['grid_allocation'];
+                            $cellIds = $gridAlloc['allocated_cells'] ?? [];
+                            $area = (float)($gridAlloc['area_allocated'] ?? 0.0);
+                        }
+                        // Check if nested in allocation_result directly (CustomAmountAllocator alternative structure)
+                        elseif (isset($allocationResult['allocation_result']['allocated_cells'])) {
+                            $cellIds = $allocationResult['allocation_result']['allocated_cells'] ?? [];
+                            $area = (float)($allocationResult['allocation_result']['area_allocated'] ?? 0.0);
+                        }
                     }
                     
-                    // Only update batch if we have cell information
-                    if (!empty($cellIds) || $area > 0) {
-                        $batchTracker->approveBatch($allocationBatchId, $cellIds, $area, $uid);
-                    }
+                    // Always approve the batch, even if no cells were allocated
+                    // (cells can be empty for accumulated amounts or allocation failures)
+                    $batchTracker->approveBatch($allocationBatchId, $cellIds, $area, $uid);
+                    error_log("Batch #{$allocationBatchId} approved with " . count($cellIds) . " cells");
                 }
                 
                 // Audit log - use original pledge ID for update requests
