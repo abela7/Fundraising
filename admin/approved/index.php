@@ -804,7 +804,7 @@ $sql = "
   FROM pledges p
   LEFT JOIN donation_packages dp ON dp.id = p.package_id
   LEFT JOIN users u ON p.created_by_user_id = u.id
-  WHERE $where_clause
+  WHERE $where_clause)
 UNION ALL
 (SELECT 
     pay.id AS id,
