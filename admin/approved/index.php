@@ -715,6 +715,8 @@ $payment_where_clause = implode(' AND ', $payment_where_conditions);
 // Source column exists in pledges table (verified from schema)
 
 // Get total count for pagination (including batches)
+// Note: We count distinct pledge rows (each pledge appears once even if it has batch updates)
+// Plus separate batch rows, plus payment rows
 $batch_where = $filter_donor ? "AND (b.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%' OR p.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%')" : "";
 $count_sql = "
 SELECT COUNT(*) as total FROM (
@@ -777,16 +779,17 @@ $sql = "
     NULL AS payment_amount,
     NULL AS payment_method,
     NULL AS payment_reference,
-    b.id AS batch_id,
+    b.batch_id AS batch_id,
     b.batch_type AS batch_type,
     b.original_pledge_id AS original_pledge_id,
     b.additional_amount AS additional_amount,
     b.original_amount AS original_amount,
     COALESCE(p.source, 'volunteer') AS pledge_source,
     CASE 
-        WHEN b.id IS NOT NULL THEN 1 
+        WHEN b.batch_id IS NOT NULL THEN 1 
         ELSE 0 
-    END AS has_updates
+    END AS has_updates,
+    dp.label AS package_label
   FROM pledges p
   LEFT JOIN donation_packages dp ON dp.id = p.package_id
   LEFT JOIN users u ON p.created_by_user_id = u.id
@@ -830,7 +833,8 @@ UNION ALL
     NULL AS additional_amount,
     NULL AS original_amount,
     'volunteer' AS pledge_source,
-    0 AS has_updates
+    0 AS has_updates,
+    dp.label AS package_label
   FROM payments pay
   LEFT JOIN donation_packages dp ON dp.id = pay.package_id
   LEFT JOIN users u ON pay.received_by_user_id = u.id
@@ -863,7 +867,8 @@ UNION ALL
     b.additional_amount AS additional_amount,
     b.original_amount AS original_amount,
     'self' AS pledge_source,
-    0 AS has_updates
+    0 AS has_updates,
+    NULL AS package_label
   FROM grid_allocation_batches b
   LEFT JOIN pledges p ON b.original_pledge_id = p.id
   LEFT JOIN users u ON b.requested_by_user_id = u.id
