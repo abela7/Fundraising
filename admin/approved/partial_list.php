@@ -67,6 +67,12 @@ if (empty($approved)) {
         $pledge_donor_phone = (string)($row['donor_phone'] ?? '');
         $pledge_donor_email = (string)($row['donor_email'] ?? '');
         $pledge_registrar = (string)($row['registrar_name'] ?? '');
+        
+        // Check if pledge was requested from portal or has updates
+        $pledge_source = (string)($row['pledge_source'] ?? 'volunteer');
+        $has_updates = (int)($row['has_updates'] ?? 0);
+        $isFromPortal = ($pledge_source === 'self');
+        $isAdditional = ($has_updates > 0);
 
         // Check if this is a batch (update)
         $isBatch = ($pledge_type === 'pledge_update' || $pledge_type === 'payment_update' || $pledge_type === 'batch');
@@ -135,6 +141,15 @@ if (empty($approved)) {
                 <?php if ($isBatch): ?>
                     <span class="badge bg-primary ms-1" title="This update was requested from the donor portal">
                         <i class="fas fa-globe me-1"></i>Requested from Portal
+                    </span>
+                <?php elseif ($isFromPortal && !$isBatch): ?>
+                    <span class="badge bg-primary ms-1" title="This donation was requested from the donor portal">
+                        <i class="fas fa-globe me-1"></i>Requested from Portal
+                    </span>
+                <?php endif; ?>
+                <?php if ($isAdditional && !$isBatch): ?>
+                    <span class="badge bg-info ms-1" title="This pledge has been updated with additional donations">
+                        <i class="fas fa-plus-circle me-1"></i>Additional
                     </span>
                 <?php endif; ?>
             </div>

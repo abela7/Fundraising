@@ -712,6 +712,17 @@ if ($filter_date_to) {
 $where_clause = implode(' AND ', $where_conditions);
 $payment_where_clause = implode(' AND ', $payment_where_conditions);
 
+// Check if 'source' column exists in pledges table (similar to approvals page)
+$has_source_column = false;
+try {
+    $check_source = $db->query("SHOW COLUMNS FROM pledges LIKE 'source'");
+    if ($check_source && $check_source->num_rows > 0) {
+        $has_source_column = true;
+    }
+} catch (Exception $e) {
+    // Column doesn't exist, that's fine - will default to 'volunteer'
+}
+
 // Get total count for pagination (including batches)
 $batch_where = $filter_donor ? "AND (b.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%' OR p.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%')" : "";
 $count_sql = "
@@ -779,11 +790,21 @@ $sql = "
     NULL AS batch_type,
     NULL AS original_pledge_id,
     NULL AS additional_amount,
-    NULL AS original_amount
+    NULL AS original_amount,
+    " . ($has_source_column ? "COALESCE(p.source, 'volunteer')" : "'volunteer'") . " AS pledge_source,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM grid_allocation_batches b 
+            WHERE b.original_pledge_id = p.id 
+            AND b.approval_status = 'approved'
+            AND b.batch_type IN ('pledge_update', 'payment_update')
+        ) THEN 1 
+        ELSE 0 
+    END AS has_updates
   FROM pledges p
   LEFT JOIN donation_packages dp ON dp.id = p.package_id
   LEFT JOIN users u ON p.created_by_user_id = u.id
-  WHERE $where_clause)
+  WHERE $where_clause
 UNION ALL
 (SELECT 
     pay.id AS id,
@@ -806,7 +827,9 @@ UNION ALL
     NULL AS batch_type,
     NULL AS original_pledge_id,
     NULL AS additional_amount,
-    NULL AS original_amount
+    NULL AS original_amount,
+    'volunteer' AS pledge_source,
+    0 AS has_updates
   FROM payments pay
   LEFT JOIN donation_packages dp ON dp.id = pay.package_id
   LEFT JOIN users u ON pay.received_by_user_id = u.id
@@ -837,7 +860,9 @@ UNION ALL
     b.batch_type AS batch_type,
     b.original_pledge_id AS original_pledge_id,
     b.additional_amount AS additional_amount,
-    b.original_amount AS original_amount
+    b.original_amount AS original_amount,
+    'self' AS pledge_source,
+    0 AS has_updates
   FROM grid_allocation_batches b
   LEFT JOIN pledges p ON b.original_pledge_id = p.id
   LEFT JOIN users u ON b.requested_by_user_id = u.id
