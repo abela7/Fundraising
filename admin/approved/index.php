@@ -143,16 +143,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $upd->execute();
                     
                     // Update donor totals
+                    // Note: balance is a GENERATED column (total_pledged - total_paid), so we don't update it directly
                     $donorId = (int)($batch['donor_id'] ?? 0);
                     if ($donorId > 0) {
                         $donorUpd = $db->prepare("
                             UPDATE donors SET
                                 total_pledged = total_pledged - ?,
-                                balance = balance - ?,
                                 updated_at = NOW()
                             WHERE id = ?
                         ");
-                        $donorUpd->bind_param('ddi', $additionalAmount, $additionalAmount, $donorId);
+                        $donorUpd->bind_param('di', $additionalAmount, $donorId);
                         $donorUpd->execute();
                     }
                     
@@ -215,18 +215,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     
                     // Update donor totals (subtract since we're undoing)
+                    // Note: balance is a GENERATED column (total_pledged - total_paid), so we don't update it directly
                     $donorId = (int)($batch['donor_id'] ?? 0);
                     if ($donorId > 0) {
                         $donorUpd = $db->prepare("
                             UPDATE donors SET
                                 total_pledged = total_pledged + ?,
                                 total_paid = total_paid + ?,
-                                balance = balance + ?,
                                 updated_at = NOW()
                             WHERE id = ?
                         ");
                         // deltaPledged and deltaPaid are already negative, so adding them subtracts
-                        $donorUpd->bind_param('dddi', $deltaPledged, $deltaPaid, $grandDelta, $donorId);
+                        $donorUpd->bind_param('ddi', $deltaPledged, $deltaPaid, $donorId);
                         $donorUpd->execute();
                     }
                     

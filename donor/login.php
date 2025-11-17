@@ -140,24 +140,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $totals_stmt->close();
                             
                             // Create donor record if it doesn't exist
+                            // Note: balance is a GENERATED column, so we don't include it in INSERT or UPDATE
                             $insert_stmt = $db->prepare("
-                                INSERT INTO donors (phone, name, total_pledged, total_paid, balance, source)
-                                VALUES (?, ?, ?, ?, ?, 'imported')
+                                INSERT INTO donors (phone, name, total_pledged, total_paid, source)
+                                VALUES (?, ?, ?, ?, 'imported')
                                 ON DUPLICATE KEY UPDATE 
                                     name = VALUES(name),
                                     total_pledged = VALUES(total_pledged),
-                                    total_paid = VALUES(total_paid),
-                                    balance = VALUES(balance)
+                                    total_paid = VALUES(total_paid)
                             ");
                             $total_pledged = (float)($totals['total_pledged'] ?? 0);
                             $total_paid = (float)($totals['total_paid'] ?? 0);
-                            $balance = $total_pledged - $total_paid;
-                            $insert_stmt->bind_param('ssddd', 
+                            // Note: balance is auto-calculated (GENERATED column)
+                            $insert_stmt->bind_param('ssdd', 
                                 $normalized_phone,
                                 $phone_record['donor_name'],
                                 $total_pledged,
-                                $total_paid,
-                                $balance
+                                $total_paid
                             );
                             $insert_stmt->execute();
                             $insert_stmt->close();

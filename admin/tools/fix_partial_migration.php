@@ -252,7 +252,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_fix'])) {
                 SELECT IFNULL(SUM(payments.amount), 0) FROM payments 
                 WHERE payments.donor_id = donors.id AND payments.status = 'approved'
             )");
-            $database->query("UPDATE donors SET balance = total_pledged - total_paid");
+            // Note: balance is a GENERATED column - it auto-calculates, no manual update needed
+            // $database->query("UPDATE donors SET balance = total_pledged - total_paid"); // REMOVED - redundant
             $database->query("UPDATE donors SET payment_status = 
                 CASE 
                     WHEN total_pledged = 0 THEN 'no_pledge'
