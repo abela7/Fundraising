@@ -5,7 +5,18 @@ require_once __DIR__ . '/../../config/db.php';
 require_login();
 
 try {
-    $db = db();
+    // Try to get database connection
+    try {
+        $db = db();
+    } catch (Exception $db_exception) {
+        throw new Exception('Database connection failed: ' . $db_exception->getMessage(), 0, $db_exception);
+    }
+    
+    // Check if user is logged in
+    if (!isset($_SESSION['user_id'])) {
+        throw new Exception('User not logged in. Please login first.');
+    }
+    
     $user_id = (int)$_SESSION['user_id'];
     $user_name = $_SESSION['name'] ?? 'Agent';
     
@@ -185,9 +196,9 @@ try {
         ? round(($today_stats->positive_outcomes / $today_stats->total_calls) * 100, 1) 
         : 0;
 
-} catch (Exception $e) {
-    // If anything goes wrong, show error but don't crash
-    error_log("Call Center Error: " . $e->getMessage());
+} catch (mysqli_sql_exception $e) {
+    // Handle MySQLi specific exceptions
+    error_log("Call Center MySQLi Error: " . $e->getMessage() . " | Code: " . $e->getCode());
     $today_stats = (object)[
         'total_calls' => 0,
         'successful_contacts' => 0,
@@ -200,7 +211,23 @@ try {
     $recent_result = null;
     $conversion_rate = 0;
     $setup_needed = false;
-    $error_message = "An error occurred. Please check the database connection and try again.";
+    $error_message = "Database error: " . htmlspecialchars($e->getMessage()) . ". Please check <a href='debug.php'>debug page</a> for details.";
+} catch (Exception $e) {
+    // If anything else goes wrong, show error but don't crash
+    error_log("Call Center Error: " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine());
+    $today_stats = (object)[
+        'total_calls' => 0,
+        'successful_contacts' => 0,
+        'positive_outcomes' => 0,
+        'callbacks_scheduled' => 0,
+        'total_talk_time' => 0
+    ];
+    $queue_result = null;
+    $callbacks_result = null;
+    $recent_result = null;
+    $conversion_rate = 0;
+    $setup_needed = false;
+    $error_message = "An error occurred: " . htmlspecialchars($e->getMessage()) . ". Please check <a href='debug.php'>debug page</a> or contact administrator.";
 }
 
 $page_title = 'Call Center Dashboard';
@@ -247,10 +274,18 @@ $page_title = 'Call Center Dashboard';
             <!-- Error Message -->
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Error!</h4>
-                <p class="mb-0"><?php echo htmlspecialchars($error_message); ?></p>
-                <p class="mb-0 mt-2">
-                    <a href="check-database.php" class="alert-link">Check Database Status</a> to see what might be wrong.
-                </p>
+                <p class="mb-2"><?php echo $error_message; ?></p>
+                <div class="d-flex gap-2 mt-3">
+                    <a href="debug.php" class="btn btn-danger btn-sm">
+                        <i class="fas fa-bug me-2"></i>Run Diagnostics
+                    </a>
+                    <a href="test-simple.php" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-vial me-2"></i>Simple Test
+                    </a>
+                    <a href="check-database.php" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-database me-2"></i>Check Database
+                    </a>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             <?php endif; ?>
