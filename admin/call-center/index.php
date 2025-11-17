@@ -194,8 +194,8 @@ try {
     }
 
     // Set conversion rate (works for both setup and normal mode)
-    $conversion_rate = isset($today_stats->total_calls) && $today_stats->total_calls > 0 
-        ? round(($today_stats->positive_outcomes / $today_stats->total_calls) * 100, 1) 
+    $conversion_rate = isset($today_stats->total_calls) && (int)$today_stats->total_calls > 0 
+        ? round(((int)$today_stats->positive_outcomes / (int)$today_stats->total_calls) * 100, 1) 
         : 0;
 
 } catch (mysqli_sql_exception $e) {
@@ -357,7 +357,7 @@ $page_title = 'Call Center Dashboard';
                             <i class="fas fa-clock"></i>
                         </div>
                         <div class="stat-details">
-                            <div class="stat-value"><?php echo gmdate("H:i", $today_stats->total_talk_time ?? 0); ?></div>
+                            <div class="stat-value"><?php echo gmdate("H:i", (int)($today_stats->total_talk_time ?? 0)); ?></div>
                             <div class="stat-label">Talk Time</div>
                         </div>
                     </div>
@@ -395,7 +395,7 @@ $page_title = 'Call Center Dashboard';
                                             <?php while ($donor = $queue_result->fetch_object()): ?>
                                                 <tr>
                                                     <td>
-                                                        <span class="priority-badge priority-<?php echo $donor->priority >= 8 ? 'urgent' : ($donor->priority >= 5 ? 'high' : 'normal'); ?>">
+                                                        <span class="priority-badge priority-<?php echo (int)$donor->priority >= 8 ? 'urgent' : ((int)$donor->priority >= 5 ? 'high' : 'normal'); ?>">
                                                             <?php echo $donor->priority; ?>
                                                         </span>
                                                     </td>
@@ -470,7 +470,7 @@ $page_title = 'Call Center Dashboard';
                                                         <i class="fas fa-clock me-1"></i>
                                                         <?php echo date('M j, g:i A', strtotime($call->call_started_at)); ?>
                                                         <?php if ($call->duration_seconds): ?>
-                                                            (<?php echo gmdate("i:s", $call->duration_seconds); ?>)
+                                                            (<?php echo gmdate("i:s", (int)$call->duration_seconds); ?>)
                                                         <?php endif; ?>
                                                     </small>
                                                 </div>
