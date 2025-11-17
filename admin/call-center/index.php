@@ -298,49 +298,41 @@ $page_title = 'Call Center Dashboard';
             </div>
             <?php endif; ?>
 
-            <!-- Today's Statistics -->
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="stat-card stat-primary">
-                        <div class="stat-icon">
-                            <i class="fas fa-phone"></i>
-                        </div>
-                        <div class="stat-details">
-                            <div class="stat-value"><?php echo (int)($today_stats->total_calls ?? 0); ?></div>
-                            <div class="stat-label">Calls Today</div>
+            <!-- Today's Statistics - Compact -->
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-compact stat-primary">
+                        <i class="fas fa-phone stat-icon-small"></i>
+                        <div class="stat-content">
+                            <div class="stat-value-small"><?php echo (int)($today_stats->total_calls ?? 0); ?></div>
+                            <div class="stat-label-small">Calls</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="stat-card stat-success">
-                        <div class="stat-icon">
-                            <i class="fas fa-phone-volume"></i>
-                        </div>
-                        <div class="stat-details">
-                            <div class="stat-value"><?php echo (int)($today_stats->successful_contacts ?? 0); ?></div>
-                            <div class="stat-label">Connected</div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-compact stat-success">
+                        <i class="fas fa-phone-volume stat-icon-small"></i>
+                        <div class="stat-content">
+                            <div class="stat-value-small"><?php echo (int)($today_stats->successful_contacts ?? 0); ?></div>
+                            <div class="stat-label-small">Connected</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="stat-card stat-info">
-                        <div class="stat-icon">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <div class="stat-details">
-                            <div class="stat-value"><?php echo $conversion_rate; ?>%</div>
-                            <div class="stat-label">Conversion Rate</div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-compact stat-info">
+                        <i class="fas fa-check-circle stat-icon-small"></i>
+                        <div class="stat-content">
+                            <div class="stat-value-small"><?php echo $conversion_rate; ?>%</div>
+                            <div class="stat-label-small">Conversion</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="stat-card stat-warning">
-                        <div class="stat-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="stat-details">
-                            <div class="stat-value"><?php echo gmdate("H:i", (int)($today_stats->total_talk_time ?? 0)); ?></div>
-                            <div class="stat-label">Talk Time</div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card-compact stat-warning">
+                        <i class="fas fa-clock stat-icon-small"></i>
+                        <div class="stat-content">
+                            <div class="stat-value-small"><?php echo gmdate("H:i", (int)($today_stats->total_talk_time ?? 0)); ?></div>
+                            <div class="stat-label-small">Talk Time</div>
                         </div>
                     </div>
                 </div>
