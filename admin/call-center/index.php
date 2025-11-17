@@ -415,7 +415,7 @@ $page_title = 'Call Center Dashboard';
                                                         </a>
                                                     </td>
                                                     <td>
-                                                        <span class="badge bg-danger">£<?php echo number_format($donor->balance, 2); ?></span>
+                                                        <span class="badge bg-danger">£<?php echo number_format((float)$donor->balance, 2); ?></span>
                                                     </td>
                                                     <td>
                                                         <span class="badge bg-secondary"><?php echo str_replace('_', ' ', ucwords($donor->queue_type, '_')); ?></span>

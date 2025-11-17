@@ -227,7 +227,7 @@ $page_title = 'Call Center Dashboard';
                                             <td><span class="badge bg-warning"><?php echo $donor->priority; ?></span></td>
                                             <td><?php echo htmlspecialchars($donor->name); ?></td>
                                             <td><?php echo htmlspecialchars($donor->phone); ?></td>
-                                            <td>£<?php echo number_format($donor->balance, 2); ?></td>
+                                            <td>£<?php echo number_format((float)$donor->balance, 2); ?></td>
                                             <td>
                                                 <a href="make-call.php?donor_id=<?php echo $donor->donor_id; ?>" class="btn btn-sm btn-success">
                                                     <i class="fas fa-phone"></i> Call
