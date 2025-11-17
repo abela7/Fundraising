@@ -51,17 +51,20 @@
     padding: 0.5rem 1rem;
 }
 
-/* ===== Stat Cards - Mobile First ===== */
+/* ===== Stat Cards - Compact Design ===== */
 .stat-card {
     background: white;
-    border-radius: 12px;
-    padding: 1.25rem;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
     box-shadow: var(--cc-shadow);
     border: 1px solid var(--cc-border);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
     height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .stat-card::before {
@@ -69,7 +72,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 4px;
+    width: 3px;
     height: 100%;
     background: currentColor;
 }
@@ -80,130 +83,50 @@
 .stat-card.stat-warning { color: var(--cc-warning); }
 
 .stat-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: var(--cc-shadow-lg);
 }
 
 .stat-card .stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     background: currentColor;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1rem;
-    opacity: 0.1;
+    flex-shrink: 0;
+    opacity: 0.15;
 }
 
 .stat-card .stat-icon i {
-    font-size: 1.5rem;
-    color: white;
+    font-size: 1rem;
+    color: currentColor;
     opacity: 1;
     position: relative;
     z-index: 1;
 }
 
 .stat-details {
-    position: relative;
-    z-index: 1;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 0.25rem;
-    color: var(--cc-dark);
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: #64748b;
-    font-weight: 500;
-}
-
-/* ===== Compact Stat Cards ===== */
-.stat-card-compact {
-    background: white;
-    border-radius: 8px;
-    padding: 0.75rem;
-    box-shadow: var(--cc-shadow);
-    border: 1px solid var(--cc-border);
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.stat-card-compact::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    background: currentColor;
-}
-
-.stat-card-compact.stat-primary { color: var(--cc-primary); }
-.stat-card-compact.stat-success { color: var(--cc-success); }
-.stat-card-compact.stat-info { color: var(--cc-info); }
-.stat-card-compact.stat-warning { color: var(--cc-warning); }
-
-.stat-card-compact:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--cc-shadow-lg);
-}
-
-.stat-icon-small {
-    font-size: 1rem;
-    opacity: 0.7;
-    min-width: 20px;
-    text-align: center;
-}
-
-.stat-content {
     flex: 1;
     min-width: 0;
 }
 
-.stat-value-small {
-    font-size: 1.25rem;
+.stat-value {
+    font-size: 1.5rem;
     font-weight: 700;
-    line-height: 1.2;
-    color: var(--cc-dark);
+    line-height: 1;
     margin-bottom: 0.125rem;
+    color: var(--cc-dark);
 }
 
-.stat-label-small {
-    font-size: 0.7rem;
+.stat-label {
+    font-size: 0.75rem;
     color: #64748b;
     font-weight: 500;
-    line-height: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-@media (min-width: 768px) {
-    .stat-card-compact {
-        padding: 0.875rem 1rem;
-    }
-    
-    .stat-icon-small {
-        font-size: 1.125rem;
-    }
-    
-    .stat-value-small {
-        font-size: 1.375rem;
-    }
-    
-    .stat-label-small {
-        font-size: 0.75rem;
-    }
 }
 
 /* ===== Cards Enhanced ===== */
