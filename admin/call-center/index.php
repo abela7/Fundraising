@@ -8,32 +8,47 @@ $db = db();
 $user_id = (int)$_SESSION['user_id'];
 $user_name = $_SESSION['name'] ?? 'Agent';
 
-// Get today's stats for this agent
-$today_start = date('Y-m-d 00:00:00');
-$today_end = date('Y-m-d 23:59:59');
+// Check if call center tables exist
+$tables_check = $db->query("SHOW TABLES LIKE 'call_center_sessions'");
+$tables_exist = $tables_check && $tables_check->num_rows > 0;
 
-$stats_query = "
-    SELECT 
-        COUNT(*) as total_calls,
-        SUM(CASE WHEN conversation_stage != 'no_connection' THEN 1 ELSE 0 END) as successful_contacts,
-        SUM(CASE WHEN outcome IN ('payment_plan_created', 'agreed_to_pay_full', 'agreed_reduced_amount', 'agreed_cash_collection') THEN 1 ELSE 0 END) as positive_outcomes,
-        SUM(CASE WHEN callback_scheduled_for IS NOT NULL THEN 1 ELSE 0 END) as callbacks_scheduled,
-        SUM(duration_seconds) as total_talk_time
-    FROM call_center_sessions
-    WHERE agent_id = ? AND call_started_at BETWEEN ? AND ?
-";
-$stmt = $db->prepare($stats_query);
-$stmt->bind_param('iss', $user_id, $today_start, $today_end);
-$stmt->execute();
-$today_stats = $stmt->fetch_object();
+if (!$tables_exist) {
+    // Tables don't exist - show setup message
+    $setup_needed = true;
+    $today_stats = (object)[
+        'total_calls' => 0,
+        'successful_contacts' => 0,
+        'positive_outcomes' => 0,
+        'callbacks_scheduled' => 0,
+        'total_talk_time' => 0
+    ];
+    $queue_result = null;
+    $callbacks_result = null;
+    $recent_result = null;
+} else {
+    $setup_needed = false;
+    
+    // Get today's stats for this agent
+    $today_start = date('Y-m-d 00:00:00');
+    $today_end = date('Y-m-d 23:59:59');
 
-// Calculate conversion rate
-$conversion_rate = $today_stats->total_calls > 0 
-    ? round(($today_stats->positive_outcomes / $today_stats->total_calls) * 100, 1) 
-    : 0;
+    $stats_query = "
+        SELECT 
+            COUNT(*) as total_calls,
+            SUM(CASE WHEN conversation_stage != 'no_connection' THEN 1 ELSE 0 END) as successful_contacts,
+            SUM(CASE WHEN outcome IN ('payment_plan_created', 'agreed_to_pay_full', 'agreed_reduced_amount', 'agreed_cash_collection') THEN 1 ELSE 0 END) as positive_outcomes,
+            SUM(CASE WHEN callback_scheduled_for IS NOT NULL THEN 1 ELSE 0 END) as callbacks_scheduled,
+            SUM(duration_seconds) as total_talk_time
+        FROM call_center_sessions
+        WHERE agent_id = ? AND call_started_at BETWEEN ? AND ?
+    ";
+    $stmt = $db->prepare($stats_query);
+    $stmt->bind_param('iss', $user_id, $today_start, $today_end);
+    $stmt->execute();
+    $today_stats = $stmt->fetch_object();
 
-// Get call queue - donors who need to be called
-$queue_query = "
+    // Get call queue - donors who need to be called
+    $queue_query = "
     SELECT 
         q.id as queue_id,
         q.donor_id,
@@ -103,10 +118,16 @@ $recent_query = "
     ORDER BY s.call_started_at DESC
     LIMIT 10
 ";
-$stmt = $db->prepare($recent_query);
-$stmt->bind_param('i', $user_id);
-$stmt->execute();
-$recent_result = $stmt->get_result();
+    $stmt = $db->prepare($recent_query);
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $recent_result = $stmt->get_result();
+}
+
+// Set conversion rate (works for both setup and normal mode)
+$conversion_rate = isset($today_stats) && $today_stats->total_calls > 0 
+    ? round(($today_stats->positive_outcomes / $today_stats->total_calls) * 100, 1) 
+    : 0;
 
 $page_title = 'Call Center Dashboard';
 ?>
@@ -147,6 +168,25 @@ $page_title = 'Call Center Dashboard';
                     </a>
                 </div>
             </div>
+
+            <?php if (isset($setup_needed) && $setup_needed): ?>
+            <!-- Setup Required Message -->
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Setup Required!</h4>
+                <p class="mb-3">The Call Center database tables haven't been created yet. Please follow these steps to get started:</p>
+                <ol class="mb-3">
+                    <li><strong>Open phpMyAdmin</strong> and select your fundraising database</li>
+                    <li><strong>Run the SQL script</strong> that creates all call center tables (you should have received this)</li>
+                    <li><strong>Run the queue population script:</strong> <code>admin/call-center/populate_initial_queue.sql</code></li>
+                    <li><strong>Refresh this page</strong></li>
+                </ol>
+                <p class="mb-0">
+                    <strong>Need help?</strong> Check the 
+                    <a href="SETUP_GUIDE.md" target="_blank" class="alert-link">Setup Guide</a> for detailed instructions.
+                </p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
 
             <!-- Today's Statistics -->
             <div class="row g-3 mb-4">
@@ -209,7 +249,7 @@ $page_title = 'Call Center Dashboard';
                             </button>
                         </div>
                         <div class="card-body p-0">
-                            <?php if ($queue_result->num_rows > 0): ?>
+                            <?php if ($queue_result && $queue_result->num_rows > 0): ?>
                                 <div class="table-responsive">
                                     <table class="table table-hover mb-0">
                                         <thead>
@@ -283,7 +323,7 @@ $page_title = 'Call Center Dashboard';
                             </h5>
                         </div>
                         <div class="card-body p-0">
-                            <?php if ($recent_result->num_rows > 0): ?>
+                            <?php if ($recent_result && $recent_result->num_rows > 0): ?>
                                 <div class="list-group list-group-flush">
                                     <?php while ($call = $recent_result->fetch_object()): ?>
                                         <div class="list-group-item">
@@ -332,7 +372,7 @@ $page_title = 'Call Center Dashboard';
                             </h5>
                         </div>
                         <div class="card-body p-0">
-                            <?php if ($callbacks_result->num_rows > 0): ?>
+                            <?php if ($callbacks_result && $callbacks_result->num_rows > 0): ?>
                                 <div class="list-group list-group-flush">
                                     <?php while ($callback = $callbacks_result->fetch_object()): ?>
                                         <div class="list-group-item">
