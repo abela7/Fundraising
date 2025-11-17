@@ -205,6 +205,17 @@
     background: #f8fafc;
 }
 
+.table tbody tr[onclick] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.table tbody tr[onclick]:hover {
+    background: #f0f9ff;
+    transform: translateX(4px);
+    box-shadow: -4px 0 0 var(--cc-primary);
+}
+
 .table tbody tr:last-child td {
     border-bottom: none;
 }
@@ -284,6 +295,16 @@
 .donor-name {
     font-weight: 600;
     color: var(--cc-dark);
+    font-size: 0.9375rem;
+}
+
+.donor-info small {
+    line-height: 1.4;
+}
+
+.donor-info small i {
+    width: 14px;
+    text-align: center;
 }
 
 .phone-link {

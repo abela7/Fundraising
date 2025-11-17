@@ -366,17 +366,17 @@ $page_title = 'Call Center Dashboard';
                                             <tr>
                                                 <th>Priority</th>
                                                 <th>Donor</th>
-                                                <th>Phone</th>
                                                 <th>Balance</th>
                                                 <th>Type</th>
                                                 <th>Attempts</th>
-                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php while ($donor = $queue_result->fetch_object()): ?>
                                                 <tr data-donor-id="<?php echo (int)$donor->donor_id; ?>" 
-                                                    data-priority="<?php echo (int)$donor->priority; ?>">
+                                                    data-priority="<?php echo (int)$donor->priority; ?>"
+                                                    onclick="window.location.href='make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>'"
+                                                    style="cursor: pointer;">
                                                     <td data-label="Priority">
                                                         <span class="priority-badge priority-<?php echo (int)$donor->priority >= 8 ? 'urgent' : ((int)$donor->priority >= 5 ? 'high' : 'normal'); ?>">
                                                             <?php echo htmlspecialchars((string)$donor->priority); ?>
@@ -385,22 +385,20 @@ $page_title = 'Call Center Dashboard';
                                                     <td data-label="Donor">
                                                         <div class="donor-info">
                                                             <div class="donor-name"><?php echo htmlspecialchars($donor->name); ?></div>
+                                                            <small class="text-muted d-block">
+                                                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor->phone); ?>
+                                                            </small>
                                                             <?php if (!empty($donor->city)): ?>
-                                                                <small class="text-muted">
-                                                                    <i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($donor->city); ?>
+                                                                <small class="text-muted d-block">
+                                                                    <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($donor->city); ?>
                                                                 </small>
                                                             <?php endif; ?>
                                                             <?php if (!empty($donor->last_contacted_at)): ?>
                                                                 <small class="text-muted d-block">
-                                                                    <i class="fas fa-clock"></i> Last: <?php echo date('M j', strtotime($donor->last_contacted_at)); ?>
+                                                                    <i class="fas fa-clock me-1"></i>Last: <?php echo date('M j', strtotime($donor->last_contacted_at)); ?>
                                                                 </small>
                                                             <?php endif; ?>
                                                         </div>
-                                                    </td>
-                                                    <td data-label="Phone">
-                                                        <a href="tel:<?php echo htmlspecialchars($donor->phone); ?>" class="phone-link">
-                                                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor->phone); ?>
-                                                        </a>
                                                     </td>
                                                     <td data-label="Balance">
                                                         <span class="badge bg-danger">£<?php echo number_format((float)$donor->balance, 2); ?></span>
@@ -409,13 +407,10 @@ $page_title = 'Call Center Dashboard';
                                                         <span class="badge bg-secondary"><?php echo htmlspecialchars(str_replace('_', ' ', ucwords($donor->queue_type, '_'))); ?></span>
                                                     </td>
                                                     <td data-label="Attempts">
-                                                        <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
-                                                    </td>
-                                                    <td data-label="Action">
-                                                        <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
-                                                           class="btn btn-sm btn-success w-100">
-                                                            <i class="fas fa-phone-alt me-1"></i>Start Call
-                                                        </a>
+                                                        <div class="d-flex align-items-center justify-content-between">
+                                                            <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
+                                                            <i class="fas fa-chevron-right text-muted d-none d-md-inline-block" style="font-size: 0.75rem;"></i>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             <?php endwhile; ?>
