@@ -4,17 +4,12 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 
-$db = db();
-$user_id = (int)$_SESSION['user_id'];
-$user_name = $_SESSION['name'] ?? 'Agent';
-
-// Check if call center tables exist
-$tables_check = $db->query("SHOW TABLES LIKE 'call_center_sessions'");
-$tables_exist = $tables_check && $tables_check->num_rows > 0;
-
-if (!$tables_exist) {
-    // Tables don't exist - show setup message
-    $setup_needed = true;
+try {
+    $db = db();
+    $user_id = (int)$_SESSION['user_id'];
+    $user_name = $_SESSION['name'] ?? 'Agent';
+    
+    // Initialize default values
     $today_stats = (object)[
         'total_calls' => 0,
         'successful_contacts' => 0,
@@ -25,14 +20,33 @@ if (!$tables_exist) {
     $queue_result = null;
     $callbacks_result = null;
     $recent_result = null;
-} else {
     $setup_needed = false;
-    
-    // Get today's stats for this agent
-    $today_start = date('Y-m-d 00:00:00');
-    $today_end = date('Y-m-d 23:59:59');
 
-    $stats_query = "
+    // Check if call center tables exist
+    $tables_check = $db->query("SHOW TABLES LIKE 'call_center_sessions'");
+    $tables_exist = $tables_check && $tables_check->num_rows > 0;
+
+    if (!$tables_exist) {
+        // Tables don't exist - show setup message
+        $setup_needed = true;
+        $today_stats = (object)[
+            'total_calls' => 0,
+            'successful_contacts' => 0,
+            'positive_outcomes' => 0,
+            'callbacks_scheduled' => 0,
+            'total_talk_time' => 0
+        ];
+        $queue_result = null;
+        $callbacks_result = null;
+        $recent_result = null;
+    } else {
+        $setup_needed = false;
+        
+        // Get today's stats for this agent
+        $today_start = date('Y-m-d 00:00:00');
+        $today_end = date('Y-m-d 23:59:59');
+
+        $stats_query = "
         SELECT 
             COUNT(*) as total_calls,
             SUM(CASE WHEN conversation_stage != 'no_connection' THEN 1 ELSE 0 END) as successful_contacts,
@@ -42,13 +56,29 @@ if (!$tables_exist) {
         FROM call_center_sessions
         WHERE agent_id = ? AND call_started_at BETWEEN ? AND ?
     ";
-    $stmt = $db->prepare($stats_query);
-    $stmt->bind_param('iss', $user_id, $today_start, $today_end);
-    $stmt->execute();
-    $today_stats = $stmt->fetch_object();
+        $stmt = $db->prepare($stats_query);
+        if ($stmt) {
+            $stmt->bind_param('iss', $user_id, $today_start, $today_end);
+            $stmt->execute();
+            $today_stats = $stmt->fetch_object();
+            $stmt->close();
+        } else {
+            $today_stats = null;
+        }
+        
+        // Ensure we have a valid object
+        if (!$today_stats) {
+            $today_stats = (object)[
+                'total_calls' => 0,
+                'successful_contacts' => 0,
+                'positive_outcomes' => 0,
+                'callbacks_scheduled' => 0,
+                'total_talk_time' => 0
+            ];
+        }
 
-    // Get call queue - donors who need to be called
-    $queue_query = "
+        // Get call queue - donors who need to be called
+        $queue_query = "
     SELECT 
         q.id as queue_id,
         q.donor_id,
@@ -72,62 +102,106 @@ if (!$tables_exist) {
     ORDER BY q.priority DESC, q.next_attempt_after ASC, q.created_at ASC
     LIMIT 50
 ";
-$stmt = $db->prepare($queue_query);
-$stmt->bind_param('i', $user_id);
-$stmt->execute();
-$queue_result = $stmt->get_result();
+        $stmt = $db->prepare($queue_query);
+        if ($stmt) {
+            $stmt->bind_param('i', $user_id);
+            $stmt->execute();
+            $queue_result = $stmt->get_result();
+            $stmt->close();
+        } else {
+            $queue_result = null;
+        }
 
-// Get upcoming callbacks (scheduled for future)
-$callbacks_query = "
-    SELECT 
-        s.id as session_id,
-        s.donor_id,
-        s.callback_scheduled_for,
-        s.callback_reason,
-        s.preferred_callback_time,
-        d.name,
-        d.phone,
-        d.balance
-    FROM call_center_sessions s
-    JOIN donors d ON s.donor_id = d.id
-    WHERE s.agent_id = ? 
-        AND s.callback_scheduled_for > NOW()
-        AND s.callback_scheduled_for <= DATE_ADD(NOW(), INTERVAL 7 DAY)
-    ORDER BY s.callback_scheduled_for ASC
-    LIMIT 10
-";
-$stmt = $db->prepare($callbacks_query);
-$stmt->bind_param('i', $user_id);
-$stmt->execute();
-$callbacks_result = $stmt->get_result();
+        // Get upcoming callbacks (scheduled for future)
+        $callbacks_query = "
+        SELECT 
+            s.id as session_id,
+            s.donor_id,
+            s.callback_scheduled_for,
+            s.callback_reason,
+            s.preferred_callback_time,
+            d.name,
+            d.phone,
+            d.balance
+        FROM call_center_sessions s
+        JOIN donors d ON s.donor_id = d.id
+        WHERE s.agent_id = ? 
+            AND s.callback_scheduled_for > NOW()
+            AND s.callback_scheduled_for <= DATE_ADD(NOW(), INTERVAL 7 DAY)
+        ORDER BY s.callback_scheduled_for ASC
+        LIMIT 10
+    ";
+        $stmt = $db->prepare($callbacks_query);
+        if ($stmt) {
+            $stmt->bind_param('i', $user_id);
+            $stmt->execute();
+            $callbacks_result = $stmt->get_result();
+            $stmt->close();
+        } else {
+            $callbacks_result = null;
+        }
 
-// Get recent activity (last 10 calls)
-$recent_query = "
-    SELECT 
-        s.id,
-        s.donor_id,
-        s.call_started_at,
-        s.outcome,
-        s.conversation_stage,
-        s.duration_seconds,
-        d.name,
-        d.phone
-    FROM call_center_sessions s
-    JOIN donors d ON s.donor_id = d.id
-    WHERE s.agent_id = ?
-    ORDER BY s.call_started_at DESC
-    LIMIT 10
-";
-    $stmt = $db->prepare($recent_query);
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $recent_result = $stmt->get_result();
+        // Get recent activity (last 10 calls)
+        $recent_query = "
+        SELECT 
+            s.id,
+            s.donor_id,
+            s.call_started_at,
+            s.outcome,
+            s.conversation_stage,
+            s.duration_seconds,
+            d.name,
+            d.phone
+        FROM call_center_sessions s
+        JOIN donors d ON s.donor_id = d.id
+        WHERE s.agent_id = ?
+        ORDER BY s.call_started_at DESC
+        LIMIT 10
+    ";
+        $stmt = $db->prepare($recent_query);
+        if ($stmt) {
+            $stmt->bind_param('i', $user_id);
+            $stmt->execute();
+            $recent_result = $stmt->get_result();
+            $stmt->close();
+        } else {
+            $recent_result = null;
+        }
+    }
+
+    // Ensure today_stats is always set
+    if (!isset($today_stats) || !is_object($today_stats)) {
+        $today_stats = (object)[
+            'total_calls' => 0,
+            'successful_contacts' => 0,
+            'positive_outcomes' => 0,
+            'callbacks_scheduled' => 0,
+            'total_talk_time' => 0
+        ];
+    }
+
+    // Set conversion rate (works for both setup and normal mode)
+    $conversion_rate = isset($today_stats->total_calls) && $today_stats->total_calls > 0 
+        ? round(($today_stats->positive_outcomes / $today_stats->total_calls) * 100, 1) 
+        : 0;
+
+} catch (Exception $e) {
+    // If anything goes wrong, show error but don't crash
+    error_log("Call Center Error: " . $e->getMessage());
+    $today_stats = (object)[
+        'total_calls' => 0,
+        'successful_contacts' => 0,
+        'positive_outcomes' => 0,
+        'callbacks_scheduled' => 0,
+        'total_talk_time' => 0
+    ];
+    $queue_result = null;
+    $callbacks_result = null;
+    $recent_result = null;
+    $conversion_rate = 0;
+    $setup_needed = false;
+    $error_message = "An error occurred. Please check the database connection and try again.";
 }
-
-// Set conversion rate (works for both setup and normal mode)
-$conversion_rate = isset($today_stats) && $today_stats->total_calls > 0 
-    ? round(($today_stats->positive_outcomes / $today_stats->total_calls) * 100, 1) 
-    : 0;
 
 $page_title = 'Call Center Dashboard';
 ?>
@@ -168,6 +242,18 @@ $page_title = 'Call Center Dashboard';
                     </a>
                 </div>
             </div>
+
+            <?php if (isset($error_message)): ?>
+            <!-- Error Message -->
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Error!</h4>
+                <p class="mb-0"><?php echo htmlspecialchars($error_message); ?></p>
+                <p class="mb-0 mt-2">
+                    <a href="check-database.php" class="alert-link">Check Database Status</a> to see what might be wrong.
+                </p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
 
             <?php if (isset($setup_needed) && $setup_needed): ?>
             <!-- Setup Required Message -->
