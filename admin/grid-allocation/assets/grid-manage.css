@@ -2,82 +2,9 @@
 
 .grid-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
     padding: 1rem 0;
-}
-
-/* Cell Box Group (4 cells = 1 box) */
-.cell-box-group {
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    padding: 1rem;
-    background: #f8f9fa;
-    transition: all 0.2s ease;
-}
-
-.cell-box-group:hover {
-    border-color: #0d6efd;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.cell-box-group[data-box-status="complete"] {
-    border-color: #198754;
-    background: #f8fff9;
-}
-
-.cell-box-group[data-box-status="partial"] {
-    border-color: #ffc107;
-    background: #fffef8;
-}
-
-.cell-box-group[data-box-status="empty"] {
-    border-color: #6c757d;
-    background: #f8f9fa;
-}
-
-.box-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.box-label {
-    font-weight: 600;
-    color: #495057;
-}
-
-.box-total {
-    font-weight: 600;
-    color: #198754;
-    font-size: 0.9rem;
-}
-
-.box-cells {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.box-donors {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px dashed #dee2e6;
-}
-
-.cell-placeholder {
-    opacity: 0.3;
-    cursor: not-allowed;
-    background: #f0f0f0 !important;
-}
-
-.cell-placeholder:hover {
-    transform: none;
-    box-shadow: none;
 }
 
 .grid-cell-cell {
@@ -125,7 +52,14 @@
     font-weight: bold;
     font-size: 0.9rem;
     color: #212529;
+    margin-bottom: 0.25rem;
+}
+
+.cell-box-info {
+    font-size: 0.7rem;
+    color: #6c757d;
     margin-bottom: 0.5rem;
+    opacity: 0.8;
 }
 
 .cell-status {
