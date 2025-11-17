@@ -88,23 +88,39 @@
 }
 
 .stat-card .stat-icon {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 8px;
-    background: currentColor;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    opacity: 0.15;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.stat-card.stat-primary .stat-icon {
+    background: rgba(37, 99, 235, 0.12);
+}
+
+.stat-card.stat-success .stat-icon {
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.stat-card.stat-info .stat-icon {
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.stat-card.stat-warning .stat-icon {
+    background: rgba(245, 158, 11, 0.12);
 }
 
 .stat-card .stat-icon i {
-    font-size: 1rem;
+    font-size: 1.125rem;
     color: currentColor;
     opacity: 1;
     position: relative;
     z-index: 1;
+    font-weight: 600;
 }
 
 .stat-details {
