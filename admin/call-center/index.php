@@ -348,7 +348,7 @@ $page_title = 'Call Center Dashboard';
 
             <div class="row g-4">
                 <!-- Call Queue -->
-                <div class="col-lg-8">
+                <div class="col-12">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">
@@ -485,88 +485,6 @@ $page_title = 'Call Center Dashboard';
                                     <p class="text-muted mb-0">No recent activity</p>
                                 </div>
                             <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sidebar -->
-                <div class="col-lg-4">
-                    <!-- Upcoming Callbacks -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-calendar-check me-2"></i>Upcoming Callbacks
-                            </h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <?php if ($callbacks_result && $callbacks_result->num_rows > 0): ?>
-                                <div class="list-group list-group-flush">
-                                    <?php while ($callback = $callbacks_result->fetch_object()): ?>
-                                        <div class="list-group-item">
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 class="mb-0"><?php echo htmlspecialchars($callback->name); ?></h6>
-                                                <span class="badge bg-warning text-dark">
-                                                    <?php echo date('M j', strtotime($callback->callback_scheduled_for)); ?>
-                                                </span>
-                                            </div>
-                                            <p class="mb-1 small">
-                                                <i class="fas fa-clock me-1"></i>
-                                                <?php echo date('g:i A', strtotime($callback->callback_scheduled_for)); ?>
-                                                <?php if (!empty($callback->preferred_callback_time)): ?>
-                                                    (<?php echo htmlspecialchars(ucfirst($callback->preferred_callback_time)); ?>)
-                                                <?php endif; ?>
-                                            </p>
-                                            <?php if (!empty($callback->callback_reason)): ?>
-                                                <p class="mb-2 small text-muted">
-                                                    <?php echo htmlspecialchars($callback->callback_reason); ?>
-                                                </p>
-                                            <?php endif; ?>
-                                            <a href="make-call.php?donor_id=<?php echo (int)$callback->donor_id; ?>" 
-                                               class="btn btn-sm btn-outline-success w-100">
-                                                <i class="fas fa-phone me-1"></i>Call Now
-                                            </a>
-                                        </div>
-                                    <?php endwhile; ?>
-                                </div>
-                            <?php else: ?>
-                                <div class="empty-state py-4">
-                                    <i class="fas fa-calendar-check fa-2x text-muted mb-2"></i>
-                                    <p class="text-muted mb-0 small">No callbacks scheduled</p>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <!-- Quick Tips -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-info text-white">
-                            <h6 class="card-title mb-0">
-                                <i class="fas fa-lightbulb me-2"></i>Quick Tips
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <ul class="list-unstyled mb-0 small">
-                                <li class="mb-2">
-                                    <i class="fas fa-check text-success me-2"></i>
-                                    Best calling times: 6-8 PM
-                                </li>
-                                <li class="mb-2">
-                                    <i class="fas fa-check text-success me-2"></i>
-                                    Always verify identity first
-                                </li>
-                                <li class="mb-2">
-                                    <i class="fas fa-check text-success me-2"></i>
-                                    Be respectful and patient
-                                </li>
-                                <li class="mb-2">
-                                    <i class="fas fa-check text-success me-2"></i>
-                                    Record detailed notes
-                                </li>
-                                <li class="mb-0">
-                                    <i class="fas fa-check text-success me-2"></i>
-                                    Follow up on callbacks
-                                </li>
-                            </ul>
                         </div>
                     </div>
                 </div>
