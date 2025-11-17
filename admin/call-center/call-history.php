@@ -5,7 +5,8 @@ require_once __DIR__ . '/../../config/db.php';
 require_login();
 
 $db = db();
-$user_id = (int)$_SESSION['user_id'];
+// Get user ID from session (auth system uses $_SESSION['user'] array)
+$user_id = (int)($_SESSION['user']['id'] ?? 0);
 
 // Filter parameters
 $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : null;

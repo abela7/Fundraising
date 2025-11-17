@@ -12,13 +12,15 @@ try {
         throw new Exception('Database connection failed: ' . $db_exception->getMessage(), 0, $db_exception);
     }
     
-    // Check if user is logged in
-    if (!isset($_SESSION['user_id'])) {
-        throw new Exception('User not logged in. Please login first.');
+    // Get user data from session (auth system uses $_SESSION['user'] array)
+    // require_login() already checked if user is logged in, so we can safely access
+    if (!isset($_SESSION['user']) || !isset($_SESSION['user']['id'])) {
+        // This shouldn't happen if require_login() worked, but just in case
+        throw new Exception('User session data not found. Please login again.');
     }
     
-    $user_id = (int)$_SESSION['user_id'];
-    $user_name = $_SESSION['name'] ?? 'Agent';
+    $user_id = (int)$_SESSION['user']['id'];
+    $user_name = $_SESSION['user']['name'] ?? 'Agent';
     
     // Initialize default values
     $today_stats = (object)[
