@@ -24,6 +24,44 @@ function require_donor_login(): void {
 
 require_donor_login();
 $donor = current_donor();
+
+// Refresh donor data from database to ensure latest values
+if ($donor && $db_connection_ok) {
+    try {
+        $email_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+        $has_email = $email_check->num_rows > 0;
+        $email_check->close();
+        
+        $email_opt_in_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+        $has_email_opt_in = $email_opt_in_check->num_rows > 0;
+        $email_opt_in_check->close();
+        
+        $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
+                   has_active_plan, active_payment_plan_id, plan_monthly_amount,
+                   plan_duration_months, plan_start_date, plan_next_due_date,
+                   payment_status, preferred_payment_method, preferred_language";
+        if ($has_email) {
+            $select_fields .= ", email";
+        }
+        if ($has_email_opt_in) {
+            $select_fields .= ", email_opt_in";
+        }
+        
+        $refresh_stmt = $db->prepare("SELECT $select_fields FROM donors WHERE id = ? LIMIT 1");
+        $refresh_stmt->bind_param('i', $donor['id']);
+        $refresh_stmt->execute();
+        $fresh_donor = $refresh_stmt->get_result()->fetch_assoc();
+        $refresh_stmt->close();
+        
+        if ($fresh_donor) {
+            $_SESSION['donor'] = $fresh_donor;
+            $donor = $fresh_donor;
+        }
+    } catch (Exception $e) {
+        error_log("Failed to refresh donor session: " . $e->getMessage());
+    }
+}
+
 $page_title = 'Preferences';
 $current_donor = $donor;
 
