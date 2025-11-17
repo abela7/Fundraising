@@ -651,15 +651,22 @@ body {
   }
 }
 
-/* Tablet Styles */
+/* Tablet & Desktop Styles */
 @media (min-width: 768px) {
-  /* Sidebar always visible */
+  /* Sidebar always visible and FIXED on desktop */
   .sidebar {
-    position: static;
+    position: fixed;
     left: 0;
+    top: 0;
+    bottom: 0;
     width: 280px;
-    box-shadow: none;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
+    z-index: 1040;
+  }
+  
+  .sidebar.collapsed {
+    width: 88px;
   }
   
   .sidebar-overlay,
@@ -675,11 +682,13 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    width: calc(100% - 280px);
+    margin-left: 280px;
+    width: auto;
+    transition: margin-left 0.3s ease;
   }
   
   .app-content.collapsed {
-      width: calc(100% - 88px);
+    margin-left: 88px;
   }
 
   .sidebar-toggle {
