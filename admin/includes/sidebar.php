@@ -125,6 +125,13 @@ try {
       <div class="nav-section-title">
         <span>Operations</span>
       </div>
+      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'call-center' ? './' : '../call-center/'; ?>" 
+         class="nav-link <?php echo $current_dir === 'call-center' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-headset"></i>
+        </span>
+        <span class="nav-label">Call Center</span>
+      </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'reports' ? './' : '../reports/'; ?>" 
          class="nav-link <?php echo $current_dir === 'reports' ? 'active' : ''; ?>">
         <span class="nav-icon">
