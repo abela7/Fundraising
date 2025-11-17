@@ -175,15 +175,20 @@ $page_title = 'Call Center Dashboard';
                 <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Setup Required!</h4>
                 <p class="mb-3">The Call Center database tables haven't been created yet. Please follow these steps to get started:</p>
                 <ol class="mb-3">
+                    <li><strong>Check database status:</strong> <a href="check-database.php" class="alert-link fw-bold">Click here to see what's missing</a></li>
                     <li><strong>Open phpMyAdmin</strong> and select your fundraising database</li>
                     <li><strong>Run the SQL script</strong> that creates all call center tables (you should have received this)</li>
                     <li><strong>Run the queue population script:</strong> <code>admin/call-center/populate_initial_queue.sql</code></li>
-                    <li><strong>Refresh this page</strong></li>
+                    <li><strong>Refresh this page</strong> or check database status again</li>
                 </ol>
-                <p class="mb-0">
-                    <strong>Need help?</strong> Check the 
-                    <a href="SETUP_GUIDE.md" target="_blank" class="alert-link">Setup Guide</a> for detailed instructions.
-                </p>
+                <div class="d-flex gap-2 mt-3">
+                    <a href="check-database.php" class="btn btn-warning btn-sm">
+                        <i class="fas fa-database me-2"></i>Check Database Status
+                    </a>
+                    <a href="SETUP_GUIDE.md" target="_blank" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-book me-2"></i>Setup Guide
+                    </a>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             <?php endif; ?>
