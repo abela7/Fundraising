@@ -1,232 +1,381 @@
-/**
- * Call Center JavaScript
- * Handles queue management, timers, and UI interactions
- */
+// Call Center Enhanced JavaScript - Mobile First
 
-(function() {
-    'use strict';
+// ===== Auto Refresh Functionality =====
+let refreshInterval;
+let refreshCountdown = 120; // 2 minutes
+let isRefreshing = false;
 
-    // Auto-refresh functionality
-    const AUTO_REFRESH_INTERVAL = 120000; // 2 minutes
-    let refreshTimer = null;
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeCallCenter();
-    });
-
-    function initializeCallCenter() {
-        // Start auto-refresh timer if on dashboard
-        if (window.location.pathname.includes('call-center/index.php') || 
-            window.location.pathname.endsWith('call-center/')) {
-            startAutoRefresh();
-        }
-
-        // Add event listeners
-        setupEventListeners();
+function initAutoRefresh() {
+    // Clear any existing interval
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+    
+    // Set up countdown
+    refreshInterval = setInterval(() => {
+        refreshCountdown--;
         
-        // Show any success messages
-        showSessionMessages();
-    }
-
-    function setupEventListeners() {
-        // Phone number click tracking
-        document.querySelectorAll('.phone-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                // Log phone click (could send to analytics)
-                console.log('Phone number clicked:', this.textContent);
-            });
-        });
-
-        // Queue item hover effects
-        document.querySelectorAll('.table-hover tbody tr').forEach(row => {
-            row.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = '#f7fafc';
-            });
-            row.addEventListener('mouseleave', function() {
-                this.style.backgroundColor = '';
-            });
-        });
-
-        // Confirm before marking as not interested
-        document.querySelectorAll('[name="disposition"]').forEach(select => {
-            select.addEventListener('change', function() {
-                if (this.value === 'mark_as_not_interested') {
-                    if (!confirm('Are you sure you want to mark this donor as not interested? This will remove them from the active queue.')) {
-                        this.value = 'no_action_needed';
-                    }
-                }
-            });
-        });
-    }
-
-    function startAutoRefresh() {
-        // Clear any existing timer
-        if (refreshTimer) {
-            clearInterval(refreshTimer);
+        if (refreshCountdown <= 10 && !isRefreshing) {
+            showRefreshIndicator(refreshCountdown);
         }
-
-        // Set up new timer
-        refreshTimer = setInterval(function() {
-            console.log('Auto-refreshing queue...');
-            // Reload page to get fresh data
-            window.location.reload();
-        }, AUTO_REFRESH_INTERVAL);
-
-        // Show countdown
-        updateRefreshCountdown();
-    }
-
-    function updateRefreshCountdown() {
-        const countdownElement = document.getElementById('refreshCountdown');
-        if (!countdownElement) return;
-
-        let secondsRemaining = AUTO_REFRESH_INTERVAL / 1000;
         
-        const countdownTimer = setInterval(function() {
-            secondsRemaining--;
-            
-            const minutes = Math.floor(secondsRemaining / 60);
-            const seconds = secondsRemaining % 60;
-            
-            countdownElement.textContent = `Auto-refresh in ${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
-            if (secondsRemaining <= 0) {
-                clearInterval(countdownTimer);
-            }
-        }, 1000);
-    }
-
-    function showSessionMessages() {
-        // Check for success message in session storage
-        const successMessage = sessionStorage.getItem('call_center_success');
-        if (successMessage) {
-            showAlert('success', successMessage);
-            sessionStorage.removeItem('call_center_success');
+        if (refreshCountdown <= 0) {
+            refreshQueue();
         }
+    }, 1000);
+}
 
-        // Check for error message
-        const errorMessage = sessionStorage.getItem('call_center_error');
-        if (errorMessage) {
-            showAlert('danger', errorMessage);
-            sessionStorage.removeItem('call_center_error');
-        }
-    }
-
-    function showAlert(type, message) {
-        const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+function showRefreshIndicator(seconds) {
+    let indicator = document.querySelector('.refresh-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'refresh-indicator';
+        indicator.innerHTML = `
+            <i class="fas fa-sync-alt fa-spin"></i>
+            <span>Refreshing in <span class="countdown">${seconds}</span>s...</span>
         `;
-        
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent) {
-            mainContent.insertAdjacentHTML('afterbegin', alertHtml);
+        document.body.appendChild(indicator);
+    }
+    
+    indicator.classList.add('show');
+    const countdownSpan = indicator.querySelector('.countdown');
+    if (countdownSpan) {
+        countdownSpan.textContent = seconds;
+    }
+}
+
+function refreshQueue() {
+    if (isRefreshing) return;
+    
+    isRefreshing = true;
+    refreshCountdown = 120; // Reset countdown
+    
+    // Show loading on queue table
+    const queueCard = document.querySelector('.card:has(.fa-list-check)');
+    if (queueCard) {
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'loading-overlay';
+        loadingOverlay.innerHTML = '<div class="spinner-border text-primary"></div>';
+        queueCard.style.position = 'relative';
+        queueCard.appendChild(loadingOverlay);
+    }
+    
+    // Reload the page
+    setTimeout(() => {
+        location.reload();
+    }, 500);
+}
+
+// ===== Mobile Table Enhancement =====
+function enhanceMobileTables() {
+    if (window.innerWidth <= 767) {
+        const tables = document.querySelectorAll('.table');
+        tables.forEach(table => {
+            const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
             
-            // Auto-dismiss after 5 seconds
-            setTimeout(function() {
-                const alert = mainContent.querySelector('.alert');
-                if (alert) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const cells = row.querySelectorAll('td');
+                cells.forEach((cell, index) => {
+                    if (headers[index] && !cell.hasAttribute('data-label')) {
+                        cell.setAttribute('data-label', headers[index]);
+                    }
+                });
+            });
+        });
+    }
+}
+
+// ===== Phone Number Click Tracking =====
+function trackPhoneClicks() {
+    document.querySelectorAll('.phone-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            const phone = this.textContent.trim();
+            const donorName = this.closest('tr')?.querySelector('.donor-name')?.textContent || 'Unknown';
+            
+            // Log to console (in production, send to analytics)
+            console.log('Phone clicked:', { phone, donorName, timestamp: new Date() });
+            
+            // Visual feedback
+            this.style.color = '#10b981';
+            setTimeout(() => {
+                this.style.color = '';
+            }, 2000);
+        });
+    });
+}
+
+// ===== Priority Visual Enhancement =====
+function enhancePriorityBadges() {
+    document.querySelectorAll('.priority-badge').forEach(badge => {
+        const priority = parseInt(badge.textContent);
+        if (priority >= 9) {
+            badge.innerHTML = `<i class="fas fa-fire me-1"></i>${priority}`;
+        } else if (priority >= 7) {
+            badge.innerHTML = `<i class="fas fa-exclamation me-1"></i>${priority}`;
+        }
+    });
+}
+
+// ===== Time Formatting =====
+function formatTimeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+// ===== Stats Animation =====
+function animateStats() {
+    document.querySelectorAll('.stat-value').forEach(stat => {
+        const finalValue = stat.textContent;
+        const isPercentage = finalValue.includes('%');
+        const isTime = finalValue.includes(':');
+        
+        if (!isPercentage && !isTime) {
+            const numericValue = parseInt(finalValue) || 0;
+            let currentValue = 0;
+            const increment = numericValue / 20;
+            
+            const counter = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= numericValue) {
+                    currentValue = numericValue;
+                    clearInterval(counter);
                 }
-            }, 5000);
+                stat.textContent = Math.round(currentValue);
+            }, 50);
+        }
+    });
+}
+
+// ===== Swipe to Call (Mobile) =====
+function enableSwipeToCall() {
+    if ('ontouchstart' in window) {
+        let startX = 0;
+        let currentX = 0;
+        let card = null;
+        
+        document.querySelectorAll('.table tbody tr').forEach(row => {
+            row.addEventListener('touchstart', handleTouchStart, { passive: true });
+            row.addEventListener('touchmove', handleTouchMove, { passive: true });
+            row.addEventListener('touchend', handleTouchEnd);
+        });
+        
+        function handleTouchStart(e) {
+            startX = e.touches[0].clientX;
+            card = e.currentTarget;
+        }
+        
+        function handleTouchMove(e) {
+            currentX = e.touches[0].clientX;
+            const diff = startX - currentX;
+            
+            if (diff > 50) {
+                card.style.transform = `translateX(-${Math.min(diff, 100)}px)`;
+                card.style.background = '#f0fdf4';
+            }
+        }
+        
+        function handleTouchEnd(e) {
+            const diff = startX - currentX;
+            
+            if (diff > 100) {
+                const callBtn = card.querySelector('.btn-success');
+                if (callBtn) {
+                    callBtn.click();
+                }
+            }
+            
+            card.style.transform = '';
+            card.style.background = '';
+            card = null;
         }
     }
+}
 
-    // Export functions for global access
-    window.CallCenter = {
-        refreshQueue: function() {
-            window.location.reload();
-        },
-        
-        startCall: function(donorId, queueId) {
-            window.location.href = `make-call.php?donor_id=${donorId}&queue_id=${queueId}`;
-        },
-        
-        viewHistory: function(donorId) {
-            window.location.href = `call-history.php?donor_id=${donorId}`;
-        }
-    };
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Ctrl/Cmd + R to refresh queue
-        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+// ===== Keyboard Shortcuts =====
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // R = Refresh
+        if (e.key === 'r' && e.altKey) {
             e.preventDefault();
-            window.location.reload();
+            refreshQueue();
         }
-    });
-
-    // Warn before leaving if there's unsaved data
-    let hasUnsavedChanges = false;
-    
-    document.querySelectorAll('form').forEach(form => {
-        form.addEventListener('change', function() {
-            hasUnsavedChanges = true;
-        });
         
-        form.addEventListener('submit', function() {
-            hasUnsavedChanges = false;
-        });
-    });
-
-    window.addEventListener('beforeunload', function(e) {
-        if (hasUnsavedChanges) {
+        // 1-9 = Quick dial first 9 donors
+        if (e.key >= '1' && e.key <= '9' && e.altKey) {
             e.preventDefault();
-            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-            return e.returnValue;
+            const index = parseInt(e.key) - 1;
+            const callBtns = document.querySelectorAll('.btn-success');
+            if (callBtns[index]) {
+                callBtns[index].click();
+            }
         }
     });
-
-    // Performance tracking
-    if (window.performance && window.performance.timing) {
-        window.addEventListener('load', function() {
-            const loadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
-            console.log(`Page loaded in ${loadTime}ms`);
-        });
-    }
-
-    // Service Worker registration (for future offline support)
-    if ('serviceWorker' in navigator) {
-        // Uncomment when service worker is implemented
-        // navigator.serviceWorker.register('/sw.js')
-        //     .then(reg => console.log('Service Worker registered'))
-        //     .catch(err => console.log('Service Worker registration failed'));
-    }
-
-})();
-
-// Utility functions
-function formatPhoneNumber(phone) {
-    // Format UK phone number
-    if (phone.startsWith('07')) {
-        return phone.replace(/(\d{5})(\d{6})/, '$1 $2');
-    }
-    return phone;
 }
 
-function formatDuration(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+// ===== Quick Actions Menu (Mobile) =====
+function createQuickActionsMenu() {
+    if (window.innerWidth <= 767) {
+        const menu = document.createElement('div');
+        menu.className = 'quick-actions-menu';
+        menu.innerHTML = `
+            <button class="quick-action" onclick="refreshQueue()">
+                <i class="fas fa-sync-alt"></i>
+                <span>Refresh</span>
+            </button>
+            <button class="quick-action" onclick="scrollToTop()">
+                <i class="fas fa-arrow-up"></i>
+                <span>Top</span>
+            </button>
+        `;
+        menu.style.cssText = `
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        `;
+        document.body.appendChild(menu);
+    }
+}
+
+function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== Initialize Everything =====
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize auto-refresh
+    initAutoRefresh();
     
-    if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    // Enhance mobile tables
+    enhanceMobileTables();
+    
+    // Track phone clicks
+    trackPhoneClicks();
+    
+    // Enhance priority badges
+    enhancePriorityBadges();
+    
+    // Animate stats on load
+    animateStats();
+    
+    // Enable swipe to call on mobile
+    enableSwipeToCall();
+    
+    // Initialize keyboard shortcuts
+    initKeyboardShortcuts();
+    
+    // Create quick actions menu for mobile
+    createQuickActionsMenu();
+    
+    // Handle window resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            enhanceMobileTables();
+            
+            // Remove/add quick actions based on screen size
+            const existingMenu = document.querySelector('.quick-actions-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+            createQuickActionsMenu();
+        }, 250);
+    });
+    
+    // Show keyboard shortcuts on desktop
+    if (window.innerWidth > 767) {
+        console.log(`
+🎹 Call Center Keyboard Shortcuts:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Alt + R → Refresh Queue
+Alt + 1-9 → Quick dial donor 1-9
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        `);
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+});
+
+// ===== Utility Functions =====
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        z-index: 9999;
+        animation: slideUp 0.3s ease-out;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideDown 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
-function formatCurrency(amount) {
-    return '£' + parseFloat(amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
-}
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideUp {
+        from { transform: translate(-50%, 100%); opacity: 0; }
+        to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    @keyframes slideDown {
+        from { transform: translate(-50%, 0); opacity: 1; }
+        to { transform: translate(-50%, 100%); opacity: 0; }
+    }
+    
+    .quick-action {
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 56px;
+        height: 56px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .quick-action:hover {
+        background: #1d4ed8;
+        transform: scale(1.1);
+    }
+    
+    .quick-action i {
+        font-size: 1.25rem;
+        margin-bottom: 2px;
+    }
+    
+    .quick-action span {
+        font-size: 0.625rem;
+        font-weight: 500;
+    }
+`;
+document.head.appendChild(style);
 
-// Export utility functions
-window.CallCenterUtils = {
-    formatPhoneNumber,
-    formatDuration,
-    formatCurrency
-};
-
+// Export functions for global access
+window.refreshQueue = refreshQueue;
+window.showToast = showToast;

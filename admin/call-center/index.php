@@ -227,15 +227,42 @@ $page_title = 'Call Center Dashboard';
                         <i class="fas fa-headset me-2"></i>
                         Call Center Dashboard
                     </h1>
-                    <p class="content-subtitle">Manage donor outreach and track conversations</p>
+                    <p class="content-subtitle">
+                        Welcome back, <?php echo htmlspecialchars($user_name); ?>! 
+                        <span class="text-primary">•</span> 
+                        <?php echo date('l, F j, Y'); ?>
+                    </p>
                 </div>
                 <div class="header-actions">
+                    <a href="make-call.php" class="btn btn-success">
+                        <i class="fas fa-phone-alt me-2"></i>New Call
+                    </a>
                     <a href="call-history.php" class="btn btn-outline-primary">
-                        <i class="fas fa-history me-2"></i>Call History
+                        <i class="fas fa-history me-2"></i>History
                     </a>
-                    <a href="campaigns.php" class="btn btn-outline-primary">
-                        <i class="fas fa-bullhorn me-2"></i>Campaigns
-                    </a>
+                    <button class="btn btn-outline-secondary d-lg-none" onclick="toggleFilters()">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+            </div>
+
+            <?php 
+            // Calculate daily progress
+            $daily_target = 50; // Calls target
+            $progress_percentage = min(100, round(((int)($today_stats->total_calls ?? 0) / $daily_target) * 100));
+            ?>
+            <div class="progress-section mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold">Daily Progress</span>
+                    <span class="text-muted"><?php echo (int)($today_stats->total_calls ?? 0); ?> / <?php echo $daily_target; ?> calls</span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-primary" role="progressbar" 
+                         style="width: <?php echo $progress_percentage; ?>%" 
+                         aria-valuenow="<?php echo $progress_percentage; ?>" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                    </div>
                 </div>
             </div>
 
@@ -348,13 +375,14 @@ $page_title = 'Call Center Dashboard';
                                         </thead>
                                         <tbody>
                                             <?php while ($donor = $queue_result->fetch_object()): ?>
-                                                <tr>
-                                                    <td>
+                                                <tr data-donor-id="<?php echo (int)$donor->donor_id; ?>" 
+                                                    data-priority="<?php echo (int)$donor->priority; ?>">
+                                                    <td data-label="Priority">
                                                         <span class="priority-badge priority-<?php echo (int)$donor->priority >= 8 ? 'urgent' : ((int)$donor->priority >= 5 ? 'high' : 'normal'); ?>">
                                                             <?php echo htmlspecialchars((string)$donor->priority); ?>
                                                         </span>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Donor">
                                                         <div class="donor-info">
                                                             <div class="donor-name"><?php echo htmlspecialchars($donor->name); ?></div>
                                                             <?php if (!empty($donor->city)): ?>
@@ -362,25 +390,30 @@ $page_title = 'Call Center Dashboard';
                                                                     <i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($donor->city); ?>
                                                                 </small>
                                                             <?php endif; ?>
+                                                            <?php if (!empty($donor->last_contacted_at)): ?>
+                                                                <small class="text-muted d-block">
+                                                                    <i class="fas fa-clock"></i> Last: <?php echo date('M j', strtotime($donor->last_contacted_at)); ?>
+                                                                </small>
+                                                            <?php endif; ?>
                                                         </div>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Phone">
                                                         <a href="tel:<?php echo htmlspecialchars($donor->phone); ?>" class="phone-link">
                                                             <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor->phone); ?>
                                                         </a>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Balance">
                                                         <span class="badge bg-danger">£<?php echo number_format((float)$donor->balance, 2); ?></span>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Type">
                                                         <span class="badge bg-secondary"><?php echo htmlspecialchars(str_replace('_', ' ', ucwords($donor->queue_type, '_'))); ?></span>
                                                     </td>
-                                                    <td>
-                                                        <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?></span>
+                                                    <td data-label="Attempts">
+                                                        <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Action">
                                                         <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
-                                                           class="btn btn-sm btn-success">
+                                                           class="btn btn-sm btn-success w-100">
                                                             <i class="fas fa-phone-alt me-1"></i>Start Call
                                                         </a>
                                                     </td>
@@ -391,8 +424,19 @@ $page_title = 'Call Center Dashboard';
                                 </div>
                             <?php else: ?>
                                 <div class="empty-state py-5">
-                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">No donors in queue. Great job!</p>
+                                    <div class="empty-state-icon mb-3">
+                                        <i class="fas fa-check-circle fa-4x text-success"></i>
+                                    </div>
+                                    <h5 class="mb-2">All Caught Up!</h5>
+                                    <p class="text-muted mb-4">No donors in queue. Great job!</p>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <a href="../donor-management/" class="btn btn-outline-primary">
+                                            <i class="fas fa-users me-2"></i>View All Donors
+                                        </a>
+                                        <button class="btn btn-primary" onclick="refreshQueue()">
+                                            <i class="fas fa-sync-alt me-2"></i>Refresh Queue
+                                        </button>
+                                    </div>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -531,16 +575,266 @@ $page_title = 'Call Center Dashboard';
     </div>
 </div>
 
+<!-- Floating Action Button (Mobile) -->
+<div class="fab-container d-lg-none">
+    <button class="fab fab-main" onclick="toggleFabMenu()">
+        <i class="fas fa-phone"></i>
+    </button>
+    <div class="fab-menu" id="fabMenu">
+        <a href="make-call.php" class="fab fab-secondary" data-tooltip="New Call">
+            <i class="fas fa-plus"></i>
+        </a>
+        <button class="fab fab-secondary" onclick="refreshQueue()" data-tooltip="Refresh">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+        <a href="call-history.php" class="fab fab-secondary" data-tooltip="History">
+            <i class="fas fa-history"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Add custom styles for FAB -->
+<style>
+.fab-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+}
+
+.fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.fab-main {
+    background: #2563eb;
+    font-size: 1.5rem;
+}
+
+.fab-main:hover {
+    background: #1d4ed8;
+    transform: scale(1.1);
+}
+
+.fab-menu {
+    position: absolute;
+    bottom: 70px;
+    right: 0;
+    display: none;
+    flex-direction: column-reverse;
+    gap: 12px;
+}
+
+.fab-menu.show {
+    display: flex;
+}
+
+.fab-secondary {
+    width: 48px;
+    height: 48px;
+    background: #10b981;
+    font-size: 1.25rem;
+    opacity: 0;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+.fab-secondary:nth-child(1) { animation-delay: 0.1s; }
+.fab-secondary:nth-child(2) { animation-delay: 0.2s; }
+.fab-secondary:nth-child(3) { animation-delay: 0.3s; }
+
+.fab-secondary:hover {
+    background: #059669;
+}
+
+.fab-secondary[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--cc-dark);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.fab-secondary[data-tooltip]:hover::before {
+    opacity: 1;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Quick Stats Widget */
+.quick-stats {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+}
+
+.quick-stats h5 {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    margin-bottom: 1rem;
+}
+
+.quick-stats .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.quick-stats .stat-item {
+    text-align: center;
+}
+
+.quick-stats .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.quick-stats .stat-label {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    margin-top: 0.25rem;
+}
+
+@media (min-width: 768px) {
+    .quick-stats .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script src="assets/call-center.js"></script>
 <script>
-function refreshQueue() {
-    location.reload();
+// FAB Menu Toggle
+function toggleFabMenu() {
+    const menu = document.getElementById('fabMenu');
+    menu.classList.toggle('show');
+    
+    // Rotate main button
+    const mainBtn = document.querySelector('.fab-main');
+    if (menu.classList.contains('show')) {
+        mainBtn.style.transform = 'rotate(45deg)';
+    } else {
+        mainBtn.style.transform = 'rotate(0deg)';
+    }
 }
 
-// Auto-refresh queue every 2 minutes
-setInterval(refreshQueue, 120000);
+// Close FAB menu when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.fab-container')) {
+        const menu = document.getElementById('fabMenu');
+        if (menu.classList.contains('show')) {
+            toggleFabMenu();
+        }
+    }
+});
+
+// Add notification sound for new queue items
+let lastQueueCount = <?php echo $queue_result ? $queue_result->num_rows : 0; ?>;
+
+function checkForNewItems() {
+    // This would normally fetch via AJAX
+    // For now, it's just a placeholder
+    console.log('Checking for new queue items...');
+}
+
+// Check every 30 seconds
+setInterval(checkForNewItems, 30000);
+
+// Show toast notification
+function showNotification(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.toast-container') || createToastContainer();
+    container.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    document.body.appendChild(container);
+    return container;
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case 'n':
+                e.preventDefault();
+                window.location.href = 'make-call.php';
+                break;
+            case 'r':
+                e.preventDefault();
+                refreshQueue();
+                break;
+            case 'h':
+                e.preventDefault();
+                window.location.href = 'call-history.php';
+                break;
+        }
+    }
+});
+
+// Add swipe gestures for mobile
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].screenX;
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+}, { passive: true });
+
+function handleSwipe() {
+    if (touchEndX < touchStartX - 50) {
+        // Swiped left - could open filters
+        console.log('Swiped left');
+    }
+    if (touchEndX > touchStartX + 50) {
+        // Swiped right - could go back
+        console.log('Swiped right');
+    }
+}
 </script>
 </body>
 </html>
