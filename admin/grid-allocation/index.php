@@ -343,6 +343,11 @@ $rectangles_result->free();
             </h1>
             <p class="text-muted mb-0">View all floor grid cell allocations with donor information</p>
           </div>
+          <div>
+            <a href="manage.php" class="btn btn-primary">
+              <i class="fas fa-cog me-2"></i>Manage Grids
+            </a>
+          </div>
         </div>
 
         <!-- Statistics Cards -->
