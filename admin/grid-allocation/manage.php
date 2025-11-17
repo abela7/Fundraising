@@ -169,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($actionMsg) {
         // Preserve filter parameters in redirect
         $redirectParams = ['msg' => $actionMsg];
-        foreach (['rectangle', 'cell_type', 'status'] as $param) {
+        foreach (['rectangle', 'status'] as $param) {
             if (isset($_GET[$param])) {
                 $redirectParams[$param] = $_GET[$param];
             }
@@ -181,7 +181,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get filter parameters
 $filter_rectangle = $_GET['rectangle'] ?? 'A';
-$filter_cell_type = $_GET['cell_type'] ?? 'all';
 $filter_status = $_GET['status'] ?? 'all';
 
 // Validate rectangle
@@ -189,16 +188,11 @@ if (!in_array($filter_rectangle, ['A', 'B', 'C', 'D', 'E', 'F', 'G'], true)) {
     $filter_rectangle = 'A';
 }
 
-// Build WHERE conditions
-$where_conditions = ['c.rectangle_id = ?'];
+// CRITICAL: Only show 0.5x0.5 cells (the atomic unit)
+// All other cell types (1x1, 1x0.5) are composed of these
+$where_conditions = ['c.rectangle_id = ?', "c.cell_type = '0.5x0.5'"];
 $params = [$filter_rectangle];
 $types = 's';
-
-if ($filter_cell_type !== 'all' && in_array($filter_cell_type, ['1x1', '1x0.5', '0.5x0.5'], true)) {
-    $where_conditions[] = 'c.cell_type = ?';
-    $params[] = $filter_cell_type;
-    $types .= 's';
-}
 
 if ($filter_status !== 'all' && in_array($filter_status, ['available', 'pledged', 'paid', 'blocked'], true)) {
     $where_conditions[] = 'c.status = ?';
@@ -208,7 +202,7 @@ if ($filter_status !== 'all' && in_array($filter_status, ['available', 'pledged'
 
 $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
 
-// Get cells
+// Get cells - ONLY 0.5x0.5 cells, ordered by cell_id for grouping
 $sql = "
     SELECT 
         c.id,
@@ -228,7 +222,8 @@ $sql = "
         pay.amount as payment_amount,
         pay.status as payment_status,
         b.batch_type,
-        b.approval_status as batch_status
+        b.approval_status as batch_status,
+        CAST(SUBSTRING_INDEX(c.cell_id, '-', -1) AS UNSIGNED) as cell_number
     FROM floor_grid_cells c
     LEFT JOIN pledges p ON c.pledge_id = p.id
     LEFT JOIN payments pay ON c.payment_id = pay.id
@@ -333,7 +328,7 @@ $payments = $db->query("SELECT id, donor_name, amount, status FROM payments WHER
         </div>
         <div class="card-body">
           <form method="GET" action="manage.php" class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Rectangle</label>
               <select name="rectangle" class="form-select">
                 <?php foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G'] as $rect): ?>
@@ -343,16 +338,7 @@ $payments = $db->query("SELECT id, donor_name, amount, status FROM payments WHER
                 <?php endforeach; ?>
               </select>
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Cell Type</label>
-              <select name="cell_type" class="form-select">
-                <option value="all" <?php echo $filter_cell_type === 'all' ? 'selected' : ''; ?>>All Types</option>
-                <option value="1x1" <?php echo $filter_cell_type === '1x1' ? 'selected' : ''; ?>>1×1 (1.00 m²)</option>
-                <option value="1x0.5" <?php echo $filter_cell_type === '1x0.5' ? 'selected' : ''; ?>>1×0.5 (0.50 m²)</option>
-                <option value="0.5x0.5" <?php echo $filter_cell_type === '0.5x0.5' ? 'selected' : ''; ?>>0.5×0.5 (0.25 m²)</option>
-              </select>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Status</label>
               <select name="status" class="form-select">
                 <option value="all" <?php echo $filter_status === 'all' ? 'selected' : ''; ?>>All Status</option>
@@ -362,12 +348,18 @@ $payments = $db->query("SELECT id, donor_name, amount, status FROM payments WHER
                 <option value="blocked" <?php echo $filter_status === 'blocked' ? 'selected' : ''; ?>>Blocked</option>
               </select>
             </div>
-            <div class="col-md-3 d-flex align-items-end">
+            <div class="col-md-4 d-flex align-items-end">
               <button type="submit" class="btn btn-primary w-100">
                 <i class="fas fa-search me-2"></i>Apply Filters
               </button>
             </div>
           </form>
+          <div class="alert alert-info mt-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Note:</strong> Showing only 0.5×0.5 cells (atomic units). 
+            4 consecutive cells form one complete 0.50 m² box (£400). 
+            Multiple donors can share one box.
+          </div>
         </div>
       </div>
 
@@ -422,35 +414,173 @@ $payments = $db->query("SELECT id, donor_name, amount, status FROM payments WHER
             <p>No cells found matching the selected filters.</p>
           </div>
           <?php else: ?>
+          <?php
+          // Group cells by 4s (each group = 1 complete 0.50 m² box = £400)
+          // 4 × 0.5x0.5 cells (0.25 m² each) = 1.00 m² total = 1 complete box
+          // But wait - user said 4 cells = 0.50 m² box, so maybe it's:
+          // 2 × 0.5x0.5 = 0.50 m² = 1x0.5 box
+          // 4 × 0.5x0.5 = 1.00 m² = 1x1 box
+          // Let's use 4 cells = 1 box as the user specified
+          $groupedCells = [];
+          $currentGroup = [];
+          $groupIndex = 0;
+          
+          foreach ($cells as $index => $cell) {
+              $currentGroup[] = $cell;
+              
+              // Every 4 cells = 1 complete box (0.50 m² = £400)
+              if (count($currentGroup) === 4) {
+                  // Calculate box status: complete if all 4 are allocated
+                  $allocatedCount = 0;
+                  $totalAmount = 0.0;
+                  $donors = [];
+                  foreach ($currentGroup as $c) {
+                      if ($c['status'] !== 'available') {
+                          $allocatedCount++;
+                          $totalAmount += (float)($c['amount'] ?? 0);
+                          if (!empty($c['donor_name']) && !in_array($c['donor_name'], $donors)) {
+                              $donors[] = $c['donor_name'];
+                          }
+                      }
+                  }
+                  
+                  $isCompleteBox = $allocatedCount === 4;
+                  $boxStatus = $isCompleteBox ? 'complete' : ($allocatedCount > 0 ? 'partial' : 'empty');
+                  
+                  $groupedCells[] = [
+                      'cells' => $currentGroup,
+                      'box_index' => $groupIndex,
+                      'box_status' => $boxStatus,
+                      'allocated_count' => $allocatedCount,
+                      'total_amount' => $totalAmount,
+                      'donors' => $donors,
+                      'is_complete' => $isCompleteBox
+                  ];
+                  
+                  $currentGroup = [];
+                  $groupIndex++;
+              }
+          }
+          
+          // Handle remaining cells (if not divisible by 4)
+          if (!empty($currentGroup)) {
+              $allocatedCount = 0;
+              $totalAmount = 0.0;
+              $donors = [];
+              foreach ($currentGroup as $c) {
+                  if ($c['status'] !== 'available') {
+                      $allocatedCount++;
+                      $totalAmount += (float)($c['amount'] ?? 0);
+                      if (!empty($c['donor_name']) && !in_array($c['donor_name'], $donors)) {
+                          $donors[] = $c['donor_name'];
+                      }
+                  }
+              }
+              
+              // Pad to 4 cells for display (show empty placeholders)
+              while (count($currentGroup) < 4) {
+                  $currentGroup[] = [
+                      'cell_id' => '-',
+                      'status' => 'available',
+                      'donor_name' => null,
+                      'amount' => null,
+                      'is_placeholder' => true
+                  ];
+              }
+              
+              $isCompleteBox = false; // Incomplete group
+              $boxStatus = $allocatedCount > 0 ? 'partial' : 'empty';
+              
+              $groupedCells[] = [
+                  'cells' => $currentGroup,
+                  'box_index' => $groupIndex,
+                  'box_status' => $boxStatus,
+                  'allocated_count' => $allocatedCount,
+                  'total_amount' => $totalAmount,
+                  'donors' => $donors,
+                  'is_complete' => false,
+                  'is_incomplete_group' => true
+              ];
+          }
+          ?>
+          
+          <div class="mb-3">
+            <div class="d-flex gap-3 align-items-center">
+              <span class="badge bg-success">Complete Boxes: <?php echo count(array_filter($groupedCells, fn($g) => $g['is_complete'])); ?></span>
+              <span class="badge bg-warning">Partial Boxes: <?php echo count(array_filter($groupedCells, fn($g) => $g['box_status'] === 'partial')); ?></span>
+              <span class="badge bg-secondary">Empty Boxes: <?php echo count(array_filter($groupedCells, fn($g) => $g['box_status'] === 'empty')); ?></span>
+            </div>
+          </div>
+          
           <div class="grid-container">
-            <?php foreach ($cells as $cell): ?>
-            <?php
-                $statusClass = 'secondary';
-                if ($cell['status'] === 'available') $statusClass = 'success';
-                elseif ($cell['status'] === 'pledged') $statusClass = 'warning';
-                elseif ($cell['status'] === 'paid') $statusClass = 'primary';
-                elseif ($cell['status'] === 'blocked') $statusClass = 'danger';
-            ?>
-            <div class="grid-cell-cell status-<?php echo htmlspecialchars($cell['status']); ?>" 
-                 data-cell-id="<?php echo htmlspecialchars($cell['cell_id']); ?>"
-                 data-status="<?php echo htmlspecialchars($cell['status']); ?>"
-                 data-pledge-id="<?php echo $cell['pledge_id'] ?? ''; ?>"
-                 data-payment-id="<?php echo $cell['payment_id'] ?? ''; ?>"
-                 data-batch-id="<?php echo $cell['allocation_batch_id'] ?? ''; ?>"
-                 data-donor-name="<?php echo htmlspecialchars($cell['donor_name'] ?? ''); ?>"
-                 data-amount="<?php echo $cell['amount'] ?? 0; ?>"
-                 data-cell-type="<?php echo htmlspecialchars($cell['cell_type']); ?>"
-                 data-area-size="<?php echo $cell['area_size']; ?>"
-                 role="button" tabindex="0">
-              <div class="cell-id"><?php echo htmlspecialchars($cell['cell_id']); ?></div>
-              <div class="cell-status">
-                <span class="badge bg-<?php echo $statusClass; ?>"><?php echo ucfirst($cell['status']); ?></span>
+            <?php foreach ($groupedCells as $group): ?>
+            <div class="cell-box-group" data-box-index="<?php echo $group['box_index']; ?>" data-box-status="<?php echo $group['box_status']; ?>">
+              <div class="box-header">
+                <span class="box-label">Box #<?php echo $group['box_index'] + 1; ?></span>
+                <?php if ($group['is_complete']): ?>
+                <span class="badge bg-success">Complete (0.50 m²)</span>
+                <?php elseif ($group['box_status'] === 'partial'): ?>
+                <span class="badge bg-warning">Partial (<?php echo $group['allocated_count']; ?>/4)</span>
+                <?php else: ?>
+                <span class="badge bg-secondary">Empty</span>
+                <?php endif; ?>
+                <?php if ($group['total_amount'] > 0): ?>
+                <span class="box-total">£<?php echo number_format($group['total_amount'], 0); ?></span>
+                <?php endif; ?>
               </div>
-              <?php if (!empty($cell['donor_name'])): ?>
-              <div class="cell-donor"><?php echo htmlspecialchars($cell['donor_name']); ?></div>
-              <?php endif; ?>
-              <?php if (!empty($cell['amount']) && (float)$cell['amount'] > 0): ?>
-              <div class="cell-amount">£<?php echo number_format((float)$cell['amount'], 0); ?></div>
+              <div class="box-cells">
+                <?php foreach ($group['cells'] as $cell): ?>
+                <?php if (!empty($cell['is_placeholder'])): ?>
+                <div class="grid-cell-cell cell-placeholder">
+                  <div class="cell-id text-muted">-</div>
+                  <div class="cell-status">
+                    <span class="badge bg-secondary">N/A</span>
+                  </div>
+                </div>
+                <?php else: ?>
+                <?php
+                    $statusClass = 'secondary';
+                    if ($cell['status'] === 'available') $statusClass = 'success';
+                    elseif ($cell['status'] === 'pledged') $statusClass = 'warning';
+                    elseif ($cell['status'] === 'paid') $statusClass = 'primary';
+                    elseif ($cell['status'] === 'blocked') $statusClass = 'danger';
+                ?>
+                <div class="grid-cell-cell status-<?php echo htmlspecialchars($cell['status']); ?>" 
+                     data-cell-id="<?php echo htmlspecialchars($cell['cell_id']); ?>"
+                     data-status="<?php echo htmlspecialchars($cell['status']); ?>"
+                     data-pledge-id="<?php echo $cell['pledge_id'] ?? ''; ?>"
+                     data-payment-id="<?php echo $cell['payment_id'] ?? ''; ?>"
+                     data-batch-id="<?php echo $cell['allocation_batch_id'] ?? ''; ?>"
+                     data-donor-name="<?php echo htmlspecialchars($cell['donor_name'] ?? ''); ?>"
+                     data-amount="<?php echo $cell['amount'] ?? 0; ?>"
+                     data-cell-type="<?php echo htmlspecialchars($cell['cell_type'] ?? '0.5x0.5'); ?>"
+                     data-area-size="<?php echo $cell['area_size'] ?? 0.25; ?>"
+                     role="button" tabindex="0">
+                  <div class="cell-id"><?php echo htmlspecialchars($cell['cell_id']); ?></div>
+                  <div class="cell-status">
+                    <span class="badge bg-<?php echo $statusClass; ?>"><?php echo ucfirst($cell['status']); ?></span>
+                  </div>
+                  <?php if (!empty($cell['donor_name'])): ?>
+                  <div class="cell-donor"><?php echo htmlspecialchars($cell['donor_name']); ?></div>
+                  <?php endif; ?>
+                  <?php if (!empty($cell['amount']) && (float)$cell['amount'] > 0): ?>
+                  <div class="cell-amount">£<?php echo number_format((float)$cell['amount'], 0); ?></div>
+                  <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <?php endforeach; ?>
+              </div>
+              <?php if (!empty($group['donors'])): ?>
+              <div class="box-donors">
+                <small class="text-muted">
+                  <i class="fas fa-users me-1"></i>
+                  <?php echo count($group['donors']) > 1 ? 'Multiple donors: ' : 'Donor: '; ?>
+                  <?php echo htmlspecialchars(implode(', ', array_slice($group['donors'], 0, 3))); ?>
+                  <?php if (count($group['donors']) > 3): ?>
+                  <span class="text-muted">+<?php echo count($group['donors']) - 3; ?> more</span>
+                  <?php endif; ?>
+                </small>
+              </div>
               <?php endif; ?>
             </div>
             <?php endforeach; ?>
@@ -500,7 +630,7 @@ $payments = $db->query("SELECT id, donor_name, amount, status FROM payments WHER
           <input type="hidden" name="cell_id" id="unallocateCellId">
           <?php
           // Preserve filter parameters
-          foreach (['rectangle', 'cell_type', 'status'] as $param) {
+          foreach (['rectangle', 'status'] as $param) {
               if (isset($_GET[$param])) {
                   echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
               }
@@ -541,7 +671,7 @@ $payments = $db->query("SELECT id, donor_name, amount, status FROM payments WHER
           <input type="hidden" name="cell_id" id="allocateCellId">
           <?php
           // Preserve filter parameters
-          foreach (['rectangle', 'cell_type', 'status'] as $param) {
+          foreach (['rectangle', 'status'] as $param) {
               if (isset($_GET[$param])) {
                   echo '<input type="hidden" name="' . htmlspecialchars($param) . '" value="' . htmlspecialchars($_GET[$param]) . '">';
               }
