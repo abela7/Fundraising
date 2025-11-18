@@ -18,6 +18,19 @@ try {
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     $status = isset($_GET['status']) ? $_GET['status'] : 'not_picked_up';
+    $reason = isset($_GET['reason']) ? $_GET['reason'] : '';
+    
+    // Reason labels
+    $reason_labels = [
+        'driving' => 'Driving',
+        'at_work' => 'At Work',
+        'eating' => 'Eating / Meal',
+        'with_family' => 'With Family',
+        'sleeping' => 'Sleeping / Resting',
+        'bad_time' => 'Bad Time (General)',
+        'requested_later' => 'Requested Later',
+        'other' => 'Other'
+    ];
     
     if (!$donor_id || !$queue_id) {
         header('Location: index.php');
@@ -49,14 +62,22 @@ try {
         $appointment_date = $_POST['appointment_date'] ?? '';
         $appointment_time = $_POST['appointment_time'] ?? '';
         $notes = $_POST['notes'] ?? '';
+        $reason = $_POST['reason'] ?? $reason; // Use POST reason if available, else GET reason
         
         if ($appointment_date && $appointment_time) {
             // Start transaction
             $db->begin_transaction();
             
             try {
+                // Determine appointment type
+                $appointment_type = 'callback_no_answer';
+                if ($status === 'busy') {
+                    $appointment_type = 'callback_busy';
+                } elseif ($status === 'busy_cant_talk') {
+                    $appointment_type = 'callback_rescheduled';
+                }
+                
                 // Insert appointment
-                $appointment_type = $status === 'busy' ? 'callback_busy' : 'callback_no_answer';
                 $appointment_query = "
                     INSERT INTO call_center_appointments 
                     (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
@@ -94,7 +115,8 @@ try {
                     $callback_datetime = $appointment_date . ' ' . $appointment_time;
                     $outcome_map = [
                         'not_picked_up' => 'no_answer',
-                        'busy' => 'busy_signal'
+                        'busy' => 'busy_signal',
+                        'busy_cant_talk' => 'callback_requested'
                     ];
                     $outcome = $outcome_map[$status] ?? 'no_answer';
                     
@@ -103,17 +125,19 @@ try {
                         SET outcome = ?,
                             disposition = 'callback_scheduled_specific_time',
                             callback_scheduled_for = ?,
+                            callback_reason = ?,
                             call_ended_at = NOW(),
                             notes = CONCAT(COALESCE(notes, ''), ?, ?)
                         WHERE id = ? AND agent_id = ?
                     ";
                     
-                    $callback_note = "\n[Callback scheduled: {$callback_datetime}]";
+                    $reason_text = $reason && isset($reason_labels[$reason]) ? $reason_labels[$reason] : $reason;
+                    $callback_note = "\n[Callback scheduled: {$callback_datetime}]" . ($reason_text ? " [Reason: {$reason_text}]" : "");
                     $extra_notes = $notes ? "\nNotes: {$notes}" : '';
                     
                     $stmt = $db->prepare($update_session);
                     if ($stmt) {
-                        $stmt->bind_param('ssssii', $outcome, $callback_datetime, $callback_note, $extra_notes, $session_id, $user_id);
+                        $stmt->bind_param('sssssii', $outcome, $callback_datetime, $reason, $callback_note, $extra_notes, $session_id, $user_id);
                         $stmt->execute();
                         $stmt->close();
                     }
@@ -157,9 +181,14 @@ try {
     // Status labels
     $status_labels = [
         'not_picked_up' => 'No Answer',
-        'busy' => 'Line Busy'
+        'busy' => 'Line Busy',
+        'busy_cant_talk' => 'Callback Requested'
     ];
     $status_label = $status_labels[$status] ?? 'No Answer';
+    
+    if ($status === 'busy_cant_talk' && $reason && isset($reason_labels[$reason])) {
+        $status_label .= ' - ' . $reason_labels[$reason];
+    }
     
 } catch (Exception $e) {
     error_log("Schedule Callback Page Error: " . $e->getMessage());
@@ -374,6 +403,8 @@ $page_title = 'Schedule Callback';
                 <div class="status-badge">
                     <?php if ($status === 'busy'): ?>
                         <i class="fas fa-ban me-2"></i>
+                    <?php elseif ($status === 'busy_cant_talk'): ?>
+                        <i class="fas fa-clock me-2"></i>
                     <?php else: ?>
                         <i class="fas fa-phone-slash me-2"></i>
                     <?php endif; ?>
@@ -383,6 +414,7 @@ $page_title = 'Schedule Callback';
                 <form method="POST" action="" id="schedule-form">
                     <input type="hidden" name="book_appointment" value="1">
                     <input type="hidden" name="appointment_time" id="selected_time_input" value="">
+                    <input type="hidden" name="reason" value="<?php echo htmlspecialchars($reason); ?>">
                     
                     <!-- Date Selection -->
                     <div class="form-section">

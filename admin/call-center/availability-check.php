@@ -186,7 +186,7 @@ $page_title = 'Donor Availability';
                         <div class="option-desc">Donor is available to talk now</div>
                     </a>
                     
-                    <a href="schedule-callback.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=busy_cant_talk" 
+                    <a href="callback-reason.php?<?php echo $session_id > 0 ? "session_id={$session_id}&" : ''; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
                        class="option-card">
                         <div class="option-icon">
                             <i class="fas fa-clock"></i>
