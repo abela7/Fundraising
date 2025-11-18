@@ -7,13 +7,13 @@ require_login();
 
 try {
     $db = db();
-    $user_id = (int)$_SESSION['user']['id'];
     
-    // Get parameters
-    $session_id = isset($_GET['session_id']) ? (int)$_GET['session_id'] : 0;
+    // Get parameters (these come from confirm-invalid.php redirect)
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
-    $reason = isset($_GET['reason']) ? $_GET['reason'] : 'not_working';
+    $call_date = isset($_GET['call_date']) ? $_GET['call_date'] : date('Y-m-d');
+    $call_time = isset($_GET['call_time']) ? $_GET['call_time'] : date('H:i:s');
+    $agent_name = isset($_GET['agent']) ? $_GET['agent'] : 'Unknown';
     
     if (!$donor_id || !$queue_id) {
         header('Location: index.php');
@@ -32,67 +32,6 @@ try {
     if (!$donor) {
         header('Location: index.php');
         exit;
-    }
-    
-    // Map reason to outcome enum value
-    $outcome_map = [
-        'not_working' => 'number_not_in_service',
-        'disconnected' => 'number_disconnected',
-        'invalid' => 'invalid_number',
-        'wrong_number' => 'wrong_number',
-        'network_error' => 'network_error'
-    ];
-    $outcome = $outcome_map[$reason] ?? 'number_not_in_service';
-    
-    // Update session if session_id exists
-    if ($session_id > 0) {
-        $update_session = "
-            UPDATE call_center_sessions 
-            SET outcome = ?,
-                disposition = 'mark_for_removal',
-                call_ended_at = NOW(),
-                notes = ?
-            WHERE id = ? AND agent_id = ?
-        ";
-        $notes = "Number marked as invalid: " . ucfirst(str_replace('_', ' ', $reason));
-        $stmt = $db->prepare($update_session);
-        if ($stmt) {
-            $stmt->bind_param('ssii', $outcome, $notes, $session_id, $user_id);
-            $stmt->execute();
-            $stmt->close();
-        }
-    } else {
-        // If no session exists, create one for tracking
-        $call_started_at = date('Y-m-d H:i:s');
-        $insert_session = "
-            INSERT INTO call_center_sessions 
-            (donor_id, agent_id, call_started_at, call_ended_at, outcome, disposition, conversation_stage, notes, created_at)
-            VALUES (?, ?, ?, NOW(), ?, 'mark_for_removal', 'no_connection', ?, NOW())
-        ";
-        $notes = "Number marked as invalid: " . ucfirst(str_replace('_', ' ', $reason));
-        $stmt = $db->prepare($insert_session);
-        if ($stmt) {
-            $stmt->bind_param('iisss', $donor_id, $user_id, $call_started_at, $outcome, $notes);
-            $stmt->execute();
-            $stmt->close();
-        }
-    }
-    
-    // Update queue status
-    $update_queue = "
-        UPDATE call_center_queues 
-        SET status = 'completed',
-            completion_notes = ?,
-            completed_at = NOW(),
-            last_attempt_outcome = ?
-        WHERE id = ?
-    ";
-    $completion_notes = "Number not working: " . ucfirst(str_replace('_', ' ', $reason));
-    $stmt = $db->prepare($update_queue);
-    if ($stmt) {
-        $stmt->bind_param('ssi', $completion_notes, $outcome, $queue_id);
-        $stmt->execute();
-        $stmt->close();
     }
     
 } catch (Exception $e) {
@@ -218,6 +157,47 @@ $page_title = 'Number Invalid';
             color: #475569;
         }
         
+        .call-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+        
+        .call-details-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #0a6286;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.625rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+        
+        .detail-value {
+            font-size: 0.875rem;
+            color: #1e293b;
+            font-weight: 700;
+        }
+        
         @media (max-width: 767px) {
             .mark-invalid-page {
                 padding: 0.5rem;
@@ -269,11 +249,29 @@ $page_title = 'Number Invalid';
                 
                 <div class="status-card">
                     <div class="status-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <i class="fas fa-check-circle"></i>
                     </div>
-                    <div class="status-title">Number Not Working</div>
+                    <div class="status-title">Number Marked as Invalid</div>
                     <div class="status-desc">
                         This number has been marked as invalid and removed from the active queue.
+                    </div>
+                </div>
+                
+                <div class="call-details">
+                    <div class="call-details-title">
+                        <i class="fas fa-calendar-check me-1"></i>Recorded Call Details
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Day of Call</span>
+                        <span class="detail-value"><?php echo date('l, F j, Y', strtotime($call_date)); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Time</span>
+                        <span class="detail-value"><?php echo date('g:i A', strtotime($call_time)); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Agent</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($agent_name); ?></span>
                     </div>
                 </div>
                 
