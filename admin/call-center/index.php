@@ -916,6 +916,9 @@ function closeDonorDrawer() {
 function startCall() {
     if (currentDonorId && currentQueueId) {
         window.location.href = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
+    } else {
+        console.error('Donor ID or Queue ID not set', {currentDonorId, currentQueueId});
+        alert('Error: Missing donor information. Please try again.');
     }
 }
 
