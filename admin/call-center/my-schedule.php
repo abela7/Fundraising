@@ -259,6 +259,12 @@ $page_title = 'My Schedule';
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            transition: all 0.2s;
+        }
+        
+        .appointment-pill:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         
         .appointment-pill.confirmed {
@@ -317,6 +323,12 @@ $page_title = 'My Schedule';
             font-size: 0.75rem;
             margin-bottom: 2px;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .week-appointment:hover {
+            transform: translateX(2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         
         /* Day View */
@@ -792,10 +804,10 @@ function generateMonthCalendar() {
                 if (dayAppointments.length > 0) {
                     html += '<div class="day-appointments">';
                     dayAppointments.slice(0, 3).forEach(apt => {
-                        html += `<div class="appointment-pill ${apt.status}">${apt.appointment_time.substring(0, 5)}</div>`;
+                        html += `<div class="appointment-pill ${apt.status}" onclick="window.location.href='appointment-detail.php?id=${apt.id}'" style="cursor: pointer;" title="${apt.donor_name} - ${apt.appointment_time.substring(0, 5)}">${apt.appointment_time.substring(0, 5)}</div>`;
                     });
                     if (dayAppointments.length > 3) {
-                        html += `<div class="appointment-pill">+${dayAppointments.length - 3} more</div>`;
+                        html += `<div class="appointment-pill" onclick="window.location.href='my-schedule.php?view=day&date=${dateStr}'" style="cursor: pointer;">+${dayAppointments.length - 3} more</div>`;
                     }
                     html += '</div>';
                 }
@@ -857,7 +869,10 @@ function renderWeekView() {
             
             hourAppointments.forEach(apt => {
                 html += `
-                    <div class="week-appointment ${apt.status}" title="${apt.donor_name} - ${apt.appointment_time}">
+                    <div class="week-appointment ${apt.status}" 
+                         onclick="window.location.href='appointment-detail.php?id=${apt.id}'" 
+                         style="cursor: pointer;" 
+                         title="${apt.donor_name} - ${apt.appointment_time}">
                         <div class="fw-bold text-truncate">${apt.donor_name}</div>
                         <div class="small text-truncate">${apt.appointment_time.substring(0, 5)}</div>
                     </div>
@@ -892,7 +907,9 @@ function renderDayView() {
         appointmentsInSlot.forEach(apt => {
             const time = apt.appointment_time.substring(0, 5);
             html += `
-                <div class="timeline-appointment ${apt.status}">
+                <div class="timeline-appointment ${apt.status}" 
+                     onclick="window.location.href='appointment-detail.php?id=${apt.id}'" 
+                     style="cursor: pointer;">
                     <div class="appointment-time">${time}</div>
                     <div class="appointment-donor">${apt.donor_name}</div>
                     <div class="appointment-phone">${apt.donor_phone}</div>
