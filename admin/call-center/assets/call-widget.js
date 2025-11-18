@@ -28,6 +28,7 @@ const CallWidget = {
         display: null,
         btnPause: null,
         btnInfo: null,
+        btnReset: null,
         panel: null
     },
 
@@ -57,12 +58,6 @@ const CallWidget = {
         if (stored) {
             const data = JSON.parse(stored);
             this.state = { ...this.state, ...data };
-            
-            // If running, we don't change startTime. Current time - startTime is total elapsed.
-            // But we need to account for paused durations.
-            // Simplified model:
-            // startTime: Timestamp when current segment started (or original start if never paused)
-            // accumulatedTime: Total ms accumulated before current segment
         } else {
             this.resetState();
         }
@@ -79,6 +74,10 @@ const CallWidget = {
             accumulatedTime: 0,
             lastPauseTime: null
         };
+        localStorage.removeItem(this.getStorageKey());
+        this.stopTimerLoop();
+        this.updateDisplay();
+        this.setPauseVisuals(false);
     },
 
     start() {
@@ -100,11 +99,11 @@ const CallWidget = {
         this.state.accumulatedTime += elapsed;
         this.state.status = 'paused';
         this.state.lastPauseTime = now;
-        this.state.startTime = null; // Clear start time as we are not running
+        this.state.startTime = null; 
         
         this.saveState();
         this.stopTimerLoop();
-        this.updateDisplay(); // Show exact time paused at
+        this.updateDisplay(); 
         this.setPauseVisuals(true);
     },
 
@@ -117,14 +116,26 @@ const CallWidget = {
         this.startTimerLoop();
         this.setPauseVisuals(false);
     },
+    
+    reset() {
+        if (confirm('Are you sure you want to reset the timer? This cannot be undone.')) {
+            this.resetState();
+            // Optionally restart
+            // this.start();
+        }
+    },
 
-    getElapsedTime() {
+    getElapsedTime() { // Returns milliseconds
         if (this.state.status === 'paused') {
             return this.state.accumulatedTime;
         } else if (this.state.status === 'running') {
             return this.state.accumulatedTime + (Date.now() - this.state.startTime);
         }
         return 0;
+    },
+    
+    getDurationSeconds() {
+        return Math.floor(this.getElapsedTime() / 1000);
     },
 
     formatTime(ms) {
@@ -145,7 +156,7 @@ const CallWidget = {
         this.intervalId = setInterval(() => {
             this.updateDisplay();
         }, 1000);
-        this.updateDisplay(); // Immediate update
+        this.updateDisplay(); 
     },
 
     stopTimerLoop() {
@@ -156,7 +167,6 @@ const CallWidget = {
     },
 
     render() {
-        // Remove existing if any
         const existing = document.querySelector('.call-widget-container');
         if (existing) existing.remove();
 
@@ -208,6 +218,9 @@ const CallWidget = {
                     <button class="timer-btn btn-pause" id="btnPauseResume" title="Pause/Resume">
                         <i class="fas fa-pause"></i>
                     </button>
+                    <button class="timer-btn btn-end" id="btnResetTimer" title="Reset Timer" style="background: #64748b;">
+                        <i class="fas fa-undo"></i>
+                    </button>
                 </div>
             </div>
         `;
@@ -218,11 +231,11 @@ const CallWidget = {
         this.elements.display = container.querySelector('#widgetTimerDisplay');
         this.elements.btnPause = container.querySelector('#btnPauseResume');
         this.elements.btnInfo = container.querySelector('#btnToggleInfo');
+        this.elements.btnReset = container.querySelector('#btnResetTimer');
         this.elements.panel = container.querySelector('#donorInfoPanel');
     },
 
     attachEvents() {
-        // Pause/Resume Toggle
         this.elements.btnPause.addEventListener('click', () => {
             if (this.state.status === 'running') {
                 this.pause();
@@ -231,35 +244,39 @@ const CallWidget = {
             }
         });
 
-        // Info Toggle
         this.elements.btnInfo.addEventListener('click', () => {
             this.elements.panel.classList.toggle('active');
         });
 
-        // Close Info
         document.getElementById('btnCloseInfo').addEventListener('click', () => {
             this.elements.panel.classList.remove('active');
         });
-    },
-
-    setPauseVisuals(isPaused) {
-        const pill = document.getElementById('timerPill');
-        const btn = this.elements.btnPause;
-        const icon = btn.querySelector('i');
         
-        if (isPaused) {
-            pill.classList.add('paused');
-            btn.classList.remove('btn-pause');
-            btn.classList.add('btn-resume');
-            btn.title = "Resume Call";
-            icon.className = 'fas fa-play';
-        } else {
-            pill.classList.remove('paused');
-            btn.classList.remove('btn-resume');
-            btn.classList.add('btn-pause');
-            btn.title = "Pause Call";
-            icon.className = 'fas fa-pause';
-        }
+        this.elements.btnReset.addEventListener('click', () => {
+            this.reset();
+        });
     }
+    
+    // Note: setPauseVisuals is defined in object but not modified here as logic is same
 };
 
+// Helper for setPauseVisuals needed since I overwrote the object
+CallWidget.setPauseVisuals = function(isPaused) {
+    const pill = document.getElementById('timerPill');
+    const btn = this.elements.btnPause;
+    const icon = btn.querySelector('i');
+    
+    if (isPaused) {
+        pill.classList.add('paused');
+        btn.classList.remove('btn-pause');
+        btn.classList.add('btn-resume');
+        btn.title = "Resume Call";
+        icon.className = 'fas fa-play';
+    } else {
+        pill.classList.remove('paused');
+        btn.classList.remove('btn-resume');
+        btn.classList.add('btn-pause');
+        btn.title = "Pause Call";
+        icon.className = 'fas fa-pause';
+    }
+};

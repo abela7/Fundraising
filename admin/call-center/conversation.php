@@ -952,7 +952,23 @@ $page_title = 'Live Call';
     }
     
     function submitForm() {
-        document.getElementById('conversationForm').submit();
+        // Get duration from widget
+        const duration = CallWidget.getDurationSeconds();
+        
+        // Create hidden input for duration
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'call_duration_seconds';
+        input.value = duration;
+        
+        const form = document.getElementById('conversationForm');
+        form.appendChild(input);
+        
+        // Stop timer and clear state
+        CallWidget.pause();
+        CallWidget.resetState();
+        
+        form.submit();
     }
 </script>
 </body>
