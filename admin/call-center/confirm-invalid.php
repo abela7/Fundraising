@@ -39,8 +39,8 @@ try {
     }
     
     // Get call details from session if exists
-    $call_date = date('Y-m-d');
-    $call_time = date('H:i:s');
+    // Use current browser time (will be set via JavaScript)
+    $call_datetime_iso = date('c'); // ISO 8601 format for JavaScript
     $agent_name = $user_name;
     
     if ($session_id > 0) {
@@ -58,26 +58,9 @@ try {
             $stmt->close();
             
             if ($session && $session->call_started_at) {
-                // Database stores datetime - need to determine what timezone it represents
-                // Check MySQL timezone setting
-                $tz_query = "SELECT @@session.time_zone as tz, @@global.time_zone as global_tz";
-                $tz_result = $db->query($tz_query);
-                $tz_row = $tz_result ? $tz_result->fetch_assoc() : null;
-                
-                // Determine source timezone
-                // If MySQL timezone is SYSTEM, it uses server timezone (likely Addis Ababa)
-                // Otherwise, assume UTC (standard practice)
-                $source_tz = 'UTC';
-                if ($tz_row && ($tz_row['tz'] === 'SYSTEM' || $tz_row['global_tz'] === 'SYSTEM')) {
-                    // Server timezone is likely Addis Ababa based on config/env.php
-                    $source_tz = 'Africa/Addis_Ababa';
-                }
-                
-                // Create datetime object with source timezone, then convert to London
-                $datetime = new DateTime($session->call_started_at, new DateTimeZone($source_tz));
-                $datetime->setTimezone(new DateTimeZone('Europe/London'));
-                $call_date = $datetime->format('Y-m-d');
-                $call_time = $datetime->format('H:i:s');
+                // Pass raw datetime to JavaScript - let browser handle timezone conversion
+                // Format as ISO 8601 for JavaScript Date parsing
+                $call_datetime_iso = $session->call_started_at;
                 
                 // Get agent name
                 $agent_query = "SELECT name FROM users WHERE id = ? LIMIT 1";
@@ -156,6 +139,10 @@ try {
             $stmt->execute();
             $stmt->close();
         }
+        
+        // Get browser-provided time (in browser's local timezone)
+        $call_date = isset($_POST['call_date']) ? $_POST['call_date'] : date('Y-m-d');
+        $call_time = isset($_POST['call_time']) ? $_POST['call_time'] : date('H:i:s');
         
         // Redirect to success page with details
         header('Location: mark-invalid.php?donor_id=' . $donor_id . '&queue_id=' . $queue_id . '&call_date=' . urlencode($call_date) . '&call_time=' . urlencode($call_time) . '&agent=' . urlencode($agent_name));
@@ -389,11 +376,11 @@ $page_title = 'Confirm Invalid Number';
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Day of Call</span>
-                            <span class="detail-value"><?php echo date('l, F j, Y', strtotime($call_date)); ?></span>
+                            <span class="detail-value" id="call-date">Loading...</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Time</span>
-                            <span class="detail-value"><?php echo date('g:i A', strtotime($call_time)); ?></span>
+                            <span class="detail-value" id="call-time">Loading...</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Agent</span>
@@ -401,8 +388,10 @@ $page_title = 'Confirm Invalid Number';
                         </div>
                     </div>
                     
-                    <form method="POST" action="">
+                    <form method="POST" action="" id="confirm-form">
                         <input type="hidden" name="confirm" value="yes">
+                        <input type="hidden" name="call_date" id="call_date_input" value="">
+                        <input type="hidden" name="call_time" id="call_time_input" value="">
                         <div class="action-buttons">
                             <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?><?php echo $session_id > 0 ? '&session_id=' . $session_id : ''; ?>" 
                                class="btn btn-outline-secondary">
@@ -421,6 +410,53 @@ $page_title = 'Confirm Invalid Number';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+(function() {
+    // Always use browser's current time for display (most accurate)
+    // This ensures the time shown matches the user's device timezone
+    const callDateTime = new Date();
+    
+    // Format date and time in browser's local timezone
+    const formatDate = (date) => {
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+        return days[date.getDay()] + ', ' + months[date.getMonth()] + ' ' + 
+               date.getDate() + ', ' + date.getFullYear();
+    };
+    
+    const formatTime = (date) => {
+        let hours = date.getHours();
+        const minutes = date.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // 0 should be 12
+        const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+        return hours + ':' + minutesStr + ' ' + ampm;
+    };
+    
+    // Display formatted date and time
+    document.getElementById('call-date').textContent = formatDate(callDateTime);
+    document.getElementById('call-time').textContent = formatTime(callDateTime);
+    
+    // Set hidden inputs for form submission (use browser's current time when submitting)
+    const form = document.getElementById('confirm-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            document.getElementById('call_date_input').value = year + '-' + month + '-' + day;
+            document.getElementById('call_time_input').value = hours + ':' + minutes + ':' + seconds;
+        });
+    }
+})();
+</script>
 </body>
 </html>
 

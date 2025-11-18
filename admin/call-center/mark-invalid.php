@@ -263,11 +263,11 @@ $page_title = 'Number Invalid';
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Day of Call</span>
-                        <span class="detail-value"><?php echo date('l, F j, Y', strtotime($call_date)); ?></span>
+                        <span class="detail-value" id="recorded-date"><?php echo htmlspecialchars($call_date); ?></span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Time</span>
-                        <span class="detail-value"><?php echo date('g:i A', strtotime($call_time)); ?></span>
+                        <span class="detail-value" id="recorded-time"><?php echo htmlspecialchars($call_time); ?></span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Agent</span>
@@ -293,6 +293,42 @@ $page_title = 'Number Invalid';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+(function() {
+    // Format the recorded date and time nicely
+    const dateStr = <?php echo json_encode($call_date); ?>;
+    const timeStr = <?php echo json_encode($call_time); ?>;
+    
+    if (dateStr && timeStr) {
+        // Parse date and time
+        const [year, month, day] = dateStr.split('-');
+        const [hours, minutes] = timeStr.split(':');
+        
+        // Create date object (browser will use local timezone)
+        const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
+                                parseInt(hours), parseInt(minutes));
+        
+        // Format date
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+        const formattedDate = days[dateObj.getDay()] + ', ' + months[dateObj.getMonth()] + ' ' + 
+                             dateObj.getDate() + ', ' + dateObj.getFullYear();
+        
+        // Format time
+        let h = dateObj.getHours();
+        const m = dateObj.getMinutes();
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        h = h ? h : 12;
+        const formattedTime = h + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+        
+        // Update display
+        document.getElementById('recorded-date').textContent = formattedDate;
+        document.getElementById('recorded-time').textContent = formattedTime;
+    }
+})();
+</script>
 </body>
 </html>
 
