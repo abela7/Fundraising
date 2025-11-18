@@ -518,73 +518,55 @@ $page_title = 'Call Center Dashboard';
                 <strong>High Priority Contact</strong>
             </div>
             
-            <!-- Contact Information -->
-            <div class="info-section">
-                <h6 class="info-section-title">
-                    <i class="fas fa-address-card me-2"></i>Contact Information
-                </h6>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Phone</span>
-                        <a href="#" id="drawerPhone" class="info-value phone-link">
-                            <i class="fas fa-phone me-1"></i><span></span>
+            <!-- Quick Info Cards -->
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <div class="quick-info-card">
+                        <div class="quick-info-icon">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div class="quick-info-label">Phone Number</div>
+                        <a href="#" id="drawerPhone" class="quick-info-value">
+                            <span></span>
                         </a>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">City</span>
-                        <span class="info-value" id="drawerCity">—</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Last Contact</span>
-                        <span class="info-value" id="drawerLastContact">Never</span>
+                </div>
+                <div class="col-6">
+                    <div class="quick-info-card">
+                        <div class="quick-info-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="quick-info-label">Location</div>
+                        <div class="quick-info-value" id="drawerCity">—</div>
                     </div>
                 </div>
             </div>
             
-            <!-- Payment Information -->
-            <div class="info-section">
-                <h6 class="info-section-title">
-                    <i class="fas fa-pound-sign me-2"></i>Payment Information
-                </h6>
-                <div class="balance-card">
-                    <div class="balance-label">Outstanding Balance</div>
-                    <div class="balance-amount" id="drawerBalance">£0.00</div>
-                    <div class="balance-note">Original pledge amount</div>
-                </div>
+            <!-- Pledge Amount -->
+            <div class="pledge-summary">
+                <div class="pledge-label">Pledged Amount</div>
+                <div class="pledge-amount" id="drawerBalance">£0.00</div>
             </div>
             
-            <!-- Call Queue Information -->
-            <div class="info-section">
-                <h6 class="info-section-title">
-                    <i class="fas fa-info-circle me-2"></i>Queue Details
-                </h6>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Queue Type</span>
-                        <span class="badge bg-secondary" id="drawerType">—</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Priority Level</span>
-                        <span class="priority-badge" id="drawerPriority">—</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Call Attempts</span>
-                        <span class="badge bg-info" id="drawerAttempts">0 calls</span>
-                    </div>
+            <!-- Call Status -->
+            <div class="call-status-box">
+                <div class="status-row">
+                    <span class="status-label">
+                        <i class="fas fa-redo me-2"></i>Call Attempts
+                    </span>
+                    <span class="badge bg-info" id="drawerAttempts">0 calls</span>
                 </div>
-                <div class="info-item mt-3" id="drawerReasonContainer" style="display: none;">
-                    <span class="info-label">Reason</span>
-                    <p class="info-value text-muted small mb-0" id="drawerReason"></p>
+                <div class="status-row">
+                    <span class="status-label">
+                        <i class="fas fa-clock me-2"></i>Last Contact
+                    </span>
+                    <span class="status-value" id="drawerLastContact">Never</span>
                 </div>
-            </div>
-            
-            <!-- Call History Preview -->
-            <div class="info-section" id="callHistorySection" style="display: none;">
-                <h6 class="info-section-title">
-                    <i class="fas fa-history me-2"></i>Recent Call History
-                </h6>
-                <div id="callHistoryContent">
-                    <p class="text-muted small">Loading...</p>
+                <div class="status-row" id="drawerReasonContainer" style="display: none;">
+                    <span class="status-label">
+                        <i class="fas fa-info-circle me-2"></i>Note
+                    </span>
+                    <span class="status-value text-muted" id="drawerReason"></span>
                 </div>
             </div>
         </div>
@@ -887,22 +869,10 @@ function openDonorDrawer(rowElement) {
     document.getElementById('drawerDonorName').textContent = name;
     document.getElementById('drawerPhone').setAttribute('href', 'tel:' + phone);
     document.getElementById('drawerPhone').querySelector('span').textContent = phone;
-    document.getElementById('drawerCity').textContent = city || '—';
+    document.getElementById('drawerCity').textContent = city || 'Not specified';
     document.getElementById('drawerBalance').textContent = '£' + balance;
     document.getElementById('drawerLastContact').textContent = lastContact;
     document.getElementById('drawerAttempts').textContent = attempts + ' calls';
-    
-    // Format type
-    const typeFormatted = type.split('_').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
-    document.getElementById('drawerType').textContent = typeFormatted;
-    
-    // Set priority
-    const priorityBadge = document.getElementById('drawerPriority');
-    priorityBadge.textContent = priority;
-    priorityBadge.className = 'priority-badge priority-' + 
-        (priority >= 8 ? 'urgent' : (priority >= 5 ? 'high' : 'normal'));
     
     // Show priority alert for high priority
     const priorityAlert = document.getElementById('drawerPriorityAlert');
