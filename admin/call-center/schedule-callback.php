@@ -75,6 +75,8 @@ try {
                     $appointment_type = 'callback_busy';
                 } elseif ($status === 'busy_cant_talk') {
                     $appointment_type = 'callback_rescheduled';
+                } elseif ($status === 'not_ready_to_pay') {
+                    $appointment_type = 'callback_not_ready';
                 }
                 
                 // Insert appointment - handle NULL session_id for foreign key constraint
@@ -144,7 +146,8 @@ try {
                     $outcome_map = [
                         'not_picked_up' => 'no_answer',
                         'busy' => 'busy_signal',
-                        'busy_cant_talk' => 'callback_requested'
+                        'busy_cant_talk' => 'callback_requested',
+                        'not_ready_to_pay' => 'not_ready_to_pay'
                     ];
                     $outcome = $outcome_map[$status] ?? 'no_answer';
                     
@@ -210,7 +213,8 @@ try {
     $status_labels = [
         'not_picked_up' => 'No Answer',
         'busy' => 'Line Busy',
-        'busy_cant_talk' => 'Callback Requested'
+        'busy_cant_talk' => 'Callback Requested',
+        'not_ready_to_pay' => 'Not Ready to Pay'
     ];
     $status_label = $status_labels[$status] ?? 'No Answer';
     
@@ -433,6 +437,8 @@ $page_title = 'Schedule Callback';
                         <i class="fas fa-ban me-2"></i>
                     <?php elseif ($status === 'busy_cant_talk'): ?>
                         <i class="fas fa-clock me-2"></i>
+                    <?php elseif ($status === 'not_ready_to_pay'): ?>
+                        <i class="fas fa-calendar-plus me-2"></i>
                     <?php else: ?>
                         <i class="fas fa-phone-slash me-2"></i>
                     <?php endif; ?>
