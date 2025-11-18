@@ -140,7 +140,7 @@ try {
             SET outcome = 'payment_plan_created',
                 conversation_stage = 'completed',
                 payment_plan_id = ?,
-                duration_seconds = duration_seconds + ?,
+                duration_seconds = COALESCE(duration_seconds, 0) + ?,
                 call_ended_at = NOW()
             WHERE id = ?
         ");

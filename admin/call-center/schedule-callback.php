@@ -176,7 +176,7 @@ try {
                             callback_scheduled_for = ?,
                             callback_reason = ?,
                             call_ended_at = NOW(),
-                            duration_seconds = duration_seconds + ?,
+                            duration_seconds = COALESCE(duration_seconds, 0) + ?,
                             notes = CONCAT(COALESCE(notes, ''), ?, ?)
                         WHERE id = ? AND agent_id = ?
                     ";
