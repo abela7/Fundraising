@@ -109,86 +109,84 @@ $page_title = 'Call: ' . $donor->name;
             padding: 0;
         }
         
-        /* Donor Name Header */
+        /* Donor Name Header - Compact */
         .donor-name-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 2rem 1.5rem;
-            border-radius: 16px;
-            margin-bottom: 1.5rem;
+            padding: 1.25rem 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
             text-align: center;
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
         }
         
         .donor-name-header h2 {
-            font-size: 1.75rem;
+            font-size: 1.25rem;
             font-weight: 700;
             margin: 0 0 0.5rem 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.75rem;
+            gap: 0.5rem;
         }
         
         .donor-name-header .phone-link {
             color: white;
             text-decoration: none;
-            font-size: 1.125rem;
+            font-size: 0.9375rem;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
+            gap: 0.375rem;
+            padding: 0.375rem 0.875rem;
             background: rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            transition: all 0.3s;
-            margin-top: 0.5rem;
+            border-radius: 6px;
+            transition: all 0.2s;
         }
         
         .donor-name-header .phone-link:hover {
             background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
         }
         
-        /* Info Grid */
+        /* Info Grid - Compact */
         .info-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
         }
         
         .info-card {
             background: white;
             border: 1px solid var(--cc-border);
-            border-radius: 12px;
-            padding: 1.25rem;
-            transition: all 0.3s;
+            border-radius: 10px;
+            padding: 0.875rem;
+            transition: all 0.2s;
             box-shadow: var(--cc-shadow);
         }
         
         .info-card:hover {
             box-shadow: var(--cc-shadow-lg);
-            transform: translateY(-2px);
         }
         
         .info-card-header {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid var(--cc-border);
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--cc-border);
         }
         
         .info-card-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            font-size: 1rem;
+            flex-shrink: 0;
         }
         
         .info-card-icon.primary {
@@ -207,7 +205,7 @@ $page_title = 'Call: ' . $donor->name;
         }
         
         .info-card-title {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: #64748b;
             margin: 0;
@@ -218,97 +216,72 @@ $page_title = 'Call: ' . $donor->name;
         .info-card-body {
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 0.5rem;
         }
         
         .info-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 0;
+            padding: 0.25rem 0;
         }
         
         .info-label {
             color: #64748b;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             font-weight: 500;
         }
         
         .info-value {
             color: var(--cc-dark);
             font-weight: 600;
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
             text-align: right;
         }
         
-        /* Pledge Highlight */
+        /* Pledge Highlight - Compact */
         .pledge-highlight {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
-            padding: 2rem 1.5rem;
-            border-radius: 16px;
+            padding: 1.25rem 1rem;
+            border-radius: 12px;
             text-align: center;
-            margin: 1.5rem 0;
-            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .pledge-highlight::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: pulse 3s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.1); opacity: 0.3; }
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
         }
         
         .pledge-highlight .label {
-            font-size: 0.9375rem;
+            font-size: 0.75rem;
             opacity: 0.95;
-            margin-bottom: 0.75rem;
-            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
             letter-spacing: 1px;
             text-transform: uppercase;
-            position: relative;
-            z-index: 1;
         }
         
         .pledge-highlight .amount {
-            font-size: 3rem;
+            font-size: 2rem;
             font-weight: 800;
             line-height: 1;
-            position: relative;
-            z-index: 1;
         }
         
-        /* Action Buttons */
+        /* Action Buttons - Compact */
         .action-buttons-form {
-            margin-top: 2rem;
-            position: sticky;
-            bottom: 1rem;
-            z-index: 10;
+            margin-top: 1.25rem;
         }
         
         .action-buttons {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.75rem;
+            gap: 0.625rem;
         }
         
         .action-buttons .btn {
-            padding: 1rem 1.5rem;
-            font-size: 1rem;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9375rem;
             font-weight: 600;
-            border-radius: 12px;
-            transition: all 0.3s;
+            border-radius: 10px;
+            transition: all 0.2s;
             border-width: 2px;
         }
         
@@ -338,24 +311,16 @@ $page_title = 'Call: ' . $donor->name;
         
         /* Tablet - 2 columns for info cards */
         @media (min-width: 576px) {
-            .donor-name-header {
-                padding: 2.5rem 2rem;
-            }
-            
             .donor-name-header h2 {
-                font-size: 2rem;
+                font-size: 1.5rem;
             }
             
             .info-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
             
-            .pledge-highlight {
-                padding: 2.5rem 2rem;
-            }
-            
             .pledge-highlight .amount {
-                font-size: 3.5rem;
+                font-size: 2.5rem;
             }
             
             .action-buttons {
@@ -363,43 +328,36 @@ $page_title = 'Call: ' . $donor->name;
             }
             
             .action-buttons .btn:first-child {
-                min-width: 140px;
+                min-width: 120px;
             }
         }
         
         /* Desktop */
         @media (min-width: 768px) {
-            .call-prep-page {
-                padding: 0.5rem;
+            .donor-name-header {
+                padding: 1.5rem 1.25rem;
             }
             
-            .donor-name-header {
-                padding: 3rem 2.5rem;
-                border-radius: 20px;
+            .donor-name-header h2 {
+                font-size: 1.625rem;
             }
             
             .info-card {
-                padding: 1.5rem;
+                padding: 1rem;
             }
             
             .info-card-icon {
-                width: 48px;
-                height: 48px;
-                font-size: 1.5rem;
+                width: 36px;
+                height: 36px;
+                font-size: 1.125rem;
             }
             
             .pledge-highlight {
-                padding: 3rem 2.5rem;
-                border-radius: 20px;
+                padding: 1.5rem 1.25rem;
             }
             
             .pledge-highlight .amount {
-                font-size: 4rem;
-            }
-            
-            .action-buttons-form {
-                position: relative;
-                bottom: 0;
+                font-size: 2.75rem;
             }
         }
         
@@ -410,21 +368,22 @@ $page_title = 'Call: ' . $donor->name;
             }
         }
         
-        /* First Call Badge */
+        /* First Call Badge - Compact */
         .first-call-badge {
             display: inline-block;
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 10px;
-            font-size: 0.9375rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.8125rem;
             font-weight: 600;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            margin-bottom: 0.875rem;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
         }
         
         .first-call-badge i {
-            margin-right: 0.5rem;
+            margin-right: 0.375rem;
+            font-size: 0.75rem;
         }
     </style>
 </head>
