@@ -33,7 +33,7 @@ try {
             q.priority,
             q.attempts_count,
             q.reason_for_queue,
-            (SELECT name FROM users WHERE id = d.created_by LIMIT 1) as registrar_name,
+            (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1) as registrar_name,
             (SELECT call_started_at FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_call_date
         FROM donors d
         LEFT JOIN call_center_queues q ON q.donor_id = d.id AND q.id = ?
