@@ -95,314 +95,336 @@ $page_title = 'Call: ' . $donor->name;
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo $page_title; ?> - Call-Center</title>
+    <title><?php echo $page_title; ?> - Call Center</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/call-center.css">
     <style>
-        :root {
-            --prep-primary: #2563eb;
-            --prep-success: #10b981;
-            --prep-danger: #ef4444;
-            --prep-bg: #f8fafc;
-            --prep-border: #e2e8f0;
-            --prep-text: #1e293b;
-            --prep-text-muted: #64748b;
-            --prep-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --prep-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-
+        /* Pre-Call Briefing - Modern Design */
         .call-prep-page {
             max-width: 800px;
             margin: 0 auto;
-            padding: 1rem;
+            padding: 0;
         }
-
-        .content-header {
-            margin-bottom: 2rem;
+        
+        /* Donor Name Header */
+        .donor-name-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
             text-align: center;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
-
-        .content-header .content-title {
+        
+        .donor-name-header h2 {
             font-size: 1.75rem;
             font-weight: 700;
-            color: var(--prep-text);
-            margin-bottom: 0.5rem;
-        }
-
-        .content-header .content-subtitle {
-            color: var(--prep-text-muted);
-            font-size: 0.9375rem;
-            margin-bottom: 0;
-        }
-
-        .alert-info {
-            border-left: 4px solid var(--prep-primary);
-            background: #eff6ff;
-            border-color: var(--prep-primary);
-            margin-bottom: 1.5rem;
-        }
-
-        .donor-info-card {
-            background: white;
-            border: 1px solid var(--prep-border);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: var(--prep-shadow);
-        }
-
-        .donor-header-section {
-            text-align: center;
-            padding-bottom: 1.5rem;
-            border-bottom: 2px solid var(--prep-border);
-            margin-bottom: 1.5rem;
-        }
-
-        .donor-name-large {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--prep-text);
-            margin-bottom: 0.5rem;
-        }
-
-        .donor-phone-large {
-            font-size: 1.125rem;
-            color: var(--prep-text-muted);
-        }
-
-        .donor-phone-large a {
-            color: var(--prep-primary);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .donor-phone-large a:hover {
-            text-decoration: underline;
-        }
-
-        .info-row {
+            margin: 0 0 0.5rem 0;
             display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            padding: 1rem 0;
-            border-bottom: 1px solid var(--prep-border);
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
         }
-
-        .info-row:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-        }
-
-        .info-row:first-child {
-            padding-top: 0;
-        }
-
-        .info-label {
-            color: var(--prep-text-muted);
-            font-size: 0.8125rem;
+        
+        .donor-name-header .phone-link {
+            color: white;
+            text-decoration: none;
+            font-size: 1.125rem;
             font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            transition: all 0.3s;
+            margin-top: 0.5rem;
+        }
+        
+        .donor-name-header .phone-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .info-card {
+            background: white;
+            border: 1px solid var(--cc-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: all 0.3s;
+            box-shadow: var(--cc-shadow);
+        }
+        
+        .info-card:hover {
+            box-shadow: var(--cc-shadow-lg);
+            transform: translateY(-2px);
+        }
+        
+        .info-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--cc-border);
+        }
+        
+        .info-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .info-card-icon.primary {
+            background: #eff6ff;
+            color: var(--cc-primary);
+        }
+        
+        .info-card-icon.success {
+            background: #d1fae5;
+            color: var(--cc-success);
+        }
+        
+        .info-card-icon.warning {
+            background: #fef3c7;
+            color: var(--cc-warning);
+        }
+        
+        .info-card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            margin: 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
+        
+        .info-card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+        
+        .info-label {
+            color: #64748b;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
         .info-value {
-            color: var(--prep-text);
+            color: var(--cc-dark);
             font-weight: 600;
             font-size: 0.9375rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
+            text-align: right;
         }
-
-        .info-value .badge {
-            font-size: 0.8125rem;
-            padding: 0.25rem 0.75rem;
-        }
-
-        .info-value .text-muted {
-            color: var(--prep-text-muted) !important;
-            font-weight: 400;
-            font-size: 0.875rem;
-        }
-
-        .info-label i {
-            width: 18px;
-            text-align: center;
-            color: var(--prep-primary);
-        }
-
+        
+        /* Pledge Highlight */
         .pledge-highlight {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
             padding: 2rem 1.5rem;
             border-radius: 16px;
             text-align: center;
-            margin: 2rem 0;
-            box-shadow: var(--prep-shadow-lg);
+            margin: 1.5rem 0;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+            position: relative;
+            overflow: hidden;
         }
-
+        
+        .pledge-highlight::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.3; }
+        }
+        
         .pledge-highlight .label {
-            font-size: 0.875rem;
+            font-size: 0.9375rem;
             opacity: 0.95;
             margin-bottom: 0.75rem;
             font-weight: 500;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             text-transform: uppercase;
+            position: relative;
+            z-index: 1;
         }
-
+        
         .pledge-highlight .amount {
             font-size: 3rem;
-            font-weight: 700;
+            font-weight: 800;
             line-height: 1;
+            position: relative;
+            z-index: 1;
         }
-
+        
+        /* Action Buttons */
         .action-buttons-form {
             margin-top: 2rem;
             position: sticky;
-            bottom: 0;
-            background: white;
-            padding: 1rem 0;
-            border-top: 1px solid var(--prep-border);
+            bottom: 1rem;
+            z-index: 10;
         }
-
+        
         .action-buttons {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: 1fr;
             gap: 0.75rem;
         }
-
+        
         .action-buttons .btn {
-            padding: 0.875rem 1.5rem;
+            padding: 1rem 1.5rem;
             font-size: 1rem;
             font-weight: 600;
             border-radius: 12px;
-            transition: all 0.2s;
-        }
-
-        .action-buttons .btn-success {
-            background: var(--prep-success);
-            border-color: var(--prep-success);
-            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
-        }
-
-        .action-buttons .btn-success:hover {
-            background: #059669;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 8px -1px rgba(16, 185, 129, 0.4);
-        }
-
-        .action-buttons .btn-outline-secondary {
+            transition: all 0.3s;
             border-width: 2px;
         }
-
+        
+        .action-buttons .btn-success {
+            background: var(--cc-success);
+            border-color: var(--cc-success);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        .action-buttons .btn-success:hover {
+            background: #059669;
+            border-color: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+        
+        .action-buttons .btn-outline-secondary {
+            background: white;
+            border-color: var(--cc-border);
+            color: var(--cc-dark);
+        }
+        
         .action-buttons .btn-outline-secondary:hover {
-            background: #f1f5f9;
+            background: var(--cc-light);
+            border-color: #cbd5e1;
         }
-
-        /* Extra Small Screens */
-        @media (max-width: 575px) {
-            .action-buttons .btn {
-                min-height: 48px; /* Better touch target */
-            }
-
-            .pledge-highlight .amount {
-                font-size: 2.5rem;
-            }
-
-            .donor-name-large {
-                font-size: 1.25rem;
-            }
-        }
-
-        /* Mobile First - Base Styles */
+        
+        /* Tablet - 2 columns for info cards */
         @media (min-width: 576px) {
-            .call-prep-page {
-                padding: 1.5rem;
+            .donor-name-header {
+                padding: 2.5rem 2rem;
             }
-
-            .content-header .content-title {
+            
+            .donor-name-header h2 {
                 font-size: 2rem;
             }
-
-            .donor-name-large {
-                font-size: 1.75rem;
+            
+            .info-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
-
-            .info-row {
-                flex-direction: row;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            .info-label {
-                font-size: 0.875rem;
-            }
-
-            .info-value {
-                font-size: 1rem;
-                text-align: right;
-            }
-
+            
             .pledge-highlight {
                 padding: 2.5rem 2rem;
             }
-
+            
             .pledge-highlight .amount {
                 font-size: 3.5rem;
             }
-
+            
             .action-buttons {
-                flex-direction: row;
+                grid-template-columns: auto 1fr;
             }
-
-            .action-buttons .btn {
-                flex: 1;
+            
+            .action-buttons .btn:first-child {
+                min-width: 140px;
             }
         }
-
+        
+        /* Desktop */
         @media (min-width: 768px) {
             .call-prep-page {
-                padding: 2rem;
+                padding: 0.5rem;
             }
-
-            .donor-info-card {
-                padding: 2rem;
+            
+            .donor-name-header {
+                padding: 3rem 2.5rem;
+                border-radius: 20px;
             }
-
+            
+            .info-card {
+                padding: 1.5rem;
+            }
+            
+            .info-card-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 1.5rem;
+            }
+            
             .pledge-highlight {
                 padding: 3rem 2.5rem;
+                border-radius: 20px;
             }
-
+            
             .pledge-highlight .amount {
                 font-size: 4rem;
             }
-
+            
             .action-buttons-form {
                 position: relative;
-                padding: 0;
-                border-top: none;
+                bottom: 0;
             }
         }
-
+        
+        /* Large Desktop */
         @media (min-width: 992px) {
-            .content-header {
-                text-align: left;
-            }
-
-            .donor-header-section {
-                text-align: left;
+            .info-grid {
+                grid-template-columns: repeat(3, 1fr);
             }
         }
-
-        /* Print Styles */
-        @media print {
-            .action-buttons-form {
-                display: none;
-            }
+        
+        /* First Call Badge */
+        .first-call-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        
+        .first-call-badge i {
+            margin-right: 0.5rem;
         }
     </style>
 </head>
@@ -415,84 +437,89 @@ $page_title = 'Call: ' . $donor->name;
         
         <main class="main-content">
             <div class="call-prep-page">
-                <div class="content-header mb-4">
-                    <h1 class="content-title">
-                        <i class="fas fa-phone-alt me-2"></i>
-                        Ready to Call
-                    </h1>
-                    <p class="content-subtitle">Review donor information before starting the call</p>
-                </div>
-                
                 <?php if ($is_first_call): ?>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>First Time Call</strong> - This is the first contact with this donor.
+                    <div class="first-call-badge">
+                        <i class="fas fa-star"></i>
+                        First Time Call - This is the first contact with this donor
                     </div>
                 <?php endif; ?>
                 
-                <div class="donor-info-card">
-                    <!-- Donor Header Section -->
-                    <div class="donor-header-section">
-                        <div class="donor-name-large">
-                            <i class="fas fa-user-circle me-2" style="color: var(--prep-primary);"></i>
-                            <?php echo htmlspecialchars($donor->name); ?>
+                <!-- Donor Name Header -->
+                <div class="donor-name-header">
+                    <h2>
+                        <i class="fas fa-user-circle"></i>
+                        <?php echo htmlspecialchars($donor->name); ?>
+                    </h2>
+                    <a href="tel:<?php echo htmlspecialchars($donor->phone); ?>" class="phone-link">
+                        <i class="fas fa-phone"></i>
+                        <?php echo htmlspecialchars($donor->phone); ?>
+                    </a>
+                </div>
+                
+                <!-- Info Grid -->
+                <div class="info-grid">
+                    <!-- Contact History Card -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon primary">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <h3 class="info-card-title">Contact History</h3>
                         </div>
-                        <div class="donor-phone-large">
-                            <a href="tel:<?php echo htmlspecialchars($donor->phone); ?>">
-                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor->phone); ?>
-                            </a>
+                        <div class="info-card-body">
+                            <div class="info-item">
+                                <span class="info-label">Attempts</span>
+                                <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Last Contact</span>
+                                <span class="info-value"><?php echo htmlspecialchars($last_contact); ?></span>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Information Rows -->
-                    <?php if (!empty($donor->city)): ?>
-                    <div class="info-row">
-                        <span class="info-label">
-                            <i class="fas fa-map-marker-alt me-1"></i>Location
-                        </span>
-                        <span class="info-value"><?php echo htmlspecialchars($donor->city); ?></span>
-                    </div>
-                    <?php endif; ?>
                     
-                    <div class="info-row">
-                        <span class="info-label">
-                            <i class="fas fa-redo me-1"></i>Call Attempts
-                        </span>
-                        <span class="info-value">
-                            <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
-                        </span>
+                    <!-- Location Card -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon success">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <h3 class="info-card-title">Location</h3>
+                        </div>
+                        <div class="info-card-body">
+                            <div class="info-item">
+                                <span class="info-label">City</span>
+                                <span class="info-value"><?php echo !empty($donor->city) ? htmlspecialchars($donor->city) : '<span class="text-muted">Not specified</span>'; ?></span>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="info-row">
-                        <span class="info-label">
-                            <i class="fas fa-clock me-1"></i>Last Contact
-                        </span>
-                        <span class="info-value"><?php echo htmlspecialchars($last_contact); ?></span>
-                    </div>
-                    
-                    <div class="info-row">
-                        <span class="info-label">
-                            <i class="fas fa-user-tie me-1"></i>Registered By
-                        </span>
-                        <span class="info-value">
-                            <?php 
-                            if (!empty($donor->registrar_name)) {
-                                echo htmlspecialchars($donor->registrar_name);
-                                if (!empty($donor->pledge_date)) {
-                                    echo ' <small class="text-muted">(Pledge: ' . date('M j, Y', strtotime($donor->pledge_date)) . ')</small>';
-                                }
-                            } else {
-                                echo '<span class="text-danger">Not found</span>';
-                            }
-                            ?>
-                        </span>
-                    </div>
-                    
-                    <div class="info-row">
-                        <span class="info-label">
-                            <i class="fas fa-calendar me-1"></i>Registration Date
-                        </span>
-                        <span class="info-value"><?php echo date('M j, Y', strtotime($donor->created_at)); ?></span>
+                    <!-- Registration Card -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon warning">
+                                <i class="fas fa-user-tag"></i>
+                            </div>
+                            <h3 class="info-card-title">Registration</h3>
+                        </div>
+                        <div class="info-card-body">
+                            <div class="info-item">
+                                <span class="info-label">Registered By</span>
+                                <span class="info-value">
+                                    <?php 
+                                    if (!empty($donor->registrar_name)) {
+                                        echo htmlspecialchars($donor->registrar_name);
+                                    } else {
+                                        echo '<span class="text-danger" style="font-size: 0.75rem;">Not found</span>';
+                                    }
+                                    ?>
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Date</span>
+                                <span class="info-value"><?php echo date('M j, Y', strtotime($donor->created_at)); ?></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -506,10 +533,10 @@ $page_title = 'Call: ' . $donor->name;
                     <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
                     <div class="action-buttons">
                         <a href="index.php" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-2"></i><span>Back to Queue</span>
+                            <i class="fas fa-arrow-left me-2"></i>Back to Queue
                         </a>
                         <button type="submit" class="btn btn-success btn-lg">
-                            <i class="fas fa-phone-alt me-2"></i><span>Start Call</span>
+                            <i class="fas fa-phone-alt me-2"></i>Start Call
                         </button>
                     </div>
                 </form>
