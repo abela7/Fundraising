@@ -121,12 +121,23 @@ $page_title = 'Call: ' . $donor->name;
         }
         
         .donor-name-header .phone-link {
+            color: white !important;
             background: rgba(255, 255, 255, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            text-decoration: none;
         }
         
         .donor-name-header .phone-link:hover {
+            color: white !important;
             background: rgba(255, 255, 255, 0.25);
+            text-decoration: none;
+        }
+        
+        .donor-name-header .phone-link:visited,
+        .donor-name-header .phone-link:active,
+        .donor-name-header .phone-link:focus {
+            color: white !important;
+            text-decoration: none;
         }
         
         /* Info Grid - Compact */
