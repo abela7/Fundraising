@@ -109,43 +109,24 @@ $page_title = 'Call: ' . $donor->name;
             padding: 0;
         }
         
-        /* Donor Name Header - Compact */
+        /* Donor Name Header - Project Theme */
         .donor-name-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0a6286; /* var(--primary) */
             color: white;
             padding: 1.25rem 1rem;
             border-radius: 12px;
             margin-bottom: 1rem;
             text-align: center;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
-        }
-        
-        .donor-name-header h2 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin: 0 0 0.5rem 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         
         .donor-name-header .phone-link {
-            color: white;
-            text-decoration: none;
-            font-size: 0.9375rem;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.375rem;
-            padding: 0.375rem 0.875rem;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .donor-name-header .phone-link:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.25);
         }
         
         /* Info Grid - Compact */
@@ -239,20 +220,21 @@ $page_title = 'Call: ' . $donor->name;
             text-align: right;
         }
         
-        /* Pledge Highlight - Compact */
+        /* Pledge Highlight - Project Theme */
         .pledge-highlight {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
+            background: white;
+            border: 2px solid #ef4444;
+            color: #ef4444;
             padding: 1.25rem 1rem;
             border-radius: 12px;
             text-align: center;
             margin: 1rem 0;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
         
         .pledge-highlight .label {
+            color: #64748b;
             font-size: 0.75rem;
-            opacity: 0.95;
             margin-bottom: 0.5rem;
             font-weight: 600;
             letter-spacing: 1px;
@@ -368,17 +350,17 @@ $page_title = 'Call: ' . $donor->name;
             }
         }
         
-        /* First Call Badge - Compact */
+        /* First Call Badge - Project Theme */
         .first-call-badge {
             display: inline-block;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            background: #3b82f6; /* Info color */
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 8px;
             font-size: 0.8125rem;
             font-weight: 600;
             margin-bottom: 0.875rem;
-            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
         }
         
         .first-call-badge i {
