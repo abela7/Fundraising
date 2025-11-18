@@ -366,7 +366,7 @@ $page_title = 'Call Center Dashboard';
                                             <tr>
                                                 <th>Priority</th>
                                                 <th>Donor</th>
-                                                <th>Balance</th>
+                                                <th>Payment</th>
                                                 <th>Type</th>
                                                 <th>Attempts</th>
                                             </tr>
@@ -374,8 +374,17 @@ $page_title = 'Call Center Dashboard';
                                         <tbody>
                                             <?php while ($donor = $queue_result->fetch_object()): ?>
                                                 <tr data-donor-id="<?php echo (int)$donor->donor_id; ?>" 
+                                                    data-queue-id="<?php echo (int)$donor->queue_id; ?>"
                                                     data-priority="<?php echo (int)$donor->priority; ?>"
-                                                    onclick="window.location.href='make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>'"
+                                                    data-donor-name="<?php echo htmlspecialchars($donor->name); ?>"
+                                                    data-donor-phone="<?php echo htmlspecialchars($donor->phone); ?>"
+                                                    data-donor-city="<?php echo htmlspecialchars($donor->city ?? ''); ?>"
+                                                    data-donor-balance="<?php echo number_format((float)$donor->balance, 2); ?>"
+                                                    data-donor-type="<?php echo htmlspecialchars($donor->queue_type); ?>"
+                                                    data-donor-attempts="<?php echo (int)$donor->attempts_count; ?>"
+                                                    data-donor-reason="<?php echo htmlspecialchars($donor->reason_for_queue ?? ''); ?>"
+                                                    data-last-contact="<?php echo !empty($donor->last_contacted_at) ? date('M j, Y', strtotime($donor->last_contacted_at)) : 'Never'; ?>"
+                                                    onclick="openDonorDrawer(this)"
                                                     style="cursor: pointer;">
                                                     <td data-label="Priority">
                                                         <span class="priority-badge priority-<?php echo (int)$donor->priority >= 8 ? 'urgent' : ((int)$donor->priority >= 5 ? 'high' : 'normal'); ?>">
@@ -400,7 +409,7 @@ $page_title = 'Call Center Dashboard';
                                                             <?php endif; ?>
                                                         </div>
                                                     </td>
-                                                    <td data-label="Balance">
+                                                    <td data-label="Payment">
                                                         <span class="badge bg-danger">£<?php echo number_format((float)$donor->balance, 2); ?></span>
                                                     </td>
                                                     <td data-label="Type">
@@ -485,6 +494,109 @@ $page_title = 'Call Center Dashboard';
                 </div>
             </div>
         </main>
+    </div>
+</div>
+
+<!-- Donor Information Drawer -->
+<div class="donor-drawer" id="donorDrawer">
+    <div class="drawer-overlay" onclick="closeDonorDrawer()"></div>
+    <div class="drawer-content">
+        <div class="drawer-header">
+            <h5 class="drawer-title">
+                <i class="fas fa-user-circle me-2"></i>
+                <span id="drawerDonorName">Donor Information</span>
+            </h5>
+            <button class="drawer-close" onclick="closeDonorDrawer()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="drawer-body">
+            <!-- Priority Alert -->
+            <div class="alert alert-warning mb-3" id="drawerPriorityAlert" style="display: none;">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>High Priority Contact</strong>
+            </div>
+            
+            <!-- Contact Information -->
+            <div class="info-section">
+                <h6 class="info-section-title">
+                    <i class="fas fa-address-card me-2"></i>Contact Information
+                </h6>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Phone</span>
+                        <a href="#" id="drawerPhone" class="info-value phone-link">
+                            <i class="fas fa-phone me-1"></i><span></span>
+                        </a>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">City</span>
+                        <span class="info-value" id="drawerCity">—</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Last Contact</span>
+                        <span class="info-value" id="drawerLastContact">Never</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Information -->
+            <div class="info-section">
+                <h6 class="info-section-title">
+                    <i class="fas fa-pound-sign me-2"></i>Payment Information
+                </h6>
+                <div class="balance-card">
+                    <div class="balance-label">Outstanding Balance</div>
+                    <div class="balance-amount" id="drawerBalance">£0.00</div>
+                    <div class="balance-note">Original pledge amount</div>
+                </div>
+            </div>
+            
+            <!-- Call Queue Information -->
+            <div class="info-section">
+                <h6 class="info-section-title">
+                    <i class="fas fa-info-circle me-2"></i>Queue Details
+                </h6>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Queue Type</span>
+                        <span class="badge bg-secondary" id="drawerType">—</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Priority Level</span>
+                        <span class="priority-badge" id="drawerPriority">—</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Call Attempts</span>
+                        <span class="badge bg-info" id="drawerAttempts">0 calls</span>
+                    </div>
+                </div>
+                <div class="info-item mt-3" id="drawerReasonContainer" style="display: none;">
+                    <span class="info-label">Reason</span>
+                    <p class="info-value text-muted small mb-0" id="drawerReason"></p>
+                </div>
+            </div>
+            
+            <!-- Call History Preview -->
+            <div class="info-section" id="callHistorySection" style="display: none;">
+                <h6 class="info-section-title">
+                    <i class="fas fa-history me-2"></i>Recent Call History
+                </h6>
+                <div id="callHistoryContent">
+                    <p class="text-muted small">Loading...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="drawer-footer">
+            <button class="btn btn-outline-secondary" onclick="closeDonorDrawer()">
+                <i class="fas fa-times me-2"></i>Cancel
+            </button>
+            <button class="btn btn-success btn-lg" id="drawerCallBtn" onclick="startCall()">
+                <i class="fas fa-phone-alt me-2"></i>Start Call
+            </button>
+        </div>
     </div>
 </div>
 
@@ -744,10 +856,105 @@ function handleSwipe() {
         console.log('Swiped left');
     }
     if (touchEndX > touchStartX + 50) {
-        // Swiped right - could go back
-        console.log('Swiped right');
+        // Swiped right - could go back or close drawer
+        if (document.getElementById('donorDrawer').classList.contains('open')) {
+            closeDonorDrawer();
+        }
     }
 }
+
+// ===== Donor Drawer Functions =====
+let currentDonorId = null;
+let currentQueueId = null;
+
+function openDonorDrawer(rowElement) {
+    const drawer = document.getElementById('donorDrawer');
+    
+    // Get data from row
+    currentDonorId = rowElement.getAttribute('data-donor-id');
+    currentQueueId = rowElement.getAttribute('data-queue-id');
+    const priority = parseInt(rowElement.getAttribute('data-priority'));
+    const name = rowElement.getAttribute('data-donor-name');
+    const phone = rowElement.getAttribute('data-donor-phone');
+    const city = rowElement.getAttribute('data-donor-city');
+    const balance = rowElement.getAttribute('data-donor-balance');
+    const type = rowElement.getAttribute('data-donor-type');
+    const attempts = rowElement.getAttribute('data-donor-attempts');
+    const reason = rowElement.getAttribute('data-donor-reason');
+    const lastContact = rowElement.getAttribute('data-last-contact');
+    
+    // Update drawer content
+    document.getElementById('drawerDonorName').textContent = name;
+    document.getElementById('drawerPhone').setAttribute('href', 'tel:' + phone);
+    document.getElementById('drawerPhone').querySelector('span').textContent = phone;
+    document.getElementById('drawerCity').textContent = city || '—';
+    document.getElementById('drawerBalance').textContent = '£' + balance;
+    document.getElementById('drawerLastContact').textContent = lastContact;
+    document.getElementById('drawerAttempts').textContent = attempts + ' calls';
+    
+    // Format type
+    const typeFormatted = type.split('_').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+    document.getElementById('drawerType').textContent = typeFormatted;
+    
+    // Set priority
+    const priorityBadge = document.getElementById('drawerPriority');
+    priorityBadge.textContent = priority;
+    priorityBadge.className = 'priority-badge priority-' + 
+        (priority >= 8 ? 'urgent' : (priority >= 5 ? 'high' : 'normal'));
+    
+    // Show priority alert for high priority
+    const priorityAlert = document.getElementById('drawerPriorityAlert');
+    if (priority >= 8) {
+        priorityAlert.style.display = 'block';
+        priorityAlert.className = 'alert alert-danger mb-3';
+        priorityAlert.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i><strong>Urgent Priority Contact!</strong>';
+    } else if (priority >= 5) {
+        priorityAlert.style.display = 'block';
+        priorityAlert.className = 'alert alert-warning mb-3';
+        priorityAlert.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i><strong>High Priority Contact</strong>';
+    } else {
+        priorityAlert.style.display = 'none';
+    }
+    
+    // Show reason if exists
+    const reasonContainer = document.getElementById('drawerReasonContainer');
+    if (reason && reason.trim()) {
+        document.getElementById('drawerReason').textContent = reason;
+        reasonContainer.style.display = 'block';
+    } else {
+        reasonContainer.style.display = 'none';
+    }
+    
+    // Open drawer
+    drawer.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    
+    // Load call history (optional - could be implemented later)
+    // loadCallHistory(currentDonorId);
+}
+
+function closeDonorDrawer() {
+    const drawer = document.getElementById('donorDrawer');
+    drawer.classList.remove('open');
+    document.body.style.overflow = '';
+    currentDonorId = null;
+    currentQueueId = null;
+}
+
+function startCall() {
+    if (currentDonorId && currentQueueId) {
+        window.location.href = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
+    }
+}
+
+// Close drawer on ESC key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeDonorDrawer();
+    }
+});
 </script>
 </body>
 </html>

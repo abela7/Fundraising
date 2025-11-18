@@ -520,6 +520,208 @@
     }
 }
 
+/* ===== Donor Information Drawer ===== */
+.donor-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.donor-drawer.open {
+    pointer-events: all;
+    opacity: 1;
+}
+
+.drawer-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.drawer-content {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    max-width: 480px;
+    height: 100%;
+    background: white;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.donor-drawer.open .drawer-content {
+    transform: translateX(0);
+}
+
+.drawer-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--cc-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+}
+
+.drawer-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--cc-dark);
+    display: flex;
+    align-items: center;
+}
+
+.drawer-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: white;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.drawer-close:hover {
+    background: #e2e8f0;
+    color: var(--cc-dark);
+}
+
+.drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.drawer-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--cc-border);
+    display: flex;
+    gap: 1rem;
+    background: #f8fafc;
+}
+
+.drawer-footer .btn {
+    flex: 1;
+}
+
+/* Info Sections */
+.info-section {
+    margin-bottom: 2rem;
+}
+
+.info-section:last-child {
+    margin-bottom: 0;
+}
+
+.info-section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.info-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.info-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-value {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--cc-dark);
+}
+
+/* Balance Card */
+.balance-card {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.balance-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+}
+
+.balance-amount {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.balance-note {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 767px) {
+    .drawer-content {
+        max-width: 100%;
+    }
+    
+    .drawer-header {
+        padding: 1rem;
+    }
+    
+    .drawer-body {
+        padding: 1rem;
+    }
+    
+    .drawer-footer {
+        padding: 1rem;
+        flex-direction: column-reverse;
+    }
+    
+    .drawer-footer .btn {
+        width: 100%;
+    }
+    
+    .balance-amount {
+        font-size: 2rem;
+    }
+}
+
 /* ===== Dark Mode Support (optional) ===== */
 @media (prefers-color-scheme: dark) {
     /* Add dark mode styles here if needed */
