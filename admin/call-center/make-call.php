@@ -480,18 +480,15 @@ $page_title = 'Call: ' . $donor->name;
                     <div class="amount">£<?php echo number_format((float)$donor->balance, 2); ?></div>
                 </div>
                 
-                <form method="POST" action="call-status.php" class="action-buttons-form">
-                    <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
-                    <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
-                    <div class="action-buttons">
-                        <a href="index.php" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Back to Queue
-                        </a>
-                        <button type="submit" class="btn btn-success btn-lg">
-                            <i class="fas fa-phone-alt me-2"></i>Start Call
-                        </button>
-                    </div>
-                </form>
+                <div class="action-buttons">
+                    <a href="index.php" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Queue
+                    </a>
+                    <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
+                       class="btn btn-success btn-lg">
+                        <i class="fas fa-phone-alt me-2"></i>Start Call
+                    </a>
+                </div>
             </div>
         </main>
     </div>
