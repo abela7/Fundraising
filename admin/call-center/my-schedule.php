@@ -310,7 +310,7 @@ $page_title = 'My Schedule';
         
         .week-day-slot {
             background: white;
-            min-height: 60px;
+            min-height: 40px;
             padding: 0.25rem;
             position: relative;
         }
@@ -365,8 +365,8 @@ $page_title = 'My Schedule';
         
         .timeline-content {
             background: white;
-            padding: 0.75rem;
-            min-height: 80px;
+            padding: 0.5rem;
+            min-height: 50px;
             position: relative;
         }
         
@@ -798,16 +798,16 @@ function generateMonthCalendar() {
                 const isToday = dateStr === new Date().toISOString().split('T')[0];
                 const dayAppointments = filteredAppointments.filter(apt => apt.appointment_date === dateStr);
                 
-                html += `<div class="calendar-day${isToday ? ' today' : ''}" data-date="${dateStr}">`;
+                html += `<div class="calendar-day${isToday ? ' today' : ''}" data-date="${dateStr}" onclick="openDayView('${dateStr}')" style="cursor: pointer;">`;
                 html += `<div class="day-number">${day}</div>`;
                 
                 if (dayAppointments.length > 0) {
                     html += '<div class="day-appointments">';
                     dayAppointments.slice(0, 3).forEach(apt => {
-                        html += `<div class="appointment-pill ${apt.status}" onclick="window.location.href='appointment-detail.php?id=${apt.id}'" style="cursor: pointer;" title="${apt.donor_name} - ${apt.appointment_time.substring(0, 5)}">${apt.appointment_time.substring(0, 5)}</div>`;
+                        html += `<div class="appointment-pill ${apt.status}" onclick="event.stopPropagation(); window.location.href='appointment-detail.php?id=${apt.id}'" style="cursor: pointer;" title="${apt.donor_name} - ${apt.appointment_time.substring(0, 5)}">${apt.appointment_time.substring(0, 5)}</div>`;
                     });
                     if (dayAppointments.length > 3) {
-                        html += `<div class="appointment-pill" onclick="window.location.href='my-schedule.php?view=day&date=${dateStr}'" style="cursor: pointer;">+${dayAppointments.length - 3} more</div>`;
+                        html += `<div class="appointment-pill" onclick="event.stopPropagation(); openDayView('${dateStr}')" style="cursor: pointer;">+${dayAppointments.length - 3} more</div>`;
                     }
                     html += '</div>';
                 }
@@ -845,41 +845,45 @@ function renderWeekView() {
         `;
     }
     
-    // Time slots (Full 24 Hours)
+    // Time slots (Full 24 Hours with 30-minute blocks)
     for (let hour = 0; hour < 24; hour++) {
-        // Time label
-        const displayHour = hour;
-        const timeLabel = `${String(hour).padStart(2, '0')}:00`;
-        html += `<div class="week-time-slot">${timeLabel}</div>`;
-        
-        // Day columns
-        for (let i = 0; i < 7; i++) {
-            const day = new Date(weekStart);
-            day.setDate(day.getDate() + i);
-            const dateStr = day.toISOString().split('T')[0];
-            const timePrefix = String(hour).padStart(2, '0');
+        // Two rows per hour (00 and 30)
+        for (let minute = 0; minute < 60; minute += 30) {
+            const timeLabel = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            html += `<div class="week-time-slot">${timeLabel}</div>`;
             
-            // Find appointments in this hour slot
-            const hourAppointments = filteredAppointments.filter(apt => 
-                apt.appointment_date === dateStr && 
-                apt.appointment_time.startsWith(timePrefix)
-            );
-            
-            html += `<div class="week-day-slot" data-date="${dateStr}" data-hour="${hour}">`;
-            
-            hourAppointments.forEach(apt => {
-                html += `
-                    <div class="week-appointment ${apt.status}" 
-                         onclick="window.location.href='appointment-detail.php?id=${apt.id}'" 
-                         style="cursor: pointer;" 
-                         title="${apt.donor_name} - ${apt.appointment_time}">
-                        <div class="fw-bold text-truncate">${apt.donor_name}</div>
-                        <div class="small text-truncate">${apt.appointment_time.substring(0, 5)}</div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
+            // Day columns
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(weekStart);
+                day.setDate(day.getDate() + i);
+                const dateStr = day.toISOString().split('T')[0];
+                const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+                
+                // Find appointments that start in this 30-minute slot
+                const slotAppointments = filteredAppointments.filter(apt => {
+                    if (apt.appointment_date !== dateStr) return false;
+                    const aptTime = apt.appointment_time.split(':');
+                    const aptHour = parseInt(aptTime[0]);
+                    const aptMinute = parseInt(aptTime[1]);
+                    return aptHour === hour && aptMinute === minute;
+                });
+                
+                html += `<div class="week-day-slot" data-date="${dateStr}" data-time="${timeStr}">`;
+                
+                slotAppointments.forEach(apt => {
+                    html += `
+                        <div class="week-appointment ${apt.status}" 
+                             onclick="window.location.href='appointment-detail.php?id=${apt.id}'" 
+                             style="cursor: pointer;"
+                             title="${apt.donor_name} - ${apt.appointment_time.substring(0, 5)}">
+                            <div class="fw-bold text-truncate">${apt.donor_name}</div>
+                            <div class="small text-truncate">${apt.appointment_time.substring(0, 5)}</div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+            }
         }
     }
     
@@ -895,34 +899,54 @@ function renderDayView() {
     
     let html = '<div class="day-timeline">';
     
-    // Generate time slots (Full 24 Hours)
+    // Generate time slots (Full 24 Hours with 30-minute blocks)
     for (let hour = 0; hour < 24; hour++) {
-        const timeStr = `${String(hour).padStart(2, '0')}:00`;
-        const appointmentsInSlot = dayAppointments.filter(apt => apt.appointment_time.startsWith(String(hour).padStart(2, '0')));
-        
-        html += '<div class="timeline-slot">';
-        html += `<div class="timeline-time">${timeStr}</div>`;
-        html += '<div class="timeline-content">';
-        
-        appointmentsInSlot.forEach(apt => {
-            const time = apt.appointment_time.substring(0, 5);
-            html += `
-                <div class="timeline-appointment ${apt.status}" 
-                     onclick="window.location.href='appointment-detail.php?id=${apt.id}'" 
-                     style="cursor: pointer;">
-                    <div class="appointment-time">${time}</div>
-                    <div class="appointment-donor">${apt.donor_name}</div>
-                    <div class="appointment-phone">${apt.donor_phone}</div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        html += '</div>';
+        for (let minute = 0; minute < 60; minute += 30) {
+            const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            
+            // Find appointments that start in this 30-minute slot
+            const slotAppointments = dayAppointments.filter(apt => {
+                const aptTime = apt.appointment_time.split(':');
+                const aptHour = parseInt(aptTime[0]);
+                const aptMinute = parseInt(aptTime[1]);
+                return aptHour === hour && aptMinute === minute;
+            });
+            
+            html += '<div class="timeline-slot">';
+            html += `<div class="timeline-time">${timeStr}</div>`;
+            html += '<div class="timeline-content">';
+            
+            slotAppointments.forEach(apt => {
+                const time = apt.appointment_time.substring(0, 5);
+                const endTime = new Date(`${apt.appointment_date}T${apt.appointment_time}`);
+                endTime.setMinutes(endTime.getMinutes() + apt.slot_duration_minutes);
+                const endTimeStr = endTime.toTimeString().substring(0, 5);
+                
+                html += `
+                    <div class="timeline-appointment ${apt.status}" 
+                         onclick="window.location.href='appointment-detail.php?id=${apt.id}'" 
+                         style="cursor: pointer;">
+                        <div class="appointment-time">${time} - ${endTimeStr}</div>
+                        <div class="appointment-donor">${apt.donor_name}</div>
+                        <div class="appointment-phone">${apt.donor_phone}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            html += '</div>';
+        }
     }
     
     html += '</div>';
     container.innerHTML = html;
+}
+
+// Function to open day view for a specific date
+function openDayView(dateStr) {
+    const [year, month, day] = dateStr.split('-');
+    currentDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    switchView('day');
 }
 </script>
 </body>
