@@ -28,6 +28,8 @@ try {
                c.name as church_name,
                COALESCE(
                     (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
+                    (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
+                    (SELECT u.name FROM payments pay JOIN users u ON pay.received_by_user_id = u.id WHERE pay.donor_id = d.id ORDER BY pay.created_at DESC LIMIT 1),
                     'Unknown'
                 ) as registrar_name
         FROM donors d
