@@ -927,6 +927,18 @@ function openDonorDrawer(rowElement) {
     drawer.classList.add('open');
     document.body.style.overflow = 'hidden';
     
+    // Verify drawer opened correctly
+    console.log('Drawer opened. Classes:', drawer.classList.toString());
+    console.log('Drawer has "open" class:', drawer.classList.contains('open'));
+    
+    // Verify button is accessible
+    setTimeout(() => {
+        const btn = document.getElementById('drawerCallBtn');
+        console.log('Button element:', btn);
+        console.log('Button visible:', btn?.offsetParent !== null);
+        console.log('Button final href:', btn?.getAttribute('href'));
+    }, 100);
+    
     // Load call history (optional - could be implemented later)
     // loadCallHistory(currentDonorId);
 }
@@ -976,34 +988,34 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Simple click handler - just let the link work naturally
-// The href is set in openDonorDrawer(), so clicking should work
-// But add a safety check just in case
+// Use event delegation on drawer footer for reliable click handling
 document.addEventListener('click', function(e) {
+    // Check if click is on the drawer call button or its children
     const callBtn = e.target.closest('#drawerCallBtn');
-    if (callBtn) {
-        const href = callBtn.getAttribute('href');
-        console.log('Call button clicked');
-        console.log('href attribute:', href);
-        console.log('href property:', callBtn.href);
-        console.log('Variables:', {currentDonorId, currentQueueId});
-        
-        // If href is still #, try to set it from variables
-        if (!href || href === '#') {
-            if (currentDonorId && currentQueueId) {
-                const url = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
-                console.log('Setting href from variables:', url);
-                callBtn.href = url;
-                callBtn.setAttribute('href', url);
-                // Don't prevent default - let it navigate naturally
-            } else {
-                e.preventDefault();
-                alert('Error: Missing donor information. Please close and reopen the drawer.');
-            }
-        }
-        // Otherwise, let the browser handle the navigation naturally
+    if (!callBtn) return;
+    
+    e.preventDefault(); // Prevent default first, then manually navigate
+    
+    const href = callBtn.getAttribute('href');
+    console.log('=== CALL BUTTON CLICKED ===');
+    console.log('Button element:', callBtn);
+    console.log('href attribute:', href);
+    console.log('Global variables:', {currentDonorId, currentQueueId});
+    console.log('Drawer classes:', document.getElementById('donorDrawer')?.classList.toString());
+    
+    // Navigate if we have a valid URL
+    if (href && href !== '#' && href.indexOf('make-call.php') !== -1) {
+        console.log('✓ Valid href found, navigating to:', href);
+        window.location.href = href;
+    } else if (currentDonorId && currentQueueId) {
+        const url = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
+        console.log('✓ Using global variables, navigating to:', url);
+        window.location.href = url;
+    } else {
+        console.error('✗ No valid navigation target');
+        alert('Error: Missing donor information. Please close and reopen the drawer.');
     }
-});
+}, true); // Use capture phase to ensure we catch it first
 </script>
 </body>
 </html>
