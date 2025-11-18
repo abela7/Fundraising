@@ -33,7 +33,8 @@ try {
             q.priority,
             q.attempts_count,
             q.reason_for_queue,
-            (SELECT name FROM users WHERE id = d.created_by LIMIT 1) as registrar_name
+            (SELECT name FROM users WHERE id = d.created_by LIMIT 1) as registrar_name,
+            (SELECT call_started_at FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_call_date
         FROM donors d
         LEFT JOIN call_center_queues q ON q.donor_id = d.id AND q.id = ?
         WHERE d.id = ?
@@ -61,6 +62,14 @@ try {
     $stmt->close();
     
     $is_first_call = $history->call_count == 0;
+    
+    // Format last contact
+    $last_contact = 'Never';
+    if (!empty($donor->last_call_date)) {
+        $last_contact = date('M j, Y g:i A', strtotime($donor->last_call_date));
+    } elseif (!empty($donor->last_contacted_at)) {
+        $last_contact = date('M j, Y', strtotime($donor->last_contacted_at));
+    }
     
 } catch (Exception $e) {
     error_log("Make Call Error: " . $e->getMessage());
@@ -142,10 +151,13 @@ $page_title = 'Call: ' . $donor->name;
             font-weight: 700;
         }
         
+        .action-buttons-form {
+            margin-top: 2rem;
+        }
+        
         .action-buttons {
             display: flex;
             gap: 1rem;
-            margin-top: 2rem;
         }
         
         .action-buttons .btn {
@@ -195,12 +207,18 @@ $page_title = 'Call: ' . $donor->name;
                     </div>
                     <?php endif; ?>
                     <div class="info-row">
-                        <span class="info-label">Registered By</span>
-                        <span class="info-value"><?php echo htmlspecialchars($donor->registrar_name ?? 'Unknown'); ?></span>
+                        <span class="info-label">Call Attempts</span>
+                        <span class="info-value">
+                            <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
+                        </span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Registration Date</span>
-                        <span class="info-value"><?php echo date('M j, Y', strtotime($donor->created_at)); ?></span>
+                        <span class="info-label">Last Contact</span>
+                        <span class="info-value"><?php echo htmlspecialchars($last_contact); ?></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Registered By</span>
+                        <span class="info-value"><?php echo htmlspecialchars($donor->registrar_name ?? 'Unknown'); ?></span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Call Date & Time</span>
@@ -213,15 +231,18 @@ $page_title = 'Call: ' . $donor->name;
                     <div class="amount">£<?php echo number_format((float)$donor->balance, 2); ?></div>
                 </div>
                 
-                <div class="action-buttons">
-                    <a href="index.php" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Queue
-                    </a>
-                    <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
-                       class="btn btn-success btn-lg">
-                        <i class="fas fa-phone-alt me-2"></i>Start Call
-                    </a>
-                </div>
+                <form method="POST" action="call-status.php" class="action-buttons-form">
+                    <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
+                    <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
+                    <div class="action-buttons">
+                        <a href="index.php" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Queue
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-phone-alt me-2"></i>Start Call
+                        </button>
+                    </div>
+                </form>
             </div>
         </main>
     </div>
