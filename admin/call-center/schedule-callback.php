@@ -56,11 +56,12 @@ try {
             
             try {
                 // Insert appointment
+                $appointment_type = $status === 'busy' ? 'callback_busy' : 'callback_no_answer';
                 $appointment_query = "
                     INSERT INTO call_center_appointments 
                     (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
                      slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'callback_no_answer', 'scheduled', ?, ?, NOW())
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, NOW())
                 ";
                 
                 $stmt = $db->prepare($appointment_query);
@@ -68,7 +69,7 @@ try {
                     throw new Exception("Failed to prepare appointment query: " . $db->error);
                 }
                 
-                $stmt->bind_param('iiiissisi', 
+                $stmt->bind_param('iiiississi', 
                     $donor_id, 
                     $user_id, 
                     $session_id, 
@@ -76,6 +77,7 @@ try {
                     $appointment_date, 
                     $appointment_time, 
                     $slot_duration,
+                    $appointment_type,
                     $notes,
                     $user_id
                 );
@@ -370,7 +372,12 @@ $page_title = 'Schedule Callback';
                 </div>
                 
                 <div class="status-badge">
-                    <i class="fas fa-phone-slash me-2"></i><?php echo htmlspecialchars($status_label); ?>
+                    <?php if ($status === 'busy'): ?>
+                        <i class="fas fa-ban me-2"></i>
+                    <?php else: ?>
+                        <i class="fas fa-phone-slash me-2"></i>
+                    <?php endif; ?>
+                    <?php echo htmlspecialchars($status_label); ?>
                 </div>
                 
                 <form method="POST" action="" id="schedule-form">
