@@ -1,0 +1,192 @@
+/* Call Widget - Floating Action Button & Panel */
+.call-widget-container {
+    position: fixed;
+    top: 80px; /* Below topbar */
+    right: 20px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Main Timer Pill */
+.call-timer-pill {
+    background: #1e293b;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    cursor: default;
+    user-select: none;
+}
+
+.call-timer-pill.paused {
+    background: #f59e0b;
+    color: #000;
+}
+
+.timer-display {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: 1px;
+    min-width: 80px;
+    text-align: center;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    padding-left: 12px;
+}
+
+.timer-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.timer-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.timer-btn.btn-info-toggle {
+    background: #3b82f6;
+}
+
+.timer-btn.btn-pause {
+    background: #f59e0b;
+}
+
+.timer-btn.btn-resume {
+    background: #22c55e;
+}
+
+.timer-btn.btn-end {
+    background: #ef4444;
+}
+
+/* Info Panel (Mini CRM) */
+.donor-info-panel {
+    background: white;
+    width: 300px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    display: none; /* Hidden by default */
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.donor-info-panel.active {
+    display: block;
+}
+
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.panel-header {
+    background: #0a6286;
+    color: white;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.btn-close-panel {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.btn-close-panel:hover {
+    color: white;
+}
+
+.panel-body {
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.info-group {
+    margin-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 8px;
+}
+
+.info-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.info-label-sm {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #64748b;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.info-value-sm {
+    font-size: 0.9rem;
+    color: #334155;
+    font-weight: 500;
+}
+
+.info-value-sm.highlight {
+    color: #0a6286;
+    font-weight: 700;
+}
+
+/* Mobile Responsive */
+@media (max-width: 576px) {
+    .call-widget-container {
+        top: auto;
+        bottom: 20px; /* Move to bottom on mobile */
+        right: 10px;
+        left: 10px;
+        align-items: center;
+    }
+    
+    .call-timer-pill {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .donor-info-panel {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+

@@ -38,7 +38,12 @@ try {
         SELECT d.name, d.phone, d.balance, d.city,
                COALESCE(p.amount, 0) as pledge_amount, 
                p.created_at as pledge_date,
-               c.name as church_name
+               c.name as church_name,
+               COALESCE(
+                    (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
+                    (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
+                    'Unknown'
+                ) as registrar_name
         FROM donors d
         LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
         LEFT JOIN churches c ON d.church_id = c.id
@@ -78,89 +83,12 @@ $page_title = 'Live Call';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/call-center.css">
+    <link rel="stylesheet" href="assets/call-widget.css">
     <style>
         .conversation-page {
             max-width: 900px;
             margin: 0 auto;
-        }
-        
-        /* Timer Widget */
-        .call-timer-widget {
-            position: sticky;
-            top: 1rem;
-            z-index: 100;
-            background: #1e293b;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-            margin-bottom: 1.5rem;
-            width: fit-content;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .timer-display {
-            font-family: 'Courier New', monospace;
-            font-weight: 700;
-            font-size: 1.5rem;
-            letter-spacing: 2px;
-            margin-left: 1rem;
-            color: #4ade80;
-        }
-        
-        .recording-indicator {
-            display: flex;
-            align-items: center;
-            font-size: 0.875rem;
-            color: #ef4444;
-            font-weight: 600;
-        }
-        
-        .recording-dot {
-            width: 10px;
-            height: 10px;
-            background: #ef4444;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-        
-        /* Info Cards */
-        .donor-info-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.25rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 1.5rem;
-            border: 1px solid #e2e8f0;
-        }
-        
-        .info-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            color: #64748b;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        
-        .info-value {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #1e293b;
-        }
-        
-        .highlight-value {
-            color: #0a6286;
+            padding-top: 20px;
         }
         
         /* Steps Wizard */
@@ -292,12 +220,6 @@ $page_title = 'Live Call';
             .choice-grid {
                 grid-template-columns: 1fr;
             }
-            
-            .call-timer-widget {
-                width: 90%;
-                justify-content: center;
-                gap: 1rem;
-            }
         }
     </style>
 </head>
@@ -310,33 +232,6 @@ $page_title = 'Live Call';
         
         <main class="main-content">
             <div class="conversation-page">
-                <!-- Sticky Timer -->
-                <div class="call-timer-widget">
-                    <div class="recording-indicator">
-                        <div class="recording-dot"></div>
-                        LIVE CALL
-                    </div>
-                    <div class="timer-display" id="callTimer">00:00</div>
-                </div>
-                
-                <!-- Donor Summary -->
-                <div class="donor-info-card">
-                    <div class="row">
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="info-label">Donor Name</div>
-                            <div class="info-value highlight-value"><?php echo htmlspecialchars($donor->name); ?></div>
-                        </div>
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="info-label">Phone</div>
-                            <div class="info-value"><?php echo htmlspecialchars($donor->phone); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="info-label">Current Pledge Balance</div>
-                            <div class="info-value text-danger">£<?php echo number_format((float)$donor->balance, 2); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
                 <form id="conversationForm" method="POST" action="process-conversation.php">
                     <input type="hidden" name="session_id" value="<?php echo $session_id; ?>">
                     <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
@@ -461,21 +356,21 @@ $page_title = 'Live Call';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script src="assets/call-widget.js"></script>
 <script>
-    // Timer Logic
-    let seconds = 0;
-    const timerDisplay = document.getElementById('callTimer');
-    
-    function updateTimer() {
-        seconds++;
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        timerDisplay.textContent = 
-            (mins < 10 ? '0' + mins : mins) + ':' + 
-            (secs < 10 ? '0' + secs : secs);
-    }
-    
-    setInterval(updateTimer, 1000);
+    // Initialize Call Widget
+    document.addEventListener('DOMContentLoaded', function() {
+        CallWidget.init({
+            sessionId: <?php echo $session_id; ?>,
+            donorId: <?php echo $donor_id; ?>,
+            donorName: '<?php echo addslashes($donor->name); ?>',
+            donorPhone: '<?php echo addslashes($donor->phone); ?>',
+            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
+            pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
+            registrar: '<?php echo addslashes($donor->registrar_name); ?>',
+            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
+        });
+    });
     
     // Step Logic
     function goToStep(stepNum) {
@@ -509,9 +404,6 @@ $page_title = 'Live Call';
         if (choice === 'yes') {
             goToStep(3);
         } else {
-            // For now, just log it, but we'll likely want to redirect to a reason page or show a sub-form
-            // As per instructions: "if no then ask why or try to call back other time"
-            // We can redirect to schedule-callback with a specific status
             window.location.href = 'schedule-callback.php?session_id=<?php echo $session_id; ?>&donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_ready_to_pay';
         }
     }
