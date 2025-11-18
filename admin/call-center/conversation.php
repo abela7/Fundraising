@@ -414,6 +414,8 @@ $page_title = 'Live Call';
                     <input type="hidden" name="session_id" value="<?php echo $session_id; ?>">
                     <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
                     <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
+                    <input type="hidden" name="plan_template_id" id="selectedPlanId">
+                    <input type="hidden" name="plan_duration" id="selectedDuration">
                     
                     <!-- Step 1: Verification -->
                     <div class="step-container active" id="step1">
@@ -510,9 +512,6 @@ $page_title = 'Live Call';
                                 <p class="text-muted mb-0">How would they like to clear the balance?</p>
                             </div>
                             <div class="step-body">
-                                <input type="hidden" name="plan_template_id" id="selectedPlanId">
-                                <input type="hidden" name="plan_duration" id="selectedDuration">
-                                
                                 <div class="step-split-layout">
                                     <div class="step-split-left">
                                         <h6 class="mb-3 text-muted small fw-bold text-uppercase">Available Plans</h6>
@@ -531,7 +530,7 @@ $page_title = 'Live Call';
                                             
                                             <div class="plan-card" onclick="selectPlan('custom', 0)">
                                                 <div class="plan-name">Custom Plan</div>
-                                                <div class="plan-duration">Set duration</div>
+                                                <div class="plan-duration">Set parameters</div>
                                                 <div class="plan-check">
                                                     <i class="fas fa-cog"></i>
                                                 </div>
@@ -559,13 +558,33 @@ $page_title = 'Live Call';
                                                                value="<?php echo date('Y-m-d'); ?>" min="<?php echo date('Y-m-d'); ?>" onchange="calculatePreview()">
                                                     </div>
                                                     
-                                                    <div id="customDurationContainer" style="display: none;">
-                                                        <label class="form-label small fw-bold text-muted">Duration (Months)</label>
-                                                        <div class="input-group input-group-sm">
-                                                            <button type="button" class="btn btn-outline-secondary" onclick="adjustDuration(-1)">-</button>
-                                                            <input type="number" class="form-control text-center" name="custom_duration" id="customDuration" 
-                                                                   value="12" min="1" max="60" onchange="calculatePreview()">
-                                                            <button type="button" class="btn btn-outline-secondary" onclick="adjustDuration(1)">+</button>
+                                                    <!-- Custom Plan Options (Visible only for custom) -->
+                                                    <div id="customPlanOptions" style="display: none;">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold text-muted">Frequency</label>
+                                                            <select class="form-select form-select-sm" id="customFrequency" onchange="calculatePreview()">
+                                                                <option value="weekly">Weekly</option>
+                                                                <option value="biweekly">Bi-Weekly</option>
+                                                                <option value="monthly" selected>Monthly</option>
+                                                                <option value="quarterly">Quarterly</option>
+                                                                <option value="annually">Annually</option>
+                                                            </select>
+                                                        </div>
+                                                        
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold text-muted">Number of Payments</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <button type="button" class="btn btn-outline-secondary" onclick="adjustPayments(-1)">-</button>
+                                                                <input type="number" class="form-control text-center" id="customPayments" 
+                                                                       value="12" min="1" max="120" onchange="calculatePreview()">
+                                                                <button type="button" class="btn btn-outline-secondary" onclick="adjustPayments(1)">+</button>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold text-muted">Payment Day</label>
+                                                            <input type="number" class="form-control form-control-sm" id="customPaymentDay" 
+                                                                   value="1" min="1" max="28" placeholder="Day of Month" onchange="calculatePreview()">
                                                         </div>
                                                     </div>
                                                 </div>
@@ -585,7 +604,7 @@ $page_title = 'Live Call';
                                                         <span id="previewLastDate">-</span>
                                                     </div>
                                                     <div class="summary-row total">
-                                                        <label>Monthly</label>
+                                                        <label id="previewAmountLabel">Monthly</label>
                                                         <span class="text-success" id="previewMonthly">-</span>
                                                     </div>
                                                     <div class="summary-row" style="margin-bottom: 0;">
@@ -692,21 +711,22 @@ $page_title = 'Live Call';
         
         const summaryBox = document.getElementById('planSummaryBox');
         const placeholder = document.getElementById('planPlaceholder');
-        const customContainer = document.getElementById('customDurationContainer');
+        const customOptions = document.getElementById('customPlanOptions');
         
         placeholder.style.display = 'none';
         summaryBox.classList.add('active');
         
         if (id === 'custom') {
-            customContainer.style.display = 'block';
-            selectedDuration = parseInt(document.getElementById('customDuration').value) || 12;
+            customOptions.style.display = 'block';
+            // Initial calc for custom
+            calculatePreview();
         } else {
-            customContainer.style.display = 'none';
+            customOptions.style.display = 'none';
             selectedDuration = duration;
+            // Standard logic for fixed plans
+            document.getElementById('selectedDuration').value = selectedDuration;
+            calculatePreview(true); // true = use selectedDuration
         }
-        
-        document.getElementById('selectedDuration').value = selectedDuration;
-        calculatePreview();
         
         // On mobile, scroll to summary
         if (window.innerWidth < 992) {
@@ -714,44 +734,66 @@ $page_title = 'Live Call';
         }
     }
     
-    function adjustDuration(delta) {
-        const input = document.getElementById('customDuration');
+    function adjustPayments(delta) {
+        const input = document.getElementById('customPayments');
         let val = parseInt(input.value) || 12;
         val += delta;
         if (val < 1) val = 1;
-        if (val > 60) val = 60;
+        if (val > 120) val = 120;
         input.value = val;
-        
-        // Only update if Custom is selected
-        if (document.getElementById('selectedPlanId').value === 'custom') {
-            selectedDuration = val;
-            document.getElementById('selectedDuration').value = val;
-            calculatePreview();
-        }
+        calculatePreview();
     }
     
-    function calculatePreview() {
-        if (!selectedDuration) return;
+    function calculatePreview(isStandard = false) {
+        let frequency = 'monthly';
+        let count = selectedDuration; // Default for standard
+        let amountLabel = 'Monthly';
         
-        // Update Duration if Custom
-        if (document.getElementById('selectedPlanId').value === 'custom') {
-            selectedDuration = parseInt(document.getElementById('customDuration').value);
-            document.getElementById('selectedDuration').value = selectedDuration;
+        if (!isStandard && document.getElementById('selectedPlanId').value === 'custom') {
+            frequency = document.getElementById('customFrequency').value;
+            count = parseInt(document.getElementById('customPayments').value) || 12;
+            
+            // Update label based on frequency
+            switch(frequency) {
+                case 'weekly': amountLabel = 'Weekly'; break;
+                case 'biweekly': amountLabel = 'Bi-Weekly'; break;
+                case 'quarterly': amountLabel = 'Quarterly'; break;
+                case 'annually': amountLabel = 'Annually'; break;
+                default: amountLabel = 'Monthly';
+            }
+        } else {
+            // Standard plan is always monthly
+            amountLabel = 'Monthly';
         }
+        
+        document.getElementById('previewAmountLabel').textContent = amountLabel;
+        document.getElementById('selectedDuration').value = count; // Approx duration or count
 
-        // Calculate Monthly
-        const monthly = donorBalance / selectedDuration;
+        // Calculate Installment Amount
+        const installment = donorBalance / count;
         
         // Update UI
-        document.getElementById('previewMonthly').textContent = '£' + monthly.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('previewCount').textContent = selectedDuration;
+        document.getElementById('previewMonthly').textContent = '£' + installment.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('previewCount').textContent = count;
         
         // Calculate Dates
         const startDateInput = document.getElementById('startDate').value;
         if (startDateInput) {
             const start = new Date(startDateInput);
-            const end = new Date(startDateInput);
-            end.setMonth(end.getMonth() + selectedDuration - 1);
+            let end = new Date(startDateInput);
+            
+            // Calculate End Date based on Frequency * Count
+            if (frequency === 'weekly') {
+                end.setDate(end.getDate() + (7 * (count - 1)));
+            } else if (frequency === 'biweekly') {
+                end.setDate(end.getDate() + (14 * (count - 1)));
+            } else if (frequency === 'monthly') {
+                end.setMonth(end.getMonth() + (count - 1));
+            } else if (frequency === 'quarterly') {
+                end.setMonth(end.getMonth() + (3 * (count - 1)));
+            } else if (frequency === 'annually') {
+                end.setFullYear(end.getFullYear() + (count - 1));
+            }
             
             const options = { day: 'numeric', month: 'short', year: 'numeric' };
             document.getElementById('previewFirstDate').textContent = start.toLocaleDateString('en-GB', options);
