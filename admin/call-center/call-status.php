@@ -5,6 +5,9 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 
+// Set timezone to London for call center (handles GMT/BST automatically)
+date_default_timezone_set('Europe/London');
+
 try {
     $db = db();
     $user_id = (int)$_SESSION['user']['id'];
@@ -32,8 +35,10 @@ try {
         exit;
     }
     
-    // Record call start time in database
-    $call_started_at = date('Y-m-d H:i:s');
+    // Record call start time in database (store in UTC for consistency)
+    $now = new DateTime('now', new DateTimeZone('Europe/London'));
+    $now->setTimezone(new DateTimeZone('UTC'));
+    $call_started_at = $now->format('Y-m-d H:i:s');
     
     // Create a new call session record
     // Note: conversation_stage starts as 'no_connection' until we know if they picked up

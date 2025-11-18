@@ -5,6 +5,9 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 
+// Set timezone to London for call center (handles GMT/BST automatically)
+date_default_timezone_set('Europe/London');
+
 try {
     $db = db();
     $user_id = (int)$_SESSION['user']['id'];
@@ -55,8 +58,26 @@ try {
             $stmt->close();
             
             if ($session && $session->call_started_at) {
-                $call_date = date('Y-m-d', strtotime($session->call_started_at));
-                $call_time = date('H:i:s', strtotime($session->call_started_at));
+                // Database stores datetime - need to determine what timezone it represents
+                // Check MySQL timezone setting
+                $tz_query = "SELECT @@session.time_zone as tz, @@global.time_zone as global_tz";
+                $tz_result = $db->query($tz_query);
+                $tz_row = $tz_result ? $tz_result->fetch_assoc() : null;
+                
+                // Determine source timezone
+                // If MySQL timezone is SYSTEM, it uses server timezone (likely Addis Ababa)
+                // Otherwise, assume UTC (standard practice)
+                $source_tz = 'UTC';
+                if ($tz_row && ($tz_row['tz'] === 'SYSTEM' || $tz_row['global_tz'] === 'SYSTEM')) {
+                    // Server timezone is likely Addis Ababa based on config/env.php
+                    $source_tz = 'Africa/Addis_Ababa';
+                }
+                
+                // Create datetime object with source timezone, then convert to London
+                $datetime = new DateTime($session->call_started_at, new DateTimeZone($source_tz));
+                $datetime->setTimezone(new DateTimeZone('Europe/London'));
+                $call_date = $datetime->format('Y-m-d');
+                $call_time = $datetime->format('H:i:s');
                 
                 // Get agent name
                 $agent_query = "SELECT name FROM users WHERE id = ? LIMIT 1";
