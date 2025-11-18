@@ -36,22 +36,27 @@ try {
     $call_started_at = date('Y-m-d H:i:s');
     
     // Create a new call session record
+    // Note: conversation_stage starts as 'no_connection' until we know if they picked up
     $session_query = "
         INSERT INTO call_center_sessions 
-        (donor_id, agent_id, queue_id, call_started_at, conversation_stage, status, created_at)
-        VALUES (?, ?, ?, ?, 'phone_status', 'in_progress', NOW())
+        (donor_id, agent_id, call_started_at, conversation_stage, created_at)
+        VALUES (?, ?, ?, 'no_connection', NOW())
     ";
     
     $session_id = 0;
     $stmt = $db->prepare($session_query);
     if ($stmt) {
-        $stmt->bind_param('iiis', $donor_id, $user_id, $queue_id, $call_started_at);
+        $stmt->bind_param('iis', $donor_id, $user_id, $call_started_at);
         $stmt->execute();
         $session_id = $db->insert_id;
         $stmt->close();
         
-        // Update queue attempts count
-        $update_queue = "UPDATE call_center_queues SET attempts_count = attempts_count + 1 WHERE id = ?";
+        // Update queue attempts count and last attempt time
+        $update_queue = "UPDATE call_center_queues 
+                        SET attempts_count = attempts_count + 1, 
+                            last_attempt_at = NOW(),
+                            status = 'in_progress'
+                        WHERE id = ?";
         $stmt = $db->prepare($update_queue);
         if ($stmt) {
             $stmt->bind_param('i', $queue_id);

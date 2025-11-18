@@ -82,8 +82,8 @@ try {
     
     $session_query = "
         INSERT INTO call_center_sessions 
-        (donor_id, agent_id, queue_id, call_started_at, conversation_stage, status, created_at)
-        VALUES (?, ?, ?, ?, 'phone_status', 'in_progress', NOW())
+        (donor_id, agent_id, call_started_at, conversation_stage, created_at)
+        VALUES (?, ?, ?, 'no_connection', NOW())
     ";
     
     $stmt = $db->prepare($session_query);
@@ -92,7 +92,7 @@ try {
         exit;
     }
     
-    $stmt->bind_param('iiis', $donor_id, $user_id, $queue_id, $call_started_at);
+    $stmt->bind_param('iis', $donor_id, $user_id, $call_started_at);
     $result = $stmt->execute();
     
     if (!$result) {
@@ -106,7 +106,11 @@ try {
     echo "<p>✓ Session created with ID: {$session_id}</p>";
     
     echo "<h2>Step 7: Update Queue</h2>";
-    $update_queue = "UPDATE call_center_queues SET attempts_count = attempts_count + 1 WHERE id = ?";
+    $update_queue = "UPDATE call_center_queues 
+                    SET attempts_count = attempts_count + 1, 
+                        last_attempt_at = NOW(),
+                        status = 'in_progress'
+                    WHERE id = ?";
     $stmt = $db->prepare($update_queue);
     if ($stmt) {
         $stmt->bind_param('i', $queue_id);
