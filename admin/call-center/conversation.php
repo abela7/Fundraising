@@ -109,7 +109,7 @@ $page_title = 'Live Call';
     <link rel="stylesheet" href="assets/call-widget.css">
     <style>
         .conversation-page {
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
             padding-top: 20px;
         }
@@ -240,22 +240,40 @@ $page_title = 'Live Call';
             font-size: 1.125rem;
         }
         
+        /* Split Layout for Plan Selection */
+        @media (min-width: 992px) {
+            .step-split-layout {
+                display: flex;
+                gap: 1.5rem;
+                align-items: flex-start;
+            }
+            .step-split-left {
+                flex: 3;
+            }
+            .step-split-right {
+                flex: 2;
+                position: sticky;
+                top: 100px;
+            }
+        }
+        
         /* Plan Selection Styles */
         .plan-cards-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
         
         .plan-card {
             border: 2px solid #e2e8f0;
             border-radius: 12px;
-            padding: 1.5rem 1rem;
+            padding: 1.25rem 1rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
+            background: white;
         }
         
         .plan-card:hover {
@@ -272,15 +290,15 @@ $page_title = 'Live Call';
         
         .plan-name {
             font-weight: 700;
-            font-size: 1rem;
+            font-size: 0.95rem;
             color: #0a6286;
             margin-bottom: 0.5rem;
         }
         
         .plan-duration {
-            font-size: 0.875rem;
+            font-size: 0.85rem;
             color: #64748b;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
         
         .plan-check {
@@ -301,51 +319,71 @@ $page_title = 'Live Call';
             border-color: #0a6286;
         }
         
-        .config-panel {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+        /* Plan Summary Box */
+        .plan-summary-box {
+            background: white;
             border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            display: none;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            display: none; /* Hidden until plan selected */
         }
         
-        .config-panel.active {
+        .plan-summary-box.active {
             display: block;
             animation: fadeIn 0.3s;
         }
         
-        .preview-panel {
-            border-top: 1px solid #e2e8f0;
-            padding-top: 1.5rem;
-            display: none;
+        .summary-header {
+            background: #f8fafc;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 700;
+            color: #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
-        .preview-panel.active {
-            display: block;
-            animation: fadeIn 0.3s;
+        .summary-body {
+            padding: 1.25rem;
         }
         
-        .summary-stat {
-            text-align: center;
-            padding: 1rem;
+        .config-section {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        
+        .preview-section {
             background: #f8fafc;
             border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            padding: 1rem;
         }
         
-        .summary-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            color: #64748b;
-            font-weight: 700;
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
             margin-bottom: 0.5rem;
+            font-size: 0.9rem;
         }
         
-        .summary-value {
-            font-size: 1.25rem;
+        .summary-row.total {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e2e8f0;
             font-weight: 700;
+            font-size: 1.1rem;
             color: #0a6286;
+        }
+        
+        .summary-row label {
+            color: #64748b;
+        }
+        
+        .summary-row span {
+            color: #1e293b;
+            font-weight: 600;
         }
         
         @media (max-width: 768px) {
@@ -355,6 +393,10 @@ $page_title = 'Live Call';
             
             .plan-cards-grid {
                 grid-template-columns: 1fr 1fr;
+            }
+            
+            .plan-summary-box {
+                margin-top: 1.5rem;
             }
         }
     </style>
@@ -471,92 +513,107 @@ $page_title = 'Live Call';
                                 <input type="hidden" name="plan_template_id" id="selectedPlanId">
                                 <input type="hidden" name="plan_duration" id="selectedDuration">
                                 
-                                <div class="plan-cards-grid">
-                                    <?php foreach ($templates as $template): ?>
-                                    <div class="plan-card" onclick="selectPlan('<?php echo $template['id']; ?>', <?php echo $template['duration_months']; ?>)">
-                                        <div class="plan-name"><?php echo htmlspecialchars($template['name']); ?></div>
-                                        <div class="plan-duration">
-                                            <?php echo $template['duration_months'] > 1 ? $template['duration_months'] . ' Months' : 'One-time'; ?>
-                                        </div>
-                                        <div class="plan-check">
-                                            <i class="fas fa-check"></i>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                    
-                                    <div class="plan-card" onclick="selectPlan('custom', 0)">
-                                        <div class="plan-name">Custom Plan</div>
-                                        <div class="plan-duration">Set duration</div>
-                                        <div class="plan-check">
-                                            <i class="fas fa-cog"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Configuration Panel -->
-                                <div id="configPanel" class="config-panel">
-                                    <h6 class="mb-3 fw-bold text-primary"><i class="fas fa-cog me-2"></i>Plan Settings</h6>
-                                    
-                                    <div class="row g-3">
-                                        <!-- Start Date -->
-                                        <div class="col-md-6">
-                                            <label class="form-label small fw-bold text-muted">Start Date</label>
-                                            <input type="date" class="form-control" name="start_date" id="startDate" 
-                                                   value="<?php echo date('Y-m-d'); ?>" min="<?php echo date('Y-m-d'); ?>" onchange="calculatePreview()">
+                                <div class="step-split-layout">
+                                    <div class="step-split-left">
+                                        <h6 class="mb-3 text-muted small fw-bold text-uppercase">Available Plans</h6>
+                                        <div class="plan-cards-grid">
+                                            <?php foreach ($templates as $template): ?>
+                                            <div class="plan-card" onclick="selectPlan('<?php echo $template['id']; ?>', <?php echo $template['duration_months']; ?>)">
+                                                <div class="plan-name"><?php echo htmlspecialchars($template['name']); ?></div>
+                                                <div class="plan-duration">
+                                                    <?php echo $template['duration_months'] > 1 ? $template['duration_months'] . ' Months' : 'One-time'; ?>
+                                                </div>
+                                                <div class="plan-check">
+                                                    <i class="fas fa-check"></i>
+                                                </div>
+                                            </div>
+                                            <?php endforeach; ?>
+                                            
+                                            <div class="plan-card" onclick="selectPlan('custom', 0)">
+                                                <div class="plan-name">Custom Plan</div>
+                                                <div class="plan-duration">Set duration</div>
+                                                <div class="plan-check">
+                                                    <i class="fas fa-cog"></i>
+                                                </div>
+                                            </div>
                                         </div>
                                         
-                                        <!-- Custom Duration (Only visible for Custom) -->
-                                        <div class="col-md-6" id="customDurationContainer" style="display: none;">
-                                            <label class="form-label small fw-bold text-muted">Duration (Months)</label>
-                                            <div class="input-group">
-                                                <button type="button" class="btn btn-outline-secondary" onclick="adjustDuration(-1)">-</button>
-                                                <input type="number" class="form-control text-center" name="custom_duration" id="customDuration" 
-                                                       value="12" min="1" max="60" onchange="calculatePreview()">
-                                                <button type="button" class="btn btn-outline-secondary" onclick="adjustDuration(1)">+</button>
+                                        <!-- Back Button for Desktop (Left Column) -->
+                                        <button type="button" class="btn btn-outline-secondary d-none d-lg-inline-block" onclick="goToStep(2)">
+                                            <i class="fas fa-arrow-left me-2"></i>Back
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="step-split-right">
+                                        <!-- Summary & Preview Box -->
+                                        <div id="planSummaryBox" class="plan-summary-box">
+                                            <div class="summary-header">
+                                                <span><i class="fas fa-file-invoice-dollar me-2"></i>Plan Preview</span>
                                             </div>
+                                            <div class="summary-body">
+                                                <!-- Config Section -->
+                                                <div class="config-section">
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-bold text-muted">Start Date</label>
+                                                        <input type="date" class="form-control form-control-sm" name="start_date" id="startDate" 
+                                                               value="<?php echo date('Y-m-d'); ?>" min="<?php echo date('Y-m-d'); ?>" onchange="calculatePreview()">
+                                                    </div>
+                                                    
+                                                    <div id="customDurationContainer" style="display: none;">
+                                                        <label class="form-label small fw-bold text-muted">Duration (Months)</label>
+                                                        <div class="input-group input-group-sm">
+                                                            <button type="button" class="btn btn-outline-secondary" onclick="adjustDuration(-1)">-</button>
+                                                            <input type="number" class="form-control text-center" name="custom_duration" id="customDuration" 
+                                                                   value="12" min="1" max="60" onchange="calculatePreview()">
+                                                            <button type="button" class="btn btn-outline-secondary" onclick="adjustDuration(1)">+</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Preview Section -->
+                                                <div class="preview-section">
+                                                    <div class="summary-row">
+                                                        <label>Installments</label>
+                                                        <span id="previewCount">-</span>
+                                                    </div>
+                                                    <div class="summary-row">
+                                                        <label>First Payment</label>
+                                                        <span id="previewFirstDate">-</span>
+                                                    </div>
+                                                    <div class="summary-row">
+                                                        <label>Last Payment</label>
+                                                        <span id="previewLastDate">-</span>
+                                                    </div>
+                                                    <div class="summary-row total">
+                                                        <label>Monthly</label>
+                                                        <span class="text-success" id="previewMonthly">-</span>
+                                                    </div>
+                                                    <div class="summary-row" style="margin-bottom: 0;">
+                                                        <label>Total Pledge</label>
+                                                        <span>£<?php echo number_format((float)$donor->balance, 2); ?></span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mt-3">
+                                                    <button type="button" class="btn btn-success w-100" id="btnFinish" disabled onclick="finishCall()">
+                                                        Confirm Plan & Finish <i class="fas fa-check ms-2"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Placeholder when no plan selected -->
+                                        <div id="planPlaceholder" class="text-center py-5 text-muted">
+                                            <i class="fas fa-arrow-left mb-2" style="font-size: 1.5rem;"></i>
+                                            <p>Select a plan on the left to see details</p>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <!-- Preview Panel -->
-                                <div id="previewPanel" class="preview-panel">
-                                    <h6 class="mb-3 fw-bold text-success"><i class="fas fa-calculator me-2"></i>Payment Schedule Preview</h6>
-                                    
-                                    <div class="row g-3 mb-3">
-                                        <div class="col-4">
-                                            <div class="summary-stat">
-                                                <div class="summary-label">Total</div>
-                                                <div class="summary-value">£<?php echo number_format((float)$donor->balance, 2); ?></div>
-                                            </div>
-                                        </div>
-                                        <div class="col-4">
-                                            <div class="summary-stat">
-                                                <div class="summary-label">Monthly</div>
-                                                <div class="summary-value" id="previewMonthly">-</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-4">
-                                            <div class="summary-stat">
-                                                <div class="summary-label">Installments</div>
-                                                <div class="summary-value" id="previewCount">-</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="alert alert-light border">
-                                        <div class="d-flex justify-content-between small">
-                                            <span>First Payment: <strong id="previewFirstDate">-</strong></span>
-                                            <span>Last Payment: <strong id="previewLastDate">-</strong></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-4 d-flex justify-content-between">
+                                <!-- Mobile Back Button -->
+                                <div class="mt-4 d-lg-none">
                                     <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
-                                    </button>
-                                    <button type="button" class="btn btn-success btn-lg" id="btnFinish" disabled onclick="finishCall()">
-                                        Confirm Plan & Finish <i class="fas fa-check ms-2"></i>
                                     </button>
                                 </div>
                             </div>
@@ -633,10 +690,12 @@ $page_title = 'Live Call';
         // Update Inputs
         document.getElementById('selectedPlanId').value = id;
         
-        const configPanel = document.getElementById('configPanel');
+        const summaryBox = document.getElementById('planSummaryBox');
+        const placeholder = document.getElementById('planPlaceholder');
         const customContainer = document.getElementById('customDurationContainer');
         
-        configPanel.classList.add('active');
+        placeholder.style.display = 'none';
+        summaryBox.classList.add('active');
         
         if (id === 'custom') {
             customContainer.style.display = 'block';
@@ -648,6 +707,11 @@ $page_title = 'Live Call';
         
         document.getElementById('selectedDuration').value = selectedDuration;
         calculatePreview();
+        
+        // On mobile, scroll to summary
+        if (window.innerWidth < 992) {
+            summaryBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
     
     function adjustDuration(delta) {
@@ -679,7 +743,6 @@ $page_title = 'Live Call';
         const monthly = donorBalance / selectedDuration;
         
         // Update UI
-        document.getElementById('previewPanel').classList.add('active');
         document.getElementById('previewMonthly').textContent = '£' + monthly.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         document.getElementById('previewCount').textContent = selectedDuration;
         
@@ -699,8 +762,6 @@ $page_title = 'Live Call';
     }
     
     function finishCall() {
-        // In a real scenario, this would submit the form
-        // document.getElementById('conversationForm').submit();
         alert('Plan Created! Redirecting to queue...');
         window.location.href = 'index.php';
     }
