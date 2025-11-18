@@ -155,7 +155,24 @@ try {
     exit;
 }
 
-$page_title = 'Confirm Invalid Number';
+// Set page title based on reason
+$reason_titles = [
+    'not_working' => 'Confirm Number Not Working',
+    'disconnected' => 'Confirm Number Disconnected',
+    'invalid' => 'Confirm Invalid Number',
+    'wrong_number' => 'Confirm Wrong Number',
+    'network_error' => 'Confirm Network Error'
+];
+$page_title = $reason_titles[$reason] ?? 'Confirm Invalid Number';
+
+$reason_questions = [
+    'not_working' => 'Are you sure this phone number is not working?',
+    'disconnected' => 'Are you sure this phone number is disconnected?',
+    'invalid' => 'Are you sure this phone number is invalid?',
+    'wrong_number' => 'Are you sure this is the wrong number?',
+    'network_error' => 'Are you sure there was a network error?'
+];
+$confirmation_question = $reason_questions[$reason] ?? 'Are you sure this number is invalid?';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -350,7 +367,7 @@ $page_title = 'Confirm Invalid Number';
                 <div class="content-header mb-4">
                     <h1 class="content-title">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        Confirm Invalid Number
+                        <?php echo htmlspecialchars($page_title); ?>
                     </h1>
                     <p class="content-subtitle">Please confirm before marking this number as invalid</p>
                 </div>
@@ -367,7 +384,7 @@ $page_title = 'Confirm Invalid Number';
                         <i class="fas fa-question-circle"></i>
                     </div>
                     <div class="confirmation-question">
-                        Are you sure the donor didn't pick up?
+                        <?php echo htmlspecialchars($confirmation_question); ?>
                     </div>
                     
                     <div class="call-details">
