@@ -833,12 +833,12 @@ function renderWeekView() {
         `;
     }
     
-    // Time slots (9 AM - 5 PM)
-    for (let hour = 9; hour < 17; hour++) {
+    // Time slots (Full 24 Hours)
+    for (let hour = 0; hour < 24; hour++) {
         // Time label
-        const displayHour = hour > 12 ? hour - 12 : hour;
-        const ampm = hour >= 12 ? 'PM' : 'AM';
-        html += `<div class="week-time-slot">${displayHour}:00 ${ampm}</div>`;
+        const displayHour = hour;
+        const timeLabel = `${String(hour).padStart(2, '0')}:00`;
+        html += `<div class="week-time-slot">${timeLabel}</div>`;
         
         // Day columns
         for (let i = 0; i < 7; i++) {
@@ -878,20 +878,15 @@ function renderDayView() {
     const dateStr = currentDate.toISOString().split('T')[0];
     const dayAppointments = filteredAppointments.filter(apt => apt.appointment_date === dateStr);
     
-    if (dayAppointments.length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-day"></i><p>No appointments scheduled for this day</p></div>';
-        return;
-    }
-    
     let html = '<div class="day-timeline">';
     
-    // Generate time slots (9 AM - 5 PM)
-    for (let hour = 9; hour < 17; hour++) {
-        const timeStr = `${String(hour).padStart(2, '0')}:00:00`;
+    // Generate time slots (Full 24 Hours)
+    for (let hour = 0; hour < 24; hour++) {
+        const timeStr = `${String(hour).padStart(2, '0')}:00`;
         const appointmentsInSlot = dayAppointments.filter(apt => apt.appointment_time.startsWith(String(hour).padStart(2, '0')));
         
         html += '<div class="timeline-slot">';
-        html += `<div class="timeline-time">${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}</div>`;
+        html += `<div class="timeline-time">${timeStr}</div>`;
         html += '<div class="timeline-content">';
         
         appointmentsInSlot.forEach(apt => {
