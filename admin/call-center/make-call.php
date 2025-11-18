@@ -33,7 +33,18 @@ try {
             q.priority,
             q.attempts_count,
             q.reason_for_queue,
-            (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1) as registrar_name,
+            COALESCE(
+                (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
+                (SELECT u.name FROM pledges p 
+                 JOIN users u ON p.created_by_user_id = u.id 
+                 WHERE p.donor_id = d.id 
+                 ORDER BY p.created_at DESC LIMIT 1),
+                (SELECT u.name FROM payments pay 
+                 JOIN users u ON pay.received_by_user_id = u.id 
+                 WHERE pay.donor_id = d.id 
+                 ORDER BY pay.created_at DESC LIMIT 1)
+            ) as registrar_name,
+            (SELECT created_at FROM pledges WHERE donor_id = d.id AND status = 'approved' ORDER BY created_at DESC LIMIT 1) as pledge_date,
             (SELECT call_started_at FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_call_date
         FROM donors d
         LEFT JOIN call_center_queues q ON q.donor_id = d.id AND q.id = ?
@@ -218,7 +229,18 @@ $page_title = 'Call: ' . $donor->name;
                     </div>
                     <div class="info-row">
                         <span class="info-label">Registered By</span>
-                        <span class="info-value"><?php echo htmlspecialchars($donor->registrar_name ?? 'Unknown'); ?></span>
+                        <span class="info-value">
+                            <?php 
+                            if (!empty($donor->registrar_name)) {
+                                echo htmlspecialchars($donor->registrar_name);
+                                if (!empty($donor->pledge_date)) {
+                                    echo ' <small class="text-muted">(Pledge: ' . date('M j, Y', strtotime($donor->pledge_date)) . ')</small>';
+                                }
+                            } else {
+                                echo '<span class="text-danger">Not found - Check pledges/payments</span>';
+                            }
+                            ?>
+                        </span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Call Date & Time</span>
