@@ -72,9 +72,9 @@ try {
     }
     
 } catch (Exception $e) {
-    error_log("Make Call Error: " . $e->getMessage());
-    header('Location: index.php');
-    exit;
+    error_log("Make Call Error: " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine());
+    // Show error instead of redirecting silently
+    die("Error loading donor information: " . htmlspecialchars($e->getMessage()) . ". <a href='index.php'>Go back</a>");
 }
 
 $page_title = 'Call: ' . $donor->name;

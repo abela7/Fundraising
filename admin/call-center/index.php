@@ -409,8 +409,8 @@ $page_title = 'Call Center Dashboard';
                                                     </td>
                                                     <td data-label="Action">
                                                         <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
-                                                           class="btn btn-success btn-sm">
-                                                            <i class="fas fa-phone-alt me-1"></i>Call
+                                                           class="btn btn-primary btn-sm">
+                                                            <i class="fas fa-eye me-1"></i>View
                                                         </a>
                                                     </td>
                                                 </tr>
@@ -640,20 +640,20 @@ $page_title = 'Call Center Dashboard';
     }
 }
 
-/* Call Button Styling */
-.table .btn-success {
+/* View Button Styling */
+.table .btn-primary {
     white-space: nowrap;
     min-width: 80px;
 }
 
 @media (max-width: 767px) {
-    .table .btn-success {
+    .table .btn-primary {
         font-size: 0.875rem;
         padding: 0.25rem 0.5rem;
         min-width: 70px;
     }
     
-    .table .btn-success .fas {
+    .table .btn-primary .fas {
         font-size: 0.75rem;
     }
 }
