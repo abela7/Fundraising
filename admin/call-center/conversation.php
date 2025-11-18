@@ -38,6 +38,7 @@ try {
         SELECT d.name, d.phone, d.balance, d.city,
                COALESCE(p.amount, 0) as pledge_amount, 
                p.created_at as pledge_date,
+               p.id as pledge_id,
                c.name as church_name,
                COALESCE(
                     (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
@@ -386,6 +387,47 @@ $page_title = 'Live Call';
             font-weight: 600;
         }
         
+        /* Step 4 Confirmation */
+        .confirmation-box {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .confirmation-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0a6286;
+            margin-bottom: 1rem;
+        }
+        
+        .confirmation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            text-align: left;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .conf-item label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .conf-item div {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #1e293b;
+        }
+        
         @media (max-width: 768px) {
             .choice-grid {
                 grid-template-columns: 1fr;
@@ -397,6 +439,11 @@ $page_title = 'Live Call';
             
             .plan-summary-box {
                 margin-top: 1.5rem;
+            }
+            
+            .confirmation-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
             }
         }
     </style>
@@ -414,6 +461,7 @@ $page_title = 'Live Call';
                     <input type="hidden" name="session_id" value="<?php echo $session_id; ?>">
                     <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
                     <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
+                    <input type="hidden" name="pledge_id" value="<?php echo $donor->pledge_id; ?>">
                     <input type="hidden" name="plan_template_id" id="selectedPlanId">
                     <input type="hidden" name="plan_duration" id="selectedDuration">
                     
@@ -562,7 +610,7 @@ $page_title = 'Live Call';
                                                     <div id="customPlanOptions" style="display: none;">
                                                         <div class="mb-3">
                                                             <label class="form-label small fw-bold text-muted">Frequency</label>
-                                                            <select class="form-select form-select-sm" id="customFrequency" onchange="calculatePreview()">
+                                                            <select class="form-select form-select-sm" name="custom_frequency" id="customFrequency" onchange="calculatePreview()">
                                                                 <option value="weekly">Weekly</option>
                                                                 <option value="biweekly">Bi-Weekly</option>
                                                                 <option value="monthly" selected>Monthly</option>
@@ -575,7 +623,7 @@ $page_title = 'Live Call';
                                                             <label class="form-label small fw-bold text-muted">Number of Payments</label>
                                                             <div class="input-group input-group-sm">
                                                                 <button type="button" class="btn btn-outline-secondary" onclick="adjustPayments(-1)">-</button>
-                                                                <input type="number" class="form-control text-center" id="customPayments" 
+                                                                <input type="number" class="form-control text-center" name="custom_payments" id="customPayments" 
                                                                        value="12" min="1" max="120" onchange="calculatePreview()">
                                                                 <button type="button" class="btn btn-outline-secondary" onclick="adjustPayments(1)">+</button>
                                                             </div>
@@ -583,7 +631,7 @@ $page_title = 'Live Call';
                                                         
                                                         <div class="mb-3">
                                                             <label class="form-label small fw-bold text-muted">Payment Day</label>
-                                                            <input type="number" class="form-control form-control-sm" id="customPaymentDay" 
+                                                            <input type="number" class="form-control form-control-sm" name="custom_payment_day" id="customPaymentDay" 
                                                                    value="1" min="1" max="28" placeholder="Day of Month" onchange="calculatePreview()">
                                                         </div>
                                                     </div>
@@ -614,8 +662,8 @@ $page_title = 'Live Call';
                                                 </div>
                                                 
                                                 <div class="mt-3">
-                                                    <button type="button" class="btn btn-success w-100" id="btnFinish" disabled onclick="finishCall()">
-                                                        Confirm Plan & Finish <i class="fas fa-check ms-2"></i>
+                                                    <button type="button" class="btn btn-primary w-100" id="btnReview" disabled onclick="goToStep(4)">
+                                                        Review Plan <i class="fas fa-arrow-right ms-2"></i>
                                                     </button>
                                                 </div>
                                             </div>
@@ -633,6 +681,70 @@ $page_title = 'Live Call';
                                 <div class="mt-4 d-lg-none">
                                     <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 4: Review & Confirm -->
+                    <div class="step-container" id="step4">
+                        <div class="step-card">
+                            <div class="step-header">
+                                <div class="step-title">
+                                    <span class="step-number">4</span>
+                                    Confirm & Save
+                                </div>
+                                <p class="text-muted mb-0">Review the plan details with the donor before saving.</p>
+                            </div>
+                            <div class="step-body">
+                                <div class="confirmation-box">
+                                    <div class="confirmation-title">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Payment Plan Summary
+                                    </div>
+                                    <div class="confirmation-grid">
+                                        <div class="conf-item">
+                                            <label>Total Amount</label>
+                                            <div id="confTotal">£<?php echo number_format((float)$donor->balance, 2); ?></div>
+                                        </div>
+                                        <div class="conf-item">
+                                            <label>Frequency</label>
+                                            <div id="confFrequency">-</div>
+                                        </div>
+                                        <div class="conf-item">
+                                            <label>Installment Amount</label>
+                                            <div class="text-success" id="confInstallment">-</div>
+                                        </div>
+                                        <div class="conf-item">
+                                            <label>Total Payments</label>
+                                            <div id="confCount">-</div>
+                                        </div>
+                                        <div class="conf-item">
+                                            <label>Start Date</label>
+                                            <div id="confStart">-</div>
+                                        </div>
+                                        <div class="conf-item">
+                                            <label>End Date</label>
+                                            <div id="confEnd">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-warning d-flex align-items-center">
+                                    <i class="fas fa-exclamation-triangle me-3 fs-4"></i>
+                                    <div>
+                                        <strong>Confirm with Donor:</strong>
+                                        "You agree to pay <span id="confTextAmount"></span> <span id="confTextFreq"></span> starting on <span id="confTextDate"></span>?"
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(3)">
+                                        <i class="fas fa-arrow-left me-2"></i>Edit Plan
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-lg" onclick="submitForm()">
+                                        Create Plan & Finish Call <i class="fas fa-check-double ms-2"></i>
                                     </button>
                                 </div>
                             </div>
@@ -664,8 +776,13 @@ $page_title = 'Live Call';
     
     // Step Logic
     function goToStep(stepNum) {
+        if (stepNum === 4) {
+            updateConfirmation();
+        }
+        
         document.querySelectorAll('.step-container').forEach(el => el.classList.remove('active'));
         document.getElementById('step' + stepNum).classList.add('active');
+        window.scrollTo(0, 0);
     }
     
     // Step 1 Validation
@@ -700,6 +817,13 @@ $page_title = 'Live Call';
     // Step 3 Plan Logic
     const donorBalance = <?php echo (float)$donor->balance; ?>;
     let selectedDuration = 0;
+    let planDetails = {
+        amount: 0,
+        frequency: 'Monthly',
+        count: 0,
+        start: '',
+        end: ''
+    };
     
     function selectPlan(id, duration) {
         // Update UI
@@ -767,10 +891,15 @@ $page_title = 'Live Call';
         }
         
         document.getElementById('previewAmountLabel').textContent = amountLabel;
-        document.getElementById('selectedDuration').value = count; // Approx duration or count
-
+        // If standard plan, selectedDuration is months. If custom, count is payments.
+        
         // Calculate Installment Amount
         const installment = donorBalance / count;
+        
+        // Store details for Step 4
+        planDetails.amount = installment;
+        planDetails.frequency = amountLabel;
+        planDetails.count = count;
         
         // Update UI
         document.getElementById('previewMonthly').textContent = '£' + installment.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -796,16 +925,34 @@ $page_title = 'Live Call';
             }
             
             const options = { day: 'numeric', month: 'short', year: 'numeric' };
-            document.getElementById('previewFirstDate').textContent = start.toLocaleDateString('en-GB', options);
-            document.getElementById('previewLastDate').textContent = end.toLocaleDateString('en-GB', options);
+            const startStr = start.toLocaleDateString('en-GB', options);
+            const endStr = end.toLocaleDateString('en-GB', options);
+            
+            document.getElementById('previewFirstDate').textContent = startStr;
+            document.getElementById('previewLastDate').textContent = endStr;
+            
+            planDetails.start = startStr;
+            planDetails.end = endStr;
         }
         
-        document.getElementById('btnFinish').disabled = false;
+        document.getElementById('btnReview').disabled = false;
     }
     
-    function finishCall() {
-        alert('Plan Created! Redirecting to queue...');
-        window.location.href = 'index.php';
+    function updateConfirmation() {
+        document.getElementById('confFrequency').textContent = planDetails.frequency;
+        document.getElementById('confInstallment').textContent = '£' + planDetails.amount.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('confCount').textContent = planDetails.count;
+        document.getElementById('confStart').textContent = planDetails.start;
+        document.getElementById('confEnd').textContent = planDetails.end;
+        
+        // Update text
+        document.getElementById('confTextAmount').textContent = '£' + planDetails.amount.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('confTextFreq').textContent = planDetails.frequency.toLowerCase();
+        document.getElementById('confTextDate').textContent = planDetails.start;
+    }
+    
+    function submitForm() {
+        document.getElementById('conversationForm').submit();
     }
 </script>
 </body>
