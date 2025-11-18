@@ -575,9 +575,9 @@ $page_title = 'Call Center Dashboard';
             <button class="btn btn-outline-secondary" onclick="closeDonorDrawer()">
                 <i class="fas fa-times me-2"></i>Cancel
             </button>
-            <button class="btn btn-success btn-lg" id="drawerCallBtn" onclick="startCall()">
+            <a href="#" class="btn btn-success btn-lg" id="drawerCallBtn" onclick="event.preventDefault(); startCall();">
                 <i class="fas fa-phone-alt me-2"></i>Start Call
-            </button>
+            </a>
         </div>
     </div>
 </div>
@@ -852,9 +852,9 @@ let currentQueueId = null;
 function openDonorDrawer(rowElement) {
     const drawer = document.getElementById('donorDrawer');
     
-    // Get data from row
-    currentDonorId = rowElement.getAttribute('data-donor-id');
-    currentQueueId = rowElement.getAttribute('data-queue-id');
+    // Get data from row - CRITICAL: Set global variables FIRST
+    currentDonorId = parseInt(rowElement.getAttribute('data-donor-id'));
+    currentQueueId = parseInt(rowElement.getAttribute('data-queue-id'));
     const priority = parseInt(rowElement.getAttribute('data-priority'));
     const name = rowElement.getAttribute('data-donor-name');
     const phone = rowElement.getAttribute('data-donor-phone');
@@ -864,6 +864,9 @@ function openDonorDrawer(rowElement) {
     const attempts = rowElement.getAttribute('data-donor-attempts');
     const reason = rowElement.getAttribute('data-donor-reason');
     const lastContact = rowElement.getAttribute('data-last-contact');
+    
+    // Debug log
+    console.log('Opening drawer for:', {currentDonorId, currentQueueId, name});
     
     // Update drawer content
     document.getElementById('drawerDonorName').textContent = name;
@@ -897,6 +900,12 @@ function openDonorDrawer(rowElement) {
         reasonContainer.style.display = 'none';
     }
     
+    // Set the call button href directly (backup method)
+    const callBtn = document.getElementById('drawerCallBtn');
+    if (callBtn) {
+        callBtn.setAttribute('href', `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`);
+    }
+    
     // Open drawer
     drawer.classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -914,11 +923,32 @@ function closeDonorDrawer() {
 }
 
 function startCall() {
+    console.log('startCall() called', {currentDonorId, currentQueueId});
+    
+    // Try to get URL from button href first (most reliable)
+    const callBtn = document.getElementById('drawerCallBtn');
+    const hrefUrl = callBtn ? callBtn.getAttribute('href') : null;
+    
+    if (hrefUrl && hrefUrl !== '#') {
+        console.log('Using href from button:', hrefUrl);
+        window.location.href = hrefUrl;
+        return;
+    }
+    
+    // Fallback to variables
     if (currentDonorId && currentQueueId) {
-        window.location.href = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
+        const url = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
+        console.log('Redirecting to:', url);
+        window.location.href = url;
     } else {
-        console.error('Donor ID or Queue ID not set', {currentDonorId, currentQueueId});
-        alert('Error: Missing donor information. Please try again.');
+        console.error('Donor ID or Queue ID not set', {
+            currentDonorId, 
+            currentQueueId,
+            hrefUrl,
+            typeDonorId: typeof currentDonorId,
+            typeQueueId: typeof currentQueueId
+        });
+        alert('Error: Missing donor information. Please close and reopen the drawer.');
     }
 }
 
