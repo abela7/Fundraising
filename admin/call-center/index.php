@@ -369,14 +369,12 @@ $page_title = 'Call Center Dashboard';
                                                 <th>Payment</th>
                                                 <th>Type</th>
                                                 <th>Attempts</th>
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php while ($donor = $queue_result->fetch_object()): ?>
-                                                <tr class="queue-row" 
-                                                    data-donor-id="<?php echo (int)$donor->donor_id; ?>" 
-                                                    data-queue-id="<?php echo (int)$donor->queue_id; ?>"
-                                                    style="cursor: pointer;">
+                                                <tr>
                                                     <td data-label="Priority">
                                                         <span class="priority-badge priority-<?php echo (int)$donor->priority >= 8 ? 'urgent' : ((int)$donor->priority >= 5 ? 'high' : 'normal'); ?>">
                                                             <?php echo htmlspecialchars((string)$donor->priority); ?>
@@ -407,10 +405,13 @@ $page_title = 'Call Center Dashboard';
                                                         <span class="badge bg-secondary"><?php echo htmlspecialchars(str_replace('_', ' ', ucwords($donor->queue_type, '_'))); ?></span>
                                                     </td>
                                                     <td data-label="Attempts">
-                                                        <div class="d-flex align-items-center justify-content-between">
-                                                            <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
-                                                            <i class="fas fa-chevron-right text-muted d-none d-md-inline-block" style="font-size: 0.75rem;"></i>
-                                                        </div>
+                                                        <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
+                                                    </td>
+                                                    <td data-label="Action">
+                                                        <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
+                                                           class="btn btn-success btn-sm">
+                                                            <i class="fas fa-phone-alt me-1"></i>Call
+                                                        </a>
                                                     </td>
                                                 </tr>
                                             <?php endwhile; ?>
@@ -638,6 +639,24 @@ $page_title = 'Call Center Dashboard';
         grid-template-columns: repeat(4, 1fr);
     }
 }
+
+/* Call Button Styling */
+.table .btn-success {
+    white-space: nowrap;
+    min-width: 80px;
+}
+
+@media (max-width: 767px) {
+    .table .btn-success {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+        min-width: 70px;
+    }
+    
+    .table .btn-success .fas {
+        font-size: 0.75rem;
+    }
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -745,26 +764,6 @@ function handleSwipe() {
         console.log('Swiped left');
     }
 }
-
-// Handle queue row clicks - use event delegation for reliability
-document.addEventListener('DOMContentLoaded', function() {
-    const tableBody = document.querySelector('.table tbody');
-    if (tableBody) {
-        tableBody.addEventListener('click', function(e) {
-            // Find the closest queue row
-            const row = e.target.closest('.queue-row');
-            if (row) {
-                const donorId = row.getAttribute('data-donor-id');
-                const queueId = row.getAttribute('data-queue-id');
-                
-                if (donorId && queueId) {
-                    // Navigate to make-call.php
-                    window.location.href = `make-call.php?donor_id=${donorId}&queue_id=${queueId}`;
-                }
-            }
-        });
-    }
-});
 </script>
 </body>
 </html>
