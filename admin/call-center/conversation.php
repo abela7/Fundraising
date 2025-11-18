@@ -762,6 +762,8 @@ $page_title = 'Live Call';
 <script>
     // Initialize Call Widget
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Initializing CallWidget...');
+        
         CallWidget.init({
             sessionId: <?php echo $session_id; ?>,
             donorId: <?php echo $donor_id; ?>,
@@ -772,6 +774,18 @@ $page_title = 'Live Call';
             registrar: '<?php echo addslashes($donor->registrar_name); ?>',
             church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
         });
+        
+        // Ensure timer is running (it should auto-resume from localStorage, but force start if stopped)
+        if (CallWidget.state.status === 'stopped') {
+            console.log('Timer was stopped. Starting it now...');
+            CallWidget.start();
+        } else {
+            console.log('Timer is already running/paused. Current status:', CallWidget.state.status);
+        }
+        
+        // Log current state
+        console.log('CallWidget state:', CallWidget.state);
+        console.log('Current duration:', CallWidget.getDurationSeconds(), 'seconds');
     });
     
     // Step Logic
@@ -952,8 +966,27 @@ $page_title = 'Live Call';
     }
     
     function submitForm() {
+        console.log('submitForm called');
+        
+        // Check if CallWidget exists
+        if (typeof CallWidget === 'undefined') {
+            console.error('CallWidget is not defined!');
+            alert('ERROR: Call Widget not loaded. Duration will be 0.');
+            // Continue anyway to allow form submission
+        }
+        
         // Get duration from widget
-        const duration = CallWidget.getDurationSeconds();
+        let duration = 0;
+        try {
+            duration = CallWidget.getDurationSeconds();
+            console.log('Duration from CallWidget:', duration);
+        } catch (e) {
+            console.error('Error getting duration:', e);
+            alert('ERROR: Could not get call duration. Error: ' + e.message);
+        }
+        
+        // Show confirmation with duration
+        console.log('Final duration to be saved:', duration, 'seconds');
         
         // Create hidden input for duration
         const input = document.createElement('input');
@@ -964,9 +997,17 @@ $page_title = 'Live Call';
         const form = document.getElementById('conversationForm');
         form.appendChild(input);
         
+        console.log('Hidden input added to form:', input);
+        console.log('Form data:', new FormData(form));
+        
         // Stop timer and clear state
-        CallWidget.pause();
-        CallWidget.resetState();
+        try {
+            CallWidget.pause();
+            CallWidget.resetState();
+            console.log('CallWidget stopped and reset');
+        } catch (e) {
+            console.error('Error stopping CallWidget:', e);
+        }
         
         form.submit();
     }
