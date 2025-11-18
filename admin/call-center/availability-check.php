@@ -10,6 +10,7 @@ try {
     $user_id = (int)$_SESSION['user']['id'];
     
     // Get parameters from URL
+    $session_id = isset($_GET['session_id']) ? (int)$_GET['session_id'] : 0;
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     $status = isset($_GET['status']) ? $_GET['status'] : '';
@@ -19,8 +20,23 @@ try {
         exit;
     }
     
-    // Get donor name for display
-    $donor_query = "SELECT name, phone FROM donors WHERE id = ? LIMIT 1";
+    // Get donor name and details for display and widget
+    $donor_query = "
+        SELECT d.name, d.phone, d.balance, d.city,
+               COALESCE(p.amount, 0) as pledge_amount, 
+               p.created_at as pledge_date,
+               c.name as church_name,
+               COALESCE(
+                    (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
+                    'Unknown'
+                ) as registrar_name
+        FROM donors d
+        LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
+        LEFT JOIN churches c ON d.church_id = c.id
+        WHERE d.id = ? 
+        ORDER BY p.created_at DESC 
+        LIMIT 1
+    ";
     $stmt = $db->prepare($donor_query);
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
@@ -52,10 +68,12 @@ $page_title = 'Donor Availability';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/call-center.css">
+    <link rel="stylesheet" href="assets/call-widget.css">
     <style>
         .availability-page {
             max-width: 700px;
             margin: 0 auto;
+            padding-top: 20px;
         }
         
         .donor-header {
@@ -102,6 +120,7 @@ $page_title = 'Donor Availability';
             box-shadow: var(--cc-shadow-lg);
             text-decoration: none;
             color: inherit;
+            background: #f8fafc;
         }
         
         .option-card.success {
@@ -110,6 +129,7 @@ $page_title = 'Donor Availability';
         
         .option-card.success:hover {
             border-color: var(--cc-success);
+            background: #f0fdf4;
         }
         
         .option-icon {
@@ -177,7 +197,7 @@ $page_title = 'Donor Availability';
                 </div>
                 
                 <div class="option-grid">
-                    <a href="conversation.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
+                    <a href="conversation.php?<?php echo $session_id > 0 ? "session_id={$session_id}&" : ''; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
                        class="option-card success">
                         <div class="option-icon">
                             <i class="fas fa-check-circle"></i>
@@ -209,6 +229,24 @@ $page_title = 'Donor Availability';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script src="assets/call-widget.js"></script>
+<script>
+    // Initialize Call Widget
+    document.addEventListener('DOMContentLoaded', function() {
+        CallWidget.init({
+            sessionId: <?php echo $session_id; ?>,
+            donorId: <?php echo $donor_id; ?>,
+            donorName: '<?php echo addslashes($donor->name); ?>',
+            donorPhone: '<?php echo addslashes($donor->phone); ?>',
+            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
+            pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
+            registrar: '<?php echo addslashes($donor->registrar_name); ?>',
+            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
+        });
+        
+        // Auto-start timer since status is 'picked_up'
+        CallWidget.start();
+    });
+</script>
 </body>
 </html>
-

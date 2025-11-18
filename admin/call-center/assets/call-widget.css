@@ -32,6 +32,37 @@
     color: #000;
 }
 
+/* Recording Indicator */
+.recording-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.recording-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.call-timer-pill.paused .recording-dot {
+    animation: none;
+    background: #64748b;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.4;
+        transform: scale(0.8);
+    }
+}
+
 .timer-display {
     font-family: 'Courier New', monospace;
     font-weight: 700;

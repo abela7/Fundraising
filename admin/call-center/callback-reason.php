@@ -22,8 +22,23 @@ try {
         exit;
     }
     
-    // Get donor info
-    $donor_query = "SELECT name, phone FROM donors WHERE id = ? LIMIT 1";
+    // Get donor info for widget and display
+    $donor_query = "
+        SELECT d.name, d.phone, d.balance, d.city,
+               COALESCE(p.amount, 0) as pledge_amount, 
+               p.created_at as pledge_date,
+               c.name as church_name,
+               COALESCE(
+                    (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
+                    'Unknown'
+                ) as registrar_name
+        FROM donors d
+        LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
+        LEFT JOIN churches c ON d.church_id = c.id
+        WHERE d.id = ? 
+        ORDER BY p.created_at DESC 
+        LIMIT 1
+    ";
     $stmt = $db->prepare($donor_query);
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
@@ -55,10 +70,12 @@ $page_title = 'Reason for Callback';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/call-center.css">
+    <link rel="stylesheet" href="assets/call-widget.css">
     <style>
         .reason-page {
             max-width: 800px;
             margin: 0 auto;
+            padding-top: 20px;
         }
         
         .reason-grid {
@@ -223,6 +240,21 @@ $page_title = 'Reason for Callback';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script src="assets/call-widget.js"></script>
+<script>
+    // Initialize Call Widget
+    document.addEventListener('DOMContentLoaded', function() {
+        CallWidget.init({
+            sessionId: <?php echo $session_id; ?>,
+            donorId: <?php echo $donor_id; ?>,
+            donorName: '<?php echo addslashes($donor->name); ?>',
+            donorPhone: '<?php echo addslashes($donor->phone); ?>',
+            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
+            pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
+            registrar: '<?php echo addslashes($donor->registrar_name); ?>',
+            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
+        });
+    });
+</script>
 </body>
 </html>
-

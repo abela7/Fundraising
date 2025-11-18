@@ -37,8 +37,23 @@ try {
         exit;
     }
     
-    // Get donor info
-    $donor_query = "SELECT name, phone FROM donors WHERE id = ? LIMIT 1";
+    // Get donor info for widget and display
+    $donor_query = "
+        SELECT d.name, d.phone, d.balance, d.city,
+               COALESCE(p.amount, 0) as pledge_amount, 
+               p.created_at as pledge_date,
+               c.name as church_name,
+               COALESCE(
+                    (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
+                    'Unknown'
+                ) as registrar_name
+        FROM donors d
+        LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
+        LEFT JOIN churches c ON d.church_id = c.id
+        WHERE d.id = ? 
+        ORDER BY p.created_at DESC 
+        LIMIT 1
+    ";
     $stmt = $db->prepare($donor_query);
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
@@ -62,7 +77,8 @@ try {
         $appointment_date = $_POST['appointment_date'] ?? '';
         $appointment_time = $_POST['appointment_time'] ?? '';
         $notes = $_POST['notes'] ?? '';
-        $reason = $_POST['reason'] ?? $reason; // Use POST reason if available, else GET reason
+        $reason = $_POST['reason'] ?? $reason; 
+        $duration_seconds = isset($_POST['call_duration_seconds']) ? (int)$_POST['call_duration_seconds'] : 0;
         
         if ($appointment_date && $appointment_time) {
             // Start transaction
@@ -158,6 +174,7 @@ try {
                             callback_scheduled_for = ?,
                             callback_reason = ?,
                             call_ended_at = NOW(),
+                            duration_seconds = duration_seconds + ?,
                             notes = CONCAT(COALESCE(notes, ''), ?, ?)
                         WHERE id = ? AND agent_id = ?
                     ";
@@ -168,7 +185,7 @@ try {
                     
                     $stmt = $db->prepare($update_session);
                     if ($stmt) {
-                        $stmt->bind_param('sssssii', $outcome, $callback_datetime, $reason, $callback_note, $extra_notes, $session_id, $user_id);
+                        $stmt->bind_param('sssisii', $outcome, $callback_datetime, $reason, $duration_seconds, $callback_note, $extra_notes, $session_id, $user_id);
                         $stmt->execute();
                         $stmt->close();
                     }
@@ -240,11 +257,13 @@ $page_title = 'Schedule Callback';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/call-center.css">
+    <link rel="stylesheet" href="assets/call-widget.css">
     <style>
         .schedule-callback-page {
             max-width: 700px;
             margin: 0 auto;
             padding: 0.75rem;
+            padding-top: 20px;
         }
         
         .content-header {
@@ -360,6 +379,12 @@ $page_title = 'Schedule Callback';
             border-color: #f1f5f9;
         }
         
+        .loading-slots {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
         .action-buttons {
             display: flex;
             gap: 0.75rem;
@@ -368,36 +393,13 @@ $page_title = 'Schedule Callback';
         
         .action-buttons .btn {
             flex: 1;
-            padding: 0.75rem 1rem;
-            font-size: 0.9375rem;
+            padding: 0.75rem;
             font-weight: 600;
         }
         
-        .loading-slots {
-            text-align: center;
-            padding: 2rem;
-            color: #64748b;
-        }
-        
         @media (max-width: 767px) {
-            .schedule-callback-page {
-                padding: 0.5rem;
-            }
-            
-            .content-title {
-                font-size: 1.25rem;
-            }
-            
-            .donor-header {
-                padding: 0.875rem;
-            }
-            
             .time-slots-grid {
                 grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .form-section {
-                padding: 1rem 0.875rem;
             }
         }
     </style>
@@ -468,7 +470,7 @@ $page_title = 'Schedule Callback';
                     <!-- Time Slot Selection -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="fas fa-clock me-2"></i>Available Time Slots (30 minutes each)
+                            <i class="fas fa-clock me-2"></i>Available Time Slots (<?php echo $slot_duration; ?> minutes each)
                         </div>
                         <div id="time-slots-container" class="loading-slots">
                             <i class="fas fa-spinner fa-spin me-2"></i>Select a date to see available time slots
@@ -504,94 +506,100 @@ $page_title = 'Schedule Callback';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script src="assets/call-widget.js"></script>
 <script>
-(function() {
-    const dateInput = document.getElementById('appointment_date');
-    const timeSlotsContainer = document.getElementById('time-slots-container');
-    const selectedTimeInput = document.getElementById('selected_time_input');
-    const bookBtn = document.getElementById('book-btn');
+    // Initialize Call Widget
+    document.addEventListener('DOMContentLoaded', function() {
+        CallWidget.init({
+            sessionId: <?php echo $session_id; ?>,
+            donorId: <?php echo $donor_id; ?>,
+            donorName: '<?php echo addslashes($donor->name); ?>',
+            donorPhone: '<?php echo addslashes($donor->phone); ?>',
+            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
+            pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
+            registrar: '<?php echo addslashes($donor->registrar_name); ?>',
+            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
+        });
+        
+        // Form submission
+        document.getElementById('schedule-form').addEventListener('submit', function(e) {
+            // Get duration from widget
+            const duration = CallWidget.getDurationSeconds();
+            
+            // Create hidden input
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'call_duration_seconds';
+            input.value = duration;
+            this.appendChild(input);
+            
+            // Stop timer and clear state
+            CallWidget.pause();
+            CallWidget.resetState();
+        });
+    });
+
+    // Pass agent_id to JS for fetching slots
     const agentId = <?php echo $user_id; ?>;
     
-    let selectedSlot = null;
+    // Date picker logic
+    const dateInput = document.getElementById('appointment_date');
+    const slotsContainer = document.getElementById('time-slots-container');
+    const bookBtn = document.getElementById('book-btn');
+    const timeInput = document.getElementById('selected_time_input');
     
-    // Load available time slots when date changes
-    dateInput.addEventListener('change', function() {
-        const selectedDate = this.value;
-        if (!selectedDate) return;
+    // Set default date to tomorrow if today is late
+    // ... (rest of logic remains same but loaded via fetch if needed) ...
+</script>
+<script>
+    // Re-adding the inline script logic for slots from previous version
+    document.getElementById('appointment_date').addEventListener('change', function() {
+        const date = this.value;
+        if (!date) return;
         
-        loadAvailableSlots(selectedDate);
+        slotsContainer.innerHTML = '<div class="loading-slots"><i class="fas fa-spinner fa-spin me-2"></i>Loading available slots...</div>';
+        bookBtn.disabled = true;
+        timeInput.value = '';
+        
+        fetch(`get-available-slots.php?date=${date}&agent_id=${agentId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.slots.length === 0) {
+                        slotsContainer.innerHTML = '<div class="alert alert-warning mb-0">No available slots for this date.</div>';
+                    } else {
+                        let html = '';
+                        data.slots.forEach(slot => {
+                            html += `<div class="time-slot" onclick="selectSlot(this, '${slot.time}')">${slot.formatted_time}</div>`;
+                        });
+                        slotsContainer.innerHTML = html;
+                    }
+                } else {
+                    slotsContainer.innerHTML = `<div class="alert alert-danger mb-0">${data.message || 'Error loading slots'}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                slotsContainer.innerHTML = '<div class="alert alert-danger mb-0">Failed to load slots. Please try again.</div>';
+            });
     });
     
-    async function loadAvailableSlots(date) {
-        timeSlotsContainer.innerHTML = '<div class="loading-slots"><i class="fas fa-spinner fa-spin me-2"></i>Loading available time slots...</div>';
+    function selectSlot(element, time) {
+        // Remove selected class from all
+        document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
         
-        try {
-            const response = await fetch(`get-available-slots.php?date=${date}&agent_id=${agentId}`);
-            const data = await response.json();
-            
-            if (!data.success) {
-                timeSlotsContainer.innerHTML = `<div class="alert alert-warning">${data.message || 'Failed to load time slots'}</div>`;
-                return;
-            }
-            
-            if (data.slots.length === 0) {
-                timeSlotsContainer.innerHTML = `
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No available slots for this date. Please choose another date.
-                    </div>
-                `;
-                return;
-            }
-            
-            // Render time slots
-            let slotsHtml = '<div class="time-slots-grid">';
-            data.slots.forEach(slot => {
-                slotsHtml += `
-                    <div class="time-slot" data-time="${slot.time}">
-                        ${slot.formatted_time}
-                    </div>
-                `;
-            });
-            slotsHtml += '</div>';
-            
-            timeSlotsContainer.innerHTML = slotsHtml;
-            
-            // Add click handlers to slots
-            document.querySelectorAll('.time-slot').forEach(slot => {
-                slot.addEventListener('click', function() {
-                    // Deselect previous
-                    if (selectedSlot) {
-                        selectedSlot.classList.remove('selected');
-                    }
-                    
-                    // Select new
-                    this.classList.add('selected');
-                    selectedSlot = this;
-                    selectedTimeInput.value = this.dataset.time;
-                    bookBtn.disabled = false;
-                });
-            });
-            
-        } catch (error) {
-            console.error('Error loading slots:', error);
-            timeSlotsContainer.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Failed to load time slots. Please try again.
-                </div>
-            `;
-        }
+        // Add to clicked
+        element.classList.add('selected');
+        
+        // Update input
+        timeInput.value = time;
+        bookBtn.disabled = false;
     }
     
-    // Prevent form submission if no time selected
-    document.getElementById('schedule-form').addEventListener('submit', function(e) {
-        if (!selectedTimeInput.value) {
-            e.preventDefault();
-            alert('Please select a time slot');
-        }
-    });
-})();
+    // Trigger change if date is pre-filled
+    if (dateInput.value) {
+        dateInput.dispatchEvent(new Event('change'));
+    }
 </script>
 </body>
 </html>
