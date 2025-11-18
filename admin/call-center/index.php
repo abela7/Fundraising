@@ -575,7 +575,7 @@ $page_title = 'Call Center Dashboard';
             <button class="btn btn-outline-secondary" onclick="closeDonorDrawer()">
                 <i class="fas fa-times me-2"></i>Cancel
             </button>
-            <a href="#" class="btn btn-success btn-lg" id="drawerCallBtn" onclick="event.preventDefault(); startCall();">
+            <a href="#" class="btn btn-success btn-lg" id="drawerCallBtn">
                 <i class="fas fa-phone-alt me-2"></i>Start Call
             </a>
         </div>
@@ -903,7 +903,24 @@ function openDonorDrawer(rowElement) {
     // Set the call button href directly (backup method)
     const callBtn = document.getElementById('drawerCallBtn');
     if (callBtn) {
-        callBtn.setAttribute('href', `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`);
+        const callUrl = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
+        callBtn.setAttribute('href', callUrl);
+        callBtn.href = callUrl; // Set both attribute and property
+        console.log('Call button href set to:', callUrl);
+        console.log('Button href attribute:', callBtn.getAttribute('href'));
+        console.log('Button href property:', callBtn.href);
+        
+        // Verify it was set correctly
+        setTimeout(() => {
+            const verifyHref = callBtn.getAttribute('href');
+            console.log('Verification - href after 100ms:', verifyHref);
+            if (verifyHref === '#' || !verifyHref || verifyHref.indexOf('make-call.php') === -1) {
+                console.error('ERROR: href was not set correctly!', verifyHref);
+                alert('Warning: Call button href may not be set correctly. Check console.');
+            }
+        }, 100);
+    } else {
+        console.error('Call button not found!');
     }
     
     // Open drawer
@@ -956,6 +973,35 @@ function startCall() {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeDonorDrawer();
+    }
+});
+
+// Simple click handler - just let the link work naturally
+// The href is set in openDonorDrawer(), so clicking should work
+// But add a safety check just in case
+document.addEventListener('click', function(e) {
+    const callBtn = e.target.closest('#drawerCallBtn');
+    if (callBtn) {
+        const href = callBtn.getAttribute('href');
+        console.log('Call button clicked');
+        console.log('href attribute:', href);
+        console.log('href property:', callBtn.href);
+        console.log('Variables:', {currentDonorId, currentQueueId});
+        
+        // If href is still #, try to set it from variables
+        if (!href || href === '#') {
+            if (currentDonorId && currentQueueId) {
+                const url = `make-call.php?donor_id=${currentDonorId}&queue_id=${currentQueueId}`;
+                console.log('Setting href from variables:', url);
+                callBtn.href = url;
+                callBtn.setAttribute('href', url);
+                // Don't prevent default - let it navigate naturally
+            } else {
+                e.preventDefault();
+                alert('Error: Missing donor information. Please close and reopen the drawer.');
+            }
+        }
+        // Otherwise, let the browser handle the navigation naturally
     }
 });
 </script>
