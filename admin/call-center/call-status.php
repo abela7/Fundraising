@@ -9,9 +9,9 @@ try {
     $db = db();
     $user_id = (int)$_SESSION['user']['id'];
     
-    // Get donor_id and queue_id from URL
-    $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
-    $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
+    // Get donor_id and queue_id from POST (form submission) or GET (direct access)
+    $donor_id = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : (isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0);
+    $queue_id = isset($_POST['queue_id']) ? (int)$_POST['queue_id'] : (isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0);
     
     if (!$donor_id || !$queue_id) {
         header('Location: index.php');
@@ -32,8 +32,33 @@ try {
         exit;
     }
     
-    // Record call start time
+    // Record call start time in database
     $call_started_at = date('Y-m-d H:i:s');
+    
+    // Create a new call session record
+    $session_query = "
+        INSERT INTO call_center_sessions 
+        (donor_id, agent_id, queue_id, call_started_at, conversation_stage, status, created_at)
+        VALUES (?, ?, ?, ?, 'phone_status', 'in_progress', NOW())
+    ";
+    
+    $session_id = 0;
+    $stmt = $db->prepare($session_query);
+    if ($stmt) {
+        $stmt->bind_param('iiis', $donor_id, $user_id, $queue_id, $call_started_at);
+        $stmt->execute();
+        $session_id = $db->insert_id;
+        $stmt->close();
+        
+        // Update queue attempts count
+        $update_queue = "UPDATE call_center_queues SET attempts_count = attempts_count + 1 WHERE id = ?";
+        $stmt = $db->prepare($update_queue);
+        if ($stmt) {
+            $stmt->bind_param('i', $queue_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+    }
     
 } catch (Exception $e) {
     error_log("Call Status Error: " . $e->getMessage());
@@ -183,7 +208,10 @@ $page_title = 'Call Status';
                 </div>
                 
                 <div class="option-grid">
-                    <a href="availability-check.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=picked_up" 
+                    <?php 
+                    $session_param = $session_id > 0 ? "session_id={$session_id}&" : '';
+                    ?>
+                    <a href="availability-check.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=picked_up" 
                        class="option-card success">
                         <div class="option-icon">
                             <i class="fas fa-phone-alt"></i>
@@ -192,7 +220,7 @@ $page_title = 'Call Status';
                         <div class="option-desc">Donor answered the call</div>
                     </a>
                     
-                    <a href="schedule-callback.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_picked_up" 
+                    <a href="schedule-callback.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_picked_up" 
                        class="option-card danger">
                         <div class="option-icon">
                             <i class="fas fa-phone-slash"></i>
@@ -201,7 +229,7 @@ $page_title = 'Call Status';
                         <div class="option-desc">Donor didn't pick up</div>
                     </a>
                     
-                    <a href="schedule-callback.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=busy" 
+                    <a href="schedule-callback.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=busy" 
                        class="option-card danger">
                         <div class="option-icon">
                             <i class="fas fa-ban"></i>
@@ -210,7 +238,7 @@ $page_title = 'Call Status';
                         <div class="option-desc">Line was busy</div>
                     </a>
                     
-                    <a href="schedule-callback.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_working" 
+                    <a href="schedule-callback.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_working" 
                        class="option-card danger">
                         <div class="option-icon">
                             <i class="fas fa-times-circle"></i>

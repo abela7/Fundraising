@@ -373,9 +373,9 @@ $page_title = 'Call Center Dashboard';
                                         </thead>
                                         <tbody>
                                             <?php while ($donor = $queue_result->fetch_object()): ?>
-                                                <tr data-donor-id="<?php echo (int)$donor->donor_id; ?>" 
+                                                <tr class="queue-row" 
+                                                    data-donor-id="<?php echo (int)$donor->donor_id; ?>" 
                                                     data-queue-id="<?php echo (int)$donor->queue_id; ?>"
-                                                    onclick="window.location.href='make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>'"
                                                     style="cursor: pointer;">
                                                     <td data-label="Priority">
                                                         <span class="priority-badge priority-<?php echo (int)$donor->priority >= 8 ? 'urgent' : ((int)$donor->priority >= 5 ? 'high' : 'normal'); ?>">
@@ -745,6 +745,26 @@ function handleSwipe() {
         console.log('Swiped left');
     }
 }
+
+// Handle queue row clicks - use event delegation for reliability
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.querySelector('.table tbody');
+    if (tableBody) {
+        tableBody.addEventListener('click', function(e) {
+            // Find the closest queue row
+            const row = e.target.closest('.queue-row');
+            if (row) {
+                const donorId = row.getAttribute('data-donor-id');
+                const queueId = row.getAttribute('data-queue-id');
+                
+                if (donorId && queueId) {
+                    // Navigate to make-call.php
+                    window.location.href = `make-call.php?donor_id=${donorId}&queue_id=${queueId}`;
+                }
+            }
+        });
+    }
+});
 </script>
 </body>
 </html>
