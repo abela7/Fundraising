@@ -51,10 +51,10 @@ try {
     $stmt->close();
     
     if (!$schedule) {
-        // No schedule for this day - use default hours
+        // No schedule for this day - use 24-hour availability
         $schedule = (object)[
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00'
+            'start_time' => '00:00:00',
+            'end_time' => '23:59:59'
         ];
     }
     
