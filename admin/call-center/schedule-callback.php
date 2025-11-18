@@ -77,31 +77,59 @@ try {
                     $appointment_type = 'callback_rescheduled';
                 }
                 
-                // Insert appointment
-                $appointment_query = "
-                    INSERT INTO call_center_appointments 
-                    (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
-                     slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, NOW())
-                ";
-                
-                $stmt = $db->prepare($appointment_query);
-                if (!$stmt) {
-                    throw new Exception("Failed to prepare appointment query: " . $db->error);
+                // Insert appointment - handle NULL session_id for foreign key constraint
+                if ($session_id > 0) {
+                    // Session exists - include session_id
+                    $appointment_query = "
+                        INSERT INTO call_center_appointments 
+                        (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
+                         slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, NOW())
+                    ";
+                    
+                    $stmt = $db->prepare($appointment_query);
+                    if (!$stmt) {
+                        throw new Exception("Failed to prepare appointment query: " . $db->error);
+                    }
+                    
+                    $stmt->bind_param('iiiississi', 
+                        $donor_id, 
+                        $user_id, 
+                        $session_id, 
+                        $queue_id, 
+                        $appointment_date, 
+                        $appointment_time, 
+                        $slot_duration,
+                        $appointment_type,
+                        $notes,
+                        $user_id
+                    );
+                } else {
+                    // No session - use NULL for session_id
+                    $appointment_query = "
+                        INSERT INTO call_center_appointments 
+                        (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
+                         slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
+                        VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'scheduled', ?, ?, NOW())
+                    ";
+                    
+                    $stmt = $db->prepare($appointment_query);
+                    if (!$stmt) {
+                        throw new Exception("Failed to prepare appointment query: " . $db->error);
+                    }
+                    
+                    $stmt->bind_param('iiississi', 
+                        $donor_id, 
+                        $user_id, 
+                        $queue_id, 
+                        $appointment_date, 
+                        $appointment_time, 
+                        $slot_duration,
+                        $appointment_type,
+                        $notes,
+                        $user_id
+                    );
                 }
-                
-                $stmt->bind_param('iiiississi', 
-                    $donor_id, 
-                    $user_id, 
-                    $session_id, 
-                    $queue_id, 
-                    $appointment_date, 
-                    $appointment_time, 
-                    $slot_duration,
-                    $appointment_type,
-                    $notes,
-                    $user_id
-                );
                 
                 if (!$stmt->execute()) {
                     throw new Exception("Failed to create appointment: " . $stmt->error);
