@@ -3,12 +3,13 @@
     position: fixed;
     top: 80px; /* Below topbar */
     right: 20px;
-    z-index: 1050;
+    z-index: 9999; /* High z-index to ensure visibility */
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 10px;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    pointer-events: auto; /* Ensure clickable */
 }
 
 /* Main Timer Pill */

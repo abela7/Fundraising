@@ -3,6 +3,8 @@
  * Handles persistent call timer and quick-access donor info.
  */
 
+console.log('CallWidget: Script loaded');
+
 const CallWidget = {
     config: {
         sessionId: 0,
@@ -33,6 +35,7 @@ const CallWidget = {
     },
 
     init(config) {
+        console.log('CallWidget: Initializing with config', config);
         this.config = { ...this.config, ...config };
         this.loadState();
         this.render();
@@ -45,8 +48,11 @@ const CallWidget = {
             this.setPauseVisuals(true);
         } else {
             // Auto-start if fresh session
-            this.start();
+            // We only auto-start if explicit start() is called by page, 
+            // OR if we want default behavior. 
+            // Current logic: Page calls .start() explicitly if needed.
         }
+        console.log('CallWidget: Initialized successfully');
     },
 
     getStorageKey() {
@@ -83,6 +89,7 @@ const CallWidget = {
     start() {
         if (this.state.status === 'running') return;
         
+        console.log('CallWidget: Starting timer');
         this.state.status = 'running';
         this.state.startTime = Date.now();
         this.saveState();
@@ -139,6 +146,7 @@ const CallWidget = {
     },
 
     formatTime(ms) {
+        if (ms < 0) ms = 0;
         const totalSeconds = Math.floor(ms / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
@@ -172,6 +180,16 @@ const CallWidget = {
 
         const container = document.createElement('div');
         container.className = 'call-widget-container';
+        
+        // Safe formatting
+        let formattedAmount = '0.00';
+        try {
+            formattedAmount = Number(this.config.pledgeAmount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+        } catch (e) {
+            console.warn('Error formatting amount', e);
+            formattedAmount = '0.00';
+        }
+
         container.innerHTML = `
             <div class="donor-info-panel" id="donorInfoPanel">
                 <div class="panel-header">
@@ -189,7 +207,7 @@ const CallWidget = {
                     </div>
                     <div class="info-group">
                         <div class="info-label-sm">Pledge Amount</div>
-                        <div class="info-value-sm text-danger">£${Number(this.config.pledgeAmount).toLocaleString('en-GB', {minimumFractionDigits: 2})}</div>
+                        <div class="info-value-sm text-danger">£${formattedAmount}</div>
                     </div>
                     <div class="info-group">
                         <div class="info-label-sm">Pledge Date</div>
@@ -236,47 +254,59 @@ const CallWidget = {
     },
 
     attachEvents() {
-        this.elements.btnPause.addEventListener('click', () => {
-            if (this.state.status === 'running') {
-                this.pause();
-            } else {
-                this.resume();
-            }
-        });
+        if (this.elements.btnPause) {
+            this.elements.btnPause.addEventListener('click', () => {
+                if (this.state.status === 'running') {
+                    this.pause();
+                } else {
+                    this.resume();
+                }
+            });
+        }
 
-        this.elements.btnInfo.addEventListener('click', () => {
-            this.elements.panel.classList.toggle('active');
-        });
+        if (this.elements.btnInfo) {
+            this.elements.btnInfo.addEventListener('click', () => {
+                if (this.elements.panel) {
+                    this.elements.panel.classList.toggle('active');
+                }
+            });
+        }
 
-        document.getElementById('btnCloseInfo').addEventListener('click', () => {
-            this.elements.panel.classList.remove('active');
-        });
+        const closeBtn = document.getElementById('btnCloseInfo');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                if (this.elements.panel) {
+                    this.elements.panel.classList.remove('active');
+                }
+            });
+        }
         
-        this.elements.btnReset.addEventListener('click', () => {
-            this.reset();
-        });
-    }
+        if (this.elements.btnReset) {
+            this.elements.btnReset.addEventListener('click', () => {
+                this.reset();
+            });
+        }
+    },
     
-    // Note: setPauseVisuals is defined in object but not modified here as logic is same
-};
-
-// Helper for setPauseVisuals needed since I overwrote the object
-CallWidget.setPauseVisuals = function(isPaused) {
-    const pill = document.getElementById('timerPill');
-    const btn = this.elements.btnPause;
-    const icon = btn.querySelector('i');
-    
-    if (isPaused) {
-        pill.classList.add('paused');
-        btn.classList.remove('btn-pause');
-        btn.classList.add('btn-resume');
-        btn.title = "Resume Call";
-        icon.className = 'fas fa-play';
-    } else {
-        pill.classList.remove('paused');
-        btn.classList.remove('btn-resume');
-        btn.classList.add('btn-pause');
-        btn.title = "Pause Call";
-        icon.className = 'fas fa-pause';
+    setPauseVisuals(isPaused) {
+        const pill = document.getElementById('timerPill');
+        const btn = this.elements.btnPause;
+        if (!btn || !pill) return;
+        
+        const icon = btn.querySelector('i');
+        
+        if (isPaused) {
+            pill.classList.add('paused');
+            btn.classList.remove('btn-pause');
+            btn.classList.add('btn-resume');
+            btn.title = "Resume Call";
+            if (icon) icon.className = 'fas fa-play';
+        } else {
+            pill.classList.remove('paused');
+            btn.classList.remove('btn-resume');
+            btn.classList.add('btn-pause');
+            btn.title = "Pause Call";
+            if (icon) icon.className = 'fas fa-pause';
+        }
     }
 };
