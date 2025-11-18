@@ -243,8 +243,8 @@ $page_title = 'Call: ' . $donor->name;
                         </span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Call Date & Time</span>
-                        <span class="info-value"><?php echo date('l, F j, Y - g:i A'); ?></span>
+                        <span class="info-label">Registration Date</span>
+                        <span class="info-value"><?php echo date('M j, Y', strtotime($donor->created_at)); ?></span>
                     </div>
                 </div>
                 
