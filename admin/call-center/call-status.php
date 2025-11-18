@@ -81,104 +81,160 @@ $page_title = 'Call Status';
     <link rel="stylesheet" href="assets/call-center.css">
     <style>
         .call-status-page {
-            max-width: 800px;
+            max-width: 700px;
             margin: 0 auto;
+            padding: 0.75rem;
+        }
+        
+        .content-header {
+            margin-bottom: 1rem;
+        }
+        
+        .content-title {
+            font-size: 1.375rem;
+            font-weight: 700;
+            color: #0a6286;
+            margin: 0;
+        }
+        
+        .content-subtitle {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin: 0.25rem 0 0 0;
         }
         
         .donor-header {
-            background: #f8fafc;
-            border: 1px solid var(--cc-border);
+            background: #0a6286;
+            color: white;
             border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
             text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         
         .donor-header h4 {
-            margin: 0 0 0.5rem 0;
-            color: var(--cc-dark);
+            margin: 0 0 0.375rem 0;
+            font-size: 1.125rem;
+            font-weight: 700;
         }
         
         .donor-header .phone {
-            color: #64748b;
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
+            opacity: 0.95;
         }
         
         .option-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            margin: 2rem 0;
+            gap: 0.875rem;
+            margin: 1rem 0;
         }
         
         .option-card {
             background: white;
-            border: 2px solid var(--cc-border);
+            border: 2px solid #e2e8f0;
             border-radius: 12px;
-            padding: 2rem;
+            padding: 1.25rem 1rem;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.25s;
             text-decoration: none;
             color: inherit;
             display: block;
         }
         
         .option-card:hover {
-            border-color: var(--cc-primary);
+            border-color: #0a6286;
             transform: translateY(-2px);
-            box-shadow: var(--cc-shadow-lg);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             text-decoration: none;
             color: inherit;
         }
         
+        .option-card.success:hover {
+            border-color: #22c55e;
+        }
+        
+        .option-card.danger:hover {
+            border-color: #ef4444;
+        }
+        
         .option-icon {
-            width: 70px;
-            height: 70px;
+            width: 55px;
+            height: 55px;
             border-radius: 50%;
             background: #f0f9ff;
-            color: var(--cc-primary);
+            color: #0a6286;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
-            font-size: 2rem;
+            margin: 0 auto 0.75rem;
+            font-size: 1.5rem;
         }
         
         .option-card.danger .option-icon {
-            background: #fee2e2;
-            color: var(--cc-danger);
+            background: #fef2f2;
+            color: #ef4444;
         }
         
         .option-card.success .option-icon {
-            background: #d1fae5;
-            color: var(--cc-success);
+            background: #f0fdf4;
+            color: #22c55e;
         }
         
         .option-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            color: #1e293b;
         }
         
         .option-desc {
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             color: #64748b;
+            margin: 0;
         }
         
         .action-buttons {
             display: flex;
-            gap: 1rem;
-            margin-top: 2rem;
+            gap: 0.75rem;
+            margin-top: 1rem;
         }
         
         .action-buttons .btn {
             flex: 1;
+            padding: 0.625rem 1rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
         }
         
         @media (max-width: 767px) {
+            .call-status-page {
+                padding: 0.5rem;
+            }
+            
+            .content-title {
+                font-size: 1.25rem;
+            }
+            
+            .donor-header {
+                padding: 0.875rem;
+            }
+            
             .option-grid {
                 grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            
+            .option-card {
+                padding: 1.125rem 1rem;
+            }
+            
+            .option-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.375rem;
             }
         }
     </style>
