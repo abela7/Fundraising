@@ -299,7 +299,7 @@ $page_title = 'Call Status';
                         <div class="option-desc">Line was busy</div>
                     </a>
                     
-                    <a href="schedule-callback.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_working" 
+                    <a href="mark-invalid.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&reason=not_working" 
                        class="option-card danger">
                         <div class="option-icon">
                             <i class="fas fa-times-circle"></i>
