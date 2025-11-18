@@ -425,37 +425,74 @@ $page_title = 'My Schedule';
         
         /* Responsive */
         @media (max-width: 768px) {
+            .schedule-page {
+                padding: 0.5rem;
+            }
+
+            .schedule-header {
+                padding: 0.75rem;
+            }
+
             .schedule-header .title-section {
                 flex-direction: column;
                 gap: 1rem;
                 align-items: stretch;
             }
             
+            .schedule-title {
+                font-size: 1.25rem;
+            }
+
+            .view-switcher {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .view-btn {
+                flex: 1;
+                padding: 0.5rem;
+                font-size: 0.8125rem;
+                text-align: center;
+            }
+            
             .schedule-controls {
                 flex-direction: column;
+                align-items: stretch;
             }
             
             .nav-controls {
                 width: 100%;
                 justify-content: space-between;
+                margin-bottom: 0.75rem;
             }
             
             .current-period {
                 font-size: 0.875rem;
                 min-width: auto;
+                flex: 1;
             }
             
             .filters-section {
                 width: 100%;
                 margin-left: 0;
+                justify-content: space-between;
             }
             
             .search-box {
-                flex: 1;
+                width: 100%;
+                margin-bottom: 0.5rem;
             }
             
+            .filter-btn {
+                flex: 1;
+                justify-content: center;
+                padding: 0.5rem;
+                font-size: 0.75rem;
+            }
+            
+            /* Month View Mobile */
             .calendar-day {
-                min-height: 80px;
+                min-height: 60px;
                 padding: 0.25rem;
             }
             
@@ -466,21 +503,7 @@ $page_title = 'My Schedule';
             .appointment-pill {
                 font-size: 0.625rem;
                 padding: 1px 4px;
-            }
-            
-            .week-grid {
-                grid-template-columns: 60px repeat(7, 1fr);
-                font-size: 0.75rem;
-            }
-            
-            .day-timeline {
-                grid-template-columns: 60px 1fr;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .calendar-grid {
-                gap: 0;
+                margin-bottom: 1px;
             }
             
             .calendar-header-cell {
@@ -488,8 +511,52 @@ $page_title = 'My Schedule';
                 padding: 0.5rem 0.25rem;
             }
             
-            .calendar-day {
-                min-height: 60px;
+            /* Week View Mobile - Scrollable */
+            .week-view {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .week-grid {
+                min-width: 600px; /* Ensure readable width */
+                grid-template-columns: 50px repeat(7, 1fr);
+                font-size: 0.75rem;
+            }
+            
+            .week-time-slot {
+                font-size: 0.65rem;
+                padding: 0.25rem;
+                position: sticky;
+                left: 0;
+                z-index: 10;
+                background: #f8fafc;
+                border-right: 1px solid #e2e8f0;
+            }
+            
+            /* Day View Mobile */
+            .day-timeline {
+                grid-template-columns: 50px 1fr;
+            }
+            
+            .timeline-time {
+                font-size: 0.75rem;
+                padding: 0.5rem 0.25rem;
+            }
+            
+            .timeline-content {
+                padding: 0.25rem;
+            }
+            
+            .timeline-appointment {
+                padding: 0.5rem;
+            }
+            
+            .appointment-time {
+                font-size: 0.75rem;
+            }
+            
+            .appointment-donor {
+                font-size: 0.8125rem;
             }
         }
     </style>

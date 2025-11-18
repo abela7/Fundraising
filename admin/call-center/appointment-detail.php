@@ -243,12 +243,39 @@ $page_title = 'Appointment Details';
         }
         
         @media (max-width: 768px) {
+            .appointment-detail-page {
+                padding: 0.5rem;
+            }
+            
+            .detail-header {
+                padding: 1rem;
+            }
+            
+            .detail-header h1 {
+                font-size: 1.25rem;
+            }
+            
             .info-grid {
                 grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            
+            .info-section {
+                padding: 1rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
             }
             
             .action-buttons .btn {
-                flex: 1 1 100%;
+                width: 100%;
+                padding: 0.75rem;
+            }
+            
+            .info-value a {
+                display: inline-block;
+                padding: 0.25rem 0; /* Increase touch target */
             }
         }
     </style>
