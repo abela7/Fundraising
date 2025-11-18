@@ -813,7 +813,63 @@ function generateMonthCalendar() {
 
 function renderWeekView() {
     const container = document.getElementById('week-view');
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-week"></i><p>Week view - Coming soon</p></div>';
+    const weekStart = getWeekStart(currentDate);
+    
+    let html = '<div class="week-grid">';
+    
+    // Header (Empty corner + Days)
+    html += '<div class="calendar-header-cell">Time</div>';
+    for (let i = 0; i < 7; i++) {
+        const day = new Date(weekStart);
+        day.setDate(day.getDate() + i);
+        const isToday = day.toDateString() === new Date().toDateString();
+        const dayName = day.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayNum = day.getDate();
+        
+        html += `
+            <div class="calendar-header-cell${isToday ? ' text-primary' : ''}">
+                ${dayName} ${dayNum}
+            </div>
+        `;
+    }
+    
+    // Time slots (9 AM - 5 PM)
+    for (let hour = 9; hour < 17; hour++) {
+        // Time label
+        const displayHour = hour > 12 ? hour - 12 : hour;
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        html += `<div class="week-time-slot">${displayHour}:00 ${ampm}</div>`;
+        
+        // Day columns
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(weekStart);
+            day.setDate(day.getDate() + i);
+            const dateStr = day.toISOString().split('T')[0];
+            const timePrefix = String(hour).padStart(2, '0');
+            
+            // Find appointments in this hour slot
+            const hourAppointments = filteredAppointments.filter(apt => 
+                apt.appointment_date === dateStr && 
+                apt.appointment_time.startsWith(timePrefix)
+            );
+            
+            html += `<div class="week-day-slot" data-date="${dateStr}" data-hour="${hour}">`;
+            
+            hourAppointments.forEach(apt => {
+                html += `
+                    <div class="week-appointment ${apt.status}" title="${apt.donor_name} - ${apt.appointment_time}">
+                        <div class="fw-bold text-truncate">${apt.donor_name}</div>
+                        <div class="small text-truncate">${apt.appointment_time.substring(0, 5)}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 function renderDayView() {
