@@ -87,6 +87,69 @@ try {
     
     $db->begin_transaction();
     
+    // 0. Update Donor Information (from Step 2)
+    $baptism_name = trim($_POST['baptism_name'] ?? '');
+    $city = trim($_POST['city'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $preferred_language = $_POST['preferred_language'] ?? 'en';
+    $church_id = isset($_POST['church_id']) && $_POST['church_id'] !== '' ? (int)$_POST['church_id'] : null;
+    
+    // Build update query dynamically based on what's provided
+    $donor_updates = [];
+    $donor_params = [];
+    $donor_types = '';
+    
+    if ($baptism_name !== '') {
+        $donor_updates[] = "baptism_name = ?";
+        $donor_params[] = $baptism_name;
+        $donor_types .= 's';
+    }
+    
+    if ($city !== '') {
+        $donor_updates[] = "city = ?";
+        $donor_params[] = $city;
+        $donor_types .= 's';
+    }
+    
+    if ($email !== '') {
+        // Validate email format
+        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $donor_updates[] = "email = ?";
+            $donor_params[] = $email;
+            $donor_types .= 's';
+        }
+    }
+    
+    if (in_array($preferred_language, ['en', 'am', 'ti'])) {
+        $donor_updates[] = "preferred_language = ?";
+        $donor_params[] = $preferred_language;
+        $donor_types .= 's';
+    }
+    
+    if ($church_id !== null) {
+        $donor_updates[] = "church_id = ?";
+        $donor_params[] = $church_id;
+        $donor_types .= 'i';
+    }
+    
+    // Update donor if there are any changes
+    if (!empty($donor_updates)) {
+        $donor_params[] = $donor_id;
+        $donor_types .= 'i';
+        
+        $update_donor_info = $db->prepare("
+            UPDATE donors 
+            SET " . implode(', ', $donor_updates) . "
+            WHERE id = ?
+        ");
+        
+        if ($update_donor_info) {
+            $update_donor_info->bind_param($donor_types, ...$donor_params);
+            $update_donor_info->execute();
+            $update_donor_info->close();
+        }
+    }
+    
     // 1. Create Payment Plan
     // Using simplified INSERT based on table knowledge. 
     // Note: 'monthly_amount' column is often used for installment amount regardless of frequency.

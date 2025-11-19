@@ -33,9 +33,10 @@ try {
         }
     }
     
-    // Get donor and pledge information
+    // Get donor and pledge information (including fields for Step 2)
     $donor_query = "
-        SELECT d.name, d.phone, d.balance, d.city,
+        SELECT d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
+               d.preferred_language, d.church_id,
                COALESCE(p.amount, 0) as pledge_amount, 
                p.created_at as pledge_date,
                p.id as pledge_id,
@@ -63,6 +64,15 @@ try {
     if (!$donor) {
         header('Location: index.php');
         exit;
+    }
+    
+    // Get churches list for dropdown
+    $churches = [];
+    $churches_query = $db->query("SELECT id, name, city FROM churches WHERE is_active = 1 ORDER BY city, name");
+    if ($churches_query) {
+        while ($row = $churches_query->fetch_assoc()) {
+            $churches[] = $row;
+        }
     }
     
     // Get payment plan templates
@@ -201,6 +211,40 @@ $page_title = 'Live Call';
         .verification-detail {
             color: #64748b;
             font-size: 0.9rem;
+        }
+        
+        /* Step 2 Form Styles */
+        .form-label {
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.5rem;
+            font-size: 0.9375rem;
+        }
+        
+        .form-control, .form-select {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #0a6286;
+            box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
+            outline: none;
+        }
+        
+        .form-control::placeholder {
+            color: #94a3b8;
+        }
+        
+        .form-label small {
+            display: block;
+            font-weight: 400;
+            color: #64748b;
+            margin-top: 0.25rem;
+            font-size: 0.8125rem;
         }
         
         /* Choice Grid */
@@ -387,6 +431,40 @@ $page_title = 'Live Call';
             font-weight: 600;
         }
         
+        /* Step 2 Form Styles */
+        .form-label {
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.5rem;
+            font-size: 0.9375rem;
+        }
+        
+        .form-control, .form-select {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #0a6286;
+            box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
+            outline: none;
+        }
+        
+        .form-control::placeholder {
+            color: #94a3b8;
+        }
+        
+        .form-label small {
+            display: block;
+            font-weight: 400;
+            color: #64748b;
+            margin-top: 0.25rem;
+            font-size: 0.8125rem;
+        }
+        
         /* Step 4 Confirmation */
         .confirmation-box {
             background: #f0f9ff;
@@ -444,6 +522,27 @@ $page_title = 'Live Call';
             .confirmation-grid {
                 grid-template-columns: 1fr;
                 gap: 1rem;
+            }
+            
+            /* Step 2 Mobile Styles */
+            .step-body {
+                padding: 1.5rem 1rem;
+            }
+            
+            .step-body .row.g-3 {
+                margin: 0;
+            }
+            
+            .step-body .col-md-6 {
+                padding: 0.5rem 0;
+            }
+            
+            .form-control, .form-select {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            .form-label {
+                font-size: 0.875rem;
             }
         }
     </style>
@@ -514,12 +613,118 @@ $page_title = 'Live Call';
                         </div>
                     </div>
                     
-                    <!-- Step 2: Payment Readiness -->
+                    <!-- Step 2: Collect Donor Information -->
                     <div class="step-container" id="step2">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
                                     <span class="step-number">2</span>
+                                    Collect Donor Information
+                                </div>
+                                <p class="text-muted mb-0">Please collect the following information from the donor.</p>
+                            </div>
+                            <div class="step-body">
+                                <div class="row g-3">
+                                    <!-- Baptism Name -->
+                                    <div class="col-md-6">
+                                        <label for="baptism_name" class="form-label">
+                                            <i class="fas fa-water me-2 text-primary"></i>Baptism Name
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="baptism_name" 
+                                               name="baptism_name" 
+                                               placeholder="Enter baptism name"
+                                               value="<?php echo htmlspecialchars($donor->baptism_name ?? ''); ?>">
+                                        <small class="text-muted">The donor's baptism name</small>
+                                    </div>
+                                    
+                                    <!-- City -->
+                                    <div class="col-md-6">
+                                        <label for="city" class="form-label">
+                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>City
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="city" 
+                                               name="city" 
+                                               placeholder="Enter city"
+                                               value="<?php echo htmlspecialchars($donor->city ?? ''); ?>">
+                                        <small class="text-muted">Where the donor lives</small>
+                                    </div>
+                                    
+                                    <!-- Church -->
+                                    <div class="col-md-6">
+                                        <label for="church_id" class="form-label">
+                                            <i class="fas fa-church me-2 text-primary"></i>Which Church Attending Regularly
+                                        </label>
+                                        <select class="form-select" id="church_id" name="church_id">
+                                            <option value="">-- Select Church --</option>
+                                            <?php foreach ($churches as $church): ?>
+                                                <option value="<?php echo $church['id']; ?>" 
+                                                        <?php echo (isset($donor->church_id) && $donor->church_id == $church['id']) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($church['name']); ?> 
+                                                    <?php if ($church['city']): ?>
+                                                        (<?php echo htmlspecialchars($church['city']); ?>)
+                                                    <?php endif; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <small class="text-muted">Church the donor attends regularly</small>
+                                    </div>
+                                    
+                                    <!-- Email -->
+                                    <div class="col-md-6">
+                                        <label for="email" class="form-label">
+                                            <i class="fas fa-envelope me-2 text-primary"></i>Email Address
+                                        </label>
+                                        <input type="email" 
+                                               class="form-control" 
+                                               id="email" 
+                                               name="email" 
+                                               placeholder="donor@example.com"
+                                               value="<?php echo htmlspecialchars($donor->email ?? ''); ?>">
+                                        <small class="text-muted">Email for communication</small>
+                                    </div>
+                                    
+                                    <!-- Preferred Language -->
+                                    <div class="col-md-6">
+                                        <label for="preferred_language" class="form-label">
+                                            <i class="fas fa-language me-2 text-primary"></i>Preferred Language
+                                        </label>
+                                        <select class="form-select" id="preferred_language" name="preferred_language">
+                                            <option value="en" <?php echo (!isset($donor->preferred_language) || $donor->preferred_language === 'en') ? 'selected' : ''; ?>>
+                                                English
+                                            </option>
+                                            <option value="am" <?php echo (isset($donor->preferred_language) && $donor->preferred_language === 'am') ? 'selected' : ''; ?>>
+                                                Amharic (አማርኛ)
+                                            </option>
+                                            <option value="ti" <?php echo (isset($donor->preferred_language) && $donor->preferred_language === 'ti') ? 'selected' : ''; ?>>
+                                                Tigrinya (ትግርኛ)
+                                            </option>
+                                        </select>
+                                        <small class="text-muted">Preferred language for communication</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)">
+                                        <i class="fas fa-arrow-left me-2"></i>Back
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-lg" id="btnStep2Next" onclick="goToStep(3)">
+                                        Next Step <i class="fas fa-arrow-right ms-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: Payment Readiness -->
+                    <div class="step-container" id="step3">
+                        <div class="step-card">
+                            <div class="step-header">
+                                <div class="step-title">
+                                    <span class="step-number">3</span>
                                     Payment Readiness
                                 </div>
                                 <p class="text-muted mb-0">Is the donor ready to start paying today?</p>
@@ -541,7 +746,7 @@ $page_title = 'Live Call';
                                 <input type="hidden" name="ready_to_pay" id="readyToPayInput">
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
                                 </div>
@@ -549,12 +754,12 @@ $page_title = 'Live Call';
                         </div>
                     </div>
                     
-                    <!-- Step 3: Payment Plan -->
-                    <div class="step-container" id="step3">
+                    <!-- Step 4: Payment Plan -->
+                    <div class="step-container" id="step4">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
-                                    <span class="step-number">3</span>
+                                    <span class="step-number">4</span>
                                     Select Payment Plan
                                 </div>
                                 <p class="text-muted mb-0">How would they like to clear the balance?</p>
@@ -586,7 +791,7 @@ $page_title = 'Live Call';
                                         </div>
                                         
                                         <!-- Back Button for Desktop (Left Column) -->
-                                        <button type="button" class="btn btn-outline-secondary d-none d-lg-inline-block" onclick="goToStep(2)">
+                                        <button type="button" class="btn btn-outline-secondary d-none d-lg-inline-block" onclick="goToStep(3)">
                                             <i class="fas fa-arrow-left me-2"></i>Back
                                         </button>
                                     </div>
@@ -662,7 +867,7 @@ $page_title = 'Live Call';
                                                 </div>
                                                 
                                                 <div class="mt-3">
-                                                    <button type="button" class="btn btn-primary w-100" id="btnReview" disabled onclick="goToStep(4)">
+                                                    <button type="button" class="btn btn-primary w-100" id="btnReview" disabled onclick="goToStep(5)">
                                                         Review Plan <i class="fas fa-arrow-right ms-2"></i>
                                                     </button>
                                                 </div>
@@ -687,12 +892,12 @@ $page_title = 'Live Call';
                         </div>
                     </div>
                     
-                    <!-- Step 4: Review & Confirm -->
-                    <div class="step-container" id="step4">
+                    <!-- Step 5: Review & Confirm -->
+                    <div class="step-container" id="step5">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
-                                    <span class="step-number">4</span>
+                                    <span class="step-number">5</span>
                                     Confirm & Save
                                 </div>
                                 <p class="text-muted mb-0">Review the plan details with the donor before saving.</p>
@@ -740,7 +945,7 @@ $page_title = 'Live Call';
                                 </div>
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(3)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(4)">
                                         <i class="fas fa-arrow-left me-2"></i>Edit Plan
                                     </button>
                                     <button type="button" class="btn btn-success btn-lg" onclick="submitForm()">
@@ -790,7 +995,7 @@ $page_title = 'Live Call';
     
     // Step Logic
     function goToStep(stepNum) {
-        if (stepNum === 4) {
+        if (stepNum === 5) {
             updateConfirmation();
         }
         
@@ -818,11 +1023,11 @@ $page_title = 'Live Call';
     if(verifyAmount) verifyAmount.addEventListener('change', checkStep1);
     if(verifyLocation) verifyLocation.addEventListener('change', checkStep1);
     
-    // Step 2 Logic
+    // Step 3 Logic (Payment Readiness)
     function selectReadiness(choice) {
         document.getElementById('readyToPayInput').value = choice;
         if (choice === 'yes') {
-            goToStep(3);
+            goToStep(4);
         } else {
             window.location.href = 'schedule-callback.php?session_id=<?php echo $session_id; ?>&donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_ready_to_pay';
         }
