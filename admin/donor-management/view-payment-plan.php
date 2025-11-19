@@ -117,40 +117,57 @@ try {
     
     error_log("Plan loaded successfully for donor: " . $plan->donor_name);
 
-    // Check what name columns exist in users table
-    $user_name_column = null;
-    $check_full_name = $db->query("SHOW COLUMNS FROM users LIKE 'full_name'");
-    if ($check_full_name && $check_full_name->num_rows > 0) {
-        $user_name_column = 'u.full_name';
-    } else {
-        $check_name = $db->query("SHOW COLUMNS FROM users LIKE 'name'");
-        if ($check_name && $check_name->num_rows > 0) {
-            $user_name_column = 'u.name';
-        } else {
-            // Try username as fallback
-            $check_username = $db->query("SHOW COLUMNS FROM users LIKE 'username'");
-            if ($check_username && $check_username->num_rows > 0) {
-                $user_name_column = 'u.username';
-            }
-        }
+    // Check payments table columns to find the correct user ID column
+    $payment_columns = [];
+    $col_query = $db->query("SHOW COLUMNS FROM payments");
+    while ($col = $col_query->fetch_assoc()) {
+        $payment_columns[] = $col['Field'];
     }
     
-    error_log("User name column: " . ($user_name_column ?? 'none found'));
+    // Find the user ID column (approved_by_user_id, received_by_user_id, or approved_by)
+    $user_id_col = null;
+    if (in_array('approved_by_user_id', $payment_columns)) {
+        $user_id_col = 'approved_by_user_id';
+    } elseif (in_array('received_by_user_id', $payment_columns)) {
+        $user_id_col = 'received_by_user_id';
+    } elseif (in_array('approved_by', $payment_columns)) {
+        $user_id_col = 'approved_by';
+    }
     
-    // Fetch all payments associated with this plan
-    $payments_sql = "
-        SELECT 
-            pay.*" . 
-            ($user_name_column ? ", $user_name_column as approved_by_name" : "") . "
-        FROM payments pay
-    ";
+    // Find date column
+    $date_col = in_array('payment_date', $payment_columns) ? 'payment_date' : 
+               (in_array('received_at', $payment_columns) ? 'received_at' : 'created_at');
     
-    if ($user_name_column) {
-        $payments_sql .= " LEFT JOIN users u ON pay.approved_by = u.id";
+    // Find method column
+    $method_col = in_array('payment_method', $payment_columns) ? 'payment_method' : 'method';
+    
+    // Check users table for name column
+    $user_name_column = null;
+    $check_name = $db->query("SHOW COLUMNS FROM users LIKE 'name'");
+    if ($check_name && $check_name->num_rows > 0) {
+        $user_name_column = 'u.name';
+    }
+    
+    error_log("Payment user_id column: " . ($user_id_col ?? 'none'));
+    error_log("Payment date column: " . $date_col);
+    error_log("Payment method column: " . $method_col);
+    error_log("User name column: " . ($user_name_column ?? 'none'));
+    
+    // Build payments query dynamically
+    $payments_sql = "SELECT pay.*";
+    
+    if ($user_id_col && $user_name_column) {
+        $payments_sql .= ", $user_name_column as approved_by_name";
+    }
+    
+    $payments_sql .= " FROM payments pay";
+    
+    if ($user_id_col && $user_name_column) {
+        $payments_sql .= " LEFT JOIN users u ON u.id = pay.$user_id_col";
     }
     
     $payments_sql .= " WHERE pay.donor_id = ? AND pay.pledge_id = ?
-        ORDER BY pay.payment_date DESC
+        ORDER BY pay.$date_col DESC
     ";
     
     error_log("Payments query: " . $payments_sql);
@@ -482,11 +499,19 @@ try {
                                                 </h6>
                                                 <p class="text-muted mb-1">
                                                     <i class="fas fa-calendar me-1"></i>
-                                                    <?php echo date('d M Y', strtotime($payment['payment_date'])); ?>
+                                                    <?php 
+                                                    $payment_date = $payment['payment_date'] ?? $payment['received_at'] ?? $payment['created_at'] ?? '';
+                                                    echo $payment_date ? date('d M Y', strtotime($payment_date)) : 'N/A';
+                                                    ?>
                                                 </p>
                                                 <p class="text-muted mb-0">
                                                     <small>
-                                                        Method: <span class="text-capitalize"><?php echo str_replace('_', ' ', $payment['method']); ?></span>
+                                                        Method: <span class="text-capitalize">
+                                                            <?php 
+                                                            $method = $payment['method'] ?? $payment['payment_method'] ?? 'unknown';
+                                                            echo str_replace('_', ' ', $method);
+                                                            ?>
+                                                        </span>
                                                         <?php if (isset($payment['approved_by_name']) && $payment['approved_by_name']): ?>
                                                             | Approved by: <?php echo htmlspecialchars($payment['approved_by_name']); ?>
                                                         <?php endif; ?>
