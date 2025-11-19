@@ -393,9 +393,12 @@ function formatDateTime($date) {
                 
                 <!-- Actions Bar -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <a href="donors.php" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    <a href="donors.php" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Donor List
                     </a>
+                    <div class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>Donor ID: #<?php echo $donor['id']; ?>
+                    </div>
                 </div>
 
                 <!-- Top Summary Card -->
