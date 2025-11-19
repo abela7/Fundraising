@@ -80,6 +80,13 @@ try {
         </span>
         <span class="nav-label">Donor Management</span>
       </a>
+      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'church-management' ? './' : '../church-management/'; ?>" 
+         class="nav-link <?php echo $current_dir === 'church-management' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-church"></i>
+        </span>
+        <span class="nav-label">Church Management</span>
+      </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'user-status' ? './' : '../user-status/'; ?>" 
          class="nav-link <?php echo $current_dir === 'user-status' ? 'active' : ''; ?>">
         <span class="nav-icon">
