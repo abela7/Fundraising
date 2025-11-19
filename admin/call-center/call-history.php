@@ -5,15 +5,23 @@ require_once __DIR__ . '/../../config/db.php';
 require_login();
 
 $db = db();
-// Get user ID from session (auth system uses $_SESSION['user'] array)
 $user_id = (int)($_SESSION['user']['id'] ?? 0);
+$user_role = $_SESSION['user']['role'] ?? 'registrar';
 
 // Filter parameters
 $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : null;
 $outcome_filter = $_GET['outcome'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
-$agent_filter = $_GET['agent'] ?? '';
+
+// Agent filter logic
+// If 'agent' is set in GET, use it (empty means all). 
+// If NOT set, default to current user.
+if (isset($_GET['agent'])) {
+    $agent_filter = $_GET['agent'];
+} else {
+    $agent_filter = (string)$user_id;
+}
 
 // Build query
 $where_conditions = [];
@@ -44,14 +52,9 @@ if ($date_to) {
     $param_types .= 's';
 }
 
-if ($agent_filter) {
+if ($agent_filter !== '') {
     $where_conditions[] = "s.agent_id = ?";
     $params[] = (int)$agent_filter;
-    $param_types .= 'i';
-} else {
-    // Default: only show this agent's calls
-    $where_conditions[] = "s.agent_id = ?";
-    $params[] = $user_id;
     $param_types .= 'i';
 }
 
@@ -60,12 +63,12 @@ $where_clause = $where_conditions ? 'WHERE ' . implode(' AND ', $where_condition
 $history_query = "
     SELECT 
         s.*,
-        d.name as donor_name,
+        COALESCE(d.name, 'Unknown Donor') as donor_name,
         d.phone as donor_phone,
         d.balance as donor_balance,
-        u.name as agent_name
+        COALESCE(u.name, 'Unknown Agent') as agent_name
     FROM call_center_sessions s
-    JOIN donors d ON s.donor_id = d.id
+    LEFT JOIN donors d ON s.donor_id = d.id
     LEFT JOIN users u ON s.agent_id = u.id
     $where_clause
     ORDER BY s.call_started_at DESC
@@ -92,7 +95,9 @@ $outcomes = [
     'payment_plan_created' => 'Payment Plan Created',
     'agreed_to_pay_full' => 'Agreed to Pay',
     'financial_hardship' => 'Financial Hardship',
-    'moved_abroad' => 'Moved Abroad'
+    'moved_abroad' => 'Moved Abroad',
+    'callback_requested' => 'Callback Requested',
+    'not_ready_to_pay' => 'Not Ready to Pay'
 ];
 
 $page_title = 'Call History';
@@ -160,7 +165,7 @@ $page_title = 'Call History';
                             <select name="agent" class="form-select">
                                 <option value="">All Agents</option>
                                 <?php while ($agent = $agents_result->fetch_object()): ?>
-                                    <option value="<?php echo $agent->id; ?>" <?php echo $agent_filter == $agent->id ? 'selected' : ''; ?>>
+                                    <option value="<?php echo $agent->id; ?>" <?php echo $agent_filter === (string)$agent->id ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($agent->name); ?>
                                     </option>
                                 <?php endwhile; ?>
@@ -202,34 +207,52 @@ $page_title = 'Call History';
                                 </thead>
                                 <tbody>
                                     <?php while ($call = $history_result->fetch_object()): ?>
+                                        <?php
+                                            // Safe data handling
+                                            $call_date = $call->call_started_at ? date('M j, Y', strtotime($call->call_started_at)) : '-';
+                                            $call_time = $call->call_started_at ? date('g:i A', strtotime($call->call_started_at)) : '-';
+                                            $duration_sec = (int)($call->duration_seconds ?? 0);
+                                            
+                                            // Format duration
+                                            if ($duration_sec > 60) {
+                                                $formatted_duration = floor($duration_sec / 60) . 'm ' . ($duration_sec % 60) . 's';
+                                            } elseif ($duration_sec > 0) {
+                                                $formatted_duration = $duration_sec . 's';
+                                            } else {
+                                                $formatted_duration = '-';
+                                            }
+                                            
+                                            $outcome_class = str_replace('_', '-', $call->outcome ?? 'unknown');
+                                            $outcome_label = ucwords(str_replace('_', ' ', $call->outcome ?? 'Unknown'));
+                                            
+                                            $donor_name = htmlspecialchars($call->donor_name ?? 'Unknown');
+                                            $donor_phone = htmlspecialchars($call->donor_phone ?? '');
+                                            $agent_name = htmlspecialchars($call->agent_name ?? 'Unknown');
+                                        ?>
                                         <tr>
                                             <td>
-                                                <div><?php echo date('M j, Y', strtotime($call->call_started_at)); ?></div>
-                                                <small class="text-muted"><?php echo date('g:i A', strtotime($call->call_started_at)); ?></small>
+                                                <div><?php echo $call_date; ?></div>
+                                                <small class="text-muted"><?php echo $call_time; ?></small>
                                             </td>
                                             <td>
                                                 <div class="donor-info">
-                                                    <div class="donor-name"><?php echo htmlspecialchars($call->donor_name); ?></div>
-                                                    <small class="text-muted"><?php echo $call->donor_phone; ?></small>
+                                                    <div class="donor-name"><?php echo $donor_name; ?></div>
+                                                    <small class="text-muted"><?php echo $donor_phone; ?></small>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="outcome-badge outcome-<?php echo str_replace('_', '-', $call->outcome); ?>">
-                                                    <?php echo ucwords(str_replace('_', ' ', $call->outcome)); ?>
+                                                <span class="outcome-badge outcome-<?php echo $outcome_class; ?>">
+                                                    <?php echo $outcome_label; ?>
                                                 </span>
                                             </td>
                                             <td>
-                                                <small><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage)); ?></small>
+                                                <small><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage ?? '-')); ?></small>
                                             </td>
                                             <td>
-                                                <?php if ($call->duration_seconds): ?>
-                                                    <?php echo gmdate("i:s", $call->duration_seconds); ?>
-                                                <?php else: ?>
-                                                    <span class="text-muted">-</span>
-                                                <?php endif; ?>
+                                                <?php echo $formatted_duration; ?>
                                             </td>
                                             <td>
-                                                <small><?php echo htmlspecialchars($call->agent_name); ?></small>
+                                                <small><?php echo $agent_name; ?></small>
                                             </td>
                                             <td>
                                                 <button type="button" class="btn btn-sm btn-outline-primary" 
@@ -245,108 +268,58 @@ $page_title = 'Call History';
                                             <div class="modal-dialog modal-lg">
                                                 <div class="modal-content">
                                                     <div class="modal-header">
-                                                        <h5 class="modal-title">Call Details - <?php echo htmlspecialchars($call->donor_name); ?></h5>
+                                                        <h5 class="modal-title">Call Details - <?php echo $donor_name; ?></h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="row g-3">
                                                             <div class="col-md-6">
                                                                 <label class="fw-bold">Date & Time:</label>
-                                                                <p><?php echo date('F j, Y g:i A', strtotime($call->call_started_at)); ?></p>
+                                                                <p><?php echo $call->call_started_at ? date('F j, Y g:i A', strtotime($call->call_started_at)) : 'N/A'; ?></p>
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="fw-bold">Duration:</label>
-                                                                <p><?php echo $call->duration_seconds ? gmdate("H:i:s", $call->duration_seconds) : 'N/A'; ?></p>
+                                                                <p><?php echo $formatted_duration; ?></p>
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="fw-bold">Outcome:</label>
-                                                                <p><span class="outcome-badge outcome-<?php echo str_replace('_', '-', $call->outcome); ?>">
-                                                                    <?php echo ucwords(str_replace('_', ' ', $call->outcome)); ?>
+                                                                <p><span class="outcome-badge outcome-<?php echo $outcome_class; ?>">
+                                                                    <?php echo $outcome_label; ?>
                                                                 </span></p>
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="fw-bold">Conversation Stage:</label>
-                                                                <p><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage)); ?></p>
+                                                                <p><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage ?? 'Unknown')); ?></p>
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="fw-bold">Donor Response:</label>
-                                                                <p><?php echo ucwords($call->donor_response_type); ?></p>
+                                                                <p><?php echo ucwords($call->donor_response_type ?? 'N/A'); ?></p>
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <label class="fw-bold">Call Quality:</label>
                                                                 <p><?php echo $call->call_quality ? ucwords($call->call_quality) : 'N/A'; ?></p>
                                                             </div>
                                                             
-                                                            <?php if ($call->payment_discussed): ?>
-                                                            <div class="col-12">
-                                                                <div class="alert alert-info">
-                                                                    <i class="fas fa-pound-sign me-2"></i>
-                                                                    Payment was discussed
-                                                                    <?php if ($call->payment_amount_discussed): ?>
-                                                                        (Amount: £<?php echo number_format($call->payment_amount_discussed, 2); ?>)
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </div>
-                                                            <?php endif; ?>
-
-                                                            <?php if ($call->callback_scheduled_for): ?>
+                                                            <?php if (!empty($call->callback_scheduled_for)): ?>
                                                             <div class="col-12">
                                                                 <div class="alert alert-warning">
                                                                     <i class="fas fa-calendar-check me-2"></i>
                                                                     Callback Scheduled: <?php echo date('F j, Y g:i A', strtotime($call->callback_scheduled_for)); ?>
-                                                                    <?php if ($call->callback_reason): ?>
+                                                                    <?php if (!empty($call->callback_reason)): ?>
                                                                         <br><small>Reason: <?php echo htmlspecialchars($call->callback_reason); ?></small>
                                                                     <?php endif; ?>
                                                                 </div>
                                                             </div>
                                                             <?php endif; ?>
 
-                                                            <?php if ($call->objections_raised): ?>
-                                                            <div class="col-12">
-                                                                <label class="fw-bold">Objections Raised:</label>
-                                                                <p class="text-muted"><?php echo nl2br(htmlspecialchars($call->objections_raised)); ?></p>
-                                                            </div>
-                                                            <?php endif; ?>
-
-                                                            <?php if ($call->promises_made): ?>
-                                                            <div class="col-12">
-                                                                <label class="fw-bold">Promises Made:</label>
-                                                                <p class="text-muted"><?php echo nl2br(htmlspecialchars($call->promises_made)); ?></p>
-                                                            </div>
-                                                            <?php endif; ?>
-
                                                             <div class="col-12">
                                                                 <label class="fw-bold">Call Notes:</label>
-                                                                <p><?php echo nl2br(htmlspecialchars($call->notes)); ?></p>
+                                                                <p><?php echo nl2br(htmlspecialchars($call->notes ?? 'No notes recorded.')); ?></p>
                                                             </div>
-
-                                                            <!-- Special Flags -->
-                                                            <?php if ($call->donor_requested_supervisor || $call->donor_threatened_legal || $call->donor_claimed_already_paid || $call->donor_claimed_never_pledged || $call->language_barrier_encountered): ?>
-                                                            <div class="col-12">
-                                                                <label class="fw-bold">Special Circumstances:</label>
-                                                                <div class="mt-2">
-                                                                    <?php if ($call->donor_requested_supervisor): ?>
-                                                                        <span class="badge bg-warning text-dark me-2">Requested Supervisor</span>
-                                                                    <?php endif; ?>
-                                                                    <?php if ($call->donor_threatened_legal): ?>
-                                                                        <span class="badge bg-danger me-2">Legal Threat</span>
-                                                                    <?php endif; ?>
-                                                                    <?php if ($call->donor_claimed_already_paid): ?>
-                                                                        <span class="badge bg-info me-2">Claims Paid</span>
-                                                                    <?php endif; ?>
-                                                                    <?php if ($call->donor_claimed_never_pledged): ?>
-                                                                        <span class="badge bg-info me-2">Claims Never Pledged</span>
-                                                                    <?php endif; ?>
-                                                                    <?php if ($call->language_barrier_encountered): ?>
-                                                                        <span class="badge bg-secondary me-2">Language Barrier</span>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </div>
-                                                            <?php endif; ?>
 
                                                             <div class="col-12 mt-3">
                                                                 <small class="text-muted">
-                                                                    <i class="fas fa-user me-1"></i>Agent: <?php echo htmlspecialchars($call->agent_name); ?>
+                                                                    <i class="fas fa-user me-1"></i>Agent: <?php echo $agent_name; ?>
                                                                 </small>
                                                             </div>
                                                         </div>
@@ -380,4 +353,3 @@ $page_title = 'Call History';
 <script src="../assets/admin.js"></script>
 </body>
 </html>
-
