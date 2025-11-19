@@ -60,6 +60,24 @@ if ($duration_sec > 60) {
     $formatted_duration = '-';
 }
 
+// Format Conversation Stage
+$conversation_stage = $call->conversation_stage ?? null;
+if (empty($conversation_stage)) {
+    // Try to infer from outcome if stage is missing
+    $outcome = $call->outcome ?? '';
+    if (strpos($outcome, 'payment_plan') !== false || strpos($outcome, 'agreement') !== false) {
+        $formatted_stage = 'Completed';
+    } elseif (strpos($outcome, 'callback') !== false || strpos($outcome, 'busy') !== false || strpos($outcome, 'not_answered') !== false) {
+        $formatted_stage = 'No Connection';
+    } elseif (strpos($outcome, 'picked_up') !== false || strpos($outcome, 'connected') !== false) {
+        $formatted_stage = 'Connected';
+    } else {
+        $formatted_stage = 'Not Set';
+    }
+} else {
+    $formatted_stage = ucwords(str_replace('_', ' ', $conversation_stage));
+}
+
 $page_title = 'Call Details';
 ?>
 <!DOCTYPE html>
@@ -346,7 +364,7 @@ $page_title = 'Call Details';
                             </div>
                             <div class="info-item-inline">
                                 <span class="info-label">Stage</span>
-                                <span class="info-value"><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage)); ?></span>
+                                <span class="info-value"><?php echo htmlspecialchars($formatted_stage); ?></span>
                             </div>
                         </div>
                         
