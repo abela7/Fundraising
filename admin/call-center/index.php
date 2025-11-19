@@ -13,12 +13,9 @@ try {
     $user_id = (int)$_SESSION['user']['id'];
     $user_name = $_SESSION['user']['name'] ?? 'Agent';
     
-    // Get filter parameters FIRST (before table check)
+    // Get filter parameters
     $search = trim($_GET['search'] ?? '');
-    $queue_type_filter = trim($_GET['queue_type'] ?? '');
-    $priority_filter = isset($_GET['priority']) && $_GET['priority'] !== '' && $_GET['priority'] !== '0' ? (int)$_GET['priority'] : 0;
     $city_filter = trim($_GET['city'] ?? '');
-    $view_mode = $_GET['view_mode'] ?? 'all'; // 'all' = all donors with balance, 'queue' = only queue
     
     // Handle balance filters - only set if value is provided and > 0
     $balance_min = null;
@@ -112,181 +109,99 @@ try {
             $stmt->close();
         }
         
-        // Build queue query with filters
-        // If view_mode is 'all', show all donors with balance (not just queue)
-        // If view_mode is 'queue', show only queue items
-        if ($view_mode === 'all') {
-            // Show ALL donors with balance > 0, whether in queue or not
-            $queue_where = [
-                "d.balance > 0",
-                "d.donor_type = 'pledge'"
-            ];
-            $queue_params = [];
-            $queue_types = '';
-            $queue_join = "LEFT JOIN call_center_queues q ON q.donor_id = d.id AND q.status = 'pending'";
-        } else {
-            // Show only queue items (original behavior)
-            $queue_where = [
-                "q.status = 'pending'",
-                "(q.assigned_to IS NULL OR q.assigned_to = ?)",
-                "(q.next_attempt_after IS NULL OR q.next_attempt_after <= NOW())"
-            ];
-            $queue_params = [$user_id];
-            $queue_types = 'i';
-            $queue_join = "JOIN call_center_queues q ON q.donor_id = d.id";
-        }
+        // SIMPLE APPROACH: Just show all donors with balance
+        // Build simple query
+        $where_parts = ["d.balance > 0", "d.donor_type = 'pledge'"];
+        $params = [];
+        $types = '';
         
         if (!empty($search)) {
-            $queue_where[] = "(d.name LIKE ? OR d.phone LIKE ?)";
+            $where_parts[] = "(d.name LIKE ? OR d.phone LIKE ?)";
             $search_param = "%{$search}%";
-            $queue_params[] = $search_param;
-            $queue_params[] = $search_param;
-            $queue_types .= 'ss';
-        }
-        
-        if (!empty($queue_type_filter)) {
-            if ($view_mode === 'all') {
-                $queue_where[] = "(q.queue_type = ? OR q.queue_type IS NULL)";
-            } else {
-                $queue_where[] = "q.queue_type = ?";
-            }
-            $queue_params[] = $queue_type_filter;
-            $queue_types .= 's';
-        }
-        
-        if ($priority_filter > 0) {
-            if ($view_mode === 'all') {
-                $queue_where[] = "(q.priority = ? OR q.priority IS NULL)";
-            } else {
-                $queue_where[] = "q.priority = ?";
-            }
-            $queue_params[] = $priority_filter;
-            $queue_types .= 'i';
+            $params[] = $search_param;
+            $params[] = $search_param;
+            $types .= 'ss';
         }
         
         if (!empty($city_filter)) {
-            $queue_where[] = "d.city = ?";
-            $queue_params[] = $city_filter;
-            $queue_types .= 's';
+            $where_parts[] = "d.city = ?";
+            $params[] = $city_filter;
+            $types .= 's';
         }
         
         if ($balance_min !== null && $balance_min > 0) {
-            $queue_where[] = "d.balance >= ?";
-            $queue_params[] = $balance_min;
-            $queue_types .= 'd';
+            $where_parts[] = "d.balance >= ?";
+            $params[] = $balance_min;
+            $types .= 'd';
         }
         
         if ($balance_max !== null && $balance_max > 0) {
-            $queue_where[] = "d.balance <= ?";
-            $queue_params[] = $balance_max;
-            $queue_types .= 'd';
+            $where_parts[] = "d.balance <= ?";
+            $params[] = $balance_max;
+            $types .= 'd';
         }
         
-        if ($attempts_min !== null && $attempts_min >= 0) {
-            if ($view_mode === 'all') {
-                $queue_where[] = "(q.attempts_count >= ? OR q.attempts_count IS NULL)";
-            } else {
-                $queue_where[] = "q.attempts_count >= ?";
-            }
-            $queue_params[] = $attempts_min;
-            $queue_types .= 'i';
-        }
+        $where_clause = implode(' AND ', $where_parts);
         
-        if ($attempts_max !== null && $attempts_max > 0) {
-            if ($view_mode === 'all') {
-                $queue_where[] = "(q.attempts_count <= ? OR q.attempts_count IS NULL)";
-            } else {
-                $queue_where[] = "q.attempts_count <= ?";
-            }
-            $queue_params[] = $attempts_max;
-            $queue_types .= 'i';
-        }
-        
-        $queue_where_clause = implode(' AND ', $queue_where);
-        
-        // Get total count for pagination (use separate params array)
-        $count_params = $queue_params;
-        $count_types = $queue_types;
-        
-        $count_query = "
-            SELECT COUNT(*) as total
-            FROM donors d
-            {$queue_join}
-            WHERE {$queue_where_clause}
-        ";
-        
+        // Get total count
+        $count_query = "SELECT COUNT(*) as total FROM donors d WHERE {$where_clause}";
         $count_stmt = $db->prepare($count_query);
-        if ($count_stmt) {
-            $count_stmt->bind_param($count_types, ...$count_params);
+        if ($count_stmt && !empty($params)) {
+            $count_stmt->bind_param($types, ...$params);
             $count_stmt->execute();
             $count_result = $count_stmt->get_result();
             if ($count_result) {
-                $total_count = $count_result->fetch_assoc()['total'];
+                $row = $count_result->fetch_assoc();
+                $total_count = (int)$row['total'];
                 $total_pages = max(1, (int)ceil($total_count / $per_page));
             }
             $count_stmt->close();
-        }
-        
-        // Get call queue - donors who need to be called (add LIMIT/OFFSET params)
-        if ($view_mode === 'all') {
-            $queue_query = "
-                SELECT 
-                    q.id as queue_id,
-                    d.id as donor_id,
-                    COALESCE(q.queue_type, 'not_in_queue') as queue_type,
-                    COALESCE(q.priority, 5) as priority,
-                    COALESCE(q.attempts_count, 0) as attempts_count,
-                    q.next_attempt_after,
-                    q.reason_for_queue,
-                    q.preferred_contact_time,
-                    d.name,
-                    d.phone,
-                    d.balance,
-                    d.city,
-                    d.last_contacted_at,
-                    (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_outcome
-                FROM donors d
-                {$queue_join}
-                WHERE {$queue_where_clause}
-                ORDER BY 
-                    CASE WHEN q.priority IS NULL THEN 0 ELSE q.priority END DESC,
-                    q.next_attempt_after ASC,
-                    d.balance DESC,
-                    d.created_at ASC
-                LIMIT ? OFFSET ?
-            ";
+        } elseif ($count_stmt && empty($params)) {
+            $count_stmt->execute();
+            $count_result = $count_stmt->get_result();
+            if ($count_result) {
+                $row = $count_result->fetch_assoc();
+                $total_count = (int)$row['total'];
+                $total_pages = max(1, (int)ceil($total_count / $per_page));
+            }
+            $count_stmt->close();
         } else {
-            $queue_query = "
-                SELECT 
-                    q.id as queue_id,
-                    q.donor_id,
-                    q.queue_type,
-                    q.priority,
-                    q.attempts_count,
-                    q.next_attempt_after,
-                    q.reason_for_queue,
-                    q.preferred_contact_time,
-                    d.name,
-                    d.phone,
-                    d.balance,
-                    d.city,
-                    d.last_contacted_at,
-                    (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_outcome
-                FROM call_center_queues q
-                JOIN donors d ON q.donor_id = d.id
-                WHERE {$queue_where_clause}
-                ORDER BY q.priority DESC, q.next_attempt_after ASC, q.created_at ASC
-                LIMIT ? OFFSET ?
-            ";
+            $total_count = 0;
+            $total_pages = 1;
         }
         
-        $queue_params[] = $per_page;
-        $queue_params[] = $offset;
-        $queue_types .= 'ii';
+        // Get donors with queue info
+        $params[] = $per_page;
+        $params[] = $offset;
+        $types .= 'ii';
+        
+        $queue_query = "
+            SELECT 
+                q.id as queue_id,
+                d.id as donor_id,
+                COALESCE(q.queue_type, 'not_in_queue') as queue_type,
+                COALESCE(q.priority, 5) as priority,
+                COALESCE(q.attempts_count, 0) as attempts_count,
+                q.next_attempt_after,
+                q.reason_for_queue,
+                q.preferred_contact_time,
+                d.name,
+                d.phone,
+                d.balance,
+                d.city,
+                d.last_contacted_at
+            FROM donors d
+            LEFT JOIN call_center_queues q ON q.donor_id = d.id AND q.status = 'pending'
+            WHERE {$where_clause}
+            ORDER BY d.balance DESC, d.created_at ASC
+            LIMIT ? OFFSET ?
+        ";
         
         $stmt = $db->prepare($queue_query);
         if ($stmt) {
-            $stmt->bind_param($queue_types, ...$queue_params);
+            if (!empty($params)) {
+                $stmt->bind_param($types, ...$params);
+            }
             $stmt->execute();
             $queue_result = $stmt->get_result();
             $stmt->close();
@@ -590,34 +505,6 @@ $page_title = 'Call Center Dashboard';
                                    value="<?php echo htmlspecialchars($search); ?>">
                         </div>
                         
-                        <!-- Queue Type -->
-                        <div class="col-md-2">
-                            <label class="form-label small">Queue Type</label>
-                            <select name="queue_type" class="form-select form-select-sm">
-                                <option value="">All Types</option>
-                                <?php foreach ($queue_types_list as $type): ?>
-                                    <option value="<?php echo htmlspecialchars($type); ?>" 
-                                            <?php echo $queue_type_filter === $type ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $type))); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <!-- Priority -->
-                        <div class="col-md-2">
-                            <label class="form-label small">Priority</label>
-                            <select name="priority" class="form-select form-select-sm">
-                                <option value="0">All Priorities</option>
-                                <?php for ($p = 10; $p >= 1; $p--): ?>
-                                    <option value="<?php echo $p; ?>" 
-                                            <?php echo $priority_filter === $p ? 'selected' : ''; ?>>
-                                        <?php echo $p; ?> <?php echo $p >= 8 ? '(Urgent)' : ($p >= 5 ? '(High)' : ''); ?>
-                                    </option>
-                                <?php endfor; ?>
-                            </select>
-                        </div>
-                        
                         <!-- City -->
                         <div class="col-md-2">
                             <label class="form-label small">City</label>
@@ -652,26 +539,6 @@ $page_title = 'Call Center Dashboard';
                             </div>
                         </div>
                         
-                        <!-- Attempts Range -->
-                        <div class="col-md-2">
-                            <label class="form-label small">Attempts</label>
-                            <div class="input-group input-group-sm">
-                                <input type="number" 
-                                       name="attempts_min" 
-                                       class="form-control" 
-                                       placeholder="Min"
-                                       min="0"
-                                       value="<?php echo $attempts_min !== null ? htmlspecialchars($attempts_min) : ''; ?>">
-                                <span class="input-group-text">-</span>
-                                <input type="number" 
-                                       name="attempts_max" 
-                                       class="form-control" 
-                                       placeholder="Max"
-                                       min="0"
-                                       value="<?php echo $attempts_max !== null ? htmlspecialchars($attempts_max) : ''; ?>">
-                            </div>
-                        </div>
-                        
                         <!-- Filter Buttons -->
                         <div class="col-md-12">
                             <button type="submit" class="btn btn-primary btn-sm">
@@ -680,7 +547,7 @@ $page_title = 'Call Center Dashboard';
                             <a href="index.php" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-times me-1"></i>Clear All
                             </a>
-                            <?php if ($search || $queue_type_filter || $priority_filter || $city_filter || $balance_min !== null || $balance_max !== null || $attempts_min !== null || $attempts_max !== null): ?>
+                            <?php if ($search || $city_filter || $balance_min !== null || $balance_max !== null): ?>
                                 <span class="badge bg-info ms-2">
                                     <?php echo number_format($total_count); ?> result<?php echo $total_count != 1 ? 's' : ''; ?>
                                 </span>
