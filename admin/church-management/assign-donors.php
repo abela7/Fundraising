@@ -23,8 +23,9 @@ $error_message = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_donor'])) {
     $donor_id = (int)($_POST['donor_id'] ?? 0);
     $church_id = (int)($_POST['church_id'] ?? 0);
+    $representative_id = (int)($_POST['representative_id'] ?? 0);
     
-    log_action("Assignment attempt - Donor ID: {$donor_id}, Church ID: {$church_id}");
+    log_action("Assignment attempt - Donor ID: {$donor_id}, Church ID: {$church_id}, Representative ID: {$representative_id}");
     
     $errors = [];
     
@@ -34,6 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_donor'])) {
     
     if ($church_id <= 0) {
         $errors[] = "Please select a church.";
+    }
+    
+    if ($representative_id <= 0) {
+        $errors[] = "Please select a representative.";
     }
     
     if (empty($errors)) {
@@ -64,9 +69,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_donor'])) {
             
             log_action("Donor updated successfully - Donor ID: {$donor_id}, Old Church: " . ($old_church_id ?? 'NULL') . ", New Church: {$church_id}");
             
+            // Get representative info for logging
+            $rep_info = '';
+            if ($representative_id > 0) {
+                $rep_stmt = $db->prepare("SELECT name, role FROM church_representatives WHERE id = ?");
+                $rep_stmt->bind_param("i", $representative_id);
+                $rep_stmt->execute();
+                $rep_result = $rep_stmt->get_result()->fetch_assoc();
+                if ($rep_result) {
+                    $rep_info = "Representative: {$rep_result['name']} ({$rep_result['role']})";
+                    log_action("Representative assigned - {$rep_info}");
+                }
+            }
+            
             $db->commit();
             
             $success_message = "Donor '{$current_donor['name']}' has been assigned successfully!";
+            if ($rep_info) {
+                $success_message .= " " . $rep_info;
+            }
             log_action("Assignment completed successfully - Donor ID: {$donor_id}");
             
             // Reset form
@@ -236,6 +257,9 @@ try {
 // Get selected donor info if provided
 $selected_donor = null;
 $selected_donor_id = (int)($_GET['donor_id'] ?? 0);
+$selected_church_id = (int)($_GET['church_id'] ?? 0);
+$selected_rep_id = (int)($_GET['rep_id'] ?? 0);
+
 if ($selected_donor_id > 0) {
     try {
         $stmt = $db->prepare("
@@ -247,6 +271,27 @@ if ($selected_donor_id > 0) {
         $stmt->bind_param("i", $selected_donor_id);
         $stmt->execute();
         $selected_donor = $stmt->get_result()->fetch_assoc();
+    } catch (Exception $e) {
+        // Ignore
+    }
+}
+
+// Get representatives for selected church
+$representatives = [];
+if ($selected_church_id > 0) {
+    try {
+        $reps_stmt = $db->prepare("
+            SELECT id, name, role, phone, email, is_primary 
+            FROM church_representatives 
+            WHERE church_id = ? AND is_active = 1 
+            ORDER BY is_primary DESC, name ASC
+        ");
+        $reps_stmt->bind_param("i", $selected_church_id);
+        $reps_stmt->execute();
+        $reps_result = $reps_stmt->get_result();
+        while ($row = $reps_result->fetch_assoc()) {
+            $representatives[] = $row;
+        }
     } catch (Exception $e) {
         // Ignore
     }
@@ -441,6 +486,15 @@ if ($selected_donor_id > 0) {
         .rep-card.selected {
             border-color: var(--assign-primary);
             background: #f0f9ff;
+            border-width: 3px;
+        }
+        
+        .selected-church-card {
+            background: #f0f9ff;
+            border: 2px solid var(--assign-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
         }
         
         .btn-action {
@@ -527,12 +581,16 @@ if ($selected_donor_id > 0) {
                         <div class="step-circle">1</div>
                         <div class="step-label">Find Donor</div>
                     </div>
-                    <div class="step <?php echo $selected_donor_id && !isset($_GET['church_id']) ? 'active' : ($selected_donor_id && isset($_GET['church_id']) ? 'completed' : ''); ?>" id="step2">
+                    <div class="step <?php echo $selected_donor_id && !$selected_church_id ? 'active' : ($selected_donor_id && $selected_church_id ? 'completed' : ''); ?>" id="step2">
                         <div class="step-circle">2</div>
                         <div class="step-label">Choose Church</div>
                     </div>
-                    <div class="step <?php echo isset($_GET['church_id']) ? 'active' : ''; ?>" id="step3">
+                    <div class="step <?php echo $selected_church_id && !$selected_rep_id ? 'active' : ($selected_church_id && $selected_rep_id ? 'completed' : ''); ?>" id="step3">
                         <div class="step-circle">3</div>
+                        <div class="step-label">Select Representative</div>
+                    </div>
+                    <div class="step <?php echo $selected_rep_id ? 'active' : ''; ?>" id="step4">
+                        <div class="step-circle">4</div>
                         <div class="step-label">Confirm</div>
                     </div>
                 </div>
@@ -764,7 +822,7 @@ if ($selected_donor_id > 0) {
                 </div>
                 
                 <!-- Step 2: Choose Church -->
-                <?php if ($selected_donor): ?>
+                <?php if ($selected_donor && !$selected_church_id): ?>
                 <div class="step-content active" id="content2">
                     <div class="selected-donor-card">
                         <h6 class="mb-2"><i class="fas fa-user me-2"></i>Selected Donor</h6>
@@ -796,36 +854,129 @@ if ($selected_donor_id > 0) {
                         <?php if (empty($churches)): ?>
                             <p class="text-muted">No churches available. Please add a church first.</p>
                         <?php else: ?>
+                            <div class="row g-3">
+                                <?php foreach ($churches as $church): ?>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="church-card" 
+                                         onclick="selectChurch(<?php echo $church['id']; ?>)" 
+                                         data-church-id="<?php echo $church['id']; ?>">
+                                        <h6 class="mb-1"><?php echo htmlspecialchars($church['name']); ?></h6>
+                                        <p class="mb-0 small text-muted">
+                                            <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($church['city']); ?>
+                                        </p>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <a href="assign-donors.php" class="btn btn-outline-secondary btn-lg btn-action">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Search
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
+                <!-- Step 3: Select Representative -->
+                <?php if ($selected_donor && $selected_church_id): ?>
+                <div class="step-content active" id="content3">
+                    <div class="selected-donor-card">
+                        <h6 class="mb-2"><i class="fas fa-user me-2"></i>Selected Donor</h6>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <div>
+                                <strong><?php echo htmlspecialchars($selected_donor['name']); ?></strong>
+                                <p class="mb-0 small text-muted">
+                                    <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($selected_donor['phone']); ?>
+                                </p>
+                            </div>
+                            <div class="mt-2 mt-md-0">
+                                <a href="assign-donors.php?donor_id=<?php echo $selected_donor_id; ?>" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>Change Donor
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <?php
+                    // Get selected church name
+                    $selected_church_name = '';
+                    foreach ($churches as $church) {
+                        if ($church['id'] == $selected_church_id) {
+                            $selected_church_name = $church['name'];
+                            break;
+                        }
+                    }
+                    ?>
+                    
+                    <div class="form-card mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="fas fa-church me-2"></i>Selected Church</h6>
+                                <strong><?php echo htmlspecialchars($selected_church_name); ?></strong>
+                            </div>
+                            <a href="assign-donors.php?donor_id=<?php echo $selected_donor_id; ?>" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit me-1"></i>Change Church
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="form-card">
+                        <h5 class="mb-4"><i class="fas fa-user-tie me-2"></i>Step 3: Select Representative <span class="text-danger">*</span></h5>
+                        
+                        <?php if (empty($representatives)): ?>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                No active representatives found for this church. 
+                                <a href="representatives.php?church_id=<?php echo $selected_church_id; ?>" class="alert-link">Add a representative first</a>.
+                            </div>
+                        <?php else: ?>
                             <form method="POST" action="" id="assignForm">
                                 <input type="hidden" name="donor_id" value="<?php echo $selected_donor_id; ?>">
-                                <input type="hidden" name="church_id" id="selected_church_id" value="<?php echo $_GET['church_id'] ?? ''; ?>">
+                                <input type="hidden" name="church_id" value="<?php echo $selected_church_id; ?>">
+                                <input type="hidden" name="representative_id" id="selected_rep_id" value="<?php echo $selected_rep_id; ?>">
                                 
                                 <div class="row g-3">
-                                    <?php foreach ($churches as $church): ?>
+                                    <?php foreach ($representatives as $rep): ?>
                                     <div class="col-md-6 col-lg-4">
-                                        <div class="church-card <?php echo (isset($_GET['church_id']) && $_GET['church_id'] == $church['id']) ? 'selected' : ''; ?>" 
-                                             onclick="selectChurch(<?php echo $church['id']; ?>)" 
-                                             data-church-id="<?php echo $church['id']; ?>">
-                                            <h6 class="mb-1"><?php echo htmlspecialchars($church['name']); ?></h6>
-                                            <p class="mb-0 small text-muted">
-                                                <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($church['city']); ?>
-                                            </p>
+                                        <div class="rep-card <?php echo $selected_rep_id == $rep['id'] ? 'selected' : ''; ?>" 
+                                             onclick="selectRepresentative(<?php echo $rep['id']; ?>)" 
+                                             data-rep-id="<?php echo $rep['id']; ?>">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">
+                                                        <?php echo htmlspecialchars($rep['name']); ?>
+                                                        <?php if ($rep['is_primary']): ?>
+                                                            <span class="badge bg-success ms-2">Primary</span>
+                                                        <?php endif; ?>
+                                                    </h6>
+                                                    <p class="mb-1 small text-muted">
+                                                        <span class="badge bg-info"><?php echo htmlspecialchars($rep['role']); ?></span>
+                                                    </p>
+                                                    <?php if ($rep['phone']): ?>
+                                                    <p class="mb-0 small text-muted">
+                                                        <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($rep['phone']); ?>
+                                                    </p>
+                                                    <?php endif; ?>
+                                                    <?php if ($rep['email']): ?>
+                                                    <p class="mb-0 small text-muted">
+                                                        <i class="fas fa-envelope me-1"></i><?php echo htmlspecialchars($rep['email']); ?>
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <?php endforeach; ?>
                                 </div>
                                 
-                                <div id="representativesSection" style="display: none;" class="mt-4">
-                                    <h6 class="mb-3"><i class="fas fa-user-tie me-2"></i>Representatives (Optional)</h6>
-                                    <div id="representativesList"></div>
-                                </div>
-                                
                                 <div class="mt-4">
-                                    <button type="submit" name="assign_donor" class="btn btn-primary btn-lg btn-action" id="assignBtn" disabled>
+                                    <button type="submit" name="assign_donor" class="btn btn-primary btn-lg btn-action" id="assignBtn" <?php echo $selected_rep_id <= 0 ? 'disabled' : ''; ?>>
                                         <i class="fas fa-save me-2"></i>Complete Assignment
                                     </button>
-                                    <a href="assign-donors.php" class="btn btn-outline-secondary btn-lg btn-action">
-                                        <i class="fas fa-arrow-left me-2"></i>Back to Search
+                                    <a href="assign-donors.php?donor_id=<?php echo $selected_donor_id; ?>" class="btn btn-outline-secondary btn-lg btn-action">
+                                        <i class="fas fa-arrow-left me-2"></i>Back to Church Selection
                                     </a>
                                 </div>
                             </form>
@@ -849,95 +1000,37 @@ function selectDonor(donorId) {
 
 // Step 2: Select Church
 function selectChurch(churchId) {
-    document.getElementById('selected_church_id').value = churchId;
+    const donorId = <?php echo $selected_donor_id; ?>;
+    window.location.href = 'assign-donors.php?donor_id=' + donorId + '&church_id=' + churchId;
+}
+
+// Step 3: Select Representative
+function selectRepresentative(repId) {
+    document.getElementById('selected_rep_id').value = repId;
     
     // Update UI
-    document.querySelectorAll('.church-card').forEach(card => {
+    document.querySelectorAll('.rep-card').forEach(card => {
         card.classList.remove('selected');
     });
     event.currentTarget.classList.add('selected');
     
     // Enable assign button
     document.getElementById('assignBtn').disabled = false;
-    
-    // Load representatives
-    fetch(`get-representatives.php?church_id=${churchId}`)
-        .then(response => response.json())
-        .then(data => {
-            const repsSection = document.getElementById('representativesSection');
-            const repsList = document.getElementById('representativesList');
-            
-            if (data.representatives && data.representatives.length > 0) {
-                repsList.innerHTML = '';
-                data.representatives.forEach(rep => {
-                    const repCard = document.createElement('div');
-                    repCard.className = 'rep-card';
-                    repCard.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${rep.name}</strong>
-                                ${rep.is_primary ? '<span class="badge bg-success ms-2">Primary</span>' : ''}
-                                <p class="mb-0 small text-muted">${rep.role}</p>
-                            </div>
-                        </div>
-                    `;
-                    repsList.appendChild(repCard);
-                });
-                repsSection.style.display = 'block';
-            } else {
-                repsSection.style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading representatives:', error);
-        });
 }
 
-// Auto-select church if provided in URL
-<?php if (isset($_GET['church_id']) && $selected_donor): ?>
+// Auto-select representative if provided in URL
+<?php if ($selected_rep_id > 0): ?>
 document.addEventListener('DOMContentLoaded', function() {
-    const churchId = <?php echo (int)$_GET['church_id']; ?>;
-    document.getElementById('selected_church_id').value = churchId;
+    const repId = <?php echo $selected_rep_id; ?>;
+    document.getElementById('selected_rep_id').value = repId;
     document.getElementById('assignBtn').disabled = false;
     
     // Visual selection
-    document.querySelectorAll('.church-card').forEach(card => {
-        if (card.getAttribute('data-church-id') == churchId) {
+    document.querySelectorAll('.rep-card').forEach(card => {
+        if (card.getAttribute('data-rep-id') == repId) {
             card.classList.add('selected');
         }
     });
-    
-    // Load representatives
-    fetch(`get-representatives.php?church_id=${churchId}`)
-        .then(response => response.json())
-        .then(data => {
-            const repsSection = document.getElementById('representativesSection');
-            const repsList = document.getElementById('representativesList');
-            
-            if (data.representatives && data.representatives.length > 0) {
-                repsList.innerHTML = '';
-                data.representatives.forEach(rep => {
-                    const repCard = document.createElement('div');
-                    repCard.className = 'rep-card';
-                    repCard.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${rep.name}</strong>
-                                ${rep.is_primary ? '<span class="badge bg-success ms-2">Primary</span>' : ''}
-                                <p class="mb-0 small text-muted">${rep.role}</p>
-                            </div>
-                        </div>
-                    `;
-                    repsList.appendChild(repCard);
-                });
-                repsSection.style.display = 'block';
-            } else {
-                repsSection.style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading representatives:', error);
-        });
 });
 <?php endif; ?>
 </script>
