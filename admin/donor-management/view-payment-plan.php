@@ -75,9 +75,15 @@ try {
         $pledge_stmt->bind_param('i', $plan['pledge_id']);
         $pledge_stmt->execute();
         $pledge_result = $pledge_stmt->get_result();
-        $pledge = $pledge_result->fetch_assoc();
+        if ($pledge_result->num_rows > 0) {
+            $pledge = $pledge_result->fetch_assoc();
+        }
         $pledge_stmt->close();
     }
+    
+    // Debug log
+    error_log("Pledge ID from plan: " . ($plan['pledge_id'] ?? 'NULL'));
+    error_log("Pledge data found: " . ($pledge ? json_encode($pledge) : 'NULL'));
     
     // Fetch representative if column exists
     $representative = null;
