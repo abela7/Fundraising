@@ -15,60 +15,15 @@ if ($plan_id <= 0) {
 }
 
 try {
-    // Check column existence
-    $check_rep_col = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
-    $has_rep_col = $check_rep_col && $check_rep_col->num_rows > 0;
-    
-    $check_church_col = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
-    $has_church_col = $check_church_col && $check_church_col->num_rows > 0;
-    
-    $check_sqm_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'sqm'");
-    $has_sqm_col = $check_sqm_col && $check_sqm_col->num_rows > 0;
-
-    // Build main query
-    $select_fields = "
-        dpp.*,
-        d.id as donor_id,
-        d.name as donor_name,
-        d.phone as donor_phone,
-        d.email as donor_email,
-        d.balance as donor_balance,
-        d.total_pledged,
-        d.total_paid,
-        p.id as pledge_id,
-        p.amount as pledge_amount,
-        " . ($has_sqm_col ? "p.sqm," : "") . "
-        p.notes as pledge_notes,
-        p.created_at as pledge_date,
-        ppt.name as template_name,
-        ppt.description as template_description
+    // Simple query like view-donor.php - just get the plan first
+    $plan_query = "
+        SELECT pp.*, t.name as template_name, t.description as template_description
+        FROM donor_payment_plans pp
+        LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
+        WHERE pp.id = ?
     ";
     
-    if ($has_rep_col) {
-        $select_fields .= ", cr.name as representative_name, cr.phone as representative_phone";
-    }
-    
-    if ($has_church_col) {
-        $select_fields .= ", ch.name as church_name, ch.city as church_city";
-    }
-    
-    $joins = "
-        INNER JOIN donors d ON dpp.donor_id = d.id
-        LEFT JOIN pledges p ON dpp.pledge_id = p.id
-        LEFT JOIN payment_plan_templates ppt ON dpp.template_id = ppt.id
-    ";
-    
-    if ($has_rep_col) {
-        $joins .= " LEFT JOIN church_representatives cr ON d.representative_id = cr.id";
-    }
-    
-    if ($has_church_col) {
-        $joins .= " LEFT JOIN churches ch ON d.church_id = ch.id";
-    }
-    
-    $sql = "SELECT $select_fields FROM donor_payment_plans dpp $joins WHERE dpp.id = ?";
-    
-    $query = $db->prepare($sql);
+    $query = $db->prepare($plan_query);
     if (!$query) {
         throw new Exception("Prepare failed: " . $db->error);
     }
@@ -87,16 +42,80 @@ try {
         exit;
     }
 
-    $plan = $result->fetch_object();
+    $plan = $result->fetch_assoc(); // Use fetch_assoc instead of fetch_object
     $query->close();
     
+    // Now fetch donor details separately
+    $donor_id = (int)$plan['donor_id'];
+    $donor_query = "SELECT id, name, phone, email, balance, total_pledged, total_paid FROM donors WHERE id = ?";
+    $donor_stmt = $db->prepare($donor_query);
+    $donor_stmt->bind_param('i', $donor_id);
+    $donor_stmt->execute();
+    $donor_result = $donor_stmt->get_result();
+    $donor = $donor_result->fetch_assoc();
+    $donor_stmt->close();
+    
+    if (!$donor) {
+        throw new Exception("Donor not found for plan #$plan_id");
+    }
+    
+    // Fetch pledge details if pledge_id exists
+    $pledge = null;
+    if (!empty($plan['pledge_id'])) {
+        $check_sqm_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'sqm'");
+        $has_sqm_col = $check_sqm_col && $check_sqm_col->num_rows > 0;
+        
+        $pledge_fields = "id, amount, notes, created_at";
+        if ($has_sqm_col) {
+            $pledge_fields .= ", sqm";
+        }
+        
+        $pledge_query = "SELECT $pledge_fields FROM pledges WHERE id = ?";
+        $pledge_stmt = $db->prepare($pledge_query);
+        $pledge_stmt->bind_param('i', $plan['pledge_id']);
+        $pledge_stmt->execute();
+        $pledge_result = $pledge_stmt->get_result();
+        $pledge = $pledge_result->fetch_assoc();
+        $pledge_stmt->close();
+    }
+    
+    // Fetch representative if column exists
+    $representative = null;
+    $check_rep_col = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+    $has_rep_col = $check_rep_col && $check_rep_col->num_rows > 0;
+    
+    if ($has_rep_col && !empty($donor['representative_id'])) {
+        $rep_query = "SELECT name, phone FROM church_representatives WHERE id = ?";
+        $rep_stmt = $db->prepare($rep_query);
+        $rep_stmt->bind_param('i', $donor['representative_id']);
+        $rep_stmt->execute();
+        $rep_result = $rep_stmt->get_result();
+        $representative = $rep_result->fetch_assoc();
+        $rep_stmt->close();
+    }
+    
+    // Fetch church if column exists
+    $church = null;
+    $check_church_col = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
+    $has_church_col = $check_church_col && $check_church_col->num_rows > 0;
+    
+    if ($has_church_col && !empty($donor['church_id'])) {
+        $church_query = "SELECT name, city FROM churches WHERE id = ?";
+        $church_stmt = $db->prepare($church_query);
+        $church_stmt->bind_param('i', $donor['church_id']);
+        $church_stmt->execute();
+        $church_result = $church_stmt->get_result();
+        $church = $church_result->fetch_assoc();
+        $church_stmt->close();
+    }
+    
     // Debug: Log plan data
-    error_log("Plan loaded - ID: " . $plan->id . ", Donor: " . $plan->donor_name);
-    error_log("Plan total_amount: " . ($plan->total_amount ?? 'NULL'));
-    error_log("Plan monthly_amount: " . ($plan->monthly_amount ?? 'NULL'));
-    error_log("Plan amount_paid: " . ($plan->amount_paid ?? 'NULL'));
+    error_log("Plan loaded - ID: " . $plan['id'] . ", Donor: " . $donor['name']);
+    error_log("Plan total_amount: " . ($plan['total_amount'] ?? 'NULL'));
+    error_log("Plan monthly_amount: " . ($plan['monthly_amount'] ?? 'NULL'));
+    error_log("Plan amount_paid: " . ($plan['amount_paid'] ?? 'NULL'));
 
-    // Fetch payments
+    // Fetch payments - use donor_id and pledge_id from plan array
     $payment_columns = [];
     $col_query = $db->query("SHOW COLUMNS FROM payments");
     while ($col = $col_query->fetch_assoc()) {
@@ -135,14 +154,23 @@ try {
         $payments_sql .= " LEFT JOIN users u ON u.id = pay.$user_id_col";
     }
     
-    $payments_sql .= " WHERE pay.donor_id = ? AND pay.pledge_id = ? ORDER BY pay.$date_col DESC";
+    $pledge_id_for_payments = !empty($plan['pledge_id']) ? $plan['pledge_id'] : 0;
+    $payments_sql .= " WHERE pay.donor_id = ?";
+    if ($pledge_id_for_payments > 0) {
+        $payments_sql .= " AND pay.pledge_id = ?";
+    }
+    $payments_sql .= " ORDER BY pay.$date_col DESC";
     
     $payments_query = $db->prepare($payments_sql);
     
     if (!$payments_query) {
         $payments = [];
     } else {
-        $payments_query->bind_param('ii', $plan->donor_id, $plan->pledge_id);
+        if ($pledge_id_for_payments > 0) {
+            $payments_query->bind_param('ii', $donor_id, $pledge_id_for_payments);
+        } else {
+            $payments_query->bind_param('i', $donor_id);
+        }
         if ($payments_query->execute()) {
             $payments = $payments_query->get_result()->fetch_all(MYSQLI_ASSOC);
         } else {
@@ -152,10 +180,10 @@ try {
     }
 
     // Calculate progress - ensure we have valid numbers
-    $total_amount = (float)($plan->total_amount ?? 0);
-    $amount_paid = (float)($plan->amount_paid ?? 0);
-    $total_payments = (int)($plan->total_payments ?? 0);
-    $payments_made = (int)($plan->payments_made ?? 0);
+    $total_amount = (float)($plan['total_amount'] ?? 0);
+    $amount_paid = (float)($plan['amount_paid'] ?? 0);
+    $total_payments = (int)($plan['total_payments'] ?? 0);
+    $payments_made = (int)($plan['payments_made'] ?? 0);
     
     $progress_percentage = $total_amount > 0 ? ($amount_paid / $total_amount) * 100 : 0;
     $remaining_amount = $total_amount - $amount_paid;
@@ -163,7 +191,7 @@ try {
     
     error_log("Calculated - Progress: $progress_percentage%, Remaining: $remaining_amount, Remaining Payments: $remaining_payments");
 
-    $page_title = "Payment Plan #$plan_id - " . htmlspecialchars($plan->donor_name ?? 'Unknown');
+    $page_title = "Payment Plan #$plan_id - " . htmlspecialchars($donor['name'] ?? 'Unknown');
     
 } catch (Exception $e) {
     error_log("Error in view-payment-plan.php: " . $e->getMessage());
@@ -270,7 +298,7 @@ try {
                     <a href="donors.php" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Donors
                     </a>
-                    <a href="view-donor.php?id=<?php echo $plan->donor_id; ?>" class="btn btn-outline-primary">
+                    <a href="view-donor.php?id=<?php echo $donor_id; ?>" class="btn btn-outline-primary">
                         <i class="fas fa-user me-2"></i>View Donor Profile
                     </a>
                 </div>
@@ -281,15 +309,15 @@ try {
                         <div>
                             <h1 class="mb-2">
                                 <i class="fas fa-calendar-alt me-2"></i>
-                                Payment Plan #<?php echo $plan->id; ?>
+                                Payment Plan #<?php echo $plan['id']; ?>
                             </h1>
-                            <h4 class="mb-3"><?php echo htmlspecialchars($plan->donor_name); ?></h4>
+                            <h4 class="mb-3"><?php echo htmlspecialchars($donor['name']); ?></h4>
                             <div class="mb-2">
-                                <i class="fas fa-phone me-2"></i><?php echo htmlspecialchars($plan->donor_phone); ?>
+                                <i class="fas fa-phone me-2"></i><?php echo htmlspecialchars($donor['phone']); ?>
                             </div>
-                            <?php if ($plan->donor_email): ?>
+                            <?php if (!empty($donor['email'])): ?>
                             <div class="mb-2">
-                                <i class="fas fa-envelope me-2"></i><?php echo htmlspecialchars($plan->donor_email); ?>
+                                <i class="fas fa-envelope me-2"></i><?php echo htmlspecialchars($donor['email']); ?>
                             </div>
                             <?php endif; ?>
                         </div>
@@ -302,10 +330,10 @@ try {
                                 'defaulted' => 'danger',
                                 'cancelled' => 'secondary'
                             ];
-                            $status_color = $status_colors[$plan->status] ?? 'secondary';
+                            $status_color = $status_colors[$plan['status']] ?? 'secondary';
                             ?>
                             <span class="badge bg-<?php echo $status_color; ?> status-badge">
-                                <?php echo strtoupper($plan->status); ?>
+                                <?php echo strtoupper($plan['status']); ?>
                             </span>
                         </div>
                     </div>
@@ -316,16 +344,16 @@ try {
                     <button type="button" class="btn btn-warning" onclick="editPlan(<?php echo $plan->id; ?>)">
                         <i class="fas fa-edit me-2"></i>Edit Plan
                     </button>
-                    <?php if ($plan->status === 'active'): ?>
-                    <button type="button" class="btn btn-info" onclick="pausePlan(<?php echo $plan->id; ?>)">
+                    <?php if ($plan['status'] === 'active'): ?>
+                    <button type="button" class="btn btn-info" onclick="pausePlan(<?php echo $plan['id']; ?>)">
                         <i class="fas fa-pause me-2"></i>Pause Plan
                     </button>
-                    <?php elseif ($plan->status === 'paused'): ?>
-                    <button type="button" class="btn btn-success" onclick="resumePlan(<?php echo $plan->id; ?>)">
+                    <?php elseif ($plan['status'] === 'paused'): ?>
+                    <button type="button" class="btn btn-success" onclick="resumePlan(<?php echo $plan['id']; ?>)">
                         <i class="fas fa-play me-2"></i>Resume Plan
                     </button>
                     <?php endif; ?>
-                    <button type="button" class="btn btn-danger" onclick="deletePlan(<?php echo $plan->id; ?>)">
+                    <button type="button" class="btn btn-danger" onclick="deletePlan(<?php echo $plan['id']; ?>)">
                         <i class="fas fa-trash me-2"></i>Delete Plan
                     </button>
                 </div>
@@ -390,18 +418,18 @@ try {
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-calendar text-primary me-2"></i>Duration:</strong>
-                                    <span class="float-end"><?php echo $plan->total_months; ?> months</span>
+                                    <span class="float-end"><?php echo $plan['total_months'] ?? 0; ?> months</span>
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-hashtag text-primary me-2"></i>Total Payments:</strong>
-                                    <span class="float-end"><?php echo $plan->total_payments; ?> payments</span>
+                                    <span class="float-end"><?php echo $total_payments; ?> payments</span>
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-redo text-primary me-2"></i>Frequency:</strong>
                                     <span class="float-end text-capitalize">
                                         <?php 
-                                        $freq_num = $plan->plan_frequency_number ?? 1;
-                                        $freq_unit = $plan->plan_frequency_unit ?? 'month';
+                                        $freq_num = $plan['plan_frequency_number'] ?? 1;
+                                        $freq_unit = $plan['plan_frequency_unit'] ?? 'month';
                                         if ($freq_num == 1) {
                                             echo ucfirst($freq_unit) . 'ly';
                                         } else {
@@ -412,35 +440,39 @@ try {
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-calendar-day text-primary me-2"></i>Payment Day:</strong>
-                                    <span class="float-end">Day <?php echo $plan->payment_day; ?> of month</span>
+                                    <span class="float-end">Day <?php echo $plan['payment_day'] ?? 1; ?> of month</span>
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-credit-card text-primary me-2"></i>Payment Method:</strong>
-                                    <span class="float-end text-capitalize"><?php echo str_replace('_', ' ', $plan->payment_method); ?></span>
+                                    <span class="float-end text-capitalize"><?php echo str_replace('_', ' ', $plan['payment_method'] ?? 'bank_transfer'); ?></span>
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-play-circle text-primary me-2"></i>Start Date:</strong>
-                                    <span class="float-end"><?php echo date('d M Y', strtotime($plan->start_date)); ?></span>
+                                    <span class="float-end"><?php echo $plan['start_date'] ? date('d M Y', strtotime($plan['start_date'])) : 'N/A'; ?></span>
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-flag-checkered text-primary me-2"></i>End Date:</strong>
                                     <span class="float-end">
                                         <?php 
-                                        $end_date = date('d M Y', strtotime($plan->start_date . " + {$plan->total_months} months"));
-                                        echo $end_date;
+                                        if ($plan['start_date'] && $plan['total_months']) {
+                                            $end_date = date('d M Y', strtotime($plan['start_date'] . " + {$plan['total_months']} months"));
+                                            echo $end_date;
+                                        } else {
+                                            echo 'N/A';
+                                        }
                                         ?>
                                     </span>
                                 </div>
-                                <?php if ($plan->next_payment_due): ?>
+                                <?php if (!empty($plan['next_payment_due'])): ?>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-clock text-warning me-2"></i>Next Payment Due:</strong>
-                                    <span class="float-end"><?php echo date('d M Y', strtotime($plan->next_payment_due)); ?></span>
+                                    <span class="float-end"><?php echo date('d M Y', strtotime($plan['next_payment_due'])); ?></span>
                                 </div>
                                 <?php endif; ?>
-                                <?php if ($plan->last_payment_date): ?>
+                                <?php if (!empty($plan['last_payment_date'])): ?>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-check-circle text-success me-2"></i>Last Payment:</strong>
-                                    <span class="float-end"><?php echo date('d M Y', strtotime($plan->last_payment_date)); ?></span>
+                                    <span class="float-end"><?php echo date('d M Y', strtotime($plan['last_payment_date'])); ?></span>
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -511,77 +543,79 @@ try {
                     <!-- Sidebar -->
                     <div class="col-lg-4">
                         <!-- Template Info -->
-                        <?php if ($plan->template_name): ?>
+                        <?php if (!empty($plan['template_name'])): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-file-alt me-2"></i>Plan Template</h5>
-                            <h6><?php echo htmlspecialchars($plan->template_name); ?></h6>
-                            <?php if ($plan->template_description): ?>
-                            <p class="text-muted small"><?php echo htmlspecialchars($plan->template_description); ?></p>
+                            <h6><?php echo htmlspecialchars($plan['template_name']); ?></h6>
+                            <?php if (!empty($plan['template_description'])): ?>
+                            <p class="text-muted small"><?php echo htmlspecialchars($plan['template_description']); ?></p>
                             <?php endif; ?>
                         </div>
                         <?php endif; ?>
 
                         <!-- Representative Info -->
-                        <?php if (isset($plan->representative_name) && $plan->representative_name): ?>
+                        <?php if ($representative): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Representative</h5>
-                            <p class="mb-1"><strong><?php echo htmlspecialchars($plan->representative_name); ?></strong></p>
-                            <?php if (isset($plan->representative_phone) && $plan->representative_phone): ?>
+                            <p class="mb-1"><strong><?php echo htmlspecialchars($representative['name']); ?></strong></p>
+                            <?php if (!empty($representative['phone'])): ?>
                             <p class="text-muted mb-0">
-                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($plan->representative_phone); ?>
+                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($representative['phone']); ?>
                             </p>
                             <?php endif; ?>
                         </div>
                         <?php endif; ?>
 
                         <!-- Church Info -->
-                        <?php if (isset($plan->church_name) && $plan->church_name): ?>
+                        <?php if ($church): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-church me-2"></i>Church</h5>
-                            <p class="mb-1"><strong><?php echo htmlspecialchars($plan->church_name); ?></strong></p>
-                            <?php if (isset($plan->church_city) && $plan->church_city): ?>
+                            <p class="mb-1"><strong><?php echo htmlspecialchars($church['name']); ?></strong></p>
+                            <?php if (!empty($church['city'])): ?>
                             <p class="text-muted mb-0">
-                                <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($plan->church_city); ?>
+                                <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($church['city']); ?>
                             </p>
                             <?php endif; ?>
                         </div>
                         <?php endif; ?>
 
                         <!-- Pledge Details -->
+                        <?php if ($pledge): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-hand-holding-heart me-2"></i>Pledge Details</h5>
                             <p class="mb-2">
                                 <strong>Amount:</strong> 
-                                <span class="float-end">£<?php echo number_format($plan->pledge_amount, 2); ?></span>
+                                <span class="float-end">£<?php echo number_format($pledge['amount'], 2); ?></span>
                             </p>
-                            <?php if (isset($plan->sqm) && $plan->sqm): ?>
+                            <?php if (isset($pledge['sqm']) && $pledge['sqm']): ?>
                             <p class="mb-2">
                                 <strong>Square Meters:</strong> 
-                                <span class="float-end"><?php echo $plan->sqm; ?> sqm</span>
+                                <span class="float-end"><?php echo $pledge['sqm']; ?> sqm</span>
                             </p>
                             <?php endif; ?>
                             <p class="mb-2">
                                 <strong>Pledge Date:</strong> 
-                                <span class="float-end"><?php echo date('d M Y', strtotime($plan->pledge_date)); ?></span>
+                                <span class="float-end"><?php echo date('d M Y', strtotime($pledge['created_at'])); ?></span>
                             </p>
-                            <?php if ($plan->pledge_notes): ?>
+                            <?php if (!empty($pledge['notes'])): ?>
                             <div class="mt-3 pt-3 border-top">
                                 <strong class="d-block mb-2">Notes:</strong>
-                                <p class="text-muted small mb-0"><?php echo nl2br(htmlspecialchars($plan->pledge_notes)); ?></p>
+                                <p class="text-muted small mb-0"><?php echo nl2br(htmlspecialchars($pledge['notes'])); ?></p>
                             </div>
                             <?php endif; ?>
                         </div>
+                        <?php endif; ?>
 
                         <!-- Timestamps -->
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-clock me-2"></i>Timeline</h5>
                             <p class="text-muted small mb-2">
                                 <strong>Created:</strong><br>
-                                <?php echo date('d M Y, H:i', strtotime($plan->created_at)); ?>
+                                <?php echo $plan['created_at'] ? date('d M Y, H:i', strtotime($plan['created_at'])) : 'N/A'; ?>
                             </p>
                             <p class="text-muted small mb-0">
                                 <strong>Last Updated:</strong><br>
-                                <?php echo date('d M Y, H:i', strtotime($plan->updated_at)); ?>
+                                <?php echo $plan['updated_at'] ? date('d M Y, H:i', strtotime($plan['updated_at'])) : 'N/A'; ?>
                             </p>
                         </div>
                     </div>
@@ -600,7 +634,7 @@ try {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editPlanForm" method="POST" action="update-payment-plan.php">
-                <input type="hidden" name="plan_id" value="<?php echo $plan->id; ?>">
+                <input type="hidden" name="plan_id" value="<?php echo $plan['id']; ?>">
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
@@ -612,54 +646,54 @@ try {
                             <div class="input-group">
                                 <span class="input-group-text">£</span>
                                 <input type="number" step="0.01" class="form-control" id="monthly_amount" 
-                                       name="monthly_amount" value="<?php echo $plan->monthly_amount; ?>" required>
+                                       name="monthly_amount" value="<?php echo $plan['monthly_amount'] ?? 0; ?>" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <label for="total_payments" class="form-label">Total Payments</label>
                             <input type="number" min="1" class="form-control" id="total_payments" 
-                                   name="total_payments" value="<?php echo $plan->total_payments; ?>" required>
+                                   name="total_payments" value="<?php echo $total_payments; ?>" required>
                         </div>
                         <div class="col-md-6">
                             <label for="plan_frequency_unit" class="form-label">Frequency Unit</label>
                             <select class="form-select" id="plan_frequency_unit" name="plan_frequency_unit" required>
-                                <option value="week" <?php echo ($plan->plan_frequency_unit ?? 'month') === 'week' ? 'selected' : ''; ?>>Week</option>
-                                <option value="month" <?php echo ($plan->plan_frequency_unit ?? 'month') === 'month' ? 'selected' : ''; ?>>Month</option>
-                                <option value="year" <?php echo ($plan->plan_frequency_unit ?? 'month') === 'year' ? 'selected' : ''; ?>>Year</option>
+                                <option value="week" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'week' ? 'selected' : ''; ?>>Week</option>
+                                <option value="month" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'month' ? 'selected' : ''; ?>>Month</option>
+                                <option value="year" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'year' ? 'selected' : ''; ?>>Year</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label for="plan_frequency_number" class="form-label">Frequency Number</label>
                             <input type="number" min="1" max="12" class="form-control" id="plan_frequency_number" 
-                                   name="plan_frequency_number" value="<?php echo $plan->plan_frequency_number ?? 1; ?>" required>
+                                   name="plan_frequency_number" value="<?php echo $plan['plan_frequency_number'] ?? 1; ?>" required>
                         </div>
                         <div class="col-md-6">
                             <label for="payment_day" class="form-label">Payment Day (1-28)</label>
                             <input type="number" min="1" max="28" class="form-control" id="payment_day" 
-                                   name="payment_day" value="<?php echo $plan->payment_day; ?>" required>
+                                   name="payment_day" value="<?php echo $plan['payment_day'] ?? 1; ?>" required>
                         </div>
                         <div class="col-md-6">
                             <label for="payment_method" class="form-label">Payment Method</label>
                             <select class="form-select" id="payment_method" name="payment_method" required>
-                                <option value="cash" <?php echo $plan->payment_method === 'cash' ? 'selected' : ''; ?>>Cash</option>
-                                <option value="bank_transfer" <?php echo $plan->payment_method === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
-                                <option value="card" <?php echo $plan->payment_method === 'card' ? 'selected' : ''; ?>>Card</option>
+                                <option value="cash" <?php echo ($plan['payment_method'] ?? 'bank_transfer') === 'cash' ? 'selected' : ''; ?>>Cash</option>
+                                <option value="bank_transfer" <?php echo ($plan['payment_method'] ?? 'bank_transfer') === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
+                                <option value="card" <?php echo ($plan['payment_method'] ?? 'bank_transfer') === 'card' ? 'selected' : ''; ?>>Card</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label for="status" class="form-label">Status</label>
                             <select class="form-select" id="status" name="status" required>
-                                <option value="active" <?php echo $plan->status === 'active' ? 'selected' : ''; ?>>Active</option>
-                                <option value="paused" <?php echo $plan->status === 'paused' ? 'selected' : ''; ?>>Paused</option>
-                                <option value="completed" <?php echo $plan->status === 'completed' ? 'selected' : ''; ?>>Completed</option>
-                                <option value="defaulted" <?php echo $plan->status === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
-                                <option value="cancelled" <?php echo $plan->status === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                                <option value="active" <?php echo ($plan['status'] ?? 'active') === 'active' ? 'selected' : ''; ?>>Active</option>
+                                <option value="paused" <?php echo ($plan['status'] ?? 'active') === 'paused' ? 'selected' : ''; ?>>Paused</option>
+                                <option value="completed" <?php echo ($plan['status'] ?? 'active') === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                <option value="defaulted" <?php echo ($plan['status'] ?? 'active') === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
+                                <option value="cancelled" <?php echo ($plan['status'] ?? 'active') === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label for="next_payment_due" class="form-label">Next Payment Due</label>
                             <input type="date" class="form-control" id="next_payment_due" 
-                                   name="next_payment_due" value="<?php echo $plan->next_payment_due; ?>">
+                                   name="next_payment_due" value="<?php echo $plan['next_payment_due'] ?? ''; ?>">
                         </div>
                     </div>
                 </div>
