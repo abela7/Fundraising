@@ -19,105 +19,145 @@ if (!$donor_id) {
 $page_title = 'Donor Profile';
 
 // --- FETCH DATA ---
+try {
+    // 1. Donor Details
+    $donor_query = "
+        SELECT 
+            d.*,
+            u.name as registrar_name,
+            c.name as church_name
+        FROM donors d
+        LEFT JOIN users u ON d.registered_by_user_id = u.id
+        LEFT JOIN churches c ON d.church_id = c.id
+        WHERE d.id = ?
+    ";
+    $stmt = $db->prepare($donor_query);
+    $stmt->bind_param('i', $donor_id);
+    $stmt->execute();
+    $donor = $stmt->get_result()->fetch_assoc();
 
-// 1. Donor Details
-$donor_query = "
-    SELECT 
-        d.*,
-        u.name as registrar_name,
-        c.name as church_name
-    FROM donors d
-    LEFT JOIN users u ON d.registered_by_user_id = u.id
-    LEFT JOIN churches c ON d.church_id = c.id
-    WHERE d.id = ?
-";
-$stmt = $db->prepare($donor_query);
-$stmt->bind_param('i', $donor_id);
-$stmt->execute();
-$donor = $stmt->get_result()->fetch_assoc();
-
-if (!$donor) {
-    die("Donor not found.");
-}
-
-// 2. Pledges & Grid Cells
-$pledges = [];
-$pledge_query = "
-    SELECT p.*, u.name as approver_name 
-    FROM pledges p 
-    LEFT JOIN users u ON p.approved_by_user_id = u.id
-    WHERE p.donor_id = ? 
-    ORDER BY p.created_at DESC
-";
-$stmt = $db->prepare($pledge_query);
-$stmt->bind_param('i', $donor_id);
-$stmt->execute();
-$pledge_result = $stmt->get_result();
-
-while ($p = $pledge_result->fetch_assoc()) {
-    // Fetch allocated cells for this pledge
-    $cells = [];
-    $cell_query = "SELECT * FROM floor_grid_cells WHERE pledge_id = ?";
-    $c_stmt = $db->prepare($cell_query);
-    $c_stmt->bind_param('i', $p['id']);
-    $c_stmt->execute();
-    $c_result = $c_stmt->get_result();
-    while ($cell = $c_result->fetch_assoc()) {
-        $cells[] = $cell;
+    if (!$donor) {
+        die("Donor not found.");
     }
-    $p['allocated_cells'] = $cells;
-    $pledges[] = $p;
-}
 
-// 3. Payments
-$payments = [];
-$payment_query = "
-    SELECT pay.*, u.name as approver_name 
-    FROM payments pay
-    LEFT JOIN users u ON pay.approved_by_user_id = u.id
-    WHERE pay.donor_phone = ? 
-    ORDER BY pay.payment_date DESC
-";
-$stmt = $db->prepare($payment_query);
-$stmt->bind_param('s', $donor['phone']);
-$stmt->execute();
-$payment_result = $stmt->get_result();
-while ($pay = $payment_result->fetch_assoc()) {
-    $payments[] = $pay;
-}
+    // 2. Pledges & Grid Cells
+    $pledges = [];
+    $pledge_query = "
+        SELECT p.*, u.name as approver_name 
+        FROM pledges p 
+        LEFT JOIN users u ON p.approved_by_user_id = u.id
+        WHERE p.donor_id = ? 
+        ORDER BY p.created_at DESC
+    ";
+    $stmt = $db->prepare($pledge_query);
+    $stmt->bind_param('i', $donor_id);
+    $stmt->execute();
+    $pledge_result = $stmt->get_result();
 
-// 4. Payment Plans
-$plans = [];
-$plan_query = "
-    SELECT pp.*, t.name as template_name 
-    FROM donor_payment_plans pp
-    LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
-    WHERE pp.donor_id = ? 
-    ORDER BY pp.created_at DESC
-";
-$stmt = $db->prepare($plan_query);
-$stmt->bind_param('i', $donor_id);
-$stmt->execute();
-$plan_result = $stmt->get_result();
-while ($plan = $plan_result->fetch_assoc()) {
-    $plans[] = $plan;
-}
+    // Check if floor_grid_cells table exists
+    $grid_table_exists = $db->query("SHOW TABLES LIKE 'floor_grid_cells'")->num_rows > 0;
 
-// 5. Call History
-$calls = [];
-$call_query = "
-    SELECT cs.*, u.name as agent_name 
-    FROM call_center_sessions cs
-    LEFT JOIN users u ON cs.agent_id = u.id
-    WHERE cs.donor_id = ? 
-    ORDER BY cs.call_started_at DESC
-";
-$stmt = $db->prepare($call_query);
-$stmt->bind_param('i', $donor_id);
-$stmt->execute();
-$call_result = $stmt->get_result();
-while ($call = $call_result->fetch_assoc()) {
-    $calls[] = $call;
+    while ($p = $pledge_result->fetch_assoc()) {
+        $cells = [];
+        if ($grid_table_exists) {
+            $cell_query = "SELECT * FROM floor_grid_cells WHERE pledge_id = ?";
+            $c_stmt = $db->prepare($cell_query);
+            if ($c_stmt) {
+                $c_stmt->bind_param('i', $p['id']);
+                $c_stmt->execute();
+                $c_result = $c_stmt->get_result();
+                while ($cell = $c_result->fetch_assoc()) {
+                    $cells[] = $cell;
+                }
+            }
+        }
+        $p['allocated_cells'] = $cells;
+        $pledges[] = $p;
+    }
+
+    // 3. Payments
+    $payments = [];
+    // Check payments table columns first to handle schema variations
+    $payment_columns = [];
+    $col_query = $db->query("SHOW COLUMNS FROM payments");
+    while ($col = $col_query->fetch_assoc()) {
+        $payment_columns[] = $col['Field'];
+    }
+
+    $approver_col = in_array('approved_by_user_id', $payment_columns) ? 'approved_by_user_id' : 
+                   (in_array('received_by_user_id', $payment_columns) ? 'received_by_user_id' : 'id'); // Fallback to something valid
+
+    $date_col = in_array('payment_date', $payment_columns) ? 'payment_date' : 
+               (in_array('received_at', $payment_columns) ? 'received_at' : 'created_at');
+
+    $method_col = in_array('payment_method', $payment_columns) ? 'payment_method' : 'method';
+    $ref_col = in_array('transaction_ref', $payment_columns) ? 'transaction_ref' : 'reference';
+
+    $payment_query = "
+        SELECT pay.*, u.name as approver_name 
+        FROM payments pay
+        LEFT JOIN users u ON pay.{$approver_col} = u.id
+        WHERE pay.donor_phone = ? 
+        ORDER BY pay.{$date_col} DESC
+    ";
+    $stmt = $db->prepare($payment_query);
+    $stmt->bind_param('s', $donor['phone']);
+    $stmt->execute();
+    $payment_result = $stmt->get_result();
+    while ($pay = $payment_result->fetch_assoc()) {
+        // Normalize keys for display
+        $pay['display_date'] = $pay[$date_col];
+        $pay['display_method'] = $pay[$method_col];
+        $pay['display_ref'] = $pay[$ref_col];
+        $payments[] = $pay;
+    }
+
+    // 4. Payment Plans
+    $plans = [];
+    $plan_query = "
+        SELECT pp.*, t.name as template_name 
+        FROM donor_payment_plans pp
+        LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
+        WHERE pp.donor_id = ? 
+        ORDER BY pp.created_at DESC
+    ";
+    // Only run if donor_payment_plans exists
+    if ($db->query("SHOW TABLES LIKE 'donor_payment_plans'")->num_rows > 0) {
+        $stmt = $db->prepare($plan_query);
+        if ($stmt) {
+            $stmt->bind_param('i', $donor_id);
+            $stmt->execute();
+            $plan_result = $stmt->get_result();
+            while ($plan = $plan_result->fetch_assoc()) {
+                $plans[] = $plan;
+            }
+        }
+    }
+
+    // 5. Call History
+    $calls = [];
+    $call_query = "
+        SELECT cs.*, u.name as agent_name 
+        FROM call_center_sessions cs
+        LEFT JOIN users u ON cs.agent_id = u.id
+        WHERE cs.donor_id = ? 
+        ORDER BY cs.call_started_at DESC
+    ";
+    // Only run if call_center_sessions exists
+    if ($db->query("SHOW TABLES LIKE 'call_center_sessions'")->num_rows > 0) {
+        $stmt = $db->prepare($call_query);
+        if ($stmt) {
+            $stmt->bind_param('i', $donor_id);
+            $stmt->execute();
+            $call_result = $stmt->get_result();
+            while ($call = $call_result->fetch_assoc()) {
+                $calls[] = $call;
+            }
+        }
+    }
+
+} catch (Exception $e) {
+    die("Error loading donor profile: " . $e->getMessage());
 }
 
 // Helpers
@@ -463,10 +503,10 @@ function formatDateTime($date) {
                                                 <?php foreach ($payments as $pay): ?>
                                                 <tr>
                                                     <td>#<?php echo $pay['id']; ?></td>
-                                                    <td><?php echo formatDate($pay['payment_date']); ?></td>
+                                                    <td><?php echo formatDate($pay['display_date']); ?></td>
                                                     <td class="fw-bold text-success"><?php echo formatMoney($pay['amount']); ?></td>
-                                                    <td><?php echo ucwords(str_replace('_', ' ', $pay['payment_method'])); ?></td>
-                                                    <td class="text-muted small"><?php echo htmlspecialchars($pay['transaction_ref'] ?? '-'); ?></td>
+                                                    <td><?php echo ucwords(str_replace('_', ' ', $pay['display_method'])); ?></td>
+                                                    <td class="text-muted small"><?php echo htmlspecialchars($pay['display_ref'] ?? '-'); ?></td>
                                                     <td>
                                                         <span class="badge bg-<?php echo $pay['status'] == 'approved' ? 'success' : 'warning'; ?>">
                                                             <?php echo ucfirst($pay['status']); ?>
