@@ -13,6 +13,51 @@ try {
     $user_id = (int)$_SESSION['user']['id'];
     $user_name = $_SESSION['user']['name'] ?? 'Agent';
     
+    // Get filter parameters FIRST (before table check)
+    $search = trim($_GET['search'] ?? '');
+    $queue_type_filter = trim($_GET['queue_type'] ?? '');
+    $priority_filter = isset($_GET['priority']) && $_GET['priority'] !== '' && $_GET['priority'] !== '0' ? (int)$_GET['priority'] : 0;
+    $city_filter = trim($_GET['city'] ?? '');
+    
+    // Handle balance filters - only set if value is provided and > 0
+    $balance_min = null;
+    if (isset($_GET['balance_min']) && $_GET['balance_min'] !== '') {
+        $val = (float)$_GET['balance_min'];
+        if ($val > 0) {
+            $balance_min = $val;
+        }
+    }
+    
+    $balance_max = null;
+    if (isset($_GET['balance_max']) && $_GET['balance_max'] !== '') {
+        $val = (float)$_GET['balance_max'];
+        if ($val > 0) {
+            $balance_max = $val;
+        }
+    }
+    
+    // Handle attempts filters - only set if value is provided
+    $attempts_min = null;
+    if (isset($_GET['attempts_min']) && $_GET['attempts_min'] !== '') {
+        $val = (int)$_GET['attempts_min'];
+        if ($val >= 0) {
+            $attempts_min = $val;
+        }
+    }
+    
+    $attempts_max = null;
+    if (isset($_GET['attempts_max']) && $_GET['attempts_max'] !== '') {
+        $val = (int)$_GET['attempts_max'];
+        if ($val > 0) {
+            $attempts_max = $val;
+        }
+    }
+    
+    // Pagination
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $per_page = 25;
+    $offset = ($page - 1) * $per_page;
+    
     // Initialize default values
     $today_stats = (object)[
         'total_calls' => 0,
@@ -25,23 +70,11 @@ try {
     $callbacks_result = null;
     $recent_result = null;
     $setup_needed = false;
-    
-    // Initialize filter variables
-    $search = '';
-    $queue_type_filter = '';
-    $priority_filter = 0;
-    $city_filter = '';
-    $balance_min = null;
-    $balance_max = null;
-    $attempts_min = null;
-    $attempts_max = null;
-    $page = 1;
-    $per_page = 25;
     $total_count = 0;
     $total_pages = 1;
     $queue_types_list = [];
     $cities_list = [];
-
+    
     // Check if call center tables exist
     $tables_check = $db->query("SHOW TABLES LIKE 'call_center_sessions'");
     $tables_exist = $tables_check && $tables_check->num_rows > 0;
@@ -78,21 +111,6 @@ try {
             $stmt->close();
         }
         
-        // Get filter parameters
-        $search = trim($_GET['search'] ?? '');
-        $queue_type_filter = trim($_GET['queue_type'] ?? '');
-        $priority_filter = isset($_GET['priority']) ? (int)$_GET['priority'] : 0;
-        $city_filter = trim($_GET['city'] ?? '');
-        $balance_min = isset($_GET['balance_min']) ? (float)$_GET['balance_min'] : null;
-        $balance_max = isset($_GET['balance_max']) ? (float)$_GET['balance_max'] : null;
-        $attempts_min = isset($_GET['attempts_min']) ? (int)$_GET['attempts_min'] : null;
-        $attempts_max = isset($_GET['attempts_max']) ? (int)$_GET['attempts_max'] : null;
-        
-        // Pagination
-        $page = max(1, (int)($_GET['page'] ?? 1));
-        $per_page = 25;
-        $offset = ($page - 1) * $per_page;
-        
         // Build queue query with filters
         $queue_where = [
             "q.status = 'pending'",
@@ -128,25 +146,25 @@ try {
             $queue_types .= 's';
         }
         
-        if ($balance_min !== null) {
+        if ($balance_min !== null && $balance_min > 0) {
             $queue_where[] = "d.balance >= ?";
             $queue_params[] = $balance_min;
             $queue_types .= 'd';
         }
         
-        if ($balance_max !== null) {
+        if ($balance_max !== null && $balance_max > 0) {
             $queue_where[] = "d.balance <= ?";
             $queue_params[] = $balance_max;
             $queue_types .= 'd';
         }
         
-        if ($attempts_min !== null) {
+        if ($attempts_min !== null && $attempts_min >= 0) {
             $queue_where[] = "q.attempts_count >= ?";
             $queue_params[] = $attempts_min;
             $queue_types .= 'i';
         }
         
-        if ($attempts_max !== null) {
+        if ($attempts_max !== null && $attempts_max > 0) {
             $queue_where[] = "q.attempts_count <= ?";
             $queue_params[] = $attempts_max;
             $queue_types .= 'i';
@@ -154,7 +172,10 @@ try {
         
         $queue_where_clause = implode(' AND ', $queue_where);
         
-        // Get total count for pagination
+        // Get total count for pagination (use separate params array)
+        $count_params = $queue_params;
+        $count_types = $queue_types;
+        
         $count_query = "
             SELECT COUNT(*) as total
             FROM call_center_queues q
@@ -163,13 +184,18 @@ try {
         ";
         
         $count_stmt = $db->prepare($count_query);
-        $count_stmt->bind_param($queue_types, ...$queue_params);
-        $count_stmt->execute();
-        $total_count = $count_stmt->get_result()->fetch_assoc()['total'];
-        $total_pages = max(1, (int)ceil($total_count / $per_page));
-        $count_stmt->close();
+        if ($count_stmt) {
+            $count_stmt->bind_param($count_types, ...$count_params);
+            $count_stmt->execute();
+            $count_result = $count_stmt->get_result();
+            if ($count_result) {
+                $total_count = $count_result->fetch_assoc()['total'];
+                $total_pages = max(1, (int)ceil($total_count / $per_page));
+            }
+            $count_stmt->close();
+        }
         
-        // Get call queue - donors who need to be called
+        // Get call queue - donors who need to be called (add LIMIT/OFFSET params)
         $queue_query = "
             SELECT 
                 q.id as queue_id,
@@ -492,7 +518,7 @@ $page_title = 'Call Center Dashboard';
                     </h6>
                 </div>
                 <div class="card-body">
-                    <form method="GET" action="" class="row g-3">
+                    <form method="GET" action="index.php" class="row g-3">
                         <!-- Search -->
                         <div class="col-md-3">
                             <label class="form-label small">Search</label>
@@ -1120,7 +1146,7 @@ document.addEventListener('keydown', (e) => {
 function toggleFilters() {
     const panel = document.getElementById('filterPanel');
     if (panel) {
-        if (panel.style.display === 'none') {
+        if (panel.style.display === 'none' || panel.style.display === '') {
             panel.style.display = 'block';
             panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else {
@@ -1132,9 +1158,28 @@ function toggleFilters() {
 // Show filters if there are active filters
 <?php if ($search || $queue_type_filter || $priority_filter || $city_filter || $balance_min !== null || $balance_max !== null || $attempts_min !== null || $attempts_max !== null): ?>
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('filterPanel').style.display = 'block';
+    const panel = document.getElementById('filterPanel');
+    if (panel) {
+        panel.style.display = 'block';
+    }
 });
 <?php endif; ?>
+
+// Prevent form submission issues
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.querySelector('#filterPanel form');
+    if (filterForm) {
+        filterForm.addEventListener('submit', function(e) {
+            // Remove empty inputs to avoid sending empty values
+            const inputs = filterForm.querySelectorAll('input[type="number"]');
+            inputs.forEach(function(input) {
+                if (input.value === '' || input.value === null) {
+                    input.disabled = true;
+                }
+            });
+        });
+    }
+});
 </script>
 </body>
 </html>
