@@ -131,12 +131,6 @@ try {
         $donor_types .= 's';
     }
     
-    if ($church_id !== null) {
-        $donor_updates[] = "church_id = ?";
-        $donor_params[] = $church_id;
-        $donor_types .= 'i';
-    }
-    
     // Update payment method
     if (!empty($payment_method) && in_array($payment_method, ['bank_transfer', 'card', 'cash'])) {
         $donor_updates[] = "preferred_payment_method = ?";
@@ -144,14 +138,22 @@ try {
         $donor_types .= 's';
     }
     
-    // If cash payment, update church and representative
+    // Handle church_id - prioritize cash_church_id if cash payment, otherwise use Step 2 church_id
+    $final_church_id = null;
+    if ($payment_method === 'cash' && $cash_church_id !== null) {
+        $final_church_id = $cash_church_id;
+    } elseif ($church_id !== null) {
+        $final_church_id = $church_id;
+    }
+    
+    if ($final_church_id !== null) {
+        $donor_updates[] = "church_id = ?";
+        $donor_params[] = $final_church_id;
+        $donor_types .= 'i';
+    }
+    
+    // If cash payment, update representative
     if ($payment_method === 'cash') {
-        if ($cash_church_id !== null) {
-            $donor_updates[] = "church_id = ?";
-            $donor_params[] = $cash_church_id;
-            $donor_types .= 'i';
-        }
-        
         // Check if representative_id column exists
         $check_rep_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
         $has_rep_column = $check_rep_column && $check_rep_column->num_rows > 0;
@@ -267,9 +269,23 @@ try {
     exit;
     
 } catch (Exception $e) {
-    if (isset($db)) $db->rollback();
+    if (isset($db)) {
+        $db->rollback();
+    }
     error_log("Process Conversation Error: " . $e->getMessage());
-    echo "Error: " . $e->getMessage();
-    // In prod, redirect to error page
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    // Show detailed error for debugging
+    $error_message = "Error: " . htmlspecialchars($e->getMessage());
+    if (isset($db) && $db->error) {
+        $error_message .= "<br>Database Error: " . htmlspecialchars($db->error);
+    }
+    
+    echo "<!DOCTYPE html><html><head><title>Error</title></head><body>";
+    echo "<h1>Error Processing Conversation</h1>";
+    echo "<p>" . $error_message . "</p>";
+    echo "<p><a href='conversation.php?donor_id=" . ($donor_id ?? 0) . "&queue_id=" . ($queue_id ?? 0) . "'>Go Back</a></p>";
+    echo "</body></html>";
+    exit;
 }
 
