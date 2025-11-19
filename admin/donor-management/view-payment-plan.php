@@ -1,162 +1,171 @@
 <?php
-declare(strict_types=1);
+// Disable strict types to be more forgiving
+// declare(strict_types=1);
 
-// Enable error display for debugging
+// Enable error reporting for debugging (will be caught by try-catch later)
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+
+// Ensure user is logged in and admin
 require_login();
 require_admin();
 
-$db = db();
-$plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$page_title = "View Payment Plan";
 
-if ($plan_id <= 0) {
-    header('Location: donors.php');
-    exit;
+try {
+    $db = db();
+    // Convert mysqli errors to exceptions
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+    $plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+    if ($plan_id <= 0) {
+        throw new Exception("Invalid Payment Plan ID");
+    }
+
+    // 1. Fetch Payment Plan
+    $stmt = $db->prepare("SELECT * FROM donor_payment_plans WHERE id = ?");
+    $stmt->bind_param('i', $plan_id);
+    $stmt->execute();
+    $plan = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$plan) {
+        throw new Exception("Payment Plan #$plan_id not found");
+    }
+
+    // 2. Fetch Donor
+    $donor = [];
+    if (!empty($plan['donor_id'])) {
+        $stmt = $db->prepare("SELECT * FROM donors WHERE id = ?");
+        $stmt->bind_param('i', $plan['donor_id']);
+        $stmt->execute();
+        $donor = $stmt->get_result()->fetch_assoc() ?: [];
+        $stmt->close();
+    }
+
+    // 3. Fetch Pledge
+    $pledge = [];
+    if (!empty($plan['pledge_id'])) {
+        // Check if pledges table exists just in case
+        $check = $db->query("SHOW TABLES LIKE 'pledges'");
+        if ($check->num_rows > 0) {
+            $stmt = $db->prepare("SELECT * FROM pledges WHERE id = ?");
+            $stmt->bind_param('i', $plan['pledge_id']);
+            $stmt->execute();
+            $pledge = $stmt->get_result()->fetch_assoc() ?: [];
+            $stmt->close();
+        }
+    }
+
+    // 4. Fetch Template (Safe check)
+    $template = [];
+    if (!empty($plan['template_id'])) {
+        $check = $db->query("SHOW TABLES LIKE 'payment_plan_templates'");
+        if ($check->num_rows > 0) {
+            $stmt = $db->prepare("SELECT * FROM payment_plan_templates WHERE id = ?");
+            $stmt->bind_param('i', $plan['template_id']);
+            $stmt->execute();
+            $template = $stmt->get_result()->fetch_assoc() ?: [];
+            $stmt->close();
+        }
+    }
+
+    // 5. Fetch Church & Representative (from Donor)
+    $church = [];
+    $representative = [];
+    if (!empty($donor['church_id'])) {
+        $check = $db->query("SHOW TABLES LIKE 'churches'");
+        if ($check->num_rows > 0) {
+            $stmt = $db->prepare("SELECT * FROM churches WHERE id = ?");
+            $stmt->bind_param('i', $donor['church_id']);
+            $stmt->execute();
+            $church = $stmt->get_result()->fetch_assoc() ?: [];
+            $stmt->close();
+        }
+    }
+    
+    // Check for representative_id in donor (based on user's schema report)
+    $rep_id = $donor['representative_id'] ?? null;
+    if ($rep_id) {
+        $check = $db->query("SHOW TABLES LIKE 'church_representatives'");
+        if ($check->num_rows > 0) {
+            $stmt = $db->prepare("SELECT * FROM church_representatives WHERE id = ?");
+            $stmt->bind_param('i', $rep_id);
+            $stmt->execute();
+            $representative = $stmt->get_result()->fetch_assoc() ?: [];
+            $stmt->close();
+        }
+    }
+
+    // 6. Fetch Payments
+    $payments = [];
+    if (!empty($plan['donor_id']) && !empty($plan['pledge_id'])) {
+        // Check if payments table exists
+        $check = $db->query("SHOW TABLES LIKE 'payments'");
+        if ($check->num_rows > 0) {
+            // Simple query first
+            $query = "SELECT * FROM payments WHERE donor_id = ? AND pledge_id = ? ORDER BY payment_date DESC";
+            $stmt = $db->prepare($query);
+            $stmt->bind_param('ii', $plan['donor_id'], $plan['pledge_id']);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                // Fetch user name manually to avoid join issues
+                $received_by = 'N/A';
+                if (!empty($row['received_by_user_id'])) {
+                    $u_res = $db->query("SELECT name FROM users WHERE id = " . (int)$row['received_by_user_id']);
+                    if ($u_res && $u_row = $u_res->fetch_assoc()) {
+                        $received_by = $u_row['name'];
+                    }
+                }
+                $row['received_by_name'] = $received_by;
+                $payments[] = $row;
+            }
+            $stmt->close();
+        }
+    }
+
+    // Calculations
+    $total_amount = (float)($plan['total_amount'] ?? 0);
+    $amount_paid = (float)($plan['amount_paid'] ?? 0);
+    $monthly_amount = (float)($plan['monthly_amount'] ?? 0);
+    $progress = $total_amount > 0 ? ($amount_paid / $total_amount) * 100 : 0;
+    $remaining = $total_amount - $amount_paid;
+
+} catch (Throwable $e) {
+    // Catch ANY error and display it safely
+    die('<div class="alert alert-danger m-5">
+            <h3><i class="fas fa-exclamation-triangle"></i> System Error</h3>
+            <p>Something went wrong loading this page.</p>
+            <pre class="bg-light p-3 border">' . htmlspecialchars($e->getMessage()) . '</pre>
+            <a href="donors.php" class="btn btn-secondary">Go Back</a>
+         </div>');
 }
-
-// Fetch payment plan with all related data in ONE query
-$query = "
-    SELECT 
-        pp.*,
-        d.id as donor_id,
-        d.name as donor_name,
-        d.phone as donor_phone,
-        d.email as donor_email,
-        d.balance as donor_balance,
-        d.total_paid as donor_total_paid,
-        p.id as pledge_id,
-        p.amount as pledge_amount,
-        p.notes as pledge_notes,
-        p.created_at as pledge_date,
-        t.name as template_name,
-        t.description as template_description,
-        c.name as church_name,
-        c.city as church_city,
-        r.name as representative_name,
-        r.phone as representative_phone
-    FROM donor_payment_plans pp
-    INNER JOIN donors d ON pp.donor_id = d.id
-    LEFT JOIN pledges p ON pp.pledge_id = p.id
-    LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
-    LEFT JOIN churches c ON d.church_id = c.id
-    LEFT JOIN church_representatives r ON d.representative_id = r.id
-    WHERE pp.id = ?
-";
-
-$stmt = $db->prepare($query);
-$stmt->bind_param('i', $plan_id);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if ($result->num_rows === 0) {
-    $_SESSION['error_message'] = "Payment plan not found.";
-    header('Location: donors.php');
-    exit;
-}
-
-$plan = $result->fetch_assoc();
-$stmt->close();
-
-// Fetch payment history
-$payments_query = "
-    SELECT 
-        pay.id,
-        pay.amount,
-        pay.payment_method,
-        pay.payment_date,
-        pay.status,
-        pay.notes,
-        u.name as received_by
-    FROM payments pay
-    LEFT JOIN users u ON pay.received_by_user_id = u.id
-    WHERE pay.donor_id = ? AND pay.pledge_id = ?
-    ORDER BY pay.payment_date DESC
-";
-
-$payments_stmt = $db->prepare($payments_query);
-$payments_stmt->bind_param('ii', $plan['donor_id'], $plan['pledge_id']);
-$payments_stmt->execute();
-$payments_result = $payments_stmt->get_result();
-$payments = [];
-while ($row = $payments_result->fetch_assoc()) {
-    $payments[] = $row;
-}
-$payments_stmt->close();
-
-// Calculate progress - handle NULL values
-$total_amount = (float)($plan['total_amount'] ?? 0);
-$amount_paid = (float)($plan['amount_paid'] ?? 0);
-$progress_percent = $total_amount > 0 ? ($amount_paid / $total_amount) * 100 : 0;
-$remaining = $total_amount - $amount_paid;
-
-$page_title = "Payment Plan #" . $plan_id;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo $page_title; ?> - <?php echo htmlspecialchars($plan['donor_name'] ?? 'Unknown'); ?></title>
+    <title>Payment Plan #<?php echo $plan_id; ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        .stat-card {
-            background: white;
-            border-radius: 10px;
-            padding: 1.5rem;
-            text-align: center;
-            border: 2px solid #e2e8f0;
-        }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        .stat-label {
-            color: #64748b;
-            font-size: 0.9rem;
-        }
-        .info-card {
-            background: white;
-            border-radius: 10px;
-            padding: 1.5rem;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 1rem;
-        }
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        .info-label {
-            color: #64748b;
-            font-weight: 500;
-        }
-        .info-value {
-            color: #1e293b;
-            font-weight: 600;
-        }
-        .status-badge {
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
-        }
-        .header-card {
-            background: linear-gradient(135deg, #0a6286 0%, #065471 100%);
-            color: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
+        .stat-box { background: white; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); height: 100%; }
+        .stat-val { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        .stat-lbl { color: #6c757d; font-size: 14px; }
+        .detail-box { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-lbl { font-weight: 500; color: #555; }
+        .detail-val { font-weight: 600; color: #333; }
+        .header-section { background: linear-gradient(135deg, #0a6286 0%, #065471 100%); color: white; padding: 30px; border-radius: 15px; margin-bottom: 30px; }
     </style>
 </head>
 <body>
@@ -169,227 +178,217 @@ $page_title = "Payment Plan #" . $plan_id;
         <main class="main-content">
             <div class="container-fluid p-4">
                 
-                <!-- Breadcrumb -->
                 <div class="mb-3">
-                    <a href="donors.php" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Donors
-                    </a>
-                    <a href="view-donor.php?id=<?php echo $plan['donor_id']; ?>" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-user me-2"></i>View Donor Profile
-                    </a>
+                    <a href="donors.php" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-2"></i>Back to Donors</a>
                 </div>
 
-                <!-- Header Card -->
-                <div class="header-card">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap">
-                        <div>
-                            <h1 class="mb-2"><i class="fas fa-calendar-alt me-3"></i>Payment Plan #<?php echo $plan_id; ?></h1>
-                            <h4 class="mb-2"><?php echo htmlspecialchars($plan['donor_name'] ?? 'Unknown'); ?></h4>
-                            <p class="mb-0"><i class="fas fa-phone me-2"></i><?php echo htmlspecialchars($plan['donor_phone'] ?? 'N/A'); ?></p>
+                <!-- Header -->
+                <div class="header-section">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="h3 mb-2"><i class="fas fa-calendar-check me-2"></i>Payment Plan #<?php echo $plan_id; ?></h1>
+                            <h4 class="h5 mb-0 text-light opacity-75">
+                                <?php echo htmlspecialchars($donor['name'] ?? 'Unknown Donor'); ?>
+                                <?php if(!empty($donor['phone'])): ?>
+                                    <span class="ms-3 fs-6"><i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor['phone']); ?></span>
+                                <?php endif; ?>
+                            </h4>
                         </div>
-                        <div>
-                            <?php
-                            $status_colors = [
-                                'active' => 'success',
-                                'paused' => 'warning',
-                                'completed' => 'info',
-                                'defaulted' => 'danger',
-                                'cancelled' => 'secondary'
-                            ];
-                            $status = $plan['status'] ?? 'active';
-                            $status_color = $status_colors[$status] ?? 'secondary';
-                            ?>
-                            <span class="badge bg-<?php echo $status_color; ?> status-badge">
-                                <?php echo strtoupper($status); ?>
+                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                            <span class="badge bg-light text-dark fs-6 px-3 py-2 text-uppercase">
+                                <?php echo htmlspecialchars($plan['status'] ?? 'Unknown'); ?>
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Stats Row -->
-                <div class="row mb-4">
-                    <div class="col-md-3 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-value text-primary">£<?php echo number_format($total_amount, 2); ?></div>
-                            <div class="stat-label">Total Amount</div>
+                <!-- Quick Stats -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3 col-6">
+                        <div class="stat-box border-start border-primary border-4">
+                            <div class="stat-val text-primary">£<?php echo number_format($total_amount, 2); ?></div>
+                            <div class="stat-lbl">Total Amount</div>
                         </div>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-value text-success">£<?php echo number_format($amount_paid, 2); ?></div>
-                            <div class="stat-label">Paid</div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-box border-start border-success border-4">
+                            <div class="stat-val text-success">£<?php echo number_format($amount_paid, 2); ?></div>
+                            <div class="stat-lbl">Amount Paid</div>
                         </div>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-value text-warning">£<?php echo number_format($remaining, 2); ?></div>
-                            <div class="stat-label">Remaining</div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-box border-start border-warning border-4">
+                            <div class="stat-val text-warning">£<?php echo number_format($remaining, 2); ?></div>
+                            <div class="stat-lbl">Remaining</div>
                         </div>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="stat-card">
-                            <div class="stat-value text-info"><?php echo (int)($plan['payments_made'] ?? 0); ?>/<?php echo (int)($plan['total_payments'] ?? 0); ?></div>
-                            <div class="stat-label">Payments</div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-box border-start border-info border-4">
+                            <div class="stat-val text-info"><?php echo (int)($plan['payments_made'] ?? 0); ?> / <?php echo (int)($plan['total_payments'] ?? 0); ?></div>
+                            <div class="stat-lbl">Installments</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="row">
-                    <!-- Left Column -->
-                    <div class="col-md-8">
-                        
-                        <!-- Plan Details -->
-                        <div class="info-card">
-                            <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Plan Details</h5>
+                    <!-- Left Column: Plan Details -->
+                    <div class="col-lg-8">
+                        <div class="detail-box">
+                            <h5 class="mb-4 border-bottom pb-2"><i class="fas fa-info-circle me-2 text-primary"></i>Plan Information</h5>
                             
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>Progress</strong>
-                                    <strong><?php echo number_format($progress_percent, 1); ?>%</strong>
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>Progress</span>
+                                    <span><?php echo number_format($progress, 1); ?>%</span>
                                 </div>
-                                <div class="progress" style="height: 25px;">
-                                    <div class="progress-bar bg-success" style="width: <?php echo $progress_percent; ?>%">
-                                        <?php echo number_format($progress_percent, 1); ?>%
-                                    </div>
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo $progress; ?>%"></div>
                                 </div>
                             </div>
 
-                            <div class="info-row">
-                                <span class="info-label">Monthly Amount:</span>
-                                <span class="info-value">£<?php echo number_format((float)($plan['monthly_amount'] ?? 0), 2); ?></span>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Monthly Installment</span>
+                                <span class="detail-val fs-5 text-primary">£<?php echo number_format($monthly_amount, 2); ?></span>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">Duration:</span>
-                                <span class="info-value"><?php echo (int)($plan['total_months'] ?? 0); ?> months</span>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Total Duration</span>
+                                <span class="detail-val"><?php echo (int)($plan['total_months'] ?? 0); ?> Months</span>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">Total Payments:</span>
-                                <span class="info-value"><?php echo (int)($plan['total_payments'] ?? 0); ?> payments</span>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Start Date</span>
+                                <span class="detail-val"><?php echo !empty($plan['start_date']) ? date('d M Y', strtotime($plan['start_date'])) : '-'; ?></span>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">Payment Day:</span>
-                                <span class="info-value">Day <?php echo (int)($plan['payment_day'] ?? 1); ?> of month</span>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Payment Day</span>
+                                <span class="detail-val">Day <?php echo (int)($plan['payment_day'] ?? 1); ?> of month</span>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">Payment Method:</span>
-                                <span class="info-value"><?php echo ucfirst($plan['payment_method'] ?? 'N/A'); ?></span>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Payment Method</span>
+                                <span class="detail-val text-uppercase"><?php echo htmlspecialchars($plan['payment_method'] ?? '-'); ?></span>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">Start Date:</span>
-                                <span class="info-value"><?php echo $plan['start_date'] ? date('d M Y', strtotime($plan['start_date'])) : 'N/A'; ?></span>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Next Due Date</span>
+                                <span class="detail-val text-danger"><?php echo !empty($plan['next_payment_due']) ? date('d M Y', strtotime($plan['next_payment_due'])) : '-'; ?></span>
                             </div>
-                            <?php if (!empty($plan['next_payment_due'])): ?>
-                            <div class="info-row">
-                                <span class="info-label">Next Payment Due:</span>
-                                <span class="info-value"><?php echo date('d M Y', strtotime($plan['next_payment_due'])); ?></span>
-                            </div>
-                            <?php endif; ?>
                         </div>
 
                         <!-- Payment History -->
-                        <div class="info-card">
-                            <h5 class="mb-3"><i class="fas fa-history me-2"></i>Payment History</h5>
-                            
-                            <?php if (count($payments) > 0): ?>
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Amount</th>
-                                            <th>Method</th>
-                                            <th>Status</th>
-                                            <th>Received By</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($payments as $payment): ?>
-                                        <tr>
-                                            <td><?php echo date('d M Y', strtotime($payment['payment_date'])); ?></td>
-                                            <td><strong>£<?php echo number_format((float)$payment['amount'], 2); ?></strong></td>
-                                            <td><?php echo ucfirst($payment['payment_method'] ?? 'N/A'); ?></td>
-                                            <td>
-                                                <span class="badge bg-<?php echo ($payment['status'] ?? '') === 'approved' ? 'success' : 'warning'; ?>">
-                                                    <?php echo ucfirst($payment['status'] ?? 'Pending'); ?>
-                                                </span>
-                                            </td>
-                                            <td><?php echo htmlspecialchars($payment['received_by'] ?? 'N/A'); ?></td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="detail-box">
+                            <h5 class="mb-4 border-bottom pb-2"><i class="fas fa-history me-2 text-primary"></i>Payment History</h5>
+                            <?php if(empty($payments)): ?>
+                                <div class="alert alert-light text-center">No payments found for this plan.</div>
                             <?php else: ?>
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-info-circle me-2"></i>No payments recorded yet.
-                            </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Amount</th>
+                                                <th>Method</th>
+                                                <th>Status</th>
+                                                <th>Received By</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach($payments as $pay): ?>
+                                            <tr>
+                                                <td><?php echo date('d M Y', strtotime($pay['payment_date'])); ?></td>
+                                                <td class="fw-bold">£<?php echo number_format((float)$pay['amount'], 2); ?></td>
+                                                <td><?php echo ucfirst($pay['payment_method']); ?></td>
+                                                <td>
+                                                    <?php 
+                                                    $badge = match($pay['status']) {
+                                                        'approved' => 'success',
+                                                        'pending' => 'warning',
+                                                        'rejected' => 'danger',
+                                                        default => 'secondary'
+                                                    };
+                                                    ?>
+                                                    <span class="badge bg-<?php echo $badge; ?>"><?php echo ucfirst($pay['status']); ?></span>
+                                                </td>
+                                                <td class="small text-muted"><?php echo htmlspecialchars($pay['received_by_name']); ?></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
                             <?php endif; ?>
                         </div>
-
                     </div>
 
-                    <!-- Right Column -->
-                    <div class="col-md-4">
-                        
-                        <!-- Template Info -->
-                        <?php if (!empty($plan['template_name'])): ?>
-                        <div class="info-card">
-                            <h5 class="mb-3"><i class="fas fa-file-invoice me-2"></i>Template</h5>
-                            <h6><?php echo htmlspecialchars($plan['template_name']); ?></h6>
-                            <?php if (!empty($plan['template_description'])): ?>
-                            <p class="text-muted small mb-0"><?php echo htmlspecialchars($plan['template_description']); ?></p>
+                    <!-- Right Column: Related Info -->
+                    <div class="col-lg-4">
+                        <!-- Donor Info -->
+                        <div class="detail-box">
+                            <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-user me-2 text-primary"></i>Donor Details</h5>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Name</span>
+                                <span class="detail-val text-end"><?php echo htmlspecialchars($donor['name'] ?? '-'); ?></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-lbl">City</span>
+                                <span class="detail-val text-end"><?php echo htmlspecialchars($donor['city'] ?? '-'); ?></span>
+                            </div>
+                            <?php if(!empty($church)): ?>
+                            <div class="mt-3 pt-2 border-top">
+                                <div class="fw-bold text-primary mb-1"><i class="fas fa-church me-1"></i> Church</div>
+                                <div><?php echo htmlspecialchars($church['name']); ?></div>
+                                <div class="small text-muted"><?php echo htmlspecialchars($church['city'] ?? ''); ?></div>
+                            </div>
                             <?php endif; ?>
+                            <?php if(!empty($representative)): ?>
+                            <div class="mt-3 pt-2 border-top">
+                                <div class="fw-bold text-primary mb-1"><i class="fas fa-user-tie me-1"></i> Representative</div>
+                                <div><?php echo htmlspecialchars($representative['name']); ?></div>
+                                <div class="small text-muted"><?php echo htmlspecialchars($representative['phone'] ?? ''); ?></div>
+                            </div>
+                            <?php endif; ?>
+                            <div class="d-grid mt-3">
+                                <a href="view-donor.php?id=<?php echo $plan['donor_id']; ?>" class="btn btn-outline-primary btn-sm">View Full Profile</a>
+                            </div>
                         </div>
-                        <?php endif; ?>
 
                         <!-- Pledge Info -->
-                        <?php if (!empty($plan['pledge_amount'])): ?>
-                        <div class="info-card">
-                            <h5 class="mb-3"><i class="fas fa-hand-holding-heart me-2"></i>Pledge Details</h5>
-                            <div class="info-row">
-                                <span class="info-label">Amount:</span>
-                                <span class="info-value">£<?php echo number_format((float)$plan['pledge_amount'], 2); ?></span>
+                        <?php if(!empty($pledge)): ?>
+                        <div class="detail-box">
+                            <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-hand-holding-heart me-2 text-primary"></i>Original Pledge</h5>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Amount</span>
+                                <span class="detail-val">£<?php echo number_format((float)$pledge['amount'], 2); ?></span>
                             </div>
-                            <?php if (!empty($plan['pledge_date'])): ?>
-                            <div class="info-row">
-                                <span class="info-label">Date:</span>
-                                <span class="info-value"><?php echo date('d M Y', strtotime($plan['pledge_date'])); ?></span>
+                            <div class="detail-row">
+                                <span class="detail-lbl">Date</span>
+                                <span class="detail-val"><?php echo date('d M Y', strtotime($pledge['created_at'])); ?></span>
                             </div>
-                            <?php endif; ?>
-                            <?php if (!empty($plan['pledge_notes'])): ?>
-                            <div class="mt-3 pt-3 border-top">
-                                <strong class="d-block mb-2">Notes:</strong>
-                                <p class="text-muted small mb-0"><?php echo nl2br(htmlspecialchars($plan['pledge_notes'])); ?></p>
+                            <?php if(!empty($pledge['notes'])): ?>
+                            <div class="mt-3 bg-light p-2 rounded small">
+                                <strong>Notes:</strong><br>
+                                <?php echo nl2br(htmlspecialchars($pledge['notes'])); ?>
                             </div>
                             <?php endif; ?>
                         </div>
                         <?php endif; ?>
 
-                        <!-- Church Info -->
-                        <?php if (!empty($plan['church_name'])): ?>
-                        <div class="info-card">
-                            <h5 class="mb-3"><i class="fas fa-church me-2"></i>Church</h5>
-                            <p class="mb-1"><strong><?php echo htmlspecialchars($plan['church_name']); ?></strong></p>
-                            <?php if (!empty($plan['church_city'])): ?>
-                            <p class="text-muted mb-0">
-                                <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($plan['church_city']); ?>
-                            </p>
-                            <?php endif; ?>
+                        <!-- Template Info -->
+                        <?php if(!empty($template)): ?>
+                        <div class="detail-box">
+                            <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-file-alt me-2 text-primary"></i>Plan Template</h5>
+                            <div class="fw-bold"><?php echo htmlspecialchars($template['name']); ?></div>
+                            <div class="small text-muted"><?php echo htmlspecialchars($template['description'] ?? ''); ?></div>
                         </div>
                         <?php endif; ?>
-
-                        <!-- Representative Info -->
-                        <?php if (!empty($plan['representative_name'])): ?>
-                        <div class="info-card">
-                            <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Representative</h5>
-                            <p class="mb-1"><strong><?php echo htmlspecialchars($plan['representative_name']); ?></strong></p>
-                            <?php if (!empty($plan['representative_phone'])): ?>
-                            <p class="text-muted mb-0">
-                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($plan['representative_phone']); ?>
-                            </p>
-                            <?php endif; ?>
+                        
+                        <!-- Actions -->
+                        <div class="detail-box">
+                            <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-cogs me-2 text-primary"></i>Actions</h5>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-warning" id="btnEditPlan"><i class="fas fa-edit me-2"></i>Edit Plan</button>
+                                <?php if(($plan['status'] ?? '') === 'active'): ?>
+                                    <button class="btn btn-info text-white" id="btnPausePlan"><i class="fas fa-pause me-2"></i>Pause Plan</button>
+                                <?php endif; ?>
+                                <button class="btn btn-danger" id="btnDeletePlan"><i class="fas fa-trash me-2"></i>Delete Plan</button>
+                            </div>
                         </div>
-                        <?php endif; ?>
 
                     </div>
                 </div>
@@ -401,5 +400,22 @@ $page_title = "Payment Plan #" . $plan_id;
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+    // Simple sidebar toggle fix
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.getElementById('sidebar-toggle');
+        const wrapper = document.querySelector('.admin-wrapper');
+        if(toggle && wrapper) {
+            toggle.addEventListener('click', function() {
+                wrapper.classList.toggle('toggled');
+            });
+        }
+        
+        // Placeholders for buttons
+        document.getElementById('btnEditPlan')?.addEventListener('click', () => alert('Edit feature coming soon'));
+        document.getElementById('btnPausePlan')?.addEventListener('click', () => alert('Pause feature coming soon'));
+        document.getElementById('btnDeletePlan')?.addEventListener('click', () => alert('Delete feature coming soon'));
+    });
+</script>
 </body>
 </html>
