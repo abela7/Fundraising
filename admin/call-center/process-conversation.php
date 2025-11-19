@@ -255,12 +255,18 @@ try {
     error_log("Plan frequency number type: " . gettype($plan_frequency_number) . " = " . $plan_frequency_number);
     
     // Handle NULL template_id properly
+    // Type string: donor_id(i), pledge_id(i), template_id(i), total_amount(d), monthly_amount(d),
+    //              total_months(i), total_payments(i), start_date(s), payment_day(i),
+    //              plan_frequency_unit(s), plan_frequency_number(i), payment_method(s), next_payment_due(s)
+    // Total: 13 parameters = 'iiiddiisisiss'
+    
     if ($template_id_db === null) {
-        // Use 's' for NULL and pass null
-        $bind_result = $insert_plan->bind_param('iisddiisiss',
+        // Even for NULL, use 'i' type for integer columns
+        $null_template = null;
+        $bind_result = $insert_plan->bind_param('iiiddiisisiss',
             $donor_id,
             $pledge_id,
-            null, // template_id (NULL)
+            $null_template, // template_id (NULL but type 'i')
             $total_amount,
             $monthly_amount,
             $total_months,
@@ -273,7 +279,7 @@ try {
             $start_date
         );
     } else {
-        $bind_result = $insert_plan->bind_param('iiiddiisiss',
+        $bind_result = $insert_plan->bind_param('iiiddiisisiss',
             $donor_id,
             $pledge_id,
             $template_id_db,
@@ -284,7 +290,7 @@ try {
             $start_date,
             $payment_day,
             $plan_frequency_unit,
-            $plan_frequency_number, // integer (was 's', should be 'i')
+            $plan_frequency_number, // integer
             $plan_payment_method,
             $start_date
         );
