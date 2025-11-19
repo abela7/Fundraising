@@ -79,16 +79,19 @@ try {
         }
     }
     
-    // Get representatives for donor's current church (if any)
+    // Get representatives for donor's current church (will be updated from Step 2 if changed)
+    // Use donor's existing church_id, or it will be set in Step 2
     $representatives = [];
-    if ($donor->church_id) {
+    $current_church_id = $donor->church_id ?? null;
+    
+    if ($current_church_id) {
         $rep_query = $db->prepare("
             SELECT id, name, phone, role, is_primary 
             FROM church_representatives 
             WHERE church_id = ? AND is_active = 1 
             ORDER BY is_primary DESC, name ASC
         ");
-        $rep_query->bind_param('i', $donor->church_id);
+        $rep_query->bind_param('i', $current_church_id);
         $rep_query->execute();
         $rep_result = $rep_query->get_result();
         while ($row = $rep_result->fetch_assoc()) {
@@ -1187,45 +1190,49 @@ $page_title = 'Live Call';
                                 
                                 <!-- Cash - Representative Selection (shown when selected) -->
                                 <div id="cashSection" style="display: none;">
-                                    <div class="mb-3">
-                                        <label for="cash_church_id" class="form-label">Select Church</label>
-                                        <select class="form-select" id="cash_church_id" name="cash_church_id" onchange="loadRepresentatives(this.value)">
-                                            <option value="">Select Church</option>
-                                            <?php foreach ($churches as $church): ?>
-                                                <option value="<?php echo $church['id']; ?>" 
-                                                        <?php echo ($donor->church_id ?? '') == $church['id'] ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($church['name']); ?> 
-                                                    <?php if ($church['city']): ?>
-                                                        (<?php echo htmlspecialchars($church['city']); ?>)
-                                                    <?php endif; ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <small class="text-muted">Select the church nearest to the donor</small>
+                                    <div class="alert alert-info mb-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Note:</strong> The donor will use their assigned church from Step 2. 
+                                        <?php if ($donor->church_id): ?>
+                                            <?php 
+                                            $current_church_name = '';
+                                            foreach ($churches as $ch) {
+                                                if ($ch['id'] == $donor->church_id) {
+                                                    $current_church_name = $ch['name'] . ($ch['city'] ? ' (' . $ch['city'] . ')' : '');
+                                                    break;
+                                                }
+                                            }
+                                            ?>
+                                            <br><strong>Current Church:</strong> <?php echo htmlspecialchars($current_church_name); ?>
+                                        <?php endif; ?>
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label for="cash_representative_id" class="form-label">Select Representative</label>
-                                        <select class="form-select" id="cash_representative_id" name="cash_representative_id">
+                                        <label for="cash_representative_id" class="form-label">Select Representative <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="cash_representative_id" name="cash_representative_id" required>
                                             <option value="">Select Representative</option>
-                                            <?php foreach ($representatives as $rep): ?>
-                                                <option value="<?php echo $rep['id']; ?>" 
-                                                        <?php echo ($donor->representative_id ?? '') == $rep['id'] ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($rep['name']); ?>
-                                                    <?php if ($rep['is_primary']): ?>
-                                                        <span class="badge bg-primary">Primary</span>
-                                                    <?php endif; ?>
-                                                    <?php if ($rep['role']): ?>
-                                                        - <?php echo htmlspecialchars($rep['role']); ?>
-                                                    <?php endif; ?>
-                                                </option>
-                                            <?php endforeach; ?>
+                                            <?php if (!empty($representatives)): ?>
+                                                <?php foreach ($representatives as $rep): ?>
+                                                    <option value="<?php echo $rep['id']; ?>" 
+                                                            <?php echo ($donor->representative_id ?? '') == $rep['id'] ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($rep['name']); ?>
+                                                        <?php if ($rep['is_primary']): ?>
+                                                            <span class="badge bg-primary">Primary</span>
+                                                        <?php endif; ?>
+                                                        <?php if ($rep['role']): ?>
+                                                            - <?php echo htmlspecialchars($rep['role']); ?>
+                                                        <?php endif; ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <option value="">No representatives available for this church</option>
+                                            <?php endif; ?>
                                         </select>
                                         <small class="text-muted">The representative will collect cash payments from the donor</small>
                                     </div>
                                     
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle me-2"></i>
                                         The donor will be assigned to this representative for cash collection.
                                     </div>
                                 </div>
@@ -1324,6 +1331,9 @@ $page_title = 'Live Call';
             document.getElementById('bankDetailsSection').style.display = 'none';
             document.getElementById('cashSection').style.display = 'block';
             
+            // Load representatives for current church
+            loadCashRepresentatives();
+            
             // Validate cash selection
             validateCashSelection();
         } else {
@@ -1334,39 +1344,34 @@ $page_title = 'Live Call';
     
     // Validate cash selection
     function validateCashSelection() {
-        const churchId = document.getElementById('cash_church_id').value;
         const repId = document.getElementById('cash_representative_id').value;
         const btn = document.getElementById('btnStep6Next');
         
-        if (churchId && repId) {
+        if (repId) {
             btn.disabled = false;
         } else {
             btn.disabled = true;
         }
     }
     
-    // Add validation listeners for cash section
+    // Add validation listener for cash section
     document.addEventListener('DOMContentLoaded', function() {
-        const cashChurch = document.getElementById('cash_church_id');
         const cashRep = document.getElementById('cash_representative_id');
-        
-        if (cashChurch) {
-            cashChurch.addEventListener('change', validateCashSelection);
-        }
         if (cashRep) {
             cashRep.addEventListener('change', validateCashSelection);
         }
     });
     
-    // Load representatives when church changes
-    function loadRepresentatives(churchId) {
+    // Load representatives when cash is selected (use donor's current church from Step 2)
+    function loadCashRepresentatives() {
+        // Get church_id from Step 2 form (or use existing)
+        const step2ChurchId = document.getElementById('church_id') ? document.getElementById('church_id').value : <?php echo $donor->church_id ?? 0; ?>;
+        const churchId = step2ChurchId || <?php echo $donor->church_id ?? 0; ?>;
+        
         if (!churchId) {
-            document.getElementById('cash_representative_id').innerHTML = '<option value="">Select Representative</option>';
+            document.getElementById('cash_representative_id').innerHTML = '<option value="">Please assign a church in Step 2 first</option>';
             return;
         }
-        
-        // Show loading
-        document.getElementById('cash_representative_id').innerHTML = '<option value="">Loading...</option>';
         
         // Fetch representatives via AJAX
         fetch(`get-representatives.php?church_id=${churchId}`)
@@ -1638,13 +1643,12 @@ $page_title = 'Live Call';
             return;
         }
         
-        // If cash is selected, validate church and representative
+        // If cash is selected, validate representative
         if (paymentMethod === 'cash') {
-            const churchId = document.getElementById('cash_church_id').value;
             const repId = document.getElementById('cash_representative_id').value;
             
-            if (!churchId || !repId) {
-                alert('Please select both a church and representative for cash payments.');
+            if (!repId) {
+                alert('Please select a representative for cash payments.');
                 goToStep(6);
                 return;
             }

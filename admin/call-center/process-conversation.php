@@ -96,7 +96,6 @@ try {
     
     // Payment Method (from Step 6)
     $payment_method = trim($_POST['payment_method'] ?? '');
-    $cash_church_id = isset($_POST['cash_church_id']) && $_POST['cash_church_id'] !== '' ? (int)$_POST['cash_church_id'] : null;
     $cash_representative_id = isset($_POST['cash_representative_id']) && $_POST['cash_representative_id'] !== '' ? (int)$_POST['cash_representative_id'] : null;
     
     // Build update query dynamically based on what's provided
@@ -138,27 +137,20 @@ try {
         $donor_types .= 's';
     }
     
-    // Handle church_id - prioritize cash_church_id if cash payment, otherwise use Step 2 church_id
-    $final_church_id = null;
-    if ($payment_method === 'cash' && $cash_church_id !== null) {
-        $final_church_id = $cash_church_id;
-    } elseif ($church_id !== null) {
-        $final_church_id = $church_id;
-    }
-    
-    if ($final_church_id !== null) {
+    // Update church_id from Step 2 (if provided)
+    if ($church_id !== null) {
         $donor_updates[] = "church_id = ?";
-        $donor_params[] = $final_church_id;
+        $donor_params[] = $church_id;
         $donor_types .= 'i';
     }
     
-    // If cash payment, update representative
-    if ($payment_method === 'cash') {
+    // If cash payment, update representative (use donor's current church)
+    if ($payment_method === 'cash' && $cash_representative_id !== null) {
         // Check if representative_id column exists
         $check_rep_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
         $has_rep_column = $check_rep_column && $check_rep_column->num_rows > 0;
         
-        if ($has_rep_column && $cash_representative_id !== null) {
+        if ($has_rep_column) {
             $donor_updates[] = "representative_id = ?";
             $donor_params[] = $cash_representative_id;
             $donor_types .= 'i';
@@ -170,17 +162,20 @@ try {
         $donor_params[] = $donor_id;
         $donor_types .= 'i';
         
-        $update_donor_info = $db->prepare("
-            UPDATE donors 
-            SET " . implode(', ', $donor_updates) . "
-            WHERE id = ?
-        ");
+        $update_sql = "UPDATE donors SET " . implode(', ', $donor_updates) . " WHERE id = ?";
+        $update_donor_info = $db->prepare($update_sql);
         
-        if ($update_donor_info) {
-            $update_donor_info->bind_param($donor_types, ...$donor_params);
-            $update_donor_info->execute();
-            $update_donor_info->close();
+        if (!$update_donor_info) {
+            throw new Exception("Failed to prepare donor update: " . $db->error);
         }
+        
+        $update_donor_info->bind_param($donor_types, ...$donor_params);
+        
+        if (!$update_donor_info->execute()) {
+            throw new Exception("Failed to update donor: " . $update_donor_info->error);
+        }
+        
+        $update_donor_info->close();
     }
     
     // 1. Create Payment Plan
