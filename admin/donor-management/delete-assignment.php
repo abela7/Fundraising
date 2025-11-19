@@ -7,8 +7,9 @@ require_admin();
 
 $db = db();
 
-$donor_id = (int)($_GET['donor_id'] ?? $_POST['donor_id'] ?? 0);
-$confirm = $_GET['confirm'] ?? $_POST['confirm'] ?? 'no';
+// Prioritize POST over GET for confirmation (POST is used when form is submitted)
+$donor_id = (int)($_POST['donor_id'] ?? $_GET['donor_id'] ?? 0);
+$confirm = $_POST['confirm'] ?? $_GET['confirm'] ?? 'no';
 
 if ($donor_id <= 0) {
     header('Location: donors.php?error=' . urlencode('Invalid donor ID.'));
