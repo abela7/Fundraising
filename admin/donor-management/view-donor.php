@@ -441,6 +441,20 @@ function formatDateTime($date) {
                     </div>
                 </div>
 
+                <!-- Success/Error Messages -->
+                <?php if (isset($_GET['success'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($_GET['success']); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+                <?php if (isset($_GET['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($_GET['error']); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+
                 <!-- Accordion Sections -->
                 <div class="accordion" id="donorAccordion">
                     
@@ -449,6 +463,9 @@ function formatDateTime($date) {
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePersonal">
                                 <i class="fas fa-user-circle me-3 text-primary"></i> Personal Information
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary ms-auto me-2" data-bs-toggle="modal" data-bs-target="#editDonorModal" onclick="loadDonorData(<?php echo $donor_id; ?>)">
+                                <i class="fas fa-edit me-1"></i>Edit
                             </button>
                         </h2>
                         <div id="collapsePersonal" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
@@ -545,11 +562,19 @@ function formatDateTime($date) {
                                                     </td>
                                                     <td data-label="Approved By"><?php echo htmlspecialchars($pledge['approver_name'] ?? 'System'); ?></td>
                                                     <td data-label="Actions">
-                                                        <a href="delete-pledge.php?id=<?php echo $pledge['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
-                                                           class="btn btn-sm btn-danger" 
-                                                           title="Delete Pledge">
-                                                            <i class="fas fa-trash-alt"></i>
-                                                        </a>
+                                                        <div class="d-flex gap-1">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                                    data-bs-toggle="modal" data-bs-target="#editPledgeModal" 
+                                                                    onclick="loadPledgeData(<?php echo $pledge['id']; ?>, <?php echo $donor_id; ?>)"
+                                                                    title="Edit Pledge">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <a href="delete-pledge.php?id=<?php echo $pledge['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                               class="btn btn-sm btn-danger" 
+                                                               title="Delete Pledge">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </a>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                                 <?php endforeach; ?>
@@ -603,11 +628,19 @@ function formatDateTime($date) {
                                                     </td>
                                                     <td data-label="Approved By"><?php echo htmlspecialchars($pay['approver_name'] ?? 'System'); ?></td>
                                                     <td data-label="Actions">
-                                                        <a href="delete-payment.php?id=<?php echo $pay['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
-                                                           class="btn btn-sm btn-danger" 
-                                                           title="Delete Payment">
-                                                            <i class="fas fa-trash-alt"></i>
-                                                        </a>
+                                                        <div class="d-flex gap-1">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                                    data-bs-toggle="modal" data-bs-target="#editPaymentModal" 
+                                                                    onclick="loadPaymentData(<?php echo $pay['id']; ?>, <?php echo $donor_id; ?>)"
+                                                                    title="Edit Payment">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <a href="delete-payment.php?id=<?php echo $pay['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                               class="btn btn-sm btn-danger" 
+                                                               title="Delete Payment">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </a>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                                 <?php endforeach; ?>
@@ -673,6 +706,12 @@ function formatDateTime($date) {
                                                             <a href="payment-plans.php?id=<?php echo $plan['id']; ?>" class="btn btn-sm btn-outline-primary" title="View Plan">
                                                                 <i class="fas fa-eye"></i>
                                                             </a>
+                                                            <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                                    data-bs-toggle="modal" data-bs-target="#editPaymentPlanModal" 
+                                                                    onclick="loadPaymentPlanData(<?php echo $plan['id']; ?>, <?php echo $donor_id; ?>)"
+                                                                    title="Edit Plan">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
                                                             <a href="delete-payment-plan.php?id=<?php echo $plan['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
                                                                class="btn btn-sm btn-danger" 
                                                                title="Delete Plan">
@@ -738,6 +777,12 @@ function formatDateTime($date) {
                                                                title="View Call Details">
                                                                 <i class="fas fa-eye"></i>
                                                             </a>
+                                                            <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                                    data-bs-toggle="modal" data-bs-target="#editCallSessionModal" 
+                                                                    onclick="loadCallSessionData(<?php echo $call['id']; ?>, <?php echo $donor_id; ?>)"
+                                                                    title="Edit Call">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
                                                             <a href="delete-call-session.php?id=<?php echo $call['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
                                                                class="btn btn-sm btn-danger" 
                                                                title="Delete Call">
@@ -813,7 +858,361 @@ function formatDateTime($date) {
     </div>
 </div>
 
+<!-- Edit Donor Modal -->
+<div class="modal fade" id="editDonorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Edit Personal Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editDonorForm" method="POST" action="edit-donor.php">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="donor_id" id="editDonorId" value="<?php echo $donor_id; ?>">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" id="editDonorName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Baptism Name</label>
+                            <input type="text" class="form-control" name="baptism_name" id="editDonorBaptismName">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="phone" id="editDonorPhone" pattern="07\d{9}" required>
+                            <small class="text-muted">UK mobile format: 07xxxxxxxxx</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-control" name="email" id="editDonorEmail">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">City / Address</label>
+                            <input type="text" class="form-control" name="city" id="editDonorCity">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Preferred Language</label>
+                            <select class="form-select" name="preferred_language" id="editDonorLanguage">
+                                <option value="en">English</option>
+                                <option value="am">Amharic</option>
+                                <option value="ti">Tigrinya</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Preferred Payment Method</label>
+                            <select class="form-select" name="preferred_payment_method" id="editDonorPaymentMethod">
+                                <option value="cash">Cash</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="card">Card</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Church</label>
+                            <select class="form-select" name="church_id" id="editDonorChurch">
+                                <option value="">-- Select Church --</option>
+                                <?php
+                                $churches_query = $db->query("SELECT id, name FROM churches ORDER BY name");
+                                while ($church = $churches_query->fetch_assoc()):
+                                ?>
+                                <option value="<?php echo $church['id']; ?>"><?php echo htmlspecialchars($church['name']); ?></option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Pledge Modal -->
+<div class="modal fade" id="editPledgeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-hand-holding-usd me-2"></i>Edit Pledge</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPledgeForm" method="POST" action="edit-pledge.php">
+                <input type="hidden" name="pledge_id" id="editPledgeId">
+                <input type="hidden" name="donor_id" id="editPledgeDonorId" value="<?php echo $donor_id; ?>">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Amount <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="amount" id="editPledgeAmount" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status" id="editPledgeStatus">
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="datetime-local" class="form-control" name="created_at" id="editPledgeDate">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Payment Modal -->
+<div class="modal fade" id="editPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-money-bill-wave me-2"></i>Edit Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPaymentForm" method="POST" action="edit-payment.php">
+                <input type="hidden" name="payment_id" id="editPaymentId">
+                <input type="hidden" name="donor_id" id="editPaymentDonorId" value="<?php echo $donor_id; ?>">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Amount <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="amount" id="editPaymentAmount" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Method</label>
+                        <select class="form-select" name="method" id="editPaymentMethod">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="card">Card</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reference/Transaction ID</label>
+                        <input type="text" class="form-control" name="reference" id="editPaymentReference">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status" id="editPaymentStatus">
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="datetime-local" class="form-control" name="date" id="editPaymentDate">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Payment Plan Modal -->
+<div class="modal fade" id="editPaymentPlanModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-calendar-alt me-2"></i>Edit Payment Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPaymentPlanForm" method="POST" action="edit-payment-plan.php">
+                <input type="hidden" name="plan_id" id="editPlanId">
+                <input type="hidden" name="donor_id" id="editPlanDonorId" value="<?php echo $donor_id; ?>">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Total Amount <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="total_amount" id="editPlanTotalAmount" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Monthly Amount <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="monthly_amount" id="editPlanMonthlyAmount" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Total Payments <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="total_payments" id="editPlanTotalPayments" min="1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="start_date" id="editPlanStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" id="editPlanStatus">
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="paused">Paused</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Call Session Modal -->
+<div class="modal fade" id="editCallSessionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-headset me-2"></i>Edit Call Session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editCallSessionForm" method="POST" action="edit-call-session.php">
+                <input type="hidden" name="session_id" id="editCallSessionId">
+                <input type="hidden" name="donor_id" id="editCallDonorId" value="<?php echo $donor_id; ?>">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Agent</label>
+                        <select class="form-select" name="agent_id" id="editCallAgentId">
+                            <option value="">-- Select Agent --</option>
+                            <?php
+                            $agents_query = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+                            while ($agent = $agents_query->fetch_assoc()):
+                            ?>
+                            <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Duration (minutes)</label>
+                        <input type="number" class="form-control" name="duration_minutes" id="editCallDuration" min="0" step="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Outcome</label>
+                        <select class="form-select" name="outcome" id="editCallOutcome">
+                            <option value="no_answer">No Answer</option>
+                            <option value="busy">Busy</option>
+                            <option value="not_working">Not Working</option>
+                            <option value="not_interested">Not Interested</option>
+                            <option value="callback_requested">Callback Requested</option>
+                            <option value="payment_plan_created">Payment Plan Created</option>
+                            <option value="not_ready_to_pay">Not Ready to Pay</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" id="editCallNotes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Load Donor Data - Use PHP data already on page
+function loadDonorData(donorId) {
+    // Data is already available from PHP, populate form directly
+    document.getElementById('editDonorId').value = <?php echo $donor_id; ?>;
+    document.getElementById('editDonorName').value = <?php echo json_encode($donor['name'] ?? ''); ?>;
+    document.getElementById('editDonorBaptismName').value = <?php echo json_encode($donor['baptism_name'] ?? ''); ?>;
+    document.getElementById('editDonorPhone').value = <?php echo json_encode($donor['phone'] ?? ''); ?>;
+    document.getElementById('editDonorEmail').value = <?php echo json_encode($donor['email'] ?? ''); ?>;
+    document.getElementById('editDonorCity').value = <?php echo json_encode($donor['city'] ?? ''); ?>;
+    document.getElementById('editDonorLanguage').value = <?php echo json_encode($donor['preferred_language'] ?? 'en'); ?>;
+    document.getElementById('editDonorPaymentMethod').value = <?php echo json_encode($donor['preferred_payment_method'] ?? 'bank_transfer'); ?>;
+    document.getElementById('editDonorChurch').value = <?php echo json_encode($donor['church_id'] ?? ''); ?>;
+}
+
+// Load Pledge Data
+function loadPledgeData(pledgeId, donorId) {
+    fetch('get-pledge-data.php?id=' + pledgeId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('editPledgeId').value = data.pledge.id;
+                document.getElementById('editPledgeDonorId').value = donorId;
+                document.getElementById('editPledgeAmount').value = data.pledge.amount || '';
+                document.getElementById('editPledgeStatus').value = data.pledge.status || 'pending';
+                const date = data.pledge.created_at ? new Date(data.pledge.created_at).toISOString().slice(0, 16) : '';
+                document.getElementById('editPledgeDate').value = date;
+            }
+        })
+        .catch(error => console.error('Error loading pledge data:', error));
+}
+
+// Load Payment Data
+function loadPaymentData(paymentId, donorId) {
+    fetch('get-payment-data.php?id=' + paymentId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('editPaymentId').value = data.payment.id;
+                document.getElementById('editPaymentDonorId').value = donorId;
+                document.getElementById('editPaymentAmount').value = data.payment.amount || '';
+                document.getElementById('editPaymentMethod').value = data.payment.method || 'cash';
+                document.getElementById('editPaymentReference').value = data.payment.reference || '';
+                document.getElementById('editPaymentStatus').value = data.payment.status || 'pending';
+                const date = data.payment.date ? new Date(data.payment.date).toISOString().slice(0, 16) : '';
+                document.getElementById('editPaymentDate').value = date;
+            }
+        })
+        .catch(error => console.error('Error loading payment data:', error));
+}
+
+// Load Payment Plan Data
+function loadPaymentPlanData(planId, donorId) {
+    fetch('get-payment-plan-data.php?id=' + planId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('editPlanId').value = data.plan.id;
+                document.getElementById('editPlanDonorId').value = donorId;
+                document.getElementById('editPlanTotalAmount').value = data.plan.total_amount || '';
+                document.getElementById('editPlanMonthlyAmount').value = data.plan.monthly_amount || '';
+                document.getElementById('editPlanTotalPayments').value = data.plan.total_payments || '';
+                document.getElementById('editPlanStatus').value = data.plan.status || 'active';
+                const date = data.plan.start_date ? new Date(data.plan.start_date).toISOString().slice(0, 10) : '';
+                document.getElementById('editPlanStartDate').value = date;
+            }
+        })
+        .catch(error => console.error('Error loading payment plan data:', error));
+}
+
+// Load Call Session Data
+function loadCallSessionData(sessionId, donorId) {
+    fetch('get-call-session-data.php?id=' + sessionId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('editCallSessionId').value = data.session.id;
+                document.getElementById('editCallDonorId').value = donorId;
+                document.getElementById('editCallAgentId').value = data.session.agent_id || '';
+                const minutes = data.session.duration_seconds ? Math.floor(data.session.duration_seconds / 60) : '';
+                document.getElementById('editCallDuration').value = minutes;
+                document.getElementById('editCallOutcome').value = data.session.outcome || 'no_answer';
+                document.getElementById('editCallNotes').value = data.session.notes || '';
+            }
+        })
+        .catch(error => console.error('Error loading call session data:', error));
+}
+</script>
 <script>
 // Wait for Bootstrap to load, then initialize
 (function() {
