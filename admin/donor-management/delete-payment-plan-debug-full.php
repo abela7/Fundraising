@@ -1,10 +1,24 @@
 <?php
 // ENABLE FULL DEBUGGING
+error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 
-declare(strict_types=1);
+// Catch fatal errors
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        echo "<div style='background:red;color:white;padding:20px;font-family:monospace;'>";
+        echo "<h1>FATAL ERROR DETECTED</h1>";
+        echo "<strong>Message:</strong> " . htmlspecialchars($error['message']) . "<br>";
+        echo "<strong>File:</strong> " . htmlspecialchars($error['file']) . "<br>";
+        echo "<strong>Line:</strong> " . $error['line'] . "<br>";
+        echo "</div>";
+    }
+});
+
+// Don't use strict types to avoid type errors during debugging
+// declare(strict_types=1);
 
 echo "<!DOCTYPE html><html><head><title>Payment Plan Deletion Debug</title>";
 echo "<style>body{font-family:monospace;padding:20px;background:#f5f5f5;} .step{background:white;padding:15px;margin:10px 0;border-left:4px solid #007bff;} .success{border-color:#28a745;} .error{border-color:#dc3545;background:#fff5f5;} .info{border-color:#17a2b8;} pre{background:#f8f9fa;padding:10px;border-radius:4px;overflow-x:auto;} h2{color:#333;} .query{background:#e7f3ff;padding:10px;margin:5px 0;border-radius:4px;}</style>";
