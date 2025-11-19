@@ -246,6 +246,11 @@ try {
                         <div class="info-card text-center">
                             <h5><i class="fas fa-users me-2"></i>Assigned Donors</h5>
                             <div class="display-4 text-success"><?php echo $donors_count; ?></div>
+                            <?php if ($donors_count > 0): ?>
+                            <a href="church-assigned-donors.php?church_id=<?php echo $church_id; ?>" class="btn btn-sm btn-outline-primary mt-2">
+                                <i class="fas fa-eye me-1"></i>View All Assigned Donors
+                            </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
