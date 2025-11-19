@@ -384,57 +384,12 @@ $page_title = 'Payment Plan Pages Deep Analysis';
     </div>
 </div>
 
+<!-- Load Bootstrap JS first -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Load admin.js which handles sidebar toggle and other admin functionality -->
 <script src="../assets/admin.js"></script>
-<script>
-// Initialize Bootstrap components
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all Bootstrap accordions
-    const accordionElements = document.querySelectorAll('.accordion-collapse');
-    accordionElements.forEach(function(element) {
-        if (element && typeof bootstrap !== 'undefined') {
-            new bootstrap.Collapse(element, { toggle: false });
-        }
-    });
-    
-    // Ensure sidebar toggle works (matches admin.js logic)
-    if (typeof toggleSidebar === 'undefined') {
-        window.toggleSidebar = function() {
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.querySelector('.sidebar-overlay');
-            const body = document.body;
-            if (!sidebar || !sidebarOverlay) return;
-            if (window.innerWidth <= 991.98) {
-                // Mobile: slide in/out
-                sidebar.classList.toggle('active');
-                sidebarOverlay.classList.toggle('active');
-                body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-            } else {
-                // Desktop: collapse/expand
-                body.classList.toggle('sidebar-collapsed');
-                const isCollapsed = body.classList.contains('sidebar-collapsed');
-                localStorage.setItem('sidebarCollapsed', isCollapsed);
-            }
-        };
-    }
-    
-    // Initialize Bootstrap tooltips if any
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        }
-    });
-    
-    // Initialize Bootstrap popovers if any
-    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    popoverTriggerList.map(function (popoverTriggerEl) {
-        if (typeof bootstrap !== 'undefined' && bootstrap.Popover) {
-            return new bootstrap.Popover(popoverTriggerEl);
-        }
-    });
-});
-</script>
+<!-- Note: admin.js already handles sidebar toggle, Bootstrap initialization, and all interactive elements -->
+<!-- This page should work correctly once admin.js loads -->
 </body>
 </html>
 
