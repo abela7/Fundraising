@@ -384,12 +384,8 @@ $page_title = 'Payment Plan Pages Deep Analysis';
     </div>
 </div>
 
-<!-- Load Bootstrap JS first -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Load admin.js which handles sidebar toggle and other admin functionality -->
 <script src="../assets/admin.js"></script>
-<!-- Note: admin.js already handles sidebar toggle, Bootstrap initialization, and all interactive elements -->
-<!-- This page should work correctly once admin.js loads -->
 </body>
 </html>
 
