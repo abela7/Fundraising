@@ -25,6 +25,22 @@ try {
     $callbacks_result = null;
     $recent_result = null;
     $setup_needed = false;
+    
+    // Initialize filter variables
+    $search = '';
+    $queue_type_filter = '';
+    $priority_filter = 0;
+    $city_filter = '';
+    $balance_min = null;
+    $balance_max = null;
+    $attempts_min = null;
+    $attempts_max = null;
+    $page = 1;
+    $per_page = 25;
+    $total_count = 0;
+    $total_pages = 1;
+    $queue_types_list = [];
+    $cities_list = [];
 
     // Check if call center tables exist
     $tables_check = $db->query("SHOW TABLES LIKE 'call_center_sessions'");
@@ -62,6 +78,97 @@ try {
             $stmt->close();
         }
         
+        // Get filter parameters
+        $search = trim($_GET['search'] ?? '');
+        $queue_type_filter = trim($_GET['queue_type'] ?? '');
+        $priority_filter = isset($_GET['priority']) ? (int)$_GET['priority'] : 0;
+        $city_filter = trim($_GET['city'] ?? '');
+        $balance_min = isset($_GET['balance_min']) ? (float)$_GET['balance_min'] : null;
+        $balance_max = isset($_GET['balance_max']) ? (float)$_GET['balance_max'] : null;
+        $attempts_min = isset($_GET['attempts_min']) ? (int)$_GET['attempts_min'] : null;
+        $attempts_max = isset($_GET['attempts_max']) ? (int)$_GET['attempts_max'] : null;
+        
+        // Pagination
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $per_page = 25;
+        $offset = ($page - 1) * $per_page;
+        
+        // Build queue query with filters
+        $queue_where = [
+            "q.status = 'pending'",
+            "(q.assigned_to IS NULL OR q.assigned_to = ?)",
+            "(q.next_attempt_after IS NULL OR q.next_attempt_after <= NOW())"
+        ];
+        $queue_params = [$user_id];
+        $queue_types = 'i';
+        
+        if (!empty($search)) {
+            $queue_where[] = "(d.name LIKE ? OR d.phone LIKE ?)";
+            $search_param = "%{$search}%";
+            $queue_params[] = $search_param;
+            $queue_params[] = $search_param;
+            $queue_types .= 'ss';
+        }
+        
+        if (!empty($queue_type_filter)) {
+            $queue_where[] = "q.queue_type = ?";
+            $queue_params[] = $queue_type_filter;
+            $queue_types .= 's';
+        }
+        
+        if ($priority_filter > 0) {
+            $queue_where[] = "q.priority = ?";
+            $queue_params[] = $priority_filter;
+            $queue_types .= 'i';
+        }
+        
+        if (!empty($city_filter)) {
+            $queue_where[] = "d.city = ?";
+            $queue_params[] = $city_filter;
+            $queue_types .= 's';
+        }
+        
+        if ($balance_min !== null) {
+            $queue_where[] = "d.balance >= ?";
+            $queue_params[] = $balance_min;
+            $queue_types .= 'd';
+        }
+        
+        if ($balance_max !== null) {
+            $queue_where[] = "d.balance <= ?";
+            $queue_params[] = $balance_max;
+            $queue_types .= 'd';
+        }
+        
+        if ($attempts_min !== null) {
+            $queue_where[] = "q.attempts_count >= ?";
+            $queue_params[] = $attempts_min;
+            $queue_types .= 'i';
+        }
+        
+        if ($attempts_max !== null) {
+            $queue_where[] = "q.attempts_count <= ?";
+            $queue_params[] = $attempts_max;
+            $queue_types .= 'i';
+        }
+        
+        $queue_where_clause = implode(' AND ', $queue_where);
+        
+        // Get total count for pagination
+        $count_query = "
+            SELECT COUNT(*) as total
+            FROM call_center_queues q
+            JOIN donors d ON q.donor_id = d.id
+            WHERE {$queue_where_clause}
+        ";
+        
+        $count_stmt = $db->prepare($count_query);
+        $count_stmt->bind_param($queue_types, ...$queue_params);
+        $count_stmt->execute();
+        $total_count = $count_stmt->get_result()->fetch_assoc()['total'];
+        $total_pages = max(1, (int)ceil($total_count / $per_page));
+        $count_stmt->close();
+        
         // Get call queue - donors who need to be called
         $queue_query = "
             SELECT 
@@ -81,19 +188,39 @@ try {
                 (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_outcome
             FROM call_center_queues q
             JOIN donors d ON q.donor_id = d.id
-            WHERE q.status = 'pending' 
-                AND (q.assigned_to IS NULL OR q.assigned_to = ?)
-                AND (q.next_attempt_after IS NULL OR q.next_attempt_after <= NOW())
+            WHERE {$queue_where_clause}
             ORDER BY q.priority DESC, q.next_attempt_after ASC, q.created_at ASC
-            LIMIT 50
+            LIMIT ? OFFSET ?
         ";
+        
+        $queue_params[] = $per_page;
+        $queue_params[] = $offset;
+        $queue_types .= 'ii';
         
         $stmt = $db->prepare($queue_query);
         if ($stmt) {
-            $stmt->bind_param('i', $user_id);
+            $stmt->bind_param($queue_types, ...$queue_params);
             $stmt->execute();
             $queue_result = $stmt->get_result();
             $stmt->close();
+        }
+        
+        // Get filter options
+        $queue_types_list = [];
+        $cities_list = [];
+        
+        $types_query = $db->query("SELECT DISTINCT queue_type FROM call_center_queues WHERE queue_type IS NOT NULL ORDER BY queue_type");
+        if ($types_query) {
+            while ($row = $types_query->fetch_assoc()) {
+                $queue_types_list[] = $row['queue_type'];
+            }
+        }
+        
+        $cities_query = $db->query("SELECT DISTINCT d.city FROM call_center_queues q JOIN donors d ON q.donor_id = d.id WHERE d.city IS NOT NULL AND d.city != '' AND q.status = 'pending' ORDER BY d.city");
+        if ($cities_query) {
+            while ($row = $cities_query->fetch_assoc()) {
+                $cities_list[] = $row['city'];
+            }
         }
 
         // Get upcoming callbacks (scheduled for future)
@@ -196,6 +323,20 @@ try {
     $recent_result = null;
     $conversion_rate = 0;
     $setup_needed = false;
+    $search = '';
+    $queue_type_filter = '';
+    $priority_filter = 0;
+    $city_filter = '';
+    $balance_min = null;
+    $balance_max = null;
+    $attempts_min = null;
+    $attempts_max = null;
+    $page = 1;
+    $per_page = 25;
+    $total_count = 0;
+    $total_pages = 1;
+    $queue_types_list = [];
+    $cities_list = [];
     $error_message = "An error occurred: " . htmlspecialchars($e->getMessage()) . ". Please check <a href='debug.php'>debug page</a> or contact administrator.";
 }
 
@@ -240,9 +381,6 @@ $page_title = 'Call Center Dashboard';
                     <a href="call-history.php" class="btn btn-outline-primary">
                         <i class="fas fa-history me-2"></i>History
                     </a>
-                    <button class="btn btn-outline-secondary d-lg-none" onclick="toggleFilters()">
-                        <i class="fas fa-filter"></i>
-                    </button>
                 </div>
             </div>
 
@@ -346,17 +484,142 @@ $page_title = 'Call Center Dashboard';
                 </div>
             </div>
 
+            <!-- Filters Panel -->
+            <div class="card mb-4" id="filterPanel" style="display: none;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>Filter Queue
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="" class="row g-3">
+                        <!-- Search -->
+                        <div class="col-md-3">
+                            <label class="form-label small">Search</label>
+                            <input type="text" 
+                                   name="search" 
+                                   class="form-control form-control-sm" 
+                                   placeholder="Name or phone..."
+                                   value="<?php echo htmlspecialchars($search); ?>">
+                        </div>
+                        
+                        <!-- Queue Type -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Queue Type</label>
+                            <select name="queue_type" class="form-select form-select-sm">
+                                <option value="">All Types</option>
+                                <?php foreach ($queue_types_list as $type): ?>
+                                    <option value="<?php echo htmlspecialchars($type); ?>" 
+                                            <?php echo $queue_type_filter === $type ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $type))); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <!-- Priority -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Priority</label>
+                            <select name="priority" class="form-select form-select-sm">
+                                <option value="0">All Priorities</option>
+                                <?php for ($p = 10; $p >= 1; $p--): ?>
+                                    <option value="<?php echo $p; ?>" 
+                                            <?php echo $priority_filter === $p ? 'selected' : ''; ?>>
+                                        <?php echo $p; ?> <?php echo $p >= 8 ? '(Urgent)' : ($p >= 5 ? '(High)' : ''); ?>
+                                    </option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                        
+                        <!-- City -->
+                        <div class="col-md-2">
+                            <label class="form-label small">City</label>
+                            <select name="city" class="form-select form-select-sm">
+                                <option value="">All Cities</option>
+                                <?php foreach ($cities_list as $city): ?>
+                                    <option value="<?php echo htmlspecialchars($city); ?>" 
+                                            <?php echo $city_filter === $city ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($city); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <!-- Balance Range -->
+                        <div class="col-md-3">
+                            <label class="form-label small">Balance Range (£)</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" 
+                                       name="balance_min" 
+                                       class="form-control" 
+                                       placeholder="Min"
+                                       step="0.01"
+                                       value="<?php echo $balance_min !== null ? htmlspecialchars($balance_min) : ''; ?>">
+                                <span class="input-group-text">-</span>
+                                <input type="number" 
+                                       name="balance_max" 
+                                       class="form-control" 
+                                       placeholder="Max"
+                                       step="0.01"
+                                       value="<?php echo $balance_max !== null ? htmlspecialchars($balance_max) : ''; ?>">
+                            </div>
+                        </div>
+                        
+                        <!-- Attempts Range -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Attempts</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" 
+                                       name="attempts_min" 
+                                       class="form-control" 
+                                       placeholder="Min"
+                                       min="0"
+                                       value="<?php echo $attempts_min !== null ? htmlspecialchars($attempts_min) : ''; ?>">
+                                <span class="input-group-text">-</span>
+                                <input type="number" 
+                                       name="attempts_max" 
+                                       class="form-control" 
+                                       placeholder="Max"
+                                       min="0"
+                                       value="<?php echo $attempts_max !== null ? htmlspecialchars($attempts_max) : ''; ?>">
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Buttons -->
+                        <div class="col-md-12">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-filter me-1"></i>Apply Filters
+                            </button>
+                            <a href="index.php" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-times me-1"></i>Clear All
+                            </a>
+                            <?php if ($search || $queue_type_filter || $priority_filter || $city_filter || $balance_min !== null || $balance_max !== null || $attempts_min !== null || $attempts_max !== null): ?>
+                                <span class="badge bg-info ms-2">
+                                    <?php echo number_format($total_count); ?> result<?php echo $total_count != 1 ? 's' : ''; ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
             <div class="row g-4">
                 <!-- Call Queue -->
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-list-check me-2"></i>Call Queue
+                                <span class="badge bg-primary ms-2"><?php echo number_format($total_count); ?></span>
                             </h5>
-                            <button class="btn btn-sm btn-primary" onclick="location.reload()">
-                                <i class="fas fa-sync-alt me-1"></i>Refresh
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="toggleFilters()">
+                                    <i class="fas fa-filter me-1"></i>Filters
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="location.reload()">
+                                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body p-0">
                             <?php if ($queue_result && $queue_result->num_rows > 0): ?>
@@ -410,7 +673,7 @@ $page_title = 'Call Center Dashboard';
                                                     <td data-label="Action">
                                                         <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
                                                            class="btn btn-primary btn-sm">
-                                                            <i class="fas fa-eye me-1"></i>View
+                                                            <i class="fas fa-phone-alt me-1"></i>Call
                                                         </a>
                                                     </td>
                                                 </tr>
@@ -418,6 +681,105 @@ $page_title = 'Call Center Dashboard';
                                         </tbody>
                                     </table>
                                 </div>
+                                
+                                <!-- Pagination -->
+                                <?php if ($total_pages > 1): ?>
+                                <div class="card-footer">
+                                    <nav aria-label="Queue pagination">
+                                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                                            <?php
+                                            $query_params = $_GET;
+                                            
+                                            // Previous
+                                            if ($page > 1):
+                                                $query_params['page'] = $page - 1;
+                                                $prev_url = '?' . http_build_query($query_params);
+                                            ?>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="<?php echo htmlspecialchars($prev_url); ?>">
+                                                        <i class="fas fa-chevron-left"></i> Previous
+                                                    </a>
+                                                </li>
+                                            <?php else: ?>
+                                                <li class="page-item disabled">
+                                                    <span class="page-link">
+                                                        <i class="fas fa-chevron-left"></i> Previous
+                                                    </span>
+                                                </li>
+                                            <?php endif; ?>
+                                            
+                                            <?php
+                                            // Page numbers
+                                            $start_page = max(1, $page - 2);
+                                            $end_page = min($total_pages, $page + 2);
+                                            
+                                            if ($start_page > 1):
+                                                $query_params['page'] = 1;
+                                            ?>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="<?php echo htmlspecialchars('?' . http_build_query($query_params)); ?>">1</a>
+                                                </li>
+                                                <?php if ($start_page > 2): ?>
+                                                    <li class="page-item disabled">
+                                                        <span class="page-link">...</span>
+                                                    </li>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                            
+                                            <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                                                <?php
+                                                $query_params['page'] = $i;
+                                                $page_url = '?' . http_build_query($query_params);
+                                                ?>
+                                                <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                                                    <a class="page-link" href="<?php echo htmlspecialchars($page_url); ?>">
+                                                        <?php echo $i; ?>
+                                                    </a>
+                                                </li>
+                                            <?php endfor; ?>
+                                            
+                                            <?php
+                                            if ($end_page < $total_pages):
+                                                $query_params['page'] = $total_pages;
+                                            ?>
+                                                <?php if ($end_page < $total_pages - 1): ?>
+                                                    <li class="page-item disabled">
+                                                        <span class="page-link">...</span>
+                                                    </li>
+                                                <?php endif; ?>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="<?php echo htmlspecialchars('?' . http_build_query($query_params)); ?>">
+                                                        <?php echo $total_pages; ?>
+                                                    </a>
+                                                </li>
+                                            <?php endif; ?>
+                                            
+                                            <?php
+                                            // Next
+                                            if ($page < $total_pages):
+                                                $query_params['page'] = $page + 1;
+                                                $next_url = '?' . http_build_query($query_params);
+                                            ?>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="<?php echo htmlspecialchars($next_url); ?>">
+                                                        Next <i class="fas fa-chevron-right"></i>
+                                                    </a>
+                                                </li>
+                                            <?php else: ?>
+                                                <li class="page-item disabled">
+                                                    <span class="page-link">
+                                                        Next <i class="fas fa-chevron-right"></i>
+                                                    </span>
+                                                </li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </nav>
+                                    <div class="text-center text-muted small mt-2">
+                                        Showing <?php echo number_format($offset + 1); ?> to <?php echo number_format(min($offset + $per_page, $total_count)); ?> 
+                                        of <?php echo number_format($total_count); ?> donors in queue
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <div class="empty-state py-5">
                                     <div class="empty-state-icon mb-3">
@@ -656,6 +1018,15 @@ $page_title = 'Call Center Dashboard';
     .table .btn-primary .fas {
         font-size: 0.75rem;
     }
+    
+    /* Filter Panel Mobile */
+    #filterPanel .card-body .row.g-3 > div {
+        margin-bottom: 0.5rem;
+    }
+    
+    #filterPanel .input-group-sm {
+        flex-wrap: nowrap;
+    }
 }
 </style>
 
@@ -745,25 +1116,25 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Add swipe gestures for mobile
-let touchStartX = 0;
-let touchEndX = 0;
-
-document.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].screenX;
-}, { passive: true });
-
-document.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-}, { passive: true });
-
-function handleSwipe() {
-    if (touchEndX < touchStartX - 50) {
-        // Swiped left - could open filters
-        console.log('Swiped left');
+// Toggle Filters Panel
+function toggleFilters() {
+    const panel = document.getElementById('filterPanel');
+    if (panel) {
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            panel.style.display = 'none';
+        }
     }
 }
+
+// Show filters if there are active filters
+<?php if ($search || $queue_type_filter || $priority_filter || $city_filter || $balance_min !== null || $balance_max !== null || $attempts_min !== null || $attempts_max !== null): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('filterPanel').style.display = 'block';
+});
+<?php endif; ?>
 </script>
 </body>
 </html>
