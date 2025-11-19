@@ -464,12 +464,14 @@ function formatDateTime($date) {
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePersonal">
                                 <i class="fas fa-user-circle me-3 text-primary"></i> Personal Information
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-primary ms-auto me-2" data-bs-toggle="modal" data-bs-target="#editDonorModal" onclick="loadDonorData(<?php echo $donor_id; ?>)">
-                                <i class="fas fa-edit me-1"></i>Edit
-                            </button>
                         </h2>
                         <div id="collapsePersonal" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
                             <div class="accordion-body">
+                                <div class="d-flex justify-content-end mb-3">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editDonorModal" onclick="loadDonorData(<?php echo $donor_id; ?>)">
+                                        <i class="fas fa-edit me-1"></i>Edit
+                                    </button>
+                                </div>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="info-row">
