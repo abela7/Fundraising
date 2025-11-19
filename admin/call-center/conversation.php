@@ -36,11 +36,14 @@ try {
     // Get donor and pledge information (including fields for Step 2)
     $donor_query = "
         SELECT d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
-               d.preferred_language, d.church_id,
+               d.preferred_language, d.church_id, d.preferred_payment_method,
+               d.representative_id,
                COALESCE(p.amount, 0) as pledge_amount, 
                p.created_at as pledge_date,
                p.id as pledge_id,
+               p.notes as pledge_notes,
                c.name as church_name,
+               cr.name as representative_name,
                COALESCE(
                     (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
                     (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
@@ -49,6 +52,7 @@ try {
         FROM donors d
         LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
         LEFT JOIN churches c ON d.church_id = c.id
+        LEFT JOIN church_representatives cr ON d.representative_id = cr.id
         WHERE d.id = ? 
         ORDER BY p.created_at DESC 
         LIMIT 1
@@ -73,6 +77,30 @@ try {
         while ($row = $churches_query->fetch_assoc()) {
             $churches[] = $row;
         }
+    }
+    
+    // Get representatives for donor's current church (if any)
+    $representatives = [];
+    if ($donor->church_id) {
+        $rep_query = $db->prepare("
+            SELECT id, name, phone, role, is_primary 
+            FROM church_representatives 
+            WHERE church_id = ? AND is_active = 1 
+            ORDER BY is_primary DESC, name ASC
+        ");
+        $rep_query->bind_param('i', $donor->church_id);
+        $rep_query->execute();
+        $rep_result = $rep_query->get_result();
+        while ($row = $rep_result->fetch_assoc()) {
+            $representatives[] = $row;
+        }
+        $rep_query->close();
+    }
+    
+    // Extract reference number from pledge notes (digits only)
+    $reference_number = '';
+    if (!empty($donor->pledge_notes)) {
+        $reference_number = preg_replace('/\D+/', '', $donor->pledge_notes);
     }
     
     // Get payment plan templates
@@ -513,6 +541,30 @@ $page_title = 'Live Call';
             text-align: left;
             max-width: 500px;
             margin: 0 auto;
+        }
+        
+        /* Step 6 Payment Method Styles */
+        .bank-details {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+        }
+        
+        .bank-details div {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9375rem;
+        }
+        
+        .reference-options {
+            background: #fff3cd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+        }
+        
+        .reference-options strong {
+            color: #856404;
         }
         
         .conf-item label {
@@ -1056,8 +1108,134 @@ $page_title = 'Live Call';
                                     <button type="button" class="btn btn-outline-secondary" onclick="goToStep(4)">
                                         <i class="fas fa-arrow-left me-2"></i>Edit Plan
                                     </button>
-                                    <button type="button" class="btn btn-success btn-lg" onclick="submitForm()">
-                                        Create Plan & Finish Call <i class="fas fa-check-double ms-2"></i>
+                                    <button type="button" class="btn btn-primary btn-lg" onclick="goToStep(6)">
+                                        Next: Payment Method <i class="fas fa-arrow-right ms-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 6: Payment Method -->
+                    <div class="step-container" id="step6">
+                        <div class="step-card">
+                            <div class="step-header">
+                                <div class="step-title">
+                                    <span class="step-number">6</span>
+                                    Payment Method
+                                </div>
+                                <p class="text-muted mb-0">How would the donor like to make payments?</p>
+                            </div>
+                            <div class="step-body">
+                                <input type="hidden" name="payment_method" id="paymentMethodInput">
+                                
+                                <!-- Payment Method Selection -->
+                                <div class="choice-grid mb-4">
+                                    <div class="choice-card" onclick="selectPaymentMethod('bank_transfer')">
+                                        <div class="choice-icon"><i class="fas fa-university text-primary"></i></div>
+                                        <div class="choice-label">Bank Transfer</div>
+                                        <p class="text-muted mt-2 mb-0">Transfer the amount directly</p>
+                                    </div>
+                                    
+                                    <div class="choice-card" onclick="selectPaymentMethod('card')">
+                                        <div class="choice-icon"><i class="fas fa-credit-card text-info"></i></div>
+                                        <div class="choice-label">Direct Debit / Card</div>
+                                        <p class="text-muted mt-2 mb-0">Set up automatic payments</p>
+                                    </div>
+                                    
+                                    <div class="choice-card" onclick="selectPaymentMethod('cash')">
+                                        <div class="choice-icon"><i class="fas fa-money-bill-wave text-success"></i></div>
+                                        <div class="choice-label">Cash</div>
+                                        <p class="text-muted mt-2 mb-0">Pay cash to representative</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Bank Transfer / Card Details (shown when selected) -->
+                                <div id="bankDetailsSection" style="display: none;">
+                                    <div class="alert alert-info">
+                                        <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Bank Account Details</h6>
+                                        <p class="mb-2"><strong>For immediate transfers and payments:</strong></p>
+                                        <div class="bank-details">
+                                            <div class="mb-2">
+                                                <strong>Account Name:</strong> LMKATH
+                                            </div>
+                                            <div class="mb-2">
+                                                <strong>Account Number:</strong> 85455687
+                                            </div>
+                                            <div class="mb-2">
+                                                <strong>Sort Code:</strong> 53-70-44
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="alert alert-warning">
+                                        <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Important: Reference Number</h6>
+                                        <p class="mb-2">When making a transfer, please use one of the following as your reference:</p>
+                                        <div class="reference-options">
+                                            <div class="mb-2">
+                                                <strong>Option 1:</strong> Your full name: <strong><?php echo htmlspecialchars($donor->name); ?></strong>
+                                            </div>
+                                            <?php if (!empty($reference_number)): ?>
+                                            <div class="mb-2">
+                                                <strong>Option 2:</strong> Reference number: <strong class="text-primary"><?php echo htmlspecialchars($reference_number); ?></strong>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <small class="text-muted">This helps us identify your payment quickly.</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Cash - Representative Selection (shown when selected) -->
+                                <div id="cashSection" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="cash_church_id" class="form-label">Select Church</label>
+                                        <select class="form-select" id="cash_church_id" name="cash_church_id" onchange="loadRepresentatives(this.value)">
+                                            <option value="">Select Church</option>
+                                            <?php foreach ($churches as $church): ?>
+                                                <option value="<?php echo $church['id']; ?>" 
+                                                        <?php echo ($donor->church_id ?? '') == $church['id'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($church['name']); ?> 
+                                                    <?php if ($church['city']): ?>
+                                                        (<?php echo htmlspecialchars($church['city']); ?>)
+                                                    <?php endif; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <small class="text-muted">Select the church nearest to the donor</small>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="cash_representative_id" class="form-label">Select Representative</label>
+                                        <select class="form-select" id="cash_representative_id" name="cash_representative_id">
+                                            <option value="">Select Representative</option>
+                                            <?php foreach ($representatives as $rep): ?>
+                                                <option value="<?php echo $rep['id']; ?>" 
+                                                        <?php echo ($donor->representative_id ?? '') == $rep['id'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($rep['name']); ?>
+                                                    <?php if ($rep['is_primary']): ?>
+                                                        <span class="badge bg-primary">Primary</span>
+                                                    <?php endif; ?>
+                                                    <?php if ($rep['role']): ?>
+                                                        - <?php echo htmlspecialchars($rep['role']); ?>
+                                                    <?php endif; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <small class="text-muted">The representative will collect cash payments from the donor</small>
+                                    </div>
+                                    
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        The donor will be assigned to this representative for cash collection.
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(5)">
+                                        <i class="fas fa-arrow-left me-2"></i>Back
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-lg" id="btnStep6Next" onclick="submitForm()" disabled>
+                                        Complete & Finish Call <i class="fas fa-check-double ms-2"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1103,6 +1281,22 @@ $page_title = 'Live Call';
     
     // Step Logic
     function goToStep(stepNum) {
+        // Update the hidden input for conversation_stage
+        let stage = '';
+        if (stepNum === 1) stage = 'connected';
+        else if (stepNum === 2) stage = 'identity_verified';
+        else if (stepNum === 3) stage = 'pledge_discussed';
+        else if (stepNum === 4) stage = 'payment_options_discussed';
+        else if (stepNum === 5) stage = 'agreement_reached';
+        else if (stepNum === 6) stage = 'payment_method_selected';
+        
+        if (stage) {
+            const stageInput = document.getElementById('conversation_stage_input');
+            if (stageInput) {
+                stageInput.value = stage;
+            }
+        }
+        
         if (stepNum === 5) {
             updateConfirmation();
         }
@@ -1110,6 +1304,88 @@ $page_title = 'Live Call';
         document.querySelectorAll('.step-container').forEach(el => el.classList.remove('active'));
         document.getElementById('step' + stepNum).classList.add('active');
         window.scrollTo(0, 0);
+    }
+    
+    // Payment Method Selection
+    function selectPaymentMethod(method) {
+        document.getElementById('paymentMethodInput').value = method;
+        document.getElementById('btnStep6Next').disabled = false;
+        
+        // Remove selected class from all cards
+        document.querySelectorAll('#step6 .choice-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Add selected class to clicked card
+        event.currentTarget.classList.add('selected');
+        
+        // Show/hide relevant sections
+        if (method === 'cash') {
+            document.getElementById('bankDetailsSection').style.display = 'none';
+            document.getElementById('cashSection').style.display = 'block';
+            
+            // Validate cash selection
+            validateCashSelection();
+        } else {
+            document.getElementById('bankDetailsSection').style.display = 'block';
+            document.getElementById('cashSection').style.display = 'none';
+        }
+    }
+    
+    // Validate cash selection
+    function validateCashSelection() {
+        const churchId = document.getElementById('cash_church_id').value;
+        const repId = document.getElementById('cash_representative_id').value;
+        const btn = document.getElementById('btnStep6Next');
+        
+        if (churchId && repId) {
+            btn.disabled = false;
+        } else {
+            btn.disabled = true;
+        }
+    }
+    
+    // Add validation listeners for cash section
+    document.addEventListener('DOMContentLoaded', function() {
+        const cashChurch = document.getElementById('cash_church_id');
+        const cashRep = document.getElementById('cash_representative_id');
+        
+        if (cashChurch) {
+            cashChurch.addEventListener('change', validateCashSelection);
+        }
+        if (cashRep) {
+            cashRep.addEventListener('change', validateCashSelection);
+        }
+    });
+    
+    // Load representatives when church changes
+    function loadRepresentatives(churchId) {
+        if (!churchId) {
+            document.getElementById('cash_representative_id').innerHTML = '<option value="">Select Representative</option>';
+            return;
+        }
+        
+        // Show loading
+        document.getElementById('cash_representative_id').innerHTML = '<option value="">Loading...</option>';
+        
+        // Fetch representatives via AJAX
+        fetch(`get-representatives.php?church_id=${churchId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.representatives) {
+                    let html = '<option value="">Select Representative</option>';
+                    data.representatives.forEach(rep => {
+                        html += `<option value="${rep.id}">${rep.name}${rep.is_primary ? ' <span class="badge bg-primary">Primary</span>' : ''}${rep.role ? ' - ' + rep.role : ''}</option>`;
+                    });
+                    document.getElementById('cash_representative_id').innerHTML = html;
+                } else {
+                    document.getElementById('cash_representative_id').innerHTML = '<option value="">No representatives found</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading representatives:', error);
+                document.getElementById('cash_representative_id').innerHTML = '<option value="">Error loading representatives</option>';
+            });
     }
     
     // Step 1 Validation
@@ -1353,6 +1629,26 @@ $page_title = 'Live Call';
     
     function submitForm() {
         console.log('submitForm called');
+        
+        // Validate payment method is selected
+        const paymentMethod = document.getElementById('paymentMethodInput').value;
+        if (!paymentMethod) {
+            alert('Please select a payment method before completing the call.');
+            goToStep(6);
+            return;
+        }
+        
+        // If cash is selected, validate church and representative
+        if (paymentMethod === 'cash') {
+            const churchId = document.getElementById('cash_church_id').value;
+            const repId = document.getElementById('cash_representative_id').value;
+            
+            if (!churchId || !repId) {
+                alert('Please select both a church and representative for cash payments.');
+                goToStep(6);
+                return;
+            }
+        }
         
         // Check if CallWidget exists
         if (typeof CallWidget === 'undefined') {

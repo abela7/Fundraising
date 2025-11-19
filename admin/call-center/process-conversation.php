@@ -94,6 +94,11 @@ try {
     $preferred_language = $_POST['preferred_language'] ?? 'en';
     $church_id = isset($_POST['church_id']) && $_POST['church_id'] !== '' ? (int)$_POST['church_id'] : null;
     
+    // Payment Method (from Step 6)
+    $payment_method = trim($_POST['payment_method'] ?? '');
+    $cash_church_id = isset($_POST['cash_church_id']) && $_POST['cash_church_id'] !== '' ? (int)$_POST['cash_church_id'] : null;
+    $cash_representative_id = isset($_POST['cash_representative_id']) && $_POST['cash_representative_id'] !== '' ? (int)$_POST['cash_representative_id'] : null;
+    
     // Build update query dynamically based on what's provided
     $donor_updates = [];
     $donor_params = [];
@@ -132,6 +137,32 @@ try {
         $donor_types .= 'i';
     }
     
+    // Update payment method
+    if (!empty($payment_method) && in_array($payment_method, ['bank_transfer', 'card', 'cash'])) {
+        $donor_updates[] = "preferred_payment_method = ?";
+        $donor_params[] = $payment_method;
+        $donor_types .= 's';
+    }
+    
+    // If cash payment, update church and representative
+    if ($payment_method === 'cash') {
+        if ($cash_church_id !== null) {
+            $donor_updates[] = "church_id = ?";
+            $donor_params[] = $cash_church_id;
+            $donor_types .= 'i';
+        }
+        
+        // Check if representative_id column exists
+        $check_rep_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+        $has_rep_column = $check_rep_column && $check_rep_column->num_rows > 0;
+        
+        if ($has_rep_column && $cash_representative_id !== null) {
+            $donor_updates[] = "representative_id = ?";
+            $donor_params[] = $cash_representative_id;
+            $donor_types .= 'i';
+        }
+    }
+    
     // Update donor if there are any changes
     if (!empty($donor_updates)) {
         $donor_params[] = $donor_id;
@@ -153,6 +184,8 @@ try {
     // 1. Create Payment Plan
     // Using simplified INSERT based on table knowledge. 
     // Note: 'monthly_amount' column is often used for installment amount regardless of frequency.
+    $plan_payment_method = !empty($payment_method) ? $payment_method : 'bank_transfer';
+    
     $insert_plan = $db->prepare("
         INSERT INTO donor_payment_plans (
             donor_id, pledge_id, template_id, total_amount, monthly_amount, 
@@ -160,7 +193,7 @@ try {
             plan_frequency_unit, plan_frequency_number, plan_payment_day_type,
             payment_method, next_payment_due, status,
             created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'day_of_month', 'bank_transfer', ?, 'active', NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'day_of_month', ?, ?, 'active', NOW(), NOW())
     ");
     
     $template_id_db = ($template_id === 'custom' || strpos($template_id, 'def_') === 0) ? null : (int)$template_id;
@@ -169,7 +202,7 @@ try {
         throw new Exception("Prepare failed: " . $db->error);
     }
     
-    $insert_plan->bind_param('iiiddiisssis',
+    $insert_plan->bind_param('iiiddiisssss',
         $donor_id,
         $pledge_id,
         $template_id_db,
@@ -181,6 +214,7 @@ try {
         $payment_day,
         $plan_frequency_unit,
         $plan_frequency_number,
+        $plan_payment_method, // payment_method
         $start_date // next_payment_due is usually start_date
     );
     
