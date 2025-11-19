@@ -67,9 +67,9 @@ try {
             --church-info: #0288d1;
         }
         
-        /* Ensure proper spacing for sidebar */
-        .content-area {
-            padding: 1.5rem;
+        /* Dashboard specific styles */
+        .main-content {
+            padding: 2rem 1.5rem;
         }
         
         .dashboard-header {
@@ -180,6 +180,20 @@ try {
             color: #64748b;
         }
         
+        .avatar-sm {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
+        
+        .list-group-item {
+            padding: 1rem 0;
+        }
+        
+        .list-group-item:last-child {
+            border-bottom: none !important;
+        }
+        
         .city-badge {
             background: var(--church-info);
             color: white;
@@ -252,8 +266,8 @@ try {
         
         /* Mobile Responsive */
         @media (max-width: 992px) {
-            .content-area {
-                padding: 1rem;
+            .main-content {
+                padding: 1.5rem 1rem;
             }
             
             .dashboard-header {
@@ -295,44 +309,15 @@ try {
                 font-size: 1.25rem;
             }
             
-            /* Make table responsive - card view on mobile */
-            .church-table {
+            /* Responsive list groups */
+            .list-group-item {
+                padding: 0.75rem 0;
+            }
+            
+            .avatar-sm {
+                width: 35px;
+                height: 35px;
                 font-size: 0.875rem;
-            }
-            
-            .church-table thead {
-                display: none;
-            }
-            
-            .church-table tbody tr {
-                display: block;
-                margin-bottom: 1rem;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 1rem;
-            }
-            
-            .church-table tbody td {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 0.5rem 0;
-                border: none;
-            }
-            
-            .church-table tbody td:before {
-                content: attr(data-label);
-                font-weight: 600;
-                color: #64748b;
-                margin-right: 1rem;
-            }
-            
-            .church-name {
-                font-size: 1rem;
-            }
-            
-            .church-address {
-                font-size: 0.75rem;
             }
             
             .quick-action-card {
@@ -370,13 +355,13 @@ try {
     </style>
 </head>
 <body>
-<div class="layout-wrapper">
+<div class="admin-wrapper">
     <?php include __DIR__ . '/../includes/sidebar.php'; ?>
     
-    <div class="main-content">
+    <div class="admin-content">
         <?php include __DIR__ . '/../includes/topbar.php'; ?>
         
-        <main class="content-area">
+        <main class="main-content">
             <div class="container-fluid">
                 
                 <!-- Dashboard Header -->
@@ -482,69 +467,90 @@ try {
                     </div>
                 </div>
                 
-                <!-- Churches Table -->
-                <div class="church-table">
-                    <div class="p-4 border-bottom">
-                        <h5 class="mb-0"><i class="fas fa-church me-2 text-primary"></i>All Churches</h5>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Church Name</th>
-                                    <th>City</th>
-                                    <th>Representatives</th>
-                                    <th>Donors</th>
-                                    <th>Phone</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if ($churches_result && $churches_result->num_rows > 0): ?>
-                                    <?php while ($church = $churches_result->fetch_assoc()): ?>
-                                    <tr>
-                                        <td data-label="Church Name">
-                                            <div class="church-name"><?php echo htmlspecialchars($church['name']); ?></div>
-                                            <div class="church-address"><?php echo htmlspecialchars($church['address'] ?? 'N/A'); ?></div>
-                                        </td>
-                                        <td data-label="City">
-                                            <span class="city-badge"><?php echo htmlspecialchars($church['city']); ?></span>
-                                        </td>
-                                        <td data-label="Representatives">
-                                            <span class="count-badge">
-                                                <i class="fas fa-user-tie"></i><?php echo $church['rep_count']; ?>
-                                            </span>
-                                        </td>
-                                        <td data-label="Donors">
-                                            <span class="count-badge">
-                                                <i class="fas fa-users"></i><?php echo $church['donor_count']; ?>
-                                            </span>
-                                        </td>
-                                        <td data-label="Phone"><?php echo htmlspecialchars($church['phone'] ?? '-'); ?></td>
-                                        <td data-label="Actions">
-                                            <div class="d-flex gap-2">
-                                                <a href="view-church.php?id=<?php echo $church['id']; ?>" 
-                                                   class="btn btn-sm btn-outline-primary action-btn">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <a href="edit-church.php?id=<?php echo $church['id']; ?>" 
-                                                   class="btn btn-sm btn-outline-warning action-btn">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
+                <!-- Recent Activity / Overview -->
+                <div class="row g-4">
+                    <!-- Cities Breakdown -->
+                    <div class="col-lg-6">
+                        <div class="church-table">
+                            <div class="p-4 border-bottom">
+                                <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2 text-info"></i>Churches by City</h5>
+                            </div>
+                            <div class="p-4">
+                                <?php
+                                $cities_breakdown = $db->query("
+                                    SELECT city, COUNT(*) as count 
+                                    FROM churches 
+                                    WHERE is_active = 1 
+                                    GROUP BY city 
+                                    ORDER BY count DESC 
+                                    LIMIT 10
+                                ");
+                                if ($cities_breakdown && $cities_breakdown->num_rows > 0):
+                                ?>
+                                    <div class="list-group list-group-flush">
+                                        <?php while ($city = $cities_breakdown->fetch_assoc()): ?>
+                                        <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                                            <div>
+                                                <i class="fas fa-map-marker-alt text-info me-2"></i>
+                                                <strong><?php echo htmlspecialchars($city['city']); ?></strong>
                                             </div>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
+                                            <span class="badge bg-primary rounded-pill"><?php echo $city['count']; ?> church<?php echo $city['count'] > 1 ? 'es' : ''; ?></span>
+                                        </div>
+                                        <?php endwhile; ?>
+                                    </div>
                                 <?php else: ?>
-                                    <tr>
-                                        <td colspan="6" class="text-center py-5 text-muted">
-                                            <i class="fas fa-church fa-3x mb-3 d-block opacity-25"></i>
-                                            No churches found. <a href="add-church.php">Add your first church</a>
-                                        </td>
-                                    </tr>
+                                    <p class="text-muted text-center py-4">No data available</p>
                                 <?php endif; ?>
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Representatives -->
+                    <div class="col-lg-6">
+                        <div class="church-table">
+                            <div class="p-4 border-bottom">
+                                <h5 class="mb-0"><i class="fas fa-users me-2 text-success"></i>Recent Representatives</h5>
+                            </div>
+                            <div class="p-4">
+                                <?php
+                                $recent_reps = $db->query("
+                                    SELECT cr.name, cr.role, c.name as church_name, c.city
+                                    FROM church_representatives cr
+                                    JOIN churches c ON cr.church_id = c.id
+                                    WHERE cr.is_active = 1
+                                    ORDER BY cr.created_at DESC
+                                    LIMIT 8
+                                ");
+                                if ($recent_reps && $recent_reps->num_rows > 0):
+                                ?>
+                                    <div class="list-group list-group-flush">
+                                        <?php while ($rep = $recent_reps->fetch_assoc()): ?>
+                                        <div class="list-group-item border-0 px-0">
+                                            <div class="d-flex align-items-start">
+                                                <div class="flex-shrink-0">
+                                                    <div class="avatar-sm bg-success bg-opacity-10 text-success rounded-circle d-flex align-items-center justify-content-center">
+                                                        <i class="fas fa-user-tie"></i>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-grow-1 ms-3">
+                                                    <h6 class="mb-1"><?php echo htmlspecialchars($rep['name']); ?></h6>
+                                                    <p class="mb-0 small text-muted">
+                                                        <span class="badge bg-light text-dark"><?php echo htmlspecialchars($rep['role']); ?></span>
+                                                        • <?php echo htmlspecialchars($rep['church_name']); ?>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <?php endwhile; ?>
+                                    </div>
+                                    <div class="text-center mt-3">
+                                        <a href="representatives.php" class="btn btn-outline-primary btn-sm">View All Representatives</a>
+                                    </div>
+                                <?php else: ?>
+                                    <p class="text-muted text-center py-4">No representatives found</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
