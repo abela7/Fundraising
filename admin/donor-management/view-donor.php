@@ -392,20 +392,6 @@ function formatDateTime($date) {
                     <a href="donors.php" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to List
                     </a>
-                    <div class="d-flex gap-2">
-                        <a href="../../call-center/make-call.php?donor_id=<?php echo $donor['id']; ?>" class="btn btn-success">
-                            <i class="fas fa-phone-alt me-2"></i>Call Donor
-                        </a>
-                        <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-cog me-2"></i>Actions
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end w-100">
-                            <li><a class="dropdown-menu-item dropdown-item" href="#"><i class="fas fa-edit me-2"></i>Edit Profile</a></li>
-                            <li><a class="dropdown-menu-item dropdown-item" href="#"><i class="fas fa-envelope me-2"></i>Send Email</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-menu-item dropdown-item text-danger" href="#"><i class="fas fa-trash-alt me-2"></i>Delete Donor</a></li>
-                        </ul>
-                    </div>
                 </div>
 
                 <!-- Top Summary Card -->
