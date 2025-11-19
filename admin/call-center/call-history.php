@@ -255,84 +255,11 @@ $page_title = 'Call History';
                                                 <small><?php echo $agent_name; ?></small>
                                             </td>
                                             <td>
-                                                <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#callDetailModal<?php echo $call->id; ?>">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
+                                                <a href="call-details.php?id=<?php echo $call->id; ?>" class="btn btn-sm btn-outline-primary">
+                                                    View
+                                                </a>
                                             </td>
                                         </tr>
-
-                                        <!-- Call Detail Modal -->
-                                        <div class="modal fade" id="callDetailModal<?php echo $call->id; ?>" tabindex="-1">
-                                            <div class="modal-dialog modal-lg">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Call Details - <?php echo $donor_name; ?></h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="row g-3">
-                                                            <div class="col-md-6">
-                                                                <label class="fw-bold">Date & Time:</label>
-                                                                <p><?php echo $call->call_started_at ? date('F j, Y g:i A', strtotime($call->call_started_at)) : 'N/A'; ?></p>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="fw-bold">Duration:</label>
-                                                                <p><?php echo $formatted_duration; ?></p>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="fw-bold">Outcome:</label>
-                                                                <p><span class="outcome-badge outcome-<?php echo $outcome_class; ?>">
-                                                                    <?php echo $outcome_label; ?>
-                                                                </span></p>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="fw-bold">Conversation Stage:</label>
-                                                                <p><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage ?? 'Unknown')); ?></p>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="fw-bold">Donor Response:</label>
-                                                                <p><?php echo ucwords($call->donor_response_type ?? 'N/A'); ?></p>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="fw-bold">Call Quality:</label>
-                                                                <p><?php echo $call->call_quality ? ucwords($call->call_quality) : 'N/A'; ?></p>
-                                                            </div>
-                                                            
-                                                            <?php if (!empty($call->callback_scheduled_for)): ?>
-                                                            <div class="col-12">
-                                                                <div class="alert alert-warning">
-                                                                    <i class="fas fa-calendar-check me-2"></i>
-                                                                    Callback Scheduled: <?php echo date('F j, Y g:i A', strtotime($call->callback_scheduled_for)); ?>
-                                                                    <?php if (!empty($call->callback_reason)): ?>
-                                                                        <br><small>Reason: <?php echo htmlspecialchars($call->callback_reason); ?></small>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </div>
-                                                            <?php endif; ?>
-
-                                                            <div class="col-12">
-                                                                <label class="fw-bold">Call Notes:</label>
-                                                                <p><?php echo nl2br(htmlspecialchars($call->notes ?? 'No notes recorded.')); ?></p>
-                                                            </div>
-
-                                                            <div class="col-12 mt-3">
-                                                                <small class="text-muted">
-                                                                    <i class="fas fa-user me-1"></i>Agent: <?php echo $agent_name; ?>
-                                                                </small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <a href="make-call.php?donor_id=<?php echo $call->donor_id; ?>" class="btn btn-success">
-                                                            <i class="fas fa-phone me-2"></i>Call Again
-                                                        </a>
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
