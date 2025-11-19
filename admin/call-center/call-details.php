@@ -73,256 +73,205 @@ $page_title = 'Call Details';
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/call-center.css">
     <style>
-        /* Call Details Page Enhancements */
+        /* Call Details - Clean & Compact Design */
         :root {
-            --detail-primary: #1e3a5f;
-            --detail-danger: #dc3545;
-            --detail-success: #28a745;
-            --detail-warning: #ffc107;
-            --detail-light-bg: #f8f9fa;
-            --detail-border: #e9ecef;
+            --primary-blue: #0a6286;
+            --primary-red: #dc3545;
+            --light-gray: #f8f9fa;
+            --border-color: #e0e0e0;
         }
         
-        .detail-header {
-            background: linear-gradient(135deg, var(--detail-primary) 0%, #2c5282 100%);
+        .call-details-header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, #075985 100%);
             color: white;
-            padding: 1.5rem;
+            padding: 1.25rem;
             border-radius: 8px;
             margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(10, 98, 134, 0.15);
         }
         
-        .detail-header h1 {
+        .call-details-header h1 {
             font-size: 1.5rem;
             font-weight: 600;
-            margin: 0;
-            color: white;
-        }
-        
-        .detail-header .subtitle {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-top: 0.25rem;
-        }
-        
-        .detail-card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid var(--detail-border);
-            overflow: hidden;
-            height: 100%;
-        }
-        
-        .detail-card-header {
-            background: var(--detail-light-bg);
-            padding: 1rem 1.25rem;
-            border-bottom: 2px solid var(--detail-primary);
-        }
-        
-        .detail-card-header h5 {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--detail-primary);
-        }
-        
-        .detail-card-body {
-            padding: 1.25rem;
-        }
-        
-        .info-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            color: #6c757d;
-            margin-bottom: 0.5rem;
-        }
-        
-        .info-value {
-            font-size: 1rem;
-            color: #212529;
-            font-weight: 500;
-        }
-        
-        .info-value-large {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--detail-primary);
-        }
-        
-        .outcome-badge {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        .outcome-badge.outcome-payment-plan-created,
-        .outcome-badge.outcome-picked-up {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .outcome-badge.outcome-callback-requested,
-        .outcome-badge.outcome-not-answered {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-        
-        .outcome-badge.outcome-invalid-number {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .notes-box {
-            background: var(--detail-light-bg);
-            border: 1px solid var(--detail-border);
-            border-radius: 6px;
-            padding: 1rem;
-            min-height: 100px;
-            color: #495057;
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-        
-        .donor-avatar {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--detail-primary) 0%, #2c5282 100%);
-            color: white;
-            font-size: 2rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            margin: 0 auto 1rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
-        
-        .donor-name {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--detail-primary);
             margin-bottom: 0.25rem;
         }
         
-        .donor-city {
-            color: #6c757d;
+        .call-details-header p {
+            margin: 0;
+            opacity: 0.9;
             font-size: 0.9rem;
-        }
-        
-        .contact-item {
-            padding: 0.75rem;
-            background: var(--detail-light-bg);
-            border-radius: 6px;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-        }
-        
-        .contact-item i {
-            color: var(--detail-primary);
-            font-size: 1.1rem;
-            width: 24px;
-        }
-        
-        .contact-item a {
-            color: #212529;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        
-        .contact-item a:hover {
-            color: var(--detail-primary);
         }
         
         .action-buttons {
             display: flex;
             gap: 0.5rem;
             flex-wrap: wrap;
+            margin-top: 1rem;
         }
         
-        .btn-call-primary {
-            background: var(--detail-primary);
-            border-color: var(--detail-primary);
-            color: white;
+        .action-buttons .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            border-radius: 6px;
         }
         
-        .btn-call-primary:hover {
-            background: #2c5282;
-            border-color: #2c5282;
-            color: white;
+        .info-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
-        .btn-call-danger {
-            background: var(--detail-danger);
-            border-color: var(--detail-danger);
-            color: white;
+        .info-card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary-blue);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         
-        .btn-call-danger:hover {
-            background: #c82333;
-            border-color: #c82333;
-            color: white;
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+        }
+        
+        .info-item-inline {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .info-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6c757d;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #212529;
+        }
+        
+        .outcome-pill {
+            display: inline-block;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .outcome-payment-plan-created { background: #d1f4e0; color: #0d7f4d; }
+        .outcome-callback-requested { background: #fff3cd; color: #856404; }
+        .outcome-not-answered { background: #f8d7da; color: #721c24; }
+        .outcome-busy { background: #ffeaa7; color: #d63031; }
+        .outcome-invalid-number { background: #e0e0e0; color: #495057; }
+        
+        .notes-box {
+            background: var(--light-gray);
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            color: #495057;
+            margin-top: 0.5rem;
         }
         
         .plan-highlight {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            border-left: 4px solid var(--detail-success);
+            background: linear-gradient(135deg, #d1f4e0 0%, #b8e6cc 100%);
+            border: 2px solid #0d7f4d;
+            border-radius: 8px;
             padding: 1.25rem;
-            border-radius: 6px;
+            margin-bottom: 1rem;
         }
         
         .plan-amount {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            color: var(--detail-success);
+            color: #0d7f4d;
         }
         
         .callback-highlight {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-            border-left: 4px solid var(--detail-warning);
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
             padding: 1.25rem;
-            border-radius: 6px;
+            margin-bottom: 1rem;
         }
         
-        .timeline-item {
-            border-left: 2px solid var(--detail-border);
-            padding-left: 1rem;
-            padding-bottom: 1rem;
-            position: relative;
+        .donor-profile-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.25rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
-        .timeline-item:last-child {
-            border-left: 0;
-        }
-        
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -6px;
-            top: 0;
-            width: 10px;
-            height: 10px;
+        .donor-avatar {
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
-            background: var(--detail-primary);
-            border: 2px solid white;
+            background: var(--primary-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0 auto 0.75rem;
+        }
+        
+        .donor-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 0.25rem;
+        }
+        
+        .donor-contact {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary-custom {
+            background: var(--primary-blue);
+            border: none;
+            color: white;
+        }
+        
+        .btn-primary-custom:hover {
+            background: #075985;
+            color: white;
+        }
+        
+        .btn-danger-custom {
+            background: var(--primary-red);
+            border: none;
+            color: white;
+        }
+        
+        .btn-danger-custom:hover {
+            background: #bb2d3b;
+            color: white;
         }
         
         /* Mobile Responsive */
         @media (max-width: 768px) {
-            .detail-header {
-                padding: 1rem;
-            }
-            
-            .detail-header h1 {
+            .call-details-header h1 {
                 font-size: 1.25rem;
             }
             
@@ -334,26 +283,12 @@ $page_title = 'Call Details';
                 width: 100%;
             }
             
-            .detail-card-body {
-                padding: 1rem;
-            }
-            
-            .donor-avatar {
-                width: 64px;
-                height: 64px;
-                font-size: 1.5rem;
-            }
-            
-            .donor-name {
-                font-size: 1.1rem;
+            .info-grid {
+                grid-template-columns: 1fr;
             }
             
             .plan-amount {
                 font-size: 1.5rem;
-            }
-            
-            .info-value-large {
-                font-size: 1.25rem;
             }
         }
     </style>
@@ -366,171 +301,132 @@ $page_title = 'Call Details';
         <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid">
-                <!-- Header -->
-                <div class="detail-header">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                        <div>
-                            <h1>
-                                <i class="fas fa-phone-alt me-2"></i>
-                                Call Record #<?php echo $call->id; ?>
-                            </h1>
-                            <div class="subtitle">
-                                <i class="far fa-clock me-1"></i>
-                                <?php echo date('l, F j, Y \a\t g:i A', strtotime($call->call_started_at)); ?>
-                            </div>
-                        </div>
-                        <div class="action-buttons">
-                            <a href="call-history.php" class="btn btn-light btn-sm">
-                                <i class="fas fa-arrow-left me-1"></i>Back
-                            </a>
-                            <a href="edit-call-record.php?id=<?php echo $call->id; ?>" class="btn btn-light btn-sm">
-                                <i class="fas fa-edit me-1"></i>Edit
-                            </a>
-                            <?php if ($is_admin || $call->agent_id == $user_id): ?>
-                            <button type="button" class="btn btn-light btn-sm" onclick="confirmDelete(<?php echo $call->id; ?>)">
-                                <i class="fas fa-trash-alt me-1"></i>Delete
-                            </button>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+            <!-- Header -->
+            <div class="call-details-header">
+                <h1><i class="fas fa-phone-volume me-2"></i>Call Record #<?php echo $call->id; ?></h1>
+                <p><i class="far fa-clock me-2"></i><?php echo date('l, F j, Y • g:i A', strtotime($call->call_started_at)); ?></p>
+                
+                <div class="action-buttons">
+                    <a href="call-history.php" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Back to History
+                    </a>
+                    <a href="edit-call-record.php?id=<?php echo $call->id; ?>" class="btn btn-light btn-sm">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </a>
+                    <?php if ($is_admin || $call->agent_id == $user_id): ?>
+                    <button type="button" class="btn btn-danger-custom btn-sm" onclick="confirmDelete(<?php echo $call->id; ?>)">
+                        <i class="fas fa-trash-alt me-1"></i>Delete
+                    </button>
+                    <?php endif; ?>
                 </div>
+            </div>
 
-                <div class="row g-3 g-md-4">
-                <!-- Main Info -->
-                <div class="col-lg-8 col-md-12">
-                    <div class="detail-card mb-3 mb-md-4">
-                        <div class="detail-card-header">
-                            <h5><i class="fas fa-info-circle me-2"></i>Call Information</h5>
+            <div class="row g-3">
+                <!-- Main Column -->
+                <div class="col-lg-8">
+                    <!-- Call Information -->
+                    <div class="info-card">
+                        <div class="info-card-title">
+                            <i class="fas fa-info-circle"></i>Call Information
                         </div>
-                        <div class="detail-card-body">
-                            <div class="row g-3 g-md-4">
-                                <div class="col-md-6 col-12">
-                                    <div class="info-label">Outcome</div>
-                                    <div>
-                                        <span class="outcome-badge outcome-<?php echo str_replace('_', '-', $call->outcome); ?>">
-                                            <?php echo ucwords(str_replace('_', ' ', $call->outcome)); ?>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 col-12">
-                                    <div class="info-label">Duration</div>
-                                    <div class="info-value-large"><?php echo $formatted_duration; ?></div>
-                                </div>
-                                <div class="col-md-6 col-12">
-                                    <div class="info-label">Agent</div>
-                                    <div class="info-value"><?php echo htmlspecialchars($call->agent_name ?? 'Unknown'); ?></div>
-                                </div>
-                                <div class="col-md-6 col-12">
-                                    <div class="info-label">Call Stage</div>
-                                    <div class="info-value"><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage)); ?></div>
-                                </div>
-                                
-                                <div class="col-12 mt-3 mt-md-4">
-                                    <div class="info-label">Call Notes</div>
-                                    <div class="notes-box">
-                                        <?php echo nl2br(htmlspecialchars($call->notes ?? 'No notes recorded.')); ?>
-                                    </div>
-                                </div>
+                        <div class="info-grid">
+                            <div class="info-item-inline">
+                                <span class="info-label">Outcome</span>
+                                <span class="outcome-pill outcome-<?php echo str_replace('_', '-', $call->outcome); ?>">
+                                    <?php echo ucwords(str_replace('_', ' ', $call->outcome)); ?>
+                                </span>
+                            </div>
+                            <div class="info-item-inline">
+                                <span class="info-label">Duration</span>
+                                <span class="info-value"><?php echo $formatted_duration; ?></span>
+                            </div>
+                            <div class="info-item-inline">
+                                <span class="info-label">Agent</span>
+                                <span class="info-value"><?php echo htmlspecialchars($call->agent_name ?? 'Unknown'); ?></span>
+                            </div>
+                            <div class="info-item-inline">
+                                <span class="info-label">Stage</span>
+                                <span class="info-value"><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage)); ?></span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <span class="info-label">Notes</span>
+                            <div class="notes-box">
+                                <?php echo nl2br(htmlspecialchars($call->notes ?: 'No notes recorded for this call.')); ?>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Payment Plan Section -->
+                    <!-- Payment Plan -->
                     <?php if ($call->payment_plan_id): ?>
-                    <div class="detail-card mb-3 mb-md-4">
-                        <div class="detail-card-body p-0">
-                            <div class="plan-highlight">
-                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-                                    <div>
-                                        <div class="d-flex align-items-center mb-2">
-                                            <i class="fas fa-check-circle text-success me-2" style="font-size: 1.5rem;"></i>
-                                            <h5 class="mb-0 fw-bold" style="color: #155724;">Payment Plan Created</h5>
-                                        </div>
-                                        <div class="plan-amount">£<?php echo number_format((float)$call->plan_amount, 2); ?></div>
-                                        <div class="text-muted fw-500 mb-2">Total Pledged Amount</div>
-                                        <span class="badge bg-success">
-                                            <?php echo ucfirst($call->plan_status); ?>
-                                        </span>
-                                    </div>
-                                    <div class="d-flex flex-column gap-2">
-                                        <a href="../donor-management/payment-plans.php?id=<?php echo $call->payment_plan_id; ?>" class="btn btn-success btn-sm">
-                                            <i class="fas fa-eye me-1"></i>View Plan
-                                        </a>
-                                        <a href="edit-payment-plan-flow.php?plan_id=<?php echo $call->payment_plan_id; ?>&session_id=<?php echo $call->id; ?>" class="btn btn-outline-success btn-sm">
-                                            <i class="fas fa-redo me-1"></i>Redo Plan
-                                        </a>
-                                    </div>
+                    <div class="plan-highlight">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                            <div>
+                                <div class="info-label mb-2">
+                                    <i class="fas fa-file-invoice-dollar me-1"></i>Payment Plan Created
                                 </div>
+                                <div class="plan-amount">£<?php echo number_format((float)$call->plan_amount, 2); ?></div>
+                                <div class="mt-2">
+                                    <span class="badge bg-success">Status: <?php echo ucfirst($call->plan_status); ?></span>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <a href="../donor-management/payment-plans.php?id=<?php echo $call->payment_plan_id; ?>" class="btn btn-sm btn-success">
+                                    <i class="fas fa-eye me-1"></i>View Plan
+                                </a>
+                                <a href="edit-payment-plan-flow.php?plan_id=<?php echo $call->payment_plan_id; ?>&session_id=<?php echo $call->id; ?>" class="btn btn-sm btn-outline-success">
+                                    <i class="fas fa-redo me-1"></i>Redo Plan
+                                </a>
                             </div>
                         </div>
                     </div>
                     <?php endif; ?>
 
-                    <!-- Callback Section -->
+                    <!-- Callback -->
                     <?php if ($call->callback_scheduled_for): ?>
-                    <div class="detail-card mb-3 mb-md-4">
-                        <div class="detail-card-body p-0">
-                            <div class="callback-highlight">
-                                <div class="d-flex align-items-center mb-3">
-                                    <i class="fas fa-calendar-clock text-warning me-2" style="font-size: 1.5rem;"></i>
-                                    <h5 class="mb-0 fw-bold" style="color: #856404;">Callback Scheduled</h5>
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6 col-12">
-                                        <div class="info-label">Scheduled For</div>
-                                        <div class="info-value-large" style="color: #856404;"><?php echo date('M j, Y', strtotime($call->callback_scheduled_for)); ?></div>
-                                        <div class="text-muted"><?php echo date('g:i A', strtotime($call->callback_scheduled_for)); ?></div>
-                                    </div>
-                                    <div class="col-md-6 col-12">
-                                        <div class="info-label">Reason</div>
-                                        <div class="info-value"><?php echo htmlspecialchars($call->callback_reason ?? 'Not specified'); ?></div>
-                                    </div>
-                                </div>
+                    <div class="callback-highlight">
+                        <div class="info-label mb-2">
+                            <i class="fas fa-calendar-check me-1"></i>Callback Scheduled
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="info-label mb-1">Scheduled For</div>
+                                <div class="fw-bold"><?php echo date('D, M j, Y • g:i A', strtotime($call->callback_scheduled_for)); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-label mb-1">Reason</div>
+                                <div><?php echo htmlspecialchars($call->callback_reason ?: 'Not specified'); ?></div>
                             </div>
                         </div>
                     </div>
                     <?php endif; ?>
                 </div>
 
-                <!-- Sidebar Info -->
-                <div class="col-lg-4 col-md-12">
-                    <div class="detail-card mb-3 mb-md-4">
-                        <div class="detail-card-header">
-                            <h5><i class="fas fa-user me-2"></i>Donor Profile</h5>
+                <!-- Donor Profile Sidebar -->
+                <div class="col-lg-4">
+                    <div class="donor-profile-card">
+                        <div class="donor-avatar">
+                            <?php echo strtoupper(substr($call->donor_name, 0, 1)); ?>
                         </div>
-                        <div class="detail-card-body">
-                            <div class="text-center mb-4">
-                                <div class="donor-avatar">
-                                    <?php echo strtoupper(substr($call->donor_name, 0, 1)); ?>
-                                </div>
-                                <div class="donor-name"><?php echo htmlspecialchars($call->donor_name); ?></div>
-                                <div class="donor-city">
-                                    <i class="fas fa-map-marker-alt me-1"></i>
-                                    <?php echo htmlspecialchars($call->donor_city ?? 'Location not set'); ?>
-                                </div>
-                            </div>
-                            
-                            <div class="contact-item">
-                                <i class="fas fa-phone me-2"></i>
-                                <a href="tel:<?php echo htmlspecialchars($call->donor_phone); ?>"><?php echo htmlspecialchars($call->donor_phone); ?></a>
-                            </div>
-                            
-                            <?php if ($call->donor_email): ?>
-                            <div class="contact-item">
-                                <i class="fas fa-envelope me-2"></i>
-                                <a href="mailto:<?php echo htmlspecialchars($call->donor_email); ?>"><?php echo htmlspecialchars($call->donor_email); ?></a>
-                            </div>
-                            <?php endif; ?>
-                            
-                            <div class="d-grid gap-2 mt-4">
-                                <a href="make-call.php?donor_id=<?php echo $call->donor_id; ?>" class="btn btn-call-primary">
-                                    <i class="fas fa-phone me-2"></i>Call Again
-                                </a>
-                                <a href="../donor-management/view-donor.php?id=<?php echo $call->donor_id; ?>" class="btn btn-outline-secondary">
-                                    <i class="fas fa-user me-2"></i>View Profile
-                                </a>
-                            </div>
+                        <div class="donor-name"><?php echo htmlspecialchars($call->donor_name); ?></div>
+                        <?php if ($call->donor_city): ?>
+                        <div class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($call->donor_city); ?></div>
+                        <?php endif; ?>
+                        
+                        <div class="donor-contact">
+                            <a href="tel:<?php echo htmlspecialchars($call->donor_phone); ?>" class="text-decoration-none">
+                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($call->donor_phone); ?>
+                            </a>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-3">
+                            <a href="make-call.php?donor_id=<?php echo $call->donor_id; ?>" class="btn btn-success btn-sm">
+                                <i class="fas fa-phone me-1"></i>Call Again
+                            </a>
+                            <a href="../donor-management/view-donor.php?id=<?php echo $call->donor_id; ?>" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-user me-1"></i>View Full Profile
+                            </a>
                         </div>
                     </div>
                 </div>

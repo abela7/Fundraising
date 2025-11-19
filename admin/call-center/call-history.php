@@ -1,16 +1,14 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
-require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 
 $db = db();
 $user_id = (int)($_SESSION['user']['id'] ?? 0);
 $user_role = $_SESSION['user']['role'] ?? 'registrar';
-$is_admin = ($user_role === 'admin');
 
-// Filter parameters (needed for redirects)
+// Filter parameters
 $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : null;
 $outcome_filter = $_GET['outcome'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
@@ -23,159 +21,6 @@ if (isset($_GET['agent'])) {
     $agent_filter = $_GET['agent'];
 } else {
     $agent_filter = (string)$user_id;
-}
-
-// Handle success messages from redirects
-$message = '';
-$message_type = '';
-if (isset($_GET['msg'])) {
-    $message = urldecode($_GET['msg']);
-    $message_type = 'success';
-}
-
-// Handle bulk actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
-    verify_csrf();
-    
-    $bulk_action = $_POST['bulk_action'] ?? '';
-    $selected_ids = $_POST['selected_ids'] ?? [];
-    
-    if (!is_array($selected_ids) || count($selected_ids) === 0) {
-        $message = 'No records selected.';
-        $message_type = 'warning';
-    } else {
-        $selected_ids = array_values(array_unique(array_map('intval', $selected_ids)));
-        $placeholders = implode(',', array_fill(0, count($selected_ids), '?'));
-        $types = str_repeat('i', count($selected_ids));
-        
-        $db->begin_transaction();
-        try {
-            if ($bulk_action === 'delete') {
-                // Delete selected call records
-                $delete_query = "DELETE FROM call_center_sessions WHERE id IN ($placeholders)";
-                $stmt = $db->prepare($delete_query);
-                $stmt->bind_param($types, ...$selected_ids);
-                $stmt->execute();
-                $affected = $stmt->affected_rows;
-                $stmt->close();
-                
-                // Audit log
-                $summary = json_encode(['action' => 'bulk_delete', 'count' => $affected, 'ids' => $selected_ids]);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'call_session', 0, 'bulk_delete', NULL, ?, 'admin')");
-                $log->bind_param('is', $user_id, $summary);
-                $log->execute();
-                
-                $db->commit();
-                // Redirect to prevent resubmission - preserve current filters
-                $redirect_params = array_filter([
-                    'donor_id' => $donor_id ?? null,
-                    'outcome' => $outcome_filter ?? null,
-                    'date_from' => $date_from ?? null,
-                    'date_to' => $date_to ?? null,
-                    'agent' => $agent_filter ?? null,
-                    'msg' => "Successfully deleted $affected call record(s)."
-                ]);
-                header('Location: call-history.php?' . http_build_query($redirect_params));
-                exit;
-                
-            } elseif ($bulk_action === 'export') {
-                // Export to CSV
-                $db->commit(); // Close transaction before export
-                
-                header('Content-Type: text/csv; charset=utf-8');
-                header('Content-Disposition: attachment; filename="call_history_' . date('Y-m-d_His') . '.csv"');
-                
-                $output = fopen('php://output', 'w');
-                
-                // CSV headers
-                fputcsv($output, [
-                    'ID', 'Date & Time', 'Donor Name', 'Phone', 'Outcome', 
-                    'Stage', 'Duration (seconds)', 'Agent', 'Notes'
-                ]);
-                
-                // Fetch selected records
-                $export_query = "
-                    SELECT 
-                        s.id,
-                        s.call_started_at,
-                        COALESCE(d.name, 'Unknown Donor') as donor_name,
-                        d.phone as donor_phone,
-                        s.outcome,
-                        s.conversation_stage,
-                        s.duration_seconds,
-                        COALESCE(u.name, 'Unknown Agent') as agent_name,
-                        s.notes
-                    FROM call_center_sessions s
-                    LEFT JOIN donors d ON s.donor_id = d.id
-                    LEFT JOIN users u ON s.agent_id = u.id
-                    WHERE s.id IN ($placeholders)
-                    ORDER BY s.call_started_at DESC
-                ";
-                
-                $stmt = $db->prepare($export_query);
-                $stmt->bind_param($types, ...$selected_ids);
-                $stmt->execute();
-                $export_result = $stmt->get_result();
-                
-                while ($row = $export_result->fetch_assoc()) {
-                    $call_date = $row['call_started_at'] ? date('Y-m-d H:i:s', strtotime($row['call_started_at'])) : '';
-                    fputcsv($output, [
-                        $row['id'],
-                        $call_date,
-                        $row['donor_name'],
-                        $row['donor_phone'] ?? '',
-                        ucwords(str_replace('_', ' ', $row['outcome'] ?? '')),
-                        ucwords(str_replace('_', ' ', $row['conversation_stage'] ?? '')),
-                        $row['duration_seconds'] ?? 0,
-                        $row['agent_name'],
-                        $row['notes'] ?? ''
-                    ]);
-                }
-                
-                fclose($output);
-                $stmt->close();
-                exit;
-                
-            } elseif ($bulk_action === 'mark_reviewed' && $is_admin) {
-                // Mark as reviewed (if requires_supervisor_review field exists)
-                // Note: This assumes the field exists. If not, we'll skip it gracefully.
-                $update_query = "UPDATE call_center_sessions SET requires_supervisor_review = 0 WHERE id IN ($placeholders)";
-                $stmt = $db->prepare($update_query);
-                $stmt->bind_param($types, ...$selected_ids);
-                $stmt->execute();
-                $affected = $stmt->affected_rows;
-                $stmt->close();
-                
-                // Audit log
-                $summary = json_encode(['action' => 'bulk_mark_reviewed', 'count' => $affected]);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'call_session', 0, 'bulk_mark_reviewed', NULL, ?, 'admin')");
-                $log->bind_param('is', $user_id, $summary);
-                $log->execute();
-                
-                $db->commit();
-                // Redirect to prevent resubmission - preserve current filters
-                $redirect_params = array_filter([
-                    'donor_id' => $donor_id ?? null,
-                    'outcome' => $outcome_filter ?? null,
-                    'date_from' => $date_from ?? null,
-                    'date_to' => $date_to ?? null,
-                    'agent' => $agent_filter ?? null,
-                    'msg' => "Marked $affected call record(s) as reviewed."
-                ]);
-                header('Location: call-history.php?' . http_build_query($redirect_params));
-                exit;
-            } else {
-                $db->rollback();
-                $message = 'Invalid bulk action.';
-                $message_type = 'danger';
-            }
-        } catch (Throwable $e) {
-            $db->rollback();
-            error_log("Bulk action error: " . $e->getMessage());
-            $message = 'An error occurred: ' . htmlspecialchars($e->getMessage());
-            $message_type = 'danger';
-        }
-    }
 }
 
 // Build query
@@ -338,36 +183,12 @@ $page_title = 'Call History';
                 </div>
             </div>
 
-            <?php if ($message): ?>
-            <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
-                <?php echo htmlspecialchars($message); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php endif; ?>
-
             <!-- Call History List -->
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         Call Records (<?php echo $history_result->num_rows; ?>)
                     </h5>
-                    <?php if ($history_result->num_rows > 0): ?>
-                    <form method="POST" id="bulkActionForm" class="d-flex align-items-center gap-2">
-                        <?php echo csrf_input(); ?>
-                        <input type="hidden" name="bulk_action" id="bulkActionInput" value="">
-                        <select class="form-select form-select-sm" id="bulkActionSelect" style="min-width: 180px;">
-                            <option value="">Bulk Actions</option>
-                            <option value="export">Export Selected to CSV</option>
-                            <?php if ($is_admin): ?>
-                            <option value="mark_reviewed">Mark as Reviewed</option>
-                            <option value="delete">Delete Selected</option>
-                            <?php endif; ?>
-                        </select>
-                        <button type="submit" class="btn btn-sm btn-primary" id="bulkActionBtn" disabled>
-                            <i class="fas fa-check me-1"></i>Apply
-                        </button>
-                    </form>
-                    <?php endif; ?>
                 </div>
                 <div class="card-body p-0">
                     <?php if ($history_result->num_rows > 0): ?>
@@ -375,23 +196,14 @@ $page_title = 'Call History';
                             <table class="table table-hover mb-0">
                                 <thead>
                                     <tr>
-                                        <th width="40">
-                                            <input type="checkbox" id="selectAll" title="Select All">
-                                        </th>
                                         <th>Date & Time</th>
                                         <th>Donor</th>
                                         <th>Outcome</th>
-                                        <th>Stage</th>
                                         <th>Duration</th>
-                                        <th>Agent</th>
-                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php 
-                                    // Reset result pointer
-                                    $history_result->data_seek(0);
-                                    while ($call = $history_result->fetch_object()): ?>
+                                    <?php while ($call = $history_result->fetch_object()): ?>
                                         <?php
                                             // Safe data handling
                                             $call_date = $call->call_started_at ? date('M j, Y', strtotime($call->call_started_at)) : '-';
@@ -414,10 +226,7 @@ $page_title = 'Call History';
                                             $donor_phone = htmlspecialchars($call->donor_phone ?? '');
                                             $agent_name = htmlspecialchars($call->agent_name ?? 'Unknown');
                                         ?>
-                                        <tr>
-                                            <td>
-                                                <input type="checkbox" name="selected_ids[]" value="<?php echo $call->id; ?>" class="row-checkbox">
-                                            </td>
+                                        <tr onclick="window.location.href='call-details.php?id=<?php echo $call->id; ?>'" style="cursor: pointer;" class="call-history-row">
                                             <td>
                                                 <div><?php echo $call_date; ?></div>
                                                 <small class="text-muted"><?php echo $call_time; ?></small>
@@ -434,18 +243,7 @@ $page_title = 'Call History';
                                                 </span>
                                             </td>
                                             <td>
-                                                <small><?php echo ucwords(str_replace('_', ' ', $call->conversation_stage ?? '-')); ?></small>
-                                            </td>
-                                            <td>
                                                 <?php echo $formatted_duration; ?>
-                                            </td>
-                                            <td>
-                                                <small><?php echo $agent_name; ?></small>
-                                            </td>
-                                            <td>
-                                                <a href="call-details.php?id=<?php echo $call->id; ?>" class="btn btn-sm btn-outline-primary">
-                                                    View
-                                                </a>
                                             </td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -466,137 +264,21 @@ $page_title = 'Call History';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
-<script>
-// Bulk Actions JavaScript
-(function() {
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-    const bulkActionSelect = document.getElementById('bulkActionSelect');
-    const bulkActionBtn = document.getElementById('bulkActionBtn');
-    const bulkActionForm = document.getElementById('bulkActionForm');
-    const bulkActionInput = document.getElementById('bulkActionInput');
-    
-    // Select All functionality
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            rowCheckboxes.forEach(cb => {
-                cb.checked = this.checked;
-            });
-            updateBulkActionButton();
-        });
-    }
-    
-    // Individual checkbox change
-    rowCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            updateSelectAllState();
-            updateBulkActionButton();
-        });
-    });
-    
-    // Update select all checkbox state
-    function updateSelectAllState() {
-        if (!selectAllCheckbox) return;
-        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
-        selectAllCheckbox.checked = checkedCount === rowCheckboxes.length;
-        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < rowCheckboxes.length;
-    }
-    
-    // Update bulk action button state
-    function updateBulkActionButton() {
-        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
-        const hasSelection = checkedCount > 0;
-        const hasAction = bulkActionSelect.value !== '';
-        
-        bulkActionBtn.disabled = !hasSelection || !hasAction;
-        
-        if (hasSelection) {
-            bulkActionBtn.innerHTML = `<i class="fas fa-check me-1"></i>Apply (${checkedCount})`;
-        } else {
-            bulkActionBtn.innerHTML = '<i class="fas fa-check me-1"></i>Apply';
-        }
-    }
-    
-    // Bulk action select change
-    if (bulkActionSelect) {
-        bulkActionSelect.addEventListener('change', function() {
-            updateBulkActionButton();
-        });
-    }
-    
-    // Form submission
-    if (bulkActionForm) {
-        bulkActionForm.addEventListener('submit', function(e) {
-            const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
-            const action = bulkActionSelect.value;
-            
-            if (checkedCount === 0) {
-                e.preventDefault();
-                alert('Please select at least one record.');
-                return false;
-            }
-            
-            if (!action) {
-                e.preventDefault();
-                alert('Please select a bulk action.');
-                return false;
-            }
-            
-            // Set the action value
-            bulkActionInput.value = action;
-            
-            // Confirmation for destructive actions
-            if (action === 'delete') {
-                if (!confirm(`Are you sure you want to delete ${checkedCount} call record(s)? This action cannot be undone.`)) {
-                    e.preventDefault();
-                    return false;
-                }
-            } else if (action === 'mark_reviewed') {
-                if (!confirm(`Mark ${checkedCount} call record(s) as reviewed?`)) {
-                    e.preventDefault();
-                    return false;
-                }
-            }
-            
-            // For export, we don't need confirmation
-            return true;
-        });
-    }
-})();
-</script>
 <style>
-.row-checkbox {
+.call-history-row {
+    transition: background-color 0.2s ease;
+}
+
+.call-history-row:hover {
+    background-color: #f8fafc !important;
+}
+
+.call-history-row:active {
+    background-color: #e2e8f0 !important;
+}
+
+.table tbody tr.call-history-row {
     cursor: pointer;
-}
-
-#selectAll {
-    cursor: pointer;
-}
-
-#bulkActionBtn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.card-header {
-    flex-wrap: wrap;
-}
-
-@media (max-width: 767px) {
-    .card-header {
-        flex-direction: column;
-        align-items: flex-start !important;
-    }
-    
-    #bulkActionForm {
-        width: 100%;
-        margin-top: 0.5rem;
-    }
-    
-    #bulkActionSelect {
-        flex: 1;
-        min-width: auto;
-    }
 }
 </style>
 </body>
