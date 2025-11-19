@@ -18,6 +18,7 @@ try {
     $queue_type_filter = trim($_GET['queue_type'] ?? '');
     $priority_filter = isset($_GET['priority']) && $_GET['priority'] !== '' && $_GET['priority'] !== '0' ? (int)$_GET['priority'] : 0;
     $city_filter = trim($_GET['city'] ?? '');
+    $view_mode = $_GET['view_mode'] ?? 'all'; // 'all' = all donors with balance, 'queue' = only queue
     
     // Handle balance filters - only set if value is provided and > 0
     $balance_min = null;
@@ -112,13 +113,28 @@ try {
         }
         
         // Build queue query with filters
-        $queue_where = [
-            "q.status = 'pending'",
-            "(q.assigned_to IS NULL OR q.assigned_to = ?)",
-            "(q.next_attempt_after IS NULL OR q.next_attempt_after <= NOW())"
-        ];
-        $queue_params = [$user_id];
-        $queue_types = 'i';
+        // If view_mode is 'all', show all donors with balance (not just queue)
+        // If view_mode is 'queue', show only queue items
+        if ($view_mode === 'all') {
+            // Show ALL donors with balance > 0, whether in queue or not
+            $queue_where = [
+                "d.balance > 0",
+                "d.donor_type = 'pledge'"
+            ];
+            $queue_params = [];
+            $queue_types = '';
+            $queue_join = "LEFT JOIN call_center_queues q ON q.donor_id = d.id AND q.status = 'pending'";
+        } else {
+            // Show only queue items (original behavior)
+            $queue_where = [
+                "q.status = 'pending'",
+                "(q.assigned_to IS NULL OR q.assigned_to = ?)",
+                "(q.next_attempt_after IS NULL OR q.next_attempt_after <= NOW())"
+            ];
+            $queue_params = [$user_id];
+            $queue_types = 'i';
+            $queue_join = "JOIN call_center_queues q ON q.donor_id = d.id";
+        }
         
         if (!empty($search)) {
             $queue_where[] = "(d.name LIKE ? OR d.phone LIKE ?)";
@@ -129,13 +145,21 @@ try {
         }
         
         if (!empty($queue_type_filter)) {
-            $queue_where[] = "q.queue_type = ?";
+            if ($view_mode === 'all') {
+                $queue_where[] = "(q.queue_type = ? OR q.queue_type IS NULL)";
+            } else {
+                $queue_where[] = "q.queue_type = ?";
+            }
             $queue_params[] = $queue_type_filter;
             $queue_types .= 's';
         }
         
         if ($priority_filter > 0) {
-            $queue_where[] = "q.priority = ?";
+            if ($view_mode === 'all') {
+                $queue_where[] = "(q.priority = ? OR q.priority IS NULL)";
+            } else {
+                $queue_where[] = "q.priority = ?";
+            }
             $queue_params[] = $priority_filter;
             $queue_types .= 'i';
         }
@@ -159,13 +183,21 @@ try {
         }
         
         if ($attempts_min !== null && $attempts_min >= 0) {
-            $queue_where[] = "q.attempts_count >= ?";
+            if ($view_mode === 'all') {
+                $queue_where[] = "(q.attempts_count >= ? OR q.attempts_count IS NULL)";
+            } else {
+                $queue_where[] = "q.attempts_count >= ?";
+            }
             $queue_params[] = $attempts_min;
             $queue_types .= 'i';
         }
         
         if ($attempts_max !== null && $attempts_max > 0) {
-            $queue_where[] = "q.attempts_count <= ?";
+            if ($view_mode === 'all') {
+                $queue_where[] = "(q.attempts_count <= ? OR q.attempts_count IS NULL)";
+            } else {
+                $queue_where[] = "q.attempts_count <= ?";
+            }
             $queue_params[] = $attempts_max;
             $queue_types .= 'i';
         }
@@ -178,8 +210,8 @@ try {
         
         $count_query = "
             SELECT COUNT(*) as total
-            FROM call_center_queues q
-            JOIN donors d ON q.donor_id = d.id
+            FROM donors d
+            {$queue_join}
             WHERE {$queue_where_clause}
         ";
         
@@ -196,28 +228,57 @@ try {
         }
         
         // Get call queue - donors who need to be called (add LIMIT/OFFSET params)
-        $queue_query = "
-            SELECT 
-                q.id as queue_id,
-                q.donor_id,
-                q.queue_type,
-                q.priority,
-                q.attempts_count,
-                q.next_attempt_after,
-                q.reason_for_queue,
-                q.preferred_contact_time,
-                d.name,
-                d.phone,
-                d.balance,
-                d.city,
-                d.last_contacted_at,
-                (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_outcome
-            FROM call_center_queues q
-            JOIN donors d ON q.donor_id = d.id
-            WHERE {$queue_where_clause}
-            ORDER BY q.priority DESC, q.next_attempt_after ASC, q.created_at ASC
-            LIMIT ? OFFSET ?
-        ";
+        if ($view_mode === 'all') {
+            $queue_query = "
+                SELECT 
+                    q.id as queue_id,
+                    d.id as donor_id,
+                    COALESCE(q.queue_type, 'not_in_queue') as queue_type,
+                    COALESCE(q.priority, 5) as priority,
+                    COALESCE(q.attempts_count, 0) as attempts_count,
+                    q.next_attempt_after,
+                    q.reason_for_queue,
+                    q.preferred_contact_time,
+                    d.name,
+                    d.phone,
+                    d.balance,
+                    d.city,
+                    d.last_contacted_at,
+                    (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_outcome
+                FROM donors d
+                {$queue_join}
+                WHERE {$queue_where_clause}
+                ORDER BY 
+                    CASE WHEN q.priority IS NULL THEN 0 ELSE q.priority END DESC,
+                    q.next_attempt_after ASC,
+                    d.balance DESC,
+                    d.created_at ASC
+                LIMIT ? OFFSET ?
+            ";
+        } else {
+            $queue_query = "
+                SELECT 
+                    q.id as queue_id,
+                    q.donor_id,
+                    q.queue_type,
+                    q.priority,
+                    q.attempts_count,
+                    q.next_attempt_after,
+                    q.reason_for_queue,
+                    q.preferred_contact_time,
+                    d.name,
+                    d.phone,
+                    d.balance,
+                    d.city,
+                    d.last_contacted_at,
+                    (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_outcome
+                FROM call_center_queues q
+                JOIN donors d ON q.donor_id = d.id
+                WHERE {$queue_where_clause}
+                ORDER BY q.priority DESC, q.next_attempt_after ASC, q.created_at ASC
+                LIMIT ? OFFSET ?
+            ";
+        }
         
         $queue_params[] = $per_page;
         $queue_params[] = $offset;
@@ -697,10 +758,20 @@ $page_title = 'Call Center Dashboard';
                                                         <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
                                                     </td>
                                                     <td data-label="Action">
-                                                        <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
-                                                           class="btn btn-primary btn-sm">
-                                                            <i class="fas fa-phone-alt me-1"></i>Call
-                                                        </a>
+                                                        <?php if (!empty($donor->queue_id)): ?>
+                                                            <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
+                                                               class="btn btn-primary btn-sm">
+                                                                <i class="fas fa-phone-alt me-1"></i>Call
+                                                            </a>
+                                                        <?php else: ?>
+                                                            <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=0" 
+                                                               class="btn btn-primary btn-sm">
+                                                                <i class="fas fa-phone-alt me-1"></i>Call
+                                                            </a>
+                                                            <small class="d-block text-muted mt-1">
+                                                                <i class="fas fa-info-circle"></i> Not in queue
+                                                            </small>
+                                                        <?php endif; ?>
                                                     </td>
                                                 </tr>
                                             <?php endwhile; ?>
