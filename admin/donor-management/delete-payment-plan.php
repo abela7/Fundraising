@@ -36,10 +36,10 @@ try {
     // Set timezone
     date_default_timezone_set('Europe/London');
 
-    $conn = db();
-    $plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-    $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
-    $confirm = isset($_GET['confirm']) ? $_GET['confirm'] : '';
+$conn = db();
+$plan_id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($_POST['id']) ? (int)$_POST['id'] : 0);
+$donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : (isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : 0);
+$confirm = isset($_GET['confirm']) ? $_GET['confirm'] : (isset($_POST['confirm']) ? $_POST['confirm'] : '');
 
     if ($plan_id <= 0 || $donor_id <= 0) {
         header('Location: view-donor.php?id=' . $donor_id);
@@ -128,7 +128,7 @@ try {
 }
 
 // Handle deletion confirmation
-if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $confirm === 'yes') {
     try {
         $conn->begin_transaction();
         
@@ -401,7 +401,10 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 </ul>
             </div>
             
-            <form method="POST">
+            <form method="POST" action="?id=<?php echo $plan_id; ?>&donor_id=<?php echo $donor_id; ?>&confirm=yes">
+                <input type="hidden" name="confirm" value="yes">
+                <input type="hidden" name="id" value="<?php echo $plan_id; ?>">
+                <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
                 <div class="action-buttons">
                     <a href="view-donor.php?id=<?php echo $donor_id; ?>" class="btn btn-outline-secondary">
                         <i class="fas fa-times me-2"></i>Cancel

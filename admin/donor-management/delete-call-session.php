@@ -37,9 +37,9 @@ try {
     date_default_timezone_set('Europe/London');
 
     $conn = db();
-    $session_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-    $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
-    $confirm = isset($_GET['confirm']) ? $_GET['confirm'] : '';
+    $session_id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($_POST['id']) ? (int)$_POST['id'] : 0);
+    $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : (isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : 0);
+    $confirm = isset($_GET['confirm']) ? $_GET['confirm'] : (isset($_POST['confirm']) ? $_POST['confirm'] : '');
 
     if ($session_id <= 0 || $donor_id <= 0) {
         header('Location: view-donor.php?id=' . $donor_id);
@@ -124,7 +124,7 @@ try {
 }
 
 // Handle deletion confirmation
-if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $confirm === 'yes') {
     $unlink_plan = isset($_POST['unlink_plan']) ? $_POST['unlink_plan'] : 'no';
     
     try {
@@ -494,7 +494,10 @@ if ($duration_sec > 0) {
                 </ul>
             </div>
             
-            <form method="POST">
+            <form method="POST" action="?id=<?php echo $session_id; ?>&donor_id=<?php echo $donor_id; ?>&confirm=yes">
+                <input type="hidden" name="confirm" value="yes">
+                <input type="hidden" name="id" value="<?php echo $session_id; ?>">
+                <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
                 <?php if (!empty($session->payment_plan_id)): ?>
                 <input type="hidden" name="unlink_plan" id="unlink_plan_value" value="unlink">
                 <?php endif; ?>
