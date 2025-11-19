@@ -1,21 +1,57 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../shared/auth.php';
-require_once __DIR__ . '/../../config/db.php';
-require_login();
+// Error logging function
+function log_deletion_error($message, $context = []) {
+    $log_file = __DIR__ . '/../../logs/deletion_errors.log';
+    $log_dir = dirname($log_file);
+    if (!is_dir($log_dir)) {
+        @mkdir($log_dir, 0755, true);
+    }
+    $log_entry = date('Y-m-d H:i:s') . " - " . $message . "\n";
+    if (!empty($context)) {
+        $log_entry .= "Context: " . json_encode($context, JSON_PRETTY_PRINT) . "\n";
+    }
+    $log_entry .= str_repeat('-', 80) . "\n";
+    @file_put_contents($log_file, $log_entry, FILE_APPEND);
+}
 
-// Set timezone
-date_default_timezone_set('Europe/London');
+// Set error handler to catch fatal errors
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        log_deletion_error("Fatal Error: " . $error['message'], [
+            'file' => $error['file'],
+            'line' => $error['line'],
+            'type' => $error['type']
+        ]);
+    }
+});
 
-$conn = get_db_connection();
-$plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
-$confirm = isset($_GET['confirm']) ? $_GET['confirm'] : '';
+try {
+    require_once __DIR__ . '/../../shared/auth.php';
+    require_once __DIR__ . '/../../config/db.php';
+    require_login();
 
-if ($plan_id <= 0 || $donor_id <= 0) {
-    header('Location: view-donor.php?id=' . $donor_id);
-    exit;
+    // Set timezone
+    date_default_timezone_set('Europe/London');
+
+    $conn = get_db_connection();
+    $plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
+    $confirm = isset($_GET['confirm']) ? $_GET['confirm'] : '';
+
+    if ($plan_id <= 0 || $donor_id <= 0) {
+        header('Location: view-donor.php?id=' . $donor_id);
+        exit;
+    }
+} catch (Exception $e) {
+    log_deletion_error("Initialization Error: " . $e->getMessage(), [
+        'plan_id' => $plan_id ?? 0,
+        'donor_id' => $donor_id ?? 0,
+        'trace' => $e->getTraceAsString()
+    ]);
+    die("System Error: " . htmlspecialchars($e->getMessage()));
 }
 
 // Fetch payment plan details
@@ -70,9 +106,23 @@ try {
     $is_active_plan = ($plan->active_payment_plan_id == $plan_id);
     
 } catch (mysqli_sql_exception $e) {
+    log_deletion_error("Payment Plan Fetch Failed (MySQL)", [
+        'plan_id' => $plan_id,
+        'donor_id' => $donor_id,
+        'error' => $e->getMessage(),
+        'code' => $e->getCode(),
+        'sql_state' => $e->getSqlState()
+    ]);
     header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Database error: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')'));
     exit;
 } catch (Exception $e) {
+    log_deletion_error("Payment Plan Fetch Failed (General)", [
+        'plan_id' => $plan_id,
+        'donor_id' => $donor_id,
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
     header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Error: ' . $e->getMessage()));
     exit;
 }
@@ -139,10 +189,32 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (mysqli_sql_exception $e) {
         $conn->rollback();
         $error_msg = 'Database error: ' . $e->getMessage() . ' (Error Code: ' . $e->getCode() . ')';
+        
+        log_deletion_error("Payment Plan Deletion Failed (MySQL)", [
+            'plan_id' => $plan_id,
+            'donor_id' => $donor_id,
+            'error' => $e->getMessage(),
+            'code' => $e->getCode(),
+            'sql_state' => $e->getSqlState(),
+            'linked_sessions' => $linked_sessions ?? 0,
+            'is_active_plan' => $is_active_plan ?? false,
+            'trace' => $e->getTraceAsString()
+        ]);
+        
         header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode($error_msg));
         exit;
     } catch (Exception $e) {
         $conn->rollback();
+        
+        log_deletion_error("Payment Plan Deletion Failed (General)", [
+            'plan_id' => $plan_id,
+            'donor_id' => $donor_id,
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
         header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Failed to delete: ' . $e->getMessage()));
         exit;
     }
