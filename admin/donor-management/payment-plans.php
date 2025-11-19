@@ -9,6 +9,13 @@ require_once __DIR__ . '/../includes/resilient_db_loader.php';
 require_login();
 require_admin();
 
+// If an 'id' parameter is provided, redirect to the view-payment-plan.php page
+if (isset($_GET['id']) && is_numeric($_GET['id'])) {
+    $plan_id = (int)$_GET['id'];
+    header('Location: view-payment-plan.php?id=' . $plan_id);
+    exit;
+}
+
 $page_title = 'Payment Plan Templates';
 $current_user = current_user();
 $db = db();
