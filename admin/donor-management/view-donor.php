@@ -289,6 +289,92 @@ function formatDateTime($date) {
             font-size: 0.8rem;
             font-weight: 500;
         }
+
+        /* Mobile Responsive Optimizations */
+        @media (max-width: 768px) {
+            .profile-header {
+                padding: 1.5rem;
+                text-align: center;
+            }
+            .profile-header .d-flex.align-items-center {
+                flex-direction: column;
+                width: 100%;
+            }
+            .avatar-circle {
+                margin-right: 0;
+                margin-bottom: 1rem;
+            }
+            .profile-header .d-flex.gap-3 {
+                width: 100%;
+                justify-content: center;
+                margin-top: 1rem;
+            }
+            .stat-badge {
+                flex: 1 1 100px; /* Flex grow, shrink, basis */
+                min-width: 30%;
+            }
+            
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .info-value {
+                text-align: left;
+                margin-top: 0.25rem;
+                word-break: break-word;
+            }
+            
+            /* Mobile Table Card View */
+            .table-custom thead {
+                display: none;
+            }
+            .table-custom tbody tr {
+                display: block;
+                background: white;
+                border: 1px solid #eee;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+                padding: 1rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .table-custom td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border: none;
+                border-bottom: 1px solid #f5f5f5;
+                text-align: right;
+            }
+            .table-custom td:last-child {
+                border-bottom: none;
+            }
+            .table-custom td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #6c757d;
+                margin-right: 1rem;
+                text-align: left;
+                flex: 1;
+            }
+            
+            /* Adjust buttons on mobile */
+            .container-fluid .d-flex.justify-content-between {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .container-fluid .d-flex.justify-content-between > * {
+                width: 100%;
+            }
+            .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            .d-flex.gap-2 {
+                flex-direction: column;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -313,7 +399,7 @@ function formatDateTime($date) {
                         <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                             <i class="fas fa-cog me-2"></i>Actions
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end w-100">
                             <li><a class="dropdown-menu-item dropdown-item" href="#"><i class="fas fa-edit me-2"></i>Edit Profile</a></li>
                             <li><a class="dropdown-menu-item dropdown-item" href="#"><i class="fas fa-envelope me-2"></i>Send Email</a></li>
                             <li><hr class="dropdown-divider"></li>
@@ -443,15 +529,15 @@ function formatDateTime($date) {
                                             <?php else: ?>
                                                 <?php foreach ($pledges as $pledge): ?>
                                                 <tr>
-                                                    <td>#<?php echo $pledge['id']; ?></td>
-                                                    <td><?php echo formatDate($pledge['created_at']); ?></td>
-                                                    <td class="fw-bold text-primary"><?php echo formatMoney($pledge['amount']); ?></td>
-                                                    <td>
+                                                    <td data-label="ID">#<?php echo $pledge['id']; ?></td>
+                                                    <td data-label="Date"><?php echo formatDate($pledge['created_at']); ?></td>
+                                                    <td data-label="Amount" class="fw-bold text-primary"><?php echo formatMoney($pledge['amount']); ?></td>
+                                                    <td data-label="Status">
                                                         <span class="badge bg-<?php echo $pledge['status'] == 'approved' ? 'success' : 'warning'; ?>">
                                                             <?php echo ucfirst($pledge['status']); ?>
                                                         </span>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Grid Allocation">
                                                         <?php if (!empty($pledge['allocated_cells'])): ?>
                                                             <?php foreach ($pledge['allocated_cells'] as $cell): ?>
                                                                 <span class="cell-tag" title="<?php echo $cell['area_size']; ?>m²">
@@ -462,7 +548,7 @@ function formatDateTime($date) {
                                                             <span class="text-muted small">No cells allocated</span>
                                                         <?php endif; ?>
                                                     </td>
-                                                    <td><?php echo htmlspecialchars($pledge['approver_name'] ?? 'System'); ?></td>
+                                                    <td data-label="Approved By"><?php echo htmlspecialchars($pledge['approver_name'] ?? 'System'); ?></td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
@@ -502,17 +588,17 @@ function formatDateTime($date) {
                                             <?php else: ?>
                                                 <?php foreach ($payments as $pay): ?>
                                                 <tr>
-                                                    <td>#<?php echo $pay['id']; ?></td>
-                                                    <td><?php echo formatDate($pay['display_date']); ?></td>
-                                                    <td class="fw-bold text-success"><?php echo formatMoney($pay['amount']); ?></td>
-                                                    <td><?php echo ucwords(str_replace('_', ' ', $pay['display_method'])); ?></td>
-                                                    <td class="text-muted small"><?php echo htmlspecialchars($pay['display_ref'] ?? '-'); ?></td>
-                                                    <td>
+                                                    <td data-label="ID">#<?php echo $pay['id']; ?></td>
+                                                    <td data-label="Date"><?php echo formatDate($pay['display_date']); ?></td>
+                                                    <td data-label="Amount" class="fw-bold text-success"><?php echo formatMoney($pay['amount']); ?></td>
+                                                    <td data-label="Method"><?php echo ucwords(str_replace('_', ' ', $pay['display_method'])); ?></td>
+                                                    <td data-label="Reference" class="text-muted small"><?php echo htmlspecialchars($pay['display_ref'] ?? '-'); ?></td>
+                                                    <td data-label="Status">
                                                         <span class="badge bg-<?php echo $pay['status'] == 'approved' ? 'success' : 'warning'; ?>">
                                                             <?php echo ucfirst($pay['status']); ?>
                                                         </span>
                                                     </td>
-                                                    <td><?php echo htmlspecialchars($pay['approver_name'] ?? 'System'); ?></td>
+                                                    <td data-label="Approved By"><?php echo htmlspecialchars($pay['approver_name'] ?? 'System'); ?></td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
@@ -552,28 +638,28 @@ function formatDateTime($date) {
                                             <?php else: ?>
                                                 <?php foreach ($plans as $plan): ?>
                                                 <tr>
-                                                    <td>#<?php echo $plan['id']; ?></td>
-                                                    <td><?php echo formatDate($plan['start_date']); ?></td>
-                                                    <td><?php echo formatMoney($plan['total_amount']); ?></td>
-                                                    <td><?php echo formatMoney($plan['monthly_amount']); ?></td>
-                                                    <td>
+                                                    <td data-label="Plan ID">#<?php echo $plan['id']; ?></td>
+                                                    <td data-label="Start Date"><?php echo formatDate($plan['start_date']); ?></td>
+                                                    <td data-label="Total Amount"><?php echo formatMoney($plan['total_amount']); ?></td>
+                                                    <td data-label="Monthly"><?php echo formatMoney($plan['monthly_amount']); ?></td>
+                                                    <td data-label="Progress">
                                                         <?php 
                                                             $progress = $plan['total_payments'] > 0 ? ($plan['payments_made'] / $plan['total_payments']) * 100 : 0;
                                                         ?>
                                                         <div class="d-flex align-items-center">
-                                                            <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                                            <div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 100px;">
                                                                 <div class="progress-bar bg-success" style="width: <?php echo $progress; ?>%"></div>
                                                             </div>
                                                             <small class="text-muted"><?php echo $plan['payments_made']; ?>/<?php echo $plan['total_payments']; ?></small>
                                                         </div>
                                                     </td>
-                                                    <td>
+                                                    <td data-label="Status">
                                                         <span class="status-badge bg-<?php echo $plan['status'] == 'active' ? 'success' : 'secondary'; ?>">
                                                             <?php echo ucfirst($plan['status']); ?>
                                                         </span>
                                                     </td>
-                                                    <td>
-                                                        <a href="payment-plans.php?id=<?php echo $plan['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                    <td data-label="Action">
+                                                        <a href="payment-plans.php?id=<?php echo $plan['id']; ?>" class="btn btn-sm btn-outline-primary w-100">
                                                             View
                                                         </a>
                                                     </td>
@@ -615,16 +701,16 @@ function formatDateTime($date) {
                                             <?php else: ?>
                                                 <?php foreach ($calls as $call): ?>
                                                 <tr>
-                                                    <td><?php echo formatDateTime($call['call_started_at']); ?></td>
-                                                    <td><?php echo htmlspecialchars($call['agent_name'] ?? 'Unknown'); ?></td>
-                                                    <td>
+                                                    <td data-label="Date"><?php echo formatDateTime($call['call_started_at']); ?></td>
+                                                    <td data-label="Agent"><?php echo htmlspecialchars($call['agent_name'] ?? 'Unknown'); ?></td>
+                                                    <td data-label="Outcome">
                                                         <span class="badge bg-light text-dark border">
                                                             <?php echo ucwords(str_replace('_', ' ', $call['outcome'])); ?>
                                                         </span>
                                                     </td>
-                                                    <td><?php echo $call['duration_seconds'] ? gmdate("i:s", (int)$call['duration_seconds']) : '-'; ?></td>
-                                                    <td><?php echo ucwords(str_replace('_', ' ', $call['conversation_stage'])); ?></td>
-                                                    <td class="text-truncate" style="max-width: 200px;" title="<?php echo htmlspecialchars($call['notes']); ?>">
+                                                    <td data-label="Duration"><?php echo $call['duration_seconds'] ? gmdate("i:s", (int)$call['duration_seconds']) : '-'; ?></td>
+                                                    <td data-label="Stage"><?php echo ucwords(str_replace('_', ' ', $call['conversation_stage'])); ?></td>
+                                                    <td data-label="Notes" class="text-truncate" style="max-width: 200px;" title="<?php echo htmlspecialchars($call['notes']); ?>">
                                                         <?php echo htmlspecialchars($call['notes'] ?? '-'); ?>
                                                     </td>
                                                 </tr>
