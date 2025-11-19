@@ -460,7 +460,7 @@ try {
                             <div class="row g-3 mt-3">
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-money-bill-wave text-primary me-2"></i>Monthly Amount:</strong>
-                                    <span class="float-end">£<?php echo number_format((float)($plan->monthly_amount ?? 0), 2); ?></span>
+                                    <span class="float-end">£<?php echo number_format((float)($plan['monthly_amount'] ?? 0), 2); ?></span>
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-calendar text-primary me-2"></i>Duration:</strong>
