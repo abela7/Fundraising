@@ -247,6 +247,30 @@ $page_title = 'Live Call';
             font-size: 0.8125rem;
         }
         
+        .form-label small strong {
+            color: #1e293b;
+            font-weight: 600;
+        }
+        
+        /* Field Status Badges */
+        .form-label .badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            vertical-align: middle;
+        }
+        
+        .form-control.border-success,
+        .form-select.border-success {
+            border-color: #22c55e !important;
+            background-color: #f0fdf4;
+        }
+        
+        .form-control.border-warning,
+        .form-select.border-warning {
+            border-color: #f59e0b !important;
+            background-color: #fffbeb;
+        }
+        
         /* Choice Grid */
         .choice-grid {
             display: grid;
@@ -621,44 +645,92 @@ $page_title = 'Live Call';
                                     <span class="step-number">2</span>
                                     Collect Donor Information
                                 </div>
-                                <p class="text-muted mb-0">Please collect the following information from the donor.</p>
+                                <p class="text-muted mb-0">
+                                    <?php 
+                                    $hasExistingData = !empty($donor->baptism_name) || !empty($donor->city) || !empty($donor->email) || !empty($donor->church_id);
+                                    if ($hasExistingData): 
+                                    ?>
+                                        Review and update donor information if needed.
+                                    <?php else: ?>
+                                        Please collect the following information from the donor.
+                                    <?php endif; ?>
+                                </p>
                             </div>
                             <div class="step-body">
+                                <?php if ($hasExistingData): ?>
+                                <div class="alert alert-info mb-4">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Existing Information Found:</strong> The donor already has some information in the system. Please verify and update if anything has changed.
+                                </div>
+                                <?php endif; ?>
+                                
                                 <div class="row g-3">
                                     <!-- Baptism Name -->
                                     <div class="col-md-6">
                                         <label for="baptism_name" class="form-label">
                                             <i class="fas fa-water me-2 text-primary"></i>Baptism Name
+                                            <?php if (!empty($donor->baptism_name)): ?>
+                                                <span class="badge bg-success ms-2" id="badge-baptism-name">
+                                                    <i class="fas fa-check me-1"></i>Existing
+                                                </span>
+                                            <?php endif; ?>
                                         </label>
                                         <input type="text" 
-                                               class="form-control" 
+                                               class="form-control <?php echo !empty($donor->baptism_name) ? 'border-success' : ''; ?>" 
                                                id="baptism_name" 
                                                name="baptism_name" 
                                                placeholder="Enter baptism name"
-                                               value="<?php echo htmlspecialchars($donor->baptism_name ?? ''); ?>">
-                                        <small class="text-muted">The donor's baptism name</small>
+                                               value="<?php echo htmlspecialchars($donor->baptism_name ?? ''); ?>"
+                                               onchange="updateFieldBadge('baptism_name', this.value)">
+                                        <small class="text-muted">
+                                            <?php if (!empty($donor->baptism_name)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->baptism_name); ?></strong> - Update if changed
+                                            <?php else: ?>
+                                                The donor's baptism name
+                                            <?php endif; ?>
+                                        </small>
                                     </div>
                                     
                                     <!-- City -->
                                     <div class="col-md-6">
                                         <label for="city" class="form-label">
                                             <i class="fas fa-map-marker-alt me-2 text-primary"></i>City
+                                            <?php if (!empty($donor->city)): ?>
+                                                <span class="badge bg-success ms-2" id="badge-city">
+                                                    <i class="fas fa-check me-1"></i>Existing
+                                                </span>
+                                            <?php endif; ?>
                                         </label>
                                         <input type="text" 
-                                               class="form-control" 
+                                               class="form-control <?php echo !empty($donor->city) ? 'border-success' : ''; ?>" 
                                                id="city" 
                                                name="city" 
                                                placeholder="Enter city"
-                                               value="<?php echo htmlspecialchars($donor->city ?? ''); ?>">
-                                        <small class="text-muted">Where the donor lives</small>
+                                               value="<?php echo htmlspecialchars($donor->city ?? ''); ?>"
+                                               onchange="updateFieldBadge('city', this.value)">
+                                        <small class="text-muted">
+                                            <?php if (!empty($donor->city)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->city); ?></strong> - Update if changed
+                                            <?php else: ?>
+                                                Where the donor lives
+                                            <?php endif; ?>
+                                        </small>
                                     </div>
                                     
                                     <!-- Church -->
                                     <div class="col-md-6">
                                         <label for="church_id" class="form-label">
                                             <i class="fas fa-church me-2 text-primary"></i>Which Church Attending Regularly
+                                            <?php if (!empty($donor->church_id)): ?>
+                                                <span class="badge bg-success ms-2" id="badge-church">
+                                                    <i class="fas fa-check me-1"></i>Existing
+                                                </span>
+                                            <?php endif; ?>
                                         </label>
-                                        <select class="form-select" id="church_id" name="church_id">
+                                        <select class="form-select <?php echo !empty($donor->church_id) ? 'border-success' : ''; ?>" 
+                                                id="church_id" 
+                                                name="church_id"
+                                                onchange="updateFieldBadge('church', this.value)">
                                             <option value="">-- Select Church --</option>
                                             <?php foreach ($churches as $church): ?>
                                                 <option value="<?php echo $church['id']; ?>" 
@@ -670,29 +742,55 @@ $page_title = 'Live Call';
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <small class="text-muted">Church the donor attends regularly</small>
+                                        <small class="text-muted">
+                                            <?php if (!empty($donor->church_id) && !empty($donor->church_name)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->church_name); ?></strong> - Update if changed
+                                            <?php else: ?>
+                                                Church the donor attends regularly
+                                            <?php endif; ?>
+                                        </small>
                                     </div>
                                     
                                     <!-- Email -->
                                     <div class="col-md-6">
                                         <label for="email" class="form-label">
                                             <i class="fas fa-envelope me-2 text-primary"></i>Email Address
+                                            <?php if (!empty($donor->email)): ?>
+                                                <span class="badge bg-success ms-2" id="badge-email">
+                                                    <i class="fas fa-check me-1"></i>Existing
+                                                </span>
+                                            <?php endif; ?>
                                         </label>
                                         <input type="email" 
-                                               class="form-control" 
+                                               class="form-control <?php echo !empty($donor->email) ? 'border-success' : ''; ?>" 
                                                id="email" 
                                                name="email" 
                                                placeholder="donor@example.com"
-                                               value="<?php echo htmlspecialchars($donor->email ?? ''); ?>">
-                                        <small class="text-muted">Email for communication</small>
+                                               value="<?php echo htmlspecialchars($donor->email ?? ''); ?>"
+                                               onchange="updateFieldBadge('email', this.value)">
+                                        <small class="text-muted">
+                                            <?php if (!empty($donor->email)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->email); ?></strong> - Update if changed
+                                            <?php else: ?>
+                                                Email for communication
+                                            <?php endif; ?>
+                                        </small>
                                     </div>
                                     
                                     <!-- Preferred Language -->
                                     <div class="col-md-6">
                                         <label for="preferred_language" class="form-label">
                                             <i class="fas fa-language me-2 text-primary"></i>Preferred Language
+                                            <?php if (!empty($donor->preferred_language) && $donor->preferred_language !== 'en'): ?>
+                                                <span class="badge bg-success ms-2" id="badge-language">
+                                                    <i class="fas fa-check me-1"></i>Existing
+                                                </span>
+                                            <?php endif; ?>
                                         </label>
-                                        <select class="form-select" id="preferred_language" name="preferred_language">
+                                        <select class="form-select <?php echo (!empty($donor->preferred_language) && $donor->preferred_language !== 'en') ? 'border-success' : ''; ?>" 
+                                                id="preferred_language" 
+                                                name="preferred_language"
+                                                onchange="updateFieldBadge('language', this.value)">
                                             <option value="en" <?php echo (!isset($donor->preferred_language) || $donor->preferred_language === 'en') ? 'selected' : ''; ?>>
                                                 English
                                             </option>
@@ -703,7 +801,17 @@ $page_title = 'Live Call';
                                                 Tigrinya (ትግርኛ)
                                             </option>
                                         </select>
-                                        <small class="text-muted">Preferred language for communication</small>
+                                        <small class="text-muted">
+                                            <?php 
+                                            $langLabels = ['en' => 'English', 'am' => 'Amharic', 'ti' => 'Tigrinya'];
+                                            $currentLang = $donor->preferred_language ?? 'en';
+                                            if ($currentLang !== 'en'): 
+                                            ?>
+                                                Current: <strong><?php echo $langLabels[$currentLang]; ?></strong> - Update if changed
+                                            <?php else: ?>
+                                                Preferred language for communication
+                                            <?php endif; ?>
+                                        </small>
                                     </div>
                                 </div>
                                 
@@ -1022,6 +1130,79 @@ $page_title = 'Live Call';
     
     if(verifyAmount) verifyAmount.addEventListener('change', checkStep1);
     if(verifyLocation) verifyLocation.addEventListener('change', checkStep1);
+    
+    // Step 2 Logic - Update field badges when values change
+    function updateFieldBadge(fieldName, newValue) {
+        // Map field names to badge IDs and input IDs
+        const fieldMap = {
+            'baptism_name': { badge: 'badge-baptism-name', input: 'baptism_name' },
+            'city': { badge: 'badge-city', input: 'city' },
+            'email': { badge: 'badge-email', input: 'email' },
+            'church': { badge: 'badge-church', input: 'church_id' },
+            'language': { badge: 'badge-language', input: 'preferred_language' }
+        };
+        
+        const config = fieldMap[fieldName];
+        if (!config) return;
+        
+        const badge = document.getElementById(config.badge);
+        const input = document.getElementById(config.input);
+        
+        if (badge && input) {
+            const originalValue = input.getAttribute('data-original-value') || '';
+            const currentValue = newValue || input.value;
+            
+            if (currentValue !== originalValue && currentValue !== '' && originalValue !== '') {
+                // Value was changed from original
+                badge.className = 'badge bg-warning ms-2';
+                badge.innerHTML = '<i class="fas fa-edit me-1"></i>Updated';
+                badge.style.display = 'inline-block';
+                input.classList.remove('border-success');
+                input.classList.add('border-warning');
+            } else if (currentValue === originalValue && originalValue !== '') {
+                // Value matches original (existing data)
+                badge.className = 'badge bg-success ms-2';
+                badge.innerHTML = '<i class="fas fa-check me-1"></i>Existing';
+                badge.style.display = 'inline-block';
+                input.classList.remove('border-warning');
+                input.classList.add('border-success');
+            } else if (currentValue !== '' && originalValue === '') {
+                // New value entered (no original data)
+                badge.style.display = 'none';
+                input.classList.remove('border-success', 'border-warning');
+            } else {
+                // Empty value
+                badge.style.display = 'none';
+                input.classList.remove('border-success', 'border-warning');
+            }
+        }
+    }
+    
+    // Store original values for comparison
+    document.addEventListener('DOMContentLoaded', function() {
+        const fields = [
+            { id: 'baptism_name', badge: 'badge-baptism-name' },
+            { id: 'city', badge: 'badge-city' },
+            { id: 'email', badge: 'badge-email' },
+            { id: 'church_id', badge: 'badge-church' },
+            { id: 'preferred_language', badge: 'badge-language' }
+        ];
+        
+        fields.forEach(function(field) {
+            const input = document.getElementById(field.id);
+            const badge = document.getElementById(field.badge);
+            
+            if (input) {
+                const originalValue = input.value || '';
+                input.setAttribute('data-original-value', originalValue);
+                
+                // Hide badge if no original value
+                if (badge && originalValue === '') {
+                    badge.style.display = 'none';
+                }
+            }
+        });
+    });
     
     // Step 3 Logic (Payment Readiness)
     function selectReadiness(choice) {
