@@ -397,14 +397,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Ensure sidebar toggle works
+    // Ensure sidebar toggle works (matches admin.js logic)
     if (typeof toggleSidebar === 'undefined') {
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
-            const adminContent = document.querySelector('.admin-content');
-            if (sidebar && adminContent) {
-                sidebar.classList.toggle('collapsed');
-                adminContent.classList.toggle('sidebar-collapsed');
+            const sidebarOverlay = document.querySelector('.sidebar-overlay');
+            const body = document.body;
+            if (!sidebar || !sidebarOverlay) return;
+            if (window.innerWidth <= 991.98) {
+                // Mobile: slide in/out
+                sidebar.classList.toggle('active');
+                sidebarOverlay.classList.toggle('active');
+                body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+            } else {
+                // Desktop: collapse/expand
+                body.classList.toggle('sidebar-collapsed');
+                const isCollapsed = body.classList.contains('sidebar-collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
             }
         };
     }
