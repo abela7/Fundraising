@@ -78,13 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 (church_id, name, role, phone, email, is_primary, is_active, notes, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
-            $stmt->bind_param("issssiiis", $church_id, $name, $role, $phone, $email, $is_primary, $is_active, $notes);
+            // Parameters: church_id(i), name(s), role(s), phone(s), email(s), is_primary(i), is_active(i), notes(s)
+            // 8 parameters = 8 characters: issssiis
+            $stmt->bind_param("issssiis", $church_id, $name, $role, $phone, $email, $is_primary, $is_active, $notes);
             
             if ($stmt->execute()) {
                 header("Location: representatives.php?success=" . urlencode("Representative added successfully!"));
                 exit;
             } else {
-                $errors[] = "Failed to add representative: " . $db->error;
+                $errors[] = "Failed to add representative: " . $stmt->error;
             }
         } catch (Exception $e) {
             $errors[] = "Error: " . $e->getMessage();
