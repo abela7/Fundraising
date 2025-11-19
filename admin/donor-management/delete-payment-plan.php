@@ -35,8 +35,15 @@ try {
     ";
     
     $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        throw new Exception("Prepare failed: " . $conn->error);
+    }
+    
     $stmt->bind_param('ii', $plan_id, $donor_id);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        throw new Exception("Execute failed: " . $stmt->error);
+    }
+    
     $result = $stmt->get_result();
     $plan = $result->fetch_object();
     
@@ -48,16 +55,25 @@ try {
     // Check for linked call sessions
     $session_query = "SELECT COUNT(*) as count FROM call_center_sessions WHERE payment_plan_id = ?";
     $session_stmt = $conn->prepare($session_query);
+    if (!$session_stmt) {
+        throw new Exception("Prepare failed for session query: " . $conn->error);
+    }
     $session_stmt->bind_param('i', $plan_id);
-    $session_stmt->execute();
+    if (!$session_stmt->execute()) {
+        throw new Exception("Execute failed for session query: " . $session_stmt->error);
+    }
     $session_result = $session_stmt->get_result();
-    $linked_sessions = $session_result->fetch_object()->count;
+    $session_row = $session_result->fetch_object();
+    $linked_sessions = $session_row ? (int)$session_row->count : 0;
     
     // Check if this is the active plan
     $is_active_plan = ($plan->active_payment_plan_id == $plan_id);
     
+} catch (mysqli_sql_exception $e) {
+    header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Database error: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')'));
+    exit;
 } catch (Exception $e) {
-    header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Database error: ' . $e->getMessage()));
+    header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Error: ' . $e->getMessage()));
     exit;
 }
 
@@ -66,11 +82,25 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $conn->begin_transaction();
         
-        // Step 1: Unlink from call_center_sessions
-        $unlink_query = "UPDATE call_center_sessions SET payment_plan_id = NULL WHERE payment_plan_id = ?";
-        $unlink_stmt = $conn->prepare($unlink_query);
-        $unlink_stmt->bind_param('i', $plan_id);
-        $unlink_stmt->execute();
+        // Step 1: Unlink from call_center_sessions (must be done BEFORE deleting plan due to RESTRICT constraint)
+        // Get all session IDs that reference this plan first
+        $get_sessions_query = "SELECT id FROM call_center_sessions WHERE payment_plan_id = ?";
+        $get_sessions_stmt = $conn->prepare($get_sessions_query);
+        $get_sessions_stmt->bind_param('i', $plan_id);
+        $get_sessions_stmt->execute();
+        $sessions_result = $get_sessions_stmt->get_result();
+        $session_ids = [];
+        while ($row = $sessions_result->fetch_assoc()) {
+            $session_ids[] = $row['id'];
+        }
+        
+        // Unlink all sessions from this payment plan
+        if (!empty($session_ids)) {
+            $unlink_query = "UPDATE call_center_sessions SET payment_plan_id = NULL WHERE payment_plan_id = ?";
+            $unlink_stmt = $conn->prepare($unlink_query);
+            $unlink_stmt->bind_param('i', $plan_id);
+            $unlink_stmt->execute();
+        }
         
         // Step 2: If this is the active plan, reset donor status
         if ($is_active_plan) {
@@ -90,7 +120,7 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $reset_stmt->execute();
         }
         
-        // Step 3: Delete the payment plan
+        // Step 3: Delete the payment plan (now safe - all references are unlinked)
         $delete_query = "DELETE FROM donor_payment_plans WHERE id = ?";
         $delete_stmt = $conn->prepare($delete_query);
         $delete_stmt->bind_param('i', $plan_id);
@@ -98,9 +128,19 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $conn->commit();
         
-        header('Location: view-donor.php?id=' . $donor_id . '&success=' . urlencode('Payment plan deleted successfully'));
+        $message = 'Payment plan deleted successfully.';
+        if ($linked_sessions > 0) {
+            $message .= " {$linked_sessions} call session(s) were unlinked from this plan.";
+        }
+        
+        header('Location: view-donor.php?id=' . $donor_id . '&success=' . urlencode($message));
         exit;
         
+    } catch (mysqli_sql_exception $e) {
+        $conn->rollback();
+        $error_msg = 'Database error: ' . $e->getMessage() . ' (Error Code: ' . $e->getCode() . ')';
+        header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode($error_msg));
+        exit;
     } catch (Exception $e) {
         $conn->rollback();
         header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Failed to delete: ' . $e->getMessage()));

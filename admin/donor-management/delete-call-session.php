@@ -35,8 +35,15 @@ try {
     ";
     
     $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        throw new Exception("Prepare failed: " . $conn->error);
+    }
+    
     $stmt->bind_param('ii', $session_id, $donor_id);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        throw new Exception("Execute failed: " . $stmt->error);
+    }
+    
     $result = $stmt->get_result();
     $session = $result->fetch_object();
     
@@ -48,13 +55,21 @@ try {
     // Check for linked appointment
     $appt_query = "SELECT id FROM call_center_appointments WHERE session_id = ?";
     $appt_stmt = $conn->prepare($appt_query);
+    if (!$appt_stmt) {
+        throw new Exception("Prepare failed for appointment query: " . $conn->error);
+    }
     $appt_stmt->bind_param('i', $session_id);
-    $appt_stmt->execute();
+    if (!$appt_stmt->execute()) {
+        throw new Exception("Execute failed for appointment query: " . $appt_stmt->error);
+    }
     $appt_result = $appt_stmt->get_result();
     $has_appointment = $appt_result->num_rows > 0;
     
+} catch (mysqli_sql_exception $e) {
+    header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Database error: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')'));
+    exit;
 } catch (Exception $e) {
-    header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Database error: ' . $e->getMessage()));
+    header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Error: ' . $e->getMessage()));
     exit;
 }
 
@@ -65,7 +80,38 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $conn->begin_transaction();
         
-        // Step 1: Delete linked appointment if exists
+        // Step 1: Delete child records that reference this session (RESTRICT constraints)
+        // Delete call_center_attempt_log records
+        $delete_attempt_log_query = "DELETE FROM call_center_attempt_log WHERE session_id = ?";
+        $delete_attempt_stmt = $conn->prepare($delete_attempt_log_query);
+        $delete_attempt_stmt->bind_param('i', $session_id);
+        $delete_attempt_stmt->execute();
+        
+        // Delete call_center_sms_log records
+        $delete_sms_log_query = "DELETE FROM call_center_sms_log WHERE session_id = ?";
+        $delete_sms_stmt = $conn->prepare($delete_sms_log_query);
+        $delete_sms_stmt->bind_param('i', $session_id);
+        $delete_sms_stmt->execute();
+        
+        // Delete call_center_workflow_executions records
+        $delete_workflow_query = "DELETE FROM call_center_workflow_executions WHERE session_id = ?";
+        $delete_workflow_stmt = $conn->prepare($delete_workflow_query);
+        $delete_workflow_stmt->bind_param('i', $session_id);
+        $delete_workflow_stmt->execute();
+        
+        // Delete call_center_conversation_steps (CASCADE, but let's be explicit)
+        $delete_steps_query = "DELETE FROM call_center_conversation_steps WHERE session_id = ?";
+        $delete_steps_stmt = $conn->prepare($delete_steps_query);
+        $delete_steps_stmt->bind_param('i', $session_id);
+        $delete_steps_stmt->execute();
+        
+        // Delete call_center_responses (CASCADE, but let's be explicit)
+        $delete_responses_query = "DELETE FROM call_center_responses WHERE session_id = ?";
+        $delete_responses_stmt = $conn->prepare($delete_responses_query);
+        $delete_responses_stmt->bind_param('i', $session_id);
+        $delete_responses_stmt->execute();
+        
+        // Step 2: Delete linked appointment if exists (ON DELETE SET NULL, but let's be explicit)
         if ($has_appointment) {
             $delete_appt_query = "DELETE FROM call_center_appointments WHERE session_id = ?";
             $delete_appt_stmt = $conn->prepare($delete_appt_query);
@@ -73,11 +119,24 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $delete_appt_stmt->execute();
         }
         
-        // Step 2: Handle payment plan if exists
-        if ($session->has_payment_plan) {
+        // Step 3: Handle payment plan if exists
+        if (!empty($session->payment_plan_id)) {
+            $plan_id = (int)$session->payment_plan_id;
+            
             if ($unlink_plan === 'delete') {
+                // First, unlink this session from the plan
+                $unlink_session_query = "UPDATE call_center_sessions SET payment_plan_id = NULL WHERE id = ?";
+                $unlink_session_stmt = $conn->prepare($unlink_session_query);
+                $unlink_session_stmt->bind_param('i', $session_id);
+                $unlink_session_stmt->execute();
+                
                 // Delete the payment plan
-                $plan_id = $session->payment_plan_id;
+                
+                // Unlink all other sessions from this plan first
+                $unlink_all_sessions_query = "UPDATE call_center_sessions SET payment_plan_id = NULL WHERE payment_plan_id = ?";
+                $unlink_all_stmt = $conn->prepare($unlink_all_sessions_query);
+                $unlink_all_stmt->bind_param('i', $plan_id);
+                $unlink_all_stmt->execute();
                 
                 // Reset donor if this is their active plan
                 $reset_donor_query = "
@@ -100,11 +159,16 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $delete_plan_stmt = $conn->prepare($delete_plan_query);
                 $delete_plan_stmt->bind_param('i', $plan_id);
                 $delete_plan_stmt->execute();
+            } else {
+                // Just unlink this session from the plan
+                $unlink_session_query = "UPDATE call_center_sessions SET payment_plan_id = NULL WHERE id = ?";
+                $unlink_session_stmt = $conn->prepare($unlink_session_query);
+                $unlink_session_stmt->bind_param('i', $session_id);
+                $unlink_session_stmt->execute();
             }
-            // If unlink_plan === 'unlink', the foreign key will handle it (payment_plan_id will be set to NULL on delete)
         }
         
-        // Step 3: Delete the call session
+        // Step 4: Delete the call session (now safe - all child records are gone)
         $delete_query = "DELETE FROM call_center_sessions WHERE id = ?";
         $delete_stmt = $conn->prepare($delete_query);
         $delete_stmt->bind_param('i', $session_id);
@@ -116,7 +180,7 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($has_appointment) {
             $message .= ' Linked appointment also deleted.';
         }
-        if ($session->has_payment_plan && $unlink_plan === 'delete') {
+        if (!empty($session->payment_plan_id) && $unlink_plan === 'delete') {
             $message .= ' Payment plan also deleted.';
         }
         
@@ -322,7 +386,7 @@ if ($duration_sec > 0) {
             </div>
             <?php endif; ?>
             
-            <?php if ($session->has_payment_plan): ?>
+            <?php if (!empty($session->payment_plan_id)): ?>
             <div class="choice-box">
                 <h6 class="mb-3"><strong><i class="fas fa-credit-card me-2"></i>Payment Plan Linked</strong></h6>
                 <p>This call resulted in a payment plan. What would you like to do?</p>
@@ -344,7 +408,7 @@ if ($duration_sec > 0) {
                     <?php if ($has_appointment): ?>
                     <li>The linked appointment will be deleted</li>
                     <?php endif; ?>
-                    <?php if ($session->has_payment_plan): ?>
+                    <?php if (!empty($session->payment_plan_id)): ?>
                     <li id="plan-action-text">The payment plan will be unlinked (but kept active)</li>
                     <?php else: ?>
                     <li>No other records will be affected</li>
@@ -353,7 +417,7 @@ if ($duration_sec > 0) {
             </div>
             
             <form method="POST">
-                <?php if ($session->has_payment_plan): ?>
+                <?php if (!empty($session->payment_plan_id)): ?>
                 <input type="hidden" name="unlink_plan" id="unlink_plan_value" value="unlink">
                 <?php endif; ?>
                 
