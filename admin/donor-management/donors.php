@@ -64,8 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             $balance = 0;
             $payment_status = 'no_pledge';
             $has_active_plan = 0;
-            $plan_monthly_amount = null;
-            $plan_duration_months = null;
             $preferred_payment_day = isset($_POST['preferred_payment_day']) ? (int)$_POST['preferred_payment_day'] : 1;
             
             if ($donation_type === 'pledge') {
@@ -80,8 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 // Payment plan
                 if (isset($_POST['create_payment_plan']) && $_POST['create_payment_plan']) {
                     $has_active_plan = 1;
-                    $plan_monthly_amount = isset($_POST['plan_monthly_amount']) ? (float)$_POST['plan_monthly_amount'] : 0;
-                    $plan_duration_months = isset($_POST['plan_duration_months']) ? (int)$_POST['plan_duration_months'] : 0;
+                    // Note: Plan details will be stored in donor_payment_plans table
+                    // Only flag is set here, actual plan creation happens separately
                 }
             } elseif ($donation_type === 'immediate') {
                 $payment_amount = isset($_POST['payment_amount']) ? (float)$_POST['payment_amount'] : 0;
@@ -98,17 +96,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     name, phone, preferred_language, preferred_payment_method, 
                     sms_opt_in, admin_notes, source, 
                     total_pledged, total_paid, balance, payment_status,
-                    has_active_plan, plan_monthly_amount, plan_duration_months, 
-                    preferred_payment_day, registered_by_user_id,
+                    has_active_plan, preferred_payment_day, registered_by_user_id,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
-            $stmt->bind_param('ssssissdddsidiii', 
+            $stmt->bind_param('ssssissdddsiii', 
                 $name, $phone, $preferred_language, $preferred_payment_method,
                 $sms_opt_in, $admin_notes, $source,
                 $total_pledged, $total_paid, $balance, $payment_status,
-                $has_active_plan, $plan_monthly_amount, $plan_duration_months,
-                $preferred_payment_day, $current_user['id']
+                $has_active_plan, $preferred_payment_day, $current_user['id']
             );
             $stmt->execute();
             
@@ -326,11 +322,10 @@ try {
             d.id, d.name, d.phone, d.preferred_language, 
             d.preferred_payment_method, d.source, d.total_pledged, d.total_paid, 
             d.balance, d.payment_status, d.created_at, d.updated_at,
-            d.has_active_plan, d.active_payment_plan_id, d.plan_monthly_amount, 
-            d.plan_duration_months, d.plan_start_date, d.plan_next_due_date,
+            d.has_active_plan, d.active_payment_plan_id,
             d.last_payment_date, d.last_sms_sent_at, d.login_count, d.admin_notes,
             d.registered_by_user_id, d.pledge_count, d.payment_count, d.achievement_badge,
-            -- Payment plan details
+            -- Payment plan details (from master table only)
             pp.id as plan_id, pp.total_amount as plan_total_amount,
             pp.monthly_amount as plan_monthly_amount, pp.total_months as plan_total_months,
             pp.total_payments as plan_total_payments, pp.start_date as plan_start_date,

@@ -317,11 +317,19 @@ try {
     $plan_id = $db->insert_id;
     $insert_plan->close();
     
-    // 2. Update Donor (Active Plan)
-    $update_donor = $db->prepare("UPDATE donors SET active_payment_plan_id = ?, payment_status = 'paying' WHERE id = ?");
+    // 2. Update Donor (Active Plan) - Set flags only, no cache duplication
+    $update_donor = $db->prepare("
+        UPDATE donors 
+        SET active_payment_plan_id = ?, 
+            has_active_plan = 1,
+            payment_status = 'paying' 
+        WHERE id = ?
+    ");
     $update_donor->bind_param('ii', $plan_id, $donor_id);
     $update_donor->execute();
     $update_donor->close();
+    
+    error_log("Donor flags updated: has_active_plan=1, active_payment_plan_id=$plan_id");
     
     // 3. Update Session
     if ($session_id > 0) {
