@@ -141,6 +141,25 @@ try {
             margin-bottom: 0.5rem;
         }
         
+        .church-name-link {
+            color: var(--church-primary);
+            transition: color 0.2s ease;
+        }
+        
+        .church-name-link:hover {
+            color: #084767;
+            text-decoration: underline !important;
+        }
+        
+        .churches-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .churches-table tbody tr:hover {
+            background: #f1f5f9 !important;
+        }
+        
         .church-meta {
             display: flex;
             flex-wrap: wrap;
@@ -167,11 +186,6 @@ try {
             font-size: 0.875rem;
         }
         
-        .action-buttons {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
         
         .empty-state {
             text-align: center;
@@ -213,13 +227,6 @@ try {
                 gap: 0.5rem;
             }
             
-            .action-buttons {
-                width: 100%;
-            }
-            
-            .action-buttons .btn {
-                flex: 1;
-            }
         }
         
         /* Table view for desktop */
@@ -375,69 +382,25 @@ try {
                             <tr>
                                 <th>Church Name</th>
                                 <th>City</th>
-                                <th>Address</th>
-                                <th>Phone</th>
-                                <th>Representatives</th>
                                 <th>Donors</th>
-                                <th>Status</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($churches as $church): ?>
-                            <tr>
+                            <tr style="cursor: pointer;" onclick="window.location.href='view-church.php?id=<?php echo $church['id']; ?>'">
                                 <td>
-                                    <div class="church-name"><?php echo htmlspecialchars($church['name']); ?></div>
+                                    <a href="view-church.php?id=<?php echo $church['id']; ?>" 
+                                       class="text-decoration-none church-name-link">
+                                        <?php echo htmlspecialchars($church['name']); ?>
+                                    </a>
                                 </td>
                                 <td>
                                     <span class="badge bg-info badge-custom"><?php echo htmlspecialchars($church['city']); ?></span>
                                 </td>
                                 <td>
-                                    <span class="text-muted small"><?php echo htmlspecialchars($church['address'] ?? 'N/A'); ?></span>
-                                </td>
-                                <td>
-                                    <?php if ($church['phone']): ?>
-                                        <a href="tel:<?php echo htmlspecialchars($church['phone']); ?>" class="text-decoration-none">
-                                            <?php echo htmlspecialchars($church['phone']); ?>
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="text-muted">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <span class="badge bg-primary badge-custom">
-                                        <i class="fas fa-user-tie me-1"></i><?php echo $church['rep_count']; ?>
-                                    </span>
-                                </td>
-                                <td>
                                     <span class="badge bg-success badge-custom">
                                         <i class="fas fa-users me-1"></i><?php echo $church['donor_count']; ?>
                                     </span>
-                                </td>
-                                <td>
-                                    <?php if ($church['is_active']): ?>
-                                        <span class="badge bg-success badge-custom">Active</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-secondary badge-custom">Inactive</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <a href="view-church.php?id=<?php echo $church['id']; ?>" 
-                                           class="btn btn-sm btn-outline-primary" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="edit-church.php?id=<?php echo $church['id']; ?>" 
-                                           class="btn btn-sm btn-outline-warning" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="delete-church.php?id=<?php echo $church['id']; ?>" 
-                                           class="btn btn-sm btn-outline-danger" 
-                                           onclick="return confirm('Are you sure you want to delete this church? This action cannot be undone.');" 
-                                           title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -446,59 +409,26 @@ try {
                     
                     <!-- Mobile Card View -->
                     <?php foreach ($churches as $church): ?>
-                    <div class="church-card">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="church-name"><?php echo htmlspecialchars($church['name']); ?></div>
-                            <?php if ($church['is_active']): ?>
-                                <span class="badge bg-success badge-custom">Active</span>
-                            <?php else: ?>
-                                <span class="badge bg-secondary badge-custom">Inactive</span>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <div class="church-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span><?php echo htmlspecialchars($church['city']); ?></span>
+                    <div class="church-card" onclick="window.location.href='view-church.php?id=<?php echo $church['id']; ?>'" style="cursor: pointer;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="church-name">
+                                    <a href="view-church.php?id=<?php echo $church['id']; ?>" 
+                                       class="text-decoration-none church-name-link">
+                                        <?php echo htmlspecialchars($church['name']); ?>
+                                    </a>
+                                </div>
+                                <div class="church-meta mt-2">
+                                    <div class="meta-item">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span><?php echo htmlspecialchars($church['city']); ?></span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <i class="fas fa-users"></i>
+                                        <span><?php echo $church['donor_count']; ?> Donor<?php echo $church['donor_count'] != 1 ? 's' : ''; ?></span>
+                                    </div>
+                                </div>
                             </div>
-                            <?php if ($church['address']): ?>
-                            <div class="meta-item">
-                                <i class="fas fa-location-dot"></i>
-                                <span><?php echo htmlspecialchars($church['address']); ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if ($church['phone']): ?>
-                            <div class="meta-item">
-                                <i class="fas fa-phone"></i>
-                                <a href="tel:<?php echo htmlspecialchars($church['phone']); ?>" class="text-decoration-none">
-                                    <?php echo htmlspecialchars($church['phone']); ?>
-                                </a>
-                            </div>
-                            <?php endif; ?>
-                            <div class="meta-item">
-                                <i class="fas fa-user-tie"></i>
-                                <span><?php echo $church['rep_count']; ?> Representative<?php echo $church['rep_count'] != 1 ? 's' : ''; ?></span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-users"></i>
-                                <span><?php echo $church['donor_count']; ?> Donor<?php echo $church['donor_count'] != 1 ? 's' : ''; ?></span>
-                            </div>
-                        </div>
-                        
-                        <div class="action-buttons mt-3">
-                            <a href="view-church.php?id=<?php echo $church['id']; ?>" 
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye me-1"></i>View
-                            </a>
-                            <a href="edit-church.php?id=<?php echo $church['id']; ?>" 
-                               class="btn btn-sm btn-outline-warning">
-                                <i class="fas fa-edit me-1"></i>Edit
-                            </a>
-                            <a href="delete-church.php?id=<?php echo $church['id']; ?>" 
-                               class="btn btn-sm btn-outline-danger"
-                               onclick="return confirm('Are you sure you want to delete this church? This action cannot be undone.');">
-                                <i class="fas fa-trash me-1"></i>Delete
-                            </a>
                         </div>
                     </div>
                     <?php endforeach; ?>

@@ -169,9 +169,12 @@ try {
                                 Church Details
                             </p>
                         </div>
-                        <div class="d-flex gap-2 mt-2 mt-md-0">
+                        <div class="d-flex gap-2 mt-2 mt-md-0 flex-wrap">
                             <a href="edit-church.php?id=<?php echo $church_id; ?>" class="btn btn-light">
                                 <i class="fas fa-edit me-2"></i>Edit
+                            </a>
+                            <a href="delete-church.php?id=<?php echo $church_id; ?>" class="btn btn-light text-danger">
+                                <i class="fas fa-trash me-2"></i>Delete
                             </a>
                             <a href="churches.php" class="btn btn-light">
                                 <i class="fas fa-arrow-left me-2"></i>Back to List
