@@ -89,6 +89,12 @@ try {
 
     $plan = $result->fetch_object();
     $query->close();
+    
+    // Debug: Log plan data
+    error_log("Plan loaded - ID: " . $plan->id . ", Donor: " . $plan->donor_name);
+    error_log("Plan total_amount: " . ($plan->total_amount ?? 'NULL'));
+    error_log("Plan monthly_amount: " . ($plan->monthly_amount ?? 'NULL'));
+    error_log("Plan amount_paid: " . ($plan->amount_paid ?? 'NULL'));
 
     // Fetch payments
     $payment_columns = [];
@@ -145,15 +151,23 @@ try {
         $payments_query->close();
     }
 
-    // Calculate progress
-    $progress_percentage = $plan->total_amount > 0 ? ($plan->amount_paid / $plan->total_amount) * 100 : 0;
-    $remaining_amount = $plan->total_amount - $plan->amount_paid;
-    $remaining_payments = ($plan->total_payments ?? 0) - ($plan->payments_made ?? 0);
+    // Calculate progress - ensure we have valid numbers
+    $total_amount = (float)($plan->total_amount ?? 0);
+    $amount_paid = (float)($plan->amount_paid ?? 0);
+    $total_payments = (int)($plan->total_payments ?? 0);
+    $payments_made = (int)($plan->payments_made ?? 0);
+    
+    $progress_percentage = $total_amount > 0 ? ($amount_paid / $total_amount) * 100 : 0;
+    $remaining_amount = $total_amount - $amount_paid;
+    $remaining_payments = $total_payments - $payments_made;
+    
+    error_log("Calculated - Progress: $progress_percentage%, Remaining: $remaining_amount, Remaining Payments: $remaining_payments");
 
-    $page_title = "Payment Plan #$plan_id - " . htmlspecialchars($plan->donor_name);
+    $page_title = "Payment Plan #$plan_id - " . htmlspecialchars($plan->donor_name ?? 'Unknown');
     
 } catch (Exception $e) {
     error_log("Error in view-payment-plan.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     die("Error loading payment plan: " . htmlspecialchars($e->getMessage()));
 }
 ?>
@@ -320,13 +334,13 @@ try {
                     <!-- Statistics -->
                     <div class="col-lg-3 col-md-6 mb-3">
                         <div class="stat-card">
-                            <div class="stat-value text-primary">£<?php echo number_format($plan->total_amount, 2); ?></div>
+                            <div class="stat-value text-primary">£<?php echo number_format($total_amount, 2); ?></div>
                             <div class="stat-label">Total Amount</div>
                         </div>
                     </div>
                     <div class="col-lg-3 col-md-6 mb-3">
                         <div class="stat-card">
-                            <div class="stat-value text-success">£<?php echo number_format($plan->amount_paid, 2); ?></div>
+                            <div class="stat-value text-success">£<?php echo number_format($amount_paid, 2); ?></div>
                             <div class="stat-label">Paid</div>
                         </div>
                     </div>
@@ -338,7 +352,7 @@ try {
                     </div>
                     <div class="col-lg-3 col-md-6 mb-3">
                         <div class="stat-card">
-                            <div class="stat-value text-info"><?php echo $plan->payments_made; ?>/<?php echo $plan->total_payments; ?></div>
+                            <div class="stat-value text-info"><?php echo $payments_made; ?>/<?php echo $total_payments; ?></div>
                             <div class="stat-label">Payments</div>
                         </div>
                     </div>
@@ -372,7 +386,7 @@ try {
                             <div class="row g-3 mt-3">
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-money-bill-wave text-primary me-2"></i>Monthly Amount:</strong>
-                                    <span class="float-end">£<?php echo number_format($plan->monthly_amount, 2); ?></span>
+                                    <span class="float-end">£<?php echo number_format((float)($plan->monthly_amount ?? 0), 2); ?></span>
                                 </div>
                                 <div class="col-md-6">
                                     <strong><i class="fas fa-calendar text-primary me-2"></i>Duration:</strong>
