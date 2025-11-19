@@ -39,6 +39,7 @@ set_exception_handler(function($exception) {
 });
 
 echo "<!DOCTYPE html><html><head><title>Payment Plan Deletion Debug (Simple)</title>";
+echo "<link rel='icon' type='image/svg+xml' href='../../assets/favicon.svg'>";
 echo "<style>body{font-family:monospace;padding:20px;background:#f5f5f5;} .step{background:white;padding:15px;margin:10px 0;border-left:4px solid #007bff;} .success{border-color:#28a745;} .error{border-color:#dc3545;background:#fff5f5;} .info{border-color:#17a2b8;} pre{background:#f8f9fa;padding:10px;border-radius:4px;overflow-x:auto;}</style>";
 echo "</head><body>";
 echo "<h1>🔍 Payment Plan Deletion - Simple Debug</h1>";

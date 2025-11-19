@@ -7,6 +7,7 @@ error_reporting(E_ALL);
 declare(strict_types=1);
 
 echo "<!DOCTYPE html><html><head><title>Call Session Deletion Debug</title>";
+echo "<link rel='icon' type='image/svg+xml' href='../../assets/favicon.svg'>";
 echo "<style>body{font-family:monospace;padding:20px;background:#f5f5f5;} .step{background:white;padding:15px;margin:10px 0;border-left:4px solid #007bff;} .success{border-color:#28a745;} .error{border-color:#dc3545;background:#fff5f5;} .info{border-color:#17a2b8;} pre{background:#f8f9fa;padding:10px;border-radius:4px;overflow-x:auto;} h2{color:#333;} .query{background:#e7f3ff;padding:10px;margin:5px 0;border-radius:4px;}</style>";
 echo "</head><body>";
 echo "<h1>🔍 Call Session Deletion - Full Debug</h1>";

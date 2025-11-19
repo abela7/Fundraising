@@ -5,6 +5,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
 echo "<!DOCTYPE html><html><head><title>Minimal Deletion Test</title>";
+echo "<link rel='icon' type='image/svg+xml' href='../../assets/favicon.svg'>";
 echo "<style>body{font-family:monospace;padding:20px;background:#f5f5f5;} .ok{color:green;} .error{color:red;background:#fff5f5;padding:10px;margin:5px 0;} .info{background:#e7f3ff;padding:10px;margin:5px 0;}</style>";
 echo "</head><body>";
 echo "<h1>Minimal Deletion Test</h1>";
