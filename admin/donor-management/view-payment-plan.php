@@ -108,8 +108,8 @@ try {
         // Check if payments table exists
         $check = $db->query("SHOW TABLES LIKE 'payments'");
         if ($check->num_rows > 0) {
-            // Simple query first
-            $query = "SELECT * FROM payments WHERE donor_id = ? AND pledge_id = ? ORDER BY payment_date DESC";
+            // Simple query first - use created_at instead of payment_date
+            $query = "SELECT * FROM payments WHERE donor_id = ? AND pledge_id = ? ORDER BY created_at DESC";
             $stmt = $db->prepare($query);
             $stmt->bind_param('ii', $plan['donor_id'], $plan['pledge_id']);
             $stmt->execute();
@@ -292,7 +292,7 @@ try {
                                         <tbody>
                                             <?php foreach($payments as $pay): ?>
                                             <tr>
-                                                <td><?php echo date('d M Y', strtotime($pay['payment_date'])); ?></td>
+                                                <td><?php echo date('d M Y', strtotime($pay['created_at'] ?? $pay['received_at'] ?? 'now')); ?></td>
                                                 <td class="fw-bold">£<?php echo number_format((float)$pay['amount'], 2); ?></td>
                                                 <td><?php echo ucfirst($pay['payment_method']); ?></td>
                                                 <td>
