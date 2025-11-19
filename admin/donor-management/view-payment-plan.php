@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+// Enable error display for debugging
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
@@ -83,9 +88,11 @@ while ($row = $payments_result->fetch_assoc()) {
 }
 $payments_stmt->close();
 
-// Calculate progress
-$progress_percent = $plan['total_amount'] > 0 ? ($plan['amount_paid'] / $plan['total_amount']) * 100 : 0;
-$remaining = $plan['total_amount'] - $plan['amount_paid'];
+// Calculate progress - handle NULL values
+$total_amount = (float)($plan['total_amount'] ?? 0);
+$amount_paid = (float)($plan['amount_paid'] ?? 0);
+$progress_percent = $total_amount > 0 ? ($amount_paid / $total_amount) * 100 : 0;
+$remaining = $total_amount - $amount_paid;
 
 $page_title = "Payment Plan #" . $plan_id;
 ?>
@@ -94,7 +101,7 @@ $page_title = "Payment Plan #" . $plan_id;
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo $page_title; ?> - <?php echo htmlspecialchars($plan['donor_name']); ?></title>
+    <title><?php echo $page_title; ?> - <?php echo htmlspecialchars($plan['donor_name'] ?? 'Unknown'); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
@@ -174,11 +181,11 @@ $page_title = "Payment Plan #" . $plan_id;
 
                 <!-- Header Card -->
                 <div class="header-card">
-                    <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap">
                         <div>
                             <h1 class="mb-2"><i class="fas fa-calendar-alt me-3"></i>Payment Plan #<?php echo $plan_id; ?></h1>
-                            <h4 class="mb-2"><?php echo htmlspecialchars($plan['donor_name']); ?></h4>
-                            <p class="mb-0"><i class="fas fa-phone me-2"></i><?php echo htmlspecialchars($plan['donor_phone']); ?></p>
+                            <h4 class="mb-2"><?php echo htmlspecialchars($plan['donor_name'] ?? 'Unknown'); ?></h4>
+                            <p class="mb-0"><i class="fas fa-phone me-2"></i><?php echo htmlspecialchars($plan['donor_phone'] ?? 'N/A'); ?></p>
                         </div>
                         <div>
                             <?php
@@ -189,10 +196,11 @@ $page_title = "Payment Plan #" . $plan_id;
                                 'defaulted' => 'danger',
                                 'cancelled' => 'secondary'
                             ];
-                            $status_color = $status_colors[$plan['status']] ?? 'secondary';
+                            $status = $plan['status'] ?? 'active';
+                            $status_color = $status_colors[$status] ?? 'secondary';
                             ?>
                             <span class="badge bg-<?php echo $status_color; ?> status-badge">
-                                <?php echo strtoupper($plan['status']); ?>
+                                <?php echo strtoupper($status); ?>
                             </span>
                         </div>
                     </div>
@@ -200,27 +208,27 @@ $page_title = "Payment Plan #" . $plan_id;
 
                 <!-- Stats Row -->
                 <div class="row mb-4">
-                    <div class="col-md-3">
+                    <div class="col-md-3 mb-3">
                         <div class="stat-card">
-                            <div class="stat-value text-primary">£<?php echo number_format($plan['total_amount'], 2); ?></div>
+                            <div class="stat-value text-primary">£<?php echo number_format($total_amount, 2); ?></div>
                             <div class="stat-label">Total Amount</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3 mb-3">
                         <div class="stat-card">
-                            <div class="stat-value text-success">£<?php echo number_format($plan['amount_paid'], 2); ?></div>
+                            <div class="stat-value text-success">£<?php echo number_format($amount_paid, 2); ?></div>
                             <div class="stat-label">Paid</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3 mb-3">
                         <div class="stat-card">
                             <div class="stat-value text-warning">£<?php echo number_format($remaining, 2); ?></div>
                             <div class="stat-label">Remaining</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3 mb-3">
                         <div class="stat-card">
-                            <div class="stat-value text-info"><?php echo $plan['payments_made']; ?>/<?php echo $plan['total_payments']; ?></div>
+                            <div class="stat-value text-info"><?php echo (int)($plan['payments_made'] ?? 0); ?>/<?php echo (int)($plan['total_payments'] ?? 0); ?></div>
                             <div class="stat-label">Payments</div>
                         </div>
                     </div>
@@ -248,29 +256,29 @@ $page_title = "Payment Plan #" . $plan_id;
 
                             <div class="info-row">
                                 <span class="info-label">Monthly Amount:</span>
-                                <span class="info-value">£<?php echo number_format($plan['monthly_amount'], 2); ?></span>
+                                <span class="info-value">£<?php echo number_format((float)($plan['monthly_amount'] ?? 0), 2); ?></span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">Duration:</span>
-                                <span class="info-value"><?php echo $plan['total_months']; ?> months</span>
+                                <span class="info-value"><?php echo (int)($plan['total_months'] ?? 0); ?> months</span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">Total Payments:</span>
-                                <span class="info-value"><?php echo $plan['total_payments']; ?> payments</span>
+                                <span class="info-value"><?php echo (int)($plan['total_payments'] ?? 0); ?> payments</span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">Payment Day:</span>
-                                <span class="info-value">Day <?php echo $plan['payment_day']; ?> of month</span>
+                                <span class="info-value">Day <?php echo (int)($plan['payment_day'] ?? 1); ?> of month</span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">Payment Method:</span>
-                                <span class="info-value"><?php echo ucfirst($plan['payment_method']); ?></span>
+                                <span class="info-value"><?php echo ucfirst($plan['payment_method'] ?? 'N/A'); ?></span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">Start Date:</span>
-                                <span class="info-value"><?php echo date('d M Y', strtotime($plan['start_date'])); ?></span>
+                                <span class="info-value"><?php echo $plan['start_date'] ? date('d M Y', strtotime($plan['start_date'])) : 'N/A'; ?></span>
                             </div>
-                            <?php if ($plan['next_payment_due']): ?>
+                            <?php if (!empty($plan['next_payment_due'])): ?>
                             <div class="info-row">
                                 <span class="info-label">Next Payment Due:</span>
                                 <span class="info-value"><?php echo date('d M Y', strtotime($plan['next_payment_due'])); ?></span>
@@ -298,11 +306,11 @@ $page_title = "Payment Plan #" . $plan_id;
                                         <?php foreach ($payments as $payment): ?>
                                         <tr>
                                             <td><?php echo date('d M Y', strtotime($payment['payment_date'])); ?></td>
-                                            <td><strong>£<?php echo number_format($payment['amount'], 2); ?></strong></td>
-                                            <td><?php echo ucfirst($payment['payment_method']); ?></td>
+                                            <td><strong>£<?php echo number_format((float)$payment['amount'], 2); ?></strong></td>
+                                            <td><?php echo ucfirst($payment['payment_method'] ?? 'N/A'); ?></td>
                                             <td>
-                                                <span class="badge bg-<?php echo $payment['status'] === 'approved' ? 'success' : 'warning'; ?>">
-                                                    <?php echo ucfirst($payment['status']); ?>
+                                                <span class="badge bg-<?php echo ($payment['status'] ?? '') === 'approved' ? 'success' : 'warning'; ?>">
+                                                    <?php echo ucfirst($payment['status'] ?? 'Pending'); ?>
                                                 </span>
                                             </td>
                                             <td><?php echo htmlspecialchars($payment['received_by'] ?? 'N/A'); ?></td>
@@ -324,29 +332,31 @@ $page_title = "Payment Plan #" . $plan_id;
                     <div class="col-md-4">
                         
                         <!-- Template Info -->
-                        <?php if ($plan['template_name']): ?>
+                        <?php if (!empty($plan['template_name'])): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-file-invoice me-2"></i>Template</h5>
                             <h6><?php echo htmlspecialchars($plan['template_name']); ?></h6>
-                            <?php if ($plan['template_description']): ?>
+                            <?php if (!empty($plan['template_description'])): ?>
                             <p class="text-muted small mb-0"><?php echo htmlspecialchars($plan['template_description']); ?></p>
                             <?php endif; ?>
                         </div>
                         <?php endif; ?>
 
                         <!-- Pledge Info -->
-                        <?php if ($plan['pledge_amount']): ?>
+                        <?php if (!empty($plan['pledge_amount'])): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-hand-holding-heart me-2"></i>Pledge Details</h5>
                             <div class="info-row">
                                 <span class="info-label">Amount:</span>
-                                <span class="info-value">£<?php echo number_format($plan['pledge_amount'], 2); ?></span>
+                                <span class="info-value">£<?php echo number_format((float)$plan['pledge_amount'], 2); ?></span>
                             </div>
+                            <?php if (!empty($plan['pledge_date'])): ?>
                             <div class="info-row">
                                 <span class="info-label">Date:</span>
                                 <span class="info-value"><?php echo date('d M Y', strtotime($plan['pledge_date'])); ?></span>
                             </div>
-                            <?php if ($plan['pledge_notes']): ?>
+                            <?php endif; ?>
+                            <?php if (!empty($plan['pledge_notes'])): ?>
                             <div class="mt-3 pt-3 border-top">
                                 <strong class="d-block mb-2">Notes:</strong>
                                 <p class="text-muted small mb-0"><?php echo nl2br(htmlspecialchars($plan['pledge_notes'])); ?></p>
@@ -356,11 +366,11 @@ $page_title = "Payment Plan #" . $plan_id;
                         <?php endif; ?>
 
                         <!-- Church Info -->
-                        <?php if ($plan['church_name']): ?>
+                        <?php if (!empty($plan['church_name'])): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-church me-2"></i>Church</h5>
                             <p class="mb-1"><strong><?php echo htmlspecialchars($plan['church_name']); ?></strong></p>
-                            <?php if ($plan['church_city']): ?>
+                            <?php if (!empty($plan['church_city'])): ?>
                             <p class="text-muted mb-0">
                                 <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($plan['church_city']); ?>
                             </p>
@@ -369,11 +379,11 @@ $page_title = "Payment Plan #" . $plan_id;
                         <?php endif; ?>
 
                         <!-- Representative Info -->
-                        <?php if ($plan['representative_name']): ?>
+                        <?php if (!empty($plan['representative_name'])): ?>
                         <div class="info-card">
                             <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Representative</h5>
                             <p class="mb-1"><strong><?php echo htmlspecialchars($plan['representative_name']); ?></strong></p>
-                            <?php if ($plan['representative_phone']): ?>
+                            <?php if (!empty($plan['representative_phone'])): ?>
                             <p class="text-muted mb-0">
                                 <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($plan['representative_phone']); ?>
                             </p>
