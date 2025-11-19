@@ -168,7 +168,11 @@ function formatDate($date) {
     return $date ? date('M j, Y', strtotime($date)) : '-';
 }
 function formatDateTime($date) {
-    return $date ? date('M j, Y g:i A', strtotime($date)) : '-';
+    if (empty($date) || $date === null) {
+        return '-';
+    }
+    $timestamp = strtotime($date);
+    return $timestamp !== false ? date('M j, Y g:i A', $timestamp) : '-';
 }
 ?>
 <!DOCTYPE html>
@@ -711,16 +715,16 @@ function formatDateTime($date) {
                                             <?php else: ?>
                                                 <?php foreach ($calls as $call): ?>
                                                 <tr>
-                                                    <td data-label="Date"><?php echo formatDateTime($call['call_started_at']); ?></td>
+                                                    <td data-label="Date"><?php echo formatDateTime($call['call_started_at'] ?? null); ?></td>
                                                     <td data-label="Agent"><?php echo htmlspecialchars($call['agent_name'] ?? 'Unknown'); ?></td>
                                                     <td data-label="Outcome">
                                                         <span class="badge bg-light text-dark border">
-                                                            <?php echo ucwords(str_replace('_', ' ', $call['outcome'])); ?>
+                                                            <?php echo ucwords(str_replace('_', ' ', $call['outcome'] ?? 'unknown')); ?>
                                                         </span>
                                                     </td>
-                                                    <td data-label="Duration"><?php echo $call['duration_seconds'] ? gmdate("i:s", (int)$call['duration_seconds']) : '-'; ?></td>
-                                                    <td data-label="Stage"><?php echo ucwords(str_replace('_', ' ', $call['conversation_stage'])); ?></td>
-                                                    <td data-label="Notes" class="text-truncate" style="max-width: 200px;" title="<?php echo htmlspecialchars($call['notes']); ?>">
+                                                    <td data-label="Duration"><?php echo isset($call['duration_seconds']) && $call['duration_seconds'] ? gmdate("i:s", (int)$call['duration_seconds']) : '-'; ?></td>
+                                                    <td data-label="Stage"><?php echo ucwords(str_replace('_', ' ', $call['conversation_stage'] ?? 'unknown')); ?></td>
+                                                    <td data-label="Notes" class="text-truncate" style="max-width: 200px;" title="<?php echo htmlspecialchars($call['notes'] ?? ''); ?>">
                                                         <?php echo htmlspecialchars($call['notes'] ?? '-'); ?>
                                                     </td>
                                                     <td data-label="Actions">
@@ -806,6 +810,77 @@ function formatDateTime($date) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Wait for Bootstrap to load, then initialize
+(function() {
+    function initBootstrap() {
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap JS failed to load!');
+            return;
+        }
+        
+        // Bootstrap accordions work automatically with data-bs-toggle="collapse"
+        // But let's ensure they're properly initialized
+        const accordionButtons = document.querySelectorAll('.accordion-button[data-bs-toggle="collapse"]');
+        accordionButtons.forEach(function(button) {
+            const targetId = button.getAttribute('data-bs-target');
+            if (targetId) {
+                const target = document.querySelector(targetId);
+                if (target) {
+                    // Create Bootstrap Collapse instance if it doesn't exist
+                    if (!target._collapse) {
+                        try {
+                            new bootstrap.Collapse(target, {
+                                toggle: false
+                            });
+                        } catch(e) {
+                            console.warn('Could not initialize collapse for', targetId, e);
+                        }
+                    }
+                }
+            }
+        });
+        
+        console.log('Bootstrap initialized. Found', accordionButtons.length, 'accordion buttons');
+    }
+    
+    // Try to initialize immediately
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initBootstrap);
+    } else {
+        // DOM already loaded
+        setTimeout(initBootstrap, 100);
+    }
+})();
+</script>
 <script src="../assets/admin.js"></script>
+<script>
+// Additional safety check for accordions
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure accordion buttons work even if Bootstrap didn't initialize properly
+    const accordionButtons = document.querySelectorAll('.accordion-button');
+    accordionButtons.forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            const targetId = this.getAttribute('data-bs-target');
+            if (targetId) {
+                const target = document.querySelector(targetId);
+                if (target) {
+                    // If Bootstrap didn't handle it, do it manually
+                    setTimeout(function() {
+                        const isCollapsed = button.classList.contains('collapsed');
+                        if (isCollapsed && target.classList.contains('show')) {
+                            // Fix inconsistent state
+                            target.classList.remove('show');
+                        } else if (!isCollapsed && !target.classList.contains('show')) {
+                            // Fix inconsistent state
+                            target.classList.add('show');
+                        }
+                    }, 50);
+                }
+            }
+        });
+    });
+});
+</script>
 </body>
 </html>
