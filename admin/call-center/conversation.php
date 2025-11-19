@@ -1194,20 +1194,7 @@ $page_title = 'Live Call';
                                         <label class="form-label">Assigned Church</label>
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="form-control" id="displayChurchName" style="background-color: #f8f9fa;">
-                                                <?php 
-                                                $current_church_name = 'Not assigned';
-                                                $current_church_id = null;
-                                                if ($donor->church_id) {
-                                                    foreach ($churches as $ch) {
-                                                        if ($ch['id'] == $donor->church_id) {
-                                                            $current_church_name = $ch['name'] . ($ch['city'] ? ' (' . $ch['city'] . ')' : '');
-                                                            $current_church_id = $ch['id'];
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                                ?>
-                                                <span id="churchDisplayText"><?php echo htmlspecialchars($current_church_name); ?></span>
+                                                <span id="churchDisplayText">Loading...</span>
                                             </div>
                                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="showChurchSelector()" title="Change Church">
                                                 <i class="fas fa-edit"></i>
@@ -1221,7 +1208,7 @@ $page_title = 'Live Call';
                                                 <option value="">Select Church</option>
                                                 <?php foreach ($churches as $church): ?>
                                                     <option value="<?php echo $church['id']; ?>" 
-                                                            <?php echo $current_church_id == $church['id'] ? 'selected' : ''; ?>>
+                                                            data-name="<?php echo htmlspecialchars($church['name'] . ($church['city'] ? ' (' . $church['city'] . ')' : '')); ?>">
                                                         <?php echo htmlspecialchars($church['name']); ?> 
                                                         <?php if ($church['city']): ?>
                                                             (<?php echo htmlspecialchars($church['city']); ?>)
@@ -1357,6 +1344,9 @@ $page_title = 'Live Call';
             document.getElementById('bankDetailsSection').style.display = 'none';
             document.getElementById('cashSection').style.display = 'block';
             
+            // Update church display from Step 2 form
+            updateChurchDisplay();
+            
             // Load representatives for current church
             loadCashRepresentatives();
             
@@ -1388,28 +1378,65 @@ $page_title = 'Live Call';
         }
     });
     
+    // Get current church from Step 2 form (even if not saved to DB yet)
+    function getCurrentChurch() {
+        const step2Church = document.getElementById('church_id');
+        if (step2Church && step2Church.value) {
+            return step2Church.value;
+        }
+        // Fallback to existing church_id from database
+        return <?php echo $donor->church_id ?? 0; ?>;
+    }
+    
+    // Update church display based on Step 2 form value
+    function updateChurchDisplay() {
+        const churchId = getCurrentChurch();
+        const churchSelect = document.getElementById('cash_church_id');
+        const displayText = document.getElementById('churchDisplayText');
+        
+        if (churchId && churchSelect) {
+            // Find the option with this value
+            const option = churchSelect.querySelector(`option[value="${churchId}"]`);
+            if (option) {
+                displayText.textContent = option.getAttribute('data-name') || option.text;
+                churchSelect.value = churchId;
+            } else {
+                displayText.textContent = 'Not assigned';
+            }
+        } else {
+            displayText.textContent = 'Not assigned';
+        }
+    }
+    
     // Show church selector
     function showChurchSelector() {
+        // Set current value from Step 2
+        const currentChurchId = getCurrentChurch();
+        const churchSelect = document.getElementById('cash_church_id');
+        if (churchSelect && currentChurchId) {
+            churchSelect.value = currentChurchId;
+        }
         document.getElementById('churchSelectorDiv').style.display = 'block';
     }
     
     // Hide church selector
     function hideChurchSelector() {
         document.getElementById('churchSelectorDiv').style.display = 'none';
+        updateChurchDisplay(); // Refresh display
     }
     
     // Update church display and load representatives
     function updateChurchAndReps() {
         const churchSelect = document.getElementById('cash_church_id');
         const selectedOption = churchSelect.options[churchSelect.selectedIndex];
-        const churchName = selectedOption.text;
+        const churchName = selectedOption.getAttribute('data-name') || selectedOption.text;
         const churchId = churchSelect.value;
         
         // Update display
         document.getElementById('churchDisplayText').textContent = churchName || 'Not assigned';
         document.getElementById('churchSelectorDiv').style.display = 'none';
         
-        // Also update Step 2 church_id if it exists
+        // Also update Step 2 church_id so it gets saved
         const step2Church = document.getElementById('church_id');
         if (step2Church) {
             step2Church.value = churchId;
@@ -1449,15 +1476,30 @@ $page_title = 'Live Call';
     
     // Load representatives when cash is selected
     function loadCashRepresentatives() {
-        // Get church_id from Step 2 form or cash_church_id or existing
-        const step2ChurchId = document.getElementById('church_id') ? document.getElementById('church_id').value : '';
-        const cashChurchId = document.getElementById('cash_church_id') ? document.getElementById('cash_church_id').value : '';
-        const churchId = cashChurchId || step2ChurchId || <?php echo $donor->church_id ?? 0; ?>;
+        // Get church_id from Step 2 form (prioritize form value over DB value)
+        const churchId = getCurrentChurch();
         
         if (churchId) {
             loadRepresentativesForChurch(churchId);
+        } else {
+            document.getElementById('cash_representative_id').innerHTML = '<option value="">Please assign a church in Step 2 first</option>';
         }
     }
+    
+    // Watch Step 2 church_id changes and update Step 6 display
+    document.addEventListener('DOMContentLoaded', function() {
+        const step2Church = document.getElementById('church_id');
+        if (step2Church) {
+            step2Church.addEventListener('change', function() {
+                // If Step 6 is visible and cash is selected, update display
+                const cashSection = document.getElementById('cashSection');
+                if (cashSection && cashSection.style.display !== 'none') {
+                    updateChurchDisplay();
+                    loadCashRepresentatives();
+                }
+            });
+        }
+    });
     
     // Step 1 Validation
     const verifyAmount = document.getElementById('verifyAmount');
@@ -1766,3 +1808,4 @@ $page_title = 'Live Call';
 </script>
 </body>
 </html>
+
