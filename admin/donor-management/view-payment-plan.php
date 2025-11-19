@@ -1,23 +1,43 @@
 <?php
 declare(strict_types=1);
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
 require_login();
 require_admin();
 
-$db = db();
-$plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+try {
+    $db = db();
+    if (!$db) {
+        throw new Exception("Database connection failed");
+    }
+    
+    $plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    error_log("Viewing payment plan ID: " . $plan_id);
 
-if ($plan_id <= 0) {
-    header('Location: donors.php');
-    exit;
-}
+    if ($plan_id <= 0) {
+        header('Location: donors.php');
+        exit;
+    }
 
-// Fetch payment plan with donor and pledge details
-$query = $db->prepare("
-    SELECT 
+    // Check if representative_id and church_id columns exist in donors table
+    $check_rep_col = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+    $has_rep_col = $check_rep_col && $check_rep_col->num_rows > 0;
+    
+    $check_church_col = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
+    $has_church_col = $check_church_col && $check_church_col->num_rows > 0;
+    
+    error_log("Has representative_id column: " . ($has_rep_col ? 'yes' : 'no'));
+    error_log("Has church_id column: " . ($has_church_col ? 'yes' : 'no'));
+
+    // Build query dynamically based on available columns
+    $select_fields = "
         dpp.*,
         d.id as donor_id,
         d.name as donor_name,
@@ -32,54 +52,115 @@ $query = $db->prepare("
         p.notes as pledge_notes,
         p.created_at as pledge_date,
         ppt.name as template_name,
-        ppt.description as template_description,
+        ppt.description as template_description
+    ";
+    
+    // Add representative fields if column exists
+    if ($has_rep_col) {
+        $select_fields .= ",
         cr.name as representative_name,
-        cr.phone as representative_phone,
+        cr.phone as representative_phone";
+    }
+    
+    // Add church fields if column exists
+    if ($has_church_col) {
+        $select_fields .= ",
         ch.name as church_name,
-        ch.city as church_city
-    FROM donor_payment_plans dpp
-    INNER JOIN donors d ON dpp.donor_id = d.id
-    LEFT JOIN pledges p ON dpp.pledge_id = p.id
-    LEFT JOIN payment_plan_templates ppt ON dpp.template_id = ppt.id
-    LEFT JOIN church_representatives cr ON d.representative_id = cr.id
-    LEFT JOIN churches ch ON d.church_id = ch.id
-    WHERE dpp.id = ?
-");
+        ch.city as church_city";
+    }
+    
+    $joins = "
+        INNER JOIN donors d ON dpp.donor_id = d.id
+        LEFT JOIN pledges p ON dpp.pledge_id = p.id
+        LEFT JOIN payment_plan_templates ppt ON dpp.template_id = ppt.id
+    ";
+    
+    if ($has_rep_col) {
+        $joins .= " LEFT JOIN church_representatives cr ON d.representative_id = cr.id";
+    }
+    
+    if ($has_church_col) {
+        $joins .= " LEFT JOIN churches ch ON d.church_id = ch.id";
+    }
+    
+    $sql = "SELECT $select_fields FROM donor_payment_plans dpp $joins WHERE dpp.id = ?";
+    error_log("Query: " . $sql);
+    
+    // Fetch payment plan with donor and pledge details
+    $query = $db->prepare($sql);
+    
+    if (!$query) {
+        throw new Exception("Prepare failed: " . $db->error);
+    }
 
-$query->bind_param('i', $plan_id);
-$query->execute();
-$result = $query->get_result();
+    $query->bind_param('i', $plan_id);
+    
+    if (!$query->execute()) {
+        throw new Exception("Execute failed: " . $query->error);
+    }
+    
+    $result = $query->get_result();
 
-if ($result->num_rows === 0) {
-    $_SESSION['error_message'] = "Payment plan not found.";
-    header('Location: donors.php');
+    if ($result->num_rows === 0) {
+        $_SESSION['error_message'] = "Payment plan not found.";
+        header('Location: donors.php');
+        exit;
+    }
+
+    $plan = $result->fetch_object();
+    $query->close();
+    
+    error_log("Plan loaded successfully for donor: " . $plan->donor_name);
+
+    // Fetch all payments associated with this plan
+    $payments_query = $db->prepare("
+        SELECT 
+            pay.*,
+            u.full_name as approved_by_name
+        FROM payments pay
+        LEFT JOIN users u ON pay.approved_by = u.id
+        WHERE pay.donor_id = ? AND pay.pledge_id = ?
+        ORDER BY pay.payment_date DESC
+    ");
+    
+    if (!$payments_query) {
+        error_log("Payments query prepare failed: " . $db->error);
+        $payments = [];
+    } else {
+        $payments_query->bind_param('ii', $plan->donor_id, $plan->pledge_id);
+        $payments_query->execute();
+        $payments = $payments_query->get_result()->fetch_all(MYSQLI_ASSOC);
+        $payments_query->close();
+    }
+
+    // Calculate progress
+    $progress_percentage = $plan->total_amount > 0 ? ($plan->amount_paid / $plan->total_amount) * 100 : 0;
+    $remaining_amount = $plan->total_amount - $plan->amount_paid;
+    $remaining_payments = ($plan->total_payments ?? 0) - ($plan->payments_made ?? 0);
+
+    $page_title = "Payment Plan Details - " . htmlspecialchars($plan->donor_name);
+    
+} catch (Exception $e) {
+    error_log("Error in view-payment-plan.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    // Display error for debugging
+    echo "<!DOCTYPE html><html><head><title>Error</title>";
+    echo '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">';
+    echo "</head><body>";
+    echo '<div class="container mt-5">';
+    echo '<div class="alert alert-danger">';
+    echo '<h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Error Loading Payment Plan</h4>';
+    echo '<p><strong>Error:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>';
+    echo '<p><strong>File:</strong> ' . htmlspecialchars($e->getFile()) . '</p>';
+    echo '<p><strong>Line:</strong> ' . $e->getLine() . '</p>';
+    echo '<hr>';
+    echo '<p class="mb-0">Check the PHP error log for more details.</p>';
+    echo '</div>';
+    echo '<a href="donors.php" class="btn btn-primary">Back to Donors</a>';
+    echo '</div></body></html>';
     exit;
 }
-
-$plan = $result->fetch_object();
-$query->close();
-
-// Fetch all payments associated with this plan
-$payments_query = $db->prepare("
-    SELECT 
-        pay.*,
-        u.full_name as approved_by_name
-    FROM payments pay
-    LEFT JOIN users u ON pay.approved_by = u.id
-    WHERE pay.donor_id = ? AND pay.pledge_id = ?
-    ORDER BY pay.payment_date DESC
-");
-$payments_query->bind_param('ii', $plan->donor_id, $plan->pledge_id);
-$payments_query->execute();
-$payments = $payments_query->get_result()->fetch_all(MYSQLI_ASSOC);
-$payments_query->close();
-
-// Calculate progress
-$progress_percentage = $plan->total_amount > 0 ? ($plan->amount_paid / $plan->total_amount) * 100 : 0;
-$remaining_amount = $plan->total_amount - $plan->amount_paid;
-$remaining_payments = $plan->total_payments - $plan->payments_made;
-
-$page_title = "Payment Plan Details - " . htmlspecialchars($plan->donor_name);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -409,11 +490,11 @@ $page_title = "Payment Plan Details - " . htmlspecialchars($plan->donor_name);
                 <?php endif; ?>
 
                 <!-- Representative Info -->
-                <?php if ($plan->representative_name): ?>
+                <?php if (isset($plan->representative_name) && $plan->representative_name): ?>
                 <div class="info-card">
                     <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Representative</h5>
                     <p class="mb-1"><strong><?php echo htmlspecialchars($plan->representative_name); ?></strong></p>
-                    <?php if ($plan->representative_phone): ?>
+                    <?php if (isset($plan->representative_phone) && $plan->representative_phone): ?>
                     <p class="text-muted mb-0">
                         <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($plan->representative_phone); ?>
                     </p>
@@ -422,11 +503,11 @@ $page_title = "Payment Plan Details - " . htmlspecialchars($plan->donor_name);
                 <?php endif; ?>
 
                 <!-- Church Info -->
-                <?php if ($plan->church_name): ?>
+                <?php if (isset($plan->church_name) && $plan->church_name): ?>
                 <div class="info-card">
                     <h5 class="mb-3"><i class="fas fa-church me-2"></i>Church</h5>
                     <p class="mb-1"><strong><?php echo htmlspecialchars($plan->church_name); ?></strong></p>
-                    <?php if ($plan->church_city): ?>
+                    <?php if (isset($plan->church_city) && $plan->church_city): ?>
                     <p class="text-muted mb-0">
                         <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($plan->church_city); ?>
                     </p>
