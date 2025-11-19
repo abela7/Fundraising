@@ -21,6 +21,10 @@ $page_title = 'Donor Profile';
 // --- FETCH DATA ---
 try {
     // 1. Donor Details
+    // Check if representative_id column exists
+    $check_rep_col = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+    $has_rep_col = $check_rep_col && $check_rep_col->num_rows > 0;
+    
     $donor_query = "
         SELECT 
             d.*,
@@ -152,6 +156,40 @@ try {
             $call_result = $stmt->get_result();
             while ($call = $call_result->fetch_assoc()) {
                 $calls[] = $call;
+            }
+        }
+    }
+
+    // 6. Assignment Info (Church & Representative)
+    $assignment = [
+        'church_id' => $donor['church_id'] ?? null,
+        'church_name' => $donor['church_name'] ?? null,
+        'representative_id' => null,
+        'representative_name' => null,
+        'representative_role' => null,
+        'representative_phone' => null
+    ];
+    
+    // Check if representative_id column exists
+    $check_rep_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+    $has_rep_column = $check_rep_column && $check_rep_column->num_rows > 0;
+    
+    if ($has_rep_column && !empty($donor['representative_id'])) {
+        $rep_query = "
+            SELECT id, name, role, phone 
+            FROM church_representatives 
+            WHERE id = ?
+        ";
+        $rep_stmt = $db->prepare($rep_query);
+        if ($rep_stmt) {
+            $rep_stmt->bind_param('i', $donor['representative_id']);
+            $rep_stmt->execute();
+            $rep_result = $rep_stmt->get_result()->fetch_assoc();
+            if ($rep_result) {
+                $assignment['representative_id'] = $rep_result['id'];
+                $assignment['representative_name'] = $rep_result['name'];
+                $assignment['representative_role'] = $rep_result['role'];
+                $assignment['representative_phone'] = $rep_result['phone'];
             }
         }
     }
@@ -802,7 +840,75 @@ function formatDateTime($date) {
                         </div>
                     </div>
 
-                    <!-- 6. System & Audit -->
+                    <!-- 6. Assignment -->
+                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAssignment">
+                                <i class="fas fa-church me-3 text-primary"></i> Assignment
+                            </button>
+                        </h2>
+                        <div id="collapseAssignment" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
+                            <div class="accordion-body">
+                                <div class="d-flex justify-content-end mb-3">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                            data-bs-toggle="modal" data-bs-target="#editAssignmentModal"
+                                            onclick="loadAssignmentData(<?php echo $donor_id; ?>)">
+                                        <i class="fas fa-edit me-1"></i>Edit Assignment
+                                    </button>
+                                    <?php if ($assignment['church_id'] || $assignment['representative_id']): ?>
+                                    <a href="delete-assignment.php?donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                       class="btn btn-sm btn-danger ms-2"
+                                       onclick="return confirm('Are you sure you want to remove this assignment? This will unassign the donor from the church and representative.');">
+                                        <i class="fas fa-trash-alt me-1"></i>Remove Assignment
+                                    </a>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-row">
+                                            <span class="info-label">Church</span>
+                                            <span class="info-value">
+                                                <?php if ($assignment['church_name']): ?>
+                                                    <i class="fas fa-church me-1"></i><?php echo htmlspecialchars($assignment['church_name']); ?>
+                                                <?php else: ?>
+                                                    <span class="text-muted">Not assigned</span>
+                                                <?php endif; ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-row">
+                                            <span class="info-label">Representative</span>
+                                            <span class="info-value">
+                                                <?php if ($assignment['representative_name']): ?>
+                                                    <i class="fas fa-user-tie me-1"></i><?php echo htmlspecialchars($assignment['representative_name']); ?>
+                                                    <?php if ($assignment['representative_role']): ?>
+                                                        <span class="badge bg-info ms-2"><?php echo htmlspecialchars($assignment['representative_role']); ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($assignment['representative_phone']): ?>
+                                                        <br><small class="text-muted"><i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($assignment['representative_phone']); ?></small>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="text-muted">Not assigned</span>
+                                                <?php endif; ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <?php if (!$assignment['church_id'] && !$assignment['representative_id']): ?>
+                                <div class="alert alert-info mt-3 mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    This donor is not currently assigned to any church or representative.
+                                    <a href="../church-management/assign-donors.php?donor_id=<?php echo $donor_id; ?>" class="alert-link">Assign now</a>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7. System & Audit -->
                     <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSystem">
@@ -1126,6 +1232,52 @@ function formatDateTime($date) {
     </div>
 </div>
 
+<!-- Edit Assignment Modal -->
+<div class="modal fade" id="editAssignmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-church me-2"></i>Edit Assignment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editAssignmentForm" method="POST" action="edit-assignment.php">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="donor_id" id="editAssignmentDonorId" value="<?php echo $donor_id; ?>">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Church <span class="text-danger">*</span></label>
+                        <select class="form-select" name="church_id" id="editAssignmentChurchId" required>
+                            <option value="">-- Select Church --</option>
+                            <?php
+                            // Fetch all churches
+                            $churches_query = "SELECT id, name, city FROM churches ORDER BY city ASC, name ASC";
+                            $churches_result = $db->query($churches_query);
+                            while ($church = $churches_result->fetch_assoc()):
+                            ?>
+                            <option value="<?php echo $church['id']; ?>" 
+                                    data-city="<?php echo htmlspecialchars($church['city']); ?>">
+                                <?php echo htmlspecialchars($church['name']); ?> - <?php echo htmlspecialchars($church['city']); ?>
+                            </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Representative <span class="text-danger">*</span></label>
+                        <select class="form-select" name="representative_id" id="editAssignmentRepId" required>
+                            <option value="">-- Select Church First --</option>
+                        </select>
+                        <small class="text-muted">Select a church first to load representatives</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Load Donor Data - Use PHP data already on page
@@ -1213,6 +1365,68 @@ function loadCallSessionData(sessionId, donorId) {
             }
         })
         .catch(error => console.error('Error loading call session data:', error));
+}
+
+// Load Assignment Data
+function loadAssignmentData(donorId) {
+    document.getElementById('editAssignmentDonorId').value = donorId;
+    
+    // Set current church
+    const currentChurchId = <?php echo json_encode($assignment['church_id'] ?? ''); ?>;
+    if (currentChurchId) {
+        document.getElementById('editAssignmentChurchId').value = currentChurchId;
+        // Load representatives for this church
+        loadRepresentatives(currentChurchId);
+    }
+    
+    // Set current representative after a short delay to allow dropdown to populate
+    setTimeout(() => {
+        const currentRepId = <?php echo json_encode($assignment['representative_id'] ?? ''); ?>;
+        if (currentRepId) {
+            document.getElementById('editAssignmentRepId').value = currentRepId;
+        }
+    }, 500);
+}
+
+// Load representatives when church is selected
+document.addEventListener('DOMContentLoaded', function() {
+    const churchSelect = document.getElementById('editAssignmentChurchId');
+    if (churchSelect) {
+        churchSelect.addEventListener('change', function() {
+            const churchId = this.value;
+            loadRepresentatives(churchId);
+        });
+    }
+});
+
+function loadRepresentatives(churchId) {
+    const repSelect = document.getElementById('editAssignmentRepId');
+    repSelect.innerHTML = '<option value="">-- Loading --</option>';
+    
+    if (!churchId) {
+        repSelect.innerHTML = '<option value="">-- Select Church First --</option>';
+        return;
+    }
+    
+    fetch('../church-management/get-representatives.php?church_id=' + churchId)
+        .then(response => response.json())
+        .then(data => {
+            repSelect.innerHTML = '<option value="">-- Select Representative --</option>';
+            if (data.representatives && data.representatives.length > 0) {
+                data.representatives.forEach(rep => {
+                    const option = document.createElement('option');
+                    option.value = rep.id;
+                    option.textContent = rep.name + (rep.is_primary ? ' (Primary)' : '') + ' - ' + rep.role;
+                    repSelect.appendChild(option);
+                });
+            } else {
+                repSelect.innerHTML = '<option value="">No representatives found</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading representatives:', error);
+            repSelect.innerHTML = '<option value="">Error loading representatives</option>';
+        });
 }
 </script>
 <script>
