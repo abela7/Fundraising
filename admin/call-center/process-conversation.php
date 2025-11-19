@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
@@ -13,9 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// Log all POST data for debugging
+error_log("=== PROCESS CONVERSATION DEBUG ===");
+error_log("POST Data: " . print_r($_POST, true));
+
 try {
     $db = db();
+    if (!$db) {
+        throw new Exception("Database connection failed");
+    }
     $user_id = (int)$_SESSION['user']['id'];
+    error_log("User ID: " . $user_id);
     
     // Get parameters
     $session_id = isset($_POST['session_id']) ? (int)$_POST['session_id'] : 0;
@@ -97,6 +110,12 @@ try {
     // Payment Method (from Step 6)
     $payment_method = trim($_POST['payment_method'] ?? '');
     $cash_representative_id = isset($_POST['cash_representative_id']) && $_POST['cash_representative_id'] !== '' ? (int)$_POST['cash_representative_id'] : null;
+    $cash_church_id = isset($_POST['cash_church_id']) && $_POST['cash_church_id'] !== '' ? (int)$_POST['cash_church_id'] : null;
+    
+    error_log("Payment Method: " . $payment_method);
+    error_log("Cash Representative ID: " . ($cash_representative_id ?? 'null'));
+    error_log("Cash Church ID: " . ($cash_church_id ?? 'null'));
+    error_log("Step 2 Church ID: " . ($church_id ?? 'null'));
     
     // Build update query dynamically based on what's provided
     $donor_updates = [];
@@ -137,18 +156,28 @@ try {
         $donor_types .= 's';
     }
     
-    // Update church_id from Step 2 (if provided)
-    if ($church_id !== null) {
+    // Handle church_id - use cash_church_id if cash payment and changed, otherwise use Step 2 church_id
+    $final_church_id = null;
+    if ($payment_method === 'cash' && $cash_church_id !== null) {
+        $final_church_id = $cash_church_id;
+        error_log("Using cash_church_id: " . $final_church_id);
+    } elseif ($church_id !== null) {
+        $final_church_id = $church_id;
+        error_log("Using Step 2 church_id: " . $final_church_id);
+    }
+    
+    if ($final_church_id !== null) {
         $donor_updates[] = "church_id = ?";
-        $donor_params[] = $church_id;
+        $donor_params[] = $final_church_id;
         $donor_types .= 'i';
     }
     
-    // If cash payment, update representative (use donor's current church)
+    // If cash payment, update representative
     if ($payment_method === 'cash' && $cash_representative_id !== null) {
         // Check if representative_id column exists
         $check_rep_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
         $has_rep_column = $check_rep_column && $check_rep_column->num_rows > 0;
+        error_log("Has representative_id column: " . ($has_rep_column ? 'yes' : 'no'));
         
         if ($has_rep_column) {
             $donor_updates[] = "representative_id = ?";
@@ -157,25 +186,42 @@ try {
         }
     }
     
+    error_log("Donor updates count: " . count($donor_updates));
+    error_log("Donor updates: " . print_r($donor_updates, true));
+    error_log("Donor params count: " . count($donor_params));
+    error_log("Donor types: " . $donor_types);
+    
     // Update donor if there are any changes
     if (!empty($donor_updates)) {
         $donor_params[] = $donor_id;
         $donor_types .= 'i';
         
         $update_sql = "UPDATE donors SET " . implode(', ', $donor_updates) . " WHERE id = ?";
+        error_log("Donor UPDATE SQL: " . $update_sql);
+        error_log("Donor params: " . print_r($donor_params, true));
+        error_log("Donor types: " . $donor_types);
+        
         $update_donor_info = $db->prepare($update_sql);
         
         if (!$update_donor_info) {
+            error_log("Prepare failed. Error: " . $db->error);
             throw new Exception("Failed to prepare donor update: " . $db->error);
         }
         
-        $update_donor_info->bind_param($donor_types, ...$donor_params);
+        if (!$update_donor_info->bind_param($donor_types, ...$donor_params)) {
+            error_log("Bind param failed. Error: " . $update_donor_info->error);
+            throw new Exception("Failed to bind parameters: " . $update_donor_info->error);
+        }
         
         if (!$update_donor_info->execute()) {
+            error_log("Execute failed. Error: " . $update_donor_info->error);
             throw new Exception("Failed to update donor: " . $update_donor_info->error);
         }
         
+        error_log("Donor updated successfully");
         $update_donor_info->close();
+    } else {
+        error_log("No donor updates to perform");
     }
     
     // 1. Create Payment Plan
@@ -199,25 +245,62 @@ try {
         throw new Exception("Prepare failed: " . $db->error);
     }
     
-    $insert_plan->bind_param('iiiddiisssss',
-        $donor_id,
-        $pledge_id,
-        $template_id_db,
-        $total_amount,
-        $monthly_amount,
-        $total_months,
-        $total_payments,
-        $start_date,
-        $payment_day,
-        $plan_frequency_unit,
-        $plan_frequency_number,
-        $plan_payment_method, // payment_method
-        $start_date // next_payment_due is usually start_date
-    );
+    // Fix: plan_frequency_number is integer, not string. Also handle NULL template_id
+    // Parameters: donor_id(i), pledge_id(i), template_id(i/null), total_amount(d), monthly_amount(d),
+    //             total_months(i), total_payments(i), start_date(s), payment_day(i),
+    //             plan_frequency_unit(s), plan_frequency_number(i), plan_payment_method(s), start_date(s)
+    
+    error_log("Binding plan parameters...");
+    error_log("Template ID: " . ($template_id_db ?? 'NULL'));
+    error_log("Plan frequency number type: " . gettype($plan_frequency_number) . " = " . $plan_frequency_number);
+    
+    // Handle NULL template_id properly
+    if ($template_id_db === null) {
+        // Use 's' for NULL and pass null
+        $bind_result = $insert_plan->bind_param('iisddiisiss',
+            $donor_id,
+            $pledge_id,
+            null, // template_id (NULL)
+            $total_amount,
+            $monthly_amount,
+            $total_months,
+            $total_payments,
+            $start_date,
+            $payment_day,
+            $plan_frequency_unit,
+            $plan_frequency_number, // integer
+            $plan_payment_method,
+            $start_date
+        );
+    } else {
+        $bind_result = $insert_plan->bind_param('iiiddiisiss',
+            $donor_id,
+            $pledge_id,
+            $template_id_db,
+            $total_amount,
+            $monthly_amount,
+            $total_months,
+            $total_payments,
+            $start_date,
+            $payment_day,
+            $plan_frequency_unit,
+            $plan_frequency_number, // integer (was 's', should be 'i')
+            $plan_payment_method,
+            $start_date
+        );
+    }
+    
+    if (!$bind_result) {
+        error_log("Bind param failed. Error: " . $insert_plan->error);
+        throw new Exception("Failed to bind plan parameters: " . $insert_plan->error);
+    }
     
     if (!$insert_plan->execute()) {
+        error_log("Plan insert failed. Error: " . $insert_plan->error);
         throw new Exception("Failed to create plan: " . $insert_plan->error);
     }
+    
+    error_log("Payment plan created successfully. Plan ID: " . $db->insert_id);
     $plan_id = $db->insert_id;
     $insert_plan->close();
     
@@ -267,19 +350,40 @@ try {
     if (isset($db)) {
         $db->rollback();
     }
-    error_log("Process Conversation Error: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
     
-    // Show detailed error for debugging
-    $error_message = "Error: " . htmlspecialchars($e->getMessage());
+    $error_msg = $e->getMessage();
+    $error_trace = $e->getTraceAsString();
+    
+    error_log("=== PROCESS CONVERSATION ERROR ===");
+    error_log("Error Message: " . $error_msg);
+    error_log("Stack Trace: " . $error_trace);
     if (isset($db) && $db->error) {
-        $error_message .= "<br>Database Error: " . htmlspecialchars($db->error);
+        error_log("Database Error: " . $db->error);
     }
     
-    echo "<!DOCTYPE html><html><head><title>Error</title></head><body>";
-    echo "<h1>Error Processing Conversation</h1>";
-    echo "<p>" . $error_message . "</p>";
-    echo "<p><a href='conversation.php?donor_id=" . ($donor_id ?? 0) . "&queue_id=" . ($queue_id ?? 0) . "'>Go Back</a></p>";
+    // Show detailed error for debugging
+    echo "<!DOCTYPE html><html><head><title>Error</title>";
+    echo "<style>body{font-family:Arial;padding:20px;background:#f5f5f5;} .error-box{background:white;padding:20px;border-radius:8px;border-left:4px solid #dc3545;}</style>";
+    echo "</head><body>";
+    echo "<div class='error-box'>";
+    echo "<h1 style='color:#dc3545;'>Error Processing Conversation</h1>";
+    echo "<p><strong>Error:</strong> " . htmlspecialchars($error_msg) . "</p>";
+    
+    if (isset($db) && $db->error) {
+        echo "<p><strong>Database Error:</strong> " . htmlspecialchars($db->error) . "</p>";
+    }
+    
+    echo "<hr>";
+    echo "<h3>Debug Information:</h3>";
+    echo "<pre style='background:#f8f9fa;padding:10px;border-radius:4px;overflow:auto;'>";
+    echo "POST Data:\n";
+    print_r($_POST);
+    echo "\n\nError Trace:\n";
+    echo htmlspecialchars($error_trace);
+    echo "</pre>";
+    
+    echo "<p><a href='conversation.php?donor_id=" . (isset($donor_id) ? $donor_id : 0) . "&queue_id=" . (isset($queue_id) ? $queue_id : 0) . "' style='display:inline-block;margin-top:20px;padding:10px 20px;background:#007bff;color:white;text-decoration:none;border-radius:4px;'>Go Back</a></p>";
+    echo "</div>";
     echo "</body></html>";
     exit;
 }

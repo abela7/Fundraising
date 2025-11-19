@@ -1190,21 +1190,47 @@ $page_title = 'Live Call';
                                 
                                 <!-- Cash - Representative Selection (shown when selected) -->
                                 <div id="cashSection" style="display: none;">
-                                    <div class="alert alert-info mb-3">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Note:</strong> The donor will use their assigned church from Step 2. 
-                                        <?php if ($donor->church_id): ?>
-                                            <?php 
-                                            $current_church_name = '';
-                                            foreach ($churches as $ch) {
-                                                if ($ch['id'] == $donor->church_id) {
-                                                    $current_church_name = $ch['name'] . ($ch['city'] ? ' (' . $ch['city'] . ')' : '');
-                                                    break;
+                                    <div class="mb-3">
+                                        <label class="form-label">Assigned Church</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="form-control" id="displayChurchName" style="background-color: #f8f9fa;">
+                                                <?php 
+                                                $current_church_name = 'Not assigned';
+                                                $current_church_id = null;
+                                                if ($donor->church_id) {
+                                                    foreach ($churches as $ch) {
+                                                        if ($ch['id'] == $donor->church_id) {
+                                                            $current_church_name = $ch['name'] . ($ch['city'] ? ' (' . $ch['city'] . ')' : '');
+                                                            $current_church_id = $ch['id'];
+                                                            break;
+                                                        }
+                                                    }
                                                 }
-                                            }
-                                            ?>
-                                            <br><strong>Current Church:</strong> <?php echo htmlspecialchars($current_church_name); ?>
-                                        <?php endif; ?>
+                                                ?>
+                                                <span id="churchDisplayText"><?php echo htmlspecialchars($current_church_name); ?></span>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="showChurchSelector()" title="Change Church">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">Church assigned in Step 2</small>
+                                        
+                                        <!-- Hidden church selector (shown when edit clicked) -->
+                                        <div id="churchSelectorDiv" style="display: none;" class="mt-2">
+                                            <select class="form-select" id="cash_church_id" name="cash_church_id" onchange="updateChurchAndReps()">
+                                                <option value="">Select Church</option>
+                                                <?php foreach ($churches as $church): ?>
+                                                    <option value="<?php echo $church['id']; ?>" 
+                                                            <?php echo $current_church_id == $church['id'] ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($church['name']); ?> 
+                                                        <?php if ($church['city']): ?>
+                                                            (<?php echo htmlspecialchars($church['city']); ?>)
+                                                        <?php endif; ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="hideChurchSelector()">Cancel</button>
+                                        </div>
                                     </div>
                                     
                                     <div class="mb-3">
@@ -1362,18 +1388,45 @@ $page_title = 'Live Call';
         }
     });
     
-    // Load representatives when cash is selected (use donor's current church from Step 2)
-    function loadCashRepresentatives() {
-        // Get church_id from Step 2 form (or use existing)
-        const step2ChurchId = document.getElementById('church_id') ? document.getElementById('church_id').value : <?php echo $donor->church_id ?? 0; ?>;
-        const churchId = step2ChurchId || <?php echo $donor->church_id ?? 0; ?>;
+    // Show church selector
+    function showChurchSelector() {
+        document.getElementById('churchSelectorDiv').style.display = 'block';
+    }
+    
+    // Hide church selector
+    function hideChurchSelector() {
+        document.getElementById('churchSelectorDiv').style.display = 'none';
+    }
+    
+    // Update church display and load representatives
+    function updateChurchAndReps() {
+        const churchSelect = document.getElementById('cash_church_id');
+        const selectedOption = churchSelect.options[churchSelect.selectedIndex];
+        const churchName = selectedOption.text;
+        const churchId = churchSelect.value;
         
-        if (!churchId) {
-            document.getElementById('cash_representative_id').innerHTML = '<option value="">Please assign a church in Step 2 first</option>';
-            return;
+        // Update display
+        document.getElementById('churchDisplayText').textContent = churchName || 'Not assigned';
+        document.getElementById('churchSelectorDiv').style.display = 'none';
+        
+        // Also update Step 2 church_id if it exists
+        const step2Church = document.getElementById('church_id');
+        if (step2Church) {
+            step2Church.value = churchId;
         }
         
-        // Fetch representatives via AJAX
+        // Load representatives
+        if (churchId) {
+            loadRepresentativesForChurch(churchId);
+        } else {
+            document.getElementById('cash_representative_id').innerHTML = '<option value="">Select Representative</option>';
+        }
+    }
+    
+    // Load representatives for a specific church
+    function loadRepresentativesForChurch(churchId) {
+        document.getElementById('cash_representative_id').innerHTML = '<option value="">Loading...</option>';
+        
         fetch(`get-representatives.php?church_id=${churchId}`)
             .then(response => response.json())
             .then(data => {
@@ -1383,6 +1436,7 @@ $page_title = 'Live Call';
                         html += `<option value="${rep.id}">${rep.name}${rep.is_primary ? ' <span class="badge bg-primary">Primary</span>' : ''}${rep.role ? ' - ' + rep.role : ''}</option>`;
                     });
                     document.getElementById('cash_representative_id').innerHTML = html;
+                    validateCashSelection();
                 } else {
                     document.getElementById('cash_representative_id').innerHTML = '<option value="">No representatives found</option>';
                 }
@@ -1391,6 +1445,18 @@ $page_title = 'Live Call';
                 console.error('Error loading representatives:', error);
                 document.getElementById('cash_representative_id').innerHTML = '<option value="">Error loading representatives</option>';
             });
+    }
+    
+    // Load representatives when cash is selected
+    function loadCashRepresentatives() {
+        // Get church_id from Step 2 form or cash_church_id or existing
+        const step2ChurchId = document.getElementById('church_id') ? document.getElementById('church_id').value : '';
+        const cashChurchId = document.getElementById('cash_church_id') ? document.getElementById('cash_church_id').value : '';
+        const churchId = cashChurchId || step2ChurchId || <?php echo $donor->church_id ?? 0; ?>;
+        
+        if (churchId) {
+            loadRepresentativesForChurch(churchId);
+        }
     }
     
     // Step 1 Validation
