@@ -67,12 +67,21 @@ try {
             --church-info: #0288d1;
         }
         
+        /* Ensure proper spacing for sidebar */
+        .content-area {
+            padding: 1.5rem;
+        }
+        
         .dashboard-header {
             background: linear-gradient(135deg, var(--church-primary) 0%, #084767 100%);
             color: white;
-            padding: 2rem 0;
+            padding: 2rem 1rem;
             margin-bottom: 2rem;
             border-radius: 12px;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 1.75rem;
         }
         
         .stat-card {
@@ -242,18 +251,120 @@ try {
         }
         
         /* Mobile Responsive */
+        @media (max-width: 992px) {
+            .content-area {
+                padding: 1rem;
+            }
+            
+            .dashboard-header {
+                padding: 1.5rem 1rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .dashboard-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .dashboard-header p {
+                font-size: 0.875rem;
+            }
+            
+            .dashboard-header .d-flex {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .dashboard-header .btn {
+                margin-top: 1rem;
+                width: 100%;
+            }
+        }
+        
         @media (max-width: 768px) {
             .stat-number {
                 font-size: 2rem;
             }
             
+            .stat-card {
+                padding: 1rem;
+            }
+            
+            .stat-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.25rem;
+            }
+            
+            /* Make table responsive - card view on mobile */
             .church-table {
                 font-size: 0.875rem;
             }
             
-            .church-table th,
-            .church-table td {
-                padding: 0.75rem 0.5rem;
+            .church-table thead {
+                display: none;
+            }
+            
+            .church-table tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 1rem;
+            }
+            
+            .church-table tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border: none;
+            }
+            
+            .church-table tbody td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #64748b;
+                margin-right: 1rem;
+            }
+            
+            .church-name {
+                font-size: 1rem;
+            }
+            
+            .church-address {
+                font-size: 0.75rem;
+            }
+            
+            .quick-action-card {
+                padding: 1rem;
+            }
+            
+            .quick-action-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+            
+            .quick-action-title {
+                font-size: 0.875rem;
+            }
+            
+            .quick-action-desc {
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .dashboard-header h1 {
+                font-size: 1.25rem;
+            }
+            
+            .stat-number {
+                font-size: 1.75rem;
+            }
+            
+            .stat-label {
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -392,25 +503,25 @@ try {
                                 <?php if ($churches_result && $churches_result->num_rows > 0): ?>
                                     <?php while ($church = $churches_result->fetch_assoc()): ?>
                                     <tr>
-                                        <td>
+                                        <td data-label="Church Name">
                                             <div class="church-name"><?php echo htmlspecialchars($church['name']); ?></div>
                                             <div class="church-address"><?php echo htmlspecialchars($church['address'] ?? 'N/A'); ?></div>
                                         </td>
-                                        <td>
+                                        <td data-label="City">
                                             <span class="city-badge"><?php echo htmlspecialchars($church['city']); ?></span>
                                         </td>
-                                        <td>
+                                        <td data-label="Representatives">
                                             <span class="count-badge">
                                                 <i class="fas fa-user-tie"></i><?php echo $church['rep_count']; ?>
                                             </span>
                                         </td>
-                                        <td>
+                                        <td data-label="Donors">
                                             <span class="count-badge">
                                                 <i class="fas fa-users"></i><?php echo $church['donor_count']; ?>
                                             </span>
                                         </td>
-                                        <td><?php echo htmlspecialchars($church['phone'] ?? '-'); ?></td>
-                                        <td>
+                                        <td data-label="Phone"><?php echo htmlspecialchars($church['phone'] ?? '-'); ?></td>
+                                        <td data-label="Actions">
                                             <div class="d-flex gap-2">
                                                 <a href="view-church.php?id=<?php echo $church['id']; ?>" 
                                                    class="btn btn-sm btn-outline-primary action-btn">
