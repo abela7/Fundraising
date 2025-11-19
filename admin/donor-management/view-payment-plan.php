@@ -33,8 +33,13 @@ try {
     $check_church_col = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
     $has_church_col = $check_church_col && $check_church_col->num_rows > 0;
     
+    // Check if sqm column exists in pledges table
+    $check_sqm_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'sqm'");
+    $has_sqm_col = $check_sqm_col && $check_sqm_col->num_rows > 0;
+    
     error_log("Has representative_id column: " . ($has_rep_col ? 'yes' : 'no'));
     error_log("Has church_id column: " . ($has_church_col ? 'yes' : 'no'));
+    error_log("Has sqm column in pledges: " . ($has_sqm_col ? 'yes' : 'no'));
 
     // Build query dynamically based on available columns
     $select_fields = "
@@ -48,7 +53,7 @@ try {
         d.total_paid,
         p.id as pledge_id,
         p.amount as pledge_amount,
-        p.sqm,
+        " . ($has_sqm_col ? "p.sqm," : "") . "
         p.notes as pledge_notes,
         p.created_at as pledge_date,
         ppt.name as template_name,
@@ -522,7 +527,7 @@ try {
                         <strong>Amount:</strong> 
                         <span class="float-end">£<?php echo number_format($plan->pledge_amount, 2); ?></span>
                     </p>
-                    <?php if ($plan->sqm): ?>
+                    <?php if (isset($plan->sqm) && $plan->sqm): ?>
                     <p class="mb-2">
                         <strong>Square Meters:</strong> 
                         <span class="float-end"><?php echo $plan->sqm; ?> sqm</span>
