@@ -8,11 +8,14 @@ ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 
 // Ensure user is logged in and admin
 require_login();
 require_admin();
+
+$csrf_token = generate_csrf_token();
 
 $page_title = "View Payment Plan";
 
@@ -241,8 +244,12 @@ try {
                                         <i class="fas fa-edit me-1"></i>Edit
                                     </button>
                                     <?php if($status === 'active'): ?>
-                                    <button class="btn btn-info btn-sm text-white" id="btnPausePlan">
+                                    <button class="btn btn-info btn-sm text-white" id="btnPausePlan" data-action="pause">
                                         <i class="fas fa-pause me-1"></i>Pause
+                                    </button>
+                                    <?php elseif($status === 'paused'): ?>
+                                    <button class="btn btn-success btn-sm" id="btnResumePlan" data-action="resume">
+                                        <i class="fas fa-play me-1"></i>Resume
                                     </button>
                                     <?php endif; ?>
                                     <button class="btn btn-danger btn-sm" id="btnDeletePlan">
@@ -457,26 +464,175 @@ try {
     </div>
 </div>
 
+<!-- Edit Plan Modal -->
+<div class="modal fade" id="editPlanModal" tabindex="-1" aria-labelledby="editPlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editPlanModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Payment Plan
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editPlanForm" method="POST" action="update-payment-plan.php">
+                <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+                <input type="hidden" name="plan_id" value="<?php echo $plan_id; ?>">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Monthly Installment Amount <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">£</span>
+                                <input type="number" step="0.01" class="form-control" name="monthly_amount" 
+                                       id="edit_monthly_amount" value="<?php echo number_format($monthly_amount, 2); ?>" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Total Payments <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="total_payments" 
+                                   id="edit_total_payments" value="<?php echo (int)($plan['total_payments'] ?? 0); ?>" min="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Payment Day <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="payment_day" 
+                                   id="edit_payment_day" value="<?php echo (int)($plan['payment_day'] ?? 1); ?>" min="1" max="28" required>
+                            <small class="text-muted">Day of month (1-28)</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Payment Method <span class="text-danger">*</span></label>
+                            <select class="form-select" name="payment_method" id="edit_payment_method" required>
+                                <option value="cash" <?php echo ($plan['payment_method'] ?? '') === 'cash' ? 'selected' : ''; ?>>Cash</option>
+                                <option value="bank_transfer" <?php echo ($plan['payment_method'] ?? '') === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
+                                <option value="card" <?php echo ($plan['payment_method'] ?? '') === 'card' ? 'selected' : ''; ?>>Card</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Frequency Unit <span class="text-danger">*</span></label>
+                            <select class="form-select" name="plan_frequency_unit" id="edit_frequency_unit" required>
+                                <option value="week" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'week' ? 'selected' : ''; ?>>Week</option>
+                                <option value="month" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'month' ? 'selected' : ''; ?>>Month</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Frequency Number <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="plan_frequency_number" 
+                                   id="edit_frequency_number" value="<?php echo (int)($plan['plan_frequency_number'] ?? 1); ?>" min="1" max="12" required>
+                            <small class="text-muted">Every X weeks/months</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
+                            <select class="form-select" name="status" id="edit_status" required>
+                                <option value="active" <?php echo ($plan['status'] ?? '') === 'active' ? 'selected' : ''; ?>>Active</option>
+                                <option value="paused" <?php echo ($plan['status'] ?? '') === 'paused' ? 'selected' : ''; ?>>Paused</option>
+                                <option value="completed" <?php echo ($plan['status'] ?? '') === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                <option value="defaulted" <?php echo ($plan['status'] ?? '') === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
+                                <option value="cancelled" <?php echo ($plan['status'] ?? '') === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Next Payment Due Date</label>
+                            <input type="date" class="form-control" name="next_payment_due" 
+                                   id="edit_next_due" value="<?php echo !empty($plan['next_payment_due']) ? date('Y-m-d', strtotime($plan['next_payment_due'])) : ''; ?>">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Button actions (placeholders)
-    document.getElementById('btnEditPlan')?.addEventListener('click', () => {
-        alert('Edit functionality will be implemented soon.');
-    });
+    const planId = <?php echo $plan_id; ?>;
+    const donorId = <?php echo $plan['donor_id']; ?>;
     
-    document.getElementById('btnPausePlan')?.addEventListener('click', () => {
-        if(confirm('Are you sure you want to pause this payment plan?')) {
-            alert('Pause functionality will be implemented soon.');
-        }
-    });
+    // Edit Plan Button - Open Modal
+    const btnEditPlan = document.getElementById('btnEditPlan');
+    if (btnEditPlan) {
+        btnEditPlan.addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('editPlanModal'));
+            modal.show();
+        });
+    }
     
-    document.getElementById('btnDeletePlan')?.addEventListener('click', () => {
-        if(confirm('Are you sure you want to DELETE this payment plan? This action cannot be undone!')) {
-            alert('Delete functionality will be implemented soon.');
-        }
-    });
+    // Pause Plan Button - AJAX Request
+    const btnPausePlan = document.getElementById('btnPausePlan');
+    if (btnPausePlan) {
+        btnPausePlan.addEventListener('click', function() {
+            if (confirm('Are you sure you want to pause this payment plan?')) {
+                updatePlanStatus('paused');
+            }
+        });
+    }
+    
+    // Resume Plan Button - AJAX Request
+    const btnResumePlan = document.getElementById('btnResumePlan');
+    if (btnResumePlan) {
+        btnResumePlan.addEventListener('click', function() {
+            if (confirm('Are you sure you want to resume this payment plan?')) {
+                updatePlanStatus('active');
+            }
+        });
+    }
+    
+    // Delete Plan Button - Redirect to confirmation page
+    const btnDeletePlan = document.getElementById('btnDeletePlan');
+    if (btnDeletePlan) {
+        btnDeletePlan.addEventListener('click', function() {
+            if (confirm('Are you sure you want to DELETE this payment plan?\n\nThis action cannot be undone!')) {
+                window.location.href = 'delete-payment-plan.php?id=' + planId + '&donor_id=' + donorId;
+            }
+        });
+    }
+    
+    // Update Plan Status Function (AJAX)
+    function updatePlanStatus(newStatus) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'update-payment-plan-status.php';
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = '<?php echo $csrf_token; ?>';
+        form.appendChild(csrfInput);
+        
+        const planIdInput = document.createElement('input');
+        planIdInput.type = 'hidden';
+        planIdInput.name = 'plan_id';
+        planIdInput.value = planId;
+        form.appendChild(planIdInput);
+        
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'status';
+        statusInput.value = newStatus;
+        form.appendChild(statusInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    // Show success/error messages if present
+    <?php if(isset($_SESSION['success_message'])): ?>
+        alert('<?php echo addslashes($_SESSION['success_message']); ?>');
+        <?php unset($_SESSION['success_message']); ?>
+    <?php endif; ?>
+    
+    <?php if(isset($_SESSION['error_message'])): ?>
+        alert('Error: <?php echo addslashes($_SESSION['error_message']); ?>');
+        <?php unset($_SESSION['error_message']); ?>
+    <?php endif; ?>
 });
 </script>
 </body>
