@@ -86,61 +86,140 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_donor'])) {
 // Fetch donors with search/filter
 $donors = [];
 $search = $_GET['search'] ?? '';
-$church_filter = $_GET['church_filter'] ?? '';
-$status_filter = $_GET['status_filter'] ?? 'all';
+$city_filter = $_GET['city_filter'] ?? '';
+$donor_type_filter = $_GET['donor_type_filter'] ?? '';
+$payment_status_filter = $_GET['payment_status_filter'] ?? '';
+$assignment_status_filter = $_GET['assignment_status_filter'] ?? '';
+$amount_range_filter = $_GET['amount_range_filter'] ?? '';
+$amount_min = $_GET['amount_min'] ?? '';
+$amount_max = $_GET['amount_max'] ?? '';
+
+// Only fetch if at least one filter is applied
+// Amount filter only counts if both type and at least one value (min/max) is provided
+$has_amount_filter = !empty($amount_range_filter) && (!empty($amount_min) || !empty($amount_max));
+$has_filters = !empty($search) || !empty($city_filter) || !empty($donor_type_filter) || 
+               !empty($payment_status_filter) || !empty($assignment_status_filter) || $has_amount_filter;
 
 try {
-    $donor_query = "
-        SELECT 
-            d.id,
-            d.name,
-            d.phone,
-            d.city,
-            d.church_id,
-            c.name as church_name,
-            c.city as church_city,
-            (SELECT COUNT(*) FROM church_representatives WHERE church_id = d.church_id AND is_active = 1) as rep_count
-        FROM donors d
-        LEFT JOIN churches c ON d.church_id = c.id
-        WHERE 1=1
-    ";
-    
-    $params = [];
-    $types = '';
-    
-    if (!empty($search)) {
-        $donor_query .= " AND (d.name LIKE ? OR d.phone LIKE ?)";
-        $search_param = "%{$search}%";
-        $params[] = $search_param;
-        $params[] = $search_param;
-        $types .= 'ss';
+    if ($has_filters) {
+        $donor_query = "
+            SELECT 
+                d.id,
+                d.name,
+                d.phone,
+                d.city,
+                d.donor_type,
+                d.payment_status,
+                d.total_pledged,
+                d.total_paid,
+                d.balance,
+                d.church_id,
+                c.name as church_name,
+                c.city as church_city,
+                (SELECT COUNT(*) FROM church_representatives WHERE church_id = d.church_id AND is_active = 1) as rep_count
+            FROM donors d
+            LEFT JOIN churches c ON d.church_id = c.id
+            WHERE 1=1
+        ";
+        
+        $params = [];
+        $types = '';
+        
+        if (!empty($search)) {
+            $donor_query .= " AND (d.name LIKE ? OR d.phone LIKE ?)";
+            $search_param = "%{$search}%";
+            $params[] = $search_param;
+            $params[] = $search_param;
+            $types .= 'ss';
+        }
+        
+        if (!empty($city_filter)) {
+            $donor_query .= " AND d.city = ?";
+            $params[] = $city_filter;
+            $types .= 's';
+        }
+        
+        if (!empty($donor_type_filter)) {
+            $donor_query .= " AND d.donor_type = ?";
+            $params[] = $donor_type_filter;
+            $types .= 's';
+        }
+        
+        if (!empty($payment_status_filter)) {
+            $donor_query .= " AND d.payment_status = ?";
+            $params[] = $payment_status_filter;
+            $types .= 's';
+        }
+        
+        if ($assignment_status_filter === 'assigned') {
+            $donor_query .= " AND d.church_id IS NOT NULL";
+        } elseif ($assignment_status_filter === 'unassigned') {
+            $donor_query .= " AND d.church_id IS NULL";
+        }
+        
+        // Amount filters (only apply if type is selected AND at least min or max is provided)
+        if (!empty($amount_range_filter) && (!empty($amount_min) || !empty($amount_max))) {
+            if ($amount_range_filter === 'pledged') {
+                if ($amount_min !== '' && $amount_min !== null) {
+                    $donor_query .= " AND d.total_pledged >= ?";
+                    $params[] = (float)$amount_min;
+                    $types .= 'd';
+                }
+                if ($amount_max !== '' && $amount_max !== null) {
+                    $donor_query .= " AND d.total_pledged <= ?";
+                    $params[] = (float)$amount_max;
+                    $types .= 'd';
+                }
+            } elseif ($amount_range_filter === 'paid') {
+                if ($amount_min !== '' && $amount_min !== null) {
+                    $donor_query .= " AND d.total_paid >= ?";
+                    $params[] = (float)$amount_min;
+                    $types .= 'd';
+                }
+                if ($amount_max !== '' && $amount_max !== null) {
+                    $donor_query .= " AND d.total_paid <= ?";
+                    $params[] = (float)$amount_max;
+                    $types .= 'd';
+                }
+            } elseif ($amount_range_filter === 'balance') {
+                if ($amount_min !== '' && $amount_min !== null) {
+                    $donor_query .= " AND d.balance >= ?";
+                    $params[] = (float)$amount_min;
+                    $types .= 'd';
+                }
+                if ($amount_max !== '' && $amount_max !== null) {
+                    $donor_query .= " AND d.balance <= ?";
+                    $params[] = (float)$amount_max;
+                    $types .= 'd';
+                }
+            }
+        }
+        
+        $donor_query .= " ORDER BY d.name ASC LIMIT 200";
+        
+        $stmt = $db->prepare($donor_query);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $donors = $result->fetch_all(MYSQLI_ASSOC);
     }
-    
-    if (!empty($church_filter)) {
-        $donor_query .= " AND d.church_id = ?";
-        $params[] = $church_filter;
-        $types .= 'i';
-    }
-    
-    if ($status_filter === 'assigned') {
-        $donor_query .= " AND d.church_id IS NOT NULL";
-    } elseif ($status_filter === 'unassigned') {
-        $donor_query .= " AND d.church_id IS NULL";
-    }
-    
-    $donor_query .= " ORDER BY d.name ASC LIMIT 200";
-    
-    $stmt = $db->prepare($donor_query);
-    if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
-    }
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $donors = $result->fetch_all(MYSQLI_ASSOC);
     
 } catch (Exception $e) {
     $error_message = "Error loading donors: " . $e->getMessage();
     log_action("Error loading donors: " . $e->getMessage());
+}
+
+// Get unique cities for filter
+$cities = [];
+try {
+    $cities_query = $db->query("SELECT DISTINCT city FROM donors WHERE city IS NOT NULL AND city != '' ORDER BY city ASC");
+    while ($row = $cities_query->fetch_assoc()) {
+        $cities[] = $row['city'];
+    }
+} catch (Exception $e) {
+    // Ignore
 }
 
 // Fetch churches
@@ -466,42 +545,100 @@ if ($selected_donor_id > 0) {
                         <!-- Search & Filter -->
                         <form method="GET" action="" class="mb-4">
                             <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Search</label>
+                                <!-- Search -->
+                                <div class="col-md-12">
+                                    <label class="form-label"><i class="fas fa-search me-1"></i>Search</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="fas fa-search"></i></span>
                                         <input type="text" name="search" class="form-control" 
-                                               placeholder="Search by name or phone..." 
+                                               placeholder="Search by donor name or phone number..." 
                                                value="<?php echo htmlspecialchars($search); ?>">
                                     </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Filter by Church</label>
-                                    <select name="church_filter" class="form-select">
-                                        <option value="">All Churches</option>
-                                        <?php foreach ($churches as $church): ?>
-                                        <option value="<?php echo $church['id']; ?>" 
-                                                <?php echo $church_filter == $church['id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($church['city']); ?>
+                                
+                                <!-- Donor Type -->
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Donor Type</label>
+                                    <select name="donor_type_filter" class="form-select">
+                                        <option value="">All Types</option>
+                                        <option value="pledge" <?php echo $donor_type_filter === 'pledge' ? 'selected' : ''; ?>>Pledge Donors</option>
+                                        <option value="immediate_payment" <?php echo $donor_type_filter === 'immediate_payment' ? 'selected' : ''; ?>>Immediate Payers</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Payment Status -->
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Payment Status</label>
+                                    <select name="payment_status_filter" class="form-select">
+                                        <option value="">All Statuses</option>
+                                        <option value="no_pledge" <?php echo $payment_status_filter === 'no_pledge' ? 'selected' : ''; ?>>No Pledge</option>
+                                        <option value="not_started" <?php echo $payment_status_filter === 'not_started' ? 'selected' : ''; ?>>Not Started</option>
+                                        <option value="paying" <?php echo $payment_status_filter === 'paying' ? 'selected' : ''; ?>>Paying</option>
+                                        <option value="overdue" <?php echo $payment_status_filter === 'overdue' ? 'selected' : ''; ?>>Overdue</option>
+                                        <option value="completed" <?php echo $payment_status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                        <option value="defaulted" <?php echo $payment_status_filter === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- City -->
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">City</label>
+                                    <select name="city_filter" class="form-select">
+                                        <option value="">All Cities</option>
+                                        <?php foreach ($cities as $city): ?>
+                                        <option value="<?php echo htmlspecialchars($city); ?>" 
+                                                <?php echo $city_filter === $city ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($city); ?>
                                         </option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Status</label>
-                                    <select name="status_filter" class="form-select">
-                                        <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All</option>
-                                        <option value="assigned" <?php echo $status_filter === 'assigned' ? 'selected' : ''; ?>>Assigned</option>
-                                        <option value="unassigned" <?php echo $status_filter === 'unassigned' ? 'selected' : ''; ?>>Unassigned</option>
+                                
+                                <!-- Assignment Status -->
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label">Assignment</label>
+                                    <select name="assignment_status_filter" class="form-select">
+                                        <option value="">All</option>
+                                        <option value="assigned" <?php echo $assignment_status_filter === 'assigned' ? 'selected' : ''; ?>>Assigned to Church</option>
+                                        <option value="unassigned" <?php echo $assignment_status_filter === 'unassigned' ? 'selected' : ''; ?>>Not Assigned</option>
                                     </select>
                                 </div>
+                                
+                                <!-- Amount Range -->
+                                <div class="col-md-12">
+                                    <label class="form-label"><i class="fas fa-pound-sign me-1"></i>Amount Filter</label>
+                                    <div class="row g-2">
+                                        <div class="col-md-3">
+                                            <select name="amount_range_filter" class="form-select">
+                                                <option value="">Select Amount Type</option>
+                                                <option value="pledged" <?php echo $amount_range_filter === 'pledged' ? 'selected' : ''; ?>>Total Pledged</option>
+                                                <option value="paid" <?php echo $amount_range_filter === 'paid' ? 'selected' : ''; ?>>Total Paid</option>
+                                                <option value="balance" <?php echo $amount_range_filter === 'balance' ? 'selected' : ''; ?>>Balance</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="number" name="amount_min" class="form-control" 
+                                                   placeholder="Min amount (£)" 
+                                                   step="0.01" min="0"
+                                                   value="<?php echo htmlspecialchars($amount_min); ?>">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="number" name="amount_max" class="form-control" 
+                                                   placeholder="Max amount (£)" 
+                                                   step="0.01" min="0"
+                                                   value="<?php echo htmlspecialchars($amount_max); ?>">
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">Leave min/max empty to filter by any amount</small>
+                                </div>
+                                
                                 <div class="col-12">
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-filter me-2"></i>Apply Filters
+                                        <i class="fas fa-filter me-2"></i>Search & Filter
                                     </button>
-                                    <?php if (!empty($search) || !empty($church_filter) || $status_filter !== 'all'): ?>
+                                    <?php if ($has_filters): ?>
                                     <a href="assign-donors.php" class="btn btn-outline-secondary">
-                                        <i class="fas fa-times me-2"></i>Clear
+                                        <i class="fas fa-times me-2"></i>Clear All Filters
                                     </a>
                                     <?php endif; ?>
                                 </div>
@@ -509,19 +646,71 @@ if ($selected_donor_id > 0) {
                         </form>
                         
                         <!-- Donors List -->
-                        <?php if (empty($donors)): ?>
+                        <?php if (!$has_filters): ?>
+                            <!-- Empty State - No Filters Applied -->
+                            <div class="text-center py-5">
+                                <i class="fas fa-search fa-4x mb-4 text-muted opacity-25"></i>
+                                <h5 class="mb-3">Search for a Donor</h5>
+                                <p class="text-muted mb-4">
+                                    Use the search and filters above to find donors.<br>
+                                    <strong>No results will be shown until you apply at least one filter.</strong>
+                                </p>
+                                <div class="row g-3 justify-content-center">
+                                    <div class="col-md-10">
+                                        <div class="card border-0 bg-light">
+                                            <div class="card-body p-4">
+                                                <h6 class="mb-3"><i class="fas fa-lightbulb me-2 text-warning"></i>Filter Options:</h6>
+                                                <div class="row g-3 text-start">
+                                                    <div class="col-md-6">
+                                                        <strong>Search:</strong>
+                                                        <ul class="small mb-0">
+                                                            <li>Donor name (e.g., "John")</li>
+                                                            <li>Phone number (e.g., "07473")</li>
+                                                        </ul>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <strong>Filters:</strong>
+                                                        <ul class="small mb-0">
+                                                            <li>Donor Type (Pledge/Immediate)</li>
+                                                            <li>Payment Status</li>
+                                                            <li>City</li>
+                                                            <li>Assignment Status</li>
+                                                            <li>Amount Range (Pledged/Paid/Balance)</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php elseif (empty($donors)): ?>
+                            <!-- No Results Found -->
                             <div class="text-center py-5 text-muted">
                                 <i class="fas fa-users fa-3x mb-3 opacity-25"></i>
-                                <p>No donors found. Try adjusting your search or filters.</p>
+                                <h5 class="mb-2">No Donors Found</h5>
+                                <p>Try adjusting your search or filters.</p>
+                                <a href="assign-donors.php" class="btn btn-outline-secondary mt-3">
+                                    <i class="fas fa-times me-2"></i>Clear All Filters
+                                </a>
                             </div>
                         <?php else: ?>
-                            <div class="mb-3">
-                                <strong>Found <?php echo count($donors); ?> donor<?php echo count($donors) != 1 ? 's' : ''; ?></strong>
+                            <!-- Results Found -->
+                            <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap">
+                                <div>
+                                    <strong>Found <?php echo count($donors); ?> donor<?php echo count($donors) != 1 ? 's' : ''; ?></strong>
+                                    <?php if (count($donors) >= 200): ?>
+                                        <span class="badge bg-warning ms-2">Showing first 200 results</span>
+                                    <?php endif; ?>
+                                </div>
+                                <a href="assign-donors.php" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>Clear Search
+                                </a>
                             </div>
                             <?php foreach ($donors as $donor): ?>
                             <div class="donor-card <?php echo $donor['church_id'] ? 'assigned' : 'unassigned'; ?>" 
                                  onclick="selectDonor(<?php echo $donor['id']; ?>)">
-                                <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
                                     <div class="flex-grow-1">
                                         <h6 class="mb-1"><?php echo htmlspecialchars($donor['name']); ?></h6>
                                         <p class="mb-1 small text-muted">
@@ -530,17 +719,39 @@ if ($selected_donor_id > 0) {
                                                 <span class="ms-2"><i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($donor['city']); ?></span>
                                             <?php endif; ?>
                                         </p>
-                                        <?php if ($donor['church_id']): ?>
-                                            <span class="badge-assigned">
-                                                <i class="fas fa-church me-1"></i><?php echo htmlspecialchars($donor['church_name']); ?>
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="badge-unassigned">
-                                                <i class="fas fa-exclamation-circle me-1"></i>Not Assigned
-                                            </span>
-                                        <?php endif; ?>
+                                        <div class="mt-2 d-flex flex-wrap gap-2">
+                                            <?php if ($donor['church_id']): ?>
+                                                <span class="badge-assigned">
+                                                    <i class="fas fa-church me-1"></i><?php echo htmlspecialchars($donor['church_name']); ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge-unassigned">
+                                                    <i class="fas fa-exclamation-circle me-1"></i>Not Assigned
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if ($donor['donor_type']): ?>
+                                                <span class="badge bg-info">
+                                                    <?php echo ucfirst(str_replace('_', ' ', $donor['donor_type'])); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if ($donor['payment_status']): ?>
+                                                <span class="badge bg-secondary">
+                                                    <?php echo ucfirst(str_replace('_', ' ', $donor['payment_status'])); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if (isset($donor['total_pledged']) && (float)$donor['total_pledged'] > 0): ?>
+                                                <span class="badge bg-primary">
+                                                    <i class="fas fa-pound-sign me-1"></i>Pledged: £<?php echo number_format((float)$donor['total_pledged'], 2); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if (isset($donor['balance']) && (float)$donor['balance'] > 0): ?>
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-pound-sign me-1"></i>Balance: £<?php echo number_format((float)$donor['balance'], 2); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
-                                    <div class="ms-3">
+                                    <div class="ms-3 mt-2 mt-md-0">
                                         <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); selectDonor(<?php echo $donor['id']; ?>);">
                                             <i class="fas fa-arrow-right me-1"></i>Assign
                                         </button>
