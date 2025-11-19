@@ -385,6 +385,47 @@ $page_title = 'Payment Plan Pages Deep Analysis';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
+<script>
+// Initialize Bootstrap components
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all Bootstrap accordions
+    const accordionElements = document.querySelectorAll('.accordion-collapse');
+    accordionElements.forEach(function(element) {
+        if (element && typeof bootstrap !== 'undefined') {
+            new bootstrap.Collapse(element, { toggle: false });
+        }
+    });
+    
+    // Ensure sidebar toggle works
+    if (typeof toggleSidebar === 'undefined') {
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const adminContent = document.querySelector('.admin-content');
+            if (sidebar && adminContent) {
+                sidebar.classList.toggle('collapsed');
+                adminContent.classList.toggle('sidebar-collapsed');
+            }
+        };
+    }
+    
+    // Initialize Bootstrap tooltips if any
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        }
+    });
+    
+    // Initialize Bootstrap popovers if any
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Popover) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        }
+    });
+});
+</script>
 </body>
 </html>
 
