@@ -296,20 +296,23 @@ try {
                         break;
                     }
                 }
+                $needs_fix = !$all_exist || !$email_index_exists;
                 ?>
                 
-                <div class="status-card <?php echo $all_exist ? 'success' : 'warning'; ?>">
+                <div class="status-card <?php echo $needs_fix ? 'warning' : 'success'; ?>">
                     <div class="text-center">
                         <div class="status-icon">
-                            <?php if ($all_exist): ?>
+                            <?php if (!$needs_fix): ?>
                                 <i class="fas fa-check-circle text-success"></i>
                             <?php else: ?>
                                 <i class="fas fa-exclamation-triangle text-warning"></i>
                             <?php endif; ?>
                         </div>
                         <h3 class="mb-2">
-                            <?php if ($all_exist): ?>
-                                All Required Columns Exist
+                            <?php if (!$needs_fix): ?>
+                                All Required Columns & Indexes Exist
+                            <?php elseif ($all_exist && !$email_index_exists): ?>
+                                Columns Exist - Email Index Missing
                             <?php else: ?>
                                 Some Columns Are Missing
                             <?php endif; ?>
@@ -322,11 +325,14 @@ try {
                             }
                             ?>
                             <?php echo $existing_count; ?> of <?php echo count($columns_status); ?> required columns exist
+                            <?php if (!$email_index_exists): ?>
+                                <br><span class="text-warning"><i class="fas fa-exclamation-circle me-1"></i>Email index (idx_email) is missing</span>
+                            <?php endif; ?>
                         </p>
-                        <?php if (!$all_exist): ?>
+                        <?php if ($needs_fix): ?>
                         <form method="POST" class="d-inline">
                             <button type="submit" name="fix_database" class="btn btn-primary btn-lg">
-                                <i class="fas fa-tools me-2"></i>Fix Database - Add Missing Columns
+                                <i class="fas fa-tools me-2"></i>Fix Database - Add Missing Items
                             </button>
                         </form>
                         <?php endif; ?>
