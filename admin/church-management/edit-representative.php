@@ -96,46 +96,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (empty($errors)) {
         try {
-            // Handle NULL email and notes - convert to empty string for bind_param
-            if (empty($email)) {
-                $email = '';
-            }
-            if (empty($notes)) {
-                $notes = '';
-            }
-            
             $stmt = $db->prepare("
                 UPDATE church_representatives 
                 SET church_id = ?, name = ?, role = ?, phone = ?, email = ?, is_primary = ?, is_active = ?, notes = ?, updated_at = NOW()
                 WHERE id = ?
             ");
-            // Type string: 9 characters for 9 parameters
-            // church_id(i), name(s), role(s), phone(s), email(s), is_primary(i), is_active(i), notes(s), rep_id(i)
-            // Based on add version "issssiiis" (9 chars for 8 params), add 'i' for rep_id = "issssiiisi" (9 chars for 9 params)
-            // Type string: 9 characters for 9 parameters (i-s-s-s-s-i-i-s-i)
             // Parameters: church_id(i), name(s), role(s), phone(s), email(s), is_primary(i), is_active(i), notes(s), rep_id(i)
-            $stmt->bind_param("issssiiisi", $church_id, $name, $role, $phone, $email, $is_primary, $is_active, $notes, $rep_id);
+            $stmt->bind_param("issssiisi", $church_id, $name, $role, $phone, $email, $is_primary, $is_active, $notes, $rep_id);
             
             if ($stmt->execute()) {
                 header("Location: representatives.php?success=" . urlencode("Representative updated successfully!"));
                 exit;
             } else {
-                $error_msg = "Failed to update representative: " . $stmt->error . " (Error code: " . $stmt->errno . ")";
-                error_log("Edit Representative Error: " . $error_msg);
-                error_log("SQL: UPDATE church_representatives SET church_id = ?, name = ?, role = ?, phone = ?, email = ?, is_primary = ?, is_active = ?, notes = ?, updated_at = NOW() WHERE id = ?");
-                error_log("Parameters: church_id=" . $church_id . ", name=" . $name . ", role=" . $role . ", phone=" . $phone . ", email=" . $email . ", is_primary=" . $is_primary . ", is_active=" . $is_active . ", notes=" . $notes . ", rep_id=" . $rep_id);
-                $errors[] = $error_msg;
+                $errors[] = "Failed to update representative: " . $stmt->error;
             }
-        } catch (mysqli_sql_exception $e) {
-            $error_msg = "Database error: " . $e->getMessage() . " (Code: " . $e->getCode() . ")";
-            error_log("Edit Representative SQL Exception: " . $error_msg);
-            error_log("Stack trace: " . $e->getTraceAsString());
-            $errors[] = $error_msg;
         } catch (Exception $e) {
-            $error_msg = "Error: " . $e->getMessage();
-            error_log("Edit Representative Exception: " . $error_msg);
-            error_log("Stack trace: " . $e->getTraceAsString());
-            $errors[] = $error_msg;
+            $errors[] = "Error: " . $e->getMessage();
         }
     }
     
