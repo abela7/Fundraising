@@ -56,26 +56,55 @@ $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_c
 
 // Fetch representatives
 try {
-    $query = "
-        SELECT 
-            cr.id,
-            cr.name,
-            cr.role,
-            cr.phone,
-            cr.email,
-            cr.is_primary,
-            cr.is_active,
-            cr.church_id,
-            c.name as church_name,
-            c.city as church_city,
-            COUNT(DISTINCT d.id) as donor_count
-        FROM church_representatives cr
-        INNER JOIN churches c ON cr.church_id = c.id
-        LEFT JOIN donors d ON c.id = d.church_id
-        {$where_clause}
-        GROUP BY cr.id
-        ORDER BY c.city ASC, c.name ASC, cr.is_primary DESC, cr.name ASC
-    ";
+    // Check if representative_id column exists
+    $check_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+    $has_rep_column = $check_column && $check_column->num_rows > 0;
+    
+    if ($has_rep_column) {
+        // Use representative_id if column exists
+        $query = "
+            SELECT 
+                cr.id,
+                cr.name,
+                cr.role,
+                cr.phone,
+                cr.email,
+                cr.is_primary,
+                cr.is_active,
+                cr.church_id,
+                c.name as church_name,
+                c.city as church_city,
+                COUNT(DISTINCT CASE WHEN d.representative_id = cr.id THEN d.id END) as donor_count
+            FROM church_representatives cr
+            INNER JOIN churches c ON cr.church_id = c.id
+            LEFT JOIN donors d ON d.representative_id = cr.id
+            {$where_clause}
+            GROUP BY cr.id
+            ORDER BY c.city ASC, c.name ASC, cr.is_primary DESC, cr.name ASC
+        ";
+    } else {
+        // Fallback to church_id if column doesn't exist yet
+        $query = "
+            SELECT 
+                cr.id,
+                cr.name,
+                cr.role,
+                cr.phone,
+                cr.email,
+                cr.is_primary,
+                cr.is_active,
+                cr.church_id,
+                c.name as church_name,
+                c.city as church_city,
+                COUNT(DISTINCT d.id) as donor_count
+            FROM church_representatives cr
+            INNER JOIN churches c ON cr.church_id = c.id
+            LEFT JOIN donors d ON c.id = d.church_id
+            {$where_clause}
+            GROUP BY cr.id
+            ORDER BY c.city ASC, c.name ASC, cr.is_primary DESC, cr.name ASC
+        ";
+    }
     
     $stmt = $db->prepare($query);
     if (!empty($params)) {

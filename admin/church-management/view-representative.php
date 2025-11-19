@@ -33,31 +33,64 @@ try {
         exit;
     }
     
-    // Fetch assigned donors (from same church)
-    $donors_stmt = $db->prepare("
-        SELECT 
-            d.id,
-            d.name,
-            d.phone,
-            d.total_pledged,
-            d.total_paid,
-            d.balance,
-            d.payment_status,
-            d.created_at
-        FROM donors d
-        WHERE d.church_id = ?
-        ORDER BY d.name ASC
-        LIMIT 50
-    ");
-    $donors_stmt->bind_param("i", $rep['church_id']);
-    $donors_stmt->execute();
-    $donors = $donors_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    // Fetch assigned donors (assigned to THIS specific representative)
+    // Check if representative_id column exists
+    $check_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+    $has_rep_column = $check_column && $check_column->num_rows > 0;
     
-    // Count total donors
-    $donors_count_stmt = $db->prepare("SELECT COUNT(*) as count FROM donors WHERE church_id = ?");
-    $donors_count_stmt->bind_param("i", $rep['church_id']);
-    $donors_count_stmt->execute();
-    $donors_count = $donors_count_stmt->get_result()->fetch_assoc()['count'];
+    if ($has_rep_column) {
+        // Use representative_id if column exists
+        $donors_stmt = $db->prepare("
+            SELECT 
+                d.id,
+                d.name,
+                d.phone,
+                d.total_pledged,
+                d.total_paid,
+                d.balance,
+                d.payment_status,
+                d.created_at
+            FROM donors d
+            WHERE d.representative_id = ?
+            ORDER BY d.name ASC
+            LIMIT 50
+        ");
+        $donors_stmt->bind_param("i", $rep_id);
+        $donors_stmt->execute();
+        $donors = $donors_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        // Count total donors assigned to this representative
+        $donors_count_stmt = $db->prepare("SELECT COUNT(*) as count FROM donors WHERE representative_id = ?");
+        $donors_count_stmt->bind_param("i", $rep_id);
+        $donors_count_stmt->execute();
+        $donors_count = $donors_count_stmt->get_result()->fetch_assoc()['count'];
+    } else {
+        // Fallback to church_id if column doesn't exist yet
+        $donors_stmt = $db->prepare("
+            SELECT 
+                d.id,
+                d.name,
+                d.phone,
+                d.total_pledged,
+                d.total_paid,
+                d.balance,
+                d.payment_status,
+                d.created_at
+            FROM donors d
+            WHERE d.church_id = ?
+            ORDER BY d.name ASC
+            LIMIT 50
+        ");
+        $donors_stmt->bind_param("i", $rep['church_id']);
+        $donors_stmt->execute();
+        $donors = $donors_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        // Count total donors from same church
+        $donors_count_stmt = $db->prepare("SELECT COUNT(*) as count FROM donors WHERE church_id = ?");
+        $donors_count_stmt->bind_param("i", $rep['church_id']);
+        $donors_count_stmt->execute();
+        $donors_count = $donors_count_stmt->get_result()->fetch_assoc()['count'];
+    }
     
     // Get other representatives from same church
     $other_reps_stmt = $db->prepare("
@@ -359,13 +392,13 @@ try {
                                     <?php if (empty($donors)): ?>
                                         <div class="p-4 text-center text-muted">
                                             <i class="fas fa-users fa-2x mb-3 opacity-25"></i>
-                                            <p>No donors assigned to this church yet.</p>
+                                            <p>No donors assigned to this representative yet.</p>
                                         </div>
                                     <?php else: ?>
                                         <div class="p-3">
                                             <p class="text-muted small mb-3">
                                                 <i class="fas fa-info-circle me-1"></i>
-                                                Showing donors from <strong><?php echo htmlspecialchars($rep['church_name']); ?></strong>
+                                                Showing donors assigned to <strong><?php echo htmlspecialchars($rep['name']); ?></strong>
                                                 <?php if ($donors_count > 50): ?>
                                                     (showing first 50 of <?php echo $donors_count; ?>)
                                                 <?php endif; ?>

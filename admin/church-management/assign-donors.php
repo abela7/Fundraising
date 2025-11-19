@@ -46,7 +46,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_donor'])) {
             $db->begin_transaction();
             
             // Get current donor info
-            $donor_stmt = $db->prepare("SELECT id, name, phone, church_id FROM donors WHERE id = ?");
+            // Check if representative_id column exists first
+            $check_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+            $has_rep_column = $check_column && $check_column->num_rows > 0;
+            
+            if ($has_rep_column) {
+                $donor_stmt = $db->prepare("SELECT id, name, phone, church_id, representative_id FROM donors WHERE id = ?");
+            } else {
+                $donor_stmt = $db->prepare("SELECT id, name, phone, church_id FROM donors WHERE id = ?");
+            }
             $donor_stmt->bind_param("i", $donor_id);
             $donor_stmt->execute();
             $current_donor = $donor_stmt->get_result()->fetch_assoc();
@@ -57,17 +65,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_donor'])) {
             
             $old_church_id = $current_donor['church_id'];
             
-            log_action("Donor found - Name: {$current_donor['name']}, Current Church ID: " . ($old_church_id ?? 'NULL'));
+            $old_representative_id = $current_donor['representative_id'] ?? null;
             
-            // Update donor's church_id
-            $update_stmt = $db->prepare("UPDATE donors SET church_id = ? WHERE id = ?");
-            $update_stmt->bind_param("ii", $church_id, $donor_id);
+            log_action("Donor found - Name: {$current_donor['name']}, Current Church ID: " . ($old_church_id ?? 'NULL') . ", Current Rep ID: " . ($old_representative_id ?? 'NULL'));
+            
+            // Update donor's church_id AND representative_id
+            // Check if representative_id column exists
+            $check_column = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+            if ($check_column && $check_column->num_rows > 0) {
+                // Column exists, update both
+                $update_stmt = $db->prepare("UPDATE donors SET church_id = ?, representative_id = ? WHERE id = ?");
+                $update_stmt->bind_param("iii", $church_id, $representative_id, $donor_id);
+            } else {
+                // Column doesn't exist yet, only update church_id
+                $update_stmt = $db->prepare("UPDATE donors SET church_id = ? WHERE id = ?");
+                $update_stmt->bind_param("ii", $church_id, $donor_id);
+            }
             
             if (!$update_stmt->execute()) {
                 throw new Exception("Failed to update donor: " . $update_stmt->error);
             }
             
-            log_action("Donor updated successfully - Donor ID: {$donor_id}, Old Church: " . ($old_church_id ?? 'NULL') . ", New Church: {$church_id}");
+            log_action("Donor updated successfully - Donor ID: {$donor_id}, Old Church: " . ($old_church_id ?? 'NULL') . ", New Church: {$church_id}, Old Rep: " . ($old_representative_id ?? 'NULL') . ", New Rep: {$representative_id}");
             
             // Get representative info for logging
             $rep_info = '';
