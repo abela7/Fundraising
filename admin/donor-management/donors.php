@@ -952,6 +952,9 @@ unset($donor); // Break reference
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-2"></i>Close
                 </button>
+                <a href="#" class="btn btn-info text-white" id="btnViewProfile" target="_blank">
+                    <i class="fas fa-user-circle me-2"></i>View Full Profile
+                </a>
                 <button type="button" class="btn btn-primary" id="btnEditFromDetail">
                     <i class="fas fa-edit me-2"></i>Edit Donor
                 </button>
@@ -1244,6 +1247,9 @@ $(document).ready(function() {
         } else {
             $('#admin_notes_section').hide();
         }
+        
+        // Update Profile button link
+        $('#btnViewProfile').attr('href', 'view-donor.php?id=' + donor.id);
         
         // Show modal
         $('#donorDetailModal').modal('show');
