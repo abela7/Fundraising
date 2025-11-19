@@ -758,6 +758,20 @@ try {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Sidebar Toggle Functionality
+    const sidebarToggle = document.querySelector('.sidebar-toggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+    const adminWrapper = document.querySelector('.admin-wrapper');
+    
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+            if (adminWrapper) {
+                adminWrapper.classList.toggle('sidebar-collapsed');
+            }
+        });
+    }
+
     // Edit Plan Button
     const btnEditPlan = document.getElementById('btnEditPlan');
     if (btnEditPlan) {
