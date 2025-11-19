@@ -132,9 +132,11 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Calculate duration display
 $duration_display = '—';
-if ($session->duration_seconds) {
-    $minutes = floor($session->duration_seconds / 60);
-    $seconds = $session->duration_seconds % 60;
+$duration_sec = (int)($session->duration_seconds ?? 0);
+
+if ($duration_sec > 0) {
+    $minutes = floor($duration_sec / 60);
+    $seconds = $duration_sec % 60;
     if ($minutes > 0) {
         $duration_display = $minutes . 'm ' . $seconds . 's';
     } else {
