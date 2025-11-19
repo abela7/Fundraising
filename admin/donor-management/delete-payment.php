@@ -255,7 +255,7 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Amount:</span>
-                    <span class="fw-bold text-primary">£<?php echo number_format($payment->amount, 2); ?></span>
+                    <span class="fw-bold text-primary">£<?php echo number_format((float)$payment->amount, 2); ?></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Method:</span>
@@ -307,7 +307,7 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php if ($payment->allocated_cells > 0): ?>
                     <li><?php echo $payment->allocated_cells; ?> floor grid cell(s) will be unlinked from this payment</li>
                     <?php endif; ?>
-                    <li>Donor's total paid amount will be recalculated (reduced by £<?php echo number_format($payment->amount, 2); ?>)</li>
+                    <li>Donor's total paid amount will be recalculated (reduced by £<?php echo number_format((float)$payment->amount, 2); ?>)</li>
                     <li>Donor's balance will be updated</li>
                 </ul>
             </div>

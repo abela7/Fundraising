@@ -234,11 +234,11 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Total Amount:</span>
-                    <span class="fw-bold text-primary">£<?php echo number_format($plan->total_amount, 2); ?></span>
+                    <span class="fw-bold text-primary">£<?php echo number_format((float)$plan->total_amount, 2); ?></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Monthly Payment:</span>
-                    <span>£<?php echo number_format($plan->monthly_amount, 2); ?></span>
+                    <span>£<?php echo number_format((float)$plan->monthly_amount, 2); ?></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Duration:</span>
@@ -256,7 +256,7 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Amount Paid:</span>
-                    <span>£<?php echo number_format($plan->amount_paid, 2); ?></span>
+                    <span>£<?php echo number_format((float)$plan->amount_paid, 2); ?></span>
                 </div>
             </div>
             

@@ -298,7 +298,7 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) 
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Pledge Amount:</span>
-                        <span class="fw-bold text-primary">£<?php echo number_format($pledge->amount, 2); ?></span>
+                        <span class="fw-bold text-primary">£<?php echo number_format((float)$pledge->amount, 2); ?></span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Date:</span>
