@@ -507,11 +507,12 @@ function formatDateTime($date) {
                                                 <th>Status</th>
                                                 <th>Grid Allocation</th>
                                                 <th>Approved By</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php if (empty($pledges)): ?>
-                                                <tr><td colspan="6" class="text-center py-3 text-muted">No pledges found.</td></tr>
+                                                <tr><td colspan="7" class="text-center py-3 text-muted">No pledges found.</td></tr>
                                             <?php else: ?>
                                                 <?php foreach ($pledges as $pledge): ?>
                                                 <tr>
@@ -535,6 +536,13 @@ function formatDateTime($date) {
                                                         <?php endif; ?>
                                                     </td>
                                                     <td data-label="Approved By"><?php echo htmlspecialchars($pledge['approver_name'] ?? 'System'); ?></td>
+                                                    <td data-label="Actions">
+                                                        <a href="delete-pledge.php?id=<?php echo $pledge['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                           class="btn btn-sm btn-danger" 
+                                                           title="Delete Pledge">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </a>
+                                                    </td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
@@ -566,11 +574,12 @@ function formatDateTime($date) {
                                                 <th>Reference</th>
                                                 <th>Status</th>
                                                 <th>Approved By</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php if (empty($payments)): ?>
-                                                <tr><td colspan="7" class="text-center py-3 text-muted">No payments found.</td></tr>
+                                                <tr><td colspan="8" class="text-center py-3 text-muted">No payments found.</td></tr>
                                             <?php else: ?>
                                                 <?php foreach ($payments as $pay): ?>
                                                 <tr>
@@ -585,6 +594,13 @@ function formatDateTime($date) {
                                                         </span>
                                                     </td>
                                                     <td data-label="Approved By"><?php echo htmlspecialchars($pay['approver_name'] ?? 'System'); ?></td>
+                                                    <td data-label="Actions">
+                                                        <a href="delete-payment.php?id=<?php echo $pay['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                           class="btn btn-sm btn-danger" 
+                                                           title="Delete Payment">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </a>
+                                                    </td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
@@ -645,9 +661,16 @@ function formatDateTime($date) {
                                                         </span>
                                                     </td>
                                                     <td data-label="Action">
-                                                        <a href="payment-plans.php?id=<?php echo $plan['id']; ?>" class="btn btn-sm btn-outline-primary w-100">
-                                                            View
-                                                        </a>
+                                                        <div class="d-flex gap-1">
+                                                            <a href="payment-plans.php?id=<?php echo $plan['id']; ?>" class="btn btn-sm btn-outline-primary" title="View Plan">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a href="delete-payment-plan.php?id=<?php echo $plan['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                               class="btn btn-sm btn-danger" 
+                                                               title="Delete Plan">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </a>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                                 <?php endforeach; ?>
@@ -679,11 +702,12 @@ function formatDateTime($date) {
                                                 <th>Duration</th>
                                                 <th>Stage</th>
                                                 <th>Notes</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php if (empty($calls)): ?>
-                                                <tr><td colspan="6" class="text-center py-3 text-muted">No call history.</td></tr>
+                                                <tr><td colspan="7" class="text-center py-3 text-muted">No call history.</td></tr>
                                             <?php else: ?>
                                                 <?php foreach ($calls as $call): ?>
                                                 <tr>
@@ -698,6 +722,20 @@ function formatDateTime($date) {
                                                     <td data-label="Stage"><?php echo ucwords(str_replace('_', ' ', $call['conversation_stage'])); ?></td>
                                                     <td data-label="Notes" class="text-truncate" style="max-width: 200px;" title="<?php echo htmlspecialchars($call['notes']); ?>">
                                                         <?php echo htmlspecialchars($call['notes'] ?? '-'); ?>
+                                                    </td>
+                                                    <td data-label="Actions">
+                                                        <div class="d-flex gap-1">
+                                                            <a href="../call-center/call-details.php?id=<?php echo $call['id']; ?>" 
+                                                               class="btn btn-sm btn-outline-primary" 
+                                                               title="View Call Details">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a href="delete-call-session.php?id=<?php echo $call['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                               class="btn btn-sm btn-danger" 
+                                                               title="Delete Call">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </a>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                                 <?php endforeach; ?>
