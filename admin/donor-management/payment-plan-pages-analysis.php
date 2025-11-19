@@ -385,7 +385,21 @@ $page_title = 'Payment Plan Pages Deep Analysis';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/admin.js"></script>
+<script>
+// Ensure DOM is ready before loading admin.js
+document.addEventListener('DOMContentLoaded', function() {
+    // Load admin.js dynamically to ensure it runs after DOM is ready
+    const script = document.createElement('script');
+    script.src = '../assets/admin.js';
+    script.onload = function() {
+        console.log('admin.js loaded successfully');
+    };
+    script.onerror = function() {
+        console.error('Failed to load admin.js');
+    };
+    document.body.appendChild(script);
+});
+</script>
 </body>
 </html>
 
