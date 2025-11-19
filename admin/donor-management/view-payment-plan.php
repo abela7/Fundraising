@@ -225,6 +225,11 @@ try {
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 1.5rem;
             height: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .stat-value {
             font-size: 2rem;
@@ -280,6 +285,47 @@ try {
             background: #28a745;
             border: 2px solid white;
             box-shadow: 0 0 0 2px #28a745;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .plan-header {
+                padding: 1.5rem;
+            }
+            .plan-header h1 {
+                font-size: 1.5rem;
+            }
+            .plan-header h4 {
+                font-size: 1.1rem;
+            }
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            .d-flex.gap-2 {
+                flex-direction: column;
+            }
+            .d-flex.gap-2 .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            .info-card {
+                padding: 1rem;
+            }
+            .payment-timeline {
+                padding-left: 1.5rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .plan-header {
+                padding: 1rem;
+            }
+            .stat-card {
+                padding: 1rem;
+            }
+            .stat-value {
+                font-size: 1.25rem;
+            }
         }
     </style>
 </head>
@@ -341,19 +387,19 @@ try {
 
                 <!-- Action Buttons -->
                 <div class="mb-4 d-flex gap-2 flex-wrap">
-                    <button type="button" class="btn btn-warning" onclick="editPlan(<?php echo $plan->id; ?>)">
+                    <button type="button" class="btn btn-warning" id="btnEditPlan" data-plan-id="<?php echo $plan['id']; ?>">
                         <i class="fas fa-edit me-2"></i>Edit Plan
                     </button>
                     <?php if ($plan['status'] === 'active'): ?>
-                    <button type="button" class="btn btn-info" onclick="pausePlan(<?php echo $plan['id']; ?>)">
+                    <button type="button" class="btn btn-info" id="btnPausePlan" data-plan-id="<?php echo $plan['id']; ?>">
                         <i class="fas fa-pause me-2"></i>Pause Plan
                     </button>
                     <?php elseif ($plan['status'] === 'paused'): ?>
-                    <button type="button" class="btn btn-success" onclick="resumePlan(<?php echo $plan['id']; ?>)">
+                    <button type="button" class="btn btn-success" id="btnResumePlan" data-plan-id="<?php echo $plan['id']; ?>">
                         <i class="fas fa-play me-2"></i>Resume Plan
                     </button>
                     <?php endif; ?>
-                    <button type="button" class="btn btn-danger" onclick="deletePlan(<?php echo $plan['id']; ?>)">
+                    <button type="button" class="btn btn-danger" id="btnDeletePlan" data-plan-id="<?php echo $plan['id']; ?>">
                         <i class="fas fa-trash me-2"></i>Delete Plan
                     </button>
                 </div>
@@ -634,6 +680,7 @@ try {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editPlanForm" method="POST" action="update-payment-plan.php">
+                <?php csrf_field(); ?>
                 <input type="hidden" name="plan_id" value="<?php echo $plan['id']; ?>">
                 <div class="modal-body">
                     <div class="alert alert-info">
@@ -710,49 +757,91 @@ try {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    function editPlan(planId) {
-        const modal = new bootstrap.Modal(document.getElementById('editPlanModal'));
-        modal.show();
+document.addEventListener('DOMContentLoaded', function() {
+    // Edit Plan Button
+    const btnEditPlan = document.getElementById('btnEditPlan');
+    if (btnEditPlan) {
+        btnEditPlan.addEventListener('click', function() {
+            const modalElement = document.getElementById('editPlanModal');
+            if (modalElement) {
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+            }
+        });
     }
 
-    function pausePlan(planId) {
-        if (confirm('Are you sure you want to pause this payment plan?')) {
-            updatePlanStatus(planId, 'paused');
-        }
+    // Pause Plan Button
+    const btnPausePlan = document.getElementById('btnPausePlan');
+    if (btnPausePlan) {
+        btnPausePlan.addEventListener('click', function() {
+            const planId = this.getAttribute('data-plan-id');
+            if (confirm('Are you sure you want to pause this payment plan?')) {
+                updatePlanStatus(planId, 'paused');
+            }
+        });
     }
 
-    function resumePlan(planId) {
-        if (confirm('Are you sure you want to resume this payment plan?')) {
-            updatePlanStatus(planId, 'active');
-        }
+    // Resume Plan Button
+    const btnResumePlan = document.getElementById('btnResumePlan');
+    if (btnResumePlan) {
+        btnResumePlan.addEventListener('click', function() {
+            const planId = this.getAttribute('data-plan-id');
+            if (confirm('Are you sure you want to resume this payment plan?')) {
+                updatePlanStatus(planId, 'active');
+            }
+        });
     }
 
-    function deletePlan(planId) {
-        if (confirm('Are you sure you want to delete this payment plan? This action cannot be undone.')) {
-            window.location.href = 'delete-payment-plan.php?id=' + planId;
-        }
+    // Delete Plan Button
+    const btnDeletePlan = document.getElementById('btnDeletePlan');
+    if (btnDeletePlan) {
+        btnDeletePlan.addEventListener('click', function() {
+            const planId = this.getAttribute('data-plan-id');
+            if (confirm('Are you sure you want to delete this payment plan? This action cannot be undone.')) {
+                window.location.href = 'delete-payment-plan.php?id=' + planId;
+            }
+        });
     }
 
-    function updatePlanStatus(planId, status) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'update-payment-plan-status.php';
-        
-        const planIdInput = document.createElement('input');
-        planIdInput.type = 'hidden';
-        planIdInput.name = 'plan_id';
-        planIdInput.value = planId;
-        
-        const statusInput = document.createElement('input');
-        statusInput.type = 'hidden';
-        statusInput.name = 'status';
-        statusInput.value = status;
-        
-        form.appendChild(planIdInput);
-        form.appendChild(statusInput);
-        document.body.appendChild(form);
-        form.submit();
+    // Form submission handler
+    const editPlanForm = document.getElementById('editPlanForm');
+    if (editPlanForm) {
+        editPlanForm.addEventListener('submit', function(e) {
+            // Form will submit normally to update-payment-plan.php
+        });
     }
+});
+
+function updatePlanStatus(planId, status) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'update-payment-plan-status.php';
+    
+    // Add CSRF token if available
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = csrfToken.getAttribute('content');
+        form.appendChild(csrfInput);
+    }
+    
+    const planIdInput = document.createElement('input');
+    planIdInput.type = 'hidden';
+    planIdInput.name = 'plan_id';
+    planIdInput.value = planId;
+    
+    const statusInput = document.createElement('input');
+    statusInput.type = 'hidden';
+    statusInput.name = 'status';
+    statusInput.value = status;
+    
+    form.appendChild(planIdInput);
+    form.appendChild(statusInput);
+    document.body.appendChild(form);
+    form.submit();
+}
 </script>
 </body>
 </html>
