@@ -16,8 +16,11 @@ try {
     // Get filter parameters
     $search = trim($_GET['search'] ?? '');
     $city_filter = trim($_GET['city'] ?? '');
+    $payment_status_filter = trim($_GET['payment_status'] ?? '');
+    $donor_type_filter = trim($_GET['donor_type'] ?? '');
+    $payment_method_filter = trim($_GET['payment_method'] ?? '');
     
-    // Handle balance filters - only set if value is provided and > 0
+    // Handle balance filters
     $balance_min = null;
     if (isset($_GET['balance_min']) && $_GET['balance_min'] !== '') {
         $val = (float)$_GET['balance_min'];
@@ -34,20 +37,37 @@ try {
         }
     }
     
-    // Handle attempts filters - only set if value is provided
-    $attempts_min = null;
-    if (isset($_GET['attempts_min']) && $_GET['attempts_min'] !== '') {
-        $val = (int)$_GET['attempts_min'];
-        if ($val >= 0) {
-            $attempts_min = $val;
+    // Handle total pledged filters
+    $pledged_min = null;
+    if (isset($_GET['pledged_min']) && $_GET['pledged_min'] !== '') {
+        $val = (float)$_GET['pledged_min'];
+        if ($val > 0) {
+            $pledged_min = $val;
         }
     }
     
-    $attempts_max = null;
-    if (isset($_GET['attempts_max']) && $_GET['attempts_max'] !== '') {
-        $val = (int)$_GET['attempts_max'];
+    $pledged_max = null;
+    if (isset($_GET['pledged_max']) && $_GET['pledged_max'] !== '') {
+        $val = (float)$_GET['pledged_max'];
         if ($val > 0) {
-            $attempts_max = $val;
+            $pledged_max = $val;
+        }
+    }
+    
+    // Handle total paid filters
+    $paid_min = null;
+    if (isset($_GET['paid_min']) && $_GET['paid_min'] !== '') {
+        $val = (float)$_GET['paid_min'];
+        if ($val >= 0) {
+            $paid_min = $val;
+        }
+    }
+    
+    $paid_max = null;
+    if (isset($_GET['paid_max']) && $_GET['paid_max'] !== '') {
+        $val = (float)$_GET['paid_max'];
+        if ($val > 0) {
+            $paid_max = $val;
         }
     }
     
@@ -129,6 +149,24 @@ try {
             $types .= 's';
         }
         
+        if (!empty($payment_status_filter)) {
+            $where_parts[] = "d.payment_status = ?";
+            $params[] = $payment_status_filter;
+            $types .= 's';
+        }
+        
+        if (!empty($donor_type_filter)) {
+            $where_parts[] = "d.donor_type = ?";
+            $params[] = $donor_type_filter;
+            $types .= 's';
+        }
+        
+        if (!empty($payment_method_filter)) {
+            $where_parts[] = "d.preferred_payment_method = ?";
+            $params[] = $payment_method_filter;
+            $types .= 's';
+        }
+        
         if ($balance_min !== null && $balance_min > 0) {
             $where_parts[] = "d.balance >= ?";
             $params[] = $balance_min;
@@ -138,6 +176,30 @@ try {
         if ($balance_max !== null && $balance_max > 0) {
             $where_parts[] = "d.balance <= ?";
             $params[] = $balance_max;
+            $types .= 'd';
+        }
+        
+        if ($pledged_min !== null && $pledged_min > 0) {
+            $where_parts[] = "d.total_pledged >= ?";
+            $params[] = $pledged_min;
+            $types .= 'd';
+        }
+        
+        if ($pledged_max !== null && $pledged_max > 0) {
+            $where_parts[] = "d.total_pledged <= ?";
+            $params[] = $pledged_max;
+            $types .= 'd';
+        }
+        
+        if ($paid_min !== null && $paid_min >= 0) {
+            $where_parts[] = "d.total_paid >= ?";
+            $params[] = $paid_min;
+            $types .= 'd';
+        }
+        
+        if ($paid_max !== null && $paid_max > 0) {
+            $where_parts[] = "d.total_paid <= ?";
+            $params[] = $paid_max;
             $types .= 'd';
         }
         
@@ -505,6 +567,41 @@ $page_title = 'Call Center Dashboard';
                                    value="<?php echo htmlspecialchars($search); ?>">
                         </div>
                         
+                        <!-- Payment Status -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Payment Status</label>
+                            <select name="payment_status" class="form-select form-select-sm">
+                                <option value="">All Statuses</option>
+                                <option value="no_pledge" <?php echo $payment_status_filter === 'no_pledge' ? 'selected' : ''; ?>>No Pledge</option>
+                                <option value="not_started" <?php echo $payment_status_filter === 'not_started' ? 'selected' : ''; ?>>Not Started</option>
+                                <option value="paying" <?php echo $payment_status_filter === 'paying' ? 'selected' : ''; ?>>Paying</option>
+                                <option value="overdue" <?php echo $payment_status_filter === 'overdue' ? 'selected' : ''; ?>>Overdue</option>
+                                <option value="completed" <?php echo $payment_status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                <option value="defaulted" <?php echo $payment_status_filter === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Donor Type -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Donor Type</label>
+                            <select name="donor_type" class="form-select form-select-sm">
+                                <option value="">All Types</option>
+                                <option value="pledge" <?php echo $donor_type_filter === 'pledge' ? 'selected' : ''; ?>>Pledge</option>
+                                <option value="immediate_payment" <?php echo $donor_type_filter === 'immediate_payment' ? 'selected' : ''; ?>>Immediate Payment</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Payment Method -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Payment Method</label>
+                            <select name="payment_method" class="form-select form-select-sm">
+                                <option value="">All Methods</option>
+                                <option value="cash" <?php echo $payment_method_filter === 'cash' ? 'selected' : ''; ?>>Cash</option>
+                                <option value="bank_transfer" <?php echo $payment_method_filter === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
+                                <option value="card" <?php echo $payment_method_filter === 'card' ? 'selected' : ''; ?>>Card</option>
+                            </select>
+                        </div>
+                        
                         <!-- City -->
                         <div class="col-md-2">
                             <label class="form-label small">City</label>
@@ -539,6 +636,46 @@ $page_title = 'Call Center Dashboard';
                             </div>
                         </div>
                         
+                        <!-- Total Pledged Range -->
+                        <div class="col-md-3">
+                            <label class="form-label small">Total Pledged Range (£)</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" 
+                                       name="pledged_min" 
+                                       class="form-control" 
+                                       placeholder="Min"
+                                       step="0.01"
+                                       value="<?php echo $pledged_min !== null ? htmlspecialchars($pledged_min) : ''; ?>">
+                                <span class="input-group-text">-</span>
+                                <input type="number" 
+                                       name="pledged_max" 
+                                       class="form-control" 
+                                       placeholder="Max"
+                                       step="0.01"
+                                       value="<?php echo $pledged_max !== null ? htmlspecialchars($pledged_max) : ''; ?>">
+                            </div>
+                        </div>
+                        
+                        <!-- Total Paid Range -->
+                        <div class="col-md-3">
+                            <label class="form-label small">Total Paid Range (£)</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" 
+                                       name="paid_min" 
+                                       class="form-control" 
+                                       placeholder="Min"
+                                       step="0.01"
+                                       value="<?php echo $paid_min !== null ? htmlspecialchars($paid_min) : ''; ?>">
+                                <span class="input-group-text">-</span>
+                                <input type="number" 
+                                       name="paid_max" 
+                                       class="form-control" 
+                                       placeholder="Max"
+                                       step="0.01"
+                                       value="<?php echo $paid_max !== null ? htmlspecialchars($paid_max) : ''; ?>">
+                            </div>
+                        </div>
+                        
                         <!-- Filter Buttons -->
                         <div class="col-md-12">
                             <button type="submit" class="btn btn-primary btn-sm">
@@ -547,7 +684,7 @@ $page_title = 'Call Center Dashboard';
                             <a href="index.php" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-times me-1"></i>Clear All
                             </a>
-                            <?php if ($search || $city_filter || $balance_min !== null || $balance_max !== null): ?>
+                            <?php if ($search || $city_filter || $payment_status_filter || $donor_type_filter || $payment_method_filter || $balance_min !== null || $balance_max !== null || $pledged_min !== null || $pledged_max !== null || $paid_min !== null || $paid_max !== null): ?>
                                 <span class="badge bg-info ms-2">
                                     <?php echo number_format($total_count); ?> result<?php echo $total_count != 1 ? 's' : ''; ?>
                                 </span>
@@ -625,19 +762,17 @@ $page_title = 'Call Center Dashboard';
                                                         <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
                                                     </td>
                                                     <td data-label="Action">
-                                                        <?php if (!empty($donor->queue_id)): ?>
+                                                        <?php if (!empty($donor->queue_id) && $donor->queue_id > 0): ?>
                                                             <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
                                                                class="btn btn-primary btn-sm">
                                                                 <i class="fas fa-phone-alt me-1"></i>Call
                                                             </a>
                                                         <?php else: ?>
-                                                            <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=0" 
-                                                               class="btn btn-primary btn-sm">
-                                                                <i class="fas fa-phone-alt me-1"></i>Call
-                                                            </a>
-                                                            <small class="d-block text-muted mt-1">
-                                                                <i class="fas fa-info-circle"></i> Not in queue
-                                                            </small>
+                                                            <button type="button" 
+                                                                    class="btn btn-success btn-sm" 
+                                                                    onclick="showAddToQueueModal(<?php echo (int)$donor->donor_id; ?>, '<?php echo htmlspecialchars(addslashes($donor->name)); ?>', <?php echo (float)$donor->balance; ?>)">
+                                                                <i class="fas fa-plus me-1"></i>Add to Queue
+                                                            </button>
                                                         <?php endif; ?>
                                                     </td>
                                                 </tr>
@@ -1094,7 +1229,7 @@ function toggleFilters() {
 }
 
 // Show filters if there are active filters
-<?php if ($search || $queue_type_filter || $priority_filter || $city_filter || $balance_min !== null || $balance_max !== null || $attempts_min !== null || $attempts_max !== null): ?>
+<?php if ($search || $city_filter || $payment_status_filter || $donor_type_filter || $payment_method_filter || $balance_min !== null || $balance_max !== null || $pledged_min !== null || $pledged_max !== null || $paid_min !== null || $paid_max !== null): ?>
 document.addEventListener('DOMContentLoaded', function() {
     const panel = document.getElementById('filterPanel');
     if (panel) {
@@ -1102,6 +1237,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 <?php endif; ?>
+
+// Add to Queue Modal
+function showAddToQueueModal(donorId, donorName, balance) {
+    document.getElementById('addQueueDonorId').value = donorId;
+    document.getElementById('addQueueDonorName').textContent = donorName;
+    document.getElementById('addQueueBalance').textContent = '£' + parseFloat(balance).toFixed(2);
+    
+    const modal = new bootstrap.Modal(document.getElementById('addToQueueModal'));
+    modal.show();
+}
+
+function addToQueue() {
+    const donorId = document.getElementById('addQueueDonorId').value;
+    const queueType = document.getElementById('addQueueType').value;
+    const priority = document.getElementById('addQueuePriority').value;
+    const reason = document.getElementById('addQueueReason').value;
+    
+    if (!queueType) {
+        alert('Please select a queue type');
+        return;
+    }
+    
+    // Disable button
+    const btn = document.getElementById('addQueueBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding...';
+    
+    // Send AJAX request
+    fetch('add-to-queue.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            donor_id: donorId,
+            queue_type: queueType,
+            priority: priority,
+            reason: reason
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addToQueueModal'));
+            modal.hide();
+            
+            // Show success message
+            alert('Donor added to queue successfully!');
+            
+            // Reload page
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to add donor to queue'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus me-1"></i>Add to Queue';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error: Failed to add donor to queue');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plus me-1"></i>Add to Queue';
+    });
+}
 
 // Prevent form submission issues
 document.addEventListener('DOMContentLoaded', function() {
@@ -1119,5 +1319,64 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<!-- Add to Queue Modal -->
+<div class="modal fade" id="addToQueueModal" tabindex="-1" aria-labelledby="addToQueueModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addToQueueModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Add Donor to Queue
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="addQueueDonorId">
+                
+                <div class="mb-3">
+                    <strong>Donor:</strong> <span id="addQueueDonorName"></span><br>
+                    <strong>Balance:</strong> <span id="addQueueBalance" class="text-danger"></span>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="addQueueType" class="form-label">Queue Type <span class="text-danger">*</span></label>
+                    <select class="form-select" id="addQueueType" required>
+                        <option value="">Select Queue Type</option>
+                        <option value="new_pledge">New Pledge</option>
+                        <option value="overdue_pledges">Overdue Pledges</option>
+                        <option value="follow_up">Follow Up</option>
+                        <option value="callback">Callback</option>
+                        <option value="payment_discussion">Payment Discussion</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="addQueuePriority" class="form-label">Priority</label>
+                    <select class="form-select" id="addQueuePriority">
+                        <option value="5">Normal (5)</option>
+                        <option value="6">Above Normal (6)</option>
+                        <option value="7">High (7)</option>
+                        <option value="8">Urgent (8)</option>
+                        <option value="9">Very Urgent (9)</option>
+                        <option value="10">Critical (10)</option>
+                    </select>
+                    <small class="text-muted">Higher number = higher priority</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="addQueueReason" class="form-label">Reason for Queue</label>
+                    <textarea class="form-control" id="addQueueReason" rows="3" placeholder="Optional: Add reason for adding to queue..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="addQueueBtn" onclick="addToQueue()">
+                    <i class="fas fa-plus me-1"></i>Add to Queue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
