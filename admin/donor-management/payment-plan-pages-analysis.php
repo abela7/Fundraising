@@ -385,19 +385,42 @@ $page_title = 'Payment Plan Pages Deep Analysis';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
 <script>
-// Ensure DOM is ready before loading admin.js
+// Additional initialization to ensure everything works
+// This runs after admin.js has initialized
 document.addEventListener('DOMContentLoaded', function() {
-    // Load admin.js dynamically to ensure it runs after DOM is ready
-    const script = document.createElement('script');
-    script.src = '../assets/admin.js';
-    script.onload = function() {
-        console.log('admin.js loaded successfully');
-    };
-    script.onerror = function() {
-        console.error('Failed to load admin.js');
-    };
-    document.body.appendChild(script);
+    // Verify admin.js loaded
+    if (typeof window.toggleSidebar === 'function') {
+        console.log('Sidebar toggle function available');
+    } else {
+        console.error('Sidebar toggle function NOT available - admin.js may not have loaded');
+        // Fallback: define toggleSidebar if admin.js didn't load
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.querySelector('.sidebar-overlay');
+            const body = document.body;
+            if (!sidebar || !sidebarOverlay) {
+                console.error('Sidebar or overlay not found');
+                return;
+            }
+            if (window.innerWidth <= 991.98) {
+                sidebar.classList.toggle('active');
+                sidebarOverlay.classList.toggle('active');
+                body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+            } else {
+                body.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('sidebarCollapsed', body.classList.contains('sidebar-collapsed'));
+            }
+        };
+    }
+    
+    // Verify Bootstrap loaded
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap JS not loaded!');
+    } else {
+        console.log('Bootstrap JS loaded successfully');
+    }
 });
 </script>
 </body>
