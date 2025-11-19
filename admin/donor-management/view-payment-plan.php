@@ -117,24 +117,57 @@ try {
     
     error_log("Plan loaded successfully for donor: " . $plan->donor_name);
 
+    // Check what name columns exist in users table
+    $user_name_column = null;
+    $check_full_name = $db->query("SHOW COLUMNS FROM users LIKE 'full_name'");
+    if ($check_full_name && $check_full_name->num_rows > 0) {
+        $user_name_column = 'u.full_name';
+    } else {
+        $check_name = $db->query("SHOW COLUMNS FROM users LIKE 'name'");
+        if ($check_name && $check_name->num_rows > 0) {
+            $user_name_column = 'u.name';
+        } else {
+            // Try username as fallback
+            $check_username = $db->query("SHOW COLUMNS FROM users LIKE 'username'");
+            if ($check_username && $check_username->num_rows > 0) {
+                $user_name_column = 'u.username';
+            }
+        }
+    }
+    
+    error_log("User name column: " . ($user_name_column ?? 'none found'));
+    
     // Fetch all payments associated with this plan
-    $payments_query = $db->prepare("
+    $payments_sql = "
         SELECT 
-            pay.*,
-            u.full_name as approved_by_name
+            pay.*" . 
+            ($user_name_column ? ", $user_name_column as approved_by_name" : "") . "
         FROM payments pay
-        LEFT JOIN users u ON pay.approved_by = u.id
-        WHERE pay.donor_id = ? AND pay.pledge_id = ?
+    ";
+    
+    if ($user_name_column) {
+        $payments_sql .= " LEFT JOIN users u ON pay.approved_by = u.id";
+    }
+    
+    $payments_sql .= " WHERE pay.donor_id = ? AND pay.pledge_id = ?
         ORDER BY pay.payment_date DESC
-    ");
+    ";
+    
+    error_log("Payments query: " . $payments_sql);
+    
+    $payments_query = $db->prepare($payments_sql);
     
     if (!$payments_query) {
         error_log("Payments query prepare failed: " . $db->error);
         $payments = [];
     } else {
         $payments_query->bind_param('ii', $plan->donor_id, $plan->pledge_id);
-        $payments_query->execute();
-        $payments = $payments_query->get_result()->fetch_all(MYSQLI_ASSOC);
+        if (!$payments_query->execute()) {
+            error_log("Payments query execute failed: " . $payments_query->error);
+            $payments = [];
+        } else {
+            $payments = $payments_query->get_result()->fetch_all(MYSQLI_ASSOC);
+        }
         $payments_query->close();
     }
 
@@ -454,7 +487,7 @@ try {
                                                 <p class="text-muted mb-0">
                                                     <small>
                                                         Method: <span class="text-capitalize"><?php echo str_replace('_', ' ', $payment['method']); ?></span>
-                                                        <?php if ($payment['approved_by_name']): ?>
+                                                        <?php if (isset($payment['approved_by_name']) && $payment['approved_by_name']): ?>
                                                             | Approved by: <?php echo htmlspecialchars($payment['approved_by_name']); ?>
                                                         <?php endif; ?>
                                                     </small>
