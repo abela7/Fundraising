@@ -15,7 +15,7 @@ require_login();
 // Set timezone
 date_default_timezone_set('Europe/London');
 
-$conn = get_db_connection();
+$conn = db();
 $session_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
 

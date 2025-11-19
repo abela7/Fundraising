@@ -126,11 +126,11 @@ echo "</div>";
 // Step 5: Database connection
 echo "<div class='step'><strong>Step 5: Database Connection</strong><br>";
 try {
-    if (!function_exists('get_db_connection')) {
-        throw new Exception("get_db_connection() function not found");
+    if (!function_exists('db')) {
+        throw new Exception("db() function not found");
     }
     date_default_timezone_set('Europe/London');
-    $conn = get_db_connection();
+    $conn = db();
     echo "✓ Database connected<br>";
     echo "Server: " . htmlspecialchars($conn->server_info) . "<br>";
 } catch (Throwable $e) {

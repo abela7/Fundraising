@@ -90,10 +90,10 @@ try {
 // Test 5: Try database connection
 echo "<h2>Test 5: Database Connection</h2>";
 try {
-    if (!function_exists('get_db_connection')) {
-        throw new Exception("get_db_connection() function not found");
+    if (!function_exists('db')) {
+        throw new Exception("db() function not found");
     }
-    $conn = get_db_connection();
+    $conn = db();
     echo "<div class='ok'>✓ Database connected</div>";
     echo "<div class='info'>Server: " . htmlspecialchars($conn->server_info) . "<br>";
     echo "Host: " . htmlspecialchars($conn->host_info) . "</div>";

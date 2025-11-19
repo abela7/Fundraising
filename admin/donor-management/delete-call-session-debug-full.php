@@ -54,7 +54,7 @@ try {
 echo "<div class='step'><strong>Step 2: Database Connection</strong><br>";
 try {
     date_default_timezone_set('Europe/London');
-    $conn = get_db_connection();
+    $conn = db();
     echo "✓ Database connected<br>";
     echo "Server: " . $conn->server_info . "<br>";
     echo "</div>";

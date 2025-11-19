@@ -27,7 +27,7 @@ echo "<p>Logged in.</p>";
 // Set timezone
 date_default_timezone_set('Europe/London');
 
-$conn = get_db_connection();
+$conn = db();
 echo "<p>DB Connected.</p>";
 
 $plan_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
