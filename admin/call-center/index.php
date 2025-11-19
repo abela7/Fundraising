@@ -92,7 +92,7 @@ try {
     $total_pages = 1;
     $queue_types_list = [];
     $cities_list = [];
-    
+
     // Check if call center tables exist
     $tables_check = $db->query("SHOW TABLES LIKE 'call_center_sessions'");
     $tables_exist = $tables_check && $tables_check->num_rows > 0;
@@ -693,7 +693,7 @@ $page_title = 'Call Center Dashboard';
                     </form>
                 </div>
             </div>
-            
+
             <div class="row g-4">
                 <!-- Call Queue -->
                 <div class="col-12">
@@ -707,9 +707,9 @@ $page_title = 'Call Center Dashboard';
                                 <button class="btn btn-sm btn-outline-secondary" onclick="toggleFilters()">
                                     <i class="fas fa-filter me-1"></i>Filters
                                 </button>
-                                <button class="btn btn-sm btn-primary" onclick="location.reload()">
-                                    <i class="fas fa-sync-alt me-1"></i>Refresh
-                                </button>
+                            <button class="btn btn-sm btn-primary" onclick="location.reload()">
+                                <i class="fas fa-sync-alt me-1"></i>Refresh
+                            </button>
                             </div>
                         </div>
                         <div class="card-body p-0">
@@ -763,10 +763,10 @@ $page_title = 'Call Center Dashboard';
                                                     </td>
                                                     <td data-label="Action">
                                                         <?php if (!empty($donor->queue_id) && $donor->queue_id > 0): ?>
-                                                            <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
-                                                               class="btn btn-primary btn-sm">
+                                                        <a href="make-call.php?donor_id=<?php echo (int)$donor->donor_id; ?>&queue_id=<?php echo (int)$donor->queue_id; ?>" 
+                                                           class="btn btn-primary btn-sm">
                                                                 <i class="fas fa-phone-alt me-1"></i>Call
-                                                            </a>
+                                                        </a>
                                                         <?php else: ?>
                                                             <button type="button" 
                                                                     class="btn btn-success btn-sm" 
@@ -1313,7 +1313,7 @@ document.addEventListener('DOMContentLoaded', function() {
             inputs.forEach(function(input) {
                 if (input.value === '' || input.value === null) {
                     input.disabled = true;
-                }
+    }
             });
         });
     }

@@ -86,7 +86,14 @@ try {
     $total_amount = (float)($row['balance'] ?? 0);
     $bal_query->close();
     
-    $monthly_amount = $total_amount / ($total_payments > 0 ? $total_payments : 1); // Installment amount
+    // Calculate monthly_amount (installment amount) - ensure it's never 0
+    $monthly_amount = $total_amount / ($total_payments > 0 ? $total_payments : 1);
+    $monthly_amount = round($monthly_amount, 2); // Round to 2 decimal places
+    if ($monthly_amount <= 0 && $total_amount > 0) {
+        // Fallback: if calculation fails, use total_amount as monthly
+        $monthly_amount = $total_amount;
+        error_log("WARNING: Monthly amount calculation resulted in 0, using total_amount as fallback");
+    }
     
     // Calculate Total Months (Approx for DB)
     $total_months = $total_payments;
