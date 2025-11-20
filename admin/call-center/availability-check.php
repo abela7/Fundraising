@@ -15,8 +15,8 @@ try {
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     $status = isset($_GET['status']) ? $_GET['status'] : '';
     
-    if (!$donor_id || !$queue_id || $status !== 'picked_up') {
-        header('Location: index.php');
+    if (!$donor_id || $status !== 'picked_up') {
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -53,7 +53,7 @@ try {
     
 } catch (Exception $e) {
     error_log("Availability Check Error: " . $e->getMessage());
-    header('Location: index.php');
+    header('Location: ../donor-management/donors.php');
     exit;
 }
 
