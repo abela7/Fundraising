@@ -10,12 +10,15 @@ $user_name = $_SESSION['user']['name'] ?? 'Agent';
 $user_id = (int)$_SESSION['user']['id'];
 
 // Initialize stats
-$today_stats = (object)[
-    'total_calls' => 0,
-    'successful_contacts' => 0,
-    'positive_outcomes' => 0,
-    'callbacks_scheduled' => 0,
-    'total_talk_time' => 0
+$stats = [
+    'today_calls' => 0,
+    'today_positive' => 0,
+    'today_talk_time' => 0,
+    'today_callbacks' => 0,
+    'donors_with_balance' => 0,
+    'total_outstanding' => 0,
+    'active_plans' => 0,
+    'pending_callbacks' => 0
 ];
 $conversion_rate = 0;
 $recent_calls = [];
@@ -24,72 +27,79 @@ $error_message = null;
 try {
     $db = db();
     
-    // Check tables exist
+    // Check if tables exist
     $tables_check = $db->query("SHOW TABLES LIKE 'call_center_sessions'");
-    if (!$tables_check || $tables_check->num_rows == 0) {
-        // Don't throw exception immediately, UI will handle setup prompt if needed
-        $tables_exist = false;
-    } else {
-        $tables_exist = true;
-    }
+    $tables_exist = ($tables_check && $tables_check->num_rows > 0);
 
     if ($tables_exist) {
-        // 1. Get Today's Stats
+        // Get today's call stats
         $today_start = date('Y-m-d 00:00:00');
         $today_end = date('Y-m-d 23:59:59');
 
-        $stats_query = "
+        $call_stats = $db->prepare("
             SELECT 
                 COUNT(*) as total_calls,
-                SUM(CASE WHEN conversation_stage != 'no_connection' THEN 1 ELSE 0 END) as successful_contacts,
-                SUM(CASE WHEN outcome IN ('payment_plan_created', 'agreed_to_pay_full', 'agreed_reduced_amount', 'agreed_cash_collection') THEN 1 ELSE 0 END) as positive_outcomes,
+                SUM(CASE WHEN conversation_stage NOT IN ('no_connection', 'disconnected') THEN 1 ELSE 0 END) as positive_outcomes,
                 SUM(CASE WHEN callback_scheduled_for IS NOT NULL THEN 1 ELSE 0 END) as callbacks_scheduled,
-                SUM(duration_seconds) as total_talk_time
+                SUM(COALESCE(duration_seconds, 0)) as total_talk_time
             FROM call_center_sessions
-            WHERE agent_id = ? AND call_started_at BETWEEN ? AND ?
-        ";
+            WHERE agent_id = ? AND created_at BETWEEN ? AND ?
+        ");
+        $call_stats->bind_param('iss', $user_id, $today_start, $today_end);
+        $call_stats->execute();
+        $result = $call_stats->get_result()->fetch_assoc();
         
-        $stmt = $db->prepare($stats_query);
-        $stmt->bind_param('iss', $user_id, $today_start, $today_end);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($row = $res->fetch_object()) {
-            $today_stats = $row;
+        $stats['today_calls'] = (int)$result['total_calls'];
+        $stats['today_positive'] = (int)$result['positive_outcomes'];
+        $stats['today_talk_time'] = (int)$result['total_talk_time'];
+        $stats['today_callbacks'] = (int)$result['callbacks_scheduled'];
+        
+        if ($stats['today_calls'] > 0) {
+            $conversion_rate = round(($stats['today_positive'] / $stats['today_calls']) * 100, 1);
         }
-        $stmt->close();
-
-        // Calculate conversion rate
-        if ($today_stats->total_calls > 0) {
-            $conversion_rate = round(($today_stats->positive_outcomes / $today_stats->total_calls) * 100, 1);
-        }
-
-        // 2. Get Recent Activity
-        $recent_query = "
+        
+        // Get pending callbacks
+        $pending_cb = $db->prepare("
+            SELECT COUNT(*) as cnt
+            FROM call_center_appointments
+            WHERE agent_id = ? AND status = 'scheduled' AND appointment_date >= CURDATE()
+        ");
+        $pending_cb->bind_param('i', $user_id);
+        $pending_cb->execute();
+        $stats['pending_callbacks'] = (int)$pending_cb->get_result()->fetch_assoc()['cnt'];
+        
+        // Get recent calls (last 8)
+        $recent_query = $db->prepare("
             SELECT 
-                s.id,
-                s.donor_id,
-                s.call_started_at,
-                s.outcome,
-                s.conversation_stage,
-                s.duration_seconds,
-                d.name,
-                d.phone
+                s.id, s.donor_id, s.created_at, s.conversation_stage,
+                s.duration_seconds, d.name, d.phone, d.balance
             FROM call_center_sessions s
             JOIN donors d ON s.donor_id = d.id
             WHERE s.agent_id = ?
-            ORDER BY s.call_started_at DESC
-            LIMIT 10
-        ";
-        
-        $stmt = $db->prepare($recent_query);
-        $stmt->bind_param('i', $user_id);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        while ($row = $res->fetch_object()) {
+            ORDER BY s.created_at DESC
+            LIMIT 8
+        ");
+        $recent_query->bind_param('i', $user_id);
+        $recent_query->execute();
+        $result = $recent_query->get_result();
+        while ($row = $result->fetch_assoc()) {
             $recent_calls[] = $row;
         }
-        $stmt->close();
     }
+    
+    // Get donor stats (always show these)
+    $donor_stats = $db->query("
+        SELECT 
+            COUNT(CASE WHEN balance > 0 THEN 1 END) as with_balance,
+            SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END) as total_outstanding,
+            COUNT(CASE WHEN has_active_plan = 1 THEN 1 END) as active_plans
+        FROM donors
+        WHERE donor_type = 'pledge'
+    ")->fetch_assoc();
+    
+    $stats['donors_with_balance'] = (int)$donor_stats['with_balance'];
+    $stats['total_outstanding'] = (float)$donor_stats['total_outstanding'];
+    $stats['active_plans'] = (int)$donor_stats['active_plans'];
 
 } catch (Exception $e) {
     $error_message = $e->getMessage();
@@ -101,10 +111,122 @@ try {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
-    <link rel="stylesheet" href="assets/call-center.css">
+    <style>
+        /* Compact, Mobile-First Dashboard Styles */
+        .dashboard-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        
+        .stat-card {
+            padding: 1rem;
+            border-radius: 10px;
+            background: white;
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+            margin: 0;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 0.25rem;
+        }
+        
+        .action-btn {
+            padding: 0.875rem 1rem;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            background: white;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .action-btn:hover {
+            border-color: #0a6286;
+            background: #f8f9fa;
+            transform: translateX(4px);
+        }
+        
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .recent-call-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+        
+        .recent-call-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .recent-call-item:last-child {
+            border-bottom: none;
+        }
+        
+        @media (max-width: 768px) {
+            .stat-value {
+                font-size: 1.25rem;
+            }
+            
+            .stat-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
+            }
+            
+            .action-btn {
+                padding: 0.75rem;
+            }
+            
+            .action-icon {
+                width: 28px;
+                height: 28px;
+            }
+        }
+        
+        .badge-sm {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+        }
+    </style>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -114,220 +236,226 @@ try {
         <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-headset me-2"></i>Call Center Dashboard
-                        </h1>
-                        <p class="text-muted mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
-                    </div>
-                    <div>
-                        <a href="../donor-management/donors.php?balance=has_balance" class="btn btn-success btn-lg shadow-sm">
-                            <i class="fas fa-phone-alt me-2"></i>Start Calling Donors
-                        </a>
-                    </div>
+            <div class="container-fluid p-3 p-md-4">
+                <!-- Header -->
+                <div class="mb-4">
+                    <h1 class="h4 mb-1 text-primary fw-bold">
+                        <i class="fas fa-headset me-2"></i>Call Center
+                    </h1>
+                    <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
                 </div>
 
                 <?php if ($error_message): ?>
-                <div class="alert alert-danger">
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
                 <?php endif; ?>
 
-                <!-- Stats Cards -->
-                <div class="row g-4 mb-4">
-                    <div class="col-md-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="fas fa-phone text-primary fa-lg"></i>
+                <!-- Today's Stats -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">
+                        <i class="fas fa-chart-line me-1"></i>Today's Performance
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="dashboard-card stat-card">
+                                <div class="d-flex align-items-start justify-content-between mb-2">
+                                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                                        <i class="fas fa-phone-alt"></i>
                                     </div>
-                                    <div>
-                                        <div class="text-muted small text-uppercase fw-bold">Total Calls</div>
-                                        <h2 class="mb-0 fw-bold"><?php echo (int)$today_stats->total_calls; ?></h2>
-                                    </div>
+                                    <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
                                 </div>
-                                <div class="progress" style="height: 4px;">
-                                    <div class="progress-bar" style="width: 100%"></div>
-                                </div>
+                                <div class="stat-label">Calls</div>
+                                <h3 class="stat-value text-primary"><?php echo $stats['today_calls']; ?></h3>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="fas fa-check text-success fa-lg"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-muted small text-uppercase fw-bold">Positive</div>
-                                        <h2 class="mb-0 fw-bold"><?php echo (int)$today_stats->positive_outcomes; ?></h2>
+                        
+                        <div class="col-6 col-md-3">
+                            <div class="dashboard-card stat-card">
+                                <div class="d-flex align-items-start justify-content-between mb-2">
+                                    <div class="stat-icon bg-success bg-opacity-10 text-success">
+                                        <i class="fas fa-check-circle"></i>
                                     </div>
                                 </div>
-                                <div class="progress" style="height: 4px;">
-                                    <div class="progress-bar bg-success" style="width: <?php echo $conversion_rate; ?>%"></div>
-                                </div>
-                                <small class="text-muted mt-2 d-block"><?php echo $conversion_rate; ?>% Conversion Rate</small>
+                                <div class="stat-label">Positive</div>
+                                <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-warning bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="fas fa-clock text-warning fa-lg"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-muted small text-uppercase fw-bold">Talk Time</div>
-                                        <h2 class="mb-0 fw-bold h4"><?php echo gmdate("H:i:s", (int)$today_stats->total_talk_time); ?></h2>
+                        
+                        <div class="col-6 col-md-3">
+                            <div class="dashboard-card stat-card">
+                                <div class="d-flex align-items-start justify-content-between mb-2">
+                                    <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                                        <i class="fas fa-clock"></i>
                                     </div>
                                 </div>
-                                <div class="progress" style="height: 4px;">
-                                    <div class="progress-bar bg-warning" style="width: 100%"></div>
-                                </div>
+                                <div class="stat-label">Talk Time</div>
+                                <h3 class="stat-value text-warning" style="font-size: 1.25rem;">
+                                    <?php echo gmdate("H:i", $stats['today_talk_time']); ?>
+                                </h3>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info bg-opacity-10 p-3 rounded-circle me-3">
-                                        <i class="fas fa-calendar-alt text-info fa-lg"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-muted small text-uppercase fw-bold">Callbacks</div>
-                                        <h2 class="mb-0 fw-bold"><?php echo (int)$today_stats->callbacks_scheduled; ?></h2>
+                        
+                        <div class="col-6 col-md-3">
+                            <div class="dashboard-card stat-card">
+                                <div class="d-flex align-items-start justify-content-between mb-2">
+                                    <div class="stat-icon bg-info bg-opacity-10 text-info">
+                                        <i class="fas fa-calendar-check"></i>
                                     </div>
                                 </div>
-                                <div class="progress" style="height: 4px;">
-                                    <div class="progress-bar bg-info" style="width: 100%"></div>
-                                </div>
+                                <div class="stat-label">Callbacks</div>
+                                <h3 class="stat-value text-info"><?php echo $stats['today_callbacks']; ?></h3>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="row">
-                    <!-- Left Column: Quick Actions -->
-                    <div class="col-lg-4 mb-4">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-header bg-white py-3">
-                                <h5 class="mb-0"><i class="fas fa-bolt me-2 text-warning"></i>Quick Actions</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-grid gap-3">
-                                    <a href="../donor-management/donors.php?balance=has_balance" class="btn btn-outline-primary p-3 text-start">
-                                        <div class="d-flex align-items-center">
-                                            <div class="bg-primary text-white rounded-circle p-2 me-3">
-                                                <i class="fas fa-list"></i>
-                                            </div>
-                                            <div>
-                                                <div class="fw-bold">Donor List</div>
-                                                <div class="small text-muted">Filter and call donors</div>
-                                            </div>
-                                            <i class="fas fa-arrow-right ms-auto"></i>
-                                        </div>
-                                    </a>
-                                    <a href="../donor-management/add-donor.php" class="btn btn-outline-success p-3 text-start">
-                                        <div class="d-flex align-items-center">
-                                            <div class="bg-success text-white rounded-circle p-2 me-3">
-                                                <i class="fas fa-user-plus"></i>
-                                            </div>
-                                            <div>
-                                                <div class="fw-bold">Add New Donor</div>
-                                                <div class="small text-muted">Create record manually</div>
-                                            </div>
-                                            <i class="fas fa-arrow-right ms-auto"></i>
-                                        </div>
-                                    </a>
-                                    <a href="call-history.php" class="btn btn-outline-secondary p-3 text-start">
-                                        <div class="d-flex align-items-center">
-                                            <div class="bg-secondary text-white rounded-circle p-2 me-3">
-                                                <i class="fas fa-history"></i>
-                                            </div>
-                                            <div>
-                                                <div class="fw-bold">Call History</div>
-                                                <div class="small text-muted">View past calls</div>
-                                            </div>
-                                            <i class="fas fa-arrow-right ms-auto"></i>
-                                        </div>
-                                    </a>
+                <!-- Donor Stats -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">
+                        <i class="fas fa-users me-1"></i>Donor Overview
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-6 col-lg-3">
+                            <div class="dashboard-card stat-card">
+                                <div class="stat-icon bg-danger bg-opacity-10 text-danger mb-2">
+                                    <i class="fas fa-exclamation-circle"></i>
                                 </div>
+                                <div class="stat-label">Outstanding</div>
+                                <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
+                                <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-6 col-lg-3">
+                            <div class="dashboard-card stat-card">
+                                <div class="stat-icon bg-primary bg-opacity-10 text-primary mb-2">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                                <div class="stat-label">Active Plans</div>
+                                <h3 class="stat-value text-primary"><?php echo $stats['active_plans']; ?></h3>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 col-lg-6">
+                            <div class="dashboard-card p-3">
+                                <a href="../donor-management/donors.php?balance=has_balance" 
+                                   class="btn btn-success w-100 btn-lg">
+                                    <i class="fas fa-phone-alt me-2"></i>Start Calling Donors
+                                    <i class="fas fa-arrow-right ms-2"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 g-lg-4">
+                    <!-- Quick Actions -->
+                    <div class="col-12 col-lg-5">
+                        <div class="dashboard-card p-3 p-md-4">
+                            <h6 class="fw-bold mb-3">
+                                <i class="fas fa-bolt me-2 text-warning"></i>Quick Actions
+                            </h6>
+                            <div class="d-flex flex-column gap-2">
+                                <a href="../donor-management/donors.php" class="action-btn">
+                                    <div class="d-flex align-items-center">
+                                        <div class="action-icon bg-primary bg-opacity-10 text-primary me-3">
+                                            <i class="fas fa-list"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold small">Donor List</div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">Browse all donors</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-muted small"></i>
+                                    </div>
+                                </a>
+                                
+                                <a href="call-history.php" class="action-btn">
+                                    <div class="d-flex align-items-center">
+                                        <div class="action-icon bg-secondary bg-opacity-10 text-secondary me-3">
+                                            <i class="fas fa-history"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold small">Call History</div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">View all calls</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-muted small"></i>
+                                    </div>
+                                </a>
+                                
+                                <?php if ($stats['pending_callbacks'] > 0): ?>
+                                <a href="call-history.php?filter=callbacks" class="action-btn border-warning">
+                                    <div class="d-flex align-items-center">
+                                        <div class="action-icon bg-warning bg-opacity-10 text-warning me-3">
+                                            <i class="fas fa-bell"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold small">Pending Callbacks</div>
+                                            <div class="text-muted" style="font-size: 0.7rem;"><?php echo $stats['pending_callbacks']; ?> scheduled</div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-muted small"></i>
+                                    </div>
+                                </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Right Column: Recent Activity -->
-                    <div class="col-lg-8 mb-4">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-history me-2 text-secondary"></i>Recent Activity</h5>
-                                <a href="call-history.php" class="btn btn-sm btn-outline-secondary">View All</a>
+                    <!-- Recent Activity -->
+                    <div class="col-12 col-lg-7">
+                        <div class="dashboard-card">
+                            <div class="p-3 p-md-4 pb-0 d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0">
+                                    <i class="fas fa-history me-2 text-secondary"></i>Recent Calls
+                                </h6>
+                                <?php if (!empty($recent_calls)): ?>
+                                <a href="call-history.php" class="btn btn-sm btn-outline-secondary">
+                                    View All
+                                </a>
+                                <?php endif; ?>
                             </div>
-                            <div class="card-body p-0">
+                            
+                            <div class="p-3 p-md-4 pt-3">
                                 <?php if (empty($recent_calls)): ?>
-                                    <div class="text-center py-5 text-muted">
-                                        <i class="fas fa-phone-slash fa-3x mb-3 opacity-25"></i>
-                                        <p>No calls made yet today.</p>
-                                        <a href="../donor-management/donors.php" class="btn btn-sm btn-primary mt-2">Make a Call</a>
+                                    <div class="text-center py-4 text-muted">
+                                        <i class="fas fa-phone-slash fa-2x mb-3 opacity-25"></i>
+                                        <p class="small mb-2">No calls made yet</p>
+                                        <a href="../donor-management/donors.php" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-phone-alt me-1"></i>Make First Call
+                                        </a>
                                     </div>
                                 <?php else: ?>
-                                    <div class="table-responsive">
-                                        <table class="table table-hover align-middle mb-0">
-                                            <thead class="bg-light">
-                                                <tr>
-                                                    <th>Time</th>
-                                                    <th>Donor</th>
-                                                    <th>Duration</th>
-                                                    <th>Status</th>
-                                                    <th>Outcome</th>
-                                                    <th>Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php foreach ($recent_calls as $call): ?>
-                                                <tr>
-                                                    <td><?php echo date('H:i', strtotime($call->call_started_at)); ?></td>
-                                                    <td>
-                                                        <div class="fw-bold"><?php echo htmlspecialchars($call->name); ?></div>
-                                                        <div class="small text-muted"><?php echo htmlspecialchars($call->phone); ?></div>
-                                                    </td>
-                                                    <td>
-                                                        <?php echo gmdate("i:s", (int)$call->duration_seconds); ?>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge bg-light text-dark border">
-                                                            <?php echo ucfirst(str_replace('_', ' ', $call->conversation_stage ?? 'unknown')); ?>
+                                    <div>
+                                        <?php foreach ($recent_calls as $call): ?>
+                                        <div class="recent-call-item">
+                                            <div class="d-flex align-items-center gap-2 gap-md-3">
+                                                <div class="text-muted small" style="min-width: 45px;">
+                                                    <?php echo date('H:i', strtotime($call['created_at'])); ?>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-semibold small mb-1"><?php echo htmlspecialchars($call['name']); ?></div>
+                                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                        <span class="badge bg-light text-dark border badge-sm">
+                                                            <?php echo gmdate("i:s", (int)$call['duration_seconds']); ?>
                                                         </span>
-                                                    </td>
-                                                    <td>
-                                                        <?php 
-                                                        $outcomeClass = match($call->outcome) {
-                                                            'payment_plan_created' => 'success',
-                                                            'agreed_to_pay_full' => 'success',
-                                                            'no_answer' => 'danger',
-                                                            'busy' => 'warning',
-                                                            default => 'secondary'
-                                                        };
-                                                        ?>
-                                                        <span class="badge bg-<?php echo $outcomeClass; ?>">
-                                                            <?php echo ucfirst(str_replace('_', ' ', $call->outcome ?? '-')); ?>
+                                                        <span class="badge bg-secondary badge-sm">
+                                                            <?php echo ucfirst(str_replace('_', ' ', $call['conversation_stage'] ?? 'N/A')); ?>
                                                         </span>
-                                                    </td>
-                                                    <td>
-                                                        <a href="call-history.php?donor_id=<?php echo $call->donor_id; ?>" class="btn btn-sm btn-light text-primary">
-                                                            <i class="fas fa-eye"></i>
-                                                        </a>
-                                                    </td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
+                                                        <?php if ($call['balance'] > 0): ?>
+                                                        <span class="text-danger small fw-semibold">
+                                                            £<?php echo number_format((float)$call['balance'], 2); ?>
+                                                        </span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <a href="../donor-management/view-donor.php?id=<?php echo $call['donor_id']; ?>" 
+                                                   class="btn btn-sm btn-light">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
                                     </div>
                                 <?php endif; ?>
                             </div>
