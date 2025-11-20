@@ -113,8 +113,8 @@ try {
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <!-- Use JSDelivr for better availability and specific version -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    <!-- Font Awesome - Using CDNJS which is more reliable -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
         /* Compact, Mobile-First Dashboard Styles */
@@ -139,17 +139,60 @@ try {
         .stat-icon {
             width: 40px;
             height: 40px;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 8px;
             font-size: 1.1rem;
+            flex-shrink: 0;
+            overflow: visible !important;
+            position: relative;
         }
         
-        /* Ensure icons render correctly */
-        .stat-icon i, .action-icon i {
-            display: inline-block;
-            line-height: 1;
+        /* Ensure icons render correctly - Match working button icon pattern */
+        .stat-icon i,
+        .stat-icon .fa-solid,
+        .action-icon i,
+        .action-icon .fa-solid {
+            display: inline-block !important;
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+            font-style: normal !important;
+            font-variant: normal !important;
+            text-rendering: auto !important;
+            line-height: 1 !important;
+            font-size: inherit !important;
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            speak: none !important;
+            text-transform: none !important;
+            letter-spacing: normal !important;
+            word-wrap: normal !important;
+            white-space: nowrap !important;
+            direction: ltr !important;
+        }
+        
+        /* Ensure icon color and visibility */
+        .stat-icon i,
+        .action-icon i {
+            color: inherit !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        /* Force icon to be visible and properly sized */
+        .stat-icon > i,
+        .stat-icon > .fa-solid {
+            width: 1em !important;
+            height: 1em !important;
+            font-size: 1.1rem !important;
+        }
+        
+        /* Match the exact pattern that works in buttons */
+        .stat-icon .fa-solid::before {
+            display: inline-block !important;
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
         }
         
         .stat-value {
