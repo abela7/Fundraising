@@ -136,6 +136,7 @@ try {
             background: white;
         }
         
+        /* Stat icon - now applied directly to the icon element */
         .stat-icon {
             width: 40px;
             height: 40px;
@@ -147,52 +148,31 @@ try {
             flex-shrink: 0;
             overflow: visible !important;
             position: relative;
+            /* Ensure Font Awesome renders */
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+            font-style: normal !important;
         }
         
-        /* Ensure icons render correctly - Match working button icon pattern */
-        .stat-icon i,
-        .stat-icon .fa-solid,
+        /* Action icon containers */
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        /* Ensure icons inside action containers render */
         .action-icon i,
         .action-icon .fa-solid {
             display: inline-block !important;
             font-family: "Font Awesome 6 Free" !important;
             font-weight: 900 !important;
             font-style: normal !important;
-            font-variant: normal !important;
-            text-rendering: auto !important;
-            line-height: 1 !important;
-            font-size: inherit !important;
-            -webkit-font-smoothing: antialiased !important;
-            -moz-osx-font-smoothing: grayscale !important;
-            speak: none !important;
-            text-transform: none !important;
-            letter-spacing: normal !important;
-            word-wrap: normal !important;
-            white-space: nowrap !important;
-            direction: ltr !important;
-        }
-        
-        /* Ensure icon color and visibility */
-        .stat-icon i,
-        .action-icon i {
             color: inherit !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-        }
-        
-        /* Force icon to be visible and properly sized */
-        .stat-icon > i,
-        .stat-icon > .fa-solid {
-            width: 1em !important;
-            height: 1em !important;
-            font-size: 1.1rem !important;
-        }
-        
-        /* Match the exact pattern that works in buttons */
-        .stat-icon .fa-solid::before {
-            display: inline-block !important;
-            font-family: "Font Awesome 6 Free" !important;
-            font-weight: 900 !important;
         }
         
         .stat-value {
@@ -257,9 +237,9 @@ try {
             }
             
             .stat-icon {
-                width: 36px;
-                height: 36px;
-                font-size: 1rem;
+                width: 36px !important;
+                height: 36px !important;
+                font-size: 1rem !important;
             }
             
             .action-btn {
@@ -324,9 +304,7 @@ try {
                         <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
-                                        <i class="fa-solid fa-phone-alt"></i>
-                                    </div>
+                                    <i class="fa-solid fa-phone-alt stat-icon bg-primary bg-opacity-10 text-primary"></i>
                                     <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
                                 </div>
                                 <div class="stat-label">Today's Calls</div>
@@ -337,9 +315,7 @@ try {
                         <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <div class="stat-icon bg-success bg-opacity-10 text-success">
-                                        <i class="fa-solid fa-check-circle"></i>
-                                    </div>
+                                    <i class="fa-solid fa-check-circle stat-icon bg-success bg-opacity-10 text-success"></i>
                                 </div>
                                 <div class="stat-label">Successful</div>
                                 <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
@@ -348,9 +324,7 @@ try {
                         
                         <div class="col-12 col-md-4">
                             <div class="dashboard-card stat-card">
-                                <div class="stat-icon bg-danger bg-opacity-10 text-danger mb-2">
-                                    <i class="fa-solid fa-exclamation-circle"></i>
-                                </div>
+                                <i class="fa-solid fa-exclamation-circle stat-icon bg-danger bg-opacity-10 text-danger mb-2"></i>
                                 <div class="stat-label">Donors Outstanding</div>
                                 <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
                                 <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
