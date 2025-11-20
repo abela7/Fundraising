@@ -16,7 +16,7 @@ try {
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     
     if (!$appointment_id || !$donor_id) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -41,13 +41,13 @@ try {
     $stmt->close();
     
     if (!$appointment) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
 } catch (Exception $e) {
     error_log("Callback Scheduled Error: " . $e->getMessage());
-    header('Location: index.php?error=1');
+    header('Location: ../donor-management/donors.php?error=1');
     exit;
 }
 
@@ -257,8 +257,8 @@ $page_title = 'Callback Scheduled';
                 </div>
                 
                 <div class="action-buttons">
-                    <a href="index.php" class="btn btn-primary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Queue
+                    <a href="../donor-management/donors.php" class="btn btn-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to List
                     </a>
                 </div>
             </div>

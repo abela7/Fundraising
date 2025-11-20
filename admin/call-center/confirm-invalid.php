@@ -123,21 +123,23 @@ try {
             }
         }
         
-        // Update queue status
-        $update_queue = "
-            UPDATE call_center_queues 
-            SET status = 'completed',
-                completion_notes = ?,
-                completed_at = NOW(),
-                last_attempt_outcome = ?
-            WHERE id = ?
-        ";
-        $completion_notes = "Number not working: " . ucfirst(str_replace('_', ' ', $reason));
-        $stmt = $db->prepare($update_queue);
-        if ($stmt) {
-            $stmt->bind_param('ssi', $completion_notes, $outcome, $queue_id);
-            $stmt->execute();
-            $stmt->close();
+        // Update queue status if queue_id exists
+        if ($queue_id > 0) {
+            $update_queue = "
+                UPDATE call_center_queues 
+                SET status = 'completed',
+                    completion_notes = ?,
+                    completed_at = NOW(),
+                    last_attempt_outcome = ?
+                WHERE id = ?
+            ";
+            $completion_notes = "Number not working: " . ucfirst(str_replace('_', ' ', $reason));
+            $stmt = $db->prepare($update_queue);
+            if ($stmt) {
+                $stmt->bind_param('ssi', $completion_notes, $outcome, $queue_id);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
         
         // Get browser-provided time (in browser's local timezone)
@@ -151,7 +153,7 @@ try {
     
 } catch (Exception $e) {
     error_log("Confirm Invalid Error: " . $e->getMessage());
-    header('Location: index.php?error=1');
+    header('Location: ../donor-management/donors.php?error=1');
     exit;
 }
 

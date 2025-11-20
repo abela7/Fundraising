@@ -15,8 +15,8 @@ try {
     $call_time = isset($_GET['call_time']) ? $_GET['call_time'] : date('H:i:s');
     $agent_name = isset($_GET['agent']) ? $_GET['agent'] : 'Unknown';
     
-    if (!$donor_id || !$queue_id) {
-        header('Location: index.php');
+    if (!$donor_id) {
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -30,13 +30,13 @@ try {
     $stmt->close();
     
     if (!$donor) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
 } catch (Exception $e) {
     error_log("Mark Invalid Error: " . $e->getMessage());
-    header('Location: index.php?error=1');
+    header('Location: ../donor-management/donors.php?error=1');
     exit;
 }
 
@@ -282,9 +282,15 @@ $page_title = 'Number Invalid';
                 </div>
                 
                 <div class="action-buttons">
+                    <?php if($queue_id > 0): ?>
                     <a href="index.php" class="btn btn-primary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Queue
                     </a>
+                    <?php else: ?>
+                    <a href="../donor-management/donors.php" class="btn btn-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </main>
