@@ -605,7 +605,7 @@ unset($donor); // Break reference
                                         <td><?php echo ucwords(str_replace('_', ' ', $donor['preferred_payment_method'] ?? 'Bank Transfer')); ?></td>
                                         <td>
                                             <?php if (!empty($donor['phone'])): ?>
-                                            <a href="../call-center/conversation.php?donor_id=<?php echo $donor['id']; ?>" 
+                                            <a href="../call-center/make-call.php?donor_id=<?php echo $donor['id']; ?>" 
                                                class="btn btn-sm btn-success" 
                                                onclick="event.stopPropagation();">
                                                 <i class="fas fa-phone-alt me-1"></i>Call
@@ -1268,7 +1268,7 @@ $(document).ready(function() {
     // Call button in detail modal
     $('#btnCallFromDetail').click(function() {
         if (currentDonorData && currentDonorData.id) {
-            window.location.href = '../call-center/conversation.php?donor_id=' + currentDonorData.id;
+            window.location.href = '../call-center/make-call.php?donor_id=' + currentDonorData.id;
         }
     });
 

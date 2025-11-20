@@ -15,7 +15,7 @@ try {
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     
     if (!$donor_id) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -62,7 +62,7 @@ try {
     $stmt->close();
     
     if (!$donor) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
