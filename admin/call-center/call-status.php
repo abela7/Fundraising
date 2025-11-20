@@ -16,8 +16,7 @@ try {
     $donor_id = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : (isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0);
     $queue_id = isset($_POST['queue_id']) ? (int)$_POST['queue_id'] : (isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0);
     
-    // Only donor_id is required now - queue_id is optional
-    if (!$donor_id) {
+    if (!$donor_id || !$queue_id) {
         header('Location: index.php');
         exit;
     }
@@ -57,19 +56,17 @@ try {
         $session_id = $db->insert_id;
         $stmt->close();
         
-        // Update queue attempts count and last attempt time (only if queue_id exists)
-        if ($queue_id > 0) {
-            $update_queue = "UPDATE call_center_queues 
-                            SET attempts_count = attempts_count + 1, 
-                                last_attempt_at = NOW(),
-                                status = 'in_progress'
-                            WHERE id = ?";
-            $stmt = $db->prepare($update_queue);
-            if ($stmt) {
-                $stmt->bind_param('i', $queue_id);
-                $stmt->execute();
-                $stmt->close();
-            }
+        // Update queue attempts count and last attempt time
+        $update_queue = "UPDATE call_center_queues 
+                        SET attempts_count = attempts_count + 1, 
+                            last_attempt_at = NOW(),
+                            status = 'in_progress'
+                        WHERE id = ?";
+        $stmt = $db->prepare($update_queue);
+        if ($stmt) {
+            $stmt->bind_param('i', $queue_id);
+            $stmt->execute();
+            $stmt->close();
         }
     }
     

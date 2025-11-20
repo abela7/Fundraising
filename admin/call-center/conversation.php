@@ -15,10 +15,9 @@ try {
     // Get parameters
     $session_id = isset($_GET['session_id']) ? (int)$_GET['session_id'] : 0;
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
-    $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0; // Optional - can be 0 for direct calls
+    $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     
-    // Only donor_id is required now
-    if (!$donor_id) {
+    if (!$donor_id || !$queue_id) {
         header('Location: index.php');
         exit;
     }
