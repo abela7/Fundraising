@@ -68,8 +68,16 @@ if ($donor && $db_connection_ok) {
         $refresh_stmt->close();
         
         if ($fresh_donor) {
+            // Debug logging
+            error_log("Donor Profile: Fresh donor data loaded for ID " . $donor['id']);
+            error_log("Donor Profile: baptism_name = " . ($fresh_donor['baptism_name'] ?? 'NOT SET'));
+            error_log("Donor Profile: church_id = " . ($fresh_donor['church_id'] ?? 'NOT SET'));
+            error_log("Donor Profile: representative_id = " . ($fresh_donor['representative_id'] ?? 'NOT SET'));
+            
             $_SESSION['donor'] = $fresh_donor;
             $donor = $fresh_donor;
+        } else {
+            error_log("Donor Profile: WARNING - Failed to fetch fresh donor data for ID " . $donor['id']);
         }
     } catch (Exception $e) {
         error_log("Failed to refresh donor session: " . $e->getMessage());
@@ -217,9 +225,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $db->commit();
                     $db->autocommit(true);
                     
+                    // Check for additional columns before refresh
+                    $check_email_opt_in = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+                    $has_email_opt_in_for_refresh = $check_email_opt_in->num_rows > 0;
+                    $check_email_opt_in->close();
+                    
+                    $check_rep = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+                    $has_rep_for_refresh = $check_rep->num_rows > 0;
+                    $check_rep->close();
+                    
+                    $check_church = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
+                    $has_church_for_refresh = $check_church->num_rows > 0;
+                    $check_church->close();
+                    
+                    // Rebuild select_fields to ensure all columns are included
+                    $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
+                           has_active_plan, active_payment_plan_id, plan_monthly_amount,
+                           plan_duration_months, plan_start_date, plan_next_due_date,
+                           payment_status, preferred_payment_method, preferred_language,
+                           preferred_payment_day, sms_opt_in";
+                    if ($has_email_column) $refresh_fields .= ", email";
+                    if ($has_email_opt_in_for_refresh) $refresh_fields .= ", email_opt_in";
+                    if ($has_baptism_column) $refresh_fields .= ", baptism_name";
+                    if ($has_rep_for_refresh) $refresh_fields .= ", representative_id";
+                    if ($has_church_for_refresh) $refresh_fields .= ", church_id";
+                    
                     // Refresh donor data again to update session
-                    // Use the same logic as top of file (simplified here)
-                    $refresh_stmt = $db->prepare("SELECT $select_fields FROM donors WHERE id = ? LIMIT 1");
+                    $refresh_stmt = $db->prepare("SELECT $refresh_fields FROM donors WHERE id = ? LIMIT 1");
                     $refresh_stmt->bind_param('i', $donor['id']);
                     $refresh_stmt->execute();
                     $updated_donor = $refresh_stmt->get_result()->fetch_assoc();
@@ -285,8 +317,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $db->commit();
                 $db->autocommit(true);
                 
+                // Check for additional columns before refresh
+                $check_email_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+                $has_email_pref = $check_email_pref->num_rows > 0;
+                $check_email_pref->close();
+                
+                $check_baptism_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'baptism_name'");
+                $has_baptism_pref = $check_baptism_pref->num_rows > 0;
+                $check_baptism_pref->close();
+                
+                $check_rep_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+                $has_rep_pref = $check_rep_pref->num_rows > 0;
+                $check_rep_pref->close();
+                
+                $check_church_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
+                $has_church_pref = $check_church_pref->num_rows > 0;
+                $check_church_pref->close();
+                
+                // Rebuild fields for refresh
+                $refresh_fields_pref = "id, name, phone, total_pledged, total_paid, balance, 
+                           has_active_plan, active_payment_plan_id, plan_monthly_amount,
+                           plan_duration_months, plan_start_date, plan_next_due_date,
+                           payment_status, preferred_payment_method, preferred_language,
+                           preferred_payment_day, sms_opt_in";
+                if ($has_email_pref) $refresh_fields_pref .= ", email";
+                if ($has_email_opt_in_column) $refresh_fields_pref .= ", email_opt_in";
+                if ($has_baptism_pref) $refresh_fields_pref .= ", baptism_name";
+                if ($has_rep_pref) $refresh_fields_pref .= ", representative_id";
+                if ($has_church_pref) $refresh_fields_pref .= ", church_id";
+                
                 // Refresh
-                $refresh_stmt = $db->prepare("SELECT $select_fields FROM donors WHERE id = ? LIMIT 1");
+                $refresh_stmt = $db->prepare("SELECT $refresh_fields_pref FROM donors WHERE id = ? LIMIT 1");
                 $refresh_stmt->bind_param('i', $donor['id']);
                 $refresh_stmt->execute();
                 $updated_donor = $refresh_stmt->get_result()->fetch_assoc();
@@ -382,18 +443,18 @@ if ($db_connection_ok) {
                                     <input type="hidden" name="action" value="update_profile">
                                     
                                     <div class="row">
-                                        <!-- Name -->
+                                    <!-- Name -->
                                         <div class="col-md-6 mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-user me-2"></i>Full Name <span class="text-danger">*</span>
-                                            </label>
-                                            <input type="text" 
-                                                   class="form-control" 
-                                                   name="name" 
-                                                   value="<?php echo htmlspecialchars($donor['name']); ?>"
-                                                   required
-                                                   minlength="2"
-                                                   placeholder="Enter your full name">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-user me-2"></i>Full Name <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               name="name" 
+                                               value="<?php echo htmlspecialchars($donor['name']); ?>"
+                                               required
+                                               minlength="2"
+                                               placeholder="Enter your full name">
                                         </div>
 
                                         <!-- Baptism Name (if column exists) -->
@@ -412,32 +473,32 @@ if ($db_connection_ok) {
                                     </div>
 
                                     <div class="row">
-                                        <!-- Phone -->
+                                    <!-- Phone -->
                                         <div class="col-md-6 mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-phone me-2"></i>Phone Number <span class="text-danger">*</span>
-                                            </label>
-                                            <input type="tel" 
-                                                   class="form-control" 
-                                                   name="phone" 
-                                                   value="<?php echo htmlspecialchars($donor['phone']); ?>"
-                                                   required
-                                                   pattern="[0-9+\-\s\(\)]+"
-                                                   placeholder="07123456789">
-                                            <div class="form-text">UK mobile number (e.g., 07123456789)</div>
-                                        </div>
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-phone me-2"></i>Phone Number <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="tel" 
+                                               class="form-control" 
+                                               name="phone" 
+                                               value="<?php echo htmlspecialchars($donor['phone']); ?>"
+                                               required
+                                               pattern="[0-9+\-\s\(\)]+"
+                                               placeholder="07123456789">
+                                        <div class="form-text">UK mobile number (e.g., 07123456789)</div>
+                                    </div>
 
-                                        <!-- Email (if column exists) -->
-                                        <?php if ($has_email_column): ?>
+                                    <!-- Email (if column exists) -->
+                                    <?php if ($has_email_column): ?>
                                         <div class="col-md-6 mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-envelope me-2"></i>Email Address
-                                            </label>
-                                            <input type="email" 
-                                                   class="form-control" 
-                                                   name="email" 
-                                                   value="<?php echo htmlspecialchars($donor['email'] ?? ''); ?>"
-                                                   placeholder="your.email@example.com">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-envelope me-2"></i>Email Address
+                                        </label>
+                                        <input type="email" 
+                                               class="form-control" 
+                                               name="email" 
+                                               value="<?php echo htmlspecialchars($donor['email'] ?? ''); ?>"
+                                               placeholder="your.email@example.com">
                                         </div>
                                         <?php endif; ?>
                                     </div>
@@ -461,88 +522,88 @@ if ($db_connection_ok) {
                                     <input type="hidden" name="action" value="update_preferences">
                                     
                                     <div class="row">
-                                        <!-- Language Preference -->
+                                    <!-- Language Preference -->
                                         <div class="col-md-6 mb-4">
-                                            <label class="form-label fw-bold">
+                                        <label class="form-label fw-bold">
                                                 <i class="fas fa-language me-2"></i>Language <span class="text-danger">*</span>
-                                            </label>
-                                            <select class="form-select" name="preferred_language" required>
-                                                <option value="en" <?php echo ($donor['preferred_language'] ?? 'en') === 'en' ? 'selected' : ''; ?>>
-                                                    🇬🇧 English
-                                                </option>
-                                                <option value="am" <?php echo ($donor['preferred_language'] ?? 'en') === 'am' ? 'selected' : ''; ?>>
-                                                    🇪🇹 Amharic
-                                                </option>
-                                                <option value="ti" <?php echo ($donor['preferred_language'] ?? 'en') === 'ti' ? 'selected' : ''; ?>>
-                                                    🇪🇷 Tigrinya
-                                                </option>
-                                            </select>
-                                        </div>
+                                        </label>
+                                        <select class="form-select" name="preferred_language" required>
+                                            <option value="en" <?php echo ($donor['preferred_language'] ?? 'en') === 'en' ? 'selected' : ''; ?>>
+                                                🇬🇧 English
+                                            </option>
+                                            <option value="am" <?php echo ($donor['preferred_language'] ?? 'en') === 'am' ? 'selected' : ''; ?>>
+                                                🇪🇹 Amharic
+                                            </option>
+                                            <option value="ti" <?php echo ($donor['preferred_language'] ?? 'en') === 'ti' ? 'selected' : ''; ?>>
+                                                🇪🇷 Tigrinya
+                                            </option>
+                                        </select>
+                                    </div>
 
-                                        <!-- Preferred Payment Method -->
+                                    <!-- Preferred Payment Method -->
                                         <div class="col-md-6 mb-4">
-                                            <label class="form-label fw-bold">
+                                        <label class="form-label fw-bold">
                                                 <i class="fas fa-credit-card me-2"></i>Payment Method <span class="text-danger">*</span>
-                                            </label>
-                                            <select class="form-select" name="preferred_payment_method" required>
-                                                <option value="bank_transfer" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'bank_transfer' ? 'selected' : ''; ?>>
-                                                    Bank Transfer
-                                                </option>
-                                                <option value="cash" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'cash' ? 'selected' : ''; ?>>
-                                                    Cash
-                                                </option>
-                                                <option value="card" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'card' ? 'selected' : ''; ?>>
-                                                    Card
-                                                </option>
-                                            </select>
+                                        </label>
+                                        <select class="form-select" name="preferred_payment_method" required>
+                                            <option value="bank_transfer" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'bank_transfer' ? 'selected' : ''; ?>>
+                                                Bank Transfer
+                                            </option>
+                                            <option value="cash" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'cash' ? 'selected' : ''; ?>>
+                                                Cash
+                                            </option>
+                                            <option value="card" <?php echo ($donor['preferred_payment_method'] ?? 'bank_transfer') === 'card' ? 'selected' : ''; ?>>
+                                                Card
+                                            </option>
+                                        </select>
                                         </div>
                                     </div>
 
                                     <div class="row">
-                                        <!-- Preferred Payment Day -->
+                                    <!-- Preferred Payment Day -->
                                         <div class="col-md-6 mb-4">
-                                            <label class="form-label fw-bold">
+                                        <label class="form-label fw-bold">
                                                 <i class="fas fa-calendar-day me-2"></i>Payment Day <span class="text-danger">*</span>
-                                            </label>
-                                            <input type="number" 
-                                                   class="form-control" 
-                                                   name="preferred_payment_day" 
-                                                   value="<?php echo $donor['preferred_payment_day'] ?? 1; ?>"
-                                                   min="1" 
-                                                   max="28" 
-                                                   required>
+                                        </label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               name="preferred_payment_day" 
+                                               value="<?php echo $donor['preferred_payment_day'] ?? 1; ?>"
+                                               min="1" 
+                                               max="28" 
+                                               required>
                                             <div class="form-text">Day of month (1-28)</div>
                                         </div>
                                     </div>
 
                                     <div class="row">
-                                        <!-- SMS Opt-in -->
+                                    <!-- SMS Opt-in -->
                                         <div class="col-md-6 mb-4">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" 
-                                                       type="checkbox" 
-                                                       name="sms_opt_in" 
-                                                       id="sms_opt_in"
-                                                       <?php echo ($donor['sms_opt_in'] ?? 1) ? 'checked' : ''; ?>>
-                                                <label class="form-check-label fw-bold" for="sms_opt_in">
-                                                    <i class="fas fa-sms me-2"></i>Enable SMS Reminders
-                                                </label>
-                                            </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   name="sms_opt_in" 
+                                                   id="sms_opt_in"
+                                                   <?php echo ($donor['sms_opt_in'] ?? 1) ? 'checked' : ''; ?>>
+                                            <label class="form-check-label fw-bold" for="sms_opt_in">
+                                                <i class="fas fa-sms me-2"></i>Enable SMS Reminders
+                                            </label>
                                         </div>
+                                    </div>
 
-                                        <!-- Email Opt-in (if column exists) -->
-                                        <?php if ($has_email_opt_in_column): ?>
+                                    <!-- Email Opt-in (if column exists) -->
+                                    <?php if ($has_email_opt_in_column): ?>
                                         <div class="col-md-6 mb-4">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" 
-                                                       type="checkbox" 
-                                                       name="email_opt_in" 
-                                                       id="email_opt_in"
-                                                       <?php echo ($donor['email_opt_in'] ?? 1) ? 'checked' : ''; ?>>
-                                                <label class="form-check-label fw-bold" for="email_opt_in">
-                                                    <i class="fas fa-envelope me-2"></i>Enable Email Notifications
-                                                </label>
-                                            </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   name="email_opt_in" 
+                                                   id="email_opt_in"
+                                                   <?php echo ($donor['email_opt_in'] ?? 1) ? 'checked' : ''; ?>>
+                                            <label class="form-check-label fw-bold" for="email_opt_in">
+                                                <i class="fas fa-envelope me-2"></i>Enable Email Notifications
+                                            </label>
+                                        </div>
                                         </div>
                                         <?php endif; ?>
                                     </div>
