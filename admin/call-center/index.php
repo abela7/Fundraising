@@ -57,7 +57,7 @@ try {
         if ($stats['today_calls'] > 0) {
             $conversion_rate = round(($stats['today_positive'] / $stats['today_calls']) * 100, 1);
         }
-        
+
         // Get pending callbacks
         $pending_cb = $db->prepare("
             SELECT COUNT(*) as cnt
@@ -86,7 +86,7 @@ try {
             $recent_calls[] = $row;
         }
     }
-    
+
     // Get donor stats (always show these)
     $donor_stats = $db->query("
         SELECT 
@@ -113,39 +113,8 @@ try {
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="../assets/admin.css">
-    <style>
-        /* Force Font Awesome to load properly */
-        .fas, .fa-solid {
-            font-family: "Font Awesome 6 Free" !important;
-            font-weight: 900 !important;
-            font-style: normal !important;
-            display: inline-block !important;
-        }
-        
-        /* Ensure icons are visible */
-        i.fas::before, i.fa-solid::before {
-            display: inline-block !important;
-        }
-        
-        /* Force icon visibility in stat cards */
-        .stat-icon i {
-            color: inherit !important;
-            opacity: 1 !important;
-            font-size: 1.2rem !important;
-        }
-        
-        .action-icon i {
-            color: inherit !important;
-            opacity: 1 !important;
-        }
-        
-        /* Test - make all icons bright red temporarily */
-        .fas {
-            color: #ff0000 !important;
-        }
-    </style>
     <style>
         /* Compact, Mobile-First Dashboard Styles */
         .dashboard-card {
@@ -169,16 +138,11 @@ try {
         .stat-icon {
             width: 40px;
             height: 40px;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: 8px;
-            font-size: 1.2rem !important;
-        }
-        
-        .stat-icon i.fas {
-            display: inline-block !important;
-            line-height: 1 !important;
+            font-size: 1.1rem;
         }
         
         .stat-value {
@@ -216,16 +180,11 @@ try {
         .action-icon {
             width: 32px;
             height: 32px;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: 6px;
-            font-size: 1rem !important;
-        }
-        
-        .action-icon i.fas {
-            display: inline-block !important;
-            line-height: 1 !important;
+            font-size: 0.9rem;
         }
         
         .recent-call-item {
@@ -280,33 +239,20 @@ try {
             <div class="container-fluid p-3 p-md-4">
                 <!-- Header -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
+                <div>
                         <h1 class="h4 mb-1 text-primary fw-bold">
-                            <i class="fas fa-headset me-2" style="font-family: 'Font Awesome 6 Free'; font-weight: 900;"></i>Call Center
-                        </h1>
+                            <i class="fas fa-headset me-2"></i>Call Center
+                    </h1>
                         <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
-                    </div>
                 </div>
-                
-                <!-- Font Awesome Test - Remove after verification -->
-                <div class="alert alert-warning mb-3">
-                    <strong style="color: #000;">ICON DIAGNOSTIC TEST:</strong><br>
-                    <div style="font-size: 2rem; margin: 10px 0; color: #ff0000;">
-                        <i class="fas fa-phone" style="color: red !important; font-size: 2rem !important;"></i> 
-                        <i class="fas fa-check" style="color: blue !important; font-size: 2rem !important;"></i> 
-                        <i class="fas fa-user" style="color: green !important; font-size: 2rem !important;"></i>
-                        <i class="fas fa-heart" style="color: purple !important; font-size: 2rem !important;"></i>
-                    </div>
-                    <small style="color: #000;">If you see RED phone, BLUE check, GREEN user, PURPLE heart = Font Awesome works!</small><br>
-                    <small style="color: #000;">If you see nothing or just colored boxes = Font Awesome NOT loading</small>
-                </div>
+            </div>
 
                 <?php if ($error_message): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                <?php endif; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
 
                 <!-- Start Calling Button - Top Priority -->
                 <div class="mb-4">
@@ -330,12 +276,12 @@ try {
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="stat-icon bg-primary bg-opacity-10 text-primary">
                                         <i class="fas fa-phone-alt"></i>
-                                    </div>
+                        </div>
                                     <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
-                                </div>
+                        </div>
                                 <div class="stat-label">Today's Calls</div>
                                 <h3 class="stat-value text-primary"><?php echo $stats['today_calls']; ?></h3>
-                            </div>
+                </div>
                         </div>
                         
                         <div class="col-6 col-md-4">
@@ -343,22 +289,22 @@ try {
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="stat-icon bg-success bg-opacity-10 text-success">
                                         <i class="fas fa-check-circle"></i>
-                                    </div>
-                                </div>
+                        </div>
+                    </div>
                                 <div class="stat-label">Successful</div>
                                 <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
-                            </div>
+                </div>
                         </div>
                         
                         <div class="col-12 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="stat-icon bg-danger bg-opacity-10 text-danger mb-2">
                                     <i class="fas fa-exclamation-circle"></i>
-                                </div>
+                        </div>
                                 <div class="stat-label">Donors Outstanding</div>
                                 <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
                                 <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
-                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -375,13 +321,13 @@ try {
                                     <div class="d-flex align-items-center">
                                         <div class="action-icon bg-primary bg-opacity-10 text-primary me-3">
                                             <i class="fas fa-list"></i>
-                                        </div>
+            </div>
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">Donor List</div>
                                             <div class="text-muted" style="font-size: 0.7rem;">Browse all donors</div>
-                                        </div>
+                        </div>
                                         <i class="fas fa-chevron-right text-muted small"></i>
-                                    </div>
+                                                        </div>
                                 </a>
                                 
                                 <a href="call-history.php" class="action-btn">
@@ -392,7 +338,7 @@ try {
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">Call History</div>
                                             <div class="text-muted" style="font-size: 0.7rem;">View all calls</div>
-                                        </div>
+                                </div>
                                         <i class="fas fa-chevron-right text-muted small"></i>
                                     </div>
                                 </a>
@@ -411,7 +357,7 @@ try {
                                     </div>
                                 </a>
                                 <?php endif; ?>
-                            </div>
+                                </div>
                         </div>
                     </div>
 
@@ -437,9 +383,9 @@ try {
                                         <a href="../donor-management/donors.php" class="btn btn-sm btn-primary">
                                             <i class="fas fa-phone-alt me-1"></i>Make First Call
                                         </a>
-                                    </div>
+                        </div>
                                 <?php else: ?>
-                                    <div>
+                                                <div>
                                         <?php foreach ($recent_calls as $call): ?>
                                         <div class="recent-call-item">
                                             <div class="d-flex align-items-center gap-2 gap-md-3">
@@ -469,8 +415,8 @@ try {
                                             </div>
                                         </div>
                                         <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                             </div>
                         </div>
                     </div>

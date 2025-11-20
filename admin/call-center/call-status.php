@@ -58,16 +58,16 @@ try {
         
         // Update queue attempts count and last attempt time
         if ($queue_id > 0) {
-            $update_queue = "UPDATE call_center_queues 
-                            SET attempts_count = attempts_count + 1, 
-                                last_attempt_at = NOW(),
-                                status = 'in_progress'
-                            WHERE id = ?";
-            $stmt = $db->prepare($update_queue);
-            if ($stmt) {
-                $stmt->bind_param('i', $queue_id);
-                $stmt->execute();
-                $stmt->close();
+        $update_queue = "UPDATE call_center_queues 
+                        SET attempts_count = attempts_count + 1, 
+                            last_attempt_at = NOW(),
+                            status = 'in_progress'
+                        WHERE id = ?";
+        $stmt = $db->prepare($update_queue);
+        if ($stmt) {
+            $stmt->bind_param('i', $queue_id);
+            $stmt->execute();
+            $stmt->close();
             }
         }
     }
