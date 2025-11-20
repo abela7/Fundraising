@@ -25,41 +25,42 @@ function require_donor_login(): void {
 require_donor_login();
 $donor = current_donor();
 
+// Helper function to build SELECT fields dynamically
+function build_donor_select_fields($db) {
+    $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
+               has_active_plan, active_payment_plan_id, plan_monthly_amount,
+               plan_duration_months, plan_start_date, plan_next_due_date,
+               payment_status, preferred_payment_method, preferred_language,
+               preferred_payment_day, sms_opt_in";
+    
+    // Check optional columns
+    $email_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
+    if ($email_check->num_rows > 0) $select_fields .= ", email";
+    $email_check->close();
+    
+    $email_opt_in_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
+    if ($email_opt_in_check->num_rows > 0) $select_fields .= ", email_opt_in";
+    $email_opt_in_check->close();
+    
+    $baptism_check = $db->query("SHOW COLUMNS FROM donors LIKE 'baptism_name'");
+    if ($baptism_check->num_rows > 0) $select_fields .= ", baptism_name";
+    $baptism_check->close();
+
+    $rep_check = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+    if ($rep_check->num_rows > 0) $select_fields .= ", representative_id";
+    $rep_check->close();
+    
+    $church_check = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
+    if ($church_check->num_rows > 0) $select_fields .= ", church_id";
+    $church_check->close();
+    
+    return $select_fields;
+}
+
 // Refresh donor data from database to ensure latest values
 if ($donor && $db_connection_ok) {
     try {
-        // Check optional columns
-        $email_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
-        $has_email = $email_check->num_rows > 0;
-        $email_check->close();
-        
-        $email_opt_in_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
-        $has_email_opt_in = $email_opt_in_check->num_rows > 0;
-        $email_opt_in_check->close();
-        
-        $baptism_check = $db->query("SHOW COLUMNS FROM donors LIKE 'baptism_name'");
-        $has_baptism = $baptism_check->num_rows > 0;
-        $baptism_check->close();
-
-        $rep_check = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
-        $has_rep_col = $rep_check->num_rows > 0;
-        $rep_check->close();
-        
-        $church_check = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
-        $has_church_col = $church_check->num_rows > 0;
-        $church_check->close();
-        
-        $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
-                   has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                   plan_duration_months, plan_start_date, plan_next_due_date,
-                   payment_status, preferred_payment_method, preferred_language,
-                   preferred_payment_day, sms_opt_in";
-        
-        if ($has_email) $select_fields .= ", email";
-        if ($has_email_opt_in) $select_fields .= ", email_opt_in";
-        if ($has_baptism) $select_fields .= ", baptism_name";
-        if ($has_rep_col) $select_fields .= ", representative_id";
-        if ($has_church_col) $select_fields .= ", church_id";
+        $select_fields = build_donor_select_fields($db);
         
         $refresh_stmt = $db->prepare("SELECT $select_fields FROM donors WHERE id = ? LIMIT 1");
         $refresh_stmt->bind_param('i', $donor['id']);
@@ -68,16 +69,8 @@ if ($donor && $db_connection_ok) {
         $refresh_stmt->close();
         
         if ($fresh_donor) {
-            // Debug logging
-            error_log("Donor Profile: Fresh donor data loaded for ID " . $donor['id']);
-            error_log("Donor Profile: baptism_name = " . ($fresh_donor['baptism_name'] ?? 'NOT SET'));
-            error_log("Donor Profile: church_id = " . ($fresh_donor['church_id'] ?? 'NOT SET'));
-            error_log("Donor Profile: representative_id = " . ($fresh_donor['representative_id'] ?? 'NOT SET'));
-            
             $_SESSION['donor'] = $fresh_donor;
             $donor = $fresh_donor;
-        } else {
-            error_log("Donor Profile: WARNING - Failed to fetch fresh donor data for ID " . $donor['id']);
         }
     } catch (Exception $e) {
         error_log("Failed to refresh donor session: " . $e->getMessage());
@@ -91,10 +84,11 @@ $success_message = '';
 $error_message = '';
 
 // Fetch Church and Representative Info if assigned
+// IMPORTANT: This must happen AFTER the donor data refresh above
 $assigned_church = null;
 $assigned_rep = null;
 
-if ($db_connection_ok && !empty($donor['church_id'])) {
+if ($db_connection_ok && isset($donor['church_id']) && !empty($donor['church_id'])) {
     try {
         // Get Church
         $church_stmt = $db->prepare("SELECT name, city FROM churches WHERE id = ?");
@@ -104,7 +98,7 @@ if ($db_connection_ok && !empty($donor['church_id'])) {
         $church_stmt->close();
         
         // Get Representative
-        if (!empty($donor['representative_id'])) {
+        if (isset($donor['representative_id']) && !empty($donor['representative_id'])) {
             $rep_stmt = $db->prepare("SELECT name, role, phone, email FROM church_representatives WHERE id = ?");
             $rep_stmt->bind_param('i', $donor['representative_id']);
             $rep_stmt->execute();
@@ -112,7 +106,7 @@ if ($db_connection_ok && !empty($donor['church_id'])) {
             $rep_stmt->close();
         }
     } catch (Exception $e) {
-        // Ignore
+        error_log("Error fetching church/rep info: " . $e->getMessage());
     }
 }
 
@@ -225,33 +219,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $db->commit();
                     $db->autocommit(true);
                     
-                    // Check for additional columns before refresh
-                    $check_email_opt_in = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
-                    $has_email_opt_in_for_refresh = $check_email_opt_in->num_rows > 0;
-                    $check_email_opt_in->close();
-                    
-                    $check_rep = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
-                    $has_rep_for_refresh = $check_rep->num_rows > 0;
-                    $check_rep->close();
-                    
-                    $check_church = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
-                    $has_church_for_refresh = $check_church->num_rows > 0;
-                    $check_church->close();
-                    
-                    // Rebuild select_fields to ensure all columns are included
-                    $refresh_fields = "id, name, phone, total_pledged, total_paid, balance, 
-                           has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                           plan_duration_months, plan_start_date, plan_next_due_date,
-                           payment_status, preferred_payment_method, preferred_language,
-                           preferred_payment_day, sms_opt_in";
-                    if ($has_email_column) $refresh_fields .= ", email";
-                    if ($has_email_opt_in_for_refresh) $refresh_fields .= ", email_opt_in";
-                    if ($has_baptism_column) $refresh_fields .= ", baptism_name";
-                    if ($has_rep_for_refresh) $refresh_fields .= ", representative_id";
-                    if ($has_church_for_refresh) $refresh_fields .= ", church_id";
-                    
                     // Refresh donor data again to update session
-                    $refresh_stmt = $db->prepare("SELECT $refresh_fields FROM donors WHERE id = ? LIMIT 1");
+                    $select_fields_refresh = build_donor_select_fields($db);
+                    $refresh_stmt = $db->prepare("SELECT $select_fields_refresh FROM donors WHERE id = ? LIMIT 1");
                     $refresh_stmt->bind_param('i', $donor['id']);
                     $refresh_stmt->execute();
                     $updated_donor = $refresh_stmt->get_result()->fetch_assoc();
@@ -317,37 +287,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $db->commit();
                 $db->autocommit(true);
                 
-                // Check for additional columns before refresh
-                $check_email_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
-                $has_email_pref = $check_email_pref->num_rows > 0;
-                $check_email_pref->close();
-                
-                $check_baptism_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'baptism_name'");
-                $has_baptism_pref = $check_baptism_pref->num_rows > 0;
-                $check_baptism_pref->close();
-                
-                $check_rep_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
-                $has_rep_pref = $check_rep_pref->num_rows > 0;
-                $check_rep_pref->close();
-                
-                $check_church_pref = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
-                $has_church_pref = $check_church_pref->num_rows > 0;
-                $check_church_pref->close();
-                
-                // Rebuild fields for refresh
-                $refresh_fields_pref = "id, name, phone, total_pledged, total_paid, balance, 
-                           has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                           plan_duration_months, plan_start_date, plan_next_due_date,
-                           payment_status, preferred_payment_method, preferred_language,
-                           preferred_payment_day, sms_opt_in";
-                if ($has_email_pref) $refresh_fields_pref .= ", email";
-                if ($has_email_opt_in_column) $refresh_fields_pref .= ", email_opt_in";
-                if ($has_baptism_pref) $refresh_fields_pref .= ", baptism_name";
-                if ($has_rep_pref) $refresh_fields_pref .= ", representative_id";
-                if ($has_church_pref) $refresh_fields_pref .= ", church_id";
-                
                 // Refresh
-                $refresh_stmt = $db->prepare("SELECT $refresh_fields_pref FROM donors WHERE id = ? LIMIT 1");
+                $select_fields_pref = build_donor_select_fields($db);
+                $refresh_stmt = $db->prepare("SELECT $select_fields_pref FROM donors WHERE id = ? LIMIT 1");
                 $refresh_stmt->bind_param('i', $donor['id']);
                 $refresh_stmt->execute();
                 $updated_donor = $refresh_stmt->get_result()->fetch_assoc();
@@ -387,7 +329,18 @@ if ($db_connection_ok) {
         $check_baptism = $db->query("SHOW COLUMNS FROM donors LIKE 'baptism_name'");
         $has_baptism_column = $check_baptism->num_rows > 0;
         $check_baptism->close();
-    } catch (Exception $e) {}
+        
+        // Also check for church/rep columns
+        $check_rep = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
+        $has_rep_col = $check_rep->num_rows > 0;
+        $check_rep->close();
+        
+        $check_church = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
+        $has_church_col = $check_church->num_rows > 0;
+        $check_church->close();
+    } catch (Exception $e) {
+        error_log("Error checking columns: " . $e->getMessage());
+    }
 }
 ?>
 <!DOCTYPE html>
