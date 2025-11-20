@@ -113,7 +113,8 @@ try {
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <!-- Use JSDelivr for better availability and specific version -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
         /* Compact, Mobile-First Dashboard Styles */
@@ -143,6 +144,12 @@ try {
             justify-content: center;
             border-radius: 8px;
             font-size: 1.1rem;
+        }
+        
+        /* Ensure icons render correctly */
+        .stat-icon i, .action-icon i {
+            display: inline-block;
+            line-height: 1;
         }
         
         .stat-value {
@@ -239,72 +246,72 @@ try {
             <div class="container-fluid p-3 p-md-4">
                 <!-- Header -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
+                    <div>
                         <h1 class="h4 mb-1 text-primary fw-bold">
-                            <i class="fas fa-headset me-2"></i>Call Center
-                    </h1>
+                            <i class="fa-solid fa-headset me-2"></i>Call Center
+                        </h1>
                         <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
+                    </div>
                 </div>
-            </div>
 
                 <?php if ($error_message): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php endif; ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fa-solid fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
 
                 <!-- Start Calling Button - Top Priority -->
                 <div class="mb-4">
                     <a href="../donor-management/donors.php?balance=has_balance" 
                        class="btn btn-success btn-lg w-100 shadow-sm py-3">
-                        <i class="fas fa-phone-alt me-2"></i>
+                        <i class="fa-solid fa-phone-alt me-2"></i>
                         <span class="fw-bold">Start Calling Donors</span>
                         <span class="badge bg-white text-success ms-2"><?php echo $stats['donors_with_balance']; ?> with balance</span>
-                        <i class="fas fa-arrow-right ms-2"></i>
+                        <i class="fa-solid fa-arrow-right ms-2"></i>
                     </a>
                 </div>
 
                 <!-- Key Stats -->
                 <div class="mb-4">
                     <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">
-                        <i class="fas fa-chart-line me-1"></i>Performance Overview
+                        <i class="fa-solid fa-chart-line me-1"></i>Performance Overview
                     </h6>
                     <div class="row g-3">
                         <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="stat-icon bg-primary bg-opacity-10 text-primary">
-                                        <i class="fas fa-phone-alt"></i>
-                        </div>
+                                        <i class="fa-solid fa-phone-alt"></i>
+                                    </div>
                                     <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
-                        </div>
+                                </div>
                                 <div class="stat-label">Today's Calls</div>
                                 <h3 class="stat-value text-primary"><?php echo $stats['today_calls']; ?></h3>
-                </div>
+                            </div>
                         </div>
                         
                         <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="stat-icon bg-success bg-opacity-10 text-success">
-                                        <i class="fas fa-check-circle"></i>
-                        </div>
-                    </div>
+                                        <i class="fa-solid fa-check-circle"></i>
+                                    </div>
+                                </div>
                                 <div class="stat-label">Successful</div>
                                 <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
-                </div>
+                            </div>
                         </div>
                         
                         <div class="col-12 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="stat-icon bg-danger bg-opacity-10 text-danger mb-2">
-                                    <i class="fas fa-exclamation-circle"></i>
-                        </div>
+                                    <i class="fa-solid fa-exclamation-circle"></i>
+                                </div>
                                 <div class="stat-label">Donors Outstanding</div>
                                 <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
                                 <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
-                        </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -314,32 +321,32 @@ try {
                     <div class="col-12 col-lg-5">
                         <div class="dashboard-card p-3 p-md-4">
                             <h6 class="fw-bold mb-3">
-                                <i class="fas fa-bolt me-2 text-warning"></i>Quick Actions
+                                <i class="fa-solid fa-bolt me-2 text-warning"></i>Quick Actions
                             </h6>
                             <div class="d-flex flex-column gap-2">
                                 <a href="../donor-management/donors.php" class="action-btn">
                                     <div class="d-flex align-items-center">
                                         <div class="action-icon bg-primary bg-opacity-10 text-primary me-3">
-                                            <i class="fas fa-list"></i>
-            </div>
+                                            <i class="fa-solid fa-list"></i>
+                                        </div>
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">Donor List</div>
                                             <div class="text-muted" style="font-size: 0.7rem;">Browse all donors</div>
-                        </div>
-                                        <i class="fas fa-chevron-right text-muted small"></i>
-                                                        </div>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
+                                    </div>
                                 </a>
                                 
                                 <a href="call-history.php" class="action-btn">
                                     <div class="d-flex align-items-center">
                                         <div class="action-icon bg-secondary bg-opacity-10 text-secondary me-3">
-                                            <i class="fas fa-history"></i>
+                                            <i class="fa-solid fa-history"></i>
                                         </div>
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">Call History</div>
                                             <div class="text-muted" style="font-size: 0.7rem;">View all calls</div>
-                                </div>
-                                        <i class="fas fa-chevron-right text-muted small"></i>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
                                     </div>
                                 </a>
                                 
@@ -347,17 +354,17 @@ try {
                                 <a href="call-history.php?filter=callbacks" class="action-btn border-warning">
                                     <div class="d-flex align-items-center">
                                         <div class="action-icon bg-warning bg-opacity-10 text-warning me-3">
-                                            <i class="fas fa-bell"></i>
+                                            <i class="fa-solid fa-bell"></i>
                                         </div>
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">Pending Callbacks</div>
                                             <div class="text-muted" style="font-size: 0.7rem;"><?php echo $stats['pending_callbacks']; ?> scheduled</div>
                                         </div>
-                                        <i class="fas fa-chevron-right text-muted small"></i>
+                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
                                     </div>
                                 </a>
                                 <?php endif; ?>
-                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -366,7 +373,7 @@ try {
                         <div class="dashboard-card">
                             <div class="p-3 p-md-4 pb-0 d-flex justify-content-between align-items-center">
                                 <h6 class="fw-bold mb-0">
-                                    <i class="fas fa-history me-2 text-secondary"></i>Recent Calls
+                                    <i class="fa-solid fa-history me-2 text-secondary"></i>Recent Calls
                                 </h6>
                                 <?php if (!empty($recent_calls)): ?>
                                 <a href="call-history.php" class="btn btn-sm btn-outline-secondary">
@@ -378,14 +385,14 @@ try {
                             <div class="p-3 p-md-4 pt-3">
                                 <?php if (empty($recent_calls)): ?>
                                     <div class="text-center py-4 text-muted">
-                                        <i class="fas fa-phone-slash fa-2x mb-3 opacity-25"></i>
+                                        <i class="fa-solid fa-phone-slash fa-2x mb-3 opacity-25"></i>
                                         <p class="small mb-2">No calls made yet</p>
                                         <a href="../donor-management/donors.php" class="btn btn-sm btn-primary">
-                                            <i class="fas fa-phone-alt me-1"></i>Make First Call
+                                            <i class="fa-solid fa-phone-alt me-1"></i>Make First Call
                                         </a>
-                        </div>
+                                    </div>
                                 <?php else: ?>
-                                                <div>
+                                    <div>
                                         <?php foreach ($recent_calls as $call): ?>
                                         <div class="recent-call-item">
                                             <div class="d-flex align-items-center gap-2 gap-md-3">
@@ -410,13 +417,13 @@ try {
                                                 </div>
                                                 <a href="../donor-management/view-donor.php?id=<?php echo $call['donor_id']; ?>" 
                                                    class="btn btn-sm btn-light">
-                                                    <i class="fas fa-eye"></i>
+                                                    <i class="fa-solid fa-eye"></i>
                                                 </a>
                                             </div>
                                         </div>
                                         <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
