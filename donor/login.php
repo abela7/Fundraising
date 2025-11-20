@@ -65,8 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Build SELECT query with or without email and email_opt_in
                     $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
-                               has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                               plan_duration_months, plan_start_date, plan_next_due_date,
+                               has_active_plan, active_payment_plan_id,
                                payment_status, preferred_payment_method, preferred_language";
                     if ($has_email) {
                         $select_fields .= ", email";
@@ -173,8 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             // Build SELECT query with or without email and email_opt_in
                             $select_fields2 = "id, name, phone, total_pledged, total_paid, balance, 
-                                       has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                                       plan_duration_months, plan_start_date, plan_next_due_date,
+                                       has_active_plan, active_payment_plan_id,
                                        payment_status, preferred_payment_method, preferred_language";
                             if ($has_email2) {
                                 $select_fields2 .= ", email";
