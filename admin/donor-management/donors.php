@@ -561,22 +561,18 @@ unset($donor); // Break reference
                             <table id="donorsTable" class="table table-hover align-middle">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
                                         <th>Name</th>
                                         <th>Type</th>
-                                        <th>Phone</th>
                                         <th>Status</th>
                                         <th>Pledged</th>
                                         <th>Paid</th>
                                         <th>Balance</th>
-                                        <th>Payment Method</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($donors as $donor): ?>
                                     <tr class="donor-row" style="cursor: pointer;" data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>' title="Click to view details">
-                                        <td><?php echo (int)$donor['id']; ?></td>
                                         <td class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></td>
                                         <td>
                                             <?php if ($donor['donor_type'] === 'pledge'): ?>
@@ -585,7 +581,6 @@ unset($donor); // Break reference
                                                 <span class="badge bg-success">Immediate</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td><?php echo htmlspecialchars($donor['phone'] ?? '-'); ?></td>
                                         <td>
                                             <span class="badge bg-<?php 
                                                 echo match($donor['payment_status'] ?? 'no_pledge') {
@@ -602,7 +597,6 @@ unset($donor); // Break reference
                                         <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['balance'], 2); ?></td>
-                                        <td><?php echo ucwords(str_replace('_', ' ', $donor['preferred_payment_method'] ?? 'Bank Transfer')); ?></td>
                                         <td>
                                             <?php if (!empty($donor['phone'])): ?>
                                             <a href="../call-center/make-call.php?donor_id=<?php echo $donor['id']; ?>" 
@@ -692,53 +686,90 @@ unset($donor); // Break reference
 
 <!-- Donor Detail Modal -->
 <div class="modal fade" id="donorDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-user-circle me-2"></i>Donor Details
-                </h5>
+                <div>
+                    <h5 class="modal-title mb-1">
+                        <i class="fas fa-user-circle me-2"></i>Donor Details
+                    </h5>
+                    <small class="text-white-50">Complete donor information and financial summary</small>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="row g-4">
-                    <!-- Left Column: Basic Info -->
+            <div class="modal-body p-3 p-md-4">
+                <!-- Donor Header Card -->
+                <div class="card border-primary mb-4">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h4 class="mb-2 text-primary" id="detail_name">-</h4>
+                                <div class="row g-2 small">
+                                    <div class="col-6 col-sm-4">
+                                        <span class="text-muted"><i class="fas fa-hashtag me-1"></i>ID:</span>
+                                        <strong id="detail_id" class="ms-1">-</strong>
+                                    </div>
+                                    <div class="col-6 col-sm-4">
+                                        <span class="text-muted"><i class="fas fa-phone me-1"></i>Phone:</span>
+                                        <strong id="detail_phone" class="ms-1">-</strong>
+                                    </div>
+                                    <div class="col-12 col-sm-4">
+                                        <span class="text-muted"><i class="fas fa-tag me-1"></i>Type:</span>
+                                        <span id="detail_type" class="ms-1">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mt-3 mt-md-0 text-md-end">
+                                <button type="button" class="btn btn-success btn-sm me-1" id="btnCallFromDetailMobile">
+                                    <i class="fas fa-phone-alt me-1"></i>Call
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm" id="btnEditFromDetailMobile">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Two Column Layout -->
+                <div class="row g-3 g-md-4">
+                    <!-- Left Column: Contact & Additional Info -->
                     <div class="col-lg-6">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-id-card me-2 text-primary"></i>Basic Information</h6>
+                                <h6 class="mb-0"><i class="fas fa-address-book me-2 text-primary"></i>Contact & Additional Information</h6>
                             </div>
                             <div class="card-body">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tr>
-                                        <td class="text-muted" style="width: 40%;"><i class="fas fa-hashtag me-2"></i>Donor ID</td>
-                                        <td class="fw-bold" id="detail_id">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-user me-2"></i>Full Name</td>
-                                        <td class="fw-bold" id="detail_name">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-phone me-2"></i>Phone</td>
-                                        <td id="detail_phone">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-tag me-2"></i>Donor Type</td>
-                                        <td id="detail_type">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-language me-2"></i>Preferred Language</td>
-                                        <td id="detail_language">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-credit-card me-2"></i>Payment Method</td>
-                                        <td id="detail_payment_method">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-source me-2"></i>Registration Source</td>
-                                        <td id="detail_source">-</td>
-                                    </tr>
-                                </table>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-envelope me-2"></i>Email</small>
+                                        <strong id="detail_email">-</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-map-marker-alt me-2"></i>City</small>
+                                        <strong id="detail_city">-</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-water me-2"></i>Baptism Name</small>
+                                        <strong id="detail_baptism_name">-</strong>
+                                    </div>
+                                    <div class="col-12">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-church me-2"></i>Church</small>
+                                        <strong id="detail_church">-</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-language me-2"></i>Language</small>
+                                        <strong id="detail_language">-</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-credit-card me-2"></i>Payment Method</small>
+                                        <strong id="detail_payment_method">-</strong>
+                                    </div>
+                                    <div class="col-12">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-source me-2"></i>Source</small>
+                                        <strong id="detail_source">-</strong>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -750,36 +781,47 @@ unset($donor); // Break reference
                                 <h6 class="mb-0"><i class="fas fa-pound-sign me-2 text-success"></i>Financial Summary</h6>
                             </div>
                             <div class="card-body">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tr>
-                                        <td class="text-muted" style="width: 40%;"><i class="fas fa-handshake me-2"></i>Total Pledged</td>
-                                        <td class="fw-bold text-warning" id="detail_pledged">£0.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-check-circle me-2"></i>Total Paid</td>
-                                        <td class="fw-bold text-success" id="detail_paid">£0.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-balance-scale me-2"></i>Balance</td>
-                                        <td class="fw-bold text-danger" id="detail_balance">£0.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-flag me-2"></i>Payment Status</td>
-                                        <td id="detail_status">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-trophy me-2"></i>Achievement Badge</td>
-                                        <td id="detail_badge">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-file-invoice me-2"></i>Total Pledges</td>
-                                        <td id="detail_pledge_count">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted"><i class="fas fa-receipt me-2"></i>Total Payments</td>
-                                        <td id="detail_payment_count">0</td>
-                                    </tr>
-                                </table>
+                                <!-- Key Financial Metrics -->
+                                <div class="row g-3 mb-4">
+                                    <div class="col-12 col-sm-4">
+                                        <div class="border-start border-4 border-warning ps-3">
+                                            <small class="text-muted d-block mb-1"><i class="fas fa-handshake me-1"></i>Pledged</small>
+                                            <h5 class="mb-0 text-warning" id="detail_pledged">£0.00</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-4">
+                                        <div class="border-start border-4 border-success ps-3">
+                                            <small class="text-muted d-block mb-1"><i class="fas fa-check-circle me-1"></i>Paid</small>
+                                            <h5 class="mb-0 text-success" id="detail_paid">£0.00</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-4">
+                                        <div class="border-start border-4 border-danger ps-3">
+                                            <small class="text-muted d-block mb-1"><i class="fas fa-balance-scale me-1"></i>Balance</small>
+                                            <h5 class="mb-0 text-danger" id="detail_balance">£0.00</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Additional Metrics -->
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-flag me-1"></i>Status</small>
+                                        <span id="detail_status">-</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-trophy me-1"></i>Badge</small>
+                                        <span id="detail_badge">-</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-file-invoice me-1"></i>Pledges</small>
+                                        <strong id="detail_pledge_count">0</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-receipt me-1"></i>Payments</small>
+                                        <strong id="detail_payment_count">0</strong>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -787,85 +829,83 @@ unset($donor); // Break reference
                     <!-- Payment Plan Info (if applicable) -->
                     <div class="col-12" id="payment_plan_section" style="display: none;">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
+                            <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
                                 <h6 class="mb-0">
-                                    <i class="fas fa-calendar-alt me-2 text-info"></i>Payment Plan
-                                    <span class="badge bg-info ms-2" id="detail_plan_type_badge">Standard</span>
+                                    <i class="fas fa-calendar-alt me-2 text-info"></i>Active Payment Plan
                                 </h6>
+                                <span class="badge bg-info" id="detail_plan_type_badge">Standard</span>
                             </div>
                             <div class="card-body">
                                 <!-- Plan Summary -->
                                 <div class="row g-3 mb-3">
-                                    <div class="col-md-3">
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-pound-sign me-1"></i>Monthly Amount
+                                    <div class="col-6 col-md-3">
+                                        <small class="text-muted d-block mb-1">
+                                            <i class="fas fa-pound-sign me-1"></i>Monthly
                                         </small>
-                                        <strong id="detail_plan_amount">-</strong>
+                                        <strong class="d-block" id="detail_plan_amount">-</strong>
                                     </div>
-                                    <div class="col-md-3">
-                                        <small class="text-muted d-block">
+                                    <div class="col-6 col-md-3">
+                                        <small class="text-muted d-block mb-1">
                                             <i class="fas fa-clock me-1"></i>Duration
                                         </small>
-                                        <strong id="detail_plan_duration">-</strong>
+                                        <strong class="d-block" id="detail_plan_duration">-</strong>
                                     </div>
-                                    <div class="col-md-3">
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-calendar-check me-1"></i>Start Date
+                                    <div class="col-6 col-md-3">
+                                        <small class="text-muted d-block mb-1">
+                                            <i class="fas fa-calendar-check me-1"></i>Start
                                         </small>
-                                        <strong id="detail_plan_start">-</strong>
+                                        <strong class="d-block" id="detail_plan_start">-</strong>
                                     </div>
-                                    <div class="col-md-3">
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-calendar-day me-1"></i>Payment Day
+                                    <div class="col-6 col-md-3">
+                                        <small class="text-muted d-block mb-1">
+                                            <i class="fas fa-calendar-day me-1"></i>Day
                                         </small>
-                                        <strong id="detail_plan_payment_day">-</strong>
+                                        <strong class="d-block" id="detail_plan_payment_day">-</strong>
                                     </div>
                                 </div>
                                 
                                 <!-- Payment Schedule & Reminders -->
                                 <div class="card border-primary mb-3">
                                     <div class="card-header bg-primary bg-opacity-10">
-                                        <h6 class="mb-0 text-primary">
-                                            <i class="fas fa-bell me-2"></i>Payment Schedule & Reminders
+                                        <h6 class="mb-0 text-primary small">
+                                            <i class="fas fa-bell me-2"></i>Schedule & Reminders
                                         </h6>
                                     </div>
-                                    <div class="card-body">
+                                    <div class="card-body p-3">
                                         <div class="row g-3">
-                                            <div class="col-md-4">
+                                            <div class="col-12 col-md-6 col-lg-4">
                                                 <div class="border-start border-4 border-primary ps-3">
-                                                    <small class="text-muted d-block">
-                                                        <i class="fas fa-calendar-alt me-1"></i>Next Payment Due
+                                                    <small class="text-muted d-block mb-1">
+                                                        <i class="fas fa-calendar-alt me-1"></i>Next Due
                                                     </small>
-                                                    <strong class="text-primary" id="detail_plan_next_due">-</strong>
+                                                    <strong class="text-primary d-block" id="detail_plan_next_due">-</strong>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-12 col-md-6 col-lg-4">
                                                 <div class="border-start border-4 border-warning ps-3">
-                                                    <small class="text-muted d-block">
-                                                        <i class="fas fa-bell me-1"></i>Reminder Date
-                                                        <small class="text-muted">(2 days before)</small>
+                                                    <small class="text-muted d-block mb-1">
+                                                        <i class="fas fa-bell me-1"></i>Reminder
+                                                        <span class="text-muted">(2d before)</span>
                                                     </small>
-                                                    <strong class="text-warning" id="detail_plan_reminder_date">-</strong>
+                                                    <strong class="text-warning d-block" id="detail_plan_reminder_date">-</strong>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-12 col-md-6 col-lg-4">
                                                 <div class="border-start border-4 border-warning ps-3">
-                                                    <small class="text-muted d-block">
-                                                        <i class="fas fa-bell-slash me-1"></i>Miss Notification
-                                                        <small class="text-muted">(1 day after)</small>
+                                                    <small class="text-muted d-block mb-1">
+                                                        <i class="fas fa-bell-slash me-1"></i>Miss
+                                                        <span class="text-muted">(1d after)</span>
                                                     </small>
-                                                    <strong class="text-warning" id="detail_plan_miss_notification">-</strong>
+                                                    <strong class="text-warning d-block" id="detail_plan_miss_notification">-</strong>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="row g-3 mt-2">
-                                            <div class="col-md-12">
+                                            <div class="col-12">
                                                 <div class="border-start border-4 border-danger ps-3">
-                                                    <small class="text-muted d-block">
-                                                        <i class="fas fa-exclamation-triangle me-1"></i>Overdue Notification
-                                                        <small class="text-muted">(7 days after if still not paid)</small>
+                                                    <small class="text-muted d-block mb-1">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>Overdue
+                                                        <span class="text-muted">(7d after if not paid)</span>
                                                     </small>
-                                                    <strong class="text-danger" id="detail_plan_overdue_notification">-</strong>
+                                                    <strong class="text-danger d-block" id="detail_plan_overdue_notification">-</strong>
                                                 </div>
                                             </div>
                                         </div>
@@ -874,29 +914,29 @@ unset($donor); // Break reference
                                 
                                 <!-- Plan Details -->
                                 <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <small class="text-muted d-block">Plan Type</small>
-                                        <strong id="detail_plan_type">-</strong>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1">Type</small>
+                                        <strong class="d-block" id="detail_plan_type">-</strong>
                                     </div>
-                                    <div class="col-md-6">
-                                        <small class="text-muted d-block">Plan Status</small>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1">Status</small>
                                         <span id="detail_plan_status">-</span>
                                     </div>
-                                    <div class="col-md-6" id="detail_plan_frequency_section" style="display: none;">
-                                        <small class="text-muted d-block">Payment Frequency</small>
-                                        <strong id="detail_plan_frequency">-</strong>
+                                    <div class="col-6 col-md-4" id="detail_plan_frequency_section" style="display: none;">
+                                        <small class="text-muted d-block mb-1">Frequency</small>
+                                        <strong class="d-block" id="detail_plan_frequency">-</strong>
                                     </div>
-                                    <div class="col-md-6" id="detail_plan_template_section" style="display: none;">
-                                        <small class="text-muted d-block">Template Used</small>
-                                        <strong id="detail_plan_template">-</strong>
+                                    <div class="col-6 col-md-4" id="detail_plan_template_section" style="display: none;">
+                                        <small class="text-muted d-block mb-1">Template</small>
+                                        <strong class="d-block" id="detail_plan_template">-</strong>
                                     </div>
-                                    <div class="col-md-6">
-                                        <small class="text-muted d-block">Payments Made</small>
-                                        <strong id="detail_plan_payments_made">0</strong> / <span id="detail_plan_total_payments">0</span>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1">Progress</small>
+                                        <strong class="d-block"><span id="detail_plan_payments_made">0</span> / <span id="detail_plan_total_payments">0</span></strong>
                                     </div>
-                                    <div class="col-md-6">
-                                        <small class="text-muted d-block">Amount Paid</small>
-                                        <strong class="text-success">£<span id="detail_plan_amount_paid">0.00</span></strong> / <span class="text-muted">£<span id="detail_plan_total_amount">0.00</span></span>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1">Paid / Total</small>
+                                        <strong class="d-block text-success">£<span id="detail_plan_amount_paid">0.00</span></strong> / <span class="text-muted">£<span id="detail_plan_total_amount">0.00</span></span>
                                     </div>
                                 </div>
                             </div>
@@ -910,32 +950,30 @@ unset($donor); // Break reference
                                 <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-secondary"></i>System Information</h6>
                             </div>
                             <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <small class="text-muted d-block"><i class="fas fa-user-plus me-1"></i>Registered By</small>
-                                        <strong id="detail_registered_by">System</strong>
+                                <div class="row g-3">
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-user-plus me-1"></i>Registered By</small>
+                                        <strong class="d-block" id="detail_registered_by">System</strong>
                                     </div>
-                                    <div class="col-md-4">
-                                        <small class="text-muted d-block"><i class="fas fa-calendar-plus me-1"></i>Created At</small>
-                                        <strong id="detail_created_at">-</strong>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-calendar-plus me-1"></i>Created</small>
+                                        <strong class="d-block" id="detail_created_at">-</strong>
                                     </div>
-                                    <div class="col-md-4">
-                                        <small class="text-muted d-block"><i class="fas fa-calendar-check me-1"></i>Last Updated</small>
-                                        <strong id="detail_updated_at">-</strong>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-calendar-check me-1"></i>Updated</small>
+                                        <strong class="d-block" id="detail_updated_at">-</strong>
                                     </div>
-                                </div>
-                                <div class="row mt-3" id="last_activity_section">
-                                    <div class="col-md-4">
-                                        <small class="text-muted d-block"><i class="fas fa-money-bill-wave me-1"></i>Last Payment</small>
-                                        <strong id="detail_last_payment">Never</strong>
+                                    <div class="col-6 col-md-4" id="last_activity_section">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-money-bill-wave me-1"></i>Last Payment</small>
+                                        <strong class="d-block" id="detail_last_payment">Never</strong>
                                     </div>
-                                    <div class="col-md-4">
-                                        <small class="text-muted d-block"><i class="fas fa-sms me-1"></i>Last SMS Sent</small>
-                                        <strong id="detail_last_sms">Never</strong>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-sms me-1"></i>Last SMS</small>
+                                        <strong class="d-block" id="detail_last_sms">Never</strong>
                                     </div>
-                                    <div class="col-md-4">
-                                        <small class="text-muted d-block"><i class="fas fa-sign-in-alt me-1"></i>Portal Logins</small>
-                                        <strong id="detail_login_count">0</strong>
+                                    <div class="col-6 col-md-4">
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-sign-in-alt me-1"></i>Logins</small>
+                                        <strong class="d-block" id="detail_login_count">0</strong>
                                     </div>
                                 </div>
                             </div>
@@ -955,22 +993,24 @@ unset($donor); // Break reference
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light">
+            <div class="modal-footer bg-light flex-wrap gap-2">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i>Close
+                    <i class="fas fa-times me-1"></i>Close
                 </button>
-                <a href="#" class="btn btn-info text-white" id="btnViewProfile" target="_blank">
-                    <i class="fas fa-user-circle me-2"></i>View Full Profile
-                </a>
-                <button type="button" class="btn btn-success text-white" id="btnCallFromDetail">
-                    <i class="fas fa-phone-alt me-2"></i>Make Call
-                </button>
-                <button type="button" class="btn btn-primary" id="btnEditFromDetail">
-                    <i class="fas fa-edit me-2"></i>Edit Donor
-                </button>
-                <button type="button" class="btn btn-danger" id="btnDeleteFromDetail">
-                    <i class="fas fa-trash me-2"></i>Delete Donor
-                </button>
+                <div class="d-flex flex-wrap gap-2 ms-auto">
+                    <a href="#" class="btn btn-info text-white d-none d-md-inline-block" id="btnViewProfile" target="_blank">
+                        <i class="fas fa-user-circle me-1"></i>Profile
+                    </a>
+                    <button type="button" class="btn btn-success text-white d-none d-md-inline-block" id="btnCallFromDetail">
+                        <i class="fas fa-phone-alt me-1"></i>Call
+                    </button>
+                    <button type="button" class="btn btn-primary d-none d-md-inline-block" id="btnEditFromDetail">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </button>
+                    <button type="button" class="btn btn-danger" id="btnDeleteFromDetail">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1016,11 +1056,16 @@ $(document).ready(function() {
         const balance = $('#filter_balance').val();
         
         // Get data from table columns
-        // Column indices: 0=ID, 1=Name, 2=Type, 3=Phone, 4=Status, 5=Pledged, 6=Paid, 7=Balance, 8=Payment Method, 9=Actions
-        const rowDonorType = data[2].toLowerCase(); // Type column
-        const rowPaymentStatus = data[4].toLowerCase(); // Status column
-        const rowBalance = parseFloat(data[7].replace('£', '').replace(',', '')); // Balance column
-        const rowPaymentMethod = data[8].toLowerCase(); // Payment Method column
+        // Column indices: 0=Name, 1=Type, 2=Status, 3=Pledged, 4=Paid, 5=Balance, 6=Actions
+        const rowDonorType = data[1].toLowerCase(); // Type column
+        const rowPaymentStatus = data[2].toLowerCase(); // Status column
+        const rowBalance = parseFloat(data[5].replace('£', '').replace(',', '')); // Balance column
+        
+        // Get donor data from row to check payment method and language
+        const $row = $(settings.aoData[dataIndex].nTr);
+        const donorData = $row.data('donor');
+        const rowPaymentMethod = donorData && donorData.preferred_payment_method ? donorData.preferred_payment_method.toLowerCase() : '';
+        const rowLanguage = donorData && donorData.preferred_language ? donorData.preferred_language.toLowerCase() : '';
         
         // Apply filters
         if (donorType && !rowDonorType.includes(donorType.toLowerCase())) {
@@ -1119,6 +1164,12 @@ $(document).ready(function() {
             ? '<span class="badge bg-warning text-dark">Pledge Donor</span>' 
             : '<span class="badge bg-success">Immediate Payer</span>';
         $('#detail_type').html(typeHtml);
+        
+        // Additional contact info
+        $('#detail_email').text(donor.email || '-');
+        $('#detail_city').text(donor.city || '-');
+        $('#detail_baptism_name').text(donor.baptism_name || '-');
+        $('#detail_church').text(donor.church_name || '-');
         
         $('#detail_language').text((donor.preferred_language || 'en').toUpperCase());
         $('#detail_payment_method').text((donor.preferred_payment_method || 'bank_transfer').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
@@ -1265,14 +1316,21 @@ $(document).ready(function() {
         $('#donorDetailModal').modal('show');
     });
     
-    // Call button in detail modal
+    // Call button in detail modal (desktop)
     $('#btnCallFromDetail').click(function() {
         if (currentDonorData && currentDonorData.id) {
             window.location.href = '../call-center/make-call.php?donor_id=' + currentDonorData.id;
         }
     });
+    
+    // Call button in detail modal (mobile - in header)
+    $('#btnCallFromDetailMobile').click(function() {
+        if (currentDonorData && currentDonorData.id) {
+            window.location.href = '../call-center/make-call.php?donor_id=' + currentDonorData.id;
+        }
+    });
 
-    // Edit button in detail modal
+    // Edit button in detail modal (desktop)
     $('#btnEditFromDetail').click(function() {
         if (currentDonorData) {
             $('#donorDetailModal').modal('hide');
@@ -1291,6 +1349,12 @@ $(document).ready(function() {
             
             $('#editDonorModal').modal('show');
         }
+    });
+    
+    // Edit button in detail modal (mobile - in header)
+    $('#btnEditFromDetailMobile').click(function() {
+        // Trigger the same handler as desktop
+        $('#btnEditFromDetail').click();
     });
     
     // Delete button in detail modal
