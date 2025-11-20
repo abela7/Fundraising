@@ -32,8 +32,8 @@ try {
         'other' => 'Other'
     ];
     
-    if (!$donor_id || !$queue_id) {
-        header('Location: index.php');
+    if (!$donor_id) {
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -64,7 +64,7 @@ try {
     $stmt->close();
     
     if (!$donor) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -193,22 +193,24 @@ try {
                     }
                 }
                 
-                // Update queue
-                $next_attempt = $appointment_date . ' ' . $appointment_time;
-                $update_queue = "
-                    UPDATE call_center_queues 
-                    SET status = 'pending',
-                        next_attempt_after = ?,
-                        last_attempt_outcome = 'callback_scheduled',
-                        assigned_to = ?
-                    WHERE id = ?
-                ";
-                
-                $stmt = $db->prepare($update_queue);
-                if ($stmt) {
-                    $stmt->bind_param('sii', $next_attempt, $user_id, $queue_id);
-                    $stmt->execute();
-                    $stmt->close();
+                // Update queue if exists
+                if ($queue_id > 0) {
+                    $next_attempt = $appointment_date . ' ' . $appointment_time;
+                    $update_queue = "
+                        UPDATE call_center_queues 
+                        SET status = 'pending',
+                            next_attempt_after = ?,
+                            last_attempt_outcome = 'callback_scheduled',
+                            assigned_to = ?
+                        WHERE id = ?
+                    ";
+                    
+                    $stmt = $db->prepare($update_queue);
+                    if ($stmt) {
+                        $stmt->bind_param('sii', $next_attempt, $user_id, $queue_id);
+                        $stmt->execute();
+                        $stmt->close();
+                    }
                 }
                 
                 // Commit transaction
