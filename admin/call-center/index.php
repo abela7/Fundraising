@@ -296,12 +296,12 @@ try {
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="icon-box icon-box-primary">
                                         <i class="fa-solid fa-phone-alt"></i>
-                                    </div>
+                        </div>
                                     <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
-                                </div>
+                        </div>
                                 <div class="stat-label">Today's Calls</div>
                                 <h3 class="stat-value text-primary"><?php echo $stats['today_calls']; ?></h3>
-                            </div>
+                </div>
                         </div>
                         
                         <div class="col-6 col-md-4">
@@ -309,22 +309,22 @@ try {
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="icon-box icon-box-success">
                                         <i class="fa-solid fa-check-circle"></i>
-                                    </div>
-                                </div>
+                        </div>
+                    </div>
                                 <div class="stat-label">Successful</div>
                                 <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
-                            </div>
+                </div>
                         </div>
                         
                         <div class="col-12 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="icon-box icon-box-danger mb-2">
                                     <i class="fa-solid fa-exclamation-circle"></i>
-                                </div>
+                        </div>
                                 <div class="stat-label">Donors Outstanding</div>
                                 <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
                                 <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
-                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -341,12 +341,28 @@ try {
                                     <div class="d-flex align-items-center">
                                         <div class="icon-box icon-box-primary" style="width: 32px; height: 32px; font-size: 0.9rem;">
                                             <i class="fa-solid fa-list"></i>
-                                        </div>
+            </div>
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">Donor List</div>
                                             <div class="text-muted" style="font-size: 0.7rem;">Browse all donors</div>
-                                        </div>
+                        </div>
                                         <i class="fa-solid fa-chevron-right text-muted small"></i>
+                                                        </div>
+                                </a>
+                                
+                                <a href="my-schedule.php" class="action-btn">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box icon-box-info" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                            <i class="fa-solid fa-calendar-alt"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold small">My Schedule</div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">View calendar & appointments</div>
+                                        </div>
+                                        <?php if ($stats['pending_callbacks'] > 0): ?>
+                                        <span class="badge bg-warning text-dark"><?php echo $stats['pending_callbacks']; ?></span>
+                                        <?php endif; ?>
+                                        <i class="fa-solid fa-chevron-right text-muted small ms-2"></i>
                                     </div>
                                 </a>
                                 
@@ -362,22 +378,7 @@ try {
                                         <i class="fa-solid fa-chevron-right text-muted small"></i>
                                     </div>
                                 </a>
-                                
-                                <?php if ($stats['pending_callbacks'] > 0): ?>
-                                <a href="call-history.php?filter=callbacks" class="action-btn border-warning">
-                                    <div class="d-flex align-items-center">
-                                        <div class="icon-box icon-box-warning" style="width: 32px; height: 32px; font-size: 0.9rem;">
-                                            <i class="fa-solid fa-bell"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold small">Pending Callbacks</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;"><?php echo $stats['pending_callbacks']; ?> scheduled</div>
-                                        </div>
-                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
-                                    </div>
-                                </a>
-                                <?php endif; ?>
-                            </div>
+                                </div>
                         </div>
                     </div>
 
