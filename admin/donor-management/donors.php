@@ -319,12 +319,15 @@ $donors = [];
 try {
     $donors_result = $db->query("
         SELECT 
-            d.id, d.name, d.phone, d.preferred_language, 
-            d.preferred_payment_method, d.source, d.total_pledged, d.total_paid, 
-            d.balance, d.payment_status, d.created_at, d.updated_at,
-            d.has_active_plan, d.active_payment_plan_id,
+            d.id, d.name, d.phone, d.email, d.city, d.baptism_name, d.church_id,
+            d.preferred_language, d.preferred_payment_method, d.source, 
+            d.total_pledged, d.total_paid, d.balance, d.payment_status, 
+            d.created_at, d.updated_at, d.has_active_plan, d.active_payment_plan_id,
             d.last_payment_date, d.last_sms_sent_at, d.login_count, d.admin_notes,
             d.registered_by_user_id, d.pledge_count, d.payment_count, d.achievement_badge,
+            d.donor_type,
+            -- Church name
+            c.name as church_name,
             -- Payment plan details (from master table only)
             pp.id as plan_id, pp.total_amount as plan_total_amount,
             pp.monthly_amount as plan_monthly_amount, pp.total_months as plan_total_months,
@@ -338,6 +341,7 @@ try {
             -- Template name if exists
             t.name as template_name
         FROM donors d
+        LEFT JOIN churches c ON d.church_id = c.id
         LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id AND pp.status = 'active'
         LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
         ORDER BY d.created_at DESC
@@ -357,13 +361,11 @@ $immediate_payers = 0;
 $donors_with_phone = 0;
 
 foreach ($donors as &$donor) {
-    // Determine donor type based on pledges
-    if ((float)$donor['total_pledged'] > 0) {
+    // Count by donor type (use actual donor_type from database)
+    if ($donor['donor_type'] === 'pledge') {
         $pledge_donors++;
-        $donor['donor_type'] = 'pledge'; // Add for display
     } else {
         $immediate_payers++;
-        $donor['donor_type'] = 'immediate_payment'; // Add for display
     }
     
     if (!empty($donor['phone'])) {
