@@ -113,8 +113,8 @@ try {
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <!-- Font Awesome - Using CDNJS which is more reliable -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <!-- Use JSDelivr for better availability and specific version -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
         /* Compact, Mobile-First Dashboard Styles */
@@ -136,43 +136,48 @@ try {
             background: white;
         }
         
-        /* Stat icon - now applied directly to the icon element */
-        .stat-icon {
+        /* Explicit Icon Styling to fix visibility issues */
+        .icon-box {
             width: 40px;
             height: 40px;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 8px;
             font-size: 1.1rem;
+            margin-right: 10px;
             flex-shrink: 0;
-            overflow: visible !important;
-            position: relative;
-            /* Ensure Font Awesome renders */
-            font-family: "Font Awesome 6 Free" !important;
-            font-weight: 900 !important;
-            font-style: normal !important;
+        }
+
+        /* Custom colors to ensure contrast (avoiding bg-opacity issues) */
+        .icon-box-primary {
+            background-color: rgba(13, 110, 253, 0.1) !important;
+            color: #0d6efd !important;
         }
         
-        /* Action icon containers */
-        .action-icon {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            font-size: 0.9rem;
+        .icon-box-success {
+            background-color: rgba(25, 135, 84, 0.1) !important;
+            color: #198754 !important;
         }
         
-        /* Ensure icons inside action containers render */
-        .action-icon i,
-        .action-icon .fa-solid {
-            display: inline-block !important;
-            font-family: "Font Awesome 6 Free" !important;
-            font-weight: 900 !important;
-            font-style: normal !important;
-            color: inherit !important;
+        .icon-box-danger {
+            background-color: rgba(220, 53, 69, 0.1) !important;
+            color: #dc3545 !important;
+        }
+
+        .icon-box-warning {
+            background-color: rgba(255, 193, 7, 0.1) !important;
+            color: #ffc107 !important;
+        }
+
+        .icon-box-info {
+            background-color: rgba(13, 202, 240, 0.1) !important;
+            color: #0dcaf0 !important;
+        }
+        
+        .icon-box-secondary {
+            background-color: rgba(108, 117, 125, 0.1) !important;
+            color: #6c757d !important;
         }
         
         .stat-value {
@@ -207,16 +212,6 @@ try {
             transform: translateX(4px);
         }
         
-        .action-icon {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-        
         .recent-call-item {
             padding: 0.75rem;
             border-bottom: 1px solid #f0f0f0;
@@ -236,19 +231,14 @@ try {
                 font-size: 1.25rem;
             }
             
-            .stat-icon {
-                width: 36px !important;
-                height: 36px !important;
-                font-size: 1rem !important;
+            .icon-box {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
             }
             
             .action-btn {
                 padding: 0.75rem;
-            }
-            
-            .action-icon {
-                width: 28px;
-                height: 28px;
             }
         }
         
@@ -269,20 +259,20 @@ try {
             <div class="container-fluid p-3 p-md-4">
                 <!-- Header -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
+                <div>
                         <h1 class="h4 mb-1 text-primary fw-bold">
                             <i class="fa-solid fa-headset me-2"></i>Call Center
-                        </h1>
+                    </h1>
                         <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
-                    </div>
                 </div>
+            </div>
 
                 <?php if ($error_message): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fa-solid fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                <?php endif; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
 
                 <!-- Start Calling Button - Top Priority -->
                 <div class="mb-4">
@@ -304,7 +294,9 @@ try {
                         <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <i class="fa-solid fa-phone-alt stat-icon bg-primary bg-opacity-10 text-primary"></i>
+                                    <div class="icon-box icon-box-primary">
+                                        <i class="fa-solid fa-phone-alt"></i>
+                                    </div>
                                     <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
                                 </div>
                                 <div class="stat-label">Today's Calls</div>
@@ -315,7 +307,9 @@ try {
                         <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <i class="fa-solid fa-check-circle stat-icon bg-success bg-opacity-10 text-success"></i>
+                                    <div class="icon-box icon-box-success">
+                                        <i class="fa-solid fa-check-circle"></i>
+                                    </div>
                                 </div>
                                 <div class="stat-label">Successful</div>
                                 <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
@@ -324,7 +318,9 @@ try {
                         
                         <div class="col-12 col-md-4">
                             <div class="dashboard-card stat-card">
-                                <i class="fa-solid fa-exclamation-circle stat-icon bg-danger bg-opacity-10 text-danger mb-2"></i>
+                                <div class="icon-box icon-box-danger mb-2">
+                                    <i class="fa-solid fa-exclamation-circle"></i>
+                                </div>
                                 <div class="stat-label">Donors Outstanding</div>
                                 <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
                                 <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
@@ -343,7 +339,7 @@ try {
                             <div class="d-flex flex-column gap-2">
                                 <a href="../donor-management/donors.php" class="action-btn">
                                     <div class="d-flex align-items-center">
-                                        <div class="action-icon bg-primary bg-opacity-10 text-primary me-3">
+                                        <div class="icon-box icon-box-primary" style="width: 32px; height: 32px; font-size: 0.9rem;">
                                             <i class="fa-solid fa-list"></i>
                                         </div>
                                         <div class="flex-grow-1">
@@ -356,7 +352,7 @@ try {
                                 
                                 <a href="call-history.php" class="action-btn">
                                     <div class="d-flex align-items-center">
-                                        <div class="action-icon bg-secondary bg-opacity-10 text-secondary me-3">
+                                        <div class="icon-box icon-box-secondary" style="width: 32px; height: 32px; font-size: 0.9rem;">
                                             <i class="fa-solid fa-history"></i>
                                         </div>
                                         <div class="flex-grow-1">
@@ -370,7 +366,7 @@ try {
                                 <?php if ($stats['pending_callbacks'] > 0): ?>
                                 <a href="call-history.php?filter=callbacks" class="action-btn border-warning">
                                     <div class="d-flex align-items-center">
-                                        <div class="action-icon bg-warning bg-opacity-10 text-warning me-3">
+                                        <div class="icon-box icon-box-warning" style="width: 32px; height: 32px; font-size: 0.9rem;">
                                             <i class="fa-solid fa-bell"></i>
                                         </div>
                                         <div class="flex-grow-1">
@@ -407,9 +403,9 @@ try {
                                         <a href="../donor-management/donors.php" class="btn btn-sm btn-primary">
                                             <i class="fa-solid fa-phone-alt me-1"></i>Make First Call
                                         </a>
-                                    </div>
+                        </div>
                                 <?php else: ?>
-                                    <div>
+                                                <div>
                                         <?php foreach ($recent_calls as $call): ?>
                                         <div class="recent-call-item">
                                             <div class="d-flex align-items-center gap-2 gap-md-3">
@@ -439,8 +435,8 @@ try {
                                             </div>
                                         </div>
                                         <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                             </div>
                         </div>
                     </div>
