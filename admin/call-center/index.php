@@ -68,6 +68,27 @@ try {
         $pending_cb->execute();
         $stats['pending_callbacks'] = (int)$pending_cb->get_result()->fetch_assoc()['cnt'];
         
+        // Get today's scheduled calls (appointments for today)
+        $today_date = date('Y-m-d');
+        $scheduled_today_query = $db->prepare("
+            SELECT 
+                a.id, a.appointment_date, a.appointment_time, a.notes,
+                d.id as donor_id, d.name, d.phone, d.balance
+            FROM call_center_appointments a
+            JOIN donors d ON a.donor_id = d.id
+            WHERE a.agent_id = ? AND a.status = 'scheduled' 
+                AND a.appointment_date = ?
+            ORDER BY a.appointment_time ASC
+            LIMIT 5
+        ");
+        $scheduled_today_query->bind_param('is', $user_id, $today_date);
+        $scheduled_today_query->execute();
+        $result = $scheduled_today_query->get_result();
+        $scheduled_today = [];
+        while ($row = $result->fetch_assoc()) {
+            $scheduled_today[] = $row;
+        }
+        
         // Get recent calls (last 8)
         $recent_query = $db->prepare("
             SELECT 
@@ -438,6 +459,68 @@ try {
                                         <?php endforeach; ?>
                                 </div>
                             <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Today's Scheduled Calls -->
+                    <div class="col-12 col-lg-7">
+                        <div class="dashboard-card">
+                            <div class="p-3 p-md-4 pb-0 d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0">
+                                    <i class="fa-solid fa-calendar-check me-2 text-info"></i>Today's Schedule
+                                </h6>
+                                <?php if (!empty($scheduled_today)): ?>
+                                <a href="my-schedule.php" class="btn btn-sm btn-outline-info">
+                                    View All
+                                </a>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <div class="p-3 p-md-4 pt-3">
+                                <?php if (empty($scheduled_today)): ?>
+                                    <div class="text-center py-4 text-muted">
+                                        <i class="fa-solid fa-calendar-xmark fa-2x mb-3 opacity-25"></i>
+                                        <p class="small mb-2">No scheduled calls for today</p>
+                                        <a href="my-schedule.php" class="btn btn-sm btn-info">
+                                            <i class="fa-solid fa-calendar-plus me-1"></i>View Schedule
+                                        </a>
+                                    </div>
+                                <?php else: ?>
+                                    <div>
+                                        <?php foreach ($scheduled_today as $appt): ?>
+                                        <div class="recent-call-item">
+                                            <div class="d-flex align-items-center gap-2 gap-md-3">
+                                                <div class="text-muted small fw-bold" style="min-width: 45px;">
+                                                    <?php echo date('H:i', strtotime($appt['appointment_time'])); ?>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-semibold small mb-1"><?php echo htmlspecialchars($appt['name']); ?></div>
+                                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                        <span class="badge bg-light text-dark border badge-sm">
+                                                            <i class="fa-solid fa-phone"></i> <?php echo htmlspecialchars($appt['phone']); ?>
+                                                        </span>
+                                                        <?php if (!empty($appt['notes'])): ?>
+                                                        <span class="badge bg-info badge-sm" title="<?php echo htmlspecialchars($appt['notes']); ?>">
+                                                            <i class="fa-solid fa-sticky-note"></i> Note
+                                                        </span>
+                                                        <?php endif; ?>
+                                                        <?php if ($appt['balance'] > 0): ?>
+                                                        <span class="text-danger small fw-semibold">
+                                                            £<?php echo number_format((float)$appt['balance'], 2); ?>
+                                                        </span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <a href="make-call.php?donor_id=<?php echo $appt['donor_id']; ?>" 
+                                                   class="btn btn-sm btn-success">
+                                                    <i class="fa-solid fa-phone-alt"></i> Call
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
