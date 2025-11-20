@@ -128,6 +128,23 @@ try {
         i.fas::before, i.fa-solid::before {
             display: inline-block !important;
         }
+        
+        /* Force icon visibility in stat cards */
+        .stat-icon i {
+            color: inherit !important;
+            opacity: 1 !important;
+            font-size: 1.2rem !important;
+        }
+        
+        .action-icon i {
+            color: inherit !important;
+            opacity: 1 !important;
+        }
+        
+        /* Test - make all icons bright red temporarily */
+        .fas {
+            color: #ff0000 !important;
+        }
     </style>
     <style>
         /* Compact, Mobile-First Dashboard Styles */
@@ -152,11 +169,16 @@ try {
         .stat-icon {
             width: 40px;
             height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             border-radius: 8px;
-            font-size: 1.1rem;
+            font-size: 1.2rem !important;
+        }
+        
+        .stat-icon i.fas {
+            display: inline-block !important;
+            line-height: 1 !important;
         }
         
         .stat-value {
@@ -194,11 +216,16 @@ try {
         .action-icon {
             width: 32px;
             height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             border-radius: 6px;
-            font-size: 0.9rem;
+            font-size: 1rem !important;
+        }
+        
+        .action-icon i.fas {
+            display: inline-block !important;
+            line-height: 1 !important;
         }
         
         .recent-call-item {
@@ -262,12 +289,16 @@ try {
                 </div>
                 
                 <!-- Font Awesome Test - Remove after verification -->
-                <div class="alert alert-info small mb-3">
-                    <strong>Icon Test:</strong> 
-                    <i class="fas fa-phone"></i> Phone
-                    <i class="fas fa-check ms-2"></i> Check
-                    <i class="fas fa-user ms-2"></i> User
-                    - If you see icons here, Font Awesome is working!
+                <div class="alert alert-warning mb-3">
+                    <strong style="color: #000;">ICON DIAGNOSTIC TEST:</strong><br>
+                    <div style="font-size: 2rem; margin: 10px 0; color: #ff0000;">
+                        <i class="fas fa-phone" style="color: red !important; font-size: 2rem !important;"></i> 
+                        <i class="fas fa-check" style="color: blue !important; font-size: 2rem !important;"></i> 
+                        <i class="fas fa-user" style="color: green !important; font-size: 2rem !important;"></i>
+                        <i class="fas fa-heart" style="color: purple !important; font-size: 2rem !important;"></i>
+                    </div>
+                    <small style="color: #000;">If you see RED phone, BLUE check, GREEN user, PURPLE heart = Font Awesome works!</small><br>
+                    <small style="color: #000;">If you see nothing or just colored boxes = Font Awesome NOT loading</small>
                 </div>
 
                 <?php if ($error_message): ?>
