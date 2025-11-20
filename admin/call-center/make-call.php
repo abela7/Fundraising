@@ -483,10 +483,10 @@ $page_title = 'Call: ' . $donor->name;
                 </div>
                 
                 <div class="action-buttons">
-                    <a href="index.php" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Queue
+                    <a href="donors-list.php" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Donors
                     </a>
-                    <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
+                    <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=0" 
                        class="btn btn-success btn-lg">
                         <i class="fas fa-phone-alt me-2"></i>Start Call
                     </a>
