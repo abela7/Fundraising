@@ -113,7 +113,7 @@ try {
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
         /* Compact, Mobile-First Dashboard Styles */
@@ -238,11 +238,13 @@ try {
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
                 <!-- Header -->
-                <div class="mb-4">
-                    <h1 class="h4 mb-1 text-primary fw-bold">
-                        <i class="fas fa-headset me-2"></i>Call Center
-                    </h1>
-                    <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h1 class="h4 mb-1 text-primary fw-bold">
+                            <i class="fas fa-headset me-2"></i>Call Center
+                        </h1>
+                        <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
+                    </div>
                 </div>
 
                 <?php if ($error_message): ?>
@@ -252,13 +254,24 @@ try {
                 </div>
                 <?php endif; ?>
 
-                <!-- Today's Stats -->
+                <!-- Start Calling Button - Top Priority -->
+                <div class="mb-4">
+                    <a href="../donor-management/donors.php?balance=has_balance" 
+                       class="btn btn-success btn-lg w-100 shadow-sm py-3">
+                        <i class="fas fa-phone-alt me-2"></i>
+                        <span class="fw-bold">Start Calling Donors</span>
+                        <span class="badge bg-white text-success ms-2"><?php echo $stats['donors_with_balance']; ?> with balance</span>
+                        <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
+                </div>
+
+                <!-- Key Stats -->
                 <div class="mb-4">
                     <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">
-                        <i class="fas fa-chart-line me-1"></i>Today's Performance
+                        <i class="fas fa-chart-line me-1"></i>Performance Overview
                     </h6>
                     <div class="row g-3">
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="stat-icon bg-primary bg-opacity-10 text-primary">
@@ -266,85 +279,31 @@ try {
                                     </div>
                                     <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
                                 </div>
-                                <div class="stat-label">Calls</div>
+                                <div class="stat-label">Today's Calls</div>
                                 <h3 class="stat-value text-primary"><?php echo $stats['today_calls']; ?></h3>
                             </div>
                         </div>
                         
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="d-flex align-items-start justify-content-between mb-2">
                                     <div class="stat-icon bg-success bg-opacity-10 text-success">
                                         <i class="fas fa-check-circle"></i>
                                     </div>
                                 </div>
-                                <div class="stat-label">Positive</div>
+                                <div class="stat-label">Successful</div>
                                 <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
                             </div>
                         </div>
                         
-                        <div class="col-6 col-md-3">
-                            <div class="dashboard-card stat-card">
-                                <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <div class="stat-icon bg-warning bg-opacity-10 text-warning">
-                                        <i class="fas fa-clock"></i>
-                                    </div>
-                                </div>
-                                <div class="stat-label">Talk Time</div>
-                                <h3 class="stat-value text-warning" style="font-size: 1.25rem;">
-                                    <?php echo gmdate("H:i", $stats['today_talk_time']); ?>
-                                </h3>
-                            </div>
-                        </div>
-                        
-                        <div class="col-6 col-md-3">
-                            <div class="dashboard-card stat-card">
-                                <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <div class="stat-icon bg-info bg-opacity-10 text-info">
-                                        <i class="fas fa-calendar-check"></i>
-                                    </div>
-                                </div>
-                                <div class="stat-label">Callbacks</div>
-                                <h3 class="stat-value text-info"><?php echo $stats['today_callbacks']; ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Donor Stats -->
-                <div class="mb-4">
-                    <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">
-                        <i class="fas fa-users me-1"></i>Donor Overview
-                    </h6>
-                    <div class="row g-3">
-                        <div class="col-6 col-lg-3">
+                        <div class="col-12 col-md-4">
                             <div class="dashboard-card stat-card">
                                 <div class="stat-icon bg-danger bg-opacity-10 text-danger mb-2">
                                     <i class="fas fa-exclamation-circle"></i>
                                 </div>
-                                <div class="stat-label">Outstanding</div>
+                                <div class="stat-label">Donors Outstanding</div>
                                 <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
                                 <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
-                            </div>
-                        </div>
-                        
-                        <div class="col-6 col-lg-3">
-                            <div class="dashboard-card stat-card">
-                                <div class="stat-icon bg-primary bg-opacity-10 text-primary mb-2">
-                                    <i class="fas fa-calendar-alt"></i>
-                                </div>
-                                <div class="stat-label">Active Plans</div>
-                                <h3 class="stat-value text-primary"><?php echo $stats['active_plans']; ?></h3>
-                            </div>
-                        </div>
-                        
-                        <div class="col-12 col-lg-6">
-                            <div class="dashboard-card p-3">
-                                <a href="../donor-management/donors.php?balance=has_balance" 
-                                   class="btn btn-success w-100 btn-lg">
-                                    <i class="fas fa-phone-alt me-2"></i>Start Calling Donors
-                                    <i class="fas fa-arrow-right ms-2"></i>
-                                </a>
                             </div>
                         </div>
                     </div>
