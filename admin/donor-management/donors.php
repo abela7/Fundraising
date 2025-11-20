@@ -386,6 +386,90 @@ unset($donor); // Break reference
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/donor-management.css">
+    <style>
+        /* Responsive Modal Styles */
+        @media (max-width: 768px) {
+            #donorDetailModal .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+            
+            #donorDetailModal .modal-body {
+                padding: 1rem !important;
+            }
+            
+            #donorDetailModal .card-body {
+                padding: 0.75rem !important;
+            }
+            
+            #donorDetailModal h4 {
+                font-size: 1.25rem !important;
+            }
+            
+            #donorDetailModal h5, #donorDetailModal h6 {
+                font-size: 1rem !important;
+            }
+            
+            #donorDetailModal .row.g-3,
+            #donorDetailModal .row.g-4 {
+                margin-left: -0.5rem !important;
+                margin-right: -0.5rem !important;
+            }
+            
+            #donorDetailModal .row.g-3 > *,
+            #donorDetailModal .row.g-4 > * {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+            
+            #donorDetailModal small {
+                font-size: 0.75rem !important;
+            }
+            
+            #donorDetailModal .modal-footer {
+                padding: 0.75rem !important;
+                flex-direction: column;
+                gap: 0.5rem !important;
+            }
+            
+            #donorDetailModal .modal-footer .btn {
+                width: 100%;
+                margin: 0 !important;
+            }
+            
+            #donorDetailModal .modal-footer > div {
+                width: 100%;
+                margin: 0 !important;
+            }
+            
+            #donorDetailModal .modal-footer .d-flex {
+                flex-direction: column !important;
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            #donorDetailModal .modal-dialog {
+                margin: 0.25rem;
+                max-width: calc(100% - 0.5rem);
+            }
+            
+            #donorDetailModal .border-start {
+                border-left-width: 3px !important;
+                padding-left: 0.5rem !important;
+            }
+            
+            #donorDetailModal h5.mb-0 {
+                font-size: 1rem !important;
+            }
+        }
+        
+        /* Ensure modal is scrollable */
+        #donorDetailModal .modal-body {
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -688,7 +772,7 @@ unset($donor); // Break reference
 
 <!-- Donor Detail Modal -->
 <div class="modal fade" id="donorDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <div>
@@ -701,35 +785,35 @@ unset($donor); // Break reference
             </div>
             <div class="modal-body p-3 p-md-4">
                 <!-- Donor Header Card -->
-                <div class="card border-primary mb-4">
-                    <div class="card-body">
-                        <h4 class="mb-2 text-primary" id="detail_name">-</h4>
+                <div class="card border-primary mb-3 mb-md-4">
+                    <div class="card-body p-3">
+                        <h4 class="mb-2 mb-md-3 text-primary" id="detail_name" style="word-break: break-word;">-</h4>
                         <div class="row g-2 small">
-                            <div class="col-6 col-sm-4">
-                                <span class="text-muted"><i class="fas fa-hashtag me-1"></i>ID:</span>
-                                <strong id="detail_id" class="ms-1">-</strong>
+                            <div class="col-4 col-sm-4">
+                                <div class="text-muted mb-1"><i class="fas fa-hashtag me-1"></i>ID</div>
+                                <strong id="detail_id" class="d-block">-</strong>
                             </div>
-                            <div class="col-6 col-sm-4">
-                                <span class="text-muted"><i class="fas fa-phone me-1"></i>Phone:</span>
-                                <strong id="detail_phone" class="ms-1">-</strong>
+                            <div class="col-8 col-sm-4">
+                                <div class="text-muted mb-1"><i class="fas fa-phone me-1"></i>Phone</div>
+                                <strong id="detail_phone" class="d-block" style="word-break: break-all;">-</strong>
                             </div>
                             <div class="col-12 col-sm-4">
-                                <span class="text-muted"><i class="fas fa-tag me-1"></i>Type:</span>
-                                <span id="detail_type" class="ms-1">-</span>
+                                <div class="text-muted mb-1"><i class="fas fa-tag me-1"></i>Type</div>
+                                <span id="detail_type" class="d-block">-</span>
                             </div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Two Column Layout -->
-                <div class="row g-3 g-md-4">
+                <div class="row g-3">
                     <!-- Left Column: Contact & Additional Info -->
-                    <div class="col-lg-6">
+                    <div class="col-12 col-lg-6">
                         <div class="card border-0 shadow-sm h-100">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-address-book me-2 text-primary"></i>Contact & Additional Information</h6>
+                            <div class="card-header bg-light p-2 p-md-3">
+                                <h6 class="mb-0 small"><i class="fas fa-address-book me-2 text-primary"></i>Contact & Information</h6>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body p-3">
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <small class="text-muted d-block mb-1"><i class="fas fa-envelope me-2"></i>Email</small>
@@ -765,12 +849,12 @@ unset($donor); // Break reference
                     </div>
                     
                     <!-- Right Column: Financial Info -->
-                    <div class="col-lg-6">
+                    <div class="col-12 col-lg-6">
                         <div class="card border-0 shadow-sm h-100">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-pound-sign me-2 text-success"></i>Financial Summary</h6>
+                            <div class="card-header bg-light p-2 p-md-3">
+                                <h6 class="mb-0 small"><i class="fas fa-pound-sign me-2 text-success"></i>Financial Summary</h6>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body p-3">
                                 <!-- Key Financial Metrics -->
                                 <div class="row g-3 mb-4">
                                     <div class="col-12 col-sm-4">
@@ -819,13 +903,13 @@ unset($donor); // Break reference
                     <!-- Payment Plan Info (if applicable) -->
                     <div class="col-12" id="payment_plan_section" style="display: none;">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-calendar-alt me-2 text-info"></i>Active Payment Plan
+                            <div class="card-header bg-light p-2 p-md-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <h6 class="mb-0 small">
+                                    <i class="fas fa-calendar-alt me-2 text-info"></i>Payment Plan
                                 </h6>
                                 <span class="badge bg-info" id="detail_plan_type_badge">Standard</span>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body p-3">
                                 <!-- Plan Summary -->
                                 <div class="row g-3 mb-3">
                                     <div class="col-6 col-md-3">
@@ -936,10 +1020,10 @@ unset($donor); // Break reference
                     <!-- System & Audit Info -->
                     <div class="col-12">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-secondary"></i>System Information</h6>
+                            <div class="card-header bg-light p-2 p-md-3">
+                                <h6 class="mb-0 small"><i class="fas fa-info-circle me-2 text-secondary"></i>System Information</h6>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body p-3">
                                 <div class="row g-3">
                                     <div class="col-6 col-md-4">
                                         <small class="text-muted d-block mb-1"><i class="fas fa-user-plus me-1"></i>Registered By</small>
@@ -973,11 +1057,11 @@ unset($donor); // Break reference
                     <!-- Admin Notes (if any) -->
                     <div class="col-12" id="admin_notes_section" style="display: none;">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-sticky-note me-2 text-warning"></i>Admin Notes</h6>
+                            <div class="card-header bg-light p-2 p-md-3">
+                                <h6 class="mb-0 small"><i class="fas fa-sticky-note me-2 text-warning"></i>Admin Notes</h6>
                             </div>
-                            <div class="card-body">
-                                <p id="detail_admin_notes" class="mb-0 text-muted">-</p>
+                            <div class="card-body p-3">
+                                <p id="detail_admin_notes" class="mb-0 text-muted small" style="word-break: break-word;">-</p>
                             </div>
                         </div>
                     </div>
@@ -1155,11 +1239,11 @@ $(document).ready(function() {
             : '<span class="badge bg-success">Immediate Payer</span>';
         $('#detail_type').html(typeHtml);
         
-        // Additional contact info
-        $('#detail_email').text(donor.email || '-');
-        $('#detail_city').text(donor.city || '-');
-        $('#detail_baptism_name').text(donor.baptism_name || '-');
-        $('#detail_church').text(donor.church_name || '-');
+        // Additional contact info (handle null/undefined properly)
+        $('#detail_email').text(donor.email && donor.email !== 'null' ? donor.email : '-');
+        $('#detail_city').text(donor.city && donor.city !== 'null' ? donor.city : '-');
+        $('#detail_baptism_name').text(donor.baptism_name && donor.baptism_name !== 'null' ? donor.baptism_name : '-');
+        $('#detail_church').text(donor.church_name && donor.church_name !== 'null' ? donor.church_name : '-');
         
         $('#detail_language').text((donor.preferred_language || 'en').toUpperCase());
         $('#detail_payment_method').text((donor.preferred_payment_method || 'bank_transfer').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
@@ -1229,13 +1313,29 @@ $(document).ready(function() {
             $('#detail_plan_miss_notification').text(formatDate(donor.miss_notification_date));
             $('#detail_plan_overdue_notification').text(formatDate(donor.overdue_reminder_date));
             
-            // Plan type
-            const isCustom = donor.plan_frequency_unit && (donor.plan_frequency_unit === 'week' || donor.plan_total_payments);
-            if (isCustom) {
+            // Plan type - Check if template was used
+            const hasTemplate = donor.template_id && donor.template_id > 0;
+            
+            if (hasTemplate) {
+                // Template-based plan
+                $('#detail_plan_type_badge').removeClass('bg-warning').addClass('bg-info').text('Template');
+                $('#detail_plan_type').text(donor.template_name || 'Template Plan');
+                $('#detail_plan_frequency_section').hide();
+                
+                // Show template name
+                if (donor.template_name) {
+                    $('#detail_plan_template').text(donor.template_name);
+                    $('#detail_plan_template_section').show();
+                } else {
+                    $('#detail_plan_template_section').hide();
+                }
+            } else {
+                // Custom plan (no template)
                 $('#detail_plan_type_badge').removeClass('bg-info').addClass('bg-warning').text('Custom');
                 $('#detail_plan_type').text('Custom Payment Plan');
+                $('#detail_plan_template_section').hide();
                 
-                // Show frequency info
+                // Show frequency info for custom plans
                 if (donor.plan_frequency_unit && donor.plan_frequency_number) {
                     const frequencyText = `Every ${donor.plan_frequency_number} ${donor.plan_frequency_unit}${donor.plan_frequency_number > 1 ? 's' : ''}`;
                     $('#detail_plan_frequency').text(frequencyText);
@@ -1243,18 +1343,6 @@ $(document).ready(function() {
                 } else {
                     $('#detail_plan_frequency_section').hide();
                 }
-            } else {
-                $('#detail_plan_type_badge').removeClass('bg-warning').addClass('bg-info').text('Standard');
-                $('#detail_plan_type').text('Standard Monthly Plan');
-                $('#detail_plan_frequency_section').hide();
-            }
-            
-            // Template info
-            if (donor.template_name) {
-                $('#detail_plan_template').text(donor.template_name);
-                $('#detail_plan_template_section').show();
-            } else {
-                $('#detail_plan_template_section').hide();
             }
             
             // Status
