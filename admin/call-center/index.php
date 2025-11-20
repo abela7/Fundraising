@@ -113,8 +113,22 @@ try {
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="../assets/admin.css">
+    <style>
+        /* Force Font Awesome to load properly */
+        .fas, .fa-solid {
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+            font-style: normal !important;
+            display: inline-block !important;
+        }
+        
+        /* Ensure icons are visible */
+        i.fas::before, i.fa-solid::before {
+            display: inline-block !important;
+        }
+    </style>
     <style>
         /* Compact, Mobile-First Dashboard Styles */
         .dashboard-card {
@@ -241,10 +255,19 @@ try {
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
                         <h1 class="h4 mb-1 text-primary fw-bold">
-                            <i class="fas fa-headset me-2"></i>Call Center
+                            <i class="fas fa-headset me-2" style="font-family: 'Font Awesome 6 Free'; font-weight: 900;"></i>Call Center
                         </h1>
                         <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
                     </div>
+                </div>
+                
+                <!-- Font Awesome Test - Remove after verification -->
+                <div class="alert alert-info small mb-3">
+                    <strong>Icon Test:</strong> 
+                    <i class="fas fa-phone"></i> Phone
+                    <i class="fas fa-check ms-2"></i> Check
+                    <i class="fas fa-user ms-2"></i> User
+                    - If you see icons here, Font Awesome is working!
                 </div>
 
                 <?php if ($error_message): ?>
