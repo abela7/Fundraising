@@ -570,6 +570,7 @@ unset($donor); // Break reference
                                         <th>Paid</th>
                                         <th>Balance</th>
                                         <th>Payment Method</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -602,6 +603,17 @@ unset($donor); // Break reference
                                         <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['balance'], 2); ?></td>
                                         <td><?php echo ucwords(str_replace('_', ' ', $donor['preferred_payment_method'] ?? 'Bank Transfer')); ?></td>
+                                        <td>
+                                            <?php if (!empty($donor['phone'])): ?>
+                                            <a href="../call-center/conversation.php?donor_id=<?php echo $donor['id']; ?>" 
+                                               class="btn btn-sm btn-success" 
+                                               onclick="event.stopPropagation();">
+                                                <i class="fas fa-phone-alt me-1"></i>Call
+                                            </a>
+                                            <?php else: ?>
+                                            <span class="text-muted small" onclick="event.stopPropagation();">No Phone</span>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -950,6 +962,9 @@ unset($donor); // Break reference
                 <a href="#" class="btn btn-info text-white" id="btnViewProfile" target="_blank">
                     <i class="fas fa-user-circle me-2"></i>View Full Profile
                 </a>
+                <button type="button" class="btn btn-success text-white" id="btnCallFromDetail">
+                    <i class="fas fa-phone-alt me-2"></i>Make Call
+                </button>
                 <button type="button" class="btn btn-primary" id="btnEditFromDetail">
                     <i class="fas fa-edit me-2"></i>Edit Donor
                 </button>
@@ -1250,6 +1265,13 @@ $(document).ready(function() {
         $('#donorDetailModal').modal('show');
     });
     
+    // Call button in detail modal
+    $('#btnCallFromDetail').click(function() {
+        if (currentDonorData && currentDonorData.id) {
+            window.location.href = '../call-center/conversation.php?donor_id=' + currentDonorData.id;
+        }
+    });
+
     // Edit button in detail modal
     $('#btnEditFromDetail').click(function() {
         if (currentDonorData) {

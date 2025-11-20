@@ -17,8 +17,34 @@ try {
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     
-    if (!$donor_id || !$queue_id) {
-        header('Location: index.php');
+    if (!$donor_id) {
+        header('Location: ../donor-management/donors.php');
+        exit;
+    }
+    
+    // If no session exists, create one
+    if ($session_id <= 0) {
+        try {
+            // Try to create session (queue_id might be nullable)
+            $q_param = $queue_id > 0 ? $queue_id : null;
+            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, start_time, status, conversation_stage) VALUES (?, ?, ?, NOW(), 'in_progress', 'connected')");
+            $stmt->bind_param('iii', $user_id, $donor_id, $q_param);
+            $stmt->execute();
+            $session_id = $db->insert_id;
+            $stmt->close();
+        } catch (Exception $e) {
+            // If NULL fails, try 0
+            error_log("Failed to create session with NULL queue_id: " . $e->getMessage());
+            $q_param = 0;
+            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, start_time, status, conversation_stage) VALUES (?, ?, ?, NOW(), 'in_progress', 'connected')");
+            $stmt->bind_param('iii', $user_id, $donor_id, $q_param);
+            $stmt->execute();
+            $session_id = $db->insert_id;
+            $stmt->close();
+        }
+        
+        // Redirect to include session_id
+        header("Location: conversation.php?donor_id=$donor_id&session_id=$session_id&queue_id=$queue_id");
         exit;
     }
     
@@ -66,7 +92,7 @@ try {
     $stmt->close();
     
     if (!$donor) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -681,7 +707,7 @@ $page_title = 'Live Call';
                                 <?php endif; ?>
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='index.php'">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='../donor-management/donors.php'">
                                         <i class="fas fa-times me-2"></i>Cancel Call
                                     </button>
                                     <button type="button" class="btn btn-primary btn-lg" id="btnStep1Next" disabled onclick="goToStep(2)">
