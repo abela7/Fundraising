@@ -242,6 +242,34 @@ $badge_labels = [
                 </div>
                 <?php endif; ?>
 
+                <!-- Quick Actions -->
+                <div class="quick-actions-grid">
+                    <a href="<?php echo htmlspecialchars(url_for('donor/make-payment.php')); ?>" class="action-btn">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Make Payment</span>
+                    </a>
+                    <a href="<?php echo htmlspecialchars(url_for('donor/payment-history.php')); ?>" class="action-btn">
+                        <i class="fas fa-history"></i>
+                        <span>Payment History</span>
+                    </a>
+                    <a href="<?php echo htmlspecialchars(url_for('donor/payment-plan.php')); ?>" class="action-btn">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>My Plan</span>
+                    </a>
+                    <a href="<?php echo htmlspecialchars(url_for('donor/update-pledge.php')); ?>" class="action-btn">
+                        <i class="fas fa-hand-holding-heart"></i>
+                        <span>Increase Pledge</span>
+                    </a>
+                    <a href="<?php echo htmlspecialchars(url_for('donor/contact.php')); ?>" class="action-btn">
+                        <i class="fas fa-envelope"></i>
+                        <span>Contact Us</span>
+                    </a>
+                    <a href="<?php echo htmlspecialchars(url_for('donor/profile.php')); ?>" class="action-btn">
+                        <i class="fas fa-user-circle"></i>
+                        <span>My Profile</span>
+                    </a>
+                </div>
+
                 <!-- Quick Stats -->
                 <div class="stats-grid">
                     <div class="stat-card">
