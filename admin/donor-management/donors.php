@@ -701,31 +701,19 @@ unset($donor); // Break reference
                 <!-- Donor Header Card -->
                 <div class="card border-primary mb-4">
                     <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h4 class="mb-2 text-primary" id="detail_name">-</h4>
-                                <div class="row g-2 small">
-                                    <div class="col-6 col-sm-4">
-                                        <span class="text-muted"><i class="fas fa-hashtag me-1"></i>ID:</span>
-                                        <strong id="detail_id" class="ms-1">-</strong>
-                                    </div>
-                                    <div class="col-6 col-sm-4">
-                                        <span class="text-muted"><i class="fas fa-phone me-1"></i>Phone:</span>
-                                        <strong id="detail_phone" class="ms-1">-</strong>
-                                    </div>
-                                    <div class="col-12 col-sm-4">
-                                        <span class="text-muted"><i class="fas fa-tag me-1"></i>Type:</span>
-                                        <span id="detail_type" class="ms-1">-</span>
-                                    </div>
-                                </div>
+                        <h4 class="mb-2 text-primary" id="detail_name">-</h4>
+                        <div class="row g-2 small">
+                            <div class="col-6 col-sm-4">
+                                <span class="text-muted"><i class="fas fa-hashtag me-1"></i>ID:</span>
+                                <strong id="detail_id" class="ms-1">-</strong>
                             </div>
-                            <div class="col-md-4 mt-3 mt-md-0 text-md-end">
-                                <button type="button" class="btn btn-success btn-sm me-1" id="btnCallFromDetailMobile">
-                                    <i class="fas fa-phone-alt me-1"></i>Call
-                                </button>
-                                <button type="button" class="btn btn-primary btn-sm" id="btnEditFromDetailMobile">
-                                    <i class="fas fa-edit me-1"></i>Edit
-                                </button>
+                            <div class="col-6 col-sm-4">
+                                <span class="text-muted"><i class="fas fa-phone me-1"></i>Phone:</span>
+                                <strong id="detail_phone" class="ms-1">-</strong>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <span class="text-muted"><i class="fas fa-tag me-1"></i>Type:</span>
+                                <span id="detail_type" class="ms-1">-</span>
                             </div>
                         </div>
                     </div>
@@ -998,13 +986,13 @@ unset($donor); // Break reference
                     <i class="fas fa-times me-1"></i>Close
                 </button>
                 <div class="d-flex flex-wrap gap-2 ms-auto">
-                    <a href="#" class="btn btn-info text-white d-none d-md-inline-block" id="btnViewProfile" target="_blank">
+                    <a href="#" class="btn btn-light border" style="color: #0a6286; border-color: #0a6286 !important;" id="btnViewProfile">
                         <i class="fas fa-user-circle me-1"></i>Profile
                     </a>
-                    <button type="button" class="btn btn-success text-white d-none d-md-inline-block" id="btnCallFromDetail">
+                    <button type="button" class="btn btn-success text-white" id="btnCallFromDetail">
                         <i class="fas fa-phone-alt me-1"></i>Call
                     </button>
-                    <button type="button" class="btn btn-primary d-none d-md-inline-block" id="btnEditFromDetail">
+                    <button type="button" class="btn btn-primary" id="btnEditFromDetail">
                         <i class="fas fa-edit me-1"></i>Edit
                     </button>
                     <button type="button" class="btn btn-danger" id="btnDeleteFromDetail">
@@ -1316,21 +1304,14 @@ $(document).ready(function() {
         $('#donorDetailModal').modal('show');
     });
     
-    // Call button in detail modal (desktop)
+    // Call button in detail modal
     $('#btnCallFromDetail').click(function() {
         if (currentDonorData && currentDonorData.id) {
             window.location.href = '../call-center/make-call.php?donor_id=' + currentDonorData.id;
         }
     });
-    
-    // Call button in detail modal (mobile - in header)
-    $('#btnCallFromDetailMobile').click(function() {
-        if (currentDonorData && currentDonorData.id) {
-            window.location.href = '../call-center/make-call.php?donor_id=' + currentDonorData.id;
-        }
-    });
 
-    // Edit button in detail modal (desktop)
+    // Edit button in detail modal
     $('#btnEditFromDetail').click(function() {
         if (currentDonorData) {
             $('#donorDetailModal').modal('hide');
@@ -1349,12 +1330,6 @@ $(document).ready(function() {
             
             $('#editDonorModal').modal('show');
         }
-    });
-    
-    // Edit button in detail modal (mobile - in header)
-    $('#btnEditFromDetailMobile').click(function() {
-        // Trigger the same handler as desktop
-        $('#btnEditFromDetail').click();
     });
     
     // Delete button in detail modal
