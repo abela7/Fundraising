@@ -25,44 +25,12 @@ function require_donor_login(): void {
 require_donor_login();
 $donor = current_donor();
 
-// Helper function to build SELECT fields dynamically
-function build_donor_select_fields($db) {
-    $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
-               has_active_plan, active_payment_plan_id, plan_monthly_amount,
-               plan_duration_months, plan_start_date, plan_next_due_date,
-               payment_status, preferred_payment_method, preferred_language,
-               preferred_payment_day, sms_opt_in";
-    
-    // Check optional columns
-    $email_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email'");
-    if ($email_check->num_rows > 0) $select_fields .= ", email";
-    $email_check->close();
-    
-    $email_opt_in_check = $db->query("SHOW COLUMNS FROM donors LIKE 'email_opt_in'");
-    if ($email_opt_in_check->num_rows > 0) $select_fields .= ", email_opt_in";
-    $email_opt_in_check->close();
-    
-    $baptism_check = $db->query("SHOW COLUMNS FROM donors LIKE 'baptism_name'");
-    if ($baptism_check->num_rows > 0) $select_fields .= ", baptism_name";
-    $baptism_check->close();
-
-    $rep_check = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
-    if ($rep_check->num_rows > 0) $select_fields .= ", representative_id";
-    $rep_check->close();
-    
-    $church_check = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
-    if ($church_check->num_rows > 0) $select_fields .= ", church_id";
-    $church_check->close();
-    
-    return $select_fields;
-}
-
 // Refresh donor data from database to ensure latest values
 if ($donor && $db_connection_ok) {
     try {
-        $select_fields = build_donor_select_fields($db);
-        
-        $refresh_stmt = $db->prepare("SELECT $select_fields FROM donors WHERE id = ? LIMIT 1");
+        // Simply fetch all columns - this ensures we get baptism_name, church_id etc. if they exist
+        // without needing to check for each one individually for the SELECT statement
+        $refresh_stmt = $db->prepare("SELECT * FROM donors WHERE id = ? LIMIT 1");
         $refresh_stmt->bind_param('i', $donor['id']);
         $refresh_stmt->execute();
         $fresh_donor = $refresh_stmt->get_result()->fetch_assoc();
@@ -84,11 +52,10 @@ $success_message = '';
 $error_message = '';
 
 // Fetch Church and Representative Info if assigned
-// IMPORTANT: This must happen AFTER the donor data refresh above
 $assigned_church = null;
 $assigned_rep = null;
 
-if ($db_connection_ok && isset($donor['church_id']) && !empty($donor['church_id'])) {
+if ($db_connection_ok && !empty($donor['church_id'])) {
     try {
         // Get Church
         $church_stmt = $db->prepare("SELECT name, city FROM churches WHERE id = ?");
@@ -98,7 +65,7 @@ if ($db_connection_ok && isset($donor['church_id']) && !empty($donor['church_id'
         $church_stmt->close();
         
         // Get Representative
-        if (isset($donor['representative_id']) && !empty($donor['representative_id'])) {
+        if (!empty($donor['representative_id'])) {
             $rep_stmt = $db->prepare("SELECT name, role, phone, email FROM church_representatives WHERE id = ?");
             $rep_stmt->bind_param('i', $donor['representative_id']);
             $rep_stmt->execute();
@@ -106,7 +73,7 @@ if ($db_connection_ok && isset($donor['church_id']) && !empty($donor['church_id'
             $rep_stmt->close();
         }
     } catch (Exception $e) {
-        error_log("Error fetching church/rep info: " . $e->getMessage());
+        // Ignore
     }
 }
 
@@ -220,8 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $db->autocommit(true);
                     
                     // Refresh donor data again to update session
-                    $select_fields_refresh = build_donor_select_fields($db);
-                    $refresh_stmt = $db->prepare("SELECT $select_fields_refresh FROM donors WHERE id = ? LIMIT 1");
+                    $refresh_stmt = $db->prepare("SELECT * FROM donors WHERE id = ? LIMIT 1");
                     $refresh_stmt->bind_param('i', $donor['id']);
                     $refresh_stmt->execute();
                     $updated_donor = $refresh_stmt->get_result()->fetch_assoc();
@@ -288,8 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $db->autocommit(true);
                 
                 // Refresh
-                $select_fields_pref = build_donor_select_fields($db);
-                $refresh_stmt = $db->prepare("SELECT $select_fields_pref FROM donors WHERE id = ? LIMIT 1");
+                $refresh_stmt = $db->prepare("SELECT * FROM donors WHERE id = ? LIMIT 1");
                 $refresh_stmt->bind_param('i', $donor['id']);
                 $refresh_stmt->execute();
                 $updated_donor = $refresh_stmt->get_result()->fetch_assoc();
@@ -329,18 +294,7 @@ if ($db_connection_ok) {
         $check_baptism = $db->query("SHOW COLUMNS FROM donors LIKE 'baptism_name'");
         $has_baptism_column = $check_baptism->num_rows > 0;
         $check_baptism->close();
-        
-        // Also check for church/rep columns
-        $check_rep = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'");
-        $has_rep_col = $check_rep->num_rows > 0;
-        $check_rep->close();
-        
-        $check_church = $db->query("SHOW COLUMNS FROM donors LIKE 'church_id'");
-        $has_church_col = $check_church->num_rows > 0;
-        $check_church->close();
-    } catch (Exception $e) {
-        error_log("Error checking columns: " . $e->getMessage());
-    }
+    } catch (Exception $e) {}
 }
 ?>
 <!DOCTYPE html>
