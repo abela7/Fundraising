@@ -87,7 +87,7 @@ try {
 } catch (Exception $e) {
     error_log("Make Call Error: " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine());
     // Show error instead of redirecting silently
-    die("Error loading donor information: " . htmlspecialchars($e->getMessage()) . ". <a href='index.php'>Go back</a>");
+    die("Error loading donor information: " . htmlspecialchars($e->getMessage()) . ". <a href='../donor-management/donors.php'>Go back</a>");
 }
 
 $page_title = 'Call: ' . $donor->name;
@@ -483,9 +483,15 @@ $page_title = 'Call: ' . $donor->name;
                 </div>
                 
                 <div class="action-buttons">
+                    <?php if($queue_id > 0): ?>
                     <a href="index.php" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Queue
                     </a>
+                    <?php else: ?>
+                    <a href="../donor-management/donors.php" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    </a>
+                    <?php endif; ?>
                     <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
                        class="btn btn-success btn-lg">
                         <i class="fas fa-phone-alt me-2"></i>Start Call

@@ -16,8 +16,8 @@ try {
     $donor_id = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : (isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0);
     $queue_id = isset($_POST['queue_id']) ? (int)$_POST['queue_id'] : (isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0);
     
-    if (!$donor_id || !$queue_id) {
-        header('Location: index.php');
+    if (!$donor_id) {
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -31,7 +31,7 @@ try {
     $stmt->close();
     
     if (!$donor) {
-        header('Location: index.php');
+        header('Location: ../donor-management/donors.php');
         exit;
     }
     
@@ -57,22 +57,24 @@ try {
         $stmt->close();
         
         // Update queue attempts count and last attempt time
-        $update_queue = "UPDATE call_center_queues 
-                        SET attempts_count = attempts_count + 1, 
-                            last_attempt_at = NOW(),
-                            status = 'in_progress'
-                        WHERE id = ?";
-        $stmt = $db->prepare($update_queue);
-        if ($stmt) {
-            $stmt->bind_param('i', $queue_id);
-            $stmt->execute();
-            $stmt->close();
+        if ($queue_id > 0) {
+            $update_queue = "UPDATE call_center_queues 
+                            SET attempts_count = attempts_count + 1, 
+                                last_attempt_at = NOW(),
+                                status = 'in_progress'
+                            WHERE id = ?";
+            $stmt = $db->prepare($update_queue);
+            if ($stmt) {
+                $stmt->bind_param('i', $queue_id);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
     }
     
 } catch (Exception $e) {
     error_log("Call Status Error: " . $e->getMessage());
-    header('Location: index.php');
+    header('Location: ../donor-management/donors.php');
     exit;
 }
 
