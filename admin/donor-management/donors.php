@@ -202,6 +202,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             echo json_encode(['success' => true, 'message' => $message]);
             exit;
             
+        } elseif ($action === 'update_donor') {
+            $donor_id = (int)($_POST['donor_id'] ?? 0);
+            
+            if ($donor_id <= 0) {
+                throw new Exception('Invalid donor ID');
+            }
+            
+            // Get existing donor
+            $existing = $db->prepare("SELECT * FROM donors WHERE id = ? FOR UPDATE");
+            $existing->bind_param('i', $donor_id);
+            $existing->execute();
+            $donor = $existing->get_result()->fetch_assoc();
+            
+            if (!$donor) {
+                throw new Exception('Donor not found');
+            }
+            
+            // Validate inputs
+            $name = trim($_POST['name'] ?? '');
+            $phone = trim($_POST['phone'] ?? '');
+            $preferred_language = $_POST['preferred_language'] ?? 'en';
+            $preferred_payment_method = $_POST['preferred_payment_method'] ?? 'bank_transfer';
+            
+            if (empty($name)) {
+                throw new Exception('Donor name is required');
+            }
+            
+            if (empty($phone)) {
+                throw new Exception('Phone number is required');
+            }
+            
+            // Check for duplicate phone (excluding current donor)
+            $check = $db->prepare("SELECT id FROM donors WHERE phone = ? AND id != ? LIMIT 1");
+            $check->bind_param('si', $phone, $donor_id);
+            $check->execute();
+            if ($check->get_result()->num_rows > 0) {
+                throw new Exception('Another donor with this phone number already exists');
+            }
+            
+            // Update donor
+            $stmt = $db->prepare("
+                UPDATE donors SET 
+                    name = ?, phone = ?, 
+                    preferred_language = ?, preferred_payment_method = ?, updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->bind_param('ssssi', $name, $phone, 
+                $preferred_language, $preferred_payment_method, $donor_id);
+            $stmt->execute();
+            
+            // Audit log
+            $user_id = (int)$current_user['id'];
+            $before = json_encode($donor);
+            $after = json_encode(['name' => $name, 'phone' => $phone]);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'donor', ?, 'update', ?, ?, 'admin')");
+            $audit->bind_param('iiss', $user_id, $donor_id, $before, $after);
+            $audit->execute();
+            
+            $db->commit();
+            echo json_encode(['success' => true, 'message' => 'Donor updated successfully']);
+            exit;
+            
         } elseif ($action === 'delete_donor') {
             $donor_id = (int)($_POST['donor_id'] ?? 0);
             
@@ -428,23 +490,21 @@ unset($donor); // Break reference
     </style>
 </head>
 <body>
-<div class="<?php echo $current_user['role'] === 'registrar' ? 'app-wrapper' : 'admin-wrapper'; ?>">
+<div class="<?php echo ($current_user['role'] ?? '') === 'registrar' ? 'app-wrapper' : 'admin-wrapper'; ?>">
     <?php 
-    // Load appropriate sidebar based on user role
-    if ($current_user['role'] === 'registrar') {
+    if (($current_user['role'] ?? '') === 'registrar') {
         include __DIR__ . '/../../registrar/includes/sidebar.php';
     } else {
-        include '../includes/sidebar.php';
+        include '../includes/sidebar.php'; 
     }
     ?>
     
-    <div class="<?php echo $current_user['role'] === 'registrar' ? 'app-content' : 'admin-content'; ?>">
+    <div class="<?php echo ($current_user['role'] ?? '') === 'registrar' ? 'app-content' : 'admin-content'; ?>">
         <?php 
-        // Load appropriate topbar based on user role
-        if ($current_user['role'] === 'registrar') {
+        if (($current_user['role'] ?? '') === 'registrar') {
             include __DIR__ . '/../../registrar/includes/topbar.php';
         } else {
-            include '../includes/topbar.php';
+            include '../includes/topbar.php'; 
         }
         ?>
         
@@ -659,6 +719,70 @@ unset($donor); // Break reference
                 </div>
             </div>
         </main>
+    </div>
+</div>
+
+<!-- Add Donor is now a separate page: add-donor.php -->
+
+<!-- Edit Donor Modal -->
+<div class="modal fade" id="editDonorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-edit me-2 text-primary"></i>Edit Donor
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editDonorForm">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="ajax_action" value="update_donor">
+                    <input type="hidden" name="donor_id" id="edit_donor_id">
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Donor Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" id="edit_name" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Phone (UK Format) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone" id="edit_phone" placeholder="07XXXXXXXXX" pattern="07[0-9]{9}" required>
+                            <small class="text-muted">Format: 07XXXXXXXXX</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Preferred Language</label>
+                            <select class="form-select" name="preferred_language" id="edit_preferred_language">
+                                <option value="en">English</option>
+                                <option value="am">Amharic</option>
+                                <option value="ti">Tigrinya</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Preferred Payment Method</label>
+                            <select class="form-select" name="preferred_payment_method" id="edit_preferred_payment_method">
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Type:</strong> <span id="edit_donor_type_display"></span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEditDonor">
+                    <i class="fas fa-save me-2"></i>Update Donor
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -970,6 +1094,12 @@ unset($donor); // Break reference
                     <button type="button" class="btn btn-success text-white" id="btnCallFromDetail" title="Call Donor">
                         <i class="fas fa-phone-alt me-1"></i><span class="btn-text">Call</span>
                     </button>
+                    <button type="button" class="btn btn-primary" id="btnEditFromDetail" title="Edit Donor">
+                        <i class="fas fa-edit me-1"></i><span class="btn-text">Edit</span>
+                    </button>
+                    <button type="button" class="btn btn-danger" id="btnDeleteFromDetail" title="Delete Donor">
+                        <i class="fas fa-trash me-1"></i><span class="btn-text">Delete</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -980,7 +1110,7 @@ unset($donor); // Break reference
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<?php if ($current_user['role'] === 'registrar'): ?>
+<?php if (($current_user['role'] ?? '') === 'registrar'): ?>
 <script src="../../registrar/assets/registrar.js"></script>
 <?php else: ?>
 <script src="../assets/admin.js"></script>
@@ -1291,7 +1421,68 @@ $(document).ready(function() {
         }
     });
 
+    // Edit button in detail modal
+    $('#btnEditFromDetail').click(function() {
+        if (currentDonorData) {
+            $('#donorDetailModal').modal('hide');
+            
+            // Populate edit modal
+            $('#edit_donor_id').val(currentDonorData.id);
+            $('#edit_name').val(currentDonorData.name);
+            $('#edit_phone').val(currentDonorData.phone || '');
+            $('#edit_preferred_language').val(currentDonorData.preferred_language || 'en');
+            $('#edit_preferred_payment_method').val(currentDonorData.preferred_payment_method || 'bank_transfer');
+            
+            const donorTypeText = currentDonorData.donor_type === 'pledge' 
+                ? '<span class="badge bg-warning">Pledge Donor</span>' 
+                : '<span class="badge bg-success">Immediate Payer</span>';
+            $('#edit_donor_type_display').html(donorTypeText);
+            
+            $('#editDonorModal').modal('show');
+        }
+    });
+    
+    // Delete button in detail modal
+    $('#btnDeleteFromDetail').click(function() {
+        if (currentDonorData) {
+            $('#donorDetailModal').modal('hide');
+            
+            if (!confirm('Are you sure you want to delete "' + currentDonorData.name + '"?\n\nThis action cannot be undone.')) {
+                return;
+            }
+            
+            const formData = $('#editDonorForm').serialize() + '&ajax_action=delete_donor&donor_id=' + currentDonorData.id;
+            
+            $.post('', formData, function(response) {
+                if (response.success) {
+                    alert(response.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            }, 'json').fail(function() {
+                alert('Server error. Please try again.');
+            });
+        }
+    });
+    
     // Add Donor is now on a separate page (add-donor.php)
+    
+    // Save Edit Donor
+    $('#saveEditDonor').click(function() {
+        const formData = $('#editDonorForm').serialize();
+        
+        $.post('', formData, function(response) {
+            if (response.success) {
+                alert(response.message);
+                location.reload();
+            } else {
+                alert('Error: ' + response.message);
+            }
+        }, 'json').fail(function() {
+            alert('Server error. Please try again.');
+        });
+    });
 });
 
 // Fallback for sidebar toggle
