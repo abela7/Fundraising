@@ -428,23 +428,35 @@ unset($donor); // Break reference
             
             #donorDetailModal .modal-footer {
                 padding: 0.75rem !important;
-                flex-direction: column;
+                flex-direction: row;
+                justify-content: space-between;
                 gap: 0.5rem !important;
             }
             
             #donorDetailModal .modal-footer .btn {
-                width: 100%;
+                padding: 0.5rem 0.75rem;
+                min-width: auto;
                 margin: 0 !important;
+            }
+            
+            #donorDetailModal .modal-footer .btn .btn-text {
+                display: none;
+            }
+            
+            #donorDetailModal .modal-footer .btn i {
+                margin: 0 !important;
+                font-size: 1.1rem;
             }
             
             #donorDetailModal .modal-footer > div {
-                width: 100%;
                 margin: 0 !important;
+                width: auto;
             }
             
             #donorDetailModal .modal-footer .d-flex {
-                flex-direction: column !important;
-                width: 100%;
+                flex-direction: row !important;
+                width: auto;
+                gap: 0.5rem;
             }
         }
         
@@ -483,18 +495,10 @@ unset($donor); // Break reference
                 <?php include '../includes/db_error_banner.php'; ?>
                 
                 <!-- Page Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h3 mb-1 text-primary">
-                            <i class="fas fa-list me-2"></i>Donor List
-                        </h1>
-                        <p class="text-muted mb-0">Manage all donors and their information</p>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <a href="add-donor.php" class="btn btn-primary btn-lg">
-                            <i class="fas fa-plus me-2"></i>Add New Donor
-                        </a>
-                    </div>
+                <div class="mb-4">
+                    <h1 class="h3 mb-1 text-primary">
+                        <i class="fas fa-list me-2"></i>Donor List
+                    </h1>
                 </div>
 
                 <!-- Stats Cards -->
@@ -1069,20 +1073,20 @@ unset($donor); // Break reference
             </div>
             <div class="modal-footer bg-light flex-wrap gap-2">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i>Close
+                    <i class="fas fa-times me-1"></i><span class="btn-text">Close</span>
                 </button>
                 <div class="d-flex flex-wrap gap-2 ms-auto">
-                    <a href="#" class="btn btn-light border" style="color: #0a6286; border-color: #0a6286 !important;" id="btnViewProfile">
-                        <i class="fas fa-user-circle me-1"></i>Profile
+                    <a href="#" class="btn btn-light border" style="color: #0a6286; border-color: #0a6286 !important;" id="btnViewProfile" title="View Profile">
+                        <i class="fas fa-user-circle me-1"></i><span class="btn-text">Profile</span>
                     </a>
-                    <button type="button" class="btn btn-success text-white" id="btnCallFromDetail">
-                        <i class="fas fa-phone-alt me-1"></i>Call
+                    <button type="button" class="btn btn-success text-white" id="btnCallFromDetail" title="Call Donor">
+                        <i class="fas fa-phone-alt me-1"></i><span class="btn-text">Call</span>
                     </button>
-                    <button type="button" class="btn btn-primary" id="btnEditFromDetail">
-                        <i class="fas fa-edit me-1"></i>Edit
+                    <button type="button" class="btn btn-primary" id="btnEditFromDetail" title="Edit Donor">
+                        <i class="fas fa-edit me-1"></i><span class="btn-text">Edit</span>
                     </button>
-                    <button type="button" class="btn btn-danger" id="btnDeleteFromDetail">
-                        <i class="fas fa-trash me-1"></i>Delete
+                    <button type="button" class="btn btn-danger" id="btnDeleteFromDetail" title="Delete Donor">
+                        <i class="fas fa-trash me-1"></i><span class="btn-text">Delete</span>
                     </button>
                 </div>
             </div>
