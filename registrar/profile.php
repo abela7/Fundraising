@@ -443,8 +443,23 @@ $page_title = 'My Profile';
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/registrar.js"></script>
 <script>
-// Initialize sidebar toggle
+// Profile page JavaScript initialization
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Profile page JavaScript loaded');
+
+    // Initialize sidebar functionality
+    initSidebar();
+
+    // Initialize dropdown menus
+    initDropdowns();
+
+    // Initialize modals
+    initModals();
+
+    console.log('Profile page initialization complete');
+});
+
+function initSidebar() {
     const sidebar = document.getElementById('sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     const sidebarToggle = document.getElementById('sidebarToggle');
@@ -452,52 +467,124 @@ document.addEventListener('DOMContentLoaded', function() {
     const desktopSidebarToggle = document.getElementById('desktopSidebarToggle');
     const appContent = document.querySelector('.app-content');
 
-    // Only initialize sidebar if elements exist
-    if (sidebar && sidebarOverlay) {
-        // Toggle sidebar (mobile)
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', function() {
-                sidebar.classList.add('show');
-                sidebarOverlay.classList.add('show');
-                document.body.style.overflow = 'hidden';
-            });
-        }
+    console.log('Sidebar elements found:', {sidebar, sidebarOverlay, sidebarToggle, sidebarClose, desktopSidebarToggle, appContent});
 
-        // Ensure collapsed by default on desktop
-        if (window.matchMedia('(min-width: 768px)').matches) {
-            sidebar.classList.add('collapsed');
-            if (appContent) { appContent.classList.add('collapsed'); }
-        }
+    if (!sidebar || !sidebarOverlay) {
+        console.log('Sidebar or overlay not found, skipping sidebar initialization');
+        return;
+    }
 
-        // Toggle sidebar (desktop)
-        if (desktopSidebarToggle) {
-            desktopSidebarToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('collapsed');
-                if (appContent) appContent.classList.toggle('collapsed');
-            });
-        }
-        
-        // Close sidebar
-        function closeSidebar() {
-            sidebar.classList.remove('show');
-            sidebarOverlay.classList.remove('show');
-            document.body.style.overflow = '';
-        }
-        
-        if (sidebarClose) {
-            sidebarClose.addEventListener('click', closeSidebar);
-        }
-        
-        sidebarOverlay.addEventListener('click', closeSidebar);
-        
-        // Close sidebar on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && sidebar.classList.contains('show')) {
-                closeSidebar();
-            }
+    // Toggle sidebar (mobile)
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function(e) {
+            console.log('Mobile sidebar toggle clicked');
+            e.preventDefault();
+            sidebar.classList.add('show');
+            sidebarOverlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
         });
     }
-});
+
+    // Ensure collapsed by default on desktop
+    if (window.matchMedia('(min-width: 768px)').matches) {
+        sidebar.classList.add('collapsed');
+        if (appContent) appContent.classList.add('collapsed');
+    }
+
+    // Toggle sidebar (desktop)
+    if (desktopSidebarToggle) {
+        desktopSidebarToggle.addEventListener('click', function(e) {
+            console.log('Desktop sidebar toggle clicked');
+            e.preventDefault();
+            sidebar.classList.toggle('collapsed');
+            if (appContent) appContent.classList.toggle('collapsed');
+        });
+    }
+
+    // Close sidebar function
+    function closeSidebar() {
+        console.log('Closing sidebar');
+        sidebar.classList.remove('show');
+        sidebarOverlay.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', closeSidebar);
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+
+    // Close sidebar on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+            closeSidebar();
+        }
+    });
+}
+
+function initDropdowns() {
+    const dropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+    console.log('Found dropdown toggles:', dropdownToggles.length);
+
+    dropdownToggles.forEach(function(toggle, index) {
+        toggle.addEventListener('click', function(e) {
+            console.log('Dropdown toggle clicked:', index);
+            e.preventDefault();
+
+            const dropdown = toggle.closest('.dropdown');
+            if (dropdown) {
+                const menu = dropdown.querySelector('.dropdown-menu');
+                if (menu) {
+                    // Close other dropdowns
+                    document.querySelectorAll('.dropdown-menu.show').forEach(function(otherMenu) {
+                        if (otherMenu !== menu) {
+                            otherMenu.classList.remove('show');
+                        }
+                    });
+
+                    // Toggle this dropdown
+                    menu.classList.toggle('show');
+                }
+            }
+        });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown')) {
+            document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
+                menu.classList.remove('show');
+            });
+        }
+    });
+}
+
+function initModals() {
+    const modalButtons = document.querySelectorAll('[data-bs-toggle="modal"]');
+    console.log('Found modal buttons:', modalButtons.length);
+
+    modalButtons.forEach(function(button, index) {
+        button.addEventListener('click', function(e) {
+            console.log('Modal button clicked:', index, button.getAttribute('data-bs-target'));
+            // Bootstrap should handle this, but ensure the modal exists
+            const target = button.getAttribute('data-bs-target');
+            if (target) {
+                const modal = document.querySelector(target);
+                if (modal) {
+                    console.log('Modal found:', target);
+                    // Try to show modal manually if Bootstrap doesn't work
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
+                } else {
+                    console.log('Modal not found:', target);
+                }
+            }
+        });
+    });
+}
 </script>
 </body>
 </html>
