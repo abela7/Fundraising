@@ -92,18 +92,30 @@ if ($current_user_id > 0) {
                 
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <a class="dropdown-item" href="<?php echo strpos($_SERVER['REQUEST_URI'], '/registrar/') !== false ? './profile.php' : '../registrar/profile.php'; ?>">
+                        <?php
+                        // Determine correct profile path based on current location
+                        $current_script = $_SERVER['SCRIPT_NAME'] ?? '';
+                        $is_in_messages = strpos($current_script, '/registrar/messages/') !== false;
+                        $profile_path = $is_in_messages ? '../profile.php' : './profile.php';
+                        ?>
+                        <a class="dropdown-item" href="<?php echo htmlspecialchars($profile_path); ?>">
                             <i class="fas fa-user me-2"></i>My Profile
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="./statistics.php">
+                        <?php
+                        $statistics_path = $is_in_messages ? '../statistics.php' : './statistics.php';
+                        ?>
+                        <a class="dropdown-item" href="<?php echo htmlspecialchars($statistics_path); ?>">
                             <i class="fas fa-chart-bar me-2"></i>My Stats
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <a class="dropdown-item text-danger" href="./logout.php">
+                        <?php
+                        $logout_path = $is_in_messages ? '../logout.php' : './logout.php';
+                        ?>
+                        <a class="dropdown-item text-danger" href="<?php echo htmlspecialchars($logout_path); ?>">
                             <i class="fas fa-sign-out-alt me-2"></i>Logout
                         </a>
                     </li>
