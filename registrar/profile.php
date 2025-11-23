@@ -40,36 +40,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     verify_csrf();
     
     $name = trim($_POST['name'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
     $email = trim($_POST['email'] ?? '');
     
     // Validation
     if (empty($name)) {
         $error_message = 'Name is required';
-    } elseif (empty($phone)) {
-        $error_message = 'Phone number is required';
     } else {
         try {
             $db->begin_transaction();
             
-            // Check if phone is already used by another user
-            $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
-            $check_stmt->bind_param('si', $phone, $user_id);
-            $check_stmt->execute();
-            if ($check_stmt->get_result()->num_rows > 0) {
-                throw new Exception('This phone number is already in use by another user');
-            }
-            $check_stmt->close();
-            
-            // Update user profile
-            $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ?, updated_at = NOW() WHERE id = ?');
-            $update_stmt->bind_param('sssi', $name, $phone, $email, $user_id);
+            // Update user profile (Phone is not editable)
+            $update_stmt = $db->prepare('UPDATE users SET name = ?, email = ?, updated_at = NOW() WHERE id = ?');
+            $update_stmt->bind_param('ssi', $name, $email, $user_id);
             $update_stmt->execute();
             $update_stmt->close();
             
             // Update session
             $_SESSION['user']['name'] = $name;
-            $_SESSION['user']['phone'] = $phone;
             $_SESSION['user']['email'] = $email;
             
             $db->commit();
@@ -282,10 +269,6 @@ $page_title = 'My Profile';
                             </h5>
                             
                             <div class="info-row">
-                                <span class="info-label">User ID</span>
-                                <span class="info-value">#<?php echo h($user['id']); ?></span>
-                            </div>
-                            <div class="info-row">
                                 <span class="info-label">Name</span>
                                 <span class="info-value"><?php echo h($user['name']); ?></span>
                             </div>
@@ -385,11 +368,6 @@ $page_title = 'My Profile';
                         <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
                     </div>
                     <div class="mb-3">
-                        <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
-                        <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone']); ?>" required>
-                        <small class="text-muted">Used for login</small>
-                    </div>
-                    <div class="mb-3">
                         <label for="email" class="form-label">Email Address</label>
                         <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email']); ?>">
                         <small class="text-muted">Optional</small>
@@ -445,7 +423,16 @@ $page_title = 'My Profile';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/registrar.js"></script>
+<script src="assets/registrar.js?v=<?php echo time(); ?>"></script>
+<script>
+    // Initialize Bootstrap components manually if needed
+    document.addEventListener('DOMContentLoaded', function() {
+        var modals = document.querySelectorAll('.modal');
+        modals.forEach(function(modal) {
+            new bootstrap.Modal(modal);
+        });
+    });
+</script>
 </body>
 </html>
 
