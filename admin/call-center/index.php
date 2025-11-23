@@ -89,14 +89,16 @@ try {
             $scheduled_today[] = $row;
         }
 
-        // Get recent calls (last 8)
+        // Get recent calls (last 8) - DISTINCT to avoid duplicates
         $recent_query = $db->prepare("
             SELECT 
                 s.id, s.donor_id, s.created_at, s.conversation_stage,
-                s.duration_seconds, d.name, d.phone, d.balance
+                s.outcome, s.disposition, s.duration_seconds, 
+                d.name, d.phone, d.balance
             FROM call_center_sessions s
             JOIN donors d ON s.donor_id = d.id
-            WHERE s.agent_id = ?
+            WHERE s.agent_id = ? AND s.call_ended_at IS NOT NULL
+            GROUP BY s.donor_id, DATE(s.created_at), s.id
             ORDER BY s.created_at DESC
             LIMIT 8
         ");
@@ -427,7 +429,28 @@ try {
                         </div>
                                 <?php else: ?>
                                                 <div>
-                                        <?php foreach ($recent_calls as $call): ?>
+                                        <?php foreach ($recent_calls as $call): 
+                                            // Determine status label and badge color
+                                            $stage = $call['conversation_stage'] ?? 'unknown';
+                                            $outcome = $call['outcome'] ?? '';
+                                            
+                                            // Map conversation_stage to user-friendly labels and colors
+                                            $status_map = [
+                                                'connected' => ['label' => 'Connected', 'class' => 'bg-success'],
+                                                'identity_verified' => ['label' => 'Verified', 'class' => 'bg-info'],
+                                                'pledge_discussed' => ['label' => 'Discussed', 'class' => 'bg-primary'],
+                                                'payment_options_discussed' => ['label' => 'Options Discussed', 'class' => 'bg-primary'],
+                                                'agreement_reached' => ['label' => 'Agreed', 'class' => 'bg-success'],
+                                                'payment_method_selected' => ['label' => 'Completed', 'class' => 'bg-success'],
+                                                'callback_scheduled' => ['label' => 'Callback Scheduled', 'class' => 'bg-warning text-dark'],
+                                                'no_answer' => ['label' => 'No Answer', 'class' => 'bg-secondary'],
+                                                'busy_signal' => ['label' => 'Busy', 'class' => 'bg-warning text-dark'],
+                                                'no_connection' => ['label' => 'Not Connected', 'class' => 'bg-secondary'],
+                                                'in_progress' => ['label' => 'In Progress', 'class' => 'bg-info']
+                                            ];
+                                            
+                                            $status_info = $status_map[$stage] ?? ['label' => ucfirst(str_replace('_', ' ', $stage)), 'class' => 'bg-secondary'];
+                                        ?>
                                         <div class="recent-call-item">
                                             <div class="d-flex align-items-center gap-2 gap-md-3">
                                                 <div class="text-muted small" style="min-width: 45px;">
@@ -437,10 +460,10 @@ try {
                                                     <div class="fw-semibold small mb-1"><?php echo htmlspecialchars($call['name']); ?></div>
                                                     <div class="d-flex flex-wrap gap-2 align-items-center">
                                                         <span class="badge bg-light text-dark border badge-sm">
-                                                            <?php echo gmdate("i:s", (int)$call['duration_seconds']); ?>
+                                                            <i class="fa-solid fa-clock me-1"></i><?php echo gmdate("i:s", (int)$call['duration_seconds']); ?>
                                                         </span>
-                                                        <span class="badge bg-secondary badge-sm">
-                                                            <?php echo ucfirst(str_replace('_', ' ', $call['conversation_stage'] ?? 'N/A')); ?>
+                                                        <span class="badge <?php echo $status_info['class']; ?> badge-sm">
+                                                            <?php echo $status_info['label']; ?>
                                                         </span>
                                                         <?php if ($call['balance'] > 0): ?>
                                                         <span class="text-danger small fw-semibold">

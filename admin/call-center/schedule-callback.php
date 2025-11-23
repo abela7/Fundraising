@@ -192,9 +192,19 @@ date_default_timezone_set('Europe/London');
                     ];
                     $outcome = $outcome_map[$status] ?? 'no_answer';
                     
+                    // Map status to conversation_stage for accurate tracking
+                    $stage_map = [
+                        'not_picked_up' => 'no_answer',
+                        'busy' => 'busy_signal',
+                        'busy_cant_talk' => 'callback_scheduled',
+                        'not_ready_to_pay' => 'callback_scheduled'
+                    ];
+                    $conversation_stage = $stage_map[$status] ?? 'no_answer';
+                    
                     $update_session = "
                         UPDATE call_center_sessions 
                         SET outcome = ?,
+                            conversation_stage = ?,
                             disposition = 'callback_scheduled_specific_time',
                             callback_scheduled_for = ?,
                             callback_reason = ?,
@@ -210,7 +220,7 @@ date_default_timezone_set('Europe/London');
                     
                     $stmt = $db->prepare($update_session);
                     if ($stmt) {
-                        $stmt->bind_param('sssissii', $outcome, $callback_datetime, $reason, $duration_seconds, $callback_note, $extra_notes, $session_id, $user_id);
+                        $stmt->bind_param('ssssissii', $outcome, $conversation_stage, $callback_datetime, $reason, $duration_seconds, $callback_note, $extra_notes, $session_id, $user_id);
                         $stmt->execute();
                         $stmt->close();
                     }
