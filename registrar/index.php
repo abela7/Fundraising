@@ -372,12 +372,6 @@ if (isset($_SESSION['success_message'])) {
     $success = $_SESSION['success_message'];
     unset($_SESSION['success_message']);
 }
-
-// Check for access denied message
-if (isset($_SESSION['access_denied_message'])) {
-    $error = $_SESSION['access_denied_message'];
-    unset($_SESSION['access_denied_message']);
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -86,9 +86,9 @@ function require_admin(): void {
             return;
         }
         
-        // Registrar trying to access admin-only pages - redirect to registrar dashboard
+        // Registrar trying to access admin-only pages - redirect to access denied page
         $_SESSION['access_denied_message'] = 'You are not allowed to access this page. This page is restricted to administrators only.';
-        header('Location: /registrar/index.php');
+        header('Location: /registrar/access-denied.php');
         exit;
     }
     

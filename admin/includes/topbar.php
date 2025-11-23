@@ -83,7 +83,7 @@ if ($current_user_id > 0) {
           </div>
         </div>
         <div class="dropdown-divider"></div>
-        <a href="../profile/" class="dropdown-item">
+        <a href="<?php echo ($user['role'] ?? '') === 'registrar' ? '/registrar/profile.php' : '../profile/'; ?>" class="dropdown-item">
           <i class="fas fa-user-circle"></i> My Profile
         </a>
         <a href="../settings/" class="dropdown-item">
