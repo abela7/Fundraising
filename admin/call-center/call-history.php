@@ -7,6 +7,7 @@ require_login();
 $db = db();
 $user_id = (int)($_SESSION['user']['id'] ?? 0);
 $user_role = $_SESSION['user']['role'] ?? 'registrar';
+$is_registrar = ($user_role === 'registrar');
 
 // Filter parameters
 $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : null;
@@ -15,12 +16,19 @@ $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 
 // Agent filter logic
-// If 'agent' is set in GET, use it (empty means all). 
-// If NOT set, default to current user.
-if (isset($_GET['agent'])) {
-    $agent_filter = $_GET['agent'];
-} else {
+// Registrars can ONLY see their own calls
+// Admins can see all calls or filter by agent
+if ($is_registrar) {
+    // Force registrars to only see their own calls
     $agent_filter = (string)$user_id;
+} else {
+    // Admins can filter by agent or see all
+    if (isset($_GET['agent'])) {
+        $agent_filter = $_GET['agent'];
+    } else {
+        // Default to all agents for admins
+        $agent_filter = '';
+    }
 }
 
 // Build query
@@ -160,17 +168,23 @@ $page_title = 'Call History';
                             <label class="form-label">Date To</label>
                             <input type="date" name="date_to" class="form-control" value="<?php echo htmlspecialchars($date_to); ?>">
                         </div>
+                        <?php if (!$is_registrar): ?>
+                        <!-- Agent filter - only show for admins -->
                         <div class="col-md-3">
                             <label class="form-label">Agent</label>
                             <select name="agent" class="form-select">
                                 <option value="">All Agents</option>
-                                <?php while ($agent = $agents_result->fetch_object()): ?>
+                                <?php 
+                                // Reset the result pointer since we used it earlier
+                                $agents_result->data_seek(0);
+                                while ($agent = $agents_result->fetch_object()): ?>
                                     <option value="<?php echo $agent->id; ?>" <?php echo $agent_filter === (string)$agent->id ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($agent->name); ?>
                                     </option>
                                 <?php endwhile; ?>
                             </select>
                         </div>
+                        <?php endif; ?>
                         <div class="col-12">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-search me-2"></i>Filter
