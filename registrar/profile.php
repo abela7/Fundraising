@@ -40,23 +40,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     verify_csrf();
     
     $name = trim($_POST['name'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
     $email = trim($_POST['email'] ?? '');
     
     // Validation
     if (empty($name)) {
         $error_message = 'Name is required';
+    } elseif (empty($phone)) {
+        $error_message = 'Phone number is required';
     } else {
         try {
             $db->begin_transaction();
             
-            // Update user profile (Phone is not editable)
-            $update_stmt = $db->prepare('UPDATE users SET name = ?, email = ?, updated_at = NOW() WHERE id = ?');
-            $update_stmt->bind_param('ssi', $name, $email, $user_id);
+            // Check if phone is already used by another user
+            $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
+            $check_stmt->bind_param('si', $phone, $user_id);
+            $check_stmt->execute();
+            if ($check_stmt->get_result()->num_rows > 0) {
+                throw new Exception('This phone number is already in use by another user');
+            }
+            $check_stmt->close();
+            
+            // Update user profile
+            $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ?, updated_at = NOW() WHERE id = ?');
+            $update_stmt->bind_param('sssi', $name, $phone, $email, $user_id);
             $update_stmt->execute();
             $update_stmt->close();
             
             // Update session
             $_SESSION['user']['name'] = $name;
+            $_SESSION['user']['phone'] = $phone;
             $_SESSION['user']['email'] = $email;
             
             $db->commit();
@@ -368,6 +381,11 @@ $page_title = 'My Profile';
                         <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
                     </div>
                     <div class="mb-3">
+                        <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                        <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone']); ?>" required>
+                        <small class="text-muted">Used for login</small>
+                    </div>
+                    <div class="mb-3">
                         <label for="email" class="form-label">Email Address</label>
                         <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email']); ?>">
                         <small class="text-muted">Optional</small>
@@ -423,15 +441,61 @@ $page_title = 'My Profile';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/registrar.js?v=<?php echo time(); ?>"></script>
 <script>
-    // Initialize Bootstrap components manually if needed
-    document.addEventListener('DOMContentLoaded', function() {
-        var modals = document.querySelectorAll('.modal');
-        modals.forEach(function(modal) {
-            new bootstrap.Modal(modal);
+// Initialize sidebar toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarClose = document.getElementById('sidebarClose');
+    const desktopSidebarToggle = document.getElementById('desktopSidebarToggle');
+    const appContent = document.querySelector('.app-content');
+
+    // Toggle sidebar (mobile)
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.add('show');
+            sidebarOverlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
         });
+    }
+
+    // Ensure collapsed by default on desktop
+    if (sidebar && window.matchMedia('(min-width: 768px)').matches) {
+        sidebar.classList.add('collapsed');
+        if (appContent) { appContent.classList.add('collapsed'); }
+    }
+
+    // Toggle sidebar (desktop)
+    if (desktopSidebarToggle) {
+        desktopSidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+            appContent.classList.toggle('collapsed');
+        });
+    }
+    
+    // Close sidebar
+    function closeSidebar() {
+        sidebar.classList.remove('show');
+        sidebarOverlay.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+    
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', closeSidebar);
+    }
+    
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+    
+    // Close sidebar on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+            closeSidebar();
+        }
     });
+});
 </script>
 </body>
 </html>
