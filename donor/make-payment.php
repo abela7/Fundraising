@@ -239,25 +239,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <?php include 'includes/topbar.php'; ?>
         
         <main class="main-content">
-                <div class="page-header">
+                <div class="page-header mb-3">
                     <h1 class="page-title">Make a Payment</h1>
                 </div>
 
                 <?php if ($success_message): ?>
-                    <div class="alert alert-success alert-dismissible fade show">
+                    <div class="alert alert-success alert-dismissible fade show mb-3">
                         <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success_message); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
                 <?php if ($error_message): ?>
-                    <div class="alert alert-danger alert-dismissible fade show">
+                    <div class="alert alert-danger alert-dismissible fade show mb-3">
                         <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error_message); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
-                <div class="row g-4">
+                <div class="row g-3 g-lg-4">
                     <!-- Payment Summary -->
                     <div class="col-lg-4">
                         <div class="card sticky-top" style="top: 100px;">
