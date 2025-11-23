@@ -88,7 +88,7 @@ try {
         while ($row = $result->fetch_assoc()) {
             $scheduled_today[] = $row;
         }
-
+        
         // Get recent calls (last 8)
         $recent_query = $db->prepare("
             SELECT 
@@ -379,7 +379,7 @@ try {
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">My Schedule</div>
                                             <div class="text-muted" style="font-size: 0.7rem;">View calendar & appointments</div>
-                                </div>
+                                        </div>
                                         <?php if ($stats['pending_callbacks'] > 0): ?>
                                         <span class="badge bg-warning text-dark"><?php echo $stats['pending_callbacks']; ?></span>
                                         <?php endif; ?>

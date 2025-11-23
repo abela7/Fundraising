@@ -24,20 +24,24 @@ try {
     
     // If no session exists, create one
     if ($session_id <= 0) {
-        // Handle queue_id properly - use NULL if no valid queue
-        if ($queue_id > 0) {
-            // Valid queue exists
+        try {
+            // Try to create session (queue_id might be nullable)
+            $q_param = $queue_id > 0 ? $queue_id : null;
             $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, start_time, status, conversation_stage) VALUES (?, ?, ?, NOW(), 'in_progress', 'connected')");
-            $stmt->bind_param('iii', $user_id, $donor_id, $queue_id);
-        } else {
-            // No queue (direct call) - set queue_id to NULL
-            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, start_time, status, conversation_stage) VALUES (?, ?, NULL, NOW(), 'in_progress', 'connected')");
-            $stmt->bind_param('ii', $user_id, $donor_id);
+            $stmt->bind_param('iii', $user_id, $donor_id, $q_param);
+            $stmt->execute();
+            $session_id = $db->insert_id;
+            $stmt->close();
+        } catch (Exception $e) {
+            // If NULL fails, try 0
+            error_log("Failed to create session with NULL queue_id: " . $e->getMessage());
+            $q_param = 0;
+            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, start_time, status, conversation_stage) VALUES (?, ?, ?, NOW(), 'in_progress', 'connected')");
+            $stmt->bind_param('iii', $user_id, $donor_id, $q_param);
+            $stmt->execute();
+            $session_id = $db->insert_id;
+            $stmt->close();
         }
-        
-        $stmt->execute();
-        $session_id = $db->insert_id;
-        $stmt->close();
         
         // Redirect to include session_id
         header("Location: conversation.php?donor_id=$donor_id&session_id=$session_id&queue_id=$queue_id");
