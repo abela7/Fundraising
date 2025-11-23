@@ -364,41 +364,38 @@ $page_title = 'My Profile';
 </div>
 
 <!-- Edit Profile Modal -->
-<div class="modal fade" id="editProfileModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="">
-                <?php echo csrf_field(); ?>
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fas fa-edit me-2"></i>Edit Profile
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
-                        <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone']); ?>" required>
-                        <small class="text-muted">Used for login</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email Address</label>
-                        <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email']); ?>">
-                        <small class="text-muted">Optional</small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" name="update_profile" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Save Changes
-                    </button>
-                </div>
-            </form>
+<div id="editProfileModal" class="custom-modal" style="display: none;">
+    <div class="custom-modal-overlay" onclick="closeModal('editProfileModal')"></div>
+    <div class="custom-modal-content">
+        <div class="custom-modal-header">
+            <h5><i class="fas fa-edit me-2"></i>Edit Profile</h5>
+            <button type="button" class="custom-modal-close" onclick="closeModal('editProfileModal')">&times;</button>
         </div>
+        <form method="POST" action="">
+            <?php echo csrf_field(); ?>
+            <div class="custom-modal-body">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
+                </div>
+                <div class="mb-3">
+                    <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                    <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone']); ?>" required>
+                    <small class="text-muted">Used for login</small>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email']); ?>">
+                    <small class="text-muted">Optional</small>
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editProfileModal')">Cancel</button>
+                <button type="submit" name="update_profile" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
