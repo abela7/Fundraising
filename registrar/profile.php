@@ -21,6 +21,66 @@ function h($value) {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
+$success_message = '';
+$error_message = '';
+$is_edit_mode = isset($_GET['edit']) && $_GET['edit'] == '1';
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
+    try {
+        verify_csrf();
+        
+        $name = trim($_POST['name'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        
+        // Validation
+        if (empty($name)) {
+            throw new Exception('Name is required');
+        }
+        if (empty($phone)) {
+            throw new Exception('Phone number is required');
+        }
+        
+        // Check if phone is already used by another user
+        $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
+        if ($check_stmt) {
+            $check_stmt->bind_param('si', $phone, $user_id);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
+            if ($check_result && $check_result->num_rows > 0) {
+                $check_stmt->close();
+                throw new Exception('This phone number is already in use by another user');
+            }
+            $check_stmt->close();
+        }
+        
+        // Update user profile
+        $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ? WHERE id = ?');
+        if (!$update_stmt) {
+            throw new Exception('Database prepare failed: ' . $db->error);
+        }
+        $email_value = empty($email) ? null : $email;
+        $update_stmt->bind_param('sssi', $name, $phone, $email_value, $user_id);
+        if (!$update_stmt->execute()) {
+            throw new Exception('Update failed: ' . $update_stmt->error);
+        }
+        $update_stmt->close();
+        
+        // Update session
+        $_SESSION['user']['name'] = $name;
+        $_SESSION['user']['phone'] = $phone;
+        $_SESSION['user']['email'] = $email;
+        
+        $success_message = 'Profile updated successfully!';
+        $is_edit_mode = false; // Exit edit mode after successful update
+        
+    } catch (Exception $e) {
+        $error_message = 'Failed to update profile: ' . $e->getMessage();
+        $is_edit_mode = true; // Stay in edit mode if there's an error
+    }
+}
+
 // Load user data from database
 try {
     $stmt = $db->prepare('SELECT id, name, phone, email, role, created_at, last_login_at FROM users WHERE id = ? LIMIT 1');
@@ -154,6 +214,20 @@ $page_title = 'My Profile';
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
                 
+                <?php if ($success_message): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i><?php echo h($success_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+                
+                <?php if ($error_message): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo h($error_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+                
                 <!-- Profile Header -->
                 <div class="profile-header">
                     <div class="text-center">
@@ -178,10 +252,50 @@ $page_title = 'My Profile';
                     <!-- Account Information -->
                     <div class="col-12 col-lg-6">
                         <div class="profile-card">
-                            <h5>
-                                <i class="fas fa-info-circle me-2"></i>Account Information
-                            </h5>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>Account Information
+                                </h5>
+                                <?php if (!$is_edit_mode): ?>
+                                <a href="?edit=1" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </a>
+                                <?php endif; ?>
+                            </div>
                             
+                            <?php if ($is_edit_mode): ?>
+                            <!-- Edit Form -->
+                            <form method="POST" action="">
+                                <?php echo csrf_field(); ?>
+                                
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone <span class="text-danger">*</span></label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone'] ?? ''); ?>" required>
+                                    <small class="text-muted">Used for login</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email'] ?? ''); ?>">
+                                    <small class="text-muted">Optional</small>
+                                </div>
+                                
+                                <div class="d-flex gap-2 justify-content-end mt-4">
+                                    <a href="profile.php" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </a>
+                                    <button type="submit" name="update_profile" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i>Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                            <?php else: ?>
+                            <!-- Read-only View -->
                             <div class="info-row">
                                 <span class="info-label">Name</span>
                                 <span class="info-value"><?php echo h($user['name']); ?></span>
@@ -224,6 +338,7 @@ $page_title = 'My Profile';
                                     ?>
                                 </span>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
