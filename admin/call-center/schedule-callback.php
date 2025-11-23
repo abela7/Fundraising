@@ -110,93 +110,69 @@ try {
                     $appointment_type = 'payment_discussion';
                 }
                 
-                // Construct query based on session and queue availability to avoid binding NULLs
-                $columns = "donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, slot_duration_minutes, appointment_type, status, notes, created_by, created_at";
-                $values_placeholders = "";
-                $types = "";
-                $params = [];
+                // 4 Explicit Scenarios to avoid dynamic binding issues
+                $appointment_status = 'scheduled';
                 
-                // 1. donor_id (i)
-                $types .= "i";
-                $params[] = $donor_id;
-                
-                // 2. agent_id (i)
-                $types .= "i";
-                $params[] = $user_id;
-                
-                // 3. session_id (i or NULL)
-                if ($session_id > 0) {
-                    $values_placeholders .= "?, ";
-                    $types .= "i";
-                    $params[] = $session_id;
+                if ($session_id > 0 && $queue_id > 0) {
+                    // Scenario 1: Both Session and Queue exist
+                    $query = "INSERT INTO call_center_appointments 
+                        (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) throw new Exception("DB Error: " . $db->error);
+                    
+                    $stmt->bind_param("iiiississsi", 
+                        $donor_id, $user_id, $session_id, $queue_id, 
+                        $appointment_date, $appointment_time, $slot_duration, 
+                        $appointment_type, $appointment_status, $notes, $user_id
+                    );
+                    
+                } elseif ($session_id > 0 && $queue_id <= 0) {
+                    // Scenario 2: Session exists, No Queue (queue_id is NULL)
+                    $query = "INSERT INTO call_center_appointments 
+                        (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
+                        VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) throw new Exception("DB Error: " . $db->error);
+                    
+                    $stmt->bind_param("iiississsi", 
+                        $donor_id, $user_id, $session_id, 
+                        $appointment_date, $appointment_time, $slot_duration, 
+                        $appointment_type, $appointment_status, $notes, $user_id
+                    );
+                    
+                } elseif ($session_id <= 0 && $queue_id > 0) {
+                    // Scenario 3: No Session (session_id is NULL), Queue exists
+                    $query = "INSERT INTO call_center_appointments 
+                        (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
+                        VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) throw new Exception("DB Error: " . $db->error);
+                    
+                    $stmt->bind_param("iiississsi", 
+                        $donor_id, $user_id, $queue_id, 
+                        $appointment_date, $appointment_time, $slot_duration, 
+                        $appointment_type, $appointment_status, $notes, $user_id
+                    );
+                    
                 } else {
-                    $values_placeholders .= "NULL, ";
+                    // Scenario 4: Neither Session nor Queue exist (Both NULL)
+                    $query = "INSERT INTO call_center_appointments 
+                        (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
+                        VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) throw new Exception("DB Error: " . $db->error);
+                    
+                    $stmt->bind_param("iississsi", 
+                        $donor_id, $user_id, 
+                        $appointment_date, $appointment_time, $slot_duration, 
+                        $appointment_type, $appointment_status, $notes, $user_id
+                    );
                 }
-                
-                // 4. queue_id (i or NULL)
-                if ($queue_id > 0) {
-                    $values_placeholders .= "?, ";
-                    $types .= "i";
-                    $params[] = $queue_id;
-                } else {
-                    $values_placeholders .= "NULL, ";
-                }
-                
-                // Rest of params: date, time, duration, type, status(literal), notes, created_by, created_at(literal)
-                $values_placeholders .= "?, ?, ?, ?, 'scheduled', ?, ?, NOW()";
-                
-                // 5. appointment_date (s)
-                $types .= "s";
-                $params[] = $appointment_date;
-                
-                // 6. appointment_time (s)
-                $types .= "s";
-                $params[] = $appointment_time;
-                
-                // 7. slot_duration (i)
-                $types .= "i";
-                $params[] = $slot_duration;
-                
-                // 8. appointment_type (s)
-                $types .= "s";
-                $params[] = $appointment_type;
-                
-                // 9. notes (s)
-                $types .= "s";
-                $params[] = $notes;
-                
-                // 10. created_by (i)
-                $types .= "i";
-                $params[] = $user_id;
-                
-                $appointment_query = "INSERT INTO call_center_appointments ($columns) VALUES (?, ?, $values_placeholders)";
-                
-                $stmt = $db->prepare($appointment_query);
-                if (!$stmt) {
-                    throw new Exception("Failed to prepare appointment query: " . $db->error);
-                }
-                
-                // Debug log for params
-                debug_log("Types: $types");
-                debug_log("Params: " . print_r($params, true));
-                
-                // Validate types length matches params count
-                if (strlen($types) !== count($params)) {
-                    throw new Exception("Internall Error: Type definition length (" . strlen($types) . ") does not match params count (" . count($params) . ")");
-                }
-                
-                // Fix for 500 error: Dynamically bind params using references
-                // mysqli bind_param requires references
-                $bind_params_array = array(); // Explicitly initialize
-                $bind_params_array[] = $types;
-                
-                for ($i=0; $i<count($params);$i++) {
-                    $bind_name = 'bind' . $i;
-                    $$bind_name = $params[$i];
-                    $bind_params_array[] = &$$bind_name;
-                }
-                
-                call_user_func_array(array($stmt, 'bind_param'), $bind_params_array);
                 
                 if (!$stmt->execute()) {
                     throw new Exception("Failed to create appointment: " . $stmt->error);
