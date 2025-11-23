@@ -400,6 +400,22 @@ try {
                                         <i class="fa-solid fa-chevron-right text-muted small"></i>
                                     </div>
                                 </a>
+                                
+                                <?php if ($user_role === 'admin'): ?>
+                                <!-- Assign Donors - Admin Only -->
+                                <a href="assign-donors.php" class="action-btn">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box icon-box-success" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                            <i class="fa-solid fa-users-cog"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold small">Assign Donors</div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">Assign to agents</div>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
+                                    </div>
+                                </a>
+                                <?php endif; ?>
                                 </div>
                         </div>
                     </div>
