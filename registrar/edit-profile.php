@@ -4,11 +4,6 @@ error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('max_execution_time', '30');
 
-// Enable output buffering and flushing for debugging
-if (ob_get_level() === 0) {
-    ob_start();
-}
-
 // Ensure logs directory exists (silently fail if can't create)
 $logs_dir = __DIR__ . '/../logs';
 if (!is_dir($logs_dir)) {
@@ -42,12 +37,7 @@ try {
     
 } catch (Throwable $e) {
     error_log('FATAL ERROR in edit-profile.php initialization: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
-    // Show error details in development, generic message in production
-    if (ini_get('display_errors')) {
-        die('Error loading page: ' . htmlspecialchars($e->getMessage()) . ' in ' . htmlspecialchars($e->getFile()) . ':' . $e->getLine());
-    } else {
-        die('Error loading page. Please contact support.');
-    }
+    die('Error loading page. Please contact support.');
 }
 
 // Helper function
@@ -186,12 +176,8 @@ $page_title = 'Edit Profile';
     $sidebar_file = __DIR__ . '/includes/sidebar.php';
     if (file_exists($sidebar_file)) {
         try {
-            ob_start();
             include $sidebar_file;
-            $sidebar_output = ob_get_clean();
-            echo $sidebar_output;
         } catch (Throwable $e) {
-            ob_end_clean();
             error_log('Error including sidebar.php: ' . $e->getMessage());
             // Don't break the page if sidebar fails
         }
@@ -204,12 +190,8 @@ $page_title = 'Edit Profile';
         $topbar_file = __DIR__ . '/includes/topbar.php';
         if (file_exists($topbar_file)) {
             try {
-                ob_start();
                 include $topbar_file;
-                $topbar_output = ob_get_clean();
-                echo $topbar_output;
             } catch (Throwable $e) {
-                ob_end_clean();
                 error_log('Error including topbar.php: ' . $e->getMessage());
                 // Don't break the page if topbar fails
                 // Show a simple header instead
@@ -287,60 +269,6 @@ $page_title = 'Edit Profile';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Bootstrap fallback and minimal polyfills if CDN fails
-(function() {
-    'use strict';
-    function loadAltCdn() {
-        var alt = document.createElement('script');
-        alt.src = 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js';
-        alt.defer = true;
-        alt.onload = initPolyfills;
-        alt.onerror = initPolyfills; // even if alt fails, enable polyfills
-        document.head.appendChild(alt);
-    }
-    function initPolyfills() {
-        if (typeof window.bootstrap !== 'undefined') return; // Bootstrap loaded, nothing to polyfill
-        // Polyfill: dismissible alerts
-        document.querySelectorAll('.alert .btn-close').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var alert = btn.closest('.alert');
-                if (alert) alert.remove();
-            });
-        });
-        // Polyfill: simple dropdown toggle for user menu
-        var toggle = document.querySelector('[data-bs-toggle="dropdown"]');
-        var menu = toggle ? toggle.parentElement.querySelector('.dropdown-menu') : null;
-        if (toggle && menu) {
-            function closeMenu(e) {
-                if (!menu.classList.contains('show')) return;
-                if (!menu.contains(e.target) && !toggle.contains(e.target)) {
-                    menu.classList.remove('show');
-                    document.removeEventListener('click', closeMenu, true);
-                }
-            }
-            toggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                menu.classList.toggle('show');
-                if (menu.classList.contains('show')) {
-                    document.addEventListener('click', closeMenu, true);
-                }
-            });
-        }
-    }
-    // After page load, if Bootstrap is missing, try alt CDN then polyfill
-    window.addEventListener('load', function() {
-        setTimeout(function() {
-            if (typeof window.bootstrap === 'undefined') {
-                loadAltCdn();
-                // Ensure we eventually polyfill even if alt CDN is blocked
-                setTimeout(initPolyfills, 1200);
-            }
-        }, 200);
-    });
-})();
-</script>
-<script>
 // Prevent double submission and handle errors
 (function() {
     'use strict';
@@ -364,7 +292,7 @@ $page_title = 'Edit Profile';
                 
                 // Check if Bootstrap is loaded
                 if (typeof bootstrap === 'undefined') {
-                    console.warn('Bootstrap is not loaded - attempting fallback');
+                    console.warn('Bootstrap is not loaded - some features may not work');
                 }
             } catch (err) {
                 console.error('Error in DOMContentLoaded handler:', err);

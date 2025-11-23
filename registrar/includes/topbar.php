@@ -2,12 +2,9 @@
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
-// Get current user safely
-$current_user = current_user();
-
 // Get user initials for avatar
 $user_initials = '';
-$display_name = ($current_user['name'] ?? 'User');
+$display_name = current_user()['name'] ?? 'User';
 $names = preg_split('/\s+/', trim($display_name));
 foreach ($names as $name) {
     if ($name !== '') {
@@ -18,29 +15,15 @@ $user_initials = substr($user_initials ?: 'U', 0, 2);
 
 // Get unread message count
 $unread_count = 0;
-$current_user_id = ($current_user['id'] ?? 0);
+$current_user_id = current_user()['id'] ?? 0;
 if ($current_user_id > 0) {
-    try {
-        $db = db();
-        if ($db) {
-            $stmt = $db->prepare('SELECT COUNT(*) as count FROM user_messages WHERE recipient_user_id = ? AND read_at IS NULL');
-            if ($stmt) {
-                $stmt->bind_param('i', $current_user_id);
-                if ($stmt->execute()) {
-                    $result = $stmt->get_result();
-                    if ($result) {
-                        $row = $result->fetch_assoc();
-                        $unread_count = (int)($row['count'] ?? 0);
-                    }
-                }
-                $stmt->close();
-            }
-        }
-    } catch (Throwable $e) {
-        // Silently fail - don't break the page if message count query fails
-        error_log('Error loading unread message count in topbar: ' . $e->getMessage());
-        $unread_count = 0;
-    }
+    $db = db();
+    $stmt = $db->prepare('SELECT COUNT(*) as count FROM user_messages WHERE recipient_user_id = ? AND read_at IS NULL');
+    $stmt->bind_param('i', $current_user_id);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+    $unread_count = (int)($result['count'] ?? 0);
+    $stmt->close();
 }
 ?>
 
@@ -61,9 +44,7 @@ if ($current_user_id > 0) {
                     'index' => 'New Registration',
                     'search' => 'Search & Update',
                     'my-registrations' => 'My Registrations',
-                    'statistics' => 'Statistics',
-                    'profile' => 'My Profile',
-                    'edit-profile' => 'Edit Profile'
+                    'statistics' => 'Statistics'
                 ];
                 $current = basename($_SERVER['PHP_SELF'], '.php');
                 
@@ -105,7 +86,7 @@ if ($current_user_id > 0) {
                     <div class="user-avatar"><?php echo $user_initials; ?></div>
                     <div class="user-info">
                         <div class="user-name"><?php echo htmlspecialchars($display_name); ?></div>
-                        <div class="user-role"><?php echo htmlspecialchars($current_user['role'] ?? 'Registrar'); ?></div>
+                        <div class="user-role"><?php echo htmlspecialchars(current_user()['role'] ?? 'Registrar'); ?></div>
                     </div>
                 </button>
                 
