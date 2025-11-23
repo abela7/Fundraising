@@ -499,30 +499,99 @@ function setAmount(amount) {
 }
 
 // Page-specific behaviour for Make Payment
-document.addEventListener('DOMContentLoaded', function () {
-    const methodSelect = document.getElementById('payment_method');
-    const bankDetails  = document.getElementById('bankTransferDetails');
-    const referenceInput = document.querySelector('input[name="reference"]');
-
-    function updateBankDetailsVisibility() {
+(function() {
+    'use strict';
+    
+    let methodSelect, bankDetails, referenceInput;
+    let isInitialized = false;
+    
+    function initPaymentMethodHandler() {
+        if (isInitialized) return;
+        
+        methodSelect = document.getElementById('payment_method');
+        bankDetails = document.getElementById('bankTransferDetails');
+        referenceInput = document.querySelector('input[name="reference"]');
+        
         if (!methodSelect || !bankDetails) return;
-        const isBank = methodSelect.value === 'bank_transfer';
-        bankDetails.style.display = isBank ? 'block' : 'none';
+        
+        isInitialized = true;
 
-        // If switching to bank transfer and reference is empty, pre-fill with suggested reference
-        if (isBank && referenceInput && referenceInput.value.trim() === '') {
-            const suggestedRef = bankDetails.getAttribute('data-reference') || '';
-            if (suggestedRef !== '') {
-                referenceInput.value = suggestedRef;
+        let isUpdating = false;
+        
+        function updateBankDetailsVisibility() {
+            if (isUpdating) return; // Prevent recursive calls
+            
+            isUpdating = true;
+            const isBank = methodSelect.value === 'bank_transfer';
+            
+            // Force show/hide with multiple methods to ensure it works
+            if (isBank) {
+                bankDetails.style.display = 'block';
+                bankDetails.style.visibility = 'visible';
+                bankDetails.classList.remove('d-none');
+                // Ensure it's in the DOM flow
+                if (bankDetails.parentElement) {
+                    bankDetails.parentElement.style.display = '';
+                }
+            } else {
+                bankDetails.style.display = 'none';
             }
-        }
-    }
 
-    if (methodSelect && bankDetails) {
-        methodSelect.addEventListener('change', updateBankDetailsVisibility);
+            // If switching to bank transfer and reference is empty, pre-fill with suggested reference
+            if (isBank && referenceInput && referenceInput.value.trim() === '') {
+                const suggestedRef = bankDetails.getAttribute('data-reference') || '';
+                if (suggestedRef !== '') {
+                    referenceInput.value = suggestedRef;
+                }
+            }
+            
+            setTimeout(function() { isUpdating = false; }, 50);
+        }
+
+        // Use change event to show/hide bank details
+        methodSelect.addEventListener('change', function() {
+            updateBankDetailsVisibility();
+        });
+        
         // Run once on load to handle pre-selected method
-        updateBankDetailsVisibility();
+        setTimeout(function() {
+            updateBankDetailsVisibility();
+        }, 100);
+        
+        // Watch for any external changes to the display style that might hide it incorrectly
+        const observer = new MutationObserver(function(mutations) {
+            // Skip if we're the ones updating
+            if (isUpdating) return;
+            
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    // If bank transfer is selected but element is hidden, show it
+                    if (methodSelect.value === 'bank_transfer' && 
+                        bankDetails.style.display === 'none') {
+                        setTimeout(function() {
+                            if (methodSelect.value === 'bank_transfer') {
+                                bankDetails.style.display = 'block';
+                                bankDetails.style.visibility = 'visible';
+                            }
+                        }, 10);
+                    }
+                }
+            });
+        });
+        
+        observer.observe(bankDetails, {
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        });
     }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPaymentMethodHandler);
+    } else {
+        initPaymentMethodHandler();
+    }
+})();
 
     // Copy-to-clipboard buttons
     document.querySelectorAll('.copy-btn[data-copy-value]').forEach(function (btn) {
