@@ -1,14 +1,25 @@
 <?php
 declare(strict_types=1);
 
+// Enable error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
-require_login();
 
-// Set timezone to London for call center
-date_default_timezone_set('Europe/London');
+// Debug helper function
+function debug_log($message) {
+    error_log("[Schedule Callback Debug] " . $message);
+}
 
 try {
+    require_login();
+    
+    // Set timezone to London for call center
+    date_default_timezone_set('Europe/London');
+
     $db = db();
     $user_id = (int)$_SESSION['user']['id'];
     $user_name = $_SESSION['user']['name'] ?? 'Unknown';
@@ -33,8 +44,7 @@ try {
     ];
     
     if (!$donor_id) {
-        header('Location: ../donor-management/donors.php');
-        exit;
+        throw new Exception("Missing Donor ID");
     }
     
     // Get donor info for widget and display
@@ -57,6 +67,8 @@ try {
         LIMIT 1
     ";
     $stmt = $db->prepare($donor_query);
+    if (!$stmt) throw new Exception("Failed to prepare donor query: " . $db->error);
+    
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -64,8 +76,7 @@ try {
     $stmt->close();
     
     if (!$donor) {
-        header('Location: ../donor-management/donors.php');
-        exit;
+        throw new Exception("Donor not found");
     }
     
     // Get slot duration from config
@@ -165,8 +176,20 @@ try {
                     throw new Exception("Failed to prepare appointment query: " . $db->error);
                 }
                 
-                // Dynamically bind params
-                $stmt->bind_param($types, ...$params);
+                // Debug log for params
+                debug_log("Types: $types");
+                debug_log("Params: " . print_r($params, true));
+                
+                // Fix for 500 error: Dynamically bind params using references
+                // mysqli bind_param requires references
+                $bind_names[] = $types;
+                for ($i=0; $i<count($params);$i++) {
+                    $bind_name = 'bind' . $i;
+                    $$bind_name = $params[$i];
+                    $bind_names[] = &$$bind_name;
+                }
+                
+                call_user_func_array(array($stmt, 'bind_param'), $bind_names);
                 
                 if (!$stmt->execute()) {
                     throw new Exception("Failed to create appointment: " . $stmt->error);
@@ -237,10 +260,12 @@ try {
                 header('Location: callback-scheduled.php?appointment_id=' . $appointment_id . '&donor_id=' . $donor_id);
                 exit;
                 
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 $db->rollback();
-                $error_message = "Failed to schedule callback: " . $e->getMessage();
-                error_log("Schedule Callback Error: " . $e->getMessage());
+                $error_message = "Error: " . $e->getMessage();
+                // Also capture file and line for debugging
+                $error_detail = "File: " . $e->getFile() . " Line: " . $e->getLine();
+                error_log("Schedule Callback Fatal Error: " . $e->getMessage() . " | " . $error_detail);
             }
         } else {
             $error_message = "Please select both date and time.";
@@ -260,9 +285,14 @@ try {
         $status_label .= ' - ' . $reason_labels[$reason];
     }
     
-} catch (Exception $e) {
-    error_log("Schedule Callback Page Error: " . $e->getMessage());
-    $error_message = "An error occurred. Please try again.";
+} catch (Throwable $e) {
+    $error_message = "System Error: " . $e->getMessage();
+    $error_detail = "File: " . $e->getFile() . " Line: " . $e->getLine();
+    error_log("Page Load Fatal Error: " . $e->getMessage());
+    // If fatal error before loading HTML, echo it
+    if (!isset($page_title)) {
+        die('<div style="padding:20px;color:red;border:1px solid red;margin:20px;"><h3>System Error</h3>' . htmlspecialchars($error_message) . '<br><small>' . htmlspecialchars($error_detail) . '</small></div>');
+    }
 }
 
 $page_title = 'Schedule Callback';
@@ -444,7 +474,11 @@ $page_title = 'Schedule Callback';
                 
                 <?php if (isset($error_message)): ?>
                     <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Error:</strong> <?php echo htmlspecialchars($error_message); ?>
+                        <?php if (isset($error_detail)): ?>
+                            <br><small><?php echo htmlspecialchars($error_detail); ?></small>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
                 
@@ -569,10 +603,6 @@ $page_title = 'Schedule Callback';
     const bookBtn = document.getElementById('book-btn');
     const timeInput = document.getElementById('selected_time_input');
     
-    // Set default date to tomorrow if today is late
-    // ... (rest of logic remains same but loaded via fetch if needed) ...
-</script>
-<script>
     // Re-adding the inline script logic for slots from previous version
     document.getElementById('appointment_date').addEventListener('change', function() {
         const date = this.value;
