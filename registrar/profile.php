@@ -325,7 +325,7 @@ $page_title = 'My Profile';
                             </div>
                             
                             <div class="mt-3">
-                                <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                                <button type="button" class="btn btn-primary w-100" id="editProfileBtn" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                                     <i class="fas fa-edit me-2"></i>Edit Profile
                                 </button>
                             </div>
@@ -345,7 +345,7 @@ $page_title = 'My Profile';
                             </div>
                             
                             <div class="mt-3">
-                                <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                <button type="button" class="btn btn-warning w-100" id="changePasswordBtn" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                                     <i class="fas fa-key me-2"></i>Change Password
                                 </button>
                             </div>
@@ -512,8 +512,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Handle modals - let Bootstrap handle them automatically
-    // The data-bs-toggle="modal" and data-bs-target attributes should work
+    // Handle modals
+    const editProfileBtn = document.getElementById('editProfileBtn');
+    if (editProfileBtn) {
+        editProfileBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = document.getElementById('editProfileModal');
+            if (modal && typeof bootstrap !== 'undefined') {
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+            }
+        });
+    }
+
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    if (changePasswordBtn) {
+        changePasswordBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = document.getElementById('changePasswordModal');
+            if (modal && typeof bootstrap !== 'undefined') {
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+            }
+        });
+    }
 });
 </script>
 </body>
