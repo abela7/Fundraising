@@ -22,14 +22,22 @@ function h($value) {
 }
 
 // Load user data from database
-$stmt = $db->prepare('SELECT id, name, phone, email, role, created_at, last_login_at FROM users WHERE id = ? LIMIT 1');
-$stmt->bind_param('i', $user_id);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-if (!$user) {
-    die('User not found');
+try {
+    $stmt = $db->prepare('SELECT id, name, phone, email, role, created_at, last_login_at FROM users WHERE id = ? LIMIT 1');
+    if (!$stmt) {
+        throw new Exception('Database prepare failed: ' . $db->error);
+    }
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+    
+    if (!$user) {
+        die('User not found');
+    }
+} catch (Exception $e) {
+    die('Error loading user: ' . h($e->getMessage()));
 }
 
 $success_message = '';
@@ -37,99 +45,122 @@ $error_message = '';
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-    verify_csrf();
-    
-    $name = trim($_POST['name'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    
-    // Validation
-    if (empty($name)) {
-        $error_message = 'Name is required';
-    } elseif (empty($phone)) {
-        $error_message = 'Phone number is required';
-    } else {
-        try {
-            $db->begin_transaction();
-            
-            // Check if phone is already used by another user
-            $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
-            $check_stmt->bind_param('si', $phone, $user_id);
-            $check_stmt->execute();
-            if ($check_stmt->get_result()->num_rows > 0) {
-                throw new Exception('This phone number is already in use by another user');
-            }
-            $check_stmt->close();
-            
-            // Update user profile
-            $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ?, updated_at = NOW() WHERE id = ?');
-            $update_stmt->bind_param('sssi', $name, $phone, $email, $user_id);
-            $update_stmt->execute();
-            $update_stmt->close();
-            
-            // Update session
-            $_SESSION['user']['name'] = $name;
-            $_SESSION['user']['phone'] = $phone;
-            $_SESSION['user']['email'] = $email;
-            
-            $db->commit();
-            
-            // Reload user data
-            $stmt = $db->prepare('SELECT id, name, phone, email, role, created_at, last_login_at FROM users WHERE id = ? LIMIT 1');
-            $stmt->bind_param('i', $user_id);
-            $stmt->execute();
-            $user = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            
-            $success_message = 'Profile updated successfully!';
-        } catch (Exception $e) {
-            $db->rollback();
-            $error_message = $e->getMessage();
+    try {
+        verify_csrf();
+        
+        $name = trim($_POST['name'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        
+        // Validation
+        if (empty($name)) {
+            throw new Exception('Name is required');
         }
+        if (empty($phone)) {
+            throw new Exception('Phone number is required');
+        }
+        
+        $db->begin_transaction();
+        
+        // Check if phone is already used by another user
+        $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
+        if (!$check_stmt) {
+            throw new Exception('Database prepare failed: ' . $db->error);
+        }
+        $check_stmt->bind_param('si', $phone, $user_id);
+        $check_stmt->execute();
+        if ($check_stmt->get_result()->num_rows > 0) {
+            $check_stmt->close();
+            throw new Exception('This phone number is already in use by another user');
+        }
+        $check_stmt->close();
+        
+        // Update user profile
+        $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ?, updated_at = NOW() WHERE id = ?');
+        if (!$update_stmt) {
+            throw new Exception('Database prepare failed: ' . $db->error);
+        }
+        $update_stmt->bind_param('sssi', $name, $phone, $email, $user_id);
+        if (!$update_stmt->execute()) {
+            throw new Exception('Update failed: ' . $update_stmt->error);
+        }
+        $update_stmt->close();
+        
+        // Update session
+        $_SESSION['user']['name'] = $name;
+        $_SESSION['user']['phone'] = $phone;
+        $_SESSION['user']['email'] = $email;
+        
+        $db->commit();
+        
+        // Reload user data
+        $stmt = $db->prepare('SELECT id, name, phone, email, role, created_at, last_login_at FROM users WHERE id = ? LIMIT 1');
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        $success_message = 'Profile updated successfully!';
+    } catch (Exception $e) {
+        if ($db->in_transaction) {
+            $db->rollback();
+        }
+        $error_message = $e->getMessage();
     }
 }
 
 // Handle password change
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
-    verify_csrf();
-    
-    $current_password = $_POST['current_password'] ?? '';
-    $new_password = $_POST['new_password'] ?? '';
-    $confirm_password = $_POST['confirm_password'] ?? '';
-    
-    // Validation
-    if (empty($current_password)) {
-        $error_message = 'Current password is required';
-    } elseif (empty($new_password)) {
-        $error_message = 'New password is required';
-    } elseif (strlen($new_password) < 6) {
-        $error_message = 'New password must be at least 6 characters';
-    } elseif ($new_password !== $confirm_password) {
-        $error_message = 'New passwords do not match';
-    } else {
-        try {
-            // Verify current password
-            $stmt = $db->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
-            $stmt->bind_param('i', $user_id);
-            $stmt->execute();
-            $result = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            
-            if (!password_verify($current_password, $result['password_hash'])) {
-                throw new Exception('Current password is incorrect');
-            }
-            
-            // Update password
-            $new_hash = password_hash($new_password, PASSWORD_DEFAULT);
-            $update_stmt = $db->prepare('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?');
-            $update_stmt->bind_param('si', $new_hash, $user_id);
-            $update_stmt->execute();
-            $update_stmt->close();
-            
-            $success_message = 'Password changed successfully!';
-        } catch (Exception $e) {
-            $error_message = $e->getMessage();
+    try {
+        verify_csrf();
+        
+        $current_password = $_POST['current_password'] ?? '';
+        $new_password = $_POST['new_password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
+        
+        // Validation
+        if (empty($current_password)) {
+            throw new Exception('Current password is required');
         }
+        if (empty($new_password)) {
+            throw new Exception('New password is required');
+        }
+        if (strlen($new_password) < 6) {
+            throw new Exception('New password must be at least 6 characters');
+        }
+        if ($new_password !== $confirm_password) {
+            throw new Exception('New passwords do not match');
+        }
+        
+        // Verify current password
+        $stmt = $db->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+        if (!$stmt) {
+            throw new Exception('Database prepare failed: ' . $db->error);
+        }
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        if (!password_verify($current_password, $result['password_hash'])) {
+            throw new Exception('Current password is incorrect');
+        }
+        
+        // Update password
+        $new_hash = password_hash($new_password, PASSWORD_DEFAULT);
+        $update_stmt = $db->prepare('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?');
+        if (!$update_stmt) {
+            throw new Exception('Database prepare failed: ' . $db->error);
+        }
+        $update_stmt->bind_param('si', $new_hash, $user_id);
+        if (!$update_stmt->execute()) {
+            throw new Exception('Update failed: ' . $update_stmt->error);
+        }
+        $update_stmt->close();
+        
+        $success_message = 'Password changed successfully!';
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
     }
 }
 
@@ -325,7 +356,7 @@ $page_title = 'My Profile';
                             </div>
                             
                             <div class="mt-3">
-                                <button type="button" class="btn btn-primary w-100" id="editProfileBtn" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                                <button type="button" class="btn btn-primary w-100" onclick="openEditModal()">
                                     <i class="fas fa-edit me-2"></i>Edit Profile
                                 </button>
                             </div>
@@ -345,7 +376,7 @@ $page_title = 'My Profile';
                             </div>
                             
                             <div class="mt-3">
-                                <button type="button" class="btn btn-warning w-100" id="changePasswordBtn" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                <button type="button" class="btn btn-warning w-100" onclick="openPasswordModal()">
                                     <i class="fas fa-key me-2"></i>Change Password
                                 </button>
                             </div>
@@ -364,52 +395,55 @@ $page_title = 'My Profile';
 </div>
 
 <!-- Edit Profile Modal -->
-<div id="editProfileModal" class="custom-modal" style="display: none;">
-    <div class="custom-modal-overlay" onclick="closeModal('editProfileModal')"></div>
-    <div class="custom-modal-content">
-        <div class="custom-modal-header">
-            <h5><i class="fas fa-edit me-2"></i>Edit Profile</h5>
-            <button type="button" class="custom-modal-close" onclick="closeModal('editProfileModal')">&times;</button>
-        </div>
-        <form method="POST" action="">
-            <?php echo csrf_field(); ?>
-            <div class="custom-modal-body">
-                <div class="mb-3">
-                    <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
-                </div>
-                <div class="mb-3">
-                    <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
-                    <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone']); ?>" required>
-                    <small class="text-muted">Used for login</small>
-                </div>
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email Address</label>
-                    <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email']); ?>">
-                    <small class="text-muted">Optional</small>
-                </div>
-            </div>
-            <div class="custom-modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('editProfileModal')">Cancel</button>
-                <button type="submit" name="update_profile" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Save Changes
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Change Password Modal -->
-<div class="modal fade" id="changePasswordModal" tabindex="-1">
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" action="">
                 <?php echo csrf_field(); ?>
                 <div class="modal-header">
-                    <h5 class="modal-title">
+                    <h5 class="modal-title" id="editProfileModalLabel">
+                        <i class="fas fa-edit me-2"></i>Edit Profile
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                        <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone']); ?>" required>
+                        <small class="text-muted">Used for login</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email']); ?>">
+                        <small class="text-muted">Optional</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="update_profile" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="">
+                <?php echo csrf_field(); ?>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel">
                         <i class="fas fa-key me-2"></i>Change Password
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
@@ -438,103 +472,56 @@ $page_title = 'My Profile';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/registrar.js"></script>
 <script>
-// Simple JavaScript for profile page
+// Simple, robust JavaScript functions
+function openEditModal() {
+    try {
+        const modalElement = document.getElementById('editProfileModal');
+        if (!modalElement) {
+            console.error('Edit modal not found');
+            alert('Error: Modal not found. Please refresh the page.');
+            return;
+        }
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } catch (error) {
+        console.error('Error opening edit modal:', error);
+        alert('Error opening edit form. Please refresh the page.');
+    }
+}
+
+function openPasswordModal() {
+    try {
+        const modalElement = document.getElementById('changePasswordModal');
+        if (!modalElement) {
+            console.error('Password modal not found');
+            alert('Error: Modal not found. Please refresh the page.');
+            return;
+        }
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } catch (error) {
+        console.error('Error opening password modal:', error);
+        alert('Error opening password form. Please refresh the page.');
+    }
+}
+
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle sidebar toggle
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-    if (sidebarToggle && sidebar && sidebarOverlay) {
-        sidebarToggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            sidebar.classList.add('show');
-            sidebarOverlay.classList.add('show');
-            document.body.style.overflow = 'hidden';
-        });
-
-        // Close sidebar when clicking overlay
-        sidebarOverlay.addEventListener('click', function() {
-            sidebar.classList.remove('show');
-            sidebarOverlay.classList.remove('show');
-            document.body.style.overflow = '';
-        });
-    }
-
-    // Handle desktop sidebar toggle
-    const desktopSidebarToggle = document.getElementById('desktopSidebarToggle');
-    const appContent = document.querySelector('.app-content');
-
-    if (desktopSidebarToggle && sidebar && appContent) {
-        // Start collapsed on desktop
-        if (window.innerWidth >= 768) {
-            sidebar.classList.add('collapsed');
-            appContent.classList.add('collapsed');
-        }
-
-        desktopSidebarToggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            sidebar.classList.toggle('collapsed');
-            appContent.classList.toggle('collapsed');
-        });
-    }
-
-    // Handle dropdowns
-    const dropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-    dropdownToggles.forEach(function(toggle) {
-        toggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            const dropdown = toggle.closest('.dropdown');
-            if (dropdown) {
-                const menu = dropdown.querySelector('.dropdown-menu');
-                if (menu) {
-                    // Close other dropdowns
-                    document.querySelectorAll('.dropdown-menu.show').forEach(function(otherMenu) {
-                        otherMenu.classList.remove('show');
-                    });
-                    // Toggle this dropdown
-                    menu.classList.toggle('show');
-                }
-            }
-        });
-    });
-
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.dropdown')) {
-            document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
-                menu.classList.remove('show');
-            });
-        }
-    });
-
-    // Handle modals
-    const editProfileBtn = document.getElementById('editProfileBtn');
-    if (editProfileBtn) {
-        editProfileBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const modal = document.getElementById('editProfileModal');
-            if (modal && typeof bootstrap !== 'undefined') {
-                const bsModal = new bootstrap.Modal(modal);
-                bsModal.show();
-            }
-        });
-    }
-
-    const changePasswordBtn = document.getElementById('changePasswordBtn');
-    if (changePasswordBtn) {
-        changePasswordBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const modal = document.getElementById('changePasswordModal');
-            if (modal && typeof bootstrap !== 'undefined') {
-                const bsModal = new bootstrap.Modal(modal);
-                bsModal.show();
-            }
-        });
+    try {
+        console.log('Profile page loaded successfully');
+        
+        // Sidebar functionality is handled by registrar.js
+        
+        // Dropdown functionality is handled by registrar.js
+        
+        // Modals are handled by the onclick functions above
+        
+    } catch (error) {
+        console.error('Error initializing profile page:', error);
     }
 });
 </script>
 </body>
 </html>
-
