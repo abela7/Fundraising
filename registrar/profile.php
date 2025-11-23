@@ -443,6 +443,7 @@ $page_title = 'My Profile';
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Profile page JavaScript initialization
+alert('JavaScript is running!');
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Profile page JavaScript loaded');
 
