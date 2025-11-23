@@ -180,16 +180,23 @@ try {
                 debug_log("Types: $types");
                 debug_log("Params: " . print_r($params, true));
                 
+                // Validate types length matches params count
+                if (strlen($types) !== count($params)) {
+                    throw new Exception("Internall Error: Type definition length (" . strlen($types) . ") does not match params count (" . count($params) . ")");
+                }
+                
                 // Fix for 500 error: Dynamically bind params using references
                 // mysqli bind_param requires references
-                $bind_names[] = $types;
+                $bind_params_array = array(); // Explicitly initialize
+                $bind_params_array[] = $types;
+                
                 for ($i=0; $i<count($params);$i++) {
                     $bind_name = 'bind' . $i;
                     $$bind_name = $params[$i];
-                    $bind_names[] = &$$bind_name;
+                    $bind_params_array[] = &$$bind_name;
                 }
                 
-                call_user_func_array(array($stmt, 'bind_param'), $bind_names);
+                call_user_func_array(array($stmt, 'bind_param'), $bind_params_array);
                 
                 if (!$stmt->execute()) {
                     throw new Exception("Failed to create appointment: " . $stmt->error);
