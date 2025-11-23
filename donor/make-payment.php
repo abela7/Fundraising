@@ -53,6 +53,84 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
     }
 }
 
+// Bank transfer details (static)
+$bank_account_name   = 'LMKATH';
+$bank_account_number = '85455687';
+$bank_sort_code      = '53-70-44';
+
+// Build suggested bank transfer reference: FirstName + 4‑digit code from pledge notes (if available)
+$bank_reference_digits = '';
+$bank_reference_label  = '';
+
+if ($db_connection_ok) {
+    try {
+        // Only attempt lookup if pledges table exists
+        $pledges_table_exists = $db->query("SHOW TABLES LIKE 'pledges'")->num_rows > 0;
+        if ($pledges_table_exists) {
+            // Prefer donor_id if column exists, otherwise fall back to donor_phone
+            $has_donor_id_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'")->num_rows > 0;
+
+            if ($has_donor_id_col) {
+                $ref_stmt = $db->prepare("
+                    SELECT notes 
+                    FROM pledges 
+                    WHERE donor_id = ? AND status = 'approved'
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT 1
+                ");
+                $ref_stmt->bind_param('i', $donor['id']);
+            } else {
+                $ref_stmt = $db->prepare("
+                    SELECT notes 
+                    FROM pledges 
+                    WHERE donor_phone = ? AND status = 'approved'
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT 1
+                ");
+                $ref_stmt->bind_param('s', $donor['phone']);
+            }
+
+            if ($ref_stmt && $ref_stmt->execute()) {
+                $ref_result = $ref_stmt->get_result();
+                $row = $ref_result->fetch_assoc();
+                if ($row && !empty($row['notes'])) {
+                    // Extract digits from notes (e.g. 4‑digit code)
+                    $digits_only = preg_replace('/\D+/', '', (string)$row['notes']);
+                    if ($digits_only !== '') {
+                        // Use last 4 digits where possible
+                        $bank_reference_digits = strlen($digits_only) >= 4
+                            ? substr($digits_only, -4)
+                            : $digits_only;
+                    }
+                }
+            }
+            if ($ref_stmt) {
+                $ref_stmt->close();
+            }
+        }
+    } catch (Exception $e) {
+        // If anything fails, silently fall back to name‑only reference
+        error_log('Bank reference lookup failed in donor make-payment: ' . $e->getMessage());
+    }
+}
+
+// Derive first name from donor name
+$reference_name_part = '';
+if (!empty($donor['name'])) {
+    $name_parts = preg_split('/\s+/', trim((string)$donor['name']));
+    if (!empty($name_parts[0])) {
+        $reference_name_part = $name_parts[0];
+    }
+}
+
+if ($reference_name_part !== '' && $bank_reference_digits !== '') {
+    $bank_reference_label = $reference_name_part . $bank_reference_digits;
+} elseif ($reference_name_part !== '') {
+    $bank_reference_label = $reference_name_part;
+} elseif ($bank_reference_digits !== '') {
+    $bank_reference_label = $bank_reference_digits;
+}
+
 // Handle payment submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_payment') {
     verify_csrf();
@@ -267,7 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                             <label class="form-label fw-bold">
                                                 <i class="fas fa-credit-card me-2"></i>Payment Method <span class="text-danger">*</span>
                                             </label>
-                                            <select class="form-select form-select-lg" name="payment_method" required>
+                                            <select class="form-select form-select-lg" name="payment_method" id="payment_method" required>
                                                 <option value="">Select payment method...</option>
                                                 <option value="bank_transfer" <?php echo ($donor['preferred_payment_method'] ?? '') === 'bank_transfer' ? 'selected' : ''; ?>>
                                                     Bank Transfer
@@ -276,6 +354,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <option value="card">Card</option>
                                                 <option value="other">Other</option>
                                             </select>
+                                        </div>
+
+                                        <!-- Bank Transfer Details (shown only when Bank Transfer is selected) -->
+                                        <div class="mb-4" id="bankTransferDetails" style="display: none;"
+                                             data-reference="<?php echo htmlspecialchars($bank_reference_label, ENT_QUOTES, 'UTF-8'); ?>">
+                                            <div class="alert alert-secondary mb-0">
+                                                <h6 class="alert-heading mb-3">
+                                                    <i class="fas fa-university me-2"></i>Bank Transfer Details
+                                                </h6>
+
+                                                <!-- Account Name -->
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                                    <div class="small text-muted">Account Name</div>
+                                                    <div class="d-flex align-items-center mt-1 mt-sm-0">
+                                                        <strong class="me-2" id="bankAccountName"><?php echo htmlspecialchars($bank_account_name); ?></strong>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-link p-0 copy-btn"
+                                                                data-copy-value="<?php echo htmlspecialchars($bank_account_name, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-bs-toggle="tooltip"
+                                                                title="Copy account name">
+                                                            <i class="far fa-copy"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Account Number -->
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                                    <div class="small text-muted">Account Number</div>
+                                                    <div class="d-flex align-items-center mt-1 mt-sm-0">
+                                                        <strong class="me-2" id="bankAccountNumber"><?php echo htmlspecialchars($bank_account_number); ?></strong>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-link p-0 copy-btn"
+                                                                data-copy-value="<?php echo htmlspecialchars($bank_account_number, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-bs-toggle="tooltip"
+                                                                title="Copy account number">
+                                                            <i class="far fa-copy"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Sort Code -->
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                                                    <div class="small text-muted">Sort Code</div>
+                                                    <div class="d-flex align-items-center mt-1 mt-sm-0">
+                                                        <strong class="me-2" id="bankSortCode"><?php echo htmlspecialchars($bank_sort_code); ?></strong>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-link p-0 copy-btn"
+                                                                data-copy-value="<?php echo htmlspecialchars($bank_sort_code, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-bs-toggle="tooltip"
+                                                                title="Copy sort code">
+                                                            <i class="far fa-copy"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Recommended Reference -->
+                                                <?php if ($bank_reference_label !== ''): ?>
+                                                <div class="border-top pt-3 mt-2">
+                                                    <small class="text-muted d-block mb-1">
+                                                        When making a transfer, <strong>please use this reference</strong>:
+                                                    </small>
+                                                    <div class="d-flex flex-wrap justify-content-between align-items-center">
+                                                        <div class="fw-bold text-primary" id="bankReferenceText">
+                                                            <?php echo htmlspecialchars($bank_reference_label); ?>
+                                                        </div>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-link p-0 copy-btn mt-1 mt-sm-0"
+                                                                data-copy-value="<?php echo htmlspecialchars($bank_reference_label, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-bs-toggle="tooltip"
+                                                                title="Copy reference">
+                                                            <i class="far fa-copy"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <?php else: ?>
+                                                <div class="border-top pt-3 mt-2">
+                                                    <small class="text-muted">
+                                                        When making a transfer, please use your <strong>first name</strong> as the payment reference.
+                                                    </small>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
 
                                         <!-- Reference Number -->
@@ -337,6 +497,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 function setAmount(amount) {
     document.getElementById('payment_amount').value = amount.toFixed(2);
 }
+
+// Page-specific behaviour for Make Payment
+document.addEventListener('DOMContentLoaded', function () {
+    const methodSelect = document.getElementById('payment_method');
+    const bankDetails  = document.getElementById('bankTransferDetails');
+    const referenceInput = document.querySelector('input[name="reference"]');
+
+    function updateBankDetailsVisibility() {
+        if (!methodSelect || !bankDetails) return;
+        const isBank = methodSelect.value === 'bank_transfer';
+        bankDetails.style.display = isBank ? 'block' : 'none';
+
+        // If switching to bank transfer and reference is empty, pre-fill with suggested reference
+        if (isBank && referenceInput && referenceInput.value.trim() === '') {
+            const suggestedRef = bankDetails.getAttribute('data-reference') || '';
+            if (suggestedRef !== '') {
+                referenceInput.value = suggestedRef;
+            }
+        }
+    }
+
+    if (methodSelect && bankDetails) {
+        methodSelect.addEventListener('change', updateBankDetailsVisibility);
+        // Run once on load to handle pre-selected method
+        updateBankDetailsVisibility();
+    }
+
+    // Copy-to-clipboard buttons
+    document.querySelectorAll('.copy-btn[data-copy-value]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const value = btn.getAttribute('data-copy-value') || '';
+            if (!value) return;
+
+            function showCopiedTooltip() {
+                try {
+                    // If Bootstrap tooltip is enabled, temporarily change title
+                    const originalTitle = btn.getAttribute('data-bs-original-title') || btn.getAttribute('title') || 'Copy';
+                    btn.setAttribute('data-bs-original-title', 'Copied!');
+                    btn.setAttribute('title', 'Copied!');
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                        const tooltip = bootstrap.Tooltip.getInstance(btn) || new bootstrap.Tooltip(btn);
+                        tooltip.show();
+                        setTimeout(function () {
+                            tooltip.hide();
+                            btn.setAttribute('data-bs-original-title', originalTitle);
+                            btn.setAttribute('title', originalTitle);
+                        }, 1200);
+                    }
+                } catch (e) {
+                    // Silent fail if tooltips not available
+                }
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(value).then(showCopiedTooltip).catch(function () {
+                    showCopiedTooltip();
+                });
+            } else {
+                // Fallback for older browsers
+                const tempInput = document.createElement('input');
+                tempInput.type = 'text';
+                tempInput.value = value;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try {
+                    document.execCommand('copy');
+                } catch (e) {
+                    // ignore
+                }
+                document.body.removeChild(tempInput);
+                showCopiedTooltip();
+            }
+        });
+    });
+});
 </script>
 </body>
 </html>
