@@ -494,12 +494,6 @@ unset($donor); // Break reference
             <div class="container-fluid">
                 <?php include '../includes/db_error_banner.php'; ?>
                 
-                <!-- Page Header -->
-                <div class="mb-4">
-                    <h1 class="h3 mb-1 text-primary">
-                        <i class="fas fa-list me-2"></i>Donor List
-                    </h1>
-                </div>
 
                 <!-- Stats Cards -->
                 <div class="row g-4 mb-4">
