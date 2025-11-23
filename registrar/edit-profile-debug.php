@@ -1,85 +1,85 @@
 <?php
 declare(strict_types=1);
 error_reporting(E_ALL);
-ini_set('display_errors', '0');
+ini_set('display_errors', '1');
 ini_set('max_execution_time', '30');
 
-// Enable output buffering and flushing for debugging
-if (ob_get_level() === 0) {
-    ob_start();
-}
-
-// Ensure logs directory exists (silently fail if can't create)
-$logs_dir = __DIR__ . '/../logs';
-if (!is_dir($logs_dir)) {
-    @mkdir($logs_dir, 0755, true);
-}
+// Flush output immediately
+ob_start();
+echo "<!-- Step 1: Starting -->\n";
+ob_flush();
+flush();
 
 try {
+    echo "<!-- Step 2: Loading auth.php -->\n";
+    ob_flush();
+    flush();
     require_once __DIR__ . '/../shared/auth.php';
+    
+    echo "<!-- Step 3: Loading csrf.php -->\n";
+    ob_flush();
+    flush();
     require_once __DIR__ . '/../shared/csrf.php';
+    
+    echo "<!-- Step 4: Loading db.php -->\n";
+    ob_flush();
+    flush();
     require_once __DIR__ . '/../config/db.php';
     
+    echo "<!-- Step 5: Calling require_login() -->\n";
+    ob_flush();
+    flush();
     require_login();
     
+    echo "<!-- Step 6: Getting current_user() -->\n";
+    ob_flush();
+    flush();
     $current_user = current_user();
+    
     if (!$current_user) {
-        header('Location: login.php');
-        exit;
+        die('NOT LOGGED IN');
     }
     
+    echo "<!-- Step 7: Checking role -->\n";
+    ob_flush();
+    flush();
     if (!in_array($current_user['role'] ?? '', ['registrar', 'admin'], true)) {
-        header('Location: ../admin/error/403.php');
-        exit;
+        die('NOT REGISTRAR OR ADMIN');
     }
     
+    echo "<!-- Step 8: Getting database connection -->\n";
+    ob_flush();
+    flush();
     $db = db();
     if (!$db) {
-        throw new Exception('Database connection failed');
+        die('DATABASE CONNECTION FAILED');
     }
     
+    echo "<!-- Step 9: Loading user data -->\n";
+    ob_flush();
+    flush();
     $user_id = (int)$current_user['id'];
-    
-} catch (Throwable $e) {
-    error_log('FATAL ERROR in edit-profile.php initialization: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
-    // Show error details in development, generic message in production
-    if (ini_get('display_errors')) {
-        die('Error loading page: ' . htmlspecialchars($e->getMessage()) . ' in ' . htmlspecialchars($e->getFile()) . ':' . $e->getLine());
-    } else {
-        die('Error loading page. Please contact support.');
-    }
-}
-
-// Helper function
-function h($value) {
-    return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
-}
-
-// Load user data from database
-$user = null;
-try {
     $stmt = $db->prepare('SELECT id, name, phone, email, role FROM users WHERE id = ? LIMIT 1');
-    if (!$stmt) {
-        throw new Exception('Database prepare failed: ' . $db->error);
-    }
     $stmt->bind_param('i', $user_id);
-    if (!$stmt->execute()) {
-        throw new Exception('Query execution failed: ' . $stmt->error);
-    }
+    $stmt->execute();
     $result = $stmt->get_result();
-    if (!$result) {
-        throw new Exception('Failed to get result: ' . $db->error);
-    }
     $user = $result->fetch_assoc();
     $stmt->close();
     
     if (!$user) {
-        die('User not found. User ID: ' . $user_id);
+        die('USER NOT FOUND');
     }
     
+    echo "<!-- Step 10: All checks passed, rendering page -->\n";
+    ob_flush();
+    flush();
+    
 } catch (Throwable $e) {
-    error_log('Error loading user in edit-profile.php: ' . $e->getMessage());
-    die('Error loading user data. Please contact support.');
+    die('ERROR: ' . htmlspecialchars($e->getMessage()) . ' in ' . $e->getFile() . ':' . $e->getLine());
+}
+
+function h($value) {
+    return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 $success_message = '';
@@ -94,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         $phone = trim($_POST['phone'] ?? '');
         $email = trim($_POST['email'] ?? '');
         
-        // Validation
         if (empty($name)) {
             throw new Exception('Name is required');
         }
@@ -102,22 +101,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
             throw new Exception('Phone number is required');
         }
         
-        // Ensure registrar can only update their own record
         if ($current_user['id'] != $user_id) {
             throw new Exception('You can only update your own profile');
         }
         
-        // Check if phone is already used by another user (only if phone changed)
         if ($phone !== ($user['phone'] ?? '')) {
             $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
-            if (!$check_stmt) {
-                throw new Exception('Database prepare failed: ' . $db->error);
-            }
             $check_stmt->bind_param('si', $phone, $user_id);
-            if (!$check_stmt->execute()) {
-                $check_stmt->close();
-                throw new Exception('Query execution failed: ' . $check_stmt->error);
-            }
+            $check_stmt->execute();
             $check_result = $check_stmt->get_result();
             if ($check_result && $check_result->num_rows > 0) {
                 $check_stmt->close();
@@ -126,53 +117,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
             $check_stmt->close();
         }
         
-        // Update user profile
         $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ? WHERE id = ?');
-        if (!$update_stmt) {
-            throw new Exception('Database prepare failed: ' . $db->error);
-        }
         $email_value = empty($email) ? null : $email;
         $update_stmt->bind_param('sssi', $name, $phone, $email_value, $user_id);
         if (!$update_stmt->execute()) {
-            $error_msg = $db->error;
-            $update_stmt->close();
-            if (strpos($error_msg, 'Access denied') !== false || 
-                strpos($error_msg, 'permission') !== false ||
-                strpos($error_msg, 'denied') !== false) {
-                throw new Exception('You do not have permission to update your profile. Please contact an administrator.');
-            }
-            throw new Exception('Update failed: ' . $error_msg);
+            throw new Exception('Update failed: ' . $db->error);
         }
         $update_stmt->close();
         
-        // Update session
         $_SESSION['user']['name'] = $name;
         $_SESSION['user']['phone'] = $phone;
         $_SESSION['user']['email'] = $email;
         
-        // Redirect to profile page with success message
         header('Location: profile.php?success=1');
         exit;
         
     } catch (Throwable $e) {
-        error_log('Error updating profile in edit-profile.php: ' . $e->getMessage());
         $error_message = 'Failed to update profile: ' . $e->getMessage();
     }
 }
 
-// Check for success message from redirect
 if (isset($_GET['success']) && $_GET['success'] == '1') {
     $success_message = 'Profile updated successfully!';
 }
-
-$page_title = 'Edit Profile';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo h($page_title); ?> - Registrar Portal</title>
+    <title>Edit Profile (Debug) - Registrar Portal</title>
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -181,45 +155,14 @@ $page_title = 'Edit Profile';
 </head>
 <body>
 <div class="app-wrapper">
-    <?php 
-    // Safely include sidebar
-    $sidebar_file = __DIR__ . '/includes/sidebar.php';
-    if (file_exists($sidebar_file)) {
-        try {
-            ob_start();
-            include $sidebar_file;
-            $sidebar_output = ob_get_clean();
-            echo $sidebar_output;
-        } catch (Throwable $e) {
-            ob_end_clean();
-            error_log('Error including sidebar.php: ' . $e->getMessage());
-            // Don't break the page if sidebar fails
-        }
-    }
-    ?>
+    <!-- Simplified header without includes -->
+    <header class="topbar">
+        <div class="topbar-inner">
+            <h1 class="topbar-title">Edit Profile (Debug Mode)</h1>
+        </div>
+    </header>
     
     <div class="app-content">
-        <?php 
-        // Safely include topbar
-        $topbar_file = __DIR__ . '/includes/topbar.php';
-        if (file_exists($topbar_file)) {
-            try {
-                ob_start();
-                include $topbar_file;
-                $topbar_output = ob_get_clean();
-                echo $topbar_output;
-            } catch (Throwable $e) {
-                ob_end_clean();
-                error_log('Error including topbar.php: ' . $e->getMessage());
-                // Don't break the page if topbar fails
-                // Show a simple header instead
-                echo '<header class="topbar"><div class="topbar-inner"><h1 class="topbar-title">Edit Profile</h1></div></header>';
-            }
-        } else {
-            echo '<header class="topbar"><div class="topbar-inner"><h1 class="topbar-title">Edit Profile</h1></div></header>';
-        }
-        ?>
-        
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
                 
@@ -268,14 +211,18 @@ $page_title = 'Edit Profile';
                                     
                                     <div class="d-flex gap-2 justify-content-end mt-4">
                                         <a href="profile.php" class="btn btn-secondary">
-                                            <i class="fas fa-times me-1"></i>Cancel Edit
+                                            <i class="fas fa-times me-1"></i>Cancel
                                         </a>
-                                        <button type="submit" name="update_profile" class="btn btn-primary" id="submitBtn">
+                                        <button type="submit" name="update_profile" class="btn btn-primary">
                                             <i class="fas fa-save me-1"></i>Update Profile
                                         </button>
                                     </div>
                                 </form>
                             </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <a href="edit-profile.php" class="btn btn-outline-secondary btn-sm">Try Original Page</a>
                         </div>
                     </div>
                 </div>
@@ -286,56 +233,6 @@ $page_title = 'Edit Profile';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// Prevent double submission and handle errors
-(function() {
-    'use strict';
-    
-    try {
-        document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const form = document.getElementById('editProfileForm');
-                const submitBtn = document.getElementById('submitBtn');
-                
-                if (form && submitBtn) {
-                    form.addEventListener('submit', function(e) {
-                        try {
-                            submitBtn.disabled = true;
-                            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
-                        } catch (err) {
-                            console.error('Error in form submit handler:', err);
-                        }
-                    });
-                }
-                
-                // Check if Bootstrap is loaded
-                if (typeof bootstrap === 'undefined') {
-                    console.warn('Bootstrap is not loaded - some features may not work');
-                }
-            } catch (err) {
-                console.error('Error in DOMContentLoaded handler:', err);
-            }
-        });
-    } catch (err) {
-        console.error('Error initializing page scripts:', err);
-    }
-})();
-</script>
-<script>
-// Safely load registrar.js
-(function() {
-    'use strict';
-    try {
-        const script = document.createElement('script');
-        script.src = 'assets/registrar.js';
-        script.onerror = function() {
-            console.warn('registrar.js failed to load - page will still work');
-        };
-        document.head.appendChild(script);
-    } catch (err) {
-        console.error('Error loading registrar.js:', err);
-    }
-})();
-</script>
 </body>
 </html>
+

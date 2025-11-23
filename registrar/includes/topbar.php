@@ -20,13 +20,27 @@ $user_initials = substr($user_initials ?: 'U', 0, 2);
 $unread_count = 0;
 $current_user_id = ($current_user['id'] ?? 0);
 if ($current_user_id > 0) {
-    $db = db();
-    $stmt = $db->prepare('SELECT COUNT(*) as count FROM user_messages WHERE recipient_user_id = ? AND read_at IS NULL');
-    $stmt->bind_param('i', $current_user_id);
-    $stmt->execute();
-    $result = $stmt->get_result()->fetch_assoc();
-    $unread_count = (int)($result['count'] ?? 0);
-    $stmt->close();
+    try {
+        $db = db();
+        if ($db) {
+            $stmt = $db->prepare('SELECT COUNT(*) as count FROM user_messages WHERE recipient_user_id = ? AND read_at IS NULL');
+            if ($stmt) {
+                $stmt->bind_param('i', $current_user_id);
+                if ($stmt->execute()) {
+                    $result = $stmt->get_result();
+                    if ($result) {
+                        $row = $result->fetch_assoc();
+                        $unread_count = (int)($row['count'] ?? 0);
+                    }
+                }
+                $stmt->close();
+            }
+        }
+    } catch (Throwable $e) {
+        // Silently fail - don't break the page if message count query fails
+        error_log('Error loading unread message count in topbar: ' . $e->getMessage());
+        $unread_count = 0;
+    }
 }
 ?>
 
