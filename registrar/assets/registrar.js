@@ -27,11 +27,18 @@ function initSidebar() {
     const desktopSidebarToggle = document.getElementById('desktopSidebarToggle');
     const appContent = document.querySelector('.app-content');
 
+    // If there is no sidebar on this page, bail out early.
+    if (!sidebar) {
+        return;
+    }
+
     // Toggle sidebar (mobile)
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', function() {
             sidebar.classList.add('show');
-            sidebarOverlay.classList.add('show');
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.add('show');
+            }
             document.body.style.overflow = 'hidden';
         });
     }
@@ -53,7 +60,9 @@ function initSidebar() {
     // Close sidebar
     function closeSidebar() {
         sidebar.classList.remove('show');
-        sidebarOverlay.classList.remove('show');
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.remove('show');
+        }
         document.body.style.overflow = '';
     }
     

@@ -106,9 +106,9 @@ $page_title = 'My Profile';
     <title><?php echo h($page_title); ?> - Registrar Portal</title>
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css">
-    <link rel="stylesheet" href="assets/registrar.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="assets/registrar.css?v=<?php echo @filemtime(__DIR__ . '/assets/registrar.css'); ?>">
     <style>
         .profile-header {
             background: linear-gradient(135deg, #0a6286 0%, #084d68 100%);
@@ -347,7 +347,7 @@ $page_title = 'My Profile';
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/registrar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/registrar.js?v=<?php echo @filemtime(__DIR__ . '/assets/registrar.js'); ?>"></script>
 </body>
 </html>
