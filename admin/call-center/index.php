@@ -472,8 +472,9 @@ try {
                                                         <?php endif; ?>
                                                     </div>
                                                 </div>
-                                                <a href="../donor-management/view-donor.php?id=<?php echo $call['donor_id']; ?>" 
-                                                   class="btn btn-sm btn-light">
+                                                <a href="call-details.php?id=<?php echo $call['id']; ?>" 
+                                                   class="btn btn-sm btn-light"
+                                                   title="View Call Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </a>
                                             </div>
