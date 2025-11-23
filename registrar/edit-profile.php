@@ -19,6 +19,7 @@ try {
     
     $current_user = current_user();
     if (!$current_user) {
+        error_log('edit-profile.php: current_user() returned null after require_login() passed. Session data: ' . json_encode($_SESSION ?? []));
         header('Location: login.php');
         exit;
     }
@@ -36,7 +37,13 @@ try {
     $user_id = (int)$current_user['id'];
     
 } catch (Throwable $e) {
-    error_log('FATAL ERROR in edit-profile.php initialization: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    error_log('FATAL ERROR in edit-profile.php initialization: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() . ' | Stack trace: ' . $e->getTraceAsString());
+    // In development, show the error; in production, show generic message
+    $isLocal = (strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false || 
+                strpos($_SERVER['DOCUMENT_ROOT'] ?? '', 'xampp') !== false);
+    if ($isLocal) {
+        die('Error loading page: ' . htmlspecialchars($e->getMessage()) . ' in ' . htmlspecialchars($e->getFile()) . ':' . $e->getLine());
+    }
     die('Error loading page. Please contact support.');
 }
 
