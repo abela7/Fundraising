@@ -23,7 +23,7 @@ function h($value) {
 
 // Load user data from database
 try {
-    $stmt = $db->prepare('SELECT id, name, role FROM users WHERE id = ? LIMIT 1');
+    $stmt = $db->prepare('SELECT id, name, phone, email, role FROM users WHERE id = ? LIMIT 1');
     if (!$stmt) {
         throw new Exception('Database prepare failed: ' . $db->error);
     }
@@ -38,6 +38,12 @@ try {
     }
 } catch (Exception $e) {
     die('Error loading user: ' . h($e->getMessage()));
+}
+
+// Check for success message from redirect
+$success_message = '';
+if (isset($_GET['success']) && $_GET['success'] == '1') {
+    $success_message = 'Profile updated successfully!';
 }
 
 $page_title = 'My Profile';
@@ -63,14 +69,46 @@ $page_title = 'My Profile';
         
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
+                
+                <?php if ($success_message): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i><?php echo h($success_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+                
                 <div class="row justify-content-center">
-                    <div class="col-12 col-md-6 col-lg-4">
+                    <div class="col-12 col-md-8 col-lg-6">
                         <div class="card shadow-sm">
-                            <div class="card-body text-center p-4">
-                                <h5 class="card-title mb-3"><?php echo h($user['name']); ?></h5>
-                                <p class="card-text mb-0">
-                                    <span class="badge bg-primary"><?php echo ucfirst(h($user['role'])); ?></span>
-                                </p>
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title mb-0">My Profile</h5>
+                                    <a href="edit-profile.php" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-edit me-1"></i>Edit
+                                    </a>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="text-muted small mb-1 d-block">Name</label>
+                                    <p class="mb-0 fw-semibold"><?php echo h($user['name']); ?></p>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="text-muted small mb-1 d-block">Phone</label>
+                                    <p class="mb-0"><?php echo h($user['phone'] ?? 'Not set'); ?></p>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="text-muted small mb-1 d-block">Email</label>
+                                    <p class="mb-0"><?php echo h($user['email'] ?? 'Not set'); ?></p>
+                                </div>
+                                
+                                <div class="mb-0">
+                                    <label class="text-muted small mb-1 d-block">Role</label>
+                                    <p class="mb-0">
+                                        <span class="badge bg-primary"><?php echo ucfirst(h($user['role'])); ?></span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
