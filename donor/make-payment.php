@@ -258,41 +258,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <?php endif; ?>
 
                 <div class="row g-3 g-lg-4">
-                    <!-- Payment Summary -->
-                    <div class="col-lg-4">
-                        <div class="card sticky-top" style="top: 100px;">
-                            <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="fas fa-info-circle text-primary"></i>Payment Summary
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3 pb-3 border-bottom">
-                                    <small class="text-muted d-block">Total Pledged</small>
-                                    <h4 class="mb-0">£<?php echo number_format($donor['total_pledged'], 2); ?></h4>
-                                </div>
-                                <div class="mb-3 pb-3 border-bottom">
-                                    <small class="text-muted d-block">Total Paid</small>
-                                    <h4 class="mb-0 text-success">£<?php echo number_format($donor['total_paid'], 2); ?></h4>
-                                </div>
-                                <div class="mb-3">
-                                    <small class="text-muted d-block">Remaining Balance</small>
-                                    <h4 class="mb-0 text-<?php echo $donor['balance'] > 0 ? 'warning' : 'secondary'; ?>">
-                                        £<?php echo number_format($donor['balance'], 2); ?>
-                                    </h4>
-                                </div>
-                                <?php if ($donor['has_active_plan']): ?>
-                                    <div class="alert alert-info mb-0">
-                                        <i class="fas fa-calendar-alt me-2"></i>
-                                        <strong>Monthly Amount:</strong> £<?php echo number_format($amount_due, 2); ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Payment Form -->
-                    <div class="col-lg-8">
+                    <!-- Payment Form (shows first on mobile) -->
+                    <div class="col-lg-8 order-1 order-lg-2">
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="card-title">
@@ -482,6 +449,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                             </a>
                                         </div>
                                     </form>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Summary (shows second on mobile, right side on desktop) -->
+                    <div class="col-lg-4 order-2 order-lg-1">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-info-circle text-primary"></i>Payment Summary
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3 pb-3 border-bottom">
+                                    <small class="text-muted d-block">Total Pledged</small>
+                                    <h4 class="mb-0">£<?php echo number_format($donor['total_pledged'], 2); ?></h4>
+                                </div>
+                                <div class="mb-3 pb-3 border-bottom">
+                                    <small class="text-muted d-block">Total Paid</small>
+                                    <h4 class="mb-0 text-success">£<?php echo number_format($donor['total_paid'], 2); ?></h4>
+                                </div>
+                                <div class="mb-3">
+                                    <small class="text-muted d-block">Remaining Balance</small>
+                                    <h4 class="mb-0 text-<?php echo $donor['balance'] > 0 ? 'warning' : 'secondary'; ?>">
+                                        £<?php echo number_format($donor['balance'], 2); ?>
+                                    </h4>
+                                </div>
+                                <?php if ($donor['has_active_plan']): ?>
+                                    <div class="alert alert-info mb-0">
+                                        <i class="fas fa-calendar-alt me-2"></i>
+                                        <strong>Monthly Amount:</strong> £<?php echo number_format($amount_due, 2); ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
