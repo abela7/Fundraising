@@ -353,11 +353,13 @@ $badge_labels = [
                             </div>
                         </div>
                         
-                        <div class="d-flex gap-2 flex-wrap">
-                            <a href="<?php echo htmlspecialchars(url_for('donor/payment-plan.php')); ?>" class="btn btn-outline-primary">
-                                <i class="fas fa-eye me-2"></i>View Full Schedule
+                        <div class="d-grid gap-2 d-md-flex">
+                            <a href="<?php echo htmlspecialchars(url_for('donor/payment-plan.php')); ?>" 
+                               class="btn btn-outline-primary btn-lg flex-fill">
+                                <i class="fas fa-calendar-check me-2"></i>View Full Schedule
                             </a>
-                            <a href="<?php echo htmlspecialchars(url_for('donor/make-payment.php')); ?>" class="btn btn-success">
+                            <a href="<?php echo htmlspecialchars(url_for('donor/make-payment.php')); ?>" 
+                               class="btn btn-success btn-lg flex-fill">
                                 <i class="fas fa-credit-card me-2"></i>Make a Payment
                             </a>
                         </div>
@@ -461,12 +463,23 @@ $badge_labels = [
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="mt-3">
+                            <div class="mt-3 d-flex gap-2 flex-wrap">
                                 <a href="<?php echo htmlspecialchars(url_for('donor/payment-history.php')); ?>" class="btn btn-outline-primary">
                                     <i class="fas fa-list me-2"></i>View All Payments
                                 </a>
                             </div>
                         <?php endif; ?>
+                        
+                        <!-- Overall Donation Status Button -->
+                        <div class="mt-3 pt-3 border-top">
+                            <a href="https://donate.abuneteklehaymanot.org/public/projector/" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               class="btn btn-lg btn-primary w-100">
+                                <i class="fas fa-chart-line me-2"></i>View Current Status of Overall Donation
+                                <i class="fas fa-external-link-alt ms-2 small"></i>
+                            </a>
+                        </div>
                     </div>
                 </div>
         </main>
