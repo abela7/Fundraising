@@ -33,72 +33,7 @@ function h($value) {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
-$success_message = '';
-$error_message = '';
-
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-    try {
-        verify_csrf();
-        
-        $name = trim($_POST['name'] ?? '');
-        $phone = trim($_POST['phone'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        
-        // Validation
-        if (empty($name)) {
-            throw new Exception('Name is required');
-        }
-        if (empty($phone)) {
-            throw new Exception('Phone number is required');
-        }
-        
-        // Check if phone is already used by another user
-        $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
-        if (!$check_stmt) {
-            throw new Exception('Database prepare failed: ' . $db->error);
-        }
-        $check_stmt->bind_param('si', $phone, $user_id);
-        if (!$check_stmt->execute()) {
-            $check_stmt->close();
-            throw new Exception('Query execution failed: ' . $check_stmt->error);
-        }
-        $check_result = $check_stmt->get_result();
-        if ($check_result && $check_result->num_rows > 0) {
-            $check_stmt->close();
-            throw new Exception('This phone number is already in use by another user');
-        }
-        $check_stmt->close();
-        
-        // Update user profile (without updated_at column)
-        $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ? WHERE id = ?');
-        if (!$update_stmt) {
-            throw new Exception('Database prepare failed: ' . $db->error);
-        }
-        $email_value = empty($email) ? null : $email;
-        $update_stmt->bind_param('sssi', $name, $phone, $email_value, $user_id);
-        if (!$update_stmt->execute()) {
-            $update_stmt->close();
-            throw new Exception('Update failed: ' . $update_stmt->error);
-        }
-        $update_stmt->close();
-        
-        // Update session
-        $_SESSION['user']['name'] = $name;
-        $_SESSION['user']['phone'] = $phone;
-        $_SESSION['user']['email'] = $email;
-        
-        // Redirect to profile page with success message
-        header('Location: profile.php?success=1');
-        exit;
-        
-    } catch (Throwable $e) {
-        error_log('Error updating profile in edit-profile.php: ' . $e->getMessage());
-        $error_message = 'Failed to update profile: ' . $e->getMessage();
-    }
-}
-
-// Load user data from database
+// Load user data from database FIRST (needed for form processing)
 $user = null;
 try {
     $stmt = $db->prepare('SELECT id, name, phone, email, role FROM users WHERE id = ? LIMIT 1');
@@ -122,6 +57,86 @@ try {
 } catch (Throwable $e) {
     error_log('Error loading user in edit-profile.php: ' . $e->getMessage());
     die('Error loading user data. Please contact support.');
+}
+
+$success_message = '';
+$error_message = '';
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
+    try {
+        verify_csrf();
+        
+        $name = trim($_POST['name'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        
+        // Validation
+        if (empty($name)) {
+            throw new Exception('Name is required');
+        }
+        if (empty($phone)) {
+            throw new Exception('Phone number is required');
+        }
+        
+        // Ensure registrar can only update their own record
+        if ($current_user['id'] != $user_id) {
+            throw new Exception('You can only update your own profile');
+        }
+        
+        // Check if phone is already used by another user (only if phone changed)
+        if ($phone !== ($user['phone'] ?? '')) {
+            $check_stmt = $db->prepare('SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1');
+            if (!$check_stmt) {
+                throw new Exception('Database prepare failed: ' . $db->error);
+            }
+            $check_stmt->bind_param('si', $phone, $user_id);
+            if (!$check_stmt->execute()) {
+                $check_stmt->close();
+                throw new Exception('Query execution failed: ' . $check_stmt->error);
+            }
+            $check_result = $check_stmt->get_result();
+            if ($check_result && $check_result->num_rows > 0) {
+                $check_stmt->close();
+                throw new Exception('This phone number is already in use by another user');
+            }
+            $check_stmt->close();
+        }
+        
+        // Try to update user profile - only update own record
+        // If database permissions don't allow UPDATE, we'll catch the error
+        $update_stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ? WHERE id = ?');
+        if (!$update_stmt) {
+            throw new Exception('Database prepare failed: ' . $db->error);
+        }
+        $email_value = empty($email) ? null : $email;
+        $update_stmt->bind_param('sssi', $name, $phone, $email_value, $user_id);
+        if (!$update_stmt->execute()) {
+            $update_stmt->close();
+            // Check if it's a permission error
+            $error_msg = $db->error;
+            if (strpos($error_msg, 'Access denied') !== false || 
+                strpos($error_msg, 'permission') !== false ||
+                strpos($error_msg, 'denied') !== false) {
+                throw new Exception('You do not have permission to update your profile. Please contact an administrator.');
+            }
+            throw new Exception('Update failed: ' . $error_msg);
+        }
+        $update_stmt->close();
+        
+        // Update session
+        $_SESSION['user']['name'] = $name;
+        $_SESSION['user']['phone'] = $phone;
+        $_SESSION['user']['email'] = $email;
+        
+        // Redirect to profile page with success message
+        header('Location: profile.php?success=1');
+        exit;
+        
+    } catch (Throwable $e) {
+        error_log('Error updating profile in edit-profile.php: ' . $e->getMessage());
+        $error_message = 'Failed to update profile: ' . $e->getMessage();
+    }
 }
 
 // Check for success message from redirect
