@@ -287,6 +287,60 @@ $page_title = 'Edit Profile';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Bootstrap fallback and minimal polyfills if CDN fails
+(function() {
+    'use strict';
+    function loadAltCdn() {
+        var alt = document.createElement('script');
+        alt.src = 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js';
+        alt.defer = true;
+        alt.onload = initPolyfills;
+        alt.onerror = initPolyfills; // even if alt fails, enable polyfills
+        document.head.appendChild(alt);
+    }
+    function initPolyfills() {
+        if (typeof window.bootstrap !== 'undefined') return; // Bootstrap loaded, nothing to polyfill
+        // Polyfill: dismissible alerts
+        document.querySelectorAll('.alert .btn-close').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var alert = btn.closest('.alert');
+                if (alert) alert.remove();
+            });
+        });
+        // Polyfill: simple dropdown toggle for user menu
+        var toggle = document.querySelector('[data-bs-toggle="dropdown"]');
+        var menu = toggle ? toggle.parentElement.querySelector('.dropdown-menu') : null;
+        if (toggle && menu) {
+            function closeMenu(e) {
+                if (!menu.classList.contains('show')) return;
+                if (!menu.contains(e.target) && !toggle.contains(e.target)) {
+                    menu.classList.remove('show');
+                    document.removeEventListener('click', closeMenu, true);
+                }
+            }
+            toggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                menu.classList.toggle('show');
+                if (menu.classList.contains('show')) {
+                    document.addEventListener('click', closeMenu, true);
+                }
+            });
+        }
+    }
+    // After page load, if Bootstrap is missing, try alt CDN then polyfill
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            if (typeof window.bootstrap === 'undefined') {
+                loadAltCdn();
+                // Ensure we eventually polyfill even if alt CDN is blocked
+                setTimeout(initPolyfills, 1200);
+            }
+        }, 200);
+    });
+})();
+</script>
+<script>
 // Prevent double submission and handle errors
 (function() {
     'use strict';
@@ -310,7 +364,7 @@ $page_title = 'Edit Profile';
                 
                 // Check if Bootstrap is loaded
                 if (typeof bootstrap === 'undefined') {
-                    console.warn('Bootstrap is not loaded - some features may not work');
+                    console.warn('Bootstrap is not loaded - attempting fallback');
                 }
             } catch (err) {
                 console.error('Error in DOMContentLoaded handler:', err);
