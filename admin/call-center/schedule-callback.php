@@ -97,9 +97,10 @@ try {
                     $appointment_type = 'callback_not_ready';
                 }
                 
-                // Insert appointment - handle NULL session_id for foreign key constraint
-                if ($session_id > 0) {
-                    // Session exists - include session_id
+                // Insert appointment - handle NULL session_id and queue_id for foreign key constraints
+                // Build query based on what we have
+                if ($session_id > 0 && $queue_id > 0) {
+                    // Both session and queue exist
                     $appointment_query = "
                         INSERT INTO call_center_appointments 
                         (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
@@ -124,13 +125,13 @@ try {
                         $notes,
                         $user_id
                     );
-                } else {
-                    // No session - use NULL for session_id
+                } elseif ($session_id > 0) {
+                    // Only session exists, queue is NULL
                     $appointment_query = "
                         INSERT INTO call_center_appointments 
                         (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
                          slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
-                        VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'scheduled', ?, ?, NOW())
+                        VALUES (?, ?, ?, NULL, ?, ?, ?, ?, 'scheduled', ?, ?, NOW())
                     ";
                     
                     $stmt = $db->prepare($appointment_query);
@@ -138,10 +139,34 @@ try {
                         throw new Exception("Failed to prepare appointment query: " . $db->error);
                     }
                     
-                    $stmt->bind_param('iiississi', 
+                    $stmt->bind_param('iiisisssi', 
                         $donor_id, 
                         $user_id, 
-                        $queue_id, 
+                        $session_id, 
+                        $appointment_date, 
+                        $appointment_time, 
+                        $slot_duration,
+                        $appointment_type,
+                        $notes,
+                        $user_id
+                    );
+                } else {
+                    // No session or queue - both NULL (direct call from donor list)
+                    $appointment_query = "
+                        INSERT INTO call_center_appointments 
+                        (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, 
+                         slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
+                        VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, 'scheduled', ?, ?, NOW())
+                    ";
+                    
+                    $stmt = $db->prepare($appointment_query);
+                    if (!$stmt) {
+                        throw new Exception("Failed to prepare appointment query: " . $db->error);
+                    }
+                    
+                    $stmt->bind_param('iisisssi', 
+                        $donor_id, 
+                        $user_id, 
                         $appointment_date, 
                         $appointment_time, 
                         $slot_duration,
