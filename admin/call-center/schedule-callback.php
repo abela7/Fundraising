@@ -138,8 +138,8 @@ try {
                     if (!$stmt) {
                         throw new Exception("Failed to prepare appointment query: " . $db->error);
                     }
-                    
-                    $stmt->bind_param('iiisisssi', 
+
+                    $stmt->bind_param('iiississi', 
                         $donor_id, 
                         $user_id, 
                         $session_id, 
@@ -163,8 +163,8 @@ try {
                     if (!$stmt) {
                         throw new Exception("Failed to prepare appointment query: " . $db->error);
                     }
-                    
-                    $stmt->bind_param('iisisssi', 
+
+                    $stmt->bind_param('iississi', 
                         $donor_id, 
                         $user_id, 
                         $appointment_date, 
