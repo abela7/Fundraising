@@ -396,8 +396,9 @@ $page_title = 'Schedule Callback';
         }
         
         .calendar-nav-btn {
-            background: white;
-            border: 1px solid #e2e8f0;
+            background: #0a6286;
+            color: white;
+            border: 1px solid #0a6286;
             border-radius: 6px;
             padding: 0.5rem 0.75rem;
             cursor: pointer;
@@ -406,9 +407,9 @@ $page_title = 'Schedule Callback';
         }
         
         .calendar-nav-btn:hover {
-            background: #0a6286;
-            color: white;
-            border-color: #0a6286;
+            background: #084d68;
+            border-color: #084d68;
+            transform: scale(1.05);
         }
         
         .calendar-month {
@@ -722,6 +723,9 @@ $page_title = 'Schedule Callback';
 <script>
     // Initialize Call Widget
     document.addEventListener('DOMContentLoaded', function() {
+        // Only initialize if session exists, but don't auto-start 
+        // (call wasn't answered, so timer shouldn't run)
+        <?php if ($session_id > 0): ?>
         CallWidget.init({
             sessionId: <?php echo $session_id; ?>,
             donorId: <?php echo $donor_id; ?>,
@@ -733,8 +737,13 @@ $page_title = 'Schedule Callback';
             church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
         });
         
+        // Pause the timer since call wasn't answered
+        CallWidget.pause();
+        <?php endif; ?>
+        
         // Form submission
         document.getElementById('schedule-form').addEventListener('submit', function(e) {
+            <?php if ($session_id > 0): ?>
             // Get duration from widget
             const duration = CallWidget.getDurationSeconds();
             
@@ -748,6 +757,7 @@ $page_title = 'Schedule Callback';
             // Stop timer and clear state
             CallWidget.pause();
             CallWidget.resetState();
+            <?php endif; ?>
         });
     });
 

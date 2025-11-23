@@ -222,3 +222,10 @@
     }
 }
 
+/* Hide widget on schedule-callback page on mobile to prevent blocking buttons */
+@media (max-width: 767px) {
+    body:has(.schedule-callback-page) .call-widget-container {
+        display: none;
+    }
+}
+
