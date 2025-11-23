@@ -445,6 +445,7 @@ $page_title = 'My Profile';
 <script>
 // Profile page JavaScript initialization
 document.addEventListener('DOMContentLoaded', function() {
+    alert('Profile page JavaScript loaded');
     console.log('Profile page JavaScript loaded');
 
     // Initialize sidebar functionality
