@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../shared/auth.php';
-require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../config/db.php';
 
 require_login();
@@ -38,62 +37,6 @@ try {
     }
 } catch (Exception $e) {
     die('Error loading user: ' . h($e->getMessage()));
-}
-
-$success_message = '';
-$error_message = '';
-
-// Handle profile update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-    try {
-        verify_csrf();
-        
-        $name = trim($_POST['name'] ?? '');
-        $phone = trim($_POST['phone'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        
-        // Validation
-        if (empty($name)) {
-            throw new Exception('Name is required');
-        }
-        if (empty($phone)) {
-            throw new Exception('Phone is required');
-        }
-        
-        // Normalize email
-        $email_value = empty($email) ? null : $email;
-        
-        // Simple UPDATE query
-        $stmt = $db->prepare('UPDATE users SET name = ?, phone = ?, email = ? WHERE id = ?');
-        if (!$stmt) {
-            throw new Exception('Failed to prepare update');
-        }
-        
-        $stmt->bind_param('sssi', $name, $phone, $email_value, $user_id);
-        
-        if ($stmt->execute()) {
-            $stmt->close();
-            
-            // Update session
-            $_SESSION['user']['name'] = $name;
-            $_SESSION['user']['phone'] = $phone;
-            $_SESSION['user']['email'] = $email_value;
-            
-            // Reload user data
-            $user['name'] = $name;
-            $user['phone'] = $phone;
-            $user['email'] = $email_value;
-            
-            $success_message = 'Profile updated successfully!';
-        } else {
-            $stmt->close();
-            throw new Exception('Failed to update profile');
-        }
-        
-    } catch (Exception $e) {
-        error_log('Profile update error: ' . $e->getMessage());
-        $error_message = $e->getMessage();
-    }
 }
 
 $page_title = 'My Profile';
@@ -210,20 +153,6 @@ $page_title = 'My Profile';
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
                 
-                <?php if ($success_message): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle me-2"></i><?php echo h($success_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                <?php endif; ?>
-                
-                <?php if ($error_message): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo h($error_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                <?php endif; ?>
-                
                 <!-- Profile Header -->
                 <div class="profile-header">
                     <div class="text-center">
@@ -241,9 +170,6 @@ $page_title = 'My Profile';
                         <p class="mb-0 opacity-75">
                             <i class="fas fa-user-tag me-1"></i><?php echo ucfirst(h($user['role'])); ?>
                         </p>
-                        <button class="btn btn-light btn-sm mt-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#editProfileOffcanvas">
-                            <i class="fas fa-edit me-1"></i>Edit Profile
-                        </button>
                     </div>
                 </div>
                 
@@ -303,47 +229,6 @@ $page_title = 'My Profile';
                 
             </div>
         </main>
-    </div>
-</div>
-
-<!-- Edit Profile Offcanvas (slides from right) -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="editProfileOffcanvas">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title">
-            <i class="fas fa-edit me-2"></i>Edit Profile
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body">
-        <form method="POST" action="" id="editProfileForm">
-            <?php echo csrf_field(); ?>
-            
-            <div class="mb-3">
-                <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="name" name="name" value="<?php echo h($user['name']); ?>" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
-                <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo h($user['phone'] ?? ''); ?>" required>
-                <small class="text-muted">Used for login</small>
-            </div>
-            
-            <div class="mb-3">
-                <label for="email" class="form-label">Email Address</label>
-                <input type="email" class="form-control" id="email" name="email" value="<?php echo h($user['email'] ?? ''); ?>">
-                <small class="text-muted">Optional</small>
-            </div>
-            
-            <div class="d-grid gap-2">
-                <button type="submit" name="update_profile" class="btn btn-primary">
-                    <i class="fas fa-save me-1"></i>Save Changes
-                </button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="offcanvas">
-                    <i class="fas fa-times me-1"></i>Cancel
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 

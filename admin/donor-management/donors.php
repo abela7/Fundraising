@@ -4,19 +4,13 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
-
-// Allow both admins and registrars to access (registrars need this for call center)
-$current_user = current_user();
-if (!in_array($current_user['role'] ?? '', ['admin', 'registrar'], true)) {
-    http_response_code(403);
-    echo 'Forbidden';
-    exit;
-}
+require_admin();
 
 // Resiliently load settings and check for DB errors
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
 
 $page_title = 'Donor List';
+$current_user = current_user();
 $db = db();
 
 $success_message = '';
@@ -490,23 +484,11 @@ unset($donor); // Break reference
     </style>
 </head>
 <body>
-<div class="<?php echo ($current_user['role'] ?? '') === 'registrar' ? 'app-wrapper' : 'admin-wrapper'; ?>">
-    <?php 
-    if (($current_user['role'] ?? '') === 'registrar') {
-        include __DIR__ . '/../../registrar/includes/sidebar.php';
-    } else {
-        include '../includes/sidebar.php'; 
-    }
-    ?>
+<div class="admin-wrapper">
+    <?php include '../includes/sidebar.php'; ?>
     
-    <div class="<?php echo ($current_user['role'] ?? '') === 'registrar' ? 'app-content' : 'admin-content'; ?>">
-        <?php 
-        if (($current_user['role'] ?? '') === 'registrar') {
-            include __DIR__ . '/../../registrar/includes/topbar.php';
-        } else {
-            include '../includes/topbar.php'; 
-        }
-        ?>
+    <div class="admin-content">
+        <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
             <div class="container-fluid">
@@ -1110,11 +1092,7 @@ unset($donor); // Break reference
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<?php if (($current_user['role'] ?? '') === 'registrar'): ?>
-<script src="../../registrar/assets/registrar.js"></script>
-<?php else: ?>
 <script src="../assets/admin.js"></script>
-<?php endif; ?>
 <script src="assets/donor-management.js"></script>
 
 <script>

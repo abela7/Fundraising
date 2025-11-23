@@ -56,7 +56,9 @@ function require_login(): void {
 
 function require_admin(): void {
     require_login();
-    if (!is_admin()) {
+    // Allow both admin and registrar roles to access admin pages
+    $user = current_user();
+    if (!$user || !in_array($user['role'] ?? '', ['admin', 'registrar'], true)) {
         http_response_code(403);
         echo 'Forbidden';
         exit;
