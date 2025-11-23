@@ -15,10 +15,10 @@ function debug_log($message) {
 }
 
 try {
-    require_login();
-    
-    // Set timezone to London for call center
-    date_default_timezone_set('Europe/London');
+require_login();
+
+// Set timezone to London for call center
+date_default_timezone_set('Europe/London');
 
     $db = db();
     $user_id = (int)$_SESSION['user']['id'];
@@ -133,7 +133,7 @@ try {
                     $query = "INSERT INTO call_center_appointments 
                         (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
                         VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, NOW())";
-                        
+                    
                     $stmt = $db->prepare($query);
                     if (!$stmt) throw new Exception("DB Error: " . $db->error);
                     
@@ -163,7 +163,7 @@ try {
                     $query = "INSERT INTO call_center_appointments 
                         (donor_id, agent_id, session_id, queue_id, appointment_date, appointment_time, slot_duration_minutes, appointment_type, status, notes, created_by, created_at)
                         VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, NOW())";
-                        
+                    
                     $stmt = $db->prepare($query);
                     if (!$stmt) throw new Exception("DB Error: " . $db->error);
                     
@@ -218,21 +218,21 @@ try {
                 
                 // Update queue if exists
                 if ($queue_id > 0) {
-                    $next_attempt = $appointment_date . ' ' . $appointment_time;
-                    $update_queue = "
-                        UPDATE call_center_queues 
-                        SET status = 'pending',
-                            next_attempt_after = ?,
-                            last_attempt_outcome = 'callback_scheduled',
-                            assigned_to = ?
-                        WHERE id = ?
-                    ";
-                    
-                    $stmt = $db->prepare($update_queue);
-                    if ($stmt) {
-                        $stmt->bind_param('sii', $next_attempt, $user_id, $queue_id);
-                        $stmt->execute();
-                        $stmt->close();
+                $next_attempt = $appointment_date . ' ' . $appointment_time;
+                $update_queue = "
+                    UPDATE call_center_queues 
+                    SET status = 'pending',
+                        next_attempt_after = ?,
+                        last_attempt_outcome = 'callback_scheduled',
+                        assigned_to = ?
+                    WHERE id = ?
+                ";
+                
+                $stmt = $db->prepare($update_queue);
+                if ($stmt) {
+                    $stmt->bind_param('sii', $next_attempt, $user_id, $queue_id);
+                    $stmt->execute();
+                    $stmt->close();
                     }
                 }
                 
@@ -641,8 +641,8 @@ $page_title = 'Schedule Callback';
                     <div class="form-section">
                         <div class="form-section-title">
                             <div>
-                                <i class="fas fa-calendar me-2"></i>Select Date
-                            </div>
+                            <i class="fas fa-calendar me-2"></i>Select Date
+                        </div>
                             <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;">Tap a day to select</small>
                         </div>
                         
@@ -686,7 +686,7 @@ $page_title = 'Schedule Callback';
                             <div class="text-center py-4 text-muted">
                                 <i class="fas fa-hand-pointer fa-2x mb-2"></i>
                                 <p class="mb-0">Please select a date first</p>
-                            </div>
+                        </div>
                         </div>
                     </div>
                     

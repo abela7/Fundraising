@@ -88,7 +88,7 @@ try {
         while ($row = $result->fetch_assoc()) {
             $scheduled_today[] = $row;
         }
-        
+
         // Get recent calls (last 8)
         $recent_query = $db->prepare("
             SELECT 
@@ -284,7 +284,6 @@ try {
                         <h1 class="h4 mb-1 text-primary fw-bold">
                             <i class="fa-solid fa-headset me-2"></i>Call Center
                     </h1>
-                        <p class="text-muted small mb-0">Welcome back, <?php echo htmlspecialchars($user_name); ?></p>
                 </div>
             </div>
 
@@ -379,7 +378,7 @@ try {
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold small">My Schedule</div>
                                             <div class="text-muted" style="font-size: 0.7rem;">View calendar & appointments</div>
-                                        </div>
+                                </div>
                                         <?php if ($stats['pending_callbacks'] > 0): ?>
                                         <span class="badge bg-warning text-dark"><?php echo $stats['pending_callbacks']; ?></span>
                                         <?php endif; ?>
