@@ -36,6 +36,17 @@ if ($is_messages) { $current_page = 'messages'; }
             </div>
         </div>
         
+        <!-- Call Center Section -->
+        <div class="nav-section">
+            <div class="nav-section-title">Call Center</div>
+			<div class="nav-item">
+				<a href="<?php echo htmlspecialchars(url_for('admin/call-center/')); ?>" class="nav-link <?php echo (strpos($request_uri, '/call-center/') !== false) ? 'active' : ''; ?>">
+                    <i class="fas fa-headset"></i>
+                    <span class="nav-link-text">Call Center</span>
+                </a>
+            </div>
+        </div>
+        
         <!-- Records Section -->
         <div class="nav-section">
             <div class="nav-section-title">Records</div>
