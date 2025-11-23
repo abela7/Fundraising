@@ -3,6 +3,7 @@ require_once '../../config/db.php';
 require_once '../../shared/auth.php';
 require_once '../../shared/csrf.php';
 require_login();
+require_admin();
 
 $sessionUser = current_user();
 $db = db();

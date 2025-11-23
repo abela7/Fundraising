@@ -92,7 +92,7 @@ if ($current_user_id > 0) {
                 
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <a class="dropdown-item" href="../admin/profile/">
+                        <a class="dropdown-item" href="<?php echo strpos($_SERVER['REQUEST_URI'], '/registrar/') !== false ? './profile.php' : '../registrar/profile.php'; ?>">
                             <i class="fas fa-user me-2"></i>My Profile
                         </a>
                     </li>
