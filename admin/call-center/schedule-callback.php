@@ -87,14 +87,16 @@ try {
             $db->begin_transaction();
             
             try {
-                // Determine appointment type
+                // Determine appointment type - Map to valid DB ENUM values
+                // DB ENUM: 'callback_no_answer','callback_busy','callback_requested','follow_up','payment_discussion'
                 $appointment_type = 'callback_no_answer';
+                
                 if ($status === 'busy') {
                     $appointment_type = 'callback_busy';
                 } elseif ($status === 'busy_cant_talk') {
-                    $appointment_type = 'callback_rescheduled';
+                    $appointment_type = 'callback_requested';
                 } elseif ($status === 'not_ready_to_pay') {
-                    $appointment_type = 'callback_not_ready';
+                    $appointment_type = 'payment_discussion';
                 }
                 
                 // Construct query based on session and queue availability to avoid binding NULLs
