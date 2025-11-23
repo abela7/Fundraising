@@ -362,6 +362,9 @@ $page_title = 'Schedule Callback';
             font-weight: 700;
             color: #0a6286;
             margin-bottom: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         
         .form-label {
@@ -372,38 +375,153 @@ $page_title = 'Schedule Callback';
         }
         
         .form-control, .form-select {
-            font-size: 0.9375rem;
-            padding: 0.625rem 0.875rem;
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+        }
+        
+        /* Calendar Styles */
+        .calendar-wrapper {
+            margin-top: 0.75rem;
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+        
+        .calendar-nav-btn {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+        
+        .calendar-nav-btn:hover {
+            background: #0a6286;
+            color: white;
+            border-color: #0a6286;
+        }
+        
+        .calendar-month {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #0a6286;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.375rem;
+        }
+        
+        .calendar-day-label {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            padding: 0.375rem;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            font-size: 0.875rem;
+            background: white;
+        }
+        
+        .calendar-day:hover:not(.disabled):not(.empty) {
+            border-color: #0a6286;
+            background: #f0f9ff;
+            transform: scale(1.05);
+        }
+        
+        .calendar-day.selected {
+            background: #0a6286;
+            color: white;
+            border-color: #0a6286;
+        }
+        
+        .calendar-day.today {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+        
+        .calendar-day.disabled {
+            background: #f8fafc;
+            color: #cbd5e1;
+            cursor: not-allowed;
+            border-color: #f1f5f9;
+        }
+        
+        .calendar-day.empty {
+            border: none;
+            cursor: default;
+        }
+        
+        /* Native date input fallback */
+        #appointment_date_native {
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            width: 100%;
+        }
+        
+        /* Time Slots */
+        .time-slots-container {
+            margin-top: 0.75rem;
         }
         
         .time-slots-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.625rem;
-            margin-top: 0.75rem;
+            gap: 0.75rem;
         }
         
         .time-slot {
             background: white;
             border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 0.75rem 0.5rem;
+            border-radius: 10px;
+            padding: 1rem 0.5rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 0.875rem;
+            font-size: 1rem;
             font-weight: 600;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .time-slot:hover:not(.disabled) {
             border-color: #0a6286;
             background: #f0f9ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         
         .time-slot.selected {
             border-color: #0a6286;
             background: #0a6286;
             color: white;
+            box-shadow: 0 4px 6px -1px rgba(10, 98, 134, 0.3);
         }
         
         .time-slot.disabled {
@@ -427,13 +545,41 @@ $page_title = 'Schedule Callback';
         
         .action-buttons .btn {
             flex: 1;
-            padding: 0.75rem;
+            padding: 0.875rem;
             font-weight: 600;
+            font-size: 1rem;
         }
         
         @media (max-width: 767px) {
+            .schedule-callback-page {
+                padding: 0.5rem;
+            }
+            
             .time-slots-grid {
                 grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }
+            
+            .time-slot {
+                padding: 0.875rem 0.5rem;
+                font-size: 0.9375rem;
+                min-height: 55px;
+            }
+            
+            .calendar-grid {
+                gap: 0.25rem;
+            }
+            
+            .calendar-day {
+                font-size: 0.8125rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .action-buttons .btn {
+                width: 100%;
             }
         }
     </style>
@@ -493,25 +639,53 @@ $page_title = 'Schedule Callback';
                     <!-- Date Selection -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="fas fa-calendar me-2"></i>Select Date
+                            <div>
+                                <i class="fas fa-calendar me-2"></i>Select Date
+                            </div>
+                            <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;">Tap a day to select</small>
                         </div>
+                        
+                        <!-- Custom Calendar UI -->
+                        <div id="custom-calendar" class="calendar-wrapper">
+                            <div class="calendar-header">
+                                <button type="button" class="calendar-nav-btn" id="prev-month">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <div class="calendar-month" id="current-month"></div>
+                                <button type="button" class="calendar-nav-btn" id="next-month">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                            <div class="calendar-grid" id="calendar-grid"></div>
+                        </div>
+                        
+                        <!-- Hidden native date input for form submission -->
                         <input type="date" 
-                               class="form-control" 
                                id="appointment_date" 
                                name="appointment_date" 
                                min="<?php echo date('Y-m-d'); ?>" 
                                max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>"
-                               required>
-                        <small class="text-muted d-block mt-2">Choose a date within the next 30 days</small>
+                               required
+                               style="position: absolute; opacity: 0; pointer-events: none;">
+                        
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle me-1"></i>Select a date within the next 30 days
+                        </small>
                     </div>
                     
                     <!-- Time Slot Selection -->
                     <div class="form-section">
                         <div class="form-section-title">
-                            <i class="fas fa-clock me-2"></i>Available Time Slots (<?php echo $slot_duration; ?> minutes each)
+                            <div>
+                                <i class="fas fa-clock me-2"></i>Select Time
+                            </div>
+                            <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;"><?php echo $slot_duration; ?> min slots</small>
                         </div>
-                        <div id="time-slots-container" class="loading-slots">
-                            <i class="fas fa-spinner fa-spin me-2"></i>Select a date to see available time slots
+                        <div id="time-slots-container" class="time-slots-container">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-hand-pointer fa-2x mb-2"></i>
+                                <p class="mb-0">Please select a date first</p>
+                            </div>
                         </div>
                     </div>
                     
@@ -586,9 +760,100 @@ $page_title = 'Schedule Callback';
     const bookBtn = document.getElementById('book-btn');
     const timeInput = document.getElementById('selected_time_input');
     
-    // Re-adding the inline script logic for slots from previous version
-    document.getElementById('appointment_date').addEventListener('change', function() {
-        const date = this.value;
+    // Calendar state
+    let currentMonth = new Date();
+    let selectedDate = null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const minDate = new Date();
+    minDate.setHours(0, 0, 0, 0);
+    
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 30);
+    maxDate.setHours(0, 0, 0, 0);
+    
+    // Render calendar
+    function renderCalendar() {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        
+        // Update header
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
+        
+        // Get first day of month and total days
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
+        
+        // Build calendar grid
+        let html = '';
+        
+        // Day labels
+        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayLabels.forEach(label => {
+            html += `<div class="calendar-day-label">${label}</div>`;
+        });
+        
+        // Empty cells before first day
+        for (let i = 0; i < startingDayOfWeek; i++) {
+            html += '<div class="calendar-day empty"></div>';
+        }
+        
+        // Days of month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            date.setHours(0, 0, 0, 0);
+            
+            let classes = 'calendar-day';
+            let disabled = false;
+            
+            // Check if date is in valid range
+            if (date < minDate || date > maxDate) {
+                classes += ' disabled';
+                disabled = true;
+            }
+            
+            // Check if today
+            if (date.getTime() === today.getTime()) {
+                classes += ' today';
+            }
+            
+            // Check if selected
+            if (selectedDate && date.getTime() === selectedDate.getTime()) {
+                classes += ' selected';
+            }
+            
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const onClick = disabled ? '' : `onclick="selectDate('${dateStr}')"`;
+            
+            html += `<div class="${classes}" ${onClick}>${day}</div>`;
+        }
+        
+        document.getElementById('calendar-grid').innerHTML = html;
+    }
+    
+    // Select date
+    window.selectDate = function(dateStr) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        selectedDate = new Date(year, month - 1, day);
+        selectedDate.setHours(0, 0, 0, 0);
+        
+        // Update hidden input
+        dateInput.value = dateStr;
+        
+        // Re-render calendar to show selection
+        renderCalendar();
+        
+        // Load time slots
+        loadTimeSlots(dateStr);
+    };
+    
+    // Load time slots
+    function loadTimeSlots(date) {
         if (!date) return;
         
         slotsContainer.innerHTML = '<div class="loading-slots"><i class="fas fa-spinner fa-spin me-2"></i>Loading available slots...</div>';
@@ -600,25 +865,38 @@ $page_title = 'Schedule Callback';
             .then(data => {
                 if (data.success) {
                     if (data.slots.length === 0) {
-                        slotsContainer.innerHTML = '<div class="alert alert-warning mb-0">No available slots for this date.</div>';
+                        slotsContainer.innerHTML = '<div class="alert alert-warning mb-0"><i class="fas fa-calendar-times me-2"></i>No available slots for this date.</div>';
                     } else {
-                        let html = '';
+                        let html = '<div class="time-slots-grid">';
                         data.slots.forEach(slot => {
                             html += `<div class="time-slot" onclick="selectSlot(this, '${slot.time}')">${slot.formatted_time}</div>`;
                         });
+                        html += '</div>';
                         slotsContainer.innerHTML = html;
                     }
                 } else {
-                    slotsContainer.innerHTML = `<div class="alert alert-danger mb-0">${data.message || 'Error loading slots'}</div>`;
+                    slotsContainer.innerHTML = `<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>${data.message || 'Error loading slots'}</div>`;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                slotsContainer.innerHTML = '<div class="alert alert-danger mb-0">Failed to load slots. Please try again.</div>';
+                slotsContainer.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load slots. Please try again.</div>';
             });
+    }
+    
+    // Navigation buttons
+    document.getElementById('prev-month').addEventListener('click', function() {
+        currentMonth.setMonth(currentMonth.getMonth() - 1);
+        renderCalendar();
     });
     
-    function selectSlot(element, time) {
+    document.getElementById('next-month').addEventListener('click', function() {
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+        renderCalendar();
+    });
+    
+    // Select time slot
+    window.selectSlot = function(element, time) {
         // Remove selected class from all
         document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
         
@@ -628,12 +906,10 @@ $page_title = 'Schedule Callback';
         // Update input
         timeInput.value = time;
         bookBtn.disabled = false;
-    }
+    };
     
-    // Trigger change if date is pre-filled
-    if (dateInput.value) {
-        dateInput.dispatchEvent(new Event('change'));
-    }
+    // Initialize calendar
+    renderCalendar();
 </script>
 </body>
 </html>
