@@ -177,12 +177,12 @@ $page_title = 'Edit Profile';
                                         <small class="text-muted">Optional</small>
                                     </div>
                                     
-                                    <div class="d-flex gap-2 justify-content-end">
+                                    <div class="d-flex gap-2 justify-content-end mt-4">
                                         <a href="profile.php" class="btn btn-secondary">
-                                            <i class="fas fa-times me-1"></i>Cancel
+                                            <i class="fas fa-times me-1"></i>Cancel Edit
                                         </a>
                                         <button type="submit" name="update_profile" class="btn btn-primary">
-                                            <i class="fas fa-save me-1"></i>Update Profile
+                                            <i class="fas fa-save me-1"></i>Update
                                         </button>
                                     </div>
                                 </form>
