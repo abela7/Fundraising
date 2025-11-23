@@ -1291,30 +1291,6 @@ $(document).ready(function() {
         }
     });
 
-    // Delete button in detail modal
-    $('#btnDeleteFromDetail').click(function() {
-        if (currentDonorData) {
-            $('#donorDetailModal').modal('hide');
-            
-            if (!confirm('Are you sure you want to delete "' + currentDonorData.name + '"?\n\nThis action cannot be undone.')) {
-                return;
-            }
-            
-            const formData = $('#editDonorForm').serialize() + '&ajax_action=delete_donor&donor_id=' + currentDonorData.id;
-            
-            $.post('', formData, function(response) {
-                if (response.success) {
-                    alert(response.message);
-                    location.reload();
-                } else {
-                    alert('Error: ' + response.message);
-                }
-            }, 'json').fail(function() {
-                alert('Server error. Please try again.');
-            });
-        }
-    });
-    
     // Add Donor is now on a separate page (add-donor.php)
 });
 
