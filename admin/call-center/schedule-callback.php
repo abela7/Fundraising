@@ -210,7 +210,7 @@ try {
                     
                     $stmt = $db->prepare($update_session);
                     if ($stmt) {
-                        $stmt->bind_param('sssisii', $outcome, $callback_datetime, $reason, $duration_seconds, $callback_note, $extra_notes, $session_id, $user_id);
+                        $stmt->bind_param('sssissii', $outcome, $callback_datetime, $reason, $duration_seconds, $callback_note, $extra_notes, $session_id, $user_id);
                         $stmt->execute();
                         $stmt->close();
                     }
