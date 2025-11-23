@@ -359,7 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                         <!-- Bank Transfer Details (shown only when Bank Transfer is selected) -->
                                         <div class="mb-4" id="bankTransferDetails" style="display: none;"
                                              data-reference="<?php echo htmlspecialchars($bank_reference_label, ENT_QUOTES, 'UTF-8'); ?>">
-                                            <div class="alert alert-secondary mb-0">
+                                            <div class="alert alert-secondary mb-0 alert-persistent">
                                                 <h6 class="alert-heading mb-3">
                                                     <i class="fas fa-university me-2"></i>Bank Transfer Details
                                                 </h6>

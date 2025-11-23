@@ -70,9 +70,9 @@ function initTooltips() {
     });
 }
 
-// Auto-hide alerts after 5 seconds
+// Auto-hide alerts after 5 seconds (except persistent ones)
 document.addEventListener('DOMContentLoaded', function() {
-    const alerts = document.querySelectorAll('.alert');
+    const alerts = document.querySelectorAll('.alert:not(.alert-persistent)');
     alerts.forEach(alert => {
         setTimeout(() => {
             const bsAlert = new bootstrap.Alert(alert);
