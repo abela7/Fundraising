@@ -4,13 +4,19 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
-require_admin();
+
+// Allow both admins and registrars to access (registrars need this for call center)
+$current_user = current_user();
+if (!in_array($current_user['role'] ?? '', ['admin', 'registrar'], true)) {
+    http_response_code(403);
+    echo 'Forbidden';
+    exit;
+}
 
 // Resiliently load settings and check for DB errors
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
 
 $page_title = 'Donor List';
-$current_user = current_user();
 $db = db();
 
 $success_message = '';
