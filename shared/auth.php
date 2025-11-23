@@ -56,13 +56,46 @@ function require_login(): void {
 
 function require_admin(): void {
     require_login();
-    // Allow both admin and registrar roles to access admin pages
     $user = current_user();
-    if (!$user || !in_array($user['role'] ?? '', ['admin', 'registrar'], true)) {
+    if (!$user) {
         http_response_code(403);
         echo 'Forbidden';
         exit;
     }
+    
+    $role = $user['role'] ?? '';
+    
+    // Admins can access everything
+    if ($role === 'admin') {
+        return;
+    }
+    
+    // Registrars can ONLY access donor-management and call-center pages
+    if ($role === 'registrar') {
+        $script = $_SERVER['SCRIPT_NAME'] ?? '';
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        
+        // Check if accessing allowed pages
+        $is_donor_management = strpos($script, '/admin/donor-management/') !== false || 
+                              strpos($request_uri, '/admin/donor-management/') !== false;
+        $is_call_center = strpos($script, '/admin/call-center/') !== false || 
+                         strpos($request_uri, '/admin/call-center/') !== false;
+        
+        if ($is_donor_management || $is_call_center) {
+            // Registrar can access these pages
+            return;
+        }
+        
+        // Registrar trying to access admin-only pages - redirect to registrar dashboard
+        $_SESSION['access_denied_message'] = 'You are not allowed to access this page. This page is restricted to administrators only.';
+        header('Location: /registrar/index.php');
+        exit;
+    }
+    
+    // Other roles - deny access
+    http_response_code(403);
+    echo 'Forbidden';
+    exit;
 }
 
 function login_with_phone_password(string $phone, string $password): bool {
