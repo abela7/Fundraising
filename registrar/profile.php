@@ -63,6 +63,14 @@ $page_title = 'My Profile';
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
+        .profile-header h3 {
+            color: white !important;
+        }
+        
+        .profile-header p {
+            color: rgba(255, 255, 255, 0.9) !important;
+        }
+        
         .profile-avatar {
             width: 100px;
             height: 100px;
