@@ -13,8 +13,21 @@ $page_title = 'Assign Donors to Agents';
 // Step 1: Just get the DB connection
 $db = db();
 
-// Step 2: Run the simplest possible donor query
-$donors = $db->query("SELECT id, name, phone, balance FROM donors LIMIT 20");
+// Step 2: Run a proper donor query with all financial columns
+// Note: balance is a GENERATED column (total_pledged - total_paid)
+$donors = $db->query("
+    SELECT 
+        id, 
+        name, 
+        phone, 
+        COALESCE(total_pledged, 0) as total_pledged,
+        COALESCE(total_paid, 0) as total_paid,
+        COALESCE(balance, 0) as balance,
+        donor_type,
+        payment_status
+    FROM donors 
+    LIMIT 20
+");
 
 ?>
 <!DOCTYPE html>
@@ -48,13 +61,17 @@ $donors = $db->query("SELECT id, name, phone, balance FROM donors LIMIT 20");
                 </div>
                 <div class="card-body">
                     <?php if ($donors && $donors->num_rows > 0): ?>
-                        <table class="table table-sm">
+                        <table class="table table-sm table-striped">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Name</th>
                                     <th>Phone</th>
+                                    <th>Type</th>
+                                    <th>Pledged</th>
+                                    <th>Paid</th>
                                     <th>Balance</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -62,14 +79,28 @@ $donors = $db->query("SELECT id, name, phone, balance FROM donors LIMIT 20");
                                 <tr>
                                     <td><?php echo $donor['id']; ?></td>
                                     <td><?php echo htmlspecialchars($donor['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($donor['phone'] ?? 'N/A'); ?></td>
-                                    <td>£<?php echo number_format($donor['balance'], 2); ?></td>
+                                    <td><small><?php echo htmlspecialchars($donor['phone'] ?? 'N/A'); ?></small></td>
+                                    <td><span class="badge bg-info"><?php echo $donor['donor_type'] ?? 'N/A'; ?></span></td>
+                                    <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
+                                    <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
+                                    <td><strong>£<?php echo number_format((float)$donor['balance'], 2); ?></strong></td>
+                                    <td><small><?php echo $donor['payment_status'] ?? 'N/A'; ?></small></td>
                                 </tr>
                                 <?php endwhile; ?>
                             </tbody>
                         </table>
+                        <div class="alert alert-success mt-3">
+                            <strong>✅ Donor data loaded successfully!</strong>
+                            <ul class="mb-0 mt-2">
+                                <li><strong>Pledged</strong> = Total approved pledges</li>
+                                <li><strong>Paid</strong> = Total approved payments</li>
+                                <li><strong>Balance</strong> = Pledged - Paid (auto-calculated)</li>
+                            </ul>
+                        </div>
                     <?php else: ?>
-                        <p class="text-muted">No donors found.</p>
+                        <div class="alert alert-warning">
+                            <p class="mb-0">No donors found in the database.</p>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
