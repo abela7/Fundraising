@@ -43,9 +43,18 @@ if ($donor_id) {
 }
 
 if ($outcome_filter) {
-    $where_conditions[] = "s.outcome = ?";
-    $params[] = $outcome_filter;
-    $param_types .= 's';
+    if ($outcome_filter === 'callback_scheduled') {
+        // Special handling for callback scheduled
+        $where_conditions[] = "(s.outcome = 'callback_scheduled' OR s.callback_scheduled_for IS NOT NULL)";
+    } elseif ($outcome_filter === 'connected') {
+        // Special handling for successful contacts
+        $success_outcomes = "'connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full'";
+        $where_conditions[] = "s.outcome IN ($success_outcomes)";
+    } else {
+        $where_conditions[] = "s.outcome = ?";
+        $params[] = $outcome_filter;
+        $param_types .= 's';
+    }
 }
 
 if ($date_from) {
