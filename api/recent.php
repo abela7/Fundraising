@@ -8,12 +8,16 @@ require_once __DIR__ . '/../config/db.php';
 header('Content-Type: application/json');
 
 try {
-    $settings = db()->query('SELECT projector_names_mode, currency_code FROM settings WHERE id=1')->fetch_assoc();
+    $db = db();
+    $settings = $db->query('SELECT projector_names_mode, currency_code FROM settings WHERE id=1')->fetch_assoc();
     if (!$settings) {
         $settings = ['projector_names_mode' => 'full', 'currency_code' => 'GBP'];
     }
     $mode = $settings['projector_names_mode'] ?? 'full';
     $currency = $settings['currency_code'] ?? 'GBP';
+    
+    // Check if pledge_payments exists
+    $has_pp = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
     
     // Use the exact same SQL structure as admin/approved page
     $sql = "
@@ -34,13 +38,28 @@ try {
         pay.received_at AS approved_at
       FROM payments pay
       WHERE pay.status = 'approved')
-    ORDER BY approved_at DESC 
-    LIMIT 20
     ";
+    
+    if ($has_pp) {
+        $sql .= "
+        UNION ALL
+        (SELECT 
+            pp.amount,
+            'paid' AS type,
+            0 AS anonymous,
+            COALESCE(d.name, 'Unknown') as donor_name,
+            pp.created_at AS approved_at
+          FROM pledge_payments pp
+          LEFT JOIN donors d ON pp.donor_id = d.id
+          WHERE pp.status = 'confirmed')
+        ";
+    }
+    
+    $sql .= " ORDER BY approved_at DESC LIMIT 20";
 
-    $res = db()->query($sql);
+    $res = $db->query($sql);
     if (!$res) {
-        throw new Exception(db()->error);
+        throw new Exception($db->error);
     }
     
     $items = [];

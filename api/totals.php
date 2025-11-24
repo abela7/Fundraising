@@ -15,22 +15,42 @@ try {
         $settings = ['target_amount' => 100000, 'projector_display_mode' => 'amount'];
     }
 
-    // Calculate totals directly from source tables for real-time accuracy
-    // This matches the comprehensive report calculations exactly
-    $paidRow = $db->query("SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE status = 'approved'")->fetch_assoc();
-    $paidTotal = (float)($paidRow['total'] ?? 0);
+    // 1. Instant Payments (Direct donations)
+    $instRow = $db->query("SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE status = 'approved'")->fetch_assoc();
+    $instantTotal = (float)($instRow['total'] ?? 0);
     
+    // 2. Pledge Payments (Installments) - Check if table exists
+    $pledgePaidTotal = 0;
+    $check = $db->query("SHOW TABLES LIKE 'pledge_payments'");
+    if ($check->num_rows > 0) {
+        $ppRow = $db->query("SELECT COALESCE(SUM(amount), 0) AS total FROM pledge_payments WHERE status = 'confirmed'")->fetch_assoc();
+        $pledgePaidTotal = (float)($ppRow['total'] ?? 0);
+    }
+    
+    // 3. Pledges (Promises)
     $pledgedRow = $db->query("SELECT COALESCE(SUM(amount), 0) AS total FROM pledges WHERE status = 'approved'")->fetch_assoc();
     $pledgedTotal = (float)($pledgedRow['total'] ?? 0);
     
-    $grand = $paidTotal + $pledgedTotal;
+    // Logic for Projector Display:
+    // Total Paid = All cash received (Instant + Pledge Installments)
+    // Total Pledged = Total pledge promises made (static, shows commitment)
+    // Grand Total = Total Pledged + Instant Payments
+    //   Note: Pledge installments are NOT added to Grand Total because they're already
+    //   represented in the pledge amount. Only instant payments add new value.
+    //   Example: £500 pledge + £100 paid towards it + £50 instant = Grand Total £550
+    //   (not £650, because the £100 is part of the £500 pledge)
+    
+    $paidTotalDisplay = $instantTotal + $pledgePaidTotal;
+    $pledgedTotalDisplay = $pledgedTotal;
+    $grandTotalDisplay = $pledgedTotal + $instantTotal;
+    
     $target = max(1.0, (float)$settings['target_amount']);
-    $progress = min(100.0, round(($grand / $target) * 100, 2));
+    $progress = min(100.0, round(($grandTotalDisplay / $target) * 100, 2));
 
     echo json_encode([
-        'paid_total' => $paidTotal,
-        'pledged_total' => $pledgedTotal,
-        'grand_total' => $grand,
+        'paid_total' => $paidTotalDisplay,
+        'pledged_total' => $pledgedTotalDisplay,
+        'grand_total' => $grandTotalDisplay,
         'progress_pct' => $progress,
         'projector_display_mode' => $settings['projector_display_mode'] ?? 'amount',
         'last_updated' => date('Y-m-d H:i:s'),
