@@ -157,24 +157,41 @@ try {
             $update_plan->execute();
             $update_plan->close();
             
+            // Check if plan_next_due_date column exists
+            $has_donor_plan_col = $db->query("SHOW COLUMNS FROM donors LIKE 'plan_next_due_date'")->num_rows > 0;
+            
             // If plan was completed and is now reactivated, update donor
             if ($plan['status'] === 'completed' && $plan_status === 'active') {
-                $update_donor = $db->prepare("
-                    UPDATE donors 
-                    SET has_active_plan = 1, 
-                        active_payment_plan_id = ?,
-                        plan_next_due_date = ?,
-                        payment_status = CASE 
-                            WHEN balance <= 0 THEN 'completed'
-                            ELSE 'paying'
-                        END
-                    WHERE id = ?
-                ");
-                $update_donor->bind_param('isi', $payment_plan_id, $next_payment_due, $donor_id);
+                if ($has_donor_plan_col) {
+                    $update_donor = $db->prepare("
+                        UPDATE donors 
+                        SET has_active_plan = 1, 
+                            active_payment_plan_id = ?,
+                            plan_next_due_date = ?,
+                            payment_status = CASE 
+                                WHEN balance <= 0 THEN 'completed'
+                                ELSE 'paying'
+                            END
+                        WHERE id = ?
+                    ");
+                    $update_donor->bind_param('isi', $payment_plan_id, $next_payment_due, $donor_id);
+                } else {
+                    $update_donor = $db->prepare("
+                        UPDATE donors 
+                        SET has_active_plan = 1, 
+                            active_payment_plan_id = ?,
+                            payment_status = CASE 
+                                WHEN balance <= 0 THEN 'completed'
+                                ELSE 'paying'
+                            END
+                        WHERE id = ?
+                    ");
+                    $update_donor->bind_param('ii', $payment_plan_id, $donor_id);
+                }
                 $update_donor->execute();
                 $update_donor->close();
-            } elseif ($plan_status === 'active') {
-                // Update donor's next payment due date
+            } elseif ($plan_status === 'active' && $has_donor_plan_col) {
+                // Update donor's next payment due date (only if column exists)
                 $update_donor = $db->prepare("
                     UPDATE donors 
                     SET plan_next_due_date = ?

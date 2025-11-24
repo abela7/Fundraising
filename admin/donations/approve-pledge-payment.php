@@ -240,15 +240,19 @@ try {
                 $update_donor->execute();
                 $update_donor->close();
             } else {
-                // Update donor's next payment due date
-                $update_donor = $db->prepare("
-                    UPDATE donors 
-                    SET plan_next_due_date = ?
-                    WHERE id = ? AND active_payment_plan_id = ?
-                ");
-                $update_donor->bind_param('sii', $next_payment_due, $donor_id, $payment_plan_id);
-                $update_donor->execute();
-                $update_donor->close();
+                // Update donor's next payment due date (if column exists)
+                $has_donor_plan_col = $db->query("SHOW COLUMNS FROM donors LIKE 'plan_next_due_date'")->num_rows > 0;
+                
+                if ($has_donor_plan_col) {
+                    $update_donor = $db->prepare("
+                        UPDATE donors 
+                        SET plan_next_due_date = ?
+                        WHERE id = ? AND active_payment_plan_id = ?
+                    ");
+                    $update_donor->bind_param('sii', $next_payment_due, $donor_id, $payment_plan_id);
+                    $update_donor->execute();
+                    $update_donor->close();
+                }
             }
         }
     
