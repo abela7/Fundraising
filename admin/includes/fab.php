@@ -15,10 +15,10 @@
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #0d6efd, #0a58ca);
+        background: linear-gradient(180deg, #075985 0%, #0a6286 50%, #075985 100%);
         color: white;
         border: none;
-        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+        box-shadow: 0 4px 15px rgba(7, 89, 133, 0.4);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -31,13 +31,14 @@
 
     .fab-main:hover {
         transform: scale(1.1);
-        box-shadow: 0 6px 20px rgba(13, 110, 253, 0.6);
+        box-shadow: 0 6px 20px rgba(7, 89, 133, 0.6);
+        background: linear-gradient(180deg, #0a6286 0%, #0ea5e9 50%, #0a6286 100%);
     }
 
     .fab-main.active {
         transform: rotate(45deg);
-        background: #dc3545;
-        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+        background: linear-gradient(180deg, #075985 0%, #0a6286 50%, #075985 100%);
+        box-shadow: 0 4px 15px rgba(7, 89, 133, 0.5);
     }
 
     .fab-options {
