@@ -17,6 +17,28 @@ $filter_registrar = isset($_GET['registrar']) && $_GET['registrar'] !== '' ? (in
 $filter_assignment = $_GET['assignment'] ?? 'all'; // all, assigned, unassigned
 $filter_donation_type = $_GET['donation_type'] ?? 'all'; // all, pledge, payment
 
+// Get sorting parameters
+$sort_by = $_GET['sort_by'] ?? 'name'; // id, name, pledge, balance
+$sort_order = $_GET['sort_order'] ?? 'asc'; // asc, desc
+
+// Validate sort parameters
+$valid_sort_columns = ['id', 'name', 'pledge', 'balance'];
+if (!in_array($sort_by, $valid_sort_columns)) {
+    $sort_by = 'name';
+}
+if (!in_array($sort_order, ['asc', 'desc'])) {
+    $sort_order = 'asc';
+}
+
+// Map sort_by to actual column names
+$sort_column_map = [
+    'id' => 'd.id',
+    'name' => 'd.name',
+    'pledge' => 'total_pledged',
+    'balance' => 'balance'
+];
+$order_by_clause = $sort_column_map[$sort_by] . ' ' . strtoupper($sort_order);
+
 // Handle bulk assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
     $donor_ids = $_POST['donor_ids'] ?? [];
@@ -71,6 +93,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign']) && !isset($
         } catch (Exception $e) {
             $message = "Error: " . $e->getMessage();
         }
+    }
+}
+
+// Function to generate sort URL
+function getSortUrl($column, $current_sort_by, $current_sort_order) {
+    $params = $_GET;
+    $params['sort_by'] = $column;
+    
+    // Toggle sort order if clicking on the same column
+    if ($current_sort_by === $column) {
+        $params['sort_order'] = $current_sort_order === 'asc' ? 'desc' : 'asc';
+    } else {
+        $params['sort_order'] = 'asc';
+    }
+    
+    return 'assign-donors.php?' . http_build_query($params);
+}
+
+// Function to get sort icon
+function getSortIcon($column, $current_sort_by, $current_sort_order) {
+    if ($current_sort_by !== $column) {
+        return '<i class="fas fa-sort text-muted ms-1" style="opacity: 0.3;"></i>';
+    }
+    
+    if ($current_sort_order === 'asc') {
+        return '<i class="fas fa-sort-up text-primary ms-1"></i>';
+    } else {
+        return '<i class="fas fa-sort-down text-primary ms-1"></i>';
     }
 }
 
@@ -169,7 +219,7 @@ try {
             (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
             FROM donors d
             WHERE " . implode(" AND ", $agent_where) . "
-            ORDER BY d.name";
+            ORDER BY {$order_by_clause}";
         
         $donors_by_agent[$agent['id']] = [];
         
@@ -198,7 +248,7 @@ try {
         (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
         FROM donors d
         WHERE " . implode(" AND ", $unassigned_where) . "
-        ORDER BY d.name";
+        ORDER BY {$order_by_clause}";
     
     if (!empty($unassigned_params)) {
         $unassigned_stmt = $db->prepare($unassigned_query);
@@ -317,6 +367,33 @@ try {
             color: #6c757d;
             border: none;
             padding: 16px 12px;
+        }
+        
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #6c757d;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin: -4px -8px;
+        }
+        
+        .sortable-header:hover {
+            color: var(--primary-color);
+            background: rgba(13, 110, 253, 0.08);
+            text-decoration: none;
+        }
+        
+        .sortable-header:hover .fa-sort {
+            opacity: 0.6 !important;
+        }
+        
+        .sortable-header .fas {
+            font-size: 0.75rem;
         }
 
         .table-modern tbody tr {
@@ -988,7 +1065,7 @@ try {
                                     FROM donors d
                                     LEFT JOIN users u ON d.agent_id = u.id
                                     {$where_clause}
-                                    ORDER BY d.name
+                                    ORDER BY {$order_by_clause}
                                     LIMIT 100";
                                 
                                 if (!empty($all_params)) {
@@ -1006,10 +1083,10 @@ try {
                                     echo "<thead>";
                                     echo "<tr>";
                                     echo "<th style='width: 50px;'><input type='checkbox' id='selectAllAllHeader' class='donor-checkbox' onchange='toggleSelectAll(\"all\")'></th>";
-                                    echo "<th>ID</th>";
-                                    echo "<th>Name</th>";
-                                    echo "<th>Pledge Amount</th>";
-                                    echo "<th>Balance</th>";
+                                    echo "<th><a href='" . getSortUrl('id', $sort_by, $sort_order) . "' class='sortable-header'>ID" . getSortIcon('id', $sort_by, $sort_order) . "</a></th>";
+                                    echo "<th><a href='" . getSortUrl('name', $sort_by, $sort_order) . "' class='sortable-header'>Name" . getSortIcon('name', $sort_by, $sort_order) . "</a></th>";
+                                    echo "<th><a href='" . getSortUrl('pledge', $sort_by, $sort_order) . "' class='sortable-header'>Pledge Amount" . getSortIcon('pledge', $sort_by, $sort_order) . "</a></th>";
+                                    echo "<th><a href='" . getSortUrl('balance', $sort_by, $sort_order) . "' class='sortable-header'>Balance" . getSortIcon('balance', $sort_by, $sort_order) . "</a></th>";
                                     echo "<th>Assigned To</th>";
                                     echo "<th style='min-width: 280px;'>Actions</th>";
                                     echo "</tr>";
@@ -1107,10 +1184,10 @@ try {
                                                 <thead>
                                                     <tr>
                                                         <th style="width: 50px;"></th>
-                                                        <th>ID</th>
-                                                        <th>Name</th>
-                                                        <th>Pledge Amount</th>
-                                                        <th>Balance</th>
+                                                        <th><a href="<?php echo getSortUrl('id', $sort_by, $sort_order); ?>" class="sortable-header">ID<?php echo getSortIcon('id', $sort_by, $sort_order); ?></a></th>
+                                                        <th><a href="<?php echo getSortUrl('name', $sort_by, $sort_order); ?>" class="sortable-header">Name<?php echo getSortIcon('name', $sort_by, $sort_order); ?></a></th>
+                                                        <th><a href="<?php echo getSortUrl('pledge', $sort_by, $sort_order); ?>" class="sortable-header">Pledge Amount<?php echo getSortIcon('pledge', $sort_by, $sort_order); ?></a></th>
+                                                        <th><a href="<?php echo getSortUrl('balance', $sort_by, $sort_order); ?>" class="sortable-header">Balance<?php echo getSortIcon('balance', $sort_by, $sort_order); ?></a></th>
                                                         <th>Action</th>
                                                     </tr>
                                                 </thead>
@@ -1171,10 +1248,10 @@ try {
                                             <thead>
                                                 <tr>
                                                     <th style="width: 50px;"></th>
-                                                    <th>ID</th>
-                                                    <th>Name</th>
-                                                    <th>Pledge Amount</th>
-                                                    <th>Balance</th>
+                                                    <th><a href="<?php echo getSortUrl('id', $sort_by, $sort_order); ?>" class="sortable-header">ID<?php echo getSortIcon('id', $sort_by, $sort_order); ?></a></th>
+                                                    <th><a href="<?php echo getSortUrl('name', $sort_by, $sort_order); ?>" class="sortable-header">Name<?php echo getSortIcon('name', $sort_by, $sort_order); ?></a></th>
+                                                    <th><a href="<?php echo getSortUrl('pledge', $sort_by, $sort_order); ?>" class="sortable-header">Pledge Amount<?php echo getSortIcon('pledge', $sort_by, $sort_order); ?></a></th>
+                                                    <th><a href="<?php echo getSortUrl('balance', $sort_by, $sort_order); ?>" class="sortable-header">Balance<?php echo getSortIcon('balance', $sort_by, $sort_order); ?></a></th>
                                                     <th>Assign</th>
                                                 </tr>
                                             </thead>
