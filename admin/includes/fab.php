@@ -1,19 +1,19 @@
 <!-- Floating Action Button (FAB) Menu -->
 <style>
     .fab-container {
-        position: fixed !important;
-        bottom: 25px !important;
-        right: 25px !important;
-        z-index: 99999 !important;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
         display: flex;
-        flex-direction: column-reverse;
+        flex-direction: column;
         align-items: flex-end;
-        gap: 15px;
+        gap: 12px;
     }
 
     .fab-main {
-        width: 60px;
-        height: 60px;
+        width: 48px;
+        height: 48px;
         border-radius: 50%;
         background: linear-gradient(135deg, #0d6efd, #0a58ca);
         color: white;
@@ -22,10 +22,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 20px;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         position: relative;
+        order: 2;
     }
 
     .fab-main:hover {
@@ -51,6 +52,8 @@
         opacity: 0;
         transform: translateY(20px);
         transition: all 0.3s ease;
+        order: 1;
+        margin-bottom: 0;
     }
 
     .fab-container.active .fab-options {
@@ -64,16 +67,23 @@
         align-items: center;
         gap: 10px;
         justify-content: flex-end;
-        transition: transform 0.2s;
+        transform: translateY(10px);
+        opacity: 0;
+        transition: all 0.3s ease;
+    }
+    
+    .fab-container.active .fab-item {
+        transform: translateY(0);
+        opacity: 1;
     }
 
     .fab-item:hover {
-        transform: translateX(-5px);
+        transform: translateX(-5px) translateY(0);
     }
 
     .fab-btn {
-        width: 45px;
-        height: 45px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
         color: white;
         border: none;
@@ -81,7 +91,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 18px;
+        font-size: 16px;
         cursor: pointer;
         text-decoration: none;
         transition: all 0.2s;
@@ -137,8 +147,19 @@
     /* Mobile adjustments */
     @media (max-width: 576px) {
         .fab-container {
-            bottom: 20px;
-            right: 20px;
+            bottom: 15px;
+            right: 15px;
+            gap: 10px;
+        }
+        .fab-main {
+            width: 44px;
+            height: 44px;
+            font-size: 18px;
+        }
+        .fab-btn {
+            width: 40px;
+            height: 40px;
+            font-size: 15px;
         }
         .fab-label {
             display: block;
