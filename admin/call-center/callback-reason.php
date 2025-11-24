@@ -17,7 +17,7 @@ try {
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     
-    if (!$donor_id || !$queue_id) {
+    if (!$donor_id) {
         header('Location: index.php');
         exit;
     }
