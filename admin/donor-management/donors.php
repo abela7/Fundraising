@@ -314,12 +314,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
     }
 }
 
-// Get donors list with payment plan details (filtered by assigned agent)
+// Get list of agents for filter
+$agents = [];
+try {
+    $agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+    if ($agents_result) {
+        while ($agent = $agents_result->fetch_assoc()) {
+            $agents[] = $agent;
+        }
+    }
+} catch (Exception $e) {
+    error_log("Error loading agents: " . $e->getMessage());
+}
+
+// Get filter parameters
+$filter_agent_id = isset($_GET['filter_agent']) && $_GET['filter_agent'] !== '' ? (int)$_GET['filter_agent'] : null;
+$show_all = isset($_GET['show_all']) && $_GET['show_all'] === '1';
+
+// Get donors list with payment plan details
 $donors = [];
 try {
     $user_id = (int)$current_user['id'];
     
-    $stmt = $db->prepare("
+    // Build query based on filter
+    $query = "
         SELECT 
             d.id, d.name, d.phone, d.email, d.city, d.baptism_name, d.church_id,
             d.preferred_language, d.preferred_payment_method, d.source, 
@@ -328,6 +346,8 @@ try {
             d.last_payment_date, d.last_sms_sent_at, d.login_count, d.admin_notes,
             d.registered_by_user_id, d.pledge_count, d.payment_count, d.achievement_badge,
             d.donor_type, d.agent_id,
+            -- Assigned agent name
+            u.name as agent_name,
             -- Church name
             c.name as church_name,
             -- Payment plan details (from master table only)
@@ -343,16 +363,31 @@ try {
             -- Template name if exists
             t.name as template_name
         FROM donors d
+        LEFT JOIN users u ON d.agent_id = u.id
         LEFT JOIN churches c ON d.church_id = c.id
         LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id AND pp.status = 'active'
         LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
-        WHERE d.agent_id = ?
-        ORDER BY d.created_at DESC
-    ");
+    ";
     
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $donors_result = $stmt->get_result();
+    if ($show_all) {
+        // Show all donors (no filter)
+        $query .= " ORDER BY d.created_at DESC";
+        $donors_result = $db->query($query);
+    } elseif ($filter_agent_id !== null) {
+        // Show donors assigned to specific agent
+        $query .= " WHERE d.agent_id = ? ORDER BY d.created_at DESC";
+        $stmt = $db->prepare($query);
+        $stmt->bind_param('i', $filter_agent_id);
+        $stmt->execute();
+        $donors_result = $stmt->get_result();
+    } else {
+        // Default: Show only donors assigned to current user
+        $query .= " WHERE d.agent_id = ? ORDER BY d.created_at DESC";
+        $stmt = $db->prepare($query);
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $donors_result = $stmt->get_result();
+    }
     
     if ($donors_result) {
         $donors = $donors_result->fetch_all(MYSQLI_ASSOC);
@@ -571,7 +606,17 @@ unset($donor); // Break reference
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h5 class="mb-0">
                                 <i class="fas fa-table me-2 text-primary"></i>
-                                My Assigned Donors
+                                <?php 
+                                if ($show_all) {
+                                    echo 'All Donors';
+                                } elseif ($filter_agent_id !== null) {
+                                    $selected_agent = array_filter($agents, fn($a) => $a['id'] == $filter_agent_id);
+                                    $selected_agent = reset($selected_agent);
+                                    echo 'Donors Assigned to ' . htmlspecialchars($selected_agent['name'] ?? 'Agent');
+                                } else {
+                                    echo 'My Assigned Donors';
+                                }
+                                ?>
                             </h5>
                             <button class="btn btn-sm btn-outline-primary" id="toggleFilter" type="button">
                                 <i class="fas fa-filter me-1"></i>Filters
@@ -583,67 +628,70 @@ unset($donor); // Break reference
                     <!-- Filter Panel -->
                     <div id="filterPanel" class="border-bottom" style="display: none;">
                         <div class="p-3 bg-light">
-                            <div class="row g-2">
-                                <div class="col-12 col-sm-6 col-lg-3">
-                                    <label class="form-label small fw-bold mb-1">Donor Type</label>
-                                    <select class="form-select form-select-sm" id="filter_donor_type">
-                                        <option value="">All Types</option>
-                                        <option value="pledge">Pledge Donors</option>
-                                        <option value="immediate">Immediate Payers</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-12 col-sm-6 col-lg-3">
-                                    <label class="form-label small fw-bold mb-1">Payment Status</label>
-                                    <select class="form-select form-select-sm" id="filter_payment_status">
-                                        <option value="">All Statuses</option>
-                                        <option value="no_pledge">No Pledge</option>
-                                        <option value="not_started">Not Started</option>
-                                        <option value="paying">Paying</option>
-                                        <option value="overdue">Overdue</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="defaulted">Defaulted</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-12 col-sm-6 col-lg-2">
-                                    <label class="form-label small fw-bold mb-1">Language</label>
-                                    <select class="form-select form-select-sm" id="filter_language">
-                                        <option value="">All Languages</option>
-                                        <option value="en">English</option>
-                                        <option value="am">Amharic</option>
-                                        <option value="ti">Tigrinya</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-12 col-sm-6 col-lg-2">
-                                    <label class="form-label small fw-bold mb-1">Payment Method</label>
-                                    <select class="form-select form-select-sm" id="filter_payment_method">
-                                        <option value="">All Methods</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="cash">Cash</option>
-                                        <option value="card">Card</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-12 col-sm-6 col-lg-2">
-                                    <label class="form-label small fw-bold mb-1">Balance</label>
-                                    <select class="form-select form-select-sm" id="filter_balance">
-                                        <option value="">All</option>
-                                        <option value="has_balance">Has Balance</option>
-                                        <option value="no_balance">No Balance</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="col-12 mt-2">
-                                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                                        <button class="btn btn-sm btn-danger" id="clearFilters">
-                                            <i class="fas fa-times me-1"></i>Clear
-                                        </button>
-                                        <span class="text-muted small" id="filterResultCount"></span>
+                            <form method="GET" action="donors.php">
+                                <div class="row g-2">
+                                    <div class="col-12 col-sm-6 col-lg-4">
+                                        <label class="form-label small fw-bold mb-1">
+                                            <i class="fas fa-user-tie me-1"></i>Assigned Agent
+                                        </label>
+                                        <select class="form-select form-select-sm" name="filter_agent" id="filter_assigned_agent">
+                                            <option value="">My Assigned Donors</option>
+                                            <option value="all" <?php echo $show_all ? 'selected' : ''; ?>>ALL Donors</option>
+                                            <optgroup label="Specific Agent">
+                                                <?php foreach ($agents as $agent): ?>
+                                                    <option value="<?php echo $agent['id']; ?>" <?php echo $filter_agent_id == $agent['id'] ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($agent['name']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-12 col-sm-6 col-lg-3">
+                                        <label class="form-label small fw-bold mb-1">Donor Type</label>
+                                        <select class="form-select form-select-sm" id="filter_donor_type">
+                                            <option value="">All Types</option>
+                                            <option value="pledge">Pledge Donors</option>
+                                            <option value="immediate">Immediate Payers</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-12 col-sm-6 col-lg-3">
+                                        <label class="form-label small fw-bold mb-1">Payment Status</label>
+                                        <select class="form-select form-select-sm" id="filter_payment_status">
+                                            <option value="">All Statuses</option>
+                                            <option value="no_pledge">No Pledge</option>
+                                            <option value="not_started">Not Started</option>
+                                            <option value="paying">Paying</option>
+                                            <option value="overdue">Overdue</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="defaulted">Defaulted</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-12 col-sm-6 col-lg-2">
+                                        <label class="form-label small fw-bold mb-1">Payment Method</label>
+                                        <select class="form-select form-select-sm" id="filter_payment_method">
+                                            <option value="">All Methods</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="card">Card</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-12 mt-2">
+                                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-check me-1"></i>Apply
+                                            </button>
+                                            <a href="donors.php" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-times me-1"></i>Clear All
+                                            </a>
+                                            <span class="text-muted small" id="filterResultCount"></span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </form>
                         </div>
                     </div>
                     
@@ -655,6 +703,7 @@ unset($donor); // Break reference
                                         <th>Name</th>
                                         <th>Type</th>
                                         <th>Status</th>
+                                        <th>Assigned To</th>
                                         <th>Pledged</th>
                                         <th>Paid</th>
                                         <th>Balance</th>
@@ -684,6 +733,17 @@ unset($donor); // Break reference
                                             ?>">
                                                 <?php echo ucwords(str_replace('_', ' ', $donor['payment_status'] ?? 'no_pledge')); ?>
                                             </span>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($donor['agent_name'])): ?>
+                                                <span class="badge bg-primary">
+                                                    <i class="fas fa-user me-1"></i><?php echo htmlspecialchars($donor['agent_name']); ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-muted small">
+                                                    <i class="fas fa-user-slash me-1"></i>Unassigned
+                                                </span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
                                         <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
@@ -1130,21 +1190,17 @@ $(document).ready(function() {
     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
         const donorType = $('#filter_donor_type').val();
         const paymentStatus = $('#filter_payment_status').val();
-        const language = $('#filter_language').val();
         const paymentMethod = $('#filter_payment_method').val();
-        const balance = $('#filter_balance').val();
         
         // Get data from table columns
-        // Column indices: 0=Name, 1=Type, 2=Status, 3=Pledged, 4=Paid, 5=Balance, 6=Actions
+        // Column indices: 0=Name, 1=Type, 2=Status, 3=Assigned To, 4=Pledged, 5=Paid, 6=Balance, 7=Actions
         const rowDonorType = data[1].toLowerCase(); // Type column
         const rowPaymentStatus = data[2].toLowerCase(); // Status column
-        const rowBalance = parseFloat(data[5].replace('£', '').replace(',', '')); // Balance column
         
-        // Get donor data from row to check payment method and language
+        // Get donor data from row to check payment method
         const $row = $(settings.aoData[dataIndex].nTr);
         const donorData = $row.data('donor');
         const rowPaymentMethod = donorData && donorData.preferred_payment_method ? donorData.preferred_payment_method.toLowerCase() : '';
-        const rowLanguage = donorData && donorData.preferred_language ? donorData.preferred_language.toLowerCase() : '';
         
         // Apply filters
         if (donorType && !rowDonorType.includes(donorType.toLowerCase())) {
@@ -1155,48 +1211,29 @@ $(document).ready(function() {
             return false;
         }
         
-        if (language) {
-            // Language filter - check from donor data on row itself
-            const row = table.row(dataIndex).node();
-            const donorData = $(row).attr('data-donor');
-            if (donorData) {
-                const donor = JSON.parse(donorData);
-                if (donor.preferred_language && donor.preferred_language.toLowerCase() !== language.toLowerCase()) {
-                    return false;
-                }
-            }
-        }
-        
         if (paymentMethod && !rowPaymentMethod.includes(paymentMethod.toLowerCase().replace('_', ' '))) {
-            return false;
-        }
-        
-        if (balance === 'has_balance' && rowBalance <= 0) {
-            return false;
-        }
-        
-        if (balance === 'no_balance' && rowBalance == 0) {
             return false;
         }
         
         return true;
     });
     
-    // Filter change handlers
-    $('#filter_donor_type, #filter_payment_status, #filter_language, #filter_payment_method, #filter_balance').on('change', function() {
+    // Filter change handlers (for client-side filters only)
+    $('#filter_donor_type, #filter_payment_status, #filter_payment_method').on('change', function() {
         table.draw();
         updateFilterCount();
     });
     
-    // Clear filters
-    $('#clearFilters').click(function() {
-        $('#filter_donor_type').val('');
-        $('#filter_payment_status').val('');
-        $('#filter_language').val('');
-        $('#filter_payment_method').val('');
-        $('#filter_balance').val('');
-        table.draw();
-        updateFilterCount();
+    // Assigned agent filter - server-side (reload page)
+    $('#filter_assigned_agent').on('change', function() {
+        const value = $(this).val();
+        if (value === 'all') {
+            window.location.href = 'donors.php?show_all=1';
+        } else if (value === '') {
+            window.location.href = 'donors.php';
+        } else {
+            window.location.href = 'donors.php?filter_agent=' + value;
+        }
     });
     
     // Update filter result count
@@ -1206,9 +1243,7 @@ $(document).ready(function() {
         
         if ($('#filter_donor_type').val()) activeFilters.push('Type');
         if ($('#filter_payment_status').val()) activeFilters.push('Status');
-        if ($('#filter_language').val()) activeFilters.push('Language');
         if ($('#filter_payment_method').val()) activeFilters.push('Payment Method');
-        if ($('#filter_balance').val()) activeFilters.push('Balance');
         
         if (activeFilters.length > 0) {
             $('#filterResultCount').html(
