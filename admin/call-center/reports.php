@@ -59,7 +59,7 @@ try {
     $where_sql = implode(" AND ", $where_clauses);
 
     // 2. Main Stats Query
-    // Note: Adjust outcomes based on your actual ENUM values in DB
+    // Calculate duration from timestamps (call_started_at to call_ended_at)
     $stats_query = "
         SELECT 
             COUNT(*) as total_calls,
@@ -72,7 +72,10 @@ try {
             SUM(CASE WHEN outcome = 'busy_signal' THEN 1 ELSE 0 END) as busy_calls,
             SUM(CASE WHEN outcome IN ('no_answer', 'voicemail') THEN 1 ELSE 0 END) as no_answer_calls,
             SUM(CASE WHEN callback_scheduled_for IS NOT NULL THEN 1 ELSE 0 END) as callbacks_scheduled,
-            SUM(COALESCE(duration_seconds, 0)) as total_talk_time
+            SUM(COALESCE(
+                TIMESTAMPDIFF(SECOND, s.call_started_at, s.call_ended_at),
+                COALESCE(s.duration_seconds, 0)
+            )) as total_talk_time
         FROM call_center_sessions s
         WHERE {$where_sql}
     ";
@@ -417,7 +420,7 @@ $success_rate = $stats['total_calls'] > 0
                                 </div>
                                 
                                 <div class="mt-4 text-center">
-                                    <a href="call-history.php" class="btn btn-outline-primary btn-sm">
+                                    <a href="call-history.php<?php echo $agent_id > 0 ? '?agent=' . $agent_id : ''; ?>" class="btn btn-outline-primary btn-sm">
                                         View Full Call Logs <i class="fas fa-arrow-right ms-2"></i>
                                     </a>
                                 </div>
