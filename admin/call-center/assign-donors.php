@@ -112,30 +112,354 @@ while ($donor = $unassigned_result->fetch_assoc()) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        .bulk-actions-bar {
-            position: sticky;
-            top: 70px;
-            z-index: 1000;
-            background: white;
-            padding: 15px;
-            border-bottom: 2px solid #007bff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: none;
-            margin-bottom: 20px;
+        :root {
+            --primary-color: #0d6efd;
+            --success-color: #198754;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --border-radius: 12px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
         }
-        .donor-card {
+
+        /* Modern Bulk Actions Bar - Floating */
+        .bulk-actions-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            z-index: 1050;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 16px 24px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 90%;
+            max-width: 600px;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .bulk-actions-bar.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .bulk-actions-bar .badge-count {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .bulk-actions-bar select,
+        .bulk-actions-bar button {
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .bulk-actions-bar select {
+            background: white;
+            padding: 8px 12px;
+            min-width: 180px;
+        }
+
+        .bulk-actions-bar button {
+            padding: 8px 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .bulk-actions-bar button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Modern Card Design */
+        .modern-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .modern-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .modern-card .card-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 16px 20px;
+            font-weight: 600;
+        }
+
+        /* Enhanced Table */
+        .table-modern {
+            margin: 0;
+        }
+
+        .table-modern thead th {
+            background: #f8f9fa;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            border: none;
+            padding: 16px 12px;
+        }
+
+        .table-modern tbody tr {
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .table-modern tbody tr:hover {
+            background: #f8f9fa;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .table-modern tbody td {
+            padding: 16px 12px;
+            vertical-align: middle;
+        }
+
+        .donor-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        /* Modern Badges */
+        .badge-modern {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.8125rem;
+        }
+
+        /* Enhanced Form Controls */
+        .form-select-modern {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 8px 12px;
             transition: all 0.2s;
         }
-        .donor-card:hover {
-            background-color: #f8f9fa;
+
+        .form-select-modern:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
         }
-        .donor-card.selected {
-            background-color: #e7f3ff;
+
+        .btn-modern {
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
         }
+
+        .btn-modern:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        /* Enhanced Tabs */
+        .nav-tabs-modern {
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 24px;
+        }
+
+        .nav-tabs-modern .nav-link {
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 12px 24px;
+            color: #6c757d;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-radius: 0;
+        }
+
+        .nav-tabs-modern .nav-link:hover {
+            color: var(--primary-color);
+            background: rgba(13, 110, 253, 0.05);
+        }
+
+        .nav-tabs-modern .nav-link.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: transparent;
+        }
+
+        /* Modern Accordion */
+        .accordion-modern .accordion-item {
+            border: 1px solid #e9ecef;
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s;
+        }
+
+        .accordion-modern .accordion-item:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .accordion-modern .accordion-button {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            font-weight: 600;
+            padding: 16px 20px;
+            border: none;
+            box-shadow: none;
+        }
+
+        .accordion-modern .accordion-button:not(.collapsed) {
+            background: linear-gradient(135deg, #e7f3ff 0%, #f0f8ff 100%);
+            color: var(--primary-color);
+        }
+
+        .accordion-modern .accordion-body {
+            padding: 20px;
+        }
+
+        /* Statistics Cards */
+        .stat-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Responsive Design */
         @media (max-width: 768px) {
             .bulk-actions-bar {
-                top: 56px;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                transform: translateX(0) translateY(100px);
+                max-width: none;
+                flex-direction: column;
+                align-items: stretch;
             }
+
+            .bulk-actions-bar.show {
+                transform: translateX(0) translateY(0);
+            }
+
+            .bulk-actions-bar > div {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .table-modern {
+                font-size: 0.875rem;
+            }
+
+            .table-modern thead th,
+            .table-modern tbody td {
+                padding: 12px 8px;
+            }
+
+            .nav-tabs-modern .nav-link {
+                padding: 10px 16px;
+                font-size: 0.875rem;
+            }
+
+            .accordion-modern .accordion-button {
+                padding: 12px 16px;
+                font-size: 0.875rem;
+            }
+
+            .card-header {
+                padding: 12px 16px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .table-responsive {
+                font-size: 0.8125rem;
+            }
+
+            .btn-modern {
+                padding: 6px 12px;
+                font-size: 0.8125rem;
+            }
+
+            .form-select-modern {
+                padding: 6px 10px;
+                font-size: 0.8125rem;
+            }
+        }
+
+        /* Loading State */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Smooth Animations */
+        * {
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        /* Better Checkbox Styling */
+        input[type="checkbox"] {
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            opacity: 0.3;
+            margin-bottom: 16px;
         }
     </style>
 </head>
@@ -164,37 +488,98 @@ while ($donor = $unassigned_result->fetch_assoc()) {
 
             <?php if (isset($message)): ?>
                 <div class="alert alert-info alert-dismissible fade show">
+                    <i class="fas fa-info-circle me-2"></i>
                     <?php echo htmlspecialchars($message); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
-            
-            <!-- Bulk Actions Bar -->
-            <div class="bulk-actions-bar" id="bulkActionsBar">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div>
-                        <strong><span id="selectedCount">0</span> donor(s) selected</strong>
-                        <button type="button" class="btn btn-sm btn-link" onclick="clearSelection()">Clear</button>
+
+            <!-- Statistics Cards -->
+            <?php
+            try {
+                $total_donors = $db->query("SELECT COUNT(*) as count FROM donors")->fetch_assoc()['count'];
+                $assigned_count = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL")->fetch_assoc()['count'];
+                $unassigned_count = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL")->fetch_assoc()['count'];
+            } catch (Exception $e) {
+                $total_donors = 0;
+                $assigned_count = 0;
+                $unassigned_count = 0;
+            }
+            ?>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card" style="border-left-color: #0d6efd;">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-users fa-2x text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h4 class="mb-0"><?php echo number_format($total_donors); ?></h4>
+                                <small class="text-muted">Total Donors</small>
+                            </div>
+                        </div>
                     </div>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <select id="bulkAgentSelect" class="form-select form-select-sm" style="width: auto; min-width: 200px;">
-                            <option value="0">Select Agent...</option>
-                            <?php foreach ($agents as $agent): ?>
-                                <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <button type="button" class="btn btn-sm btn-success" onclick="bulkAssign()">
-                            <i class="fas fa-check me-1"></i>Bulk Assign
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger" onclick="bulkUnassign()">
-                            <i class="fas fa-times me-1"></i>Bulk Unassign
-                        </button>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card" style="border-left-color: #198754;">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-check fa-2x text-success"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h4 class="mb-0"><?php echo number_format($assigned_count); ?></h4>
+                                <small class="text-muted">Assigned</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card" style="border-left-color: #ffc107;">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-slash fa-2x text-warning"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h4 class="mb-0"><?php echo number_format($unassigned_count); ?></h4>
+                                <small class="text-muted">Unassigned</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner"></div>
+            </div>
+
+            <!-- Bulk Actions Bar - Floating -->
+            <div class="bulk-actions-bar" id="bulkActionsBar">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <span class="badge-count">
+                        <i class="fas fa-check-circle me-1"></i>
+                        <span id="selectedCount">0</span> selected
+                    </span>
+                    <select id="bulkAgentSelect" class="form-select form-select-sm">
+                        <option value="0">Select Agent...</option>
+                        <?php foreach ($agents as $agent): ?>
+                            <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-light" onclick="clearSelection()">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success btn-modern" onclick="bulkAssign()">
+                        <i class="fas fa-user-plus me-1"></i>Assign
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger btn-modern" onclick="bulkUnassign()">
+                        <i class="fas fa-user-minus me-1"></i>Unassign
+                    </button>
+                </div>
+            </div>
+            
             <!-- Tabs -->
-            <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+            <ul class="nav nav-tabs nav-tabs-modern" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
                         <i class="fas fa-list me-2"></i>All Donors
@@ -210,12 +595,14 @@ while ($donor = $unassigned_result->fetch_assoc()) {
             <div class="tab-content" id="myTabContent">
                 <!-- All Donors Tab -->
                 <div class="tab-pane fade show active" id="all" role="tabpanel">
-                    <div class="card">
+                    <div class="modern-card">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">All Donors</h6>
-                            <div>
-                                <input type="checkbox" id="selectAllAll" onchange="toggleSelectAll('all')">
-                                <label for="selectAllAll" class="ms-1">Select All</label>
+                            <h6 class="mb-0">
+                                <i class="fas fa-users me-2"></i>All Donors
+                            </h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="checkbox" id="selectAllAll" class="donor-checkbox" onchange="toggleSelectAll('all')">
+                                <label for="selectAllAll" class="mb-0 small">Select All</label>
                             </div>
                         </div>
                         <div class="card-body p-0">
@@ -233,40 +620,42 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                 
                                 if ($result && $result->num_rows > 0) {
                                     echo "<div class='table-responsive'>";
-                                    echo "<table class='table table-hover mb-0'>";
-                                    echo "<thead class='table-light'>";
+                                    echo "<table class='table table-modern mb-0'>";
+                                    echo "<thead>";
                                     echo "<tr>";
-                                    echo "<th style='width: 40px;'><input type='checkbox' id='selectAllAllHeader' onchange='toggleSelectAll(\"all\")'></th>";
+                                    echo "<th style='width: 50px;'><input type='checkbox' id='selectAllAllHeader' class='donor-checkbox' onchange='toggleSelectAll(\"all\")'></th>";
                                     echo "<th>ID</th>";
                                     echo "<th>Name</th>";
                                     echo "<th>Pledge Amount</th>";
                                     echo "<th>Balance</th>";
                                     echo "<th>Assigned To</th>";
-                                    echo "<th style='width: 250px;'>Assign</th>";
+                                    echo "<th style='min-width: 280px;'>Actions</th>";
                                     echo "</tr>";
                                     echo "</thead>";
                                     echo "<tbody>";
                                     while ($row = $result->fetch_assoc()) {
                                         $balance = (float)$row['balance'];
                                         $pledge = (float)$row['total_pledged'];
-                                        echo "<tr class='donor-card'>";
+                                        echo "<tr>";
                                         echo "<td><input type='checkbox' class='donor-checkbox' name='donor_ids[]' value='" . $row['id'] . "' onchange='updateBulkBar()'></td>";
-                                        echo "<td>" . $row['id'] . "</td>";
+                                        echo "<td><span class='text-muted'>#" . $row['id'] . "</span></td>";
                                         echo "<td><strong>" . htmlspecialchars($row['name']) . "</strong></td>";
-                                        echo "<td>£" . number_format($pledge, 2) . "</td>";
-                                        echo "<td><span class='badge bg-" . ($balance > 0 ? 'warning' : 'success') . "'>£" . number_format($balance, 2) . "</span></td>";
-                                        echo "<td>" . ($row['agent_name'] ? '<span class="badge bg-primary">' . htmlspecialchars($row['agent_name']) . '</span>' : '<span class="text-muted">Unassigned</span>') . "</td>";
+                                        echo "<td><span class='fw-semibold'>£" . number_format($pledge, 2) . "</span></td>";
+                                        echo "<td><span class='badge badge-modern bg-" . ($balance > 0 ? 'warning' : 'success') . "'>£" . number_format($balance, 2) . "</span></td>";
+                                        echo "<td>" . ($row['agent_name'] ? '<span class="badge badge-modern bg-primary"><i class="fas fa-user me-1"></i>' . htmlspecialchars($row['agent_name']) . '</span>' : '<span class="text-muted"><i class="fas fa-user-slash me-1"></i>Unassigned</span>') . "</td>";
                                         echo "<td>";
-                                        echo "<form method='POST' style='display: inline;' class='d-flex gap-1'>";
+                                        echo "<form method='POST' class='d-flex gap-2 align-items-center'>";
                                         echo "<input type='hidden' name='donor_id' value='" . $row['id'] . "'>";
-                                        echo "<select name='agent_id' class='form-select form-select-sm' style='flex: 1;'>";
+                                        echo "<select name='agent_id' class='form-select form-select-sm form-select-modern' style='flex: 1; min-width: 150px;'>";
                                         echo "<option value='0'>Unassign</option>";
                                         foreach ($agents as $agent) {
                                             $selected = ($row['agent_id'] == $agent['id']) ? 'selected' : '';
                                             echo "<option value='" . $agent['id'] . "' $selected>" . htmlspecialchars($agent['name']) . "</option>";
                                         }
                                         echo "</select>";
-                                        echo "<button type='submit' name='assign' class='btn btn-sm btn-primary'>Assign</button>";
+                                        echo "<button type='submit' name='assign' class='btn btn-sm btn-primary btn-modern'>";
+                                        echo "<i class='fas fa-check me-1'></i>Assign";
+                                        echo "</button>";
                                         echo "</form>";
                                         echo "</td>";
                                         echo "</tr>";
@@ -274,10 +663,16 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                     echo "</tbody></table>";
                                     echo "</div>";
                                 } else {
-                                    echo "<div class='text-center py-5'><p class='text-muted'>No donors found</p></div>";
+                                    echo "<div class='empty-state'>";
+                                    echo "<i class='fas fa-users-slash'></i>";
+                                    echo "<p class='mt-3'>No donors found</p>";
+                                    echo "</div>";
                                 }
                             } catch (Exception $e) {
-                                echo "<div class='alert alert-danger'>Error: " . htmlspecialchars($e->getMessage()) . "</div>";
+                                echo "<div class='alert alert-danger m-3'>";
+                                echo "<i class='fas fa-exclamation-triangle me-2'></i>";
+                                echo "Error: " . htmlspecialchars($e->getMessage());
+                                echo "</div>";
                             }
                             ?>
                         </div>
@@ -286,7 +681,7 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                 
                 <!-- By Agents Tab -->
                 <div class="tab-pane fade" id="agents" role="tabpanel">
-                    <div class="accordion" id="agentsAccordion">
+                    <div class="accordion accordion-modern" id="agentsAccordion">
                         <?php
                         $accordion_index = 0;
                         foreach ($agents as $agent):
@@ -305,15 +700,15 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                             <div id="collapse<?php echo $accordion_index; ?>" class="accordion-collapse collapse <?php echo $accordion_index === 1 ? 'show' : ''; ?>" data-bs-parent="#agentsAccordion">
                                 <div class="accordion-body">
                                     <?php if ($count > 0): ?>
-                                        <div class="mb-2">
-                                            <input type="checkbox" class="select-all-agent" data-agent="<?php echo $agent['id']; ?>" onchange="toggleSelectAllAgent(<?php echo $agent['id']; ?>)">
-                                            <label class="ms-1">Select All</label>
+                                        <div class="mb-3 d-flex align-items-center gap-2">
+                                            <input type="checkbox" class="select-all-agent donor-checkbox" data-agent="<?php echo $agent['id']; ?>" onchange="toggleSelectAllAgent(<?php echo $agent['id']; ?>)">
+                                            <label class="mb-0 small">Select All</label>
                                         </div>
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-hover">
-                                                <thead class="table-light">
+                                            <table class="table table-modern table-sm">
+                                                <thead>
                                                     <tr>
-                                                        <th style="width: 40px;"></th>
+                                                        <th style="width: 50px;"></th>
                                                         <th>ID</th>
                                                         <th>Name</th>
                                                         <th>Pledge Amount</th>
@@ -323,18 +718,18 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                                 </thead>
                                                 <tbody>
                                                     <?php foreach ($donors as $donor): ?>
-                                                    <tr class="donor-card">
+                                                    <tr>
                                                         <td><input type="checkbox" class="donor-checkbox" name="donor_ids[]" value="<?php echo $donor['id']; ?>" onchange="updateBulkBar()"></td>
-                                                        <td><?php echo $donor['id']; ?></td>
+                                                        <td><span class="text-muted">#<?php echo $donor['id']; ?></span></td>
                                                         <td><strong><?php echo htmlspecialchars($donor['name']); ?></strong></td>
-                                                        <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
-                                                        <td><span class="badge bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
+                                                        <td><span class="fw-semibold">£<?php echo number_format((float)$donor['total_pledged'], 2); ?></span></td>
+                                                        <td><span class="badge badge-modern bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
                                                         <td>
                                                             <form method="POST" style="display: inline;">
                                                                 <input type="hidden" name="donor_id" value="<?php echo $donor['id']; ?>">
                                                                 <input type="hidden" name="agent_id" value="0">
-                                                                <button type="submit" name="assign" class="btn btn-sm btn-outline-danger">
-                                                                    <i class="fas fa-times me-1"></i>Unassign
+                                                                <button type="submit" name="assign" class="btn btn-sm btn-outline-danger btn-modern">
+                                                                    <i class="fas fa-user-minus me-1"></i>Unassign
                                                                 </button>
                                                             </form>
                                                         </td>
@@ -344,7 +739,10 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                             </table>
                                         </div>
                                     <?php else: ?>
-                                        <p class="text-muted mb-0">No donors assigned to this agent.</p>
+                                        <div class="empty-state py-4">
+                                            <i class="fas fa-inbox"></i>
+                                            <p class="mt-2 mb-0">No donors assigned to this agent.</p>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -363,15 +761,15 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                             </h2>
                             <div id="collapseUnassigned" class="accordion-collapse collapse" data-bs-parent="#agentsAccordion">
                                 <div class="accordion-body">
-                                    <div class="mb-2">
-                                        <input type="checkbox" class="select-all-unassigned" onchange="toggleSelectAllUnassigned()">
-                                        <label class="ms-1">Select All</label>
+                                    <div class="mb-3 d-flex align-items-center gap-2">
+                                        <input type="checkbox" class="select-all-unassigned donor-checkbox" onchange="toggleSelectAllUnassigned()">
+                                        <label class="mb-0 small">Select All</label>
                                     </div>
                                     <div class="table-responsive">
-                                        <table class="table table-sm table-hover">
-                                            <thead class="table-light">
+                                        <table class="table table-modern table-sm">
+                                            <thead>
                                                 <tr>
-                                                    <th style="width: 40px;"></th>
+                                                    <th style="width: 50px;"></th>
                                                     <th>ID</th>
                                                     <th>Name</th>
                                                     <th>Pledge Amount</th>
@@ -381,23 +779,23 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                             </thead>
                                             <tbody>
                                                 <?php foreach ($unassigned_donors as $donor): ?>
-                                                <tr class="donor-card">
+                                                <tr>
                                                     <td><input type="checkbox" class="donor-checkbox" name="donor_ids[]" value="<?php echo $donor['id']; ?>" onchange="updateBulkBar()"></td>
-                                                    <td><?php echo $donor['id']; ?></td>
+                                                    <td><span class="text-muted">#<?php echo $donor['id']; ?></span></td>
                                                     <td><strong><?php echo htmlspecialchars($donor['name']); ?></strong></td>
-                                                    <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
-                                                    <td><span class="badge bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
+                                                    <td><span class="fw-semibold">£<?php echo number_format((float)$donor['total_pledged'], 2); ?></span></td>
+                                                    <td><span class="badge badge-modern bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
                                                     <td>
-                                                        <form method="POST" style="display: inline;" class="d-flex gap-1">
+                                                        <form method="POST" class="d-flex gap-2 align-items-center">
                                                             <input type="hidden" name="donor_id" value="<?php echo $donor['id']; ?>">
-                                                            <select name="agent_id" class="form-select form-select-sm" style="flex: 1;">
+                                                            <select name="agent_id" class="form-select form-select-sm form-select-modern" style="flex: 1; min-width: 150px;">
                                                                 <option value="0">Select...</option>
                                                                 <?php foreach ($agents as $agent): ?>
                                                                     <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
                                                                 <?php endforeach; ?>
                                                             </select>
-                                                            <button type="submit" name="assign" class="btn btn-sm btn-primary">
-                                                                <i class="fas fa-check me-1"></i>Assign
+                                                            <button type="submit" name="assign" class="btn btn-sm btn-primary btn-modern">
+                                                                <i class="fas fa-user-plus me-1"></i>Assign
                                                             </button>
                                                         </form>
                                                     </td>
@@ -426,10 +824,10 @@ function updateBulkBar() {
     const bar = document.getElementById('bulkActionsBar');
     
     if (count > 0) {
-        bar.style.display = 'block';
+        bar.classList.add('show');
         document.getElementById('selectedCount').textContent = count;
     } else {
-        bar.style.display = 'none';
+        bar.classList.remove('show');
     }
 }
 
@@ -475,6 +873,14 @@ function toggleSelectAllUnassigned() {
     updateBulkBar();
 }
 
+function showLoading() {
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
 function bulkAssign() {
     const checkboxes = document.querySelectorAll('.donor-checkbox:checked');
     const agentId = document.getElementById('bulkAgentSelect').value;
@@ -492,6 +898,8 @@ function bulkAssign() {
     if (!confirm(`Assign ${checkboxes.length} donor(s) to selected agent?`)) {
         return;
     }
+    
+    showLoading();
     
     const form = document.createElement('form');
     form.method = 'POST';
@@ -522,6 +930,8 @@ function bulkUnassign() {
         return;
     }
     
+    showLoading();
+    
     const form = document.createElement('form');
     form.method = 'POST';
     form.innerHTML = '<input type="hidden" name="bulk_action" value="unassign">';
@@ -537,6 +947,22 @@ function bulkUnassign() {
     document.body.appendChild(form);
     form.submit();
 }
+
+// Add smooth scroll behavior
+document.addEventListener('DOMContentLoaded', function() {
+    // Smooth scroll to top when bulk actions bar appears
+    const observer = new MutationObserver(function(mutations) {
+        const bar = document.getElementById('bulkActionsBar');
+        if (bar.classList.contains('show')) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+    
+    observer.observe(document.getElementById('bulkActionsBar'), {
+        attributes: true,
+        attributeFilter: ['class']
+    });
+});
 </script>
 </body>
 </html>
