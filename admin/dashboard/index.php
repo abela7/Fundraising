@@ -217,6 +217,14 @@ $page_title = 'Dashboard';
                   </a>
                 </div>
                 <div class="col-6 col-md-4">
+                  <a href="../call-center/reports.php" class="quick-action-btn">
+                    <div class="quick-action-icon" style="background: linear-gradient(135deg, #0a6286 0%, #0d6efd 100%);">
+                      <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <span>Call Center Reports</span>
+                  </a>
+                </div>
+                <div class="col-6 col-md-4">
                   <a href="../settings/" class="quick-action-btn">
                     <div class="quick-action-icon bg-secondary">
                       <i class="fas fa-cog"></i>

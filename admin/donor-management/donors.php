@@ -700,6 +700,7 @@ unset($donor); // Break reference
                             <table id="donorsTable" class="table table-hover align-middle">
                                 <thead>
                                     <tr>
+                                        <th>#</th>
                                         <th>Name</th>
                                         <th>Type</th>
                                         <th>Status</th>
@@ -711,8 +712,9 @@ unset($donor); // Break reference
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($donors as $donor): ?>
+                                    <?php $counter = 1; foreach ($donors as $donor): ?>
                                     <tr class="donor-row" style="cursor: pointer;" data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>' title="Click to view details">
+                                        <td class="text-muted fw-bold"><?php echo $counter++; ?></td>
                                         <td class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></td>
                                         <td>
                                             <?php if ($donor['donor_type'] === 'pledge'): ?>
@@ -1166,7 +1168,7 @@ unset($donor); // Break reference
 $(document).ready(function() {
     // Initialize DataTable
     const table = $('#donorsTable').DataTable({
-        order: [[0, 'desc']],
+        order: [[1, 'asc']],
         pageLength: 25,
         lengthMenu: [[25, 50, 100, 250, 500, -1], [25, 50, 100, 250, 500, "All"]],
         language: {
@@ -1193,9 +1195,9 @@ $(document).ready(function() {
         const paymentMethod = $('#filter_payment_method').val();
         
         // Get data from table columns
-        // Column indices: 0=Name, 1=Type, 2=Status, 3=Assigned To, 4=Pledged, 5=Paid, 6=Balance, 7=Actions
-        const rowDonorType = data[1].toLowerCase(); // Type column
-        const rowPaymentStatus = data[2].toLowerCase(); // Status column
+        // Column indices: 0=#, 1=Name, 2=Type, 3=Status, 4=Assigned To, 5=Pledged, 6=Paid, 7=Balance, 8=Actions
+        const rowDonorType = data[2].toLowerCase(); // Type column
+        const rowPaymentStatus = data[3].toLowerCase(); // Status column
         
         // Get donor data from row to check payment method
         const $row = $(settings.aoData[dataIndex].nTr);
