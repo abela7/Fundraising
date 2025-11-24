@@ -221,7 +221,7 @@ $stats = [
                                         <h3 class="mb-0 text-warning fw-bold"><?php echo $stats['pending']; ?></h3>
                                     </div>
                                     <div class="bg-warning bg-opacity-10 p-2 p-md-3 rounded">
-                                        <i class="fas fa-clock fa-2x text-warning"></i>
+                                        <i class="far fa-clock fa-2x text-warning"></i>
                                     </div>
                                 </div>
                             </div>
@@ -236,7 +236,7 @@ $stats = [
                                         <h3 class="mb-0 text-success fw-bold"><?php echo $stats['confirmed']; ?></h3>
                                     </div>
                                     <div class="bg-success bg-opacity-10 p-2 p-md-3 rounded">
-                                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                                        <i class="far fa-check-circle fa-2x text-success"></i>
                                     </div>
                                 </div>
                             </div>
@@ -251,7 +251,7 @@ $stats = [
                                         <h3 class="mb-0 text-danger fw-bold"><?php echo $stats['voided']; ?></h3>
                                     </div>
                                     <div class="bg-danger bg-opacity-10 p-2 p-md-3 rounded">
-                                        <i class="fas fa-times-circle fa-2x text-danger"></i>
+                                        <i class="far fa-times-circle fa-2x text-danger"></i>
                                     </div>
                                 </div>
                             </div>
