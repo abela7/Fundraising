@@ -217,74 +217,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     <link rel="stylesheet" href="../assets/theme.css">
     <link rel="stylesheet" href="assets/donor.css">
     <style>
-        :root {
-            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --gradient-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        }
-        
         .wizard-step { display: none; }
         .wizard-step.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .step-indicator { 
-            width: 32px; height: 32px; border-radius: 50%; 
-            background: #e9ecef; color: #6c757d; 
-            display: flex; align-items: center; justify-content: center; 
-            font-weight: bold; margin-right: 8px; font-size: 14px;
-            transition: all 0.3s ease;
-        }
-        .step-indicator.active { background: var(--gradient-primary); color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
-        .step-indicator.completed { background: var(--gradient-success); color: white; }
-        
-        .wizard-nav { 
-            background: white; 
-            border-radius: 12px; 
-            padding: 16px 20px; 
-            margin-bottom: 24px; 
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-        
-        .card-radio { 
-            cursor: pointer; 
-            transition: all 0.25s ease; 
-            border: 2px solid #e9ecef; 
-            border-radius: 16px !important;
-        }
-        .card-radio:hover { 
-            border-color: #667eea; 
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-        }
-        .card-radio.selected { 
-            border-color: #667eea; 
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
-        }
-        .card-radio i { transition: transform 0.3s ease; }
-        .card-radio:hover i { transform: scale(1.1); }
-        .card-radio.selected i { transform: scale(1.15); }
-        
-        .rounded-4 { border-radius: 16px !important; }
-        .letter-spacing-1 { letter-spacing: 1px; }
-        
-        .btn-gradient-primary {
-            background: var(--gradient-primary);
-            border: none;
-            color: white;
-            transition: all 0.3s ease;
-        }
-        .btn-gradient-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-            color: white;
-        }
-        
-        .payment-amount-display {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
-            border-radius: 12px;
-            padding: 20px;
-        }
+        .step-indicator { width: 30px; height: 30px; border-radius: 50%; background: #e9ecef; color: #6c757d; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+        .step-indicator.active { background: #0d6efd; color: white; }
+        .step-indicator.completed { background: #198754; color: white; }
+        .wizard-nav { border-bottom: 1px solid #dee2e6; margin-bottom: 20px; padding-bottom: 15px; }
+        .card-radio { cursor: pointer; transition: all 0.2s; border: 2px solid #dee2e6; }
+        .card-radio:hover { border-color: #aeccea; background: #f8f9fa; }
+        .card-radio.selected { border-color: #0d6efd; background: #f0f7ff; }
+        .rep-finder-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
     </style>
 </head>
 <body>
@@ -311,18 +254,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     </div>
                 <?php endif; ?>
 
-                <?php if ($donor['balance'] <= 0): ?>
-                    <div class="alert alert-success text-center py-5">
-                        <i class="fas fa-check-circle fa-3x mb-3"></i>
-                        <h5>No Payment Due</h5>
+                                <?php if ($donor['balance'] <= 0): ?>
+                                    <div class="alert alert-success text-center py-5">
+                                        <i class="fas fa-check-circle fa-3x mb-3"></i>
+                                        <h5>No Payment Due</h5>
                         <p>You have completed all your payments! Thank you for your generosity.</p>
                         <a href="index.php" class="btn btn-primary mt-3">Return to Dashboard</a>
-                    </div>
-                <?php else: ?>
+                                    </div>
+                                <?php else: ?>
 
                 <form method="POST" id="paymentWizardForm" enctype="multipart/form-data">
-                    <?php echo csrf_input(); ?>
-                    <input type="hidden" name="action" value="submit_payment">
+                                        <?php echo csrf_input(); ?>
+                                        <input type="hidden" name="action" value="submit_payment">
                     <input type="hidden" name="payment_amount" id="finalAmount">
                     <input type="hidden" name="pledge_id" id="finalPledgeId">
                     <input type="hidden" name="payment_method" id="finalMethod">
@@ -357,68 +300,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                     <!-- Step 1: Payment Plan Priority -->
                     <div class="wizard-step active" id="step1">
+                        <h5 class="mb-4">Payment Plan Status</h5>
                         <?php if ($active_plan): ?>
-                            <div class="text-center mb-4">
-                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10 mb-3" style="width: 80px; height: 80px;">
-                                    <i class="fas fa-calendar-check fa-2x text-success"></i>
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-calendar-alt text-primary me-2"></i>Active Payment Plan
+                                    </h5>
                                 </div>
-                                <h4 class="mb-1">Your Payment Plan</h4>
-                                <span class="badge bg-success px-3 py-2 rounded-pill">
-                                    <i class="fas fa-check-circle me-1"></i>Active
-                                </span>
-                            </div>
-                            
-                            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                                <div class="card-body p-0">
-                                    <!-- Next Payment Due -->
-                                    <div class="p-4 bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                        <div class="text-white text-center">
-                                            <small class="text-white-50 text-uppercase fw-bold letter-spacing-1">Next Payment Due</small>
-                                            <h2 class="mb-0 mt-1 fw-bold"><?php echo date('d M Y', strtotime($active_plan['next_payment_due'])); ?></h2>
+                                <div class="card-body">
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-6">
+                                            <div class="border-start border-4 border-info ps-3">
+                                                <small class="text-muted d-block mb-1">Next Payment Due</small>
+                                                <h5 class="mb-0 text-info">
+                                                    <?php echo date('d M Y', strtotime($active_plan['next_payment_due'])); ?>
+                                                </h5>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="border-start border-4 border-success ps-3">
+                                                <small class="text-muted d-block mb-1">Monthly Amount</small>
+                                                <h5 class="mb-0 text-success">£<?php echo number_format($active_plan['monthly_amount'], 2); ?></h5>
+                                            </div>
                                         </div>
                                     </div>
                                     
-                                    <!-- Amount -->
-                                    <div class="p-4 text-center border-bottom">
-                                        <small class="text-muted text-uppercase fw-bold">Monthly Amount</small>
-                                        <h1 class="mb-0 mt-1 fw-bold text-dark">£<?php echo number_format($active_plan['monthly_amount'], 2); ?></h1>
-                                    </div>
-                                    
-                                    <!-- Actions -->
-                                    <div class="p-4">
-                                        <button type="button" class="btn btn-lg w-100 text-white fw-bold rounded-3 mb-3" 
-                                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 16px;"
-                                                onclick="selectPlanAmount(<?php echo $active_plan['monthly_amount']; ?>)">
-                                            <i class="fas fa-credit-card me-2"></i>Pay Now
+                                    <div class="d-grid gap-2 d-md-flex">
+                                        <button type="button" class="btn btn-success btn-lg flex-fill" onclick="selectPlanAmount(<?php echo $active_plan['monthly_amount']; ?>)">
+                                            <i class="fas fa-credit-card me-2"></i>Pay Monthly Amount (£<?php echo number_format($active_plan['monthly_amount'], 2); ?>)
                                         </button>
-                                        <button type="button" class="btn btn-lg btn-light w-100 fw-semibold rounded-3 text-muted" 
-                                                style="padding: 14px; border: 2px solid #e9ecef;"
-                                                onclick="goToStep(2)">
-                                            Pay a Different Amount
+                                        <button type="button" class="btn btn-outline-secondary btn-lg flex-fill" onclick="goToStep(2)">
+                                            <i class="fas fa-edit me-2"></i>Pay Different Amount
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         <?php else: ?>
-                            <div class="text-center mb-4">
-                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary bg-opacity-10 mb-3" style="width: 80px; height: 80px;">
-                                    <i class="fas fa-calendar-times fa-2x text-secondary"></i>
-                                </div>
-                                <h4 class="mb-2">No Active Plan</h4>
-                                <p class="text-muted mb-0">You don't have a scheduled payment plan.</p>
-                            </div>
-                            
-                            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                                <div class="card-body p-4">
-                                    <div class="d-grid gap-3">
-                                        <button type="button" class="btn btn-lg text-white fw-bold rounded-3" 
-                                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 16px;"
-                                                onclick="goToStep(2)">
-                                            <i class="fas fa-hand-holding-usd me-2"></i>Make a Payment
+                            <div class="card mb-4">
+                                <div class="card-body text-center py-5">
+                                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                                    <h5 class="mb-2">No Active Payment Plan</h5>
+                                    <p class="text-muted mb-4">You don't have a scheduled payment plan set up.</p>
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                        <button type="button" class="btn btn-success btn-lg px-4" onclick="goToStep(2)">
+                                            <i class="fas fa-credit-card me-2"></i>Make One-Time Payment
                                         </button>
-                                        <a href="payment-plan.php" class="btn btn-lg btn-light fw-semibold rounded-3 text-muted" 
-                                           style="padding: 14px; border: 2px solid #e9ecef;">
-                                            <i class="fas fa-calendar-plus me-2"></i>Set Up Payment Plan
+                                        <a href="payment-plan.php" class="btn btn-outline-primary btn-lg px-4">
+                                            <i class="fas fa-calendar-plus me-2"></i>Create Payment Plan
                                         </a>
                                     </div>
                                 </div>
@@ -491,14 +420,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                     <div class="fw-bold">Cash</div>
                                     <small class="text-muted">Pay to representative</small>
                                 </div>
-                            </div>
-                        </div>
+                                            </div>
+                                        </div>
 
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">Back</button>
                             <button type="button" class="btn btn-primary px-4" id="btnMethodNext" disabled onclick="goToStep(4)">Next</button>
                         </div>
-                    </div>
+                                        </div>
 
                     <!-- Step 4: Payment Details -->
                     <div class="wizard-step" id="step4">
@@ -513,39 +442,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             
                             <div class="card border-0 shadow-sm mb-4">
                                 <div class="card-body">
-                                    <!-- Account Name -->
+                                                <!-- Account Name -->
                                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <span class="text-muted">Account Name</span>
                                         <div class="d-flex align-items-center">
                                             <span class="fw-bold me-2" id="bankAccName"><?php echo $bank_account_name; ?></span>
                                             <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankAccName')">
                                                 <i class="fas fa-copy"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Account Number -->
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Account Number -->
                                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <span class="text-muted">Account Number</span>
                                         <div class="d-flex align-items-center">
                                             <span class="fw-bold me-2" id="bankAccNum"><?php echo $bank_account_number; ?></span>
                                             <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankAccNum')">
                                                 <i class="fas fa-copy"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Sort Code -->
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Sort Code -->
                                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <span class="text-muted">Sort Code</span>
                                         <div class="d-flex align-items-center">
                                             <span class="fw-bold me-2" id="bankSortCode"><?php echo $bank_sort_code; ?></span>
                                             <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankSortCode')">
                                                 <i class="fas fa-copy"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
+                                                        </button>
+                                                    </div>
+                                                </div>
+
                                     <!-- Reference -->
                                     <div class="d-flex justify-content-between align-items-center py-2">
                                         <span class="text-muted">Reference</span>
@@ -553,9 +482,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                             <span class="fw-bold text-primary me-2" id="bankRef"><?php echo $bank_reference_label; ?></span>
                                             <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankRef')">
                                                 <i class="fas fa-copy"></i>
-                                            </button>
-                                        </div>
-                                    </div>
+                                                        </button>
+                                                    </div>
+                                                </div>
                                 </div>
                             </div>
                             
@@ -588,7 +517,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <small class="text-muted d-block">Church</small>
                                                 <h5 class="mb-0"><?php echo htmlspecialchars($assigned_rep['church_name']); ?></h5>
                                                 <small class="text-muted"><?php echo htmlspecialchars($assigned_rep['city']); ?></small>
-                                            </div>
+                                                </div>
                                             <div class="col-12">
                                                 <small class="text-muted d-block">Representative</small>
                                                 <h5 class="mb-1 text-success"><?php echo htmlspecialchars($assigned_rep['name']); ?></h5>
@@ -615,8 +544,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 <!-- No Representative - Find One -->
                                 <div class="alert alert-warning mb-3">
                                     <i class="fas fa-exclamation-triangle me-2"></i>You're not assigned to a church or representative yet. Please select one below.
-                                </div>
-                                
+                                        </div>
+
                                 <div class="card shadow-sm mb-4">
                                     <div class="card-header bg-white">
                                         <strong>Find Your Representative</strong>
@@ -631,7 +560,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <option value="">-- Choose City --</option>
                                             </select>
                                         </div>
-                                        
+
                                         <!-- Step 2: Church -->
                                         <div class="mb-3" id="divChurch" style="display:none;">
                                             <label class="form-label fw-bold">
@@ -641,7 +570,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <option value="">-- Choose Church --</option>
                                             </select>
                                         </div>
-                                        
+
                                         <!-- Step 3: Representative -->
                                         <div class="mb-3" id="divRep" style="display:none;">
                                             <label class="form-label fw-bold">
@@ -651,17 +580,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <option value="">-- Choose Representative --</option>
                                             </select>
                                         </div>
-                                        
+
                                         <button type="button" class="btn btn-success w-100 fw-bold" id="btnAssignRep" onclick="assignRepresentative()" disabled>
                                             <i class="fas fa-check me-2"></i>Confirm & Assign
-                                        </button>
+                                            </button>
                                     </div>
-                                </div>
+                                        </div>
                                 
                                 <!-- Assigned Rep Details (shown after assignment) -->
                                 <div id="newRepDetails" style="display:none;"></div>
-                            <?php endif; ?>
-                        </div>
+                                <?php endif; ?>
+                            </div>
 
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-outline-secondary" onclick="goToStep(3)">Back</button>
@@ -693,12 +622,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 <input type="text" name="reference" class="form-control" placeholder="e.g. Transaction ID">
                             </div>
                             
-                            <div class="mb-3">
+                                <div class="mb-3">
                                 <label class="form-label">Payment Proof <span class="text-danger">*</span></label>
                                 <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
                                 <div class="form-text">Upload your bank transfer receipt for faster approval.</div>
-                            </div>
-                        </div>
+                                </div>
+                                    </div>
                         
                         <!-- Cash Confirmation Message -->
                         <div id="cashConfirmMessage" style="display: none;">
@@ -722,7 +651,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                 </form>
                 <?php endif; ?>
-            </div>
+                </div>
         </main>
     </div>
 </div>
@@ -841,9 +770,9 @@ function setupStep4() {
             // Need to assign rep first
             if (btnDetailsNext) btnDetailsNext.disabled = true;
             loadCities();
+            }
         }
     }
-}
 
 // --- Step 5 Logic (Confirmation) ---
 function setupStep5() {
@@ -867,7 +796,7 @@ function setupStep5() {
     document.getElementById('finalAmount').value = selectedAmount;
     document.getElementById('finalPledgeId').value = selectedPledgeId;
     document.getElementById('finalMethod').value = selectedMethod;
-}
+    }
 
 // --- Cash Representative Finder Logic ---
 function loadCities() {
