@@ -1171,13 +1171,193 @@ if ($cntRes) {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1%">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pending Approvals - Fundraising Admin</title>
   <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="../assets/admin.css?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.css'); ?>">
   <link rel="stylesheet" href="assets/approvals.css?v=<?php echo @filemtime(__DIR__ . '/assets/approvals.css'); ?>">
+  <style>
+    /* Responsive Action Buttons */
+    .btn-action {
+      min-width: 140px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 500;
+      border-width: 2px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    
+    .btn-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    .btn-action:active {
+      transform: translateY(0);
+    }
+    
+    /* Filter & Sort Button - Gray */
+    .btn-filter {
+      background: #f8f9fa;
+      border-color: #6c757d;
+      color: #495057;
+    }
+    .btn-filter:hover {
+      background: #e9ecef;
+      border-color: #5a6268;
+      color: #212529;
+    }
+    
+    /* View Approved Button - Green */
+    .btn-approved {
+      background: #d1e7dd;
+      border-color: #198754;
+      color: #0f5132;
+    }
+    .btn-approved:hover {
+      background: #badbcc;
+      border-color: #157347;
+      color: #0a3622;
+    }
+    
+    /* Payments Button - Orange/Yellow */
+    .btn-payments {
+      background: #fff3cd;
+      border-color: #ffc107;
+      color: #856404;
+    }
+    .btn-payments:hover {
+      background: #ffe69c;
+      border-color: #ffb300;
+      color: #664d03;
+    }
+    
+    /* Manual Refresh Button - Blue */
+    .btn-refresh {
+      background: #cfe2ff;
+      border-color: #0d6efd;
+      color: #084298;
+    }
+    .btn-refresh:hover {
+      background: #b6d4fe;
+      border-color: #0b5ed7;
+      color: #06357a;
+    }
+    
+    /* Auto Refresh Button - Gray */
+    .btn-auto-refresh {
+      background: #f8f9fa;
+      border-color: #6c757d;
+      color: #495057;
+    }
+    .btn-auto-refresh:hover {
+      background: #e9ecef;
+      border-color: #5a6268;
+      color: #212529;
+    }
+    .btn-auto-refresh.active {
+      background: #198754;
+      border-color: #198754;
+      color: white;
+    }
+    .btn-auto-refresh.active:hover {
+      background: #157347;
+      border-color: #157347;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .btn-action {
+        min-width: auto;
+        flex: 1 1 auto;
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+      }
+      
+      .btn-text {
+        display: inline;
+      }
+    }
+    
+    @media (max-width: 576px) {
+      .card-header {
+        padding: 1rem;
+      }
+      
+      .btn-action {
+        width: 100%;
+        min-width: 100%;
+        margin-bottom: 0.5rem;
+        height: 40px;
+        font-size: 0.875rem;
+      }
+      
+      .btn-action:last-child {
+        margin-bottom: 0;
+      }
+      
+      .btn-action i {
+        margin-right: 0.5rem;
+      }
+    }
+    
+    /* Ensure buttons container wraps properly */
+    @media (max-width: 991px) {
+      .card-header .d-flex {
+        flex-wrap: wrap;
+      }
+    }
+    
+    /* Responsive Filters Panel */
+    @media (max-width: 768px) {
+      .card-body .row > [class*="col-"] {
+        margin-bottom: 0.75rem;
+      }
+      
+      .input-group {
+        flex-wrap: wrap;
+      }
+      
+      .input-group .form-control {
+        flex: 1 1 100%;
+        margin-bottom: 0.25rem;
+      }
+    }
+    
+    /* Responsive Container */
+    @media (max-width: 576px) {
+      .container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+      
+      .card {
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      
+      .card-header h5 {
+        font-size: 1rem;
+      }
+    }
+    
+    /* Ensure proper spacing on all devices */
+    .main-content {
+      padding: 1rem;
+    }
+    
+    @media (max-width: 576px) {
+      .main-content {
+        padding: 0.75rem;
+      }
+    }
+  </style>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -1231,27 +1411,29 @@ if ($cntRes) {
           <?php endif; ?>
           
           <div class="card animate-fade-in">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                  <i class="fas fa-clock text-warning me-2"></i>
-                  Pending Approvals
-                </h5>
-                <div class="d-flex gap-2">
-                  <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false">
-                    <i class="fas fa-filter"></i> Filters & Sort
-                  </button>
-                  <a href="../approved/" class="btn btn-sm btn-outline-success">
-                    <i class="fas fa-check-circle"></i> View Approved
-                  </a>
-                  <a href="../donations/review-pledge-payments.php" class="btn btn-sm btn-outline-warning">
-                    <i class="fas fa-file-invoice-dollar"></i> Payments
-                  </a>
-                  <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">
-                    <i class="fas fa-sync-alt"></i> Manual Refresh
-                  </button>
-                  <button class="btn btn-sm btn-outline-secondary" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
-                    <i class="fas fa-play"></i> <span id="autoRefreshText">Auto Refresh</span>
-                  </button>
+              <div class="card-header">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                  <h5 class="mb-0">
+                    <i class="fas fa-clock text-warning me-2"></i>
+                    Pending Approvals
+                  </h5>
+                  <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+                    <button class="btn btn-sm btn-action btn-filter" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false">
+                      <i class="fas fa-filter"></i> <span class="btn-text">Filters & Sort</span>
+                    </button>
+                    <a href="../approved/" class="btn btn-sm btn-action btn-approved">
+                      <i class="fas fa-check-circle"></i> <span class="btn-text">View Approved</span>
+                    </a>
+                    <a href="../donations/review-pledge-payments.php" class="btn btn-sm btn-action btn-payments">
+                      <i class="fas fa-file-invoice-dollar"></i> <span class="btn-text">Payments</span>
+                    </a>
+                    <button class="btn btn-sm btn-action btn-refresh" onclick="location.reload()">
+                      <i class="fas fa-sync-alt"></i> <span class="btn-text">Manual Refresh</span>
+                    </button>
+                    <button class="btn btn-sm btn-action btn-auto-refresh" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
+                      <i class="fas fa-play"></i> <span class="btn-text" id="autoRefreshText">Auto Refresh</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               
