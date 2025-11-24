@@ -638,34 +638,42 @@ function selectMethod(method) {
     
     // UI Highlight
     document.querySelectorAll('.card-radio').forEach(el => el.classList.remove('selected'));
-    document.getElementById('card_' + method).classList.add('selected');
+    const selectedCard = document.getElementById('card_' + method);
+    if (selectedCard) selectedCard.classList.add('selected');
     
-    // Hide all details first
-    document.getElementById('bankDetails').style.display = 'none';
-    document.getElementById('cashDetails').style.display = 'none';
-    document.getElementById('otherDetails').style.display = 'none';
-    document.getElementById('cardNote').style.display = 'none';
+    // Get elements (may be null)
+    const bankDetails = document.getElementById('bankDetails');
+    const cashDetails = document.getElementById('cashDetails');
+    const otherDetails = document.getElementById('otherDetails');
+    const cardNote = document.getElementById('cardNote');
+    const btnMethodNext = document.getElementById('btnMethodNext');
+    
+    // Hide all details first (with null checks)
+    if (bankDetails) bankDetails.style.display = 'none';
+    if (cashDetails) cashDetails.style.display = 'none';
+    if (otherDetails) otherDetails.style.display = 'none';
+    if (cardNote) cardNote.style.display = 'none';
     
     // Enable/Disable Next based on method
     let canProceed = true;
     
     if(method === 'bank_transfer') {
-        document.getElementById('bankDetails').style.display = 'block';
+        if (bankDetails) bankDetails.style.display = 'block';
     } else if (method === 'card') {
-        document.getElementById('bankDetails').style.display = 'block';
-        document.getElementById('cardNote').style.display = 'block';
+        if (bankDetails) bankDetails.style.display = 'block';
+        if (cardNote) cardNote.style.display = 'block';
     } else if (method === 'cash') {
-        document.getElementById('cashDetails').style.display = 'block';
+        if (cashDetails) cashDetails.style.display = 'block';
         // Only proceed if assigned rep exists
         if (!assignedRep) {
             canProceed = false;
             loadCities(); // Load finder
         }
     } else {
-        document.getElementById('otherDetails').style.display = 'block';
+        if (otherDetails) otherDetails.style.display = 'block';
     }
     
-    document.getElementById('btnMethodNext').disabled = !canProceed;
+    if (btnMethodNext) btnMethodNext.disabled = !canProceed;
 }
 
 function validateStep3() {
