@@ -48,21 +48,16 @@ try {
     $payment_day = 1;
     
     if ($template_id === 'custom') {
-        $plan_frequency_unit = $_POST['custom_frequency'] ?? 'month';
-        // Simplify unit to DB enum if needed, assuming DB supports: week, month, year
-        // Adjust biweekly/quarterly logic
-        if ($plan_frequency_unit === 'biweekly') {
-            $plan_frequency_unit = 'week';
-            $plan_frequency_number = 2;
-        } elseif ($plan_frequency_unit === 'quarterly') {
-            $plan_frequency_unit = 'month';
-            $plan_frequency_number = 3;
-        } elseif ($plan_frequency_unit === 'annually') {
-            $plan_frequency_unit = 'year';
-            $plan_frequency_number = 1;
-        } elseif ($plan_frequency_unit === 'weekly') {
-            $plan_frequency_unit = 'week';
-            $plan_frequency_number = 1;
+        $plan_frequency_unit = $_POST['custom_frequency_unit'] ?? 'month';
+        $plan_frequency_number = (int)($_POST['custom_frequency_number'] ?? 1);
+        
+        // Handle legacy inputs if any (though UI is updated)
+        if (isset($_POST['custom_frequency'])) {
+            $legacy_freq = $_POST['custom_frequency'];
+            if ($legacy_freq === 'weekly') { $plan_frequency_unit = 'week'; $plan_frequency_number = 1; }
+            elseif ($legacy_freq === 'biweekly') { $plan_frequency_unit = 'week'; $plan_frequency_number = 2; }
+            elseif ($legacy_freq === 'quarterly') { $plan_frequency_unit = 'month'; $plan_frequency_number = 3; }
+            elseif ($legacy_freq === 'annually') { $plan_frequency_unit = 'year'; $plan_frequency_number = 1; }
         }
         
         $total_payments = (int)($_POST['custom_payments'] ?? 12);
@@ -96,14 +91,15 @@ try {
     }
     
     // Calculate Total Months (Approx for DB)
-    $total_months = $total_payments;
-    if ($plan_frequency_unit === 'week') {
-        $total_months = ceil(($total_payments * $plan_frequency_number) / 4.33);
-    } elseif ($plan_frequency_unit === 'year') {
-        $total_months = $total_payments * 12;
-    } elseif ($plan_frequency_number > 1) { // e.g. Quarterly
-        $total_months = $total_payments * $plan_frequency_number;
-    }
+    $days_per_unit = match($plan_frequency_unit) {
+        'day' => 1,
+        'week' => 7,
+        'month' => 30.44,
+        'year' => 365.25,
+        default => 30.44
+    };
+    $total_days = $total_payments * $plan_frequency_number * $days_per_unit;
+    $total_months = ceil($total_days / 30.44);
     
     $db->begin_transaction();
     
