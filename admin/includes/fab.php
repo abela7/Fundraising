@@ -2,8 +2,8 @@
 <style>
     .fab-container {
         position: fixed !important;
-        bottom: 30px !important;
-        right: 30px !important;
+        bottom: 25px !important;
+        right: 25px !important;
         z-index: 99999 !important;
         display: flex;
         flex-direction: column-reverse;
@@ -135,32 +135,15 @@
     .fab-item:nth-child(6) { transition-delay: 0.3s; }
 
     /* Mobile adjustments */
-    @media (max-width: 768px) {
+    @media (max-width: 576px) {
         .fab-container {
-            bottom: 20px !important;
-            right: 20px !important;
-        }
-        .fab-main {
-            width: 56px;
-            height: 56px;
-            font-size: 22px;
-        }
-        .fab-btn {
-            width: 42px;
-            height: 42px;
-            font-size: 16px;
+            bottom: 20px;
+            right: 20px;
         }
         .fab-label {
             display: block;
             font-size: 12px;
             padding: 4px 8px;
-        }
-    }
-    
-    @media (max-width: 576px) {
-        .fab-container {
-            bottom: 15px !important;
-            right: 15px !important;
         }
     }
 </style>
