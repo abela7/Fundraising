@@ -164,9 +164,6 @@ $stats = [
             .stat-card h3 {
                 font-size: 1.5rem;
             }
-            .stat-card .fa-2x {
-                font-size: 1.5rem !important;
-            }
             .nav-pills {
                 flex-direction: column;
             }
@@ -215,45 +212,30 @@ $stats = [
                     <div class="col-6 col-md-4">
                         <div class="card shadow-sm stat-card pending">
                             <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="flex-grow-1">
-                                        <h6 class="text-muted small mb-1">Pending Review</h6>
-                                        <h3 class="mb-0 text-warning fw-bold"><?php echo $stats['pending']; ?></h3>
-                                    </div>
-                                    <div class="bg-warning bg-opacity-10 p-2 p-md-3 rounded">
-                                        <i class="fas fa-clock fa-2x text-warning"></i>
-                                    </div>
-                                </div>
+                                <h6 class="text-muted small mb-1">
+                                    <i class="fas fa-hourglass-half me-1 text-warning"></i>Pending Review
+                                </h6>
+                                <h3 class="mb-0 text-warning fw-bold"><?php echo $stats['pending']; ?></h3>
                             </div>
                         </div>
                     </div>
                     <div class="col-6 col-md-4">
                         <div class="card shadow-sm stat-card approved">
                             <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="flex-grow-1">
-                                        <h6 class="text-muted small mb-1">Approved</h6>
-                                        <h3 class="mb-0 text-success fw-bold"><?php echo $stats['confirmed']; ?></h3>
-                                    </div>
-                                    <div class="bg-success bg-opacity-10 p-2 p-md-3 rounded">
-                                        <i class="fas fa-check-circle fa-2x text-success"></i>
-                                    </div>
-                                </div>
+                                <h6 class="text-muted small mb-1">
+                                    <i class="fas fa-check-double me-1 text-success"></i>Approved
+                                </h6>
+                                <h3 class="mb-0 text-success fw-bold"><?php echo $stats['confirmed']; ?></h3>
                             </div>
                         </div>
                     </div>
                     <div class="col-6 col-md-4">
                         <div class="card shadow-sm stat-card rejected">
                             <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="flex-grow-1">
-                                        <h6 class="text-muted small mb-1">Rejected</h6>
-                                        <h3 class="mb-0 text-danger fw-bold"><?php echo $stats['voided']; ?></h3>
-                                    </div>
-                                    <div class="bg-danger bg-opacity-10 p-2 p-md-3 rounded">
-                                        <i class="fas fa-times-circle fa-2x text-danger"></i>
-                                    </div>
-                                </div>
+                                <h6 class="text-muted small mb-1">
+                                    <i class="fas fa-ban me-1 text-danger"></i>Rejected
+                                </h6>
+                                <h3 class="mb-0 text-danger fw-bold"><?php echo $stats['voided']; ?></h3>
                             </div>
                         </div>
                     </div>
