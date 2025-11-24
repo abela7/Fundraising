@@ -27,13 +27,15 @@ $db = db();
         
         if ($result && $result->num_rows > 0) {
             echo "<table class='table table-striped'>";
-            echo "<thead><tr><th>ID</th><th>Name</th><th>Balance</th></tr></thead>";
+            echo "<thead><tr><th>ID</th><th>Name</th><th>Pledge Amount</th><th>Balance</th></tr></thead>";
             echo "<tbody>";
             while ($row = $result->fetch_assoc()) {
                 $balance = (float)$row['balance'];
+                $pledge = (float)$row['total_pledged'];
                 echo "<tr>";
                 echo "<td>" . $row['id'] . "</td>";
                 echo "<td>" . htmlspecialchars($row['name']) . "</td>";
+                echo "<td>£" . number_format($pledge, 2) . "</td>";
                 echo "<td>£" . number_format($balance, 2) . "</td>";
                 echo "</tr>";
             }
