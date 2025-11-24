@@ -2,6 +2,11 @@
 declare(strict_types=1);
 
 // ============================================
+// CRITICAL: Start output buffering to catch any premature output
+// ============================================
+ob_start();
+
+// ============================================
 // DEBUG MODE - Track Every Step
 // ============================================
 $debug_mode = true;
@@ -26,7 +31,7 @@ debug_log(1, "Script started", ['file' => __FILE__]);
 // ============================================
 try {
     debug_log(2, "Loading auth.php");
-    require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/auth.php';
     debug_log(3, "auth.php loaded successfully");
 } catch (Exception $e) {
     debug_log(2, "FAILED loading auth.php", ['error' => $e->getMessage()]);
@@ -35,7 +40,7 @@ try {
 
 try {
     debug_log(4, "Loading db.php");
-    require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
     debug_log(5, "db.php loaded successfully");
 } catch (Exception $e) {
     debug_log(4, "FAILED loading db.php", ['error' => $e->getMessage()]);
@@ -112,82 +117,110 @@ if ($db && !$error_message) {
 }
 
 // ============================================
-// STEP 6: Get Filter Parameters
+// STEP 6: Get Filter Parameters (ALWAYS initialize, even if no DB)
 // ============================================
-if ($db && !$error_message) {
-    try {
-        debug_log(15, "Processing GET parameters");
-        $search = $_GET['search'] ?? '';
-        $church_filter = isset($_GET['church']) ? (int)$_GET['church'] : 0;
-        $status_filter = $_GET['status'] ?? '';
-        $assignment_filter = $_GET['assignment'] ?? 'all';
-        $agent_filter = isset($_GET['agent']) ? (int)$_GET['agent'] : 0;
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $per_page = 50;
-        $offset = ($page - 1) * $per_page;
-        
-        debug_log(16, "Parameters processed", [
-            'search' => $search,
-            'church' => $church_filter,
-            'status' => $status_filter,
-            'assignment' => $assignment_filter,
-            'agent' => $agent_filter,
-            'page' => $page
-        ]);
-    } catch (Exception $e) {
-        debug_log(15, "FAILED parameter processing", ['error' => $e->getMessage()]);
-        $error_message = "Parameter error: " . $e->getMessage();
-    }
+debug_log(15, "Processing GET parameters");
+try {
+    // Initialize ALL variables FIRST, before any conditionals
+    $search = isset($_GET['search']) ? (string)$_GET['search'] : '';
+    $church_filter = isset($_GET['church']) ? (int)$_GET['church'] : 0;
+    $status_filter = isset($_GET['status']) ? (string)$_GET['status'] : '';
+    $assignment_filter = isset($_GET['assignment']) ? (string)$_GET['assignment'] : 'all';
+    $agent_filter = isset($_GET['agent']) ? (int)$_GET['agent'] : 0;
+    $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+    $per_page = 50;
+    $offset = ($page - 1) * $per_page;
+    
+    // Initialize query building variables
+    $where_conditions = [];
+    $params = [];
+    $param_types = '';
+    $where_clause = '';
+    
+    debug_log(16, "Parameters processed", [
+        'search' => $search,
+        'church' => $church_filter,
+        'status' => $status_filter,
+        'assignment' => $assignment_filter,
+        'agent' => $agent_filter,
+        'page' => $page,
+        'get_count' => count($_GET)
+    ]);
+} catch (Exception $e) {
+    debug_log(15, "FAILED parameter processing", ['error' => $e->getMessage()]);
+    // Set defaults on error
+    $search = '';
+    $church_filter = 0;
+    $status_filter = '';
+    $assignment_filter = 'all';
+    $agent_filter = 0;
+    $page = 1;
+    $per_page = 50;
+    $offset = 0;
+    $where_conditions = [];
+    $params = [];
+    $param_types = '';
+    $where_clause = '';
+    $error_message = "Parameter error: " . $e->getMessage();
 }
 
 // ============================================
-// STEP 7: Build WHERE Clause
+// STEP 7: Build WHERE Clause (only if DB connected)
 // ============================================
 if ($db && !$error_message) {
     try {
         debug_log(17, "Building WHERE clause");
+        // Reset query building variables
         $where_conditions = ["d.donor_type = 'pledge'"];
         $params = [];
         $param_types = '';
-        
-        if ($search) {
-            $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
-            $search_param = "%{$search}%";
-            $params[] = $search_param;
-            $params[] = $search_param;
-            $params[] = $search_param;
-            $param_types .= 'sss';
-        }
-        
-        if ($church_filter > 0) {
-            $where_conditions[] = "d.church_id = ?";
-            $params[] = $church_filter;
-            $param_types .= 'i';
-        }
-        
-        if ($status_filter) {
-            $where_conditions[] = "d.payment_status = ?";
-            $params[] = $status_filter;
-            $param_types .= 's';
-        }
-        
-        if ($assignment_filter === 'assigned') {
-            $where_conditions[] = "d.agent_id IS NOT NULL";
-        } elseif ($assignment_filter === 'unassigned') {
-            $where_conditions[] = "d.agent_id IS NULL";
-        }
-        
-        if ($agent_filter > 0) {
-            $where_conditions[] = "d.agent_id = ?";
-            $params[] = $agent_filter;
-            $param_types .= 'i';
-        }
-        
+
+if ($search) {
+    $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
+    $search_param = "%{$search}%";
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $param_types .= 'sss';
+}
+
+if ($church_filter > 0) {
+    $where_conditions[] = "d.church_id = ?";
+    $params[] = $church_filter;
+    $param_types .= 'i';
+}
+
+if ($status_filter) {
+    $where_conditions[] = "d.payment_status = ?";
+    $params[] = $status_filter;
+    $param_types .= 's';
+}
+
+if ($assignment_filter === 'assigned') {
+    $where_conditions[] = "d.agent_id IS NOT NULL";
+} elseif ($assignment_filter === 'unassigned') {
+    $where_conditions[] = "d.agent_id IS NULL";
+}
+
+if ($agent_filter > 0) {
+    $where_conditions[] = "d.agent_id = ?";
+    $params[] = $agent_filter;
+    $param_types .= 'i';
+}
+
         $where_clause = implode(' AND ', $where_conditions);
+        
+        // Safety check: ensure WHERE clause is never empty
+        if (empty($where_clause)) {
+            $where_clause = "d.donor_type = 'pledge'";
+            debug_log(18, "WHERE clause was empty, using default");
+        }
+        
         debug_log(18, "WHERE clause built", [
             'clause' => $where_clause,
             'param_count' => count($params),
-            'param_types' => $param_types
+            'param_types' => $param_types,
+            'conditions_count' => count($where_conditions)
         ]);
     } catch (Exception $e) {
         debug_log(17, "FAILED building WHERE clause", ['error' => $e->getMessage()]);
@@ -201,10 +234,10 @@ if ($db && !$error_message) {
 if ($db && !$error_message) {
     try {
         debug_log(19, "Preparing COUNT query");
-        $count_query = "SELECT COUNT(*) as total FROM donors d WHERE {$where_clause}";
+$count_query = "SELECT COUNT(*) as total FROM donors d WHERE {$where_clause}";
         debug_log(20, "COUNT query prepared", ['query' => $count_query]);
         
-        $count_stmt = $db->prepare($count_query);
+$count_stmt = $db->prepare($count_query);
         if (!$count_stmt) {
             throw new Exception("Prepare failed: " . $db->error);
         }
@@ -212,11 +245,11 @@ if ($db && !$error_message) {
         
         if (!empty($params)) {
             debug_log(22, "Binding COUNT parameters", ['types' => $param_types, 'count' => count($params)]);
-            $count_stmt->bind_param($param_types, ...$params);
-        }
+    $count_stmt->bind_param($param_types, ...$params);
+}
         
         debug_log(23, "Executing COUNT query");
-        $count_stmt->execute();
+$count_stmt->execute();
         debug_log(24, "COUNT query executed");
         
         $count_result = $count_stmt->get_result();
@@ -226,8 +259,8 @@ if ($db && !$error_message) {
         
         $count_data = $count_result->fetch_assoc();
         $total_donors = $count_data['total'] ?? 0;
-        $total_pages = ceil($total_donors / $per_page);
-        
+$total_pages = ceil($total_donors / $per_page);
+
         debug_log(25, "COUNT query completed", [
             'total_donors' => $total_donors,
             'total_pages' => $total_pages
@@ -252,33 +285,33 @@ if ($db && !$error_message) {
         $donor_params[] = $offset;
         $donor_param_types .= 'ii';
         
-        $donor_query = "
-            SELECT 
-                d.id,
-                d.name,
-                d.phone,
-                d.email,
-                d.balance,
-                d.total_pledged,
-                d.payment_status,
-                d.agent_id,
-                d.church_id,
-                c.name as church_name,
-                u.name as agent_name
-            FROM donors d
-            LEFT JOIN churches c ON d.church_id = c.id
-            LEFT JOIN users u ON d.agent_id = u.id
-            WHERE {$where_clause}
-            ORDER BY 
-                CASE WHEN d.agent_id IS NULL THEN 0 ELSE 1 END,
-                d.balance DESC,
-                d.name ASC
-            LIMIT ? OFFSET ?
-        ";
-        
+$donor_query = "
+    SELECT 
+        d.id,
+        d.name,
+        d.phone,
+        d.email,
+        d.balance,
+        d.total_pledged,
+        d.payment_status,
+        d.agent_id,
+        d.church_id,
+        c.name as church_name,
+        u.name as agent_name
+    FROM donors d
+    LEFT JOIN churches c ON d.church_id = c.id
+    LEFT JOIN users u ON d.agent_id = u.id
+    WHERE {$where_clause}
+    ORDER BY 
+        CASE WHEN d.agent_id IS NULL THEN 0 ELSE 1 END,
+        d.balance DESC,
+        d.name ASC
+    LIMIT ? OFFSET ?
+";
+
         debug_log(27, "Donor query prepared", ['param_count' => count($donor_params)]);
-        
-        $donor_stmt = $db->prepare($donor_query);
+
+$donor_stmt = $db->prepare($donor_query);
         if (!$donor_stmt) {
             throw new Exception("Prepare failed: " . $db->error);
         }
@@ -287,13 +320,13 @@ if ($db && !$error_message) {
         if (!empty($donor_params)) {
             debug_log(29, "Binding donor parameters", ['types' => $donor_param_types]);
             $donor_stmt->bind_param($donor_param_types, ...$donor_params);
-        }
+}
         
         debug_log(30, "Executing donor query");
-        $donor_stmt->execute();
+$donor_stmt->execute();
         debug_log(31, "Donor query executed");
         
-        $donors = $donor_stmt->get_result();
+$donors = $donor_stmt->get_result();
         if (!$donors) {
             throw new Exception("Get result failed: " . $db->error);
         }
@@ -378,6 +411,38 @@ if ($db && !$error_message) {
 $debug_end_time = microtime(true);
 $debug_execution_time = round(($debug_end_time - $debug_start_time) * 1000, 2);
 debug_log(39, "Script execution completed", ['time_ms' => $debug_execution_time]);
+
+// ============================================
+// STEP 14: Ensure ALL variables are initialized before HTML output
+// ============================================
+if (!isset($search)) $search = '';
+if (!isset($church_filter)) $church_filter = 0;
+if (!isset($status_filter)) $status_filter = '';
+if (!isset($assignment_filter)) $assignment_filter = 'all';
+if (!isset($agent_filter)) $agent_filter = 0;
+if (!isset($page)) $page = 1;
+if (!isset($total_donors)) $total_donors = 0;
+if (!isset($total_pages)) $total_pages = 1;
+if (!isset($stats)) $stats = ['total' => 0, 'assigned' => 0, 'unassigned' => 0];
+if (!isset($where_clause) || empty($where_clause)) $where_clause = "d.donor_type = 'pledge'";
+if (!isset($params)) $params = [];
+if (!isset($param_types)) $param_types = '';
+
+debug_log(40, "Final variable check completed", [
+    'all_vars_set' => true,
+    'search' => $search,
+    'assignment' => $assignment_filter
+]);
+
+// ============================================
+// CRITICAL: Check for any premature output
+// ============================================
+$premature_output = ob_get_contents();
+if (!empty($premature_output) && trim($premature_output) !== '') {
+    debug_log(41, "WARNING: Premature output detected", ['output' => substr($premature_output, 0, 200)]);
+    // Clear it - we'll handle errors properly
+    ob_clean();
+}
 
 ?>
 <!DOCTYPE html>
@@ -600,12 +665,12 @@ debug_log(39, "Script execution completed", ['time_ms' => $debug_execution_time]
                                 <option value="0">All Agents</option>
                                 <?php 
                                 if ($agents) {
-                                    $agents->data_seek(0);
-                                    while ($agent = $agents->fetch_assoc()): 
-                                    ?>
+                                $agents->data_seek(0);
+                                while ($agent = $agents->fetch_assoc()): 
+                                ?>
                                     <option value="<?php echo $agent['id']; ?>" <?php echo ($agent_filter ?? 0) === $agent['id'] ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($agent['name']); ?>
-                                    </option>
+                                    <?php echo htmlspecialchars($agent['name']); ?>
+                                </option>
                                     <?php endwhile; 
                                 }
                                 ?>
@@ -620,8 +685,8 @@ debug_log(39, "Script execution completed", ['time_ms' => $debug_execution_time]
                                     while ($church = $churches->fetch_assoc()): 
                                     ?>
                                     <option value="<?php echo $church['id']; ?>" <?php echo ($church_filter ?? 0) === $church['id'] ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($church['name']); ?>
-                                    </option>
+                                    <?php echo htmlspecialchars($church['name']); ?>
+                                </option>
                                     <?php endwhile;
                                 }
                                 ?>
@@ -660,12 +725,12 @@ debug_log(39, "Script execution completed", ['time_ms' => $debug_execution_time]
                             <option value="">Select Agent...</option>
                             <?php 
                             if ($agents) {
-                                $agents->data_seek(0);
-                                while ($agent = $agents->fetch_assoc()): 
-                                ?>
-                                <option value="<?php echo $agent['id']; ?>">
-                                    <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
-                                </option>
+                            $agents->data_seek(0);
+                            while ($agent = $agents->fetch_assoc()): 
+                            ?>
+                            <option value="<?php echo $agent['id']; ?>">
+                                <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
+                            </option>
                                 <?php endwhile;
                             }
                             ?>
@@ -826,12 +891,12 @@ debug_log(39, "Script execution completed", ['time_ms' => $debug_execution_time]
                         <option value="">Select an agent...</option>
                         <?php 
                         if ($agents) {
-                            $agents->data_seek(0);
-                            while ($agent = $agents->fetch_assoc()): 
-                            ?>
-                            <option value="<?php echo $agent['id']; ?>">
-                                <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
-                            </option>
+                        $agents->data_seek(0);
+                        while ($agent = $agents->fetch_assoc()): 
+                        ?>
+                        <option value="<?php echo $agent['id']; ?>">
+                            <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
+                        </option>
                             <?php endwhile;
                         }
                         ?>
@@ -868,16 +933,16 @@ let selectedDonors = new Set();
 function updateSelection() {
     console.log('[DEBUG] updateSelection() called');
     try {
-        selectedDonors.clear();
-        document.querySelectorAll('.donor-checkbox:checked').forEach(cb => {
-            selectedDonors.add(cb.value);
-            cb.closest('.donor-card').classList.add('selected');
-        });
-        
-        document.querySelectorAll('.donor-checkbox:not(:checked)').forEach(cb => {
-            cb.closest('.donor-card').classList.remove('selected');
-        });
-        
+    selectedDonors.clear();
+    document.querySelectorAll('.donor-checkbox:checked').forEach(cb => {
+        selectedDonors.add(cb.value);
+        cb.closest('.donor-card').classList.add('selected');
+    });
+    
+    document.querySelectorAll('.donor-checkbox:not(:checked)').forEach(cb => {
+        cb.closest('.donor-card').classList.remove('selected');
+    });
+    
         const countEl = document.getElementById('selectedCount');
         const bar = document.getElementById('bulkActionsBar');
         if (countEl) countEl.textContent = selectedDonors.size;
@@ -891,10 +956,10 @@ function updateSelection() {
 function toggleSelectAll(checkbox) {
     console.log('[DEBUG] toggleSelectAll() called');
     try {
-        document.querySelectorAll('.donor-checkbox').forEach(cb => {
-            cb.checked = checkbox.checked;
-        });
-        updateSelection();
+    document.querySelectorAll('.donor-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelection();
     } catch (e) {
         console.error('[DEBUG] toggleSelectAll() error:', e);
     }
@@ -903,12 +968,12 @@ function toggleSelectAll(checkbox) {
 function clearSelection() {
     console.log('[DEBUG] clearSelection() called');
     try {
-        document.querySelectorAll('.donor-checkbox').forEach(cb => {
-            cb.checked = false;
-        });
+    document.querySelectorAll('.donor-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
         const selectAll = document.getElementById('selectAll');
         if (selectAll) selectAll.checked = false;
-        updateSelection();
+    updateSelection();
     } catch (e) {
         console.error('[DEBUG] clearSelection() error:', e);
     }
@@ -917,22 +982,22 @@ function clearSelection() {
 function assignBulk() {
     console.log('[DEBUG] assignBulk() called');
     try {
-        const agentId = document.getElementById('bulkAgentSelect').value;
-        if (!agentId) {
-            alert('Please select an agent');
-            return;
-        }
-        
-        if (selectedDonors.size === 0) {
-            alert('Please select at least one donor');
-            return;
-        }
-        
-        if (!confirm(`Assign ${selectedDonors.size} donor(s) to the selected agent?`)) {
-            return;
-        }
-        
-        processBulkAction('assign', agentId);
+    const agentId = document.getElementById('bulkAgentSelect').value;
+    if (!agentId) {
+        alert('Please select an agent');
+        return;
+    }
+    
+    if (selectedDonors.size === 0) {
+        alert('Please select at least one donor');
+        return;
+    }
+    
+    if (!confirm(`Assign ${selectedDonors.size} donor(s) to the selected agent?`)) {
+        return;
+    }
+    
+    processBulkAction('assign', agentId);
     } catch (e) {
         console.error('[DEBUG] assignBulk() error:', e);
         alert('Error: ' + e.message);
@@ -942,16 +1007,16 @@ function assignBulk() {
 function unassignBulk() {
     console.log('[DEBUG] unassignBulk() called');
     try {
-        if (selectedDonors.size === 0) {
-            alert('Please select at least one donor');
-            return;
-        }
-        
-        if (!confirm(`Remove agent assignment from ${selectedDonors.size} donor(s)?`)) {
-            return;
-        }
-        
-        processBulkAction('unassign', null);
+    if (selectedDonors.size === 0) {
+        alert('Please select at least one donor');
+        return;
+    }
+    
+    if (!confirm(`Remove agent assignment from ${selectedDonors.size} donor(s)?`)) {
+        return;
+    }
+    
+    processBulkAction('unassign', null);
     } catch (e) {
         console.error('[DEBUG] unassignBulk() error:', e);
         alert('Error: ' + e.message);
@@ -961,36 +1026,36 @@ function unassignBulk() {
 function processBulkAction(action, agentId) {
     console.log('[DEBUG] processBulkAction() called', {action, agentId});
     try {
-        const donorIds = Array.from(selectedDonors);
-        
-        fetch('process-assignment.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: action,
-                donor_ids: donorIds,
-                agent_id: agentId
-            })
+    const donorIds = Array.from(selectedDonors);
+    
+    fetch('process-assignment.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: action,
+            donor_ids: donorIds,
+            agent_id: agentId
         })
+    })
         .then(response => {
             console.log('[DEBUG] Fetch response received', response.status);
             return response.json();
         })
-        .then(data => {
+    .then(data => {
             console.log('[DEBUG] Fetch data received', data);
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
             console.error('[DEBUG] Fetch error:', error);
-            alert('Error processing request');
-        });
+        alert('Error processing request');
+    });
     } catch (e) {
         console.error('[DEBUG] processBulkAction() error:', e);
         alert('Error: ' + e.message);
@@ -1005,7 +1070,7 @@ function quickAssign(donorId) {
         const modalEl = document.getElementById('quickAssignModal');
         if (modalEl) {
             const modal = new bootstrap.Modal(modalEl);
-            modal.show();
+    modal.show();
         }
     } catch (e) {
         console.error('[DEBUG] quickAssign() error:', e);
@@ -1016,37 +1081,37 @@ function quickAssign(donorId) {
 function confirmQuickAssign() {
     console.log('[DEBUG] confirmQuickAssign() called');
     try {
-        const donorId = document.getElementById('quickAssignDonorId').value;
-        const agentId = document.getElementById('quickAssignAgentSelect').value;
-        
-        if (!agentId) {
-            alert('Please select an agent');
-            return;
+    const donorId = document.getElementById('quickAssignDonorId').value;
+    const agentId = document.getElementById('quickAssignAgentSelect').value;
+    
+    if (!agentId) {
+        alert('Please select an agent');
+        return;
+    }
+    
+    fetch('process-assignment.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'assign',
+            donor_ids: [donorId],
+            agent_id: agentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
         }
-        
-        fetch('process-assignment.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'assign',
-                donor_ids: [donorId],
-                agent_id: agentId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
+    })
+    .catch(error => {
             console.error('[DEBUG] confirmQuickAssign() fetch error:', error);
-            alert('Error processing request');
+        alert('Error processing request');
         });
     } catch (e) {
         console.error('[DEBUG] confirmQuickAssign() error:', e);
