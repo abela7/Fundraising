@@ -53,9 +53,9 @@ if ($outcome_filter) {
         $success_outcomes = "'connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full', 'callback_requested', 'interested_needs_time', 'callback_scheduled', 'not_ready_to_pay', 'financial_hardship', 'moved_abroad', 'not_interested', 'driving_cannot_talk', 'at_work_cannot_talk', 'with_family_cannot_talk', 'busy_call_back_later'";
         $where_conditions[] = "s.outcome IN ($success_outcomes)";
     } else {
-        $where_conditions[] = "s.outcome = ?";
-        $params[] = $outcome_filter;
-        $param_types .= 's';
+    $where_conditions[] = "s.outcome = ?";
+    $params[] = $outcome_filter;
+    $param_types .= 's';
     }
 }
 

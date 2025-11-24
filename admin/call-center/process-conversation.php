@@ -313,6 +313,39 @@ try {
     $plan_id = $db->insert_id;
     $insert_plan->close();
     
+    // 1.5 Generate Schedule Rows
+    try {
+        $current_date = new DateTime($start_date);
+        $freq_unit = $plan_frequency_unit;
+        $freq_num = $plan_frequency_number;
+        
+        $schedule_stmt = $db->prepare("INSERT INTO payment_plan_schedule (plan_id, installment_number, due_date, amount, status) VALUES (?, ?, ?, ?, 'pending')");
+        
+        for ($i = 1; $i <= $total_payments; $i++) {
+            $due_date = $current_date->format('Y-m-d');
+            $schedule_stmt->bind_param('iisd', $plan_id, $i, $due_date, $monthly_amount);
+            $schedule_stmt->execute();
+            
+            // Advance date
+            if ($freq_unit === 'day') {
+                $current_date->modify("+{$freq_num} days");
+            } elseif ($freq_unit === 'week') {
+                $current_date->modify("+{$freq_num} weeks");
+            } elseif ($freq_unit === 'month') {
+                $current_date->modify("+{$freq_num} months");
+            } elseif ($freq_unit === 'year') {
+                $current_date->modify("+{$freq_num} years");
+            } else {
+                $current_date->modify("+1 month");
+            }
+        }
+        $schedule_stmt->close();
+        error_log("Schedule rows generated.");
+    } catch (Exception $e) {
+        error_log("Failed to generate schedule rows: " . $e->getMessage());
+        // Continue, don't block success
+    }
+    
     // 2. Update Donor (Active Plan) - Set flags only, no cache duplication
     $update_donor = $db->prepare("
         UPDATE donors 

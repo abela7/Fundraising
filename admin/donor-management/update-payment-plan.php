@@ -141,6 +141,15 @@ try {
     $log_query->execute();
     $log_query->close();
 
+    // Sync Schedule Table (Amount Only)
+    // If amount changed, update all pending installments
+    if ($monthly_amount > 0) {
+        $sync_stmt = $db->prepare("UPDATE payment_plan_schedule SET amount = ? WHERE plan_id = ? AND status = 'pending'");
+        $sync_stmt->bind_param('di', $monthly_amount, $plan_id);
+        $sync_stmt->execute();
+        $sync_stmt->close();
+    }
+
     $db->commit();
 
     $_SESSION['success_message'] = 'Payment plan updated successfully.';
