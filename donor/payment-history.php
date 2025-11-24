@@ -29,14 +29,41 @@ $current_donor = $donor;
 
 // Load all payments (instant payments + pledge payments)
 $payments = [];
+$debug_info = '';
+
 if ($db_connection_ok) {
     try {
         // Check if pledge_payments table exists
         $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
         
-        if ($has_pledge_payments) {
-            // Get both instant payments and pledge payments using UNION
-            $sql = "
+        // First, get pledge payments (the new system used by make-payment.php)
+        if ($has_pledge_payments && isset($donor['id'])) {
+            $pp_stmt = $db->prepare("
+                SELECT 
+                    pp.id,
+                    pp.amount,
+                    pp.payment_method as method,
+                    pp.reference_number as reference,
+                    pp.status,
+                    pp.payment_date,
+                    pp.created_at,
+                    pp.notes,
+                    'pledge' as payment_type
+                FROM pledge_payments pp
+                WHERE pp.donor_id = ?
+                ORDER BY pp.payment_date DESC, pp.created_at DESC
+            ");
+            $pp_stmt->bind_param('i', $donor['id']);
+            $pp_stmt->execute();
+            $pledge_payments = $pp_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $pp_stmt->close();
+            
+            $payments = array_merge($payments, $pledge_payments);
+        }
+        
+        // Then, get instant payments (older system)
+        if (isset($donor['phone'])) {
+            $p_stmt = $db->prepare("
                 SELECT 
                     p.id,
                     p.amount,
@@ -49,44 +76,26 @@ if ($db_connection_ok) {
                     'instant' as payment_type
                 FROM payments p
                 WHERE p.donor_phone = ?
-                
-                UNION ALL
-                
-                SELECT 
-                    pp.id,
-                    pp.amount,
-                    pp.payment_method as method,
-                    pp.reference_number as reference,
-                    pp.status,
-                    COALESCE(pp.payment_date, pp.created_at) as payment_date,
-                    pp.created_at,
-                    pp.notes,
-                    'pledge' as payment_type
-                FROM pledge_payments pp
-                WHERE pp.donor_id = ?
-                
-                ORDER BY payment_date DESC, created_at DESC
-            ";
-            $stmt = $db->prepare($sql);
-            $stmt->bind_param('si', $donor['phone'], $donor['id']);
-            $stmt->execute();
-            $payments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-            $stmt->close();
-        } else {
-            // Fallback: Only instant payments
-            $payments_stmt = $db->prepare("
-                SELECT id, amount, method, reference, status, received_at as payment_date, created_at, notes, 'instant' as payment_type
-                FROM payments
-                WHERE donor_phone = ?
-                ORDER BY received_at DESC, created_at DESC
+                ORDER BY p.received_at DESC, p.created_at DESC
             ");
-            $payments_stmt->bind_param('s', $donor['phone']);
-            $payments_stmt->execute();
-            $payments = $payments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-            $payments_stmt->close();
+            $p_stmt->bind_param('s', $donor['phone']);
+            $p_stmt->execute();
+            $instant_payments = $p_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $p_stmt->close();
+            
+            $payments = array_merge($payments, $instant_payments);
         }
+        
+        // Sort all payments by date (newest first)
+        usort($payments, function($a, $b) {
+            $date_a = strtotime($a['payment_date'] ?? $a['created_at'] ?? '1970-01-01');
+            $date_b = strtotime($b['payment_date'] ?? $b['created_at'] ?? '1970-01-01');
+            return $date_b - $date_a;
+        });
+        
     } catch (Exception $e) {
         error_log("Payment history error: " . $e->getMessage());
+        $debug_info = $e->getMessage();
     }
 }
 ?>
@@ -113,6 +122,18 @@ if ($db_connection_ok) {
                 <div class="page-header">
                     <h1 class="page-title">Payment History</h1>
                 </div>
+
+                <!-- Debug Info (remove in production) -->
+                <?php if (isset($_GET['debug'])): ?>
+                <div class="alert alert-info mb-3">
+                    <strong>Debug Info:</strong><br>
+                    Donor ID: <?php echo $donor['id'] ?? 'NOT SET'; ?><br>
+                    Donor Phone: <?php echo $donor['phone'] ?? 'NOT SET'; ?><br>
+                    Payments Found: <?php echo count($payments); ?><br>
+                    DB Connection: <?php echo $db_connection_ok ? 'OK' : 'FAILED'; ?><br>
+                    <?php if ($debug_info): ?>Error: <?php echo htmlspecialchars($debug_info); ?><?php endif; ?>
+                </div>
+                <?php endif; ?>
 
                 <div class="card">
                     <div class="card-header">
