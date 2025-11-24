@@ -217,17 +217,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     <link rel="stylesheet" href="../assets/theme.css">
     <link rel="stylesheet" href="assets/donor.css">
     <style>
+        :root {
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
         .wizard-step { display: none; }
         .wizard-step.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .step-indicator { width: 30px; height: 30px; border-radius: 50%; background: #e9ecef; color: #6c757d; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
-        .step-indicator.active { background: #0d6efd; color: white; }
-        .step-indicator.completed { background: #198754; color: white; }
-        .wizard-nav { border-bottom: 1px solid #dee2e6; margin-bottom: 20px; padding-bottom: 15px; }
-        .card-radio { cursor: pointer; transition: all 0.2s; border: 2px solid #dee2e6; }
-        .card-radio:hover { border-color: #aeccea; background: #f8f9fa; }
-        .card-radio.selected { border-color: #0d6efd; background: #f0f7ff; }
-        .rep-finder-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
+        
+        .step-indicator { 
+            width: 32px; height: 32px; border-radius: 50%; 
+            background: #e9ecef; color: #6c757d; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; margin-right: 8px; font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .step-indicator.active { background: var(--gradient-primary); color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        .step-indicator.completed { background: var(--gradient-success); color: white; }
+        
+        .wizard-nav { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 16px 20px; 
+            margin-bottom: 24px; 
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        
+        .card-radio { 
+            cursor: pointer; 
+            transition: all 0.25s ease; 
+            border: 2px solid #e9ecef; 
+            border-radius: 16px !important;
+        }
+        .card-radio:hover { 
+            border-color: #667eea; 
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+        .card-radio.selected { 
+            border-color: #667eea; 
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        }
+        .card-radio i { transition: transform 0.3s ease; }
+        .card-radio:hover i { transform: scale(1.1); }
+        .card-radio.selected i { transform: scale(1.15); }
+        
+        .rounded-4 { border-radius: 16px !important; }
+        .letter-spacing-1 { letter-spacing: 1px; }
+        
+        .btn-gradient-primary {
+            background: var(--gradient-primary);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn-gradient-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        
+        .payment-amount-display {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            border-radius: 12px;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
@@ -300,38 +357,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                     <!-- Step 1: Payment Plan Priority -->
                     <div class="wizard-step active" id="step1">
-                        <h5 class="mb-3">Payment Plan Status</h5>
                         <?php if ($active_plan): ?>
-                            <div class="card border-primary mb-3">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h5 class="card-title text-primary"><i class="fas fa-calendar-check me-2"></i>Active Plan</h5>
-                                            <p class="mb-1">Next Due: <strong><?php echo date('d M Y', strtotime($active_plan['next_payment_due'])); ?></strong></p>
-                                            <p class="mb-0">Amount: <strong>£<?php echo number_format($active_plan['monthly_amount'], 2); ?></strong></p>
+                            <div class="text-center mb-4">
+                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10 mb-3" style="width: 80px; height: 80px;">
+                                    <i class="fas fa-calendar-check fa-2x text-success"></i>
+                                </div>
+                                <h4 class="mb-1">Your Payment Plan</h4>
+                                <span class="badge bg-success px-3 py-2 rounded-pill">
+                                    <i class="fas fa-check-circle me-1"></i>Active
+                                </span>
+                            </div>
+                            
+                            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                                <div class="card-body p-0">
+                                    <!-- Next Payment Due -->
+                                    <div class="p-4 bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                        <div class="text-white text-center">
+                                            <small class="text-white-50 text-uppercase fw-bold letter-spacing-1">Next Payment Due</small>
+                                            <h2 class="mb-0 mt-1 fw-bold"><?php echo date('d M Y', strtotime($active_plan['next_payment_due'])); ?></h2>
                                         </div>
-                                        <span class="badge bg-primary">Active</span>
                                     </div>
-                                    <hr>
-                                    <div class="d-grid gap-2">
-                                        <button type="button" class="btn btn-primary btn-lg" onclick="selectPlanAmount(<?php echo $active_plan['monthly_amount']; ?>)">
-                                            Pay Monthly Amount (£<?php echo number_format($active_plan['monthly_amount'], 2); ?>)
+                                    
+                                    <!-- Amount -->
+                                    <div class="p-4 text-center border-bottom">
+                                        <small class="text-muted text-uppercase fw-bold">Monthly Amount</small>
+                                        <h1 class="mb-0 mt-1 fw-bold text-dark">£<?php echo number_format($active_plan['monthly_amount'], 2); ?></h1>
+                                    </div>
+                                    
+                                    <!-- Actions -->
+                                    <div class="p-4">
+                                        <button type="button" class="btn btn-lg w-100 text-white fw-bold rounded-3 mb-3" 
+                                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 16px;"
+                                                onclick="selectPlanAmount(<?php echo $active_plan['monthly_amount']; ?>)">
+                                            <i class="fas fa-credit-card me-2"></i>Pay Now
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
-                                            Pay Different Amount
+                                        <button type="button" class="btn btn-lg btn-light w-100 fw-semibold rounded-3 text-muted" 
+                                                style="padding: 14px; border: 2px solid #e9ecef;"
+                                                onclick="goToStep(2)">
+                                            Pay a Different Amount
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         <?php else: ?>
-                            <div class="card mb-3">
-                                <div class="card-body text-center py-4">
-                                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                                    <h5>No Active Payment Plan</h5>
-                                    <p class="text-muted">You don't have a scheduled payment plan set up.</p>
-                                    <div class="d-grid gap-2 d-md-block">
-                                        <button type="button" class="btn btn-primary px-4" onclick="goToStep(2)">Make One-Time Payment</button>
-                                        <a href="payment-plan.php" class="btn btn-outline-primary px-4">Create Payment Plan</a>
+                            <div class="text-center mb-4">
+                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary bg-opacity-10 mb-3" style="width: 80px; height: 80px;">
+                                    <i class="fas fa-calendar-times fa-2x text-secondary"></i>
+                                </div>
+                                <h4 class="mb-2">No Active Plan</h4>
+                                <p class="text-muted mb-0">You don't have a scheduled payment plan.</p>
+                            </div>
+                            
+                            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                                <div class="card-body p-4">
+                                    <div class="d-grid gap-3">
+                                        <button type="button" class="btn btn-lg text-white fw-bold rounded-3" 
+                                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 16px;"
+                                                onclick="goToStep(2)">
+                                            <i class="fas fa-hand-holding-usd me-2"></i>Make a Payment
+                                        </button>
+                                        <a href="payment-plan.php" class="btn btn-lg btn-light fw-semibold rounded-3 text-muted" 
+                                           style="padding: 14px; border: 2px solid #e9ecef;">
+                                            <i class="fas fa-calendar-plus me-2"></i>Set Up Payment Plan
+                                        </a>
                                     </div>
                                 </div>
                             </div>
