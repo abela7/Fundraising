@@ -17,7 +17,7 @@
 class FinancialCalculator {
     private $db;
     private $hasPledgePayments = false;
-    
+
     public function __construct() {
         $this->db = db();
         
@@ -61,7 +61,7 @@ class FinancialCalculator {
             $instantTotal = (float)$row['total'];
             $instantCount = (int)$row['count'];
         }
-        
+
         // 2. Pledge Payments (Installments towards pledges)
         $pledgePaidTotal = 0;
         $pledgePaidCount = 0;
@@ -89,7 +89,7 @@ class FinancialCalculator {
                 $pledgePaidCount = (int)$row['count'];
             }
         }
-        
+
         // 3. Total Pledges (Promises made)
         if ($hasDateFilter) {
             // Activity in range: Pledges created BETWEEN dates
@@ -112,16 +112,16 @@ class FinancialCalculator {
             $totalPledges = (float)$row['total'];
             $pledgeCount = (int)$row['count'];
         }
-        
+
         // Calculate derived metrics
         $totalPaid = $instantTotal + $pledgePaidTotal;
         
         // For date-filtered reports: Outstanding = Pledges IN range - Payments IN range
         // This matches the "activity report" semantic expected by visual/comprehensive reports
         $outstandingPledged = max(0, $totalPledges - $pledgePaidTotal);
-        
+
         $grandTotal = $totalPaid + $outstandingPledged;
-        
+
         return [
             // Raw components
             'instant_payments' => $instantTotal,

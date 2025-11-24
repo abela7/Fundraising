@@ -146,7 +146,7 @@ if ($db && $db_error_message === '') {
         $metrics['payments_count'] = $totals['total_payment_count'];
         $metrics['pledged_total'] = $totals['total_pledges']; // Activity: raw pledges created
         $metrics['pledges_count'] = $totals['pledge_count'];
-        $metrics['grand_total'] = $metrics['paid_total'] + $metrics['pledged_total'];
+    $metrics['grand_total'] = $metrics['paid_total'] + $metrics['pledged_total'];
     }
     
     // Extract for SQL query construction
