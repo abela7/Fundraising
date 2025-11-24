@@ -13,8 +13,8 @@ $filter_min_pledge = isset($_GET['min_pledge']) && $_GET['min_pledge'] !== '' ? 
 $filter_max_pledge = isset($_GET['max_pledge']) && $_GET['max_pledge'] !== '' ? (float)$_GET['max_pledge'] : null;
 $filter_min_balance = isset($_GET['min_balance']) && $_GET['min_balance'] !== '' ? (float)$_GET['min_balance'] : null;
 $filter_max_balance = isset($_GET['max_balance']) && $_GET['max_balance'] !== '' ? (float)$_GET['max_balance'] : null;
-$filter_agent = isset($_GET['filter_agent']) ? (int)$_GET['filter_agent'] : 0;
-$filter_assignment = $_GET['filter_assignment'] ?? 'all';
+$filter_registrar = isset($_GET['registrar']) && $_GET['registrar'] !== '' ? (int)$_GET['registrar'] : null;
+$filter_assignment = $_GET['assignment'] ?? 'all'; // all, assigned, unassigned
 
 // Handle bulk assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
@@ -86,40 +86,70 @@ try {
             $agents[] = $agent;
         }
     }
+    
+    // Get all registrars for filter dropdown
+    $registrars = [];
+    $registrars_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+    if ($registrars_result) {
+        while ($registrar = $registrars_result->fetch_assoc()) {
+            $registrars[] = $registrar;
+        }
+    }
+
+    // Build WHERE clause for filters
+    $where_conditions = [];
+    $params = [];
+    $types = '';
+    
+    if (!empty($filter_search)) {
+        $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ?)";
+        $search_param = "%{$filter_search}%";
+        $params[] = $search_param;
+        $params[] = $search_param;
+        $types .= 'ss';
+    }
+    
+    if ($filter_min_pledge !== null) {
+        $where_conditions[] = "COALESCE(d.total_pledged, 0) >= ?";
+        $params[] = $filter_min_pledge;
+        $types .= 'd';
+    }
+    
+    if ($filter_max_pledge !== null) {
+        $where_conditions[] = "COALESCE(d.total_pledged, 0) <= ?";
+        $params[] = $filter_max_pledge;
+        $types .= 'd';
+    }
+    
+    if ($filter_min_balance !== null) {
+        $where_conditions[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) >= ?";
+        $params[] = $filter_min_balance;
+        $types .= 'd';
+    }
+    
+    if ($filter_max_balance !== null) {
+        $where_conditions[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) <= ?";
+        $params[] = $filter_max_balance;
+        $types .= 'd';
+    }
+    
+    if ($filter_registrar !== null) {
+        $where_conditions[] = "d.registered_by = ?";
+        $params[] = $filter_registrar;
+        $types .= 'i';
+    }
+    
+    if ($filter_assignment === 'assigned') {
+        $where_conditions[] = "d.agent_id IS NOT NULL";
+    } elseif ($filter_assignment === 'unassigned') {
+        $where_conditions[] = "d.agent_id IS NULL";
+    }
 
     // Get donors by agent (with filters)
     foreach ($agents as $agent) {
-        $agent_where = ["d.agent_id = ?"];
-        $agent_params = [(int)$agent['id']];
-        $agent_types = 'i';
-        
-        if (!empty($filter_search)) {
-            $agent_where[] = "(d.name LIKE ? OR d.phone LIKE ?)";
-            $search_param = "%{$filter_search}%";
-            $agent_params[] = $search_param;
-            $agent_params[] = $search_param;
-            $agent_types .= 'ss';
-        }
-        if ($filter_min_pledge !== null) {
-            $agent_where[] = "COALESCE(d.total_pledged, 0) >= ?";
-            $agent_params[] = $filter_min_pledge;
-            $agent_types .= 'd';
-        }
-        if ($filter_max_pledge !== null) {
-            $agent_where[] = "COALESCE(d.total_pledged, 0) <= ?";
-            $agent_params[] = $filter_max_pledge;
-            $agent_types .= 'd';
-        }
-        if ($filter_min_balance !== null) {
-            $agent_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) >= ?";
-            $agent_params[] = $filter_min_balance;
-            $agent_types .= 'd';
-        }
-        if ($filter_max_balance !== null) {
-            $agent_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) <= ?";
-            $agent_params[] = $filter_max_balance;
-            $agent_types .= 'd';
-        }
+        $agent_where = array_merge(["d.agent_id = ?"], $where_conditions);
+        $agent_params = array_merge([(int)$agent['id']], $params);
+        $agent_types = 'i' . $types;
         
         $agent_query = "SELECT d.id, d.name,
             COALESCE(d.total_pledged, 0) as total_pledged,
@@ -145,44 +175,16 @@ try {
         }
     }
 
-    // Build WHERE clause for unassigned donors with filters
-    $unassigned_where = ["d.agent_id IS NULL"];
-    $unassigned_params = [];
-    $unassigned_types = '';
-    
-    if (!empty($filter_search)) {
-        $unassigned_where[] = "(d.name LIKE ? OR d.phone LIKE ?)";
-        $search_param = "%{$filter_search}%";
-        $unassigned_params[] = $search_param;
-        $unassigned_params[] = $search_param;
-        $unassigned_types .= 'ss';
-    }
-    if ($filter_min_pledge !== null) {
-        $unassigned_where[] = "COALESCE(d.total_pledged, 0) >= ?";
-        $unassigned_params[] = $filter_min_pledge;
-        $unassigned_types .= 'd';
-    }
-    if ($filter_max_pledge !== null) {
-        $unassigned_where[] = "COALESCE(d.total_pledged, 0) <= ?";
-        $unassigned_params[] = $filter_max_pledge;
-        $unassigned_types .= 'd';
-    }
-    if ($filter_min_balance !== null) {
-        $unassigned_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) >= ?";
-        $unassigned_params[] = $filter_min_balance;
-        $unassigned_types .= 'd';
-    }
-    if ($filter_max_balance !== null) {
-        $unassigned_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) <= ?";
-        $unassigned_params[] = $filter_max_balance;
-        $unassigned_types .= 'd';
-    }
+    // Get unassigned donors (with filters)
+    $unassigned_where = array_merge(["d.agent_id IS NULL"], $where_conditions);
+    $unassigned_params = $params;
+    $unassigned_types = $types;
     
     $unassigned_query = "SELECT d.id, d.name,
         COALESCE(d.total_pledged, 0) as total_pledged,
         COALESCE(d.total_paid, 0) as total_paid,
         (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
-    FROM donors d
+        FROM donors d
         WHERE " . implode(" AND ", $unassigned_where) . "
         ORDER BY d.name";
     
@@ -349,55 +351,6 @@ try {
             box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
         }
 
-        /* Filter Panel */
-        .filter-toggle {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: var(--border-radius);
-            padding: 12px 20px;
-            margin-bottom: 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .filter-toggle:hover {
-            background: #f8f9fa;
-            border-color: #0d6efd;
-        }
-
-        .filter-toggle .badge {
-            background: #0d6efd;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .filter-panel {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: var(--border-radius);
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .filter-panel .form-label {
-            font-weight: 500;
-            color: #495057;
-            font-size: 0.875rem;
-            margin-bottom: 6px;
-        }
-
-        .filter-panel .form-control,
-        .filter-panel .form-select {
-            border-radius: 8px;
-        }
-
         .btn-modern {
             border-radius: 8px;
             padding: 8px 16px;
@@ -409,6 +362,69 @@ try {
         .btn-modern:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        /* Filter Panel Styles */
+        .filter-toggle-btn {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+            padding: 12px 20px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .filter-toggle-btn:hover {
+            background: #f8f9fa;
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .filter-toggle-btn .badge {
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .filter-panel {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .filter-panel .form-label {
+            font-weight: 500;
+            color: #495057;
+            font-size: 0.875rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .filter-panel .form-control,
+        .filter-panel .form-select {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            transition: all 0.2s;
+        }
+        
+        .filter-panel .form-control:focus,
+        .filter-panel .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
         }
 
         /* Enhanced Tabs */
@@ -686,6 +702,133 @@ try {
                 </div>
             </div>
 
+            <!-- Filter Toggle Button -->
+            <?php
+            $active_filters = 0;
+            if (!empty($filter_search)) $active_filters++;
+            if ($filter_min_pledge !== null) $active_filters++;
+            if ($filter_max_pledge !== null) $active_filters++;
+            if ($filter_min_balance !== null) $active_filters++;
+            if ($filter_max_balance !== null) $active_filters++;
+            if ($filter_registrar !== null) $active_filters++;
+            if ($filter_assignment !== 'all') $active_filters++;
+            ?>
+            <button class="filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="<?php echo $active_filters > 0 ? 'true' : 'false'; ?>">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-filter"></i>
+                    <strong>Filters</strong>
+                    <?php if ($active_filters > 0): ?>
+                        <span class="badge"><?php echo $active_filters; ?> Active</span>
+                    <?php endif; ?>
+                </div>
+                <i class="fas fa-chevron-down" id="filterChevron"></i>
+            </button>
+
+            <!-- Filter Panel -->
+            <div class="collapse <?php echo $active_filters > 0 ? 'show' : ''; ?>" id="filterPanel">
+                <div class="filter-panel">
+                    <form method="GET" action="assign-donors.php" id="filterForm">
+                        <div class="row g-3">
+                            <!-- Search -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-search"></i>
+                                    Search Name/Phone
+                                </label>
+                                <input type="text" name="search" class="form-control" 
+                                       value="<?php echo htmlspecialchars($filter_search); ?>" 
+                                       placeholder="Enter name or phone number">
+                            </div>
+
+                            <!-- Assignment Status -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-user-check"></i>
+                                    Assignment Status
+                                </label>
+                                <select name="assignment" class="form-select">
+                                    <option value="all" <?php echo $filter_assignment === 'all' ? 'selected' : ''; ?>>All Donors</option>
+                                    <option value="assigned" <?php echo $filter_assignment === 'assigned' ? 'selected' : ''; ?>>Assigned Only</option>
+                                    <option value="unassigned" <?php echo $filter_assignment === 'unassigned' ? 'selected' : ''; ?>>Unassigned Only</option>
+                                </select>
+                            </div>
+
+                            <!-- Registrar Filter -->
+                            <div class="col-md-12">
+                                <label class="form-label">
+                                    <i class="fas fa-user-tie"></i>
+                                    Registered By (Registrar)
+                                </label>
+                                <select name="registrar" class="form-select">
+                                    <option value="">All Registrars</option>
+                                    <?php if (!empty($registrars)): ?>
+                                        <?php foreach ($registrars as $registrar): ?>
+                                            <option value="<?php echo $registrar['id']; ?>" <?php echo $filter_registrar == $registrar['id'] ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($registrar['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </select>
+                            </div>
+
+                            <!-- Pledge Amount Range -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-pound-sign"></i>
+                                    Min Pledge Amount
+                                </label>
+                                <input type="number" name="min_pledge" class="form-control" 
+                                       value="<?php echo $filter_min_pledge !== null ? $filter_min_pledge : ''; ?>" 
+                                       placeholder="e.g., 400.00" step="0.01" min="0">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-pound-sign"></i>
+                                    Max Pledge Amount
+                                </label>
+                                <input type="number" name="max_pledge" class="form-control" 
+                                       value="<?php echo $filter_max_pledge !== null ? $filter_max_pledge : ''; ?>" 
+                                       placeholder="e.g., 1000.00" step="0.01" min="0">
+                            </div>
+
+                            <!-- Balance Range -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-coins"></i>
+                                    Min Balance
+                                </label>
+                                <input type="number" name="min_balance" class="form-control" 
+                                       value="<?php echo $filter_min_balance !== null ? $filter_min_balance : ''; ?>" 
+                                       placeholder="e.g., 100.00" step="0.01" min="0">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-coins"></i>
+                                    Max Balance
+                                </label>
+                                <input type="number" name="max_balance" class="form-control" 
+                                       value="<?php echo $filter_max_balance !== null ? $filter_max_balance : ''; ?>" 
+                                       placeholder="e.g., 500.00" step="0.01" min="0">
+                            </div>
+
+                            <!-- Filter Actions -->
+                            <div class="col-12">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button type="submit" class="btn btn-primary btn-modern">
+                                        <i class="fas fa-check me-1"></i>Apply Filters
+                                    </button>
+                                    <a href="assign-donors.php" class="btn btn-outline-secondary btn-modern">
+                                        <i class="fas fa-times me-1"></i>Clear All
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <!-- Loading Overlay -->
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="loading-spinner"></div>
@@ -722,121 +865,6 @@ try {
                 </div>
             </div>
 
-            <!-- Filter Toggle Button -->
-            <div class="filter-toggle" data-bs-toggle="collapse" data-bs-target="#filterPanel">
-                <div>
-                    <i class="fas fa-filter me-2"></i>
-                    <strong>Filter Donors</strong>
-                    <?php 
-                    $has_filters = !empty($filter_search) || $filter_min_pledge !== null || $filter_max_pledge !== null || 
-                                   $filter_min_balance !== null || $filter_max_balance !== null || 
-                                   $filter_agent > 0 || $filter_assignment !== 'all';
-                    if ($has_filters): 
-                    ?>
-                        <span class="badge ms-2">Active</span>
-                    <?php endif; ?>
-                </div>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-
-            <!-- Filter Panel -->
-            <div class="collapse <?php echo $has_filters ? 'show' : ''; ?>" id="filterPanel">
-                <div class="filter-panel">
-                    <form method="GET" action="assign-donors.php">
-                        <div class="row g-3">
-                            <!-- Search -->
-                            <div class="col-md-6">
-                                <label class="form-label">
-                                    <i class="fas fa-search me-1"></i>Search Name/Phone
-                                </label>
-                                <input type="text" name="search" class="form-control" 
-                                       value="<?php echo htmlspecialchars($filter_search); ?>" 
-                                       placeholder="Enter name or phone number">
-                            </div>
-
-                            <!-- Assignment Status -->
-                            <div class="col-md-6">
-                                <label class="form-label">
-                                    <i class="fas fa-user-check me-1"></i>Assignment Status
-                                </label>
-                                <select name="filter_assignment" class="form-select">
-                                    <option value="all" <?php echo $filter_assignment === 'all' ? 'selected' : ''; ?>>All Donors</option>
-                                    <option value="assigned" <?php echo $filter_assignment === 'assigned' ? 'selected' : ''; ?>>Assigned Only</option>
-                                    <option value="unassigned" <?php echo $filter_assignment === 'unassigned' ? 'selected' : ''; ?>>Unassigned Only</option>
-                                </select>
-                            </div>
-
-                            <!-- Agent Filter -->
-                            <div class="col-md-12">
-                                <label class="form-label">
-                                    <i class="fas fa-user-tie me-1"></i>Assigned Agent
-                                </label>
-                                <select name="filter_agent" class="form-select">
-                                    <option value="0">All Agents</option>
-                                    <?php if (!empty($agents)): ?>
-                                        <?php foreach ($agents as $agent): ?>
-                                            <option value="<?php echo $agent['id']; ?>" <?php echo $filter_agent == $agent['id'] ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($agent['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select>
-                            </div>
-
-                            <!-- Pledge Amount Range -->
-                            <div class="col-md-6">
-                                <label class="form-label">
-                                    <i class="fas fa-pound-sign me-1"></i>Min Pledge Amount
-                                </label>
-                                <input type="number" name="min_pledge" class="form-control" 
-                                       value="<?php echo $filter_min_pledge !== null ? $filter_min_pledge : ''; ?>" 
-                                       placeholder="0.00" step="0.01" min="0">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">
-                                    <i class="fas fa-pound-sign me-1"></i>Max Pledge Amount
-                                </label>
-                                <input type="number" name="max_pledge" class="form-control" 
-                                       value="<?php echo $filter_max_pledge !== null ? $filter_max_pledge : ''; ?>" 
-                                       placeholder="0.00" step="0.01" min="0">
-                            </div>
-
-                            <!-- Balance Range -->
-                            <div class="col-md-6">
-                                <label class="form-label">
-                                    <i class="fas fa-coins me-1"></i>Min Balance
-                                </label>
-                                <input type="number" name="min_balance" class="form-control" 
-                                       value="<?php echo $filter_min_balance !== null ? $filter_min_balance : ''; ?>" 
-                                       placeholder="0.00" step="0.01" min="0">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">
-                                    <i class="fas fa-coins me-1"></i>Max Balance
-                                </label>
-                                <input type="number" name="max_balance" class="form-control" 
-                                       value="<?php echo $filter_max_balance !== null ? $filter_max_balance : ''; ?>" 
-                                       placeholder="0.00" step="0.01" min="0">
-                            </div>
-
-                            <!-- Filter Actions -->
-                            <div class="col-12">
-                                <div class="d-flex gap-2">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-check me-1"></i>Apply Filters
-                                    </button>
-                                    <a href="assign-donors.php" class="btn btn-outline-secondary">
-                                        <i class="fas fa-times me-1"></i>Clear All
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
- 
             <!-- Tabs -->
             <ul class="nav nav-tabs nav-tabs-modern" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -868,47 +896,9 @@ try {
                             <?php
                             try {
                                 // Build WHERE clause for All Donors tab
-                                $all_where = [];
-                                $all_params = [];
-                                $all_types = '';
-                                
-                                if (!empty($filter_search)) {
-                                    $all_where[] = "(d.name LIKE ? OR d.phone LIKE ?)";
-                                    $search_param = "%{$filter_search}%";
-                                    $all_params[] = $search_param;
-                                    $all_params[] = $search_param;
-                                    $all_types .= 'ss';
-                                }
-                                if ($filter_min_pledge !== null) {
-                                    $all_where[] = "COALESCE(d.total_pledged, 0) >= ?";
-                                    $all_params[] = $filter_min_pledge;
-                                    $all_types .= 'd';
-                                }
-                                if ($filter_max_pledge !== null) {
-                                    $all_where[] = "COALESCE(d.total_pledged, 0) <= ?";
-                                    $all_params[] = $filter_max_pledge;
-                                    $all_types .= 'd';
-                                }
-                                if ($filter_min_balance !== null) {
-                                    $all_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) >= ?";
-                                    $all_params[] = $filter_min_balance;
-                                    $all_types .= 'd';
-                                }
-                                if ($filter_max_balance !== null) {
-                                    $all_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) <= ?";
-                                    $all_params[] = $filter_max_balance;
-                                    $all_types .= 'd';
-                                }
-                                if ($filter_agent > 0) {
-                                    $all_where[] = "d.agent_id = ?";
-                                    $all_params[] = $filter_agent;
-                                    $all_types .= 'i';
-                                }
-                                if ($filter_assignment === 'assigned') {
-                                    $all_where[] = "d.agent_id IS NOT NULL";
-                                } elseif ($filter_assignment === 'unassigned') {
-                                    $all_where[] = "d.agent_id IS NULL";
-                                }
+                                $all_where = $where_conditions;
+                                $all_params = $params;
+                                $all_types = $types;
                                 
                                 $where_clause = !empty($all_where) ? "WHERE " . implode(" AND ", $all_where) : "";
                                 
@@ -1283,23 +1273,21 @@ function bulkUnassign() {
     form.submit();
 }
 
-// Toggle filter panel chevron
-document.addEventListener('DOMContentLoaded', function() {
-    const filterToggle = document.querySelector('.filter-toggle');
-    const filterPanel = document.getElementById('filterPanel');
+// Toggle filter chevron icon
+const filterPanel = document.getElementById('filterPanel');
+const filterChevron = document.getElementById('filterChevron');
+
+if (filterPanel && filterChevron) {
+    filterPanel.addEventListener('show.bs.collapse', function () {
+        filterChevron.classList.remove('fa-chevron-down');
+        filterChevron.classList.add('fa-chevron-up');
+    });
     
-    if (filterToggle && filterPanel) {
-        filterPanel.addEventListener('show.bs.collapse', function () {
-            filterToggle.querySelector('.fa-chevron-down').classList.add('fa-chevron-up');
-            filterToggle.querySelector('.fa-chevron-down').classList.remove('fa-chevron-down');
-        });
-        
-        filterPanel.addEventListener('hide.bs.collapse', function () {
-            filterToggle.querySelector('.fa-chevron-up').classList.add('fa-chevron-down');
-            filterToggle.querySelector('.fa-chevron-up').classList.remove('fa-chevron-up');
-        });
-    }
-});
+    filterPanel.addEventListener('hide.bs.collapse', function () {
+        filterChevron.classList.remove('fa-chevron-up');
+        filterChevron.classList.add('fa-chevron-down');
+    });
+}
 
 </script>
 </body>
