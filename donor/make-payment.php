@@ -274,22 +274,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <div class="wizard-nav d-flex justify-content-between align-items-center overflow-auto">
                         <div class="d-flex align-items-center">
                             <div class="step-indicator active" id="ind1">1</div>
-                            <span class="fw-bold d-none d-sm-inline">Plan</span>
+                            <span class="fw-bold d-none d-md-inline">Plan</span>
                         </div>
-                        <div class="text-muted mx-2"><i class="fas fa-chevron-right small"></i></div>
+                        <div class="text-muted mx-1"><i class="fas fa-chevron-right small"></i></div>
                         <div class="d-flex align-items-center">
                             <div class="step-indicator" id="ind2">2</div>
-                            <span class="fw-bold d-none d-sm-inline text-muted">Amount</span>
+                            <span class="fw-bold d-none d-md-inline text-muted">Amount</span>
                         </div>
-                        <div class="text-muted mx-2"><i class="fas fa-chevron-right small"></i></div>
+                        <div class="text-muted mx-1"><i class="fas fa-chevron-right small"></i></div>
                         <div class="d-flex align-items-center">
                             <div class="step-indicator" id="ind3">3</div>
-                            <span class="fw-bold d-none d-sm-inline text-muted">Method</span>
+                            <span class="fw-bold d-none d-md-inline text-muted">Method</span>
                         </div>
-                        <div class="text-muted mx-2"><i class="fas fa-chevron-right small"></i></div>
+                        <div class="text-muted mx-1"><i class="fas fa-chevron-right small"></i></div>
                         <div class="d-flex align-items-center">
                             <div class="step-indicator" id="ind4">4</div>
-                            <span class="fw-bold d-none d-sm-inline text-muted">Confirm</span>
+                            <span class="fw-bold d-none d-md-inline text-muted">Details</span>
+                        </div>
+                        <div class="text-muted mx-1"><i class="fas fa-chevron-right small"></i></div>
+                        <div class="d-flex align-items-center">
+                            <div class="step-indicator" id="ind5">5</div>
+                            <span class="fw-bold d-none d-md-inline text-muted">Confirm</span>
                         </div>
                     </div>
 
@@ -378,7 +383,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         </div>
                     </div>
 
-                    <!-- Step 3: Payment Method -->
+                    <!-- Step 3: Payment Method Selection -->
                     <div class="wizard-step" id="step3">
                         <h5 class="mb-3">Choose Payment Method</h5>
                         
@@ -388,6 +393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('bank_transfer')" id="card_bank_transfer">
                                     <i class="fas fa-university fa-2x mb-2 text-primary"></i>
                                     <div class="fw-bold">Bank Transfer</div>
+                                    <small class="text-muted">Direct to our account</small>
                                 </div>
                             </div>
                             <!-- Cash -->
@@ -395,174 +401,234 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('cash')" id="card_cash">
                                     <i class="fas fa-money-bill-wave fa-2x mb-2 text-success"></i>
                                     <div class="fw-bold">Cash</div>
-                                </div>
-                            </div>
-                            <!-- Card -->
-                            <div class="col-6">
-                                <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('card')" id="card_card">
-                                    <i class="fas fa-credit-card fa-2x mb-2 text-info"></i>
-                                    <div class="fw-bold">Card</div>
-                                </div>
-                            </div>
-                            <!-- Other -->
-                            <div class="col-6">
-                                <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('other')" id="card_other">
-                                    <i class="fas fa-ellipsis-h fa-2x mb-2 text-secondary"></i>
-                                    <div class="fw-bold">Other</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Dynamic Details Section -->
-                        <div id="methodDetailsArea">
-                            <!-- Bank Details (For Bank Transfer & Card) -->
-                            <div id="bankDetails" style="display: none;">
-                                <div class="alert alert-light border shadow-sm">
-                                    <h6 class="mb-3 fw-bold text-primary"><i class="fas fa-info-circle me-2"></i>Payment Details</h6>
-                                    
-                                    <!-- Account Name -->
-                                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-                                        <span class="text-muted small">Account Name</span>
-                                        <div class="d-flex align-items-center">
-                                            <span class="fw-bold me-2"><?php echo $bank_account_name; ?></span>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_account_name; ?>')">Copy</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Account Number -->
-                                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-                                        <span class="text-muted small">Account Number</span>
-                                        <div class="d-flex align-items-center">
-                                            <span class="fw-bold me-2"><?php echo $bank_account_number; ?></span>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_account_number; ?>')">Copy</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Sort Code -->
-                                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-                                        <span class="text-muted small">Sort Code</span>
-                                        <div class="d-flex align-items-center">
-                                            <span class="fw-bold me-2"><?php echo $bank_sort_code; ?></span>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_sort_code; ?>')">Copy</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Reference -->
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="text-muted small">Reference</span>
-                                        <div class="d-flex align-items-center">
-                                            <span class="fw-bold text-primary me-2"><?php echo $bank_reference_label; ?></span>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_reference_label; ?>')">Copy</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mt-3 small text-muted fst-italic" id="cardNote" style="display:none;">
-                                        Note: Please use these bank details to make a card transfer if your banking app supports it.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Cash Details -->
-                            <div id="cashDetails" style="display: none;">
-                                <div class="alert alert-success shadow-sm">
-                                    <h6 class="alert-heading fw-bold mb-3"><i class="fas fa-hand-holding-usd me-2"></i>Cash Payment</h6>
-                                    
-                                    <?php if ($assigned_rep): ?>
-                                        <!-- Scenario A: Assigned Rep -->
-                                        <p class="mb-2">Please pay to your assigned representative:</p>
-                                        <div class="card bg-white border-0 shadow-sm mb-3">
-                                            <div class="card-body">
-                                                <h5 class="card-title fw-bold text-success"><?php echo htmlspecialchars($assigned_rep['name']); ?></h5>
-                                                <p class="card-text mb-1"><i class="fas fa-church me-2 text-muted"></i><?php echo htmlspecialchars($assigned_rep['church_name']); ?> (<?php echo htmlspecialchars($assigned_rep['city']); ?>)</p>
-                                                <p class="card-text mb-0">
-                                                    <i class="fas fa-phone me-2 text-muted"></i>
-                                                    <a href="tel:<?php echo htmlspecialchars($assigned_rep['phone']); ?>" class="fw-bold text-decoration-none"><?php echo htmlspecialchars($assigned_rep['phone']); ?></a>
-                                                </p>
-                                            </div>
-                                        </div>
-                                    <?php else: ?>
-                                        <!-- Scenario B: No Rep - Find One -->
-                                        <p class="mb-3">You are not assigned to a representative yet. Please find one near you to make a cash payment.</p>
-                                        
-                                        <div class="rep-finder-container bg-white border rounded p-3">
-                                            <div class="mb-2">
-                                                <label class="form-label small fw-bold text-muted text-uppercase">1. Select City</label>
-                                                <select class="form-select form-select-sm" id="finderCity" onchange="loadChurches(this.value)">
-                                                    <option value="">-- Choose City --</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-2" id="divChurch" style="display:none;">
-                                                <label class="form-label small fw-bold text-muted text-uppercase">2. Select Church</label>
-                                                <select class="form-select form-select-sm" id="finderChurch" onchange="loadReps(this.value)">
-                                                    <option value="">-- Choose Church --</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3" id="divRep" style="display:none;">
-                                                <label class="form-label small fw-bold text-muted text-uppercase">3. Select Representative</label>
-                                                <select class="form-select form-select-sm" id="finderRep">
-                                                    <option value="">-- Choose Representative --</option>
-                                                </select>
-                                            </div>
-                                            <button type="button" class="btn btn-success w-100 btn-sm fw-bold" id="btnAssignRep" onclick="assignRepresentative()" disabled>
-                                                <i class="fas fa-check me-1"></i> Assign & View Contact Info
-                                            </button>
-                                        </div>
-                                        <div id="newRepDetails" class="mt-3" style="display:none;"></div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <!-- Other Details -->
-                            <div id="otherDetails" style="display: none;">
-                                <div class="alert alert-secondary">
-                                    <i class="fas fa-info-circle me-2"></i>Please provide details in the notes section on the next step.
+                                    <small class="text-muted">Pay to representative</small>
                                 </div>
                             </div>
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">Back</button>
-                            <button type="button" class="btn btn-primary px-4" id="btnMethodNext" disabled onclick="validateStep3()">Next: Confirm</button>
+                            <button type="button" class="btn btn-primary px-4" id="btnMethodNext" disabled onclick="goToStep(4)">Next</button>
                         </div>
                     </div>
 
-                    <!-- Step 4: Confirmation -->
+                    <!-- Step 4: Payment Details -->
                     <div class="wizard-step" id="step4">
-                        <h5 class="mb-3">Review & Confirm</h5>
                         
-                        <div class="card bg-light border-0 mb-3">
+                        <!-- Bank Transfer Details -->
+                        <div id="bankDetails" style="display: none;">
+                            <h5 class="mb-3"><i class="fas fa-university text-primary me-2"></i>Bank Transfer Details</h5>
+                            
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle me-2"></i>Transfer the amount to the account below and upload your receipt.
+                            </div>
+                            
+                            <div class="card border-0 shadow-sm mb-4">
+                                <div class="card-body">
+                                    <!-- Account Name -->
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted">Account Name</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2" id="bankAccName"><?php echo $bank_account_name; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankAccName')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Account Number -->
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted">Account Number</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2" id="bankAccNum"><?php echo $bank_account_number; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankAccNum')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Sort Code -->
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted">Sort Code</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2" id="bankSortCode"><?php echo $bank_sort_code; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankSortCode')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Reference -->
+                                    <div class="d-flex justify-content-between align-items-center py-2">
+                                        <span class="text-muted">Reference</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold text-primary me-2" id="bankRef"><?php echo $bank_reference_label; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="copyField('bankRef')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Amount Reminder -->
+                            <div class="card bg-light border-0 mb-3">
+                                <div class="card-body text-center">
+                                    <small class="text-muted">Amount to Transfer</small>
+                                    <h3 class="mb-0 text-primary">£<span id="bankAmountDisplay">0.00</span></h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cash Payment Details -->
+                        <div id="cashDetails" style="display: none;">
+                            <h5 class="mb-3"><i class="fas fa-hand-holding-usd text-success me-2"></i>Cash Payment</h5>
+                            
+                            <?php if ($assigned_rep): ?>
+                                <!-- Has Assigned Representative -->
+                                <div class="alert alert-success mb-3">
+                                    <i class="fas fa-check-circle me-2"></i>Go to your church and pay to your assigned representative.
+                                </div>
+                                
+                                <div class="card border-success shadow-sm mb-4">
+                                    <div class="card-header bg-success text-white">
+                                        <i class="fas fa-church me-2"></i>Your Church & Representative
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-12 mb-3">
+                                                <small class="text-muted d-block">Church</small>
+                                                <h5 class="mb-0"><?php echo htmlspecialchars($assigned_rep['church_name']); ?></h5>
+                                                <small class="text-muted"><?php echo htmlspecialchars($assigned_rep['city']); ?></small>
+                                            </div>
+                                            <div class="col-12">
+                                                <small class="text-muted d-block">Representative</small>
+                                                <h5 class="mb-1 text-success"><?php echo htmlspecialchars($assigned_rep['name']); ?></h5>
+                                                <a href="tel:<?php echo htmlspecialchars($assigned_rep['phone']); ?>" class="btn btn-outline-success btn-sm">
+                                                    <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($assigned_rep['phone']); ?>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Amount Reminder -->
+                                <div class="card bg-light border-0 mb-3">
+                                    <div class="card-body text-center">
+                                        <small class="text-muted">Amount to Pay</small>
+                                        <h3 class="mb-0 text-success">£<span id="cashAmountDisplay">0.00</span></h3>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>Once the representative confirms they received your cash, your payment will be approved.
+                                </div>
+                            <?php else: ?>
+                                <!-- No Representative - Find One -->
+                                <div class="alert alert-warning mb-3">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>You're not assigned to a church or representative yet. Please select one below.
+                                </div>
+                                
+                                <div class="card shadow-sm mb-4">
+                                    <div class="card-header bg-white">
+                                        <strong>Find Your Representative</strong>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Step 1: City -->
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">
+                                                <span class="badge bg-primary me-2">1</span>Select Your City
+                                            </label>
+                                            <select class="form-select" id="finderCity" onchange="loadChurches(this.value)">
+                                                <option value="">-- Choose City --</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <!-- Step 2: Church -->
+                                        <div class="mb-3" id="divChurch" style="display:none;">
+                                            <label class="form-label fw-bold">
+                                                <span class="badge bg-primary me-2">2</span>Select Church
+                                            </label>
+                                            <select class="form-select" id="finderChurch" onchange="loadReps(this.value)">
+                                                <option value="">-- Choose Church --</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <!-- Step 3: Representative -->
+                                        <div class="mb-3" id="divRep" style="display:none;">
+                                            <label class="form-label fw-bold">
+                                                <span class="badge bg-primary me-2">3</span>Select Representative
+                                            </label>
+                                            <select class="form-select" id="finderRep">
+                                                <option value="">-- Choose Representative --</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-success w-100 fw-bold" id="btnAssignRep" onclick="assignRepresentative()" disabled>
+                                            <i class="fas fa-check me-2"></i>Confirm & Assign
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Assigned Rep Details (shown after assignment) -->
+                                <div id="newRepDetails" style="display:none;"></div>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="goToStep(3)">Back</button>
+                            <button type="button" class="btn btn-primary px-4" id="btnDetailsNext" onclick="goToStep(5)">Next: Confirm</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Confirmation -->
+                    <div class="wizard-step" id="step5">
+                        <h5 class="mb-3"><i class="fas fa-check-circle text-success me-2"></i>Confirm Payment</h5>
+                        
+                        <div class="card border-0 shadow-sm mb-4">
                             <div class="card-body">
                                 <div class="row mb-2">
                                     <div class="col-6 text-muted">Amount:</div>
-                                    <div class="col-6 fw-bold text-end">£<span id="confirmAmount">0.00</span></div>
+                                    <div class="col-6 fw-bold text-end fs-5">£<span id="confirmAmount">0.00</span></div>
                                 </div>
-                                <div class="row mb-2">
+                                <div class="row">
                                     <div class="col-6 text-muted">Method:</div>
                                     <div class="col-6 fw-bold text-end text-capitalize"><span id="confirmMethod">-</span></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Optional Fields -->
-                        <div class="mb-3">
-                            <label class="form-label">Reference Number (Optional)</label>
-                            <input type="text" name="reference" class="form-control" placeholder="e.g. Transaction ID">
+                        <!-- Reference & Proof (For Bank Transfer) -->
+                        <div id="bankConfirmFields">
+                            <div class="mb-3">
+                                <label class="form-label">Reference Number <span class="text-muted">(from your bank)</span></label>
+                                <input type="text" name="reference" class="form-control" placeholder="e.g. Transaction ID">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Payment Proof <span class="text-danger">*</span></label>
+                                <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
+                                <div class="form-text">Upload your bank transfer receipt for faster approval.</div>
+                            </div>
                         </div>
                         
-                        <div class="mb-3" id="proofUploadDiv">
-                            <label class="form-label">Payment Proof (Receipt/Screenshot)</label>
-                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
-                            <div class="form-text">Recommended for faster approval.</div>
+                        <!-- Cash Confirmation Message -->
+                        <div id="cashConfirmMessage" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>After you pay cash to your representative, they will confirm receipt and your payment will be approved.
+                            </div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Additional Notes</label>
-                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                            <label class="form-label">Additional Notes <span class="text-muted">(optional)</span></label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Any additional information..."></textarea>
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-secondary" onclick="goToStep(3)">Back</button>
-                            <button type="submit" class="btn btn-success px-4 fw-bold">Submit Payment</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="goToStep(4)">Back</button>
+                            <button type="submit" class="btn btn-success px-4 fw-bold">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Payment
+                            </button>
                         </div>
                     </div>
 
@@ -586,6 +652,16 @@ let assignedRep = <?php echo json_encode($assigned_rep ? true : false); ?>;
 
 // --- Navigation ---
 function goToStep(step) {
+    // Special handling for step 4 (details)
+    if (step === 4) {
+        setupStep4();
+    }
+    
+    // Special handling for step 5 (confirm)
+    if (step === 5) {
+        setupStep5();
+    }
+    
     // Hide all
     document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.step-indicator').forEach(el => {
@@ -596,28 +672,28 @@ function goToStep(step) {
 
     // Show target
     document.getElementById('step' + step).classList.add('active');
-    document.getElementById('ind' + step).classList.add('active');
+    const ind = document.getElementById('ind' + step);
+    if (ind) ind.classList.add('active');
     currentStep = step;
-    
-    // Init logic for specific steps
-    // if(step === 3) checkCashLogic(); // Logic moved to selection
 }
 
 // --- Step 1 Logic ---
 function selectPlanAmount(amount) {
     selectedAmount = amount;
-    // Auto-select relevant pledge if possible (logic simplified: select first active)
     document.getElementById('step2_amount').value = amount.toFixed(2);
-    goToStep(2); // Review amount/pledge
-    validateStep2(); // Auto-validate if simple
-    goToStep(3); // Skip to method
+    
+    // Auto-select first pledge
+    const pledgeRadio = document.querySelector('input[name="step2_pledge"]:checked');
+    selectedPledgeId = pledgeRadio ? pledgeRadio.value : 0;
+    
+    goToStep(3); // Skip to method selection
 }
 
 // --- Step 2 Logic ---
 function updateMaxAmount(radio) {
     const rem = parseFloat(radio.getAttribute('data-remaining'));
     document.getElementById('maxAmountDisplay').textContent = rem.toFixed(2);
-    document.getElementById('step2_amount').value = rem.toFixed(2); // Auto-fill
+    document.getElementById('step2_amount').value = rem.toFixed(2);
 }
 
 function validateStep2() {
@@ -632,7 +708,7 @@ function validateStep2() {
     goToStep(3);
 }
 
-// --- Step 3 Logic ---
+// --- Step 3 Logic (Method Selection) ---
 function selectMethod(method) {
     selectedMethod = method;
     
@@ -641,61 +717,75 @@ function selectMethod(method) {
     const selectedCard = document.getElementById('card_' + method);
     if (selectedCard) selectedCard.classList.add('selected');
     
-    // Get elements (may be null)
-    const bankDetails = document.getElementById('bankDetails');
-    const cashDetails = document.getElementById('cashDetails');
-    const otherDetails = document.getElementById('otherDetails');
-    const cardNote = document.getElementById('cardNote');
-    const btnMethodNext = document.getElementById('btnMethodNext');
-    
-    // Hide all details first (with null checks)
-    if (bankDetails) bankDetails.style.display = 'none';
-    if (cashDetails) cashDetails.style.display = 'none';
-    if (otherDetails) otherDetails.style.display = 'none';
-    if (cardNote) cardNote.style.display = 'none';
-    
-    // Enable/Disable Next based on method
-    let canProceed = true;
-    
-    if(method === 'bank_transfer') {
-        if (bankDetails) bankDetails.style.display = 'block';
-    } else if (method === 'card') {
-        if (bankDetails) bankDetails.style.display = 'block';
-        if (cardNote) cardNote.style.display = 'block';
-    } else if (method === 'cash') {
-        if (cashDetails) cashDetails.style.display = 'block';
-        // Only proceed if assigned rep exists
-        if (!assignedRep) {
-            canProceed = false;
-            loadCities(); // Load finder
-        }
-    } else {
-        if (otherDetails) otherDetails.style.display = 'block';
-    }
-    
-    if (btnMethodNext) btnMethodNext.disabled = !canProceed;
+    // Enable Next button
+    const btn = document.getElementById('btnMethodNext');
+    if (btn) btn.disabled = false;
 }
 
-function validateStep3() {
-    if(!selectedMethod) return;
+// --- Step 4 Logic (Payment Details) ---
+function setupStep4() {
+    const bankDetails = document.getElementById('bankDetails');
+    const cashDetails = document.getElementById('cashDetails');
+    const btnDetailsNext = document.getElementById('btnDetailsNext');
     
-    // Populate Confirm Screen
+    // Hide all detail sections first
+    if (bankDetails) bankDetails.style.display = 'none';
+    if (cashDetails) cashDetails.style.display = 'none';
+    
+    if (selectedMethod === 'bank_transfer') {
+        if (bankDetails) bankDetails.style.display = 'block';
+        // Show amount
+        const amtDisplay = document.getElementById('bankAmountDisplay');
+        if (amtDisplay) amtDisplay.textContent = selectedAmount.toFixed(2);
+        // Enable next
+        if (btnDetailsNext) btnDetailsNext.disabled = false;
+    } 
+    else if (selectedMethod === 'cash') {
+        if (cashDetails) cashDetails.style.display = 'block';
+        // Show amount
+        const amtDisplay = document.getElementById('cashAmountDisplay');
+        if (amtDisplay) amtDisplay.textContent = selectedAmount.toFixed(2);
+        
+        // Check if rep is assigned
+        if (assignedRep) {
+            if (btnDetailsNext) btnDetailsNext.disabled = false;
+        } else {
+            // Need to assign rep first
+            if (btnDetailsNext) btnDetailsNext.disabled = true;
+            loadCities();
+        }
+    }
+}
+
+// --- Step 5 Logic (Confirmation) ---
+function setupStep5() {
+    // Populate summary
     document.getElementById('confirmAmount').textContent = selectedAmount.toFixed(2);
     document.getElementById('confirmMethod').textContent = selectedMethod.replace('_', ' ');
-    document.getElementById('proofUploadDiv').style.display = (selectedMethod === 'cash' ? 'none' : 'block');
     
-    // Populate Hidden Inputs
+    // Show/hide relevant fields
+    const bankFields = document.getElementById('bankConfirmFields');
+    const cashMessage = document.getElementById('cashConfirmMessage');
+    
+    if (selectedMethod === 'bank_transfer') {
+        if (bankFields) bankFields.style.display = 'block';
+        if (cashMessage) cashMessage.style.display = 'none';
+    } else if (selectedMethod === 'cash') {
+        if (bankFields) bankFields.style.display = 'none';
+        if (cashMessage) cashMessage.style.display = 'block';
+    }
+    
+    // Populate hidden inputs
     document.getElementById('finalAmount').value = selectedAmount;
     document.getElementById('finalPledgeId').value = selectedPledgeId;
     document.getElementById('finalMethod').value = selectedMethod;
-    
-    goToStep(4);
 }
 
 // --- Cash Representative Finder Logic ---
 function loadCities() {
     const sel = document.getElementById('finderCity');
-    if(sel.options.length > 1) return; // Already loaded
+    if (!sel) return;
+    if (sel.options.length > 1) return; // Already loaded
     
     fetch('api/location-data.php?action=get_cities')
         .then(r => r.json())
@@ -713,10 +803,16 @@ function loadCities() {
 
 function loadChurches(city) {
     const sel = document.getElementById('finderChurch');
+    const divChurch = document.getElementById('divChurch');
+    const divRep = document.getElementById('divRep');
+    const btnAssign = document.getElementById('btnAssignRep');
+    
+    if (!sel) return;
+    
     sel.innerHTML = '<option value="">-- Choose Church --</option>';
-    document.getElementById('divChurch').style.display = city ? 'block' : 'none';
-    document.getElementById('divRep').style.display = 'none';
-    document.getElementById('btnAssignRep').disabled = true;
+    if (divChurch) divChurch.style.display = city ? 'block' : 'none';
+    if (divRep) divRep.style.display = 'none';
+    if (btnAssign) btnAssign.disabled = true;
     
     if(!city) return;
     
@@ -736,9 +832,14 @@ function loadChurches(city) {
 
 function loadReps(churchId) {
     const sel = document.getElementById('finderRep');
+    const divRep = document.getElementById('divRep');
+    const btnAssign = document.getElementById('btnAssignRep');
+    
+    if (!sel) return;
+    
     sel.innerHTML = '<option value="">-- Choose Representative --</option>';
-    document.getElementById('divRep').style.display = churchId ? 'block' : 'none';
-    document.getElementById('btnAssignRep').disabled = true;
+    if (divRep) divRep.style.display = churchId ? 'block' : 'none';
+    if (btnAssign) btnAssign.disabled = true;
     
     if(!churchId) return;
     
@@ -750,8 +851,7 @@ function loadReps(churchId) {
                     const opt = document.createElement('option');
                     opt.value = r.id;
                     opt.textContent = r.name + ' (' + r.role + ')';
-                    // Store data for display
-                    opt.setAttribute('data-phone', r.phone);
+                    opt.setAttribute('data-phone', r.phone || '');
                     opt.setAttribute('data-name', r.name);
                     sel.appendChild(opt);
                 });
@@ -759,23 +859,28 @@ function loadReps(churchId) {
         });
         
     sel.onchange = function() {
-        document.getElementById('btnAssignRep').disabled = !this.value;
+        if (btnAssign) btnAssign.disabled = !this.value;
     }
 }
 
 function assignRepresentative() {
-    const repId = document.getElementById('finderRep').value;
-    const churchId = document.getElementById('finderChurch').value;
+    const repSel = document.getElementById('finderRep');
+    const churchSel = document.getElementById('finderChurch');
     const btn = document.getElementById('btnAssignRep');
     
-    // Get display details before saving
-    const sel = document.getElementById('finderRep');
-    const opt = sel.options[sel.selectedIndex];
+    if (!repSel || !churchSel || !btn) return;
+    
+    const repId = repSel.value;
+    const churchId = churchSel.value;
+    
+    // Get display details
+    const opt = repSel.options[repSel.selectedIndex];
     const name = opt.getAttribute('data-name');
     const phone = opt.getAttribute('data-phone');
+    const churchName = churchSel.options[churchSel.selectedIndex].textContent;
     
     btn.disabled = true;
-    btn.textContent = 'Assigning...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Assigning...';
     
     const fd = new FormData();
     fd.append('representative_id', repId);
@@ -785,32 +890,66 @@ function assignRepresentative() {
         .then(r => r.json())
         .then(d => {
             if(d.success) {
-                // Hide finder, show details
-                document.querySelector('.rep-finder-container').style.display = 'none';
+                // Hide finder card
+                const finderCard = btn.closest('.card');
+                if (finderCard) finderCard.style.display = 'none';
+                
+                // Show success with rep details
                 const det = document.getElementById('newRepDetails');
-                det.style.display = 'block';
-                det.innerHTML = `
-                    <div class="alert alert-success mb-0">
-                        <i class="fas fa-check-circle me-2"></i><strong>Assigned!</strong><br>
-                        Please contact <strong>${name}</strong> to arrange payment.<br>
-                        <i class="fas fa-phone me-2"></i><a href="tel:${phone}">${phone}</a>
-                    </div>
-                `;
-                // Update global state and enable Next
+                if (det) {
+                    det.style.display = 'block';
+                    det.innerHTML = `
+                        <div class="card border-success shadow-sm">
+                            <div class="card-header bg-success text-white">
+                                <i class="fas fa-check-circle me-2"></i>Representative Assigned!
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2">Go to your church and pay to:</p>
+                                <h5 class="text-success mb-1">${name}</h5>
+                                <p class="text-muted mb-2">${churchName}</p>
+                                ${phone ? `<a href="tel:${phone}" class="btn btn-outline-success btn-sm"><i class="fas fa-phone me-1"></i>${phone}</a>` : ''}
+                            </div>
+                        </div>
+                        <div class="card bg-light border-0 mt-3">
+                            <div class="card-body text-center">
+                                <small class="text-muted">Amount to Pay</small>
+                                <h3 class="mb-0 text-success">£${selectedAmount.toFixed(2)}</h3>
+                            </div>
+                        </div>
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Once the representative confirms they received your cash, your payment will be approved.
+                        </div>
+                    `;
+                }
+                
+                // Update state and enable Next
                 assignedRep = true;
-                document.getElementById('btnMethodNext').disabled = false;
+                const btnNext = document.getElementById('btnDetailsNext');
+                if (btnNext) btnNext.disabled = false;
             } else {
-                alert('Error: ' + d.message);
+                alert('Error: ' + (d.message || 'Could not assign representative'));
                 btn.disabled = false;
-                btn.textContent = 'Assign & View Contact Info';
+                btn.innerHTML = '<i class="fas fa-check me-2"></i>Confirm & Assign';
             }
+        })
+        .catch(err => {
+            alert('Network error. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check me-2"></i>Confirm & Assign';
         });
 }
 
-// Helper: Copy Text
-function copyText(text) {
+// Helper: Copy field by ID
+function copyField(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    const text = el.textContent.trim();
+    
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+        navigator.clipboard.writeText(text).then(() => {
+            showCopyFeedback(el);
+        });
     } else {
         // Fallback
         const textArea = document.createElement("textarea");
@@ -819,8 +958,14 @@ function copyText(text) {
         textArea.select();
         document.execCommand("Copy");
         textArea.remove();
-        alert('Copied to clipboard!');
+        showCopyFeedback(el);
     }
+}
+
+function showCopyFeedback(el) {
+    const original = el.textContent;
+    el.innerHTML = '<i class="fas fa-check text-success"></i> Copied!';
+    setTimeout(() => { el.textContent = original; }, 1000);
 }
 
 </script>
