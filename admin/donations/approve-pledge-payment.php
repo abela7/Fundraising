@@ -78,12 +78,67 @@ try {
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
     
-    // 4. Update Payment Plan if linked
+    // 4. Update Payment Plan if linked OR if donor has active plan with matching amount
     $payment_plan_id = null;
+    $plan = null;
+    
+    // First, check if payment has payment_plan_id set
     if (isset($payment['payment_plan_id']) && $payment['payment_plan_id'] > 0) {
         $payment_plan_id = (int)$payment['payment_plan_id'];
+    }
+    
+    // If no payment_plan_id, check if donor has active plan and payment matches monthly amount
+    if (!$payment_plan_id) {
+        $donor_check = $db->prepare("
+            SELECT active_payment_plan_id FROM donors WHERE id = ? LIMIT 1
+        ");
+        $donor_check->bind_param('i', $donor_id);
+        $donor_check->execute();
+        $donor_data = $donor_check->get_result()->fetch_assoc();
+        $donor_check->close();
         
-        // Fetch payment plan details
+        if ($donor_data && $donor_data['active_payment_plan_id']) {
+            $potential_plan_id = (int)$donor_data['active_payment_plan_id'];
+            
+            // Fetch plan to check if amount matches
+            $plan_check = $db->prepare("
+                SELECT * FROM donor_payment_plans 
+                WHERE id = ? AND donor_id = ? AND status = 'active'
+                LIMIT 1
+            ");
+            $plan_check->bind_param('ii', $potential_plan_id, $donor_id);
+            $plan_check->execute();
+            $potential_plan = $plan_check->get_result()->fetch_assoc();
+            $plan_check->close();
+            
+            // If payment amount matches monthly amount (within 0.01 tolerance), link it
+            if ($potential_plan) {
+                $monthly_amount = (float)($potential_plan['monthly_amount'] ?? 0);
+                $payment_amount = (float)$payment['amount'];
+                
+                // Check if amounts match (allow small tolerance for rounding)
+                if (abs($payment_amount - $monthly_amount) < 0.01) {
+                    $payment_plan_id = $potential_plan_id;
+                    $plan = $potential_plan;
+                    
+                    // Update the payment record to link it to the plan (if column exists)
+                    if ($has_plan_col) {
+                        $link_stmt = $db->prepare("
+                            UPDATE pledge_payments 
+                            SET payment_plan_id = ? 
+                            WHERE id = ?
+                        ");
+                        $link_stmt->bind_param('ii', $payment_plan_id, $payment_id);
+                        $link_stmt->execute();
+                        $link_stmt->close();
+                    }
+                }
+            }
+        }
+    }
+    
+    // If we have payment_plan_id but haven't fetched plan yet, fetch it
+    if ($payment_plan_id && !$plan) {
         $plan_stmt = $db->prepare("
             SELECT * FROM donor_payment_plans 
             WHERE id = ? AND donor_id = ? AND status = 'active'
@@ -93,6 +148,7 @@ try {
         $plan_stmt->execute();
         $plan = $plan_stmt->get_result()->fetch_assoc();
         $plan_stmt->close();
+    }
         
         if ($plan) {
             $payment_amount = (float)$payment['amount'];
@@ -216,10 +272,16 @@ try {
     
     $db->commit();
     
+    $message = 'Payment approved and donor balance updated';
+    if ($plan) {
+        $message .= '. Payment plan updated: ' . ($plan_status === 'completed' ? 'Plan completed!' : 'Next payment due ' . date('d M Y', strtotime($next_payment_due)));
+    }
+    
     echo json_encode([
         'success' => true, 
-        'message' => 'Payment approved and donor balance updated',
-        'payment_id' => $payment_id
+        'message' => $message,
+        'payment_id' => $payment_id,
+        'plan_updated' => $plan ? true : false
     ]);
     
 } catch (Exception $e) {

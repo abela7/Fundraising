@@ -29,23 +29,34 @@ if ($filter === 'pending') {
     $where_clause = "1=1"; // all
 }
 
+// Check if payment_plan_id column exists
+$has_plan_col = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'")->num_rows > 0;
+
 // Fetch payments
 $sql = "
     SELECT 
         pp.*,
         d.name AS donor_name,
         d.phone AS donor_phone,
+        d.active_payment_plan_id AS donor_active_plan_id,
         pl.amount AS pledge_amount,
         pl.created_at AS pledge_date,
         u.name AS processed_by_name,
         approver.name AS approved_by_name,
-        voider.name AS voided_by_name
+        voider.name AS voided_by_name" . 
+        ($has_plan_col ? ",
+        pplan.id AS plan_id,
+        pplan.monthly_amount AS plan_monthly_amount,
+        pplan.payments_made AS plan_payments_made,
+        pplan.total_payments AS plan_total_payments" : "") . "
     FROM pledge_payments pp
     LEFT JOIN donors d ON pp.donor_id = d.id
     LEFT JOIN pledges pl ON pp.pledge_id = pl.id
     LEFT JOIN users u ON pp.processed_by_user_id = u.id
     LEFT JOIN users approver ON pp.approved_by_user_id = approver.id
-    LEFT JOIN users voider ON pp.voided_by_user_id = voider.id
+    LEFT JOIN users voider ON pp.voided_by_user_id = voider.id" . 
+    ($has_plan_col ? "
+    LEFT JOIN donor_payment_plans pplan ON pp.payment_plan_id = pplan.id" : "") . "
     WHERE $where_clause
     ORDER BY pp.created_at DESC
 ";
@@ -379,6 +390,40 @@ $stats = [
                                                                 <span class="fw-semibold font-monospace">
                                                                     <i class="fas fa-hashtag me-1 text-muted"></i>
                                                                     <?php echo htmlspecialchars($p['reference_number']); ?>
+                                                                </span>
+                                                            </div>
+                                                            <?php endif; ?>
+                                                            <?php 
+                                                            // Show payment plan info if linked or if donor has active plan
+                                                            $show_plan_info = false;
+                                                            $plan_installment = null;
+                                                            if ($has_plan_col && isset($p['plan_id']) && $p['plan_id']) {
+                                                                $show_plan_info = true;
+                                                                $plan_installment = ($p['plan_payments_made'] ?? 0) + 1;
+                                                            } elseif (isset($p['donor_active_plan_id']) && $p['donor_active_plan_id']) {
+                                                                // Check if amount matches monthly amount (potential plan payment)
+                                                                $plan_check = $db->prepare("SELECT monthly_amount FROM donor_payment_plans WHERE id = ? LIMIT 1");
+                                                                $plan_check->bind_param('i', $p['donor_active_plan_id']);
+                                                                $plan_check->execute();
+                                                                $plan_data = $plan_check->get_result()->fetch_assoc();
+                                                                $plan_check->close();
+                                                                
+                                                                if ($plan_data && abs((float)$p['amount'] - (float)$plan_data['monthly_amount']) < 0.01) {
+                                                                    $show_plan_info = true;
+                                                                    $plan_installment = '?'; // Will be calculated on approval
+                                                                }
+                                                            }
+                                                            ?>
+                                                            <?php if ($show_plan_info): ?>
+                                                            <div>
+                                                                <small class="text-muted d-block">Payment Plan</small>
+                                                                <span class="badge bg-info">
+                                                                    <i class="fas fa-calendar-check me-1"></i>
+                                                                    <?php if ($plan_installment !== '?'): ?>
+                                                                        Installment <?php echo $plan_installment; ?> of <?php echo $p['plan_total_payments'] ?? '?'; ?>
+                                                                    <?php else: ?>
+                                                                        Plan Payment (Auto-link on approval)
+                                                                    <?php endif; ?>
                                                                 </span>
                                                             </div>
                                                             <?php endif; ?>
