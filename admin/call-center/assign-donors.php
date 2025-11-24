@@ -347,11 +347,11 @@ try {
             padding: 20px;
         }
 
-        /* Statistics Cards - Compact */
+        /* Statistics Cards */
         .stat-card {
             background: white;
-            border-radius: 10px;
-            padding: 16px;
+            border-radius: var(--border-radius);
+            padding: 20px;
             box-shadow: var(--shadow-sm);
             border-left: 4px solid var(--primary-color);
             transition: all 0.2s;
@@ -362,92 +362,50 @@ try {
             box-shadow: var(--shadow-md);
         }
 
-        .stat-card .stat-icon {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            font-size: 1.25rem;
-        }
-
-        .stat-card .stat-value {
-            font-size: 1.75rem;
-            font-weight: 700;
-            line-height: 1;
-            margin: 0;
-        }
-
-        .stat-card .stat-label {
-            font-size: 0.8125rem;
-            color: #6c757d;
-            margin-top: 4px;
-            font-weight: 500;
-        }
-
         /* Responsive Design */
-            @media (max-width: 768px) {
-                .bulk-actions-bar {
-                    bottom: 10px;
-                    left: 10px;
-                    right: 10px;
-                    transform: translateX(0) translateY(100px);
-                    max-width: none;
-                    flex-direction: column;
-                    align-items: stretch;
-                }
-
-                .bulk-actions-bar.show {
-                    transform: translateX(0) translateY(0);
-                }
-
-                .bulk-actions-bar > div {
-                    flex-direction: column;
-                    gap: 8px;
-                }
-
-                .table-modern {
-                    font-size: 0.875rem;
-                }
-
-                .table-modern thead th,
-                .table-modern tbody td {
-                    padding: 12px 8px;
-                }
-
-                .nav-tabs-modern .nav-link {
-                    padding: 10px 16px;
-                    font-size: 0.875rem;
-                }
-
-                .accordion-modern .accordion-button {
-                    padding: 12px 16px;
-                    font-size: 0.875rem;
-                }
-
-                .card-header {
-                    padding: 12px 16px;
-                }
-
-                .stat-card {
-                    padding: 12px;
-                }
-
-                .stat-card .stat-icon {
-                    width: 36px;
-                    height: 36px;
-                    font-size: 1.1rem;
-                }
-
-                .stat-card .stat-value {
-                    font-size: 1.5rem;
-                }
-
-                .stat-card .stat-label {
-                    font-size: 0.75rem;
-                }
+        @media (max-width: 768px) {
+            .bulk-actions-bar {
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                transform: translateX(0) translateY(100px);
+                max-width: none;
+                flex-direction: column;
+                align-items: stretch;
             }
+
+            .bulk-actions-bar.show {
+                transform: translateX(0) translateY(0);
+            }
+
+            .bulk-actions-bar > div {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .table-modern {
+                font-size: 0.875rem;
+            }
+
+            .table-modern thead th,
+            .table-modern tbody td {
+                padding: 12px 8px;
+            }
+
+            .nav-tabs-modern .nav-link {
+                padding: 10px 16px;
+                font-size: 0.875rem;
+            }
+
+            .accordion-modern .accordion-button {
+                padding: 12px 16px;
+                font-size: 0.875rem;
+            }
+
+            .card-header {
+                padding: 12px 16px;
+            }
+        }
 
         @media (max-width: 576px) {
             .table-responsive {
@@ -528,11 +486,12 @@ try {
         
         <main class="main-content">
             <!-- Page Header -->
-            <div class="content-header mb-3">
+            <div class="content-header mb-4">
                 <div>
                     <h1 class="content-title">
                         <i class="fas fa-users-cog me-2"></i>Assign Donors to Agents
                     </h1>
+                    <p class="text-muted mb-0">Select donors and assign them to agents for follow-up</p>
                 </div>
                 <div>
                     <a href="index.php" class="btn btn-outline-secondary">
@@ -575,42 +534,42 @@ try {
                 error_log("Stats query error: " . $e->getMessage());
             }
             ?>
-            <div class="row g-2 mb-3">
-                <div class="col-6 col-md-4">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
                     <div class="stat-card" style="border-left-color: #0d6efd;">
-                        <div class="d-flex align-items-center">
-                            <div class="stat-icon bg-primary bg-opacity-10 text-primary me-2">
-                                <i class="fas fa-users"></i>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="stat-value text-primary"><?php echo number_format($total_donors); ?></div>
-                                <div class="stat-label">Total</div>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-users fa-2x text-primary"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                <h4 class="mb-0"><?php echo number_format($total_donors); ?></h4>
+                                <small class="text-muted">Total Donors</small>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-4">
+                <div class="col-md-4">
                     <div class="stat-card" style="border-left-color: #198754;">
-                        <div class="d-flex align-items-center">
-                            <div class="stat-icon bg-success bg-opacity-10 text-success me-2">
-                                <i class="fas fa-user-check"></i>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="stat-value text-success"><?php echo number_format($assigned_count); ?></div>
-                                <div class="stat-label">Assigned</div>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-user-check fa-2x text-success"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                <h4 class="mb-0"><?php echo number_format($assigned_count); ?></h4>
+                                <small class="text-muted">Assigned</small>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-12 col-md-4">
+                <div class="col-md-4">
                     <div class="stat-card" style="border-left-color: #ffc107;">
-                        <div class="d-flex align-items-center">
-                            <div class="stat-icon bg-warning bg-opacity-10 text-warning me-2">
-                                <i class="fas fa-user-slash"></i>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="stat-value text-warning"><?php echo number_format($unassigned_count); ?></div>
-                                <div class="stat-label">Unassigned</div>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-user-slash fa-2x text-warning"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                <h4 class="mb-0"><?php echo number_format($unassigned_count); ?></h4>
+                                <small class="text-muted">Unassigned</small>
                             </div>
                         </div>
                     </div>
