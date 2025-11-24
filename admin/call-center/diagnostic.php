@@ -153,13 +153,46 @@ if (empty($missing)) {
 }
 echo "</div>";
 
-// Test 5: Quick query test
+// Test 5: Balance column check (common issue!)
 echo "<div class='box'>";
-echo "<h3>Step 5: Test Query</h3>";
+echo "<h3>Step 5: Balance Column Check</h3>";
+echo "<p>Checking if 'balance' is a GENERATED column (this can cause crashes)...</p>";
+
+$balance_check = $db->query("SHOW COLUMNS FROM donors WHERE Field = 'balance'");
+if ($balance_check && $balance_check->num_rows > 0) {
+    $balance_col = $balance_check->fetch_assoc();
+    $extra = $balance_col['Extra'] ?? '';
+    
+    if (strpos($extra, 'GENERATED') !== false || strpos($extra, 'VIRTUAL') !== false) {
+        echo "<div class='warning'>";
+        echo "<p style='color: orange;'><strong>⚠ WARNING: 'balance' is a GENERATED column</strong></p>";
+        echo "<p>This can cause PHP crashes when used in complex queries with JOINs or WHERE clauses.</p>";
+        echo "<p><strong>Solution:</strong> Calculate balance manually in SELECT queries instead:</p>";
+        echo "<pre style='background: #f5f5f5; padding: 10px; border-radius: 4px;'>";
+        echo "(COALESCE(total_pledged, 0) - COALESCE(total_paid, 0)) as balance";
+        echo "</pre>";
+        echo "<p>This is already implemented in the fixed assign-donors.php</p>";
+        echo "</div>";
+    } else {
+        echo "<p style='color: green;'>✓ Balance is a regular column (safe to use)</p>";
+    }
+} else {
+    echo "<div class='error'>";
+    echo "<p style='color: red;'>✗ Balance column does not exist!</p>";
+    echo "<p>You need to add it or calculate it in queries.</p>";
+    echo "</div>";
+}
+echo "</div>";
+
+// Test 6: Quick query test
+echo "<div class='box'>";
+echo "<h3>Step 6: Test Safe Query</h3>";
 try {
+    // Use calculated balance instead of column to avoid crashes
     $test = $db->query("SELECT COUNT(*) as total, 
         SUM(CASE WHEN donor_type = 'pledge' THEN 1 ELSE 0 END) as pledges,
-        SUM(CASE WHEN agent_id IS NOT NULL THEN 1 ELSE 0 END) as assigned
+        SUM(CASE WHEN agent_id IS NOT NULL THEN 1 ELSE 0 END) as assigned,
+        SUM(COALESCE(total_pledged, 0) - COALESCE(total_paid, 0)) as total_outstanding
         FROM donors");
     
     if ($test) {
@@ -170,6 +203,7 @@ try {
         echo "<tr><td>Total Donors</td><td>" . $result['total'] . "</td></tr>";
         echo "<tr><td>Pledge Donors</td><td>" . $result['pledges'] . "</td></tr>";
         echo "<tr><td>Assigned to Agents</td><td>" . $result['assigned'] . "</td></tr>";
+        echo "<tr><td>Total Outstanding</td><td>£" . number_format((float)$result['total_outstanding'], 2) . "</td></tr>";
         echo "</table>";
     }
 } catch (mysqli_sql_exception $e) {
