@@ -225,6 +225,14 @@ $page_title = 'Dashboard';
                   </a>
                 </div>
                 <div class="col-6 col-md-4">
+                  <a href="../donations/record-pledge-payment.php" class="quick-action-btn">
+                    <div class="quick-action-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                      <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <span>Record Payment</span>
+                  </a>
+                </div>
+                <div class="col-6 col-md-4">
                   <a href="../settings/" class="quick-action-btn">
                     <div class="quick-action-icon bg-secondary">
                       <i class="fas fa-cog"></i>
