@@ -6,8 +6,41 @@ require_admin();
 
 $db = db();
 
-// Handle assignment
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign'])) {
+// Handle bulk assignment
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
+    $donor_ids = $_POST['donor_ids'] ?? [];
+    $action = $_POST['bulk_action'];
+    $agent_id = isset($_POST['bulk_agent_id']) ? (int)$_POST['bulk_agent_id'] : 0;
+    
+    if (!empty($donor_ids) && is_array($donor_ids)) {
+        try {
+            $success_count = 0;
+            foreach ($donor_ids as $donor_id) {
+                $donor_id = (int)$donor_id;
+                if ($donor_id > 0) {
+                    if ($action === 'assign' && $agent_id > 0) {
+                        $stmt = $db->prepare("UPDATE donors SET agent_id = ? WHERE id = ?");
+                        $stmt->bind_param('ii', $agent_id, $donor_id);
+                        $stmt->execute();
+                        $success_count++;
+                    } elseif ($action === 'unassign') {
+                        $stmt = $db->prepare("UPDATE donors SET agent_id = NULL WHERE id = ?");
+                        $stmt->bind_param('i', $donor_id);
+                        $stmt->execute();
+                        $success_count++;
+                    }
+                }
+            }
+            header("Location: assign-donors.php");
+            exit;
+        } catch (Exception $e) {
+            $message = "Error: " . $e->getMessage();
+        }
+    }
+}
+
+// Handle single assignment
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign']) && !isset($_POST['bulk_action'])) {
     $donor_id = (int)$_POST['donor_id'];
     $agent_id = (int)$_POST['agent_id'];
     
@@ -73,6 +106,18 @@ while ($donor = $unassigned_result->fetch_assoc()) {
     <meta charset="utf-8">
     <title>Assign Donors</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <style>
+        .bulk-actions-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-bottom: 2px solid #007bff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+    </style>
 </head>
 <body>
 <div class="container mt-4">
@@ -81,6 +126,26 @@ while ($donor = $unassigned_result->fetch_assoc()) {
     <?php if (isset($message)): ?>
         <div class="alert alert-info"><?php echo htmlspecialchars($message); ?></div>
     <?php endif; ?>
+    
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" id="bulkActionsBar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong><span id="selectedCount">0</span> donor(s) selected</strong>
+                <button type="button" class="btn btn-sm btn-link" onclick="clearSelection()">Clear</button>
+            </div>
+            <div>
+                <select id="bulkAgentSelect" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                    <option value="0">Select Agent...</option>
+                    <?php foreach ($agents as $agent): ?>
+                        <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="button" class="btn btn-sm btn-success" onclick="bulkAssign()">Bulk Assign</button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="bulkUnassign()">Bulk Unassign</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Tabs -->
     <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
@@ -107,13 +172,15 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                     LIMIT 50");
                 
                 if ($result && $result->num_rows > 0) {
+                    echo "<div class='mb-2'><input type='checkbox' id='selectAllAll' onchange='toggleSelectAll(\"all\")'> <label for='selectAllAll'>Select All</label></div>";
                     echo "<table class='table table-striped'>";
-                    echo "<thead><tr><th>ID</th><th>Name</th><th>Pledge Amount</th><th>Balance</th><th>Assigned To</th><th>Assign</th></tr></thead>";
+                    echo "<thead><tr><th><input type='checkbox' id='selectAllAllHeader' onchange='toggleSelectAll(\"all\")'></th><th>ID</th><th>Name</th><th>Pledge Amount</th><th>Balance</th><th>Assigned To</th><th>Assign</th></tr></thead>";
                     echo "<tbody>";
                     while ($row = $result->fetch_assoc()) {
                         $balance = (float)$row['balance'];
                         $pledge = (float)$row['total_pledged'];
                         echo "<tr>";
+                        echo "<td><input type='checkbox' class='donor-checkbox' name='donor_ids[]' value='" . $row['id'] . "' onchange='updateBulkBar()'></td>";
                         echo "<td>" . $row['id'] . "</td>";
                         echo "<td>" . htmlspecialchars($row['name']) . "</td>";
                         echo "<td>£" . number_format($pledge, 2) . "</td>";
@@ -167,6 +234,7 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                 <table class="table table-sm">
                                     <thead>
                                         <tr>
+                                            <th><input type="checkbox" class="select-all-agent" data-agent="<?php echo $agent['id']; ?>" onchange="toggleSelectAllAgent(<?php echo $agent['id']; ?>)"></th>
                                             <th>ID</th>
                                             <th>Name</th>
                                             <th>Pledge Amount</th>
@@ -177,6 +245,7 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                     <tbody>
                                         <?php foreach ($donors as $donor): ?>
                                         <tr>
+                                            <td><input type="checkbox" class="donor-checkbox" name="donor_ids[]" value="<?php echo $donor['id']; ?>" onchange="updateBulkBar()"></td>
                                             <td><?php echo $donor['id']; ?></td>
                                             <td><?php echo htmlspecialchars($donor['name']); ?></td>
                                             <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
@@ -214,6 +283,7 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
+                                        <th><input type="checkbox" class="select-all-unassigned" onchange="toggleSelectAllUnassigned()"></th>
                                         <th>ID</th>
                                         <th>Name</th>
                                         <th>Pledge Amount</th>
@@ -224,6 +294,7 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                 <tbody>
                                     <?php foreach ($unassigned_donors as $donor): ?>
                                     <tr>
+                                        <td><input type="checkbox" class="donor-checkbox" name="donor_ids[]" value="<?php echo $donor['id']; ?>" onchange="updateBulkBar()"></td>
                                         <td><?php echo $donor['id']; ?></td>
                                         <td><?php echo htmlspecialchars($donor['name']); ?></td>
                                         <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
@@ -254,5 +325,120 @@ while ($donor = $unassigned_result->fetch_assoc()) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function updateBulkBar() {
+    const checkboxes = document.querySelectorAll('.donor-checkbox:checked');
+    const count = checkboxes.length;
+    const bar = document.getElementById('bulkActionsBar');
+    
+    if (count > 0) {
+        bar.style.display = 'block';
+        document.getElementById('selectedCount').textContent = count;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.donor-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.select-all-agent, .select-all-unassigned, #selectAllAll, #selectAllAllHeader').forEach(cb => cb.checked = false);
+    updateBulkBar();
+}
+
+function toggleSelectAll(tab) {
+    const checkboxes = document.querySelectorAll('#all .donor-checkbox');
+    const selectAll = document.getElementById('selectAllAll');
+    const selectAllHeader = document.getElementById('selectAllAllHeader');
+    const checked = selectAll.checked || selectAllHeader.checked;
+    
+    checkboxes.forEach(cb => cb.checked = checked);
+    selectAll.checked = checked;
+    selectAllHeader.checked = checked;
+    updateBulkBar();
+}
+
+function toggleSelectAllAgent(agentId) {
+    const accordion = document.querySelector(`#collapse${agentId}`);
+    const checkboxes = accordion.querySelectorAll('.donor-checkbox');
+    const selectAll = accordion.querySelector('.select-all-agent');
+    const checked = selectAll.checked;
+    
+    checkboxes.forEach(cb => cb.checked = checked);
+    updateBulkBar();
+}
+
+function toggleSelectAllUnassigned() {
+    const accordion = document.getElementById('collapseUnassigned');
+    const checkboxes = accordion.querySelectorAll('.donor-checkbox');
+    const selectAll = accordion.querySelector('.select-all-unassigned');
+    const checked = selectAll.checked;
+    
+    checkboxes.forEach(cb => cb.checked = checked);
+    updateBulkBar();
+}
+
+function bulkAssign() {
+    const checkboxes = document.querySelectorAll('.donor-checkbox:checked');
+    const agentId = document.getElementById('bulkAgentSelect').value;
+    
+    if (checkboxes.length === 0) {
+        alert('Please select at least one donor');
+        return;
+    }
+    
+    if (agentId === '0') {
+        alert('Please select an agent');
+        return;
+    }
+    
+    if (!confirm(`Assign ${checkboxes.length} donor(s) to selected agent?`)) {
+        return;
+    }
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.innerHTML = '<input type="hidden" name="bulk_action" value="assign">';
+    form.innerHTML += '<input type="hidden" name="bulk_agent_id" value="' + agentId + '">';
+    
+    checkboxes.forEach(cb => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'donor_ids[]';
+        input.value = cb.value;
+        form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function bulkUnassign() {
+    const checkboxes = document.querySelectorAll('.donor-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Please select at least one donor');
+        return;
+    }
+    
+    if (!confirm(`Unassign ${checkboxes.length} donor(s)?`)) {
+        return;
+    }
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.innerHTML = '<input type="hidden" name="bulk_action" value="unassign">';
+    
+    checkboxes.forEach(cb => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'donor_ids[]';
+        input.value = cb.value;
+        form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
 </body>
 </html>
