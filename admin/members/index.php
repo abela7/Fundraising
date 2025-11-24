@@ -118,6 +118,7 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
   <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
   <link rel="stylesheet" href="../assets/admin.css">
   <link rel="stylesheet" href="assets/members.css">
 </head>
@@ -152,7 +153,7 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
       <div class="card animate-fade-in">
         <div class="card-body p-0">
           <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table id="membersTable" class="table table-hover mb-0">
               <thead>
                 <tr>
                   <th>User</th>
@@ -446,6 +447,9 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script src="assets/members.js"></script>
 
