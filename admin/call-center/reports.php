@@ -315,9 +315,6 @@ $success_rate = $stats['total_calls'] > 0
                 <!-- Header -->
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
                     <div>
-                        <h1 class="h3 fw-bold text-primary mb-1">
-                            <i class="fas fa-chart-pie me-2"></i>Call Center Reports
-                        </h1>
                         <p class="text-muted mb-0">
                             <?php 
                             $period_label = match($quick_filter) {
@@ -419,7 +416,7 @@ $success_rate = $stats['total_calls'] > 0
                     <div class="col-12 col-sm-6 col-lg-3">
                         <div class="report-card">
                             <div class="report-icon icon-primary">
-                                <i class="far fa-phone"></i>
+                                <i class="fas fa-phone-alt"></i>
                             </div>
                             <div class="report-value"><?php echo number_format($stats['total_calls']); ?></div>
                             <div class="report-label">Total Calls</div>
