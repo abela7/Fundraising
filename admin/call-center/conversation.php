@@ -931,6 +931,12 @@ $page_title = 'Live Call';
                                         <div class="choice-label">No, Not Ready</div>
                                         <p class="text-muted mt-2 mb-0">Schedule for later or discuss reasons</p>
                                     </div>
+                                    
+                                    <div class="choice-card" onclick="selectReadiness('refused')">
+                                        <div class="choice-icon"><i class="fas fa-times-circle text-danger"></i></div>
+                                        <div class="choice-label">Refused / Cannot Pay</div>
+                                        <p class="text-muted mt-2 mb-0">Close case without scheduling</p>
+                                    </div>
                                 </div>
                                 <input type="hidden" name="ready_to_pay" id="readyToPayInput">
                                 
@@ -1293,6 +1299,46 @@ $page_title = 'Live Call';
     </div>
 </div>
 
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="process-refusal.php" method="POST" id="refusalForm">
+                <input type="hidden" name="session_id" value="<?php echo $session_id; ?>">
+                <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
+                <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
+                <input type="hidden" name="duration_seconds" id="refusalDuration">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title">Close Case (Refused)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Refusal</label>
+                        <select class="form-select" name="refusal_reason" required>
+                            <option value="not_interested">Not Interested / Don't Want to Pay</option>
+                            <option value="financial_hardship">Financial Hardship / Cannot Pay</option>
+                            <option value="never_pledged_denies">Claims Never Pledged</option>
+                            <option value="already_paid_claims">Claims Already Paid</option>
+                            <option value="moved_abroad">Moved Abroad</option>
+                            <option value="donor_deceased">Donor Deceased</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" name="refusal_notes" rows="3" placeholder="Any additional details..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Close Case</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script src="assets/call-widget.js"></script>
@@ -1624,6 +1670,19 @@ $page_title = 'Live Call';
         document.getElementById('readyToPayInput').value = choice;
         if (choice === 'yes') {
             goToStep(4);
+        } else if (choice === 'refused') {
+            // Capture duration
+            let duration = 0;
+            try {
+                duration = CallWidget.getDurationSeconds();
+            } catch(e) { console.error(e); }
+            
+            document.getElementById('refusalDuration').value = duration;
+            CallWidget.pause();
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('refusalModal'));
+            modal.show();
         } else {
             window.location.href = 'schedule-callback.php?session_id=<?php echo $session_id; ?>&donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_ready_to_pay';
         }
