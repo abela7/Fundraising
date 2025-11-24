@@ -8,6 +8,7 @@ require_login();
 $page_title = 'Call Center Dashboard';
 $user_name = $_SESSION['user']['name'] ?? 'Agent';
 $user_id = (int)$_SESSION['user']['id'];
+$user_role = $_SESSION['user']['role'] ?? 'registrar';
 
 // Initialize stats
 $stats = [
@@ -22,6 +23,7 @@ $stats = [
 ];
 $conversion_rate = 0;
 $recent_calls = [];
+$scheduled_today = [];
 $error_message = null;
 
 try {
@@ -68,7 +70,7 @@ try {
         $pending_cb->execute();
         $stats['pending_callbacks'] = (int)$pending_cb->get_result()->fetch_assoc()['cnt'];
         
-        // Get today's scheduled calls (appointments for today)
+        // Get today's scheduled calls
         $today_date = date('Y-m-d');
         $scheduled_today_query = $db->prepare("
             SELECT 
@@ -84,12 +86,11 @@ try {
         $scheduled_today_query->bind_param('is', $user_id, $today_date);
         $scheduled_today_query->execute();
         $result = $scheduled_today_query->get_result();
-        $scheduled_today = [];
         while ($row = $result->fetch_assoc()) {
             $scheduled_today[] = $row;
         }
 
-        // Get recent calls (last 8) - DISTINCT to avoid duplicates
+        // Get recent calls
         $recent_query = $db->prepare("
             SELECT 
                 s.id, s.donor_id, s.created_at, s.conversation_stage,
@@ -98,9 +99,8 @@ try {
             FROM call_center_sessions s
             JOIN donors d ON s.donor_id = d.id
             WHERE s.agent_id = ? AND s.call_ended_at IS NOT NULL
-            GROUP BY s.donor_id, DATE(s.created_at), s.id
             ORDER BY s.created_at DESC
-            LIMIT 8
+            LIMIT 6
         ");
         $recent_query->bind_param('i', $user_id);
         $recent_query->execute();
@@ -110,7 +110,7 @@ try {
         }
     }
 
-    // Get donor stats (always show these)
+    // Get donor stats
     $donor_stats = $db->query("
         SELECT 
             COUNT(CASE WHEN balance > 0 THEN 1 END) as with_balance,
@@ -127,6 +127,11 @@ try {
 } catch (Exception $e) {
     $error_message = $e->getMessage();
 }
+
+// Format talk time
+$hours = floor($stats['today_talk_time'] / 3600);
+$minutes = floor(($stats['today_talk_time'] % 3600) / 60);
+$talk_time_formatted = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -136,139 +141,258 @@ try {
     <title><?php echo $page_title; ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <!-- Use JSDelivr for better availability and specific version -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        /* Compact, Mobile-First Dashboard Styles */
-        .dashboard-card {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s, box-shadow 0.2s;
+        /* Modern, Mobile-First Call Center Dashboard */
+        :root {
+            --cc-primary: #0a6286;
+            --cc-gradient: linear-gradient(135deg, #0a6286 0%, #0d6efd 100%);
         }
         
-        .dashboard-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        .dashboard-header {
+            background: var(--cc-gradient);
+            color: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(10, 98, 134, 0.15);
+        }
+        
+        .welcome-text {
+            font-size: 0.875rem;
+            opacity: 0.95;
+            margin: 0;
+        }
+        
+        .dashboard-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0.25rem 0 0 0;
         }
         
         .stat-card {
-            padding: 1rem;
-            border-radius: 10px;
             background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s;
+            border: 1px solid #f0f0f0;
+            height: 100%;
         }
         
-        /* Explicit Icon Styling to fix visibility issues */
-        .icon-box {
-            width: 40px;
-            height: 40px;
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            margin-right: 10px;
-            flex-shrink: 0;
-        }
-
-        /* Custom colors to ensure contrast (avoiding bg-opacity issues) */
-        .icon-box-primary {
-            background-color: rgba(13, 110, 253, 0.1) !important;
-            color: #0d6efd !important;
-        }
-        
-        .icon-box-success {
-            background-color: rgba(25, 135, 84, 0.1) !important;
-            color: #198754 !important;
-        }
-        
-        .icon-box-danger {
-            background-color: rgba(220, 53, 69, 0.1) !important;
-            color: #dc3545 !important;
-        }
-
-        .icon-box-warning {
-            background-color: rgba(255, 193, 7, 0.1) !important;
-            color: #ffc107 !important;
-        }
-
-        .icon-box-info {
-            background-color: rgba(13, 202, 240, 0.1) !important;
-            color: #0dcaf0 !important;
-        }
-        
-        .icon-box-secondary {
-            background-color: rgba(108, 117, 125, 0.1) !important;
-            color: #6c757d !important;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
         }
         
         .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
+            font-size: 2rem;
+            font-weight: 800;
             line-height: 1;
             margin: 0;
         }
         
         .stat-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 0.8125rem;
+            color: #64748b;
             font-weight: 600;
-            color: #6c757d;
-            margin-bottom: 0.25rem;
+            margin-top: 0.5rem;
         }
         
-        .action-btn {
-            padding: 0.875rem 1rem;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
+        .stat-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.625rem;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        
+        .action-card {
             background: white;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: block;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border: 1px solid #f0f0f0;
         }
         
-        .action-btn:hover {
-            border-color: #0a6286;
-            background: #f8f9fa;
+        .action-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .action-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 0;
+            color: #1e293b;
+        }
+        
+        .action-list {
+            padding: 0.5rem;
+        }
+        
+        .action-item {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            padding: 0.875rem;
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .action-item:hover {
+            background: #f8fafc;
+            border-color: var(--cc-primary);
             transform: translateX(4px);
         }
         
-        .recent-call-item {
-            padding: 0.75rem;
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+        
+        .action-content {
+            flex: 1;
+        }
+        
+        .action-name {
+            font-weight: 600;
+            font-size: 0.9375rem;
+            margin: 0;
+            color: #1e293b;
+        }
+        
+        .action-desc {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin: 0;
+        }
+        
+        .start-calling-btn {
+            background: #10b981;
+            border: none;
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            font-size: 1.125rem;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+            transition: all 0.3s;
+        }
+        
+        .start-calling-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+        
+        .call-item {
+            padding: 1rem;
             border-bottom: 1px solid #f0f0f0;
             transition: background 0.2s;
         }
         
-        .recent-call-item:hover {
-            background: #f8f9fa;
+        .call-item:hover {
+            background: #f8fafc;
         }
         
-        .recent-call-item:last-child {
+        .call-item:last-child {
             border-bottom: none;
         }
         
-        @media (max-width: 768px) {
-            .stat-value {
+        .call-time {
+            font-size: 0.8125rem;
+            color: #64748b;
+            font-weight: 600;
+            min-width: 50px;
+        }
+        
+        .call-name {
+            font-weight: 600;
+            font-size: 0.9375rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1rem;
+        }
+        
+        .empty-icon {
+            font-size: 3rem;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+        
+        /* Mobile Optimization */
+        @media (max-width: 576px) {
+            .dashboard-header {
+                padding: 1.25rem;
+            }
+            
+            .dashboard-title {
                 font-size: 1.25rem;
             }
             
-            .icon-box {
-                width: 36px;
-                height: 36px;
+            .stat-card {
+                padding: 1rem;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .stat-icon {
+                width: 40px;
+                height: 40px;
                 font-size: 1rem;
             }
             
-            .action-btn {
+            .start-calling-btn {
+                padding: 1rem;
+                font-size: 1rem;
+            }
+            
+            .action-item {
                 padding: 0.75rem;
+                gap: 0.75rem;
+            }
+            
+            .action-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 0.875rem;
             }
         }
         
-        .badge-sm {
-            font-size: 0.7rem;
-            padding: 0.25rem 0.5rem;
-        }
+        /* Color Utilities */
+        .bg-primary-light { background: #eff6ff; color: #0d6efd; }
+        .bg-success-light { background: #d1fae5; color: #059669; }
+        .bg-danger-light { background: #fee2e2; color: #dc2626; }
+        .bg-warning-light { background: #fef3c7; color: #f59e0b; }
+        .bg-info-light { background: #dbeafe; color: #0284c7; }
+        .bg-secondary-light { background: #f1f5f9; color: #64748b; }
     </style>
 </head>
 <body>
@@ -281,290 +405,261 @@ try {
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
                 <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                        <h1 class="h4 mb-1 text-primary fw-bold">
-                            <i class="fa-solid fa-headset me-2"></i>Call Center
-                    </h1>
+                <div class="dashboard-header">
+                    <p class="welcome-text">
+                        <i class="fas fa-headset me-1"></i>Welcome back
+                    </p>
+                    <h1 class="dashboard-title"><?php echo htmlspecialchars($user_name); ?></h1>
                 </div>
-            </div>
 
                 <?php if ($error_message): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fa-solid fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php endif; ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
 
-                <!-- Start Calling Button - Top Priority -->
+                <!-- Start Calling CTA -->
                 <div class="mb-4">
                     <a href="../donor-management/donors.php?balance=has_balance" 
-                       class="btn btn-success btn-lg w-100 shadow-sm py-3">
-                        <i class="fa-solid fa-phone-alt me-2"></i>
-                        <span class="fw-bold">Start Calling Donors</span>
-                        <span class="badge bg-white text-success ms-2"><?php echo $stats['donors_with_balance']; ?> with balance</span>
-                        <i class="fa-solid fa-arrow-right ms-2"></i>
+                       class="btn btn-success w-100 start-calling-btn">
+                        <i class="fas fa-phone-alt me-2"></i>
+                        Start Calling Donors
+                        <span class="badge bg-white text-success ms-2"><?php echo $stats['donors_with_balance']; ?></span>
                     </a>
                 </div>
 
-                <!-- Key Stats -->
-                <div class="mb-4">
-                    <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.75rem; letter-spacing: 1px;">
-                        <i class="fa-solid fa-chart-line me-1"></i>Performance Overview
-                    </h6>
-                    <div class="row g-3">
-                        <div class="col-6 col-md-4">
-                            <div class="dashboard-card stat-card">
-                                <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <div class="icon-box icon-box-primary">
-                                        <i class="fa-solid fa-phone-alt"></i>
-                        </div>
-                                    <span class="badge bg-primary badge-sm"><?php echo $conversion_rate; ?>%</span>
-                        </div>
-                                <div class="stat-label">Today's Calls</div>
-                                <h3 class="stat-value text-primary"><?php echo $stats['today_calls']; ?></h3>
-                </div>
-                        </div>
-                        
-                        <div class="col-6 col-md-4">
-                            <div class="dashboard-card stat-card">
-                                <div class="d-flex align-items-start justify-content-between mb-2">
-                                    <div class="icon-box icon-box-success">
-                                        <i class="fa-solid fa-check-circle"></i>
+                <!-- Key Stats Grid -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-primary-light">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <h3 class="stat-value text-primary"><?php echo $stats['today_calls']; ?></h3>
+                            <p class="stat-label">Calls Today</p>
+                            <?php if ($stats['today_calls'] > 0): ?>
+                            <span class="stat-badge bg-primary text-white">
+                                <?php echo $conversion_rate; ?>% success
+                            </span>
+                            <?php endif; ?>
                         </div>
                     </div>
-                                <div class="stat-label">Successful</div>
-                                <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
-                </div>
+                    
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-success-light">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <h3 class="stat-value text-success"><?php echo $stats['today_positive']; ?></h3>
+                            <p class="stat-label">Successful</p>
+                            <?php if ($stats['today_talk_time'] > 0): ?>
+                            <span class="stat-badge bg-success-light text-success">
+                                <i class="fas fa-clock me-1"></i><?php echo $talk_time_formatted; ?>
+                            </span>
+                            <?php endif; ?>
                         </div>
-                        
-                        <div class="col-12 col-md-4">
-                            <div class="dashboard-card stat-card">
-                                <div class="icon-box icon-box-danger mb-2">
-                                    <i class="fa-solid fa-exclamation-circle"></i>
+                    </div>
+                    
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-warning-light">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <h3 class="stat-value text-warning"><?php echo $stats['pending_callbacks']; ?></h3>
+                            <p class="stat-label">Callbacks Due</p>
                         </div>
-                                <div class="stat-label">Donors Outstanding</div>
-                                <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
-                                <small class="text-muted">£<?php echo number_format($stats['total_outstanding'], 0); ?> total</small>
-                        </div>
+                    </div>
+                    
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-danger-light">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <h3 class="stat-value text-danger"><?php echo $stats['donors_with_balance']; ?></h3>
+                            <p class="stat-label">Outstanding</p>
+                            <span class="stat-badge bg-danger-light text-danger">
+                                £<?php echo number_format($stats['total_outstanding'], 0); ?>
+                            </span>
                         </div>
                     </div>
                 </div>
 
                 <div class="row g-3 g-lg-4">
                     <!-- Quick Actions -->
-                    <div class="col-12 col-lg-5">
-                        <div class="dashboard-card p-3 p-md-4">
-                            <h6 class="fw-bold mb-3">
-                                <i class="fa-solid fa-bolt me-2 text-warning"></i>Quick Actions
-                            </h6>
-                            <div class="d-flex flex-column gap-2">
-                                <a href="../donor-management/donors.php" class="action-btn">
-                                    <div class="d-flex align-items-center">
-                                        <div class="icon-box icon-box-primary" style="width: 32px; height: 32px; font-size: 0.9rem;">
-                                            <i class="fa-solid fa-list"></i>
-            </div>
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold small">Donor List</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;">Browse all donors</div>
-                        </div>
-                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
-                                                        </div>
+                    <div class="col-12 col-lg-4">
+                        <div class="action-card">
+                            <div class="action-header">
+                                <h2 class="action-title">
+                                    <i class="fas fa-bolt text-warning me-2"></i>Quick Actions
+                                </h2>
+                            </div>
+                            <div class="action-list">
+                                <a href="../donor-management/donors.php" class="action-item">
+                                    <div class="action-icon bg-primary-light">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <div class="action-content">
+                                        <p class="action-name">Donor List</p>
+                                        <p class="action-desc">Browse all donors</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
                                 
-                                <a href="my-schedule.php" class="action-btn">
-                                    <div class="d-flex align-items-center">
-                                        <div class="icon-box icon-box-info" style="width: 32px; height: 32px; font-size: 0.9rem;">
-                                            <i class="fa-solid fa-calendar-alt"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold small">My Schedule</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;">View calendar & appointments</div>
-                                </div>
-                                        <?php if ($stats['pending_callbacks'] > 0): ?>
-                                        <span class="badge bg-warning text-dark"><?php echo $stats['pending_callbacks']; ?></span>
-                                        <?php endif; ?>
-                                        <i class="fa-solid fa-chevron-right text-muted small ms-2"></i>
+                                <a href="my-schedule.php" class="action-item">
+                                    <div class="action-icon bg-info-light">
+                                        <i class="fas fa-calendar"></i>
                                     </div>
+                                    <div class="action-content">
+                                        <p class="action-name">My Schedule</p>
+                                        <p class="action-desc">View appointments</p>
+                                    </div>
+                                    <?php if ($stats['pending_callbacks'] > 0): ?>
+                                    <span class="badge bg-warning text-dark"><?php echo $stats['pending_callbacks']; ?></span>
+                                    <?php endif; ?>
+                                    <i class="fas fa-chevron-right text-muted ms-2"></i>
                                 </a>
                                 
-                                <a href="call-history.php" class="action-btn">
-                                    <div class="d-flex align-items-center">
-                                        <div class="icon-box icon-box-secondary" style="width: 32px; height: 32px; font-size: 0.9rem;">
-                                            <i class="fa-solid fa-history"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold small">Call History</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;">View all calls</div>
-                                        </div>
-                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
+                                <a href="call-history.php" class="action-item">
+                                    <div class="action-icon bg-secondary-light">
+                                        <i class="fas fa-history"></i>
                                     </div>
+                                    <div class="action-content">
+                                        <p class="action-name">Call History</p>
+                                        <p class="action-desc">View all calls</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
                                 
                                 <?php if ($user_role === 'admin'): ?>
-                                <!-- Assign Donors - Admin Only -->
-                                <a href="assign-donors.php" class="action-btn">
-                                    <div class="d-flex align-items-center">
-                                        <div class="icon-box icon-box-success" style="width: 32px; height: 32px; font-size: 0.9rem;">
-                                            <i class="fa-solid fa-users-cog"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold small">Assign Donors</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;">Assign to agents</div>
-                                        </div>
-                                        <i class="fa-solid fa-chevron-right text-muted small"></i>
+                                <a href="assign-donors.php" class="action-item">
+                                    <div class="action-icon bg-success-light">
+                                        <i class="fas fa-users-cog"></i>
                                     </div>
+                                    <div class="action-content">
+                                        <p class="action-name">Assign Donors</p>
+                                        <p class="action-desc">Manage assignments</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
                                 <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Today's Schedule -->
+                    <div class="col-12 col-lg-4">
+                        <div class="action-card">
+                            <div class="action-header d-flex justify-content-between align-items-center">
+                                <h2 class="action-title">
+                                    <i class="fas fa-calendar-check text-info me-2"></i>Today's Schedule
+                                </h2>
+                                <?php if (!empty($scheduled_today)): ?>
+                                <a href="my-schedule.php" class="btn btn-sm btn-outline-info">View All</a>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <?php if (empty($scheduled_today)): ?>
+                                <div class="empty-state">
+                                    <i class="fas fa-calendar-xmark empty-icon"></i>
+                                    <p class="text-muted mb-3">No calls scheduled for today</p>
+                                    <a href="my-schedule.php" class="btn btn-sm btn-info">
+                                        <i class="fas fa-calendar-plus me-1"></i>View Schedule
+                                    </a>
                                 </div>
+                            <?php else: ?>
+                                <?php foreach ($scheduled_today as $appt): ?>
+                                <div class="call-item">
+                                    <div class="d-flex align-items-center gap-2 gap-md-3">
+                                        <div class="call-time">
+                                            <?php echo date('H:i', strtotime($appt['appointment_time'])); ?>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="call-name"><?php echo htmlspecialchars($appt['name']); ?></div>
+                                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                                <span class="badge bg-light text-dark" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($appt['phone']); ?>
+                                                </span>
+                                                <?php if ($appt['balance'] > 0): ?>
+                                                <span class="badge bg-danger" style="font-size: 0.7rem;">
+                                                    £<?php echo number_format((float)$appt['balance'], 2); ?>
+                                                </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <a href="make-call.php?donor_id=<?php echo $appt['donor_id']; ?>" 
+                                           class="btn btn-sm btn-success">
+                                            <i class="fas fa-phone"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
                     </div>
 
                     <!-- Recent Activity -->
-                    <div class="col-12 col-lg-7">
-                        <div class="dashboard-card">
-                            <div class="p-3 p-md-4 pb-0 d-flex justify-content-between align-items-center">
-                                <h6 class="fw-bold mb-0">
-                                    <i class="fa-solid fa-history me-2 text-secondary"></i>Recent Calls
-                                </h6>
+                    <div class="col-12 col-lg-4">
+                        <div class="action-card">
+                            <div class="action-header d-flex justify-content-between align-items-center">
+                                <h2 class="action-title">
+                                    <i class="fas fa-clock-rotate-left text-secondary me-2"></i>Recent Calls
+                                </h2>
                                 <?php if (!empty($recent_calls)): ?>
-                                <a href="call-history.php" class="btn btn-sm btn-outline-secondary">
-                                    View All
-                                </a>
+                                <a href="call-history.php" class="btn btn-sm btn-outline-secondary">View All</a>
                                 <?php endif; ?>
                             </div>
                             
-                            <div class="p-3 p-md-4 pt-3">
-                                <?php if (empty($recent_calls)): ?>
-                                    <div class="text-center py-4 text-muted">
-                                        <i class="fa-solid fa-phone-slash fa-2x mb-3 opacity-25"></i>
-                                        <p class="small mb-2">No calls made yet</p>
-                                        <a href="../donor-management/donors.php" class="btn btn-sm btn-primary">
-                                            <i class="fa-solid fa-phone-alt me-1"></i>Make First Call
-                                        </a>
-                        </div>
-                                <?php else: ?>
-                                                <div>
-                                        <?php foreach ($recent_calls as $call): 
-                                            // Determine status label and badge color
-                                            $stage = $call['conversation_stage'] ?? 'unknown';
-                                            $outcome = $call['outcome'] ?? '';
-                                            
-                                            // Map conversation_stage to user-friendly labels and colors
-                                            $status_map = [
-                                                'connected' => ['label' => 'Connected', 'class' => 'bg-success'],
-                                                'identity_verified' => ['label' => 'Verified', 'class' => 'bg-info'],
-                                                'pledge_discussed' => ['label' => 'Discussed', 'class' => 'bg-primary'],
-                                                'payment_options_discussed' => ['label' => 'Options Discussed', 'class' => 'bg-primary'],
-                                                'agreement_reached' => ['label' => 'Agreed', 'class' => 'bg-success'],
-                                                'payment_method_selected' => ['label' => 'Completed', 'class' => 'bg-success'],
-                                                'callback_scheduled' => ['label' => 'Callback Scheduled', 'class' => 'bg-warning text-dark'],
-                                                'no_answer' => ['label' => 'No Answer', 'class' => 'bg-secondary'],
-                                                'busy_signal' => ['label' => 'Busy', 'class' => 'bg-warning text-dark'],
-                                                'no_connection' => ['label' => 'Not Connected', 'class' => 'bg-secondary'],
-                                                'in_progress' => ['label' => 'In Progress', 'class' => 'bg-info']
-                                            ];
-                                            
-                                            $status_info = $status_map[$stage] ?? ['label' => ucfirst(str_replace('_', ' ', $stage)), 'class' => 'bg-secondary'];
-                                        ?>
-                                        <div class="recent-call-item">
-                                            <div class="d-flex align-items-center gap-2 gap-md-3">
-                                                <div class="text-muted small" style="min-width: 45px;">
-                                                    <?php echo date('H:i', strtotime($call['created_at'])); ?>
-                                                </div>
-                                                <div class="flex-grow-1">
-                                                    <div class="fw-semibold small mb-1"><?php echo htmlspecialchars($call['name']); ?></div>
-                                                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                                                        <span class="badge bg-light text-dark border badge-sm">
-                                                            <i class="fa-solid fa-clock me-1"></i><?php echo gmdate("i:s", (int)$call['duration_seconds']); ?>
-                                                        </span>
-                                                        <span class="badge <?php echo $status_info['class']; ?> badge-sm">
-                                                            <?php echo $status_info['label']; ?>
-                                                        </span>
-                                                        <?php if ($call['balance'] > 0): ?>
-                                                        <span class="text-danger small fw-semibold">
-                                                            £<?php echo number_format((float)$call['balance'], 2); ?>
-                                                        </span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                                <a href="call-details.php?id=<?php echo $call['id']; ?>" 
-                                                   class="btn btn-sm btn-light"
-                                                   title="View Call Details">
-                                                    <i class="fa-solid fa-eye"></i>
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <?php endforeach; ?>
+                            <?php if (empty($recent_calls)): ?>
+                                <div class="empty-state">
+                                    <i class="fas fa-phone-slash empty-icon"></i>
+                                    <p class="text-muted mb-3">No calls made yet</p>
+                                    <a href="../donor-management/donors.php" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-phone me-1"></i>Make First Call
+                                    </a>
                                 </div>
-                            <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Today's Scheduled Calls -->
-                    <div class="col-12 col-lg-7">
-                        <div class="dashboard-card">
-                            <div class="p-3 p-md-4 pb-0 d-flex justify-content-between align-items-center">
-                                <h6 class="fw-bold mb-0">
-                                    <i class="fa-solid fa-calendar-check me-2 text-info"></i>Today's Schedule
-                                </h6>
-                                <?php if (!empty($scheduled_today)): ?>
-                                <a href="my-schedule.php" class="btn btn-sm btn-outline-info">
-                                    View All
-                                </a>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="p-3 p-md-4 pt-3">
-                                <?php if (empty($scheduled_today)): ?>
-                                    <div class="text-center py-4 text-muted">
-                                        <i class="fa-solid fa-calendar-xmark fa-2x mb-3 opacity-25"></i>
-                                        <p class="small mb-2">No scheduled calls for today</p>
-                                        <a href="my-schedule.php" class="btn btn-sm btn-info">
-                                            <i class="fa-solid fa-calendar-plus me-1"></i>View Schedule
-                                        </a>
-                                    </div>
-                                <?php else: ?>
-                                    <div>
-                                        <?php foreach ($scheduled_today as $appt): ?>
-                                        <div class="recent-call-item">
-                                            <div class="d-flex align-items-center gap-2 gap-md-3">
-                                                <div class="text-muted small fw-bold" style="min-width: 45px;">
-                                                    <?php echo date('H:i', strtotime($appt['appointment_time'])); ?>
-                                                </div>
-                                                <div class="flex-grow-1">
-                                                    <div class="fw-semibold small mb-1"><?php echo htmlspecialchars($appt['name']); ?></div>
-                                                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                                                        <span class="badge bg-light text-dark border badge-sm">
-                                                            <i class="fa-solid fa-phone"></i> <?php echo htmlspecialchars($appt['phone']); ?>
-                                                        </span>
-                                                        <?php if (!empty($appt['notes'])): ?>
-                                                        <span class="badge bg-info badge-sm" title="<?php echo htmlspecialchars($appt['notes']); ?>">
-                                                            <i class="fa-solid fa-sticky-note"></i> Note
-                                                        </span>
-                                                        <?php endif; ?>
-                                                        <?php if ($appt['balance'] > 0): ?>
-                                                        <span class="text-danger small fw-semibold">
-                                                            £<?php echo number_format((float)$appt['balance'], 2); ?>
-                                                        </span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                                <a href="make-call.php?donor_id=<?php echo $appt['donor_id']; ?>" 
-                                                   class="btn btn-sm btn-success">
-                                                    <i class="fa-solid fa-phone-alt"></i> Call
-                                                </a>
+                            <?php else: ?>
+                                <?php foreach ($recent_calls as $call): 
+                                    $stage = $call['conversation_stage'] ?? 'unknown';
+                                    $status_map = [
+                                        'connected' => ['label' => 'Connected', 'class' => 'success'],
+                                        'agreement_reached' => ['label' => 'Agreed', 'class' => 'success'],
+                                        'callback_scheduled' => ['label' => 'Callback', 'class' => 'warning'],
+                                        'no_answer' => ['label' => 'No Answer', 'class' => 'secondary'],
+                                        'busy_signal' => ['label' => 'Busy', 'class' => 'warning'],
+                                        'no_connection' => ['label' => 'Not Connected', 'class' => 'secondary']
+                                    ];
+                                    $status_info = $status_map[$stage] ?? ['label' => 'Other', 'class' => 'secondary'];
+                                ?>
+                                <div class="call-item">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="call-time">
+                                            <?php echo date('H:i', strtotime($call['created_at'])); ?>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="call-name"><?php echo htmlspecialchars($call['name']); ?></div>
+                                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                                <span class="badge bg-<?php echo $status_info['class']; ?>" style="font-size: 0.7rem;">
+                                                    <?php echo $status_info['label']; ?>
+                                                </span>
+                                                <?php if ($call['duration_seconds'] > 0): ?>
+                                                <span class="badge bg-light text-dark" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-clock me-1"></i><?php echo gmdate("i:s", (int)$call['duration_seconds']); ?>
+                                                </span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                        <?php endforeach; ?>
+                                        <a href="call-details.php?id=<?php echo $call['id']; ?>" 
+                                           class="btn btn-sm btn-light" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
                                     </div>
-                                <?php endif; ?>
-                            </div>
+                                </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
-
             </div>
         </main>
     </div>
