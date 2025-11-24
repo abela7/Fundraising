@@ -98,6 +98,85 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
+    <style>
+        /* Mobile-friendly cards */
+        .pledge-card, .schedule-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            background: white;
+            transition: all 0.2s;
+        }
+        .pledge-card:hover, .schedule-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .info-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        .info-value {
+            font-weight: 600;
+            text-align: right;
+        }
+        .pledge-amount {
+            font-size: 1.25rem;
+            color: #198754;
+            font-weight: 700;
+        }
+        
+        /* Desktop table - hide on mobile */
+        @media (max-width: 767px) {
+            .pledge-table, .schedule-table {
+                display: none;
+            }
+            .pledge-cards, .schedule-cards {
+                display: block;
+            }
+        }
+        
+        /* Mobile cards - hide on desktop */
+        @media (min-width: 768px) {
+            .pledge-cards, .schedule-cards {
+                display: none;
+            }
+            .pledge-table, .schedule-table {
+                display: table;
+            }
+        }
+        
+        /* Plan summary responsive */
+        .plan-summary-item {
+            margin-bottom: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .plan-summary-item {
+                margin-bottom: 0;
+            }
+        }
+        
+        /* Clickable table rows */
+        .table tbody tr {
+            cursor: pointer;
+        }
+        .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
 </head>
 <body>
 <div class="app-wrapper">
@@ -113,14 +192,15 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
 
                 <!-- Pledges Table -->
                 <?php if (!empty($pledges)): ?>
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="card-title">
+                        <h5 class="card-title mb-0">
                             <i class="fas fa-handshake text-primary"></i>Your Pledges
                         </h5>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive">
+                        <!-- Desktop Table View -->
+                        <div class="table-responsive pledge-table">
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
@@ -132,34 +212,78 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                                 </thead>
                                 <tbody>
                                     <?php foreach ($pledges as $pledge): ?>
+                                    <?php 
+                                    $pledge_date = date('d M Y', strtotime($pledge['created_at']));
+                                    $pledge_amount = number_format($pledge['amount'], 2);
+                                    $pledge_type = ucfirst($pledge['type']);
+                                    $pledge_status = $pledge['status'];
+                                    $status_classes = [
+                                        'pending' => 'bg-warning',
+                                        'approved' => 'bg-success',
+                                        'rejected' => 'bg-danger',
+                                        'cancelled' => 'bg-secondary'
+                                    ];
+                                    $status_class = $status_classes[$pledge_status] ?? 'bg-secondary';
+                                    $pledge_notes = htmlspecialchars($pledge['notes'] ?? '');
+                                    ?>
                                     <tr>
+                                        <td><?php echo $pledge_date; ?></td>
+                                        <td><strong>£<?php echo $pledge_amount; ?></strong></td>
                                         <td>
-                                            <?php echo date('d M Y', strtotime($pledge['created_at'])); ?>
-                                        </td>
-                                        <td><strong>£<?php echo number_format($pledge['amount'], 2); ?></strong></td>
-                                        <td>
-                                            <span class="badge bg-info">
-                                                <?php echo ucfirst($pledge['type']); ?>
-                                            </span>
+                                            <span class="badge bg-info"><?php echo $pledge_type; ?></span>
                                         </td>
                                         <td>
-                                            <?php 
-                                            $status = $pledge['status'];
-                                            $status_classes = [
-                                                'pending' => 'bg-warning',
-                                                'approved' => 'bg-success',
-                                                'rejected' => 'bg-danger',
-                                                'cancelled' => 'bg-secondary'
-                                            ];
-                                            ?>
-                                            <span class="badge <?php echo $status_classes[$status] ?? 'bg-secondary'; ?>">
-                                                <?php echo ucfirst($status); ?>
+                                            <span class="badge <?php echo $status_class; ?>">
+                                                <?php echo ucfirst($pledge_status); ?>
                                             </span>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
+                        </div>
+                        
+                        <!-- Mobile Card View -->
+                        <div class="pledge-cards p-3">
+                            <?php foreach ($pledges as $pledge): ?>
+                            <?php 
+                            $pledge_date = date('d M Y', strtotime($pledge['created_at']));
+                            $pledge_amount = number_format($pledge['amount'], 2);
+                            $pledge_type = ucfirst($pledge['type']);
+                            $pledge_status = $pledge['status'];
+                            $status_classes = [
+                                'pending' => 'bg-warning',
+                                'approved' => 'bg-success',
+                                'rejected' => 'bg-danger',
+                                'cancelled' => 'bg-secondary'
+                            ];
+                            $status_class = $status_classes[$pledge_status] ?? 'bg-secondary';
+                            ?>
+                            <div class="pledge-card">
+                                <div class="info-row">
+                                    <span class="info-label">Amount</span>
+                                    <span class="info-value pledge-amount">£<?php echo $pledge_amount; ?></span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Date</span>
+                                    <span class="info-value"><?php echo $pledge_date; ?></span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Type</span>
+                                    <span class="info-value">
+                                        <span class="badge bg-info"><?php echo $pledge_type; ?></span>
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Status</span>
+                                    <span class="info-value">
+                                        <span class="badge <?php echo $status_class; ?>">
+                                            <?php echo ucfirst($pledge_status); ?>
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>
@@ -168,29 +292,29 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                 <!-- Payment Plan -->
                 <?php if ($payment_plan): ?>
                     <!-- Plan Summary -->
-                    <div class="card">
+                    <div class="card mb-4">
                         <div class="card-header">
-                            <h5 class="card-title">
+                            <h5 class="card-title mb-0">
                                 <i class="fas fa-info-circle text-primary"></i>Plan Summary
                             </h5>
                         </div>
                         <div class="card-body">
                             <div class="row g-4">
-                                <div class="col-md-3">
+                                <div class="col-md-3 col-12 plan-summary-item">
                                     <div class="border-start border-4 border-primary ps-3">
-                                        <small class="text-muted d-block">Plan Type</small>
+                                        <small class="text-muted d-block mb-1">Plan Type</small>
                                         <h5 class="mb-0"><?php echo htmlspecialchars($payment_plan['template_name'] ?? 'Custom Plan'); ?></h5>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 col-12 plan-summary-item">
                                     <div class="border-start border-4 border-success ps-3">
-                                        <small class="text-muted d-block">Monthly Amount</small>
+                                        <small class="text-muted d-block mb-1">Monthly Amount</small>
                                         <h5 class="mb-0 text-success">£<?php echo number_format($payment_plan['monthly_amount'] ?? 0, 2); ?></h5>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 col-12 plan-summary-item">
                                     <div class="border-start border-4 border-info ps-3">
-                                        <small class="text-muted d-block">Progress</small>
+                                        <small class="text-muted d-block mb-1">Progress</small>
                                         <h5 class="mb-0">
                                             <?php 
                                             $payments_made = $payment_plan['payments_made'] ?? 0;
@@ -200,9 +324,9 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                                         </h5>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 col-12 plan-summary-item">
                                     <div class="border-start border-4 border-warning ps-3">
-                                        <small class="text-muted d-block">Next Payment</small>
+                                        <small class="text-muted d-block mb-1">Next Payment</small>
                                         <h5 class="mb-0 text-warning">
                                             <?php 
                                             if ($payment_plan['next_payment_due']) {
@@ -219,14 +343,15 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                     </div>
 
                     <!-- Payment Schedule -->
-                    <div class="card">
+                    <div class="card mb-4">
                         <div class="card-header">
-                            <h5 class="card-title">
+                            <h5 class="card-title mb-0">
                                 <i class="fas fa-list text-primary"></i>Payment Schedule
                             </h5>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
+                            <!-- Desktop Table View -->
+                            <div class="table-responsive schedule-table">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -238,21 +363,25 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                                     </thead>
                                     <tbody>
                                         <?php foreach ($schedule as $payment): ?>
+                                        <?php 
+                                        $installment = $payment['installment'];
+                                        $payment_date = date('d M Y', strtotime($payment['date']));
+                                        $payment_amount = number_format($payment['amount'], 2);
+                                        $badge_class = $payment['status'] === 'paid' ? 'bg-success' : 'bg-secondary';
+                                        $payment_status = ucfirst($payment['status']);
+                                        ?>
                                         <tr>
-                                            <td><strong><?php echo $payment['installment']; ?></strong></td>
+                                            <td><strong><?php echo $installment; ?></strong></td>
                                             <td>
                                                 <i class="fas fa-calendar text-muted me-2"></i>
-                                                <?php echo date('d M Y', strtotime($payment['date'])); ?>
+                                                <?php echo $payment_date; ?>
                                             </td>
                                             <td class="text-end">
-                                                <strong class="text-success">£<?php echo number_format($payment['amount'], 2); ?></strong>
+                                                <strong class="text-success">£<?php echo $payment_amount; ?></strong>
                                             </td>
                                             <td>
-                                                <?php 
-                                                $badge_class = $payment['status'] === 'paid' ? 'bg-success' : 'bg-secondary';
-                                                ?>
                                                 <span class="badge <?php echo $badge_class; ?>">
-                                                    <?php echo ucfirst($payment['status']); ?>
+                                                    <?php echo $payment_status; ?>
                                                 </span>
                                             </td>
                                         </tr>
@@ -260,18 +389,62 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <!-- Mobile Card View -->
+                            <div class="schedule-cards p-3">
+                                <?php foreach ($schedule as $payment): ?>
+                                <?php 
+                                $installment = $payment['installment'];
+                                $payment_date = date('d M Y', strtotime($payment['date']));
+                                $payment_amount = number_format($payment['amount'], 2);
+                                $badge_class = $payment['status'] === 'paid' ? 'bg-success' : 'bg-secondary';
+                                $payment_status = ucfirst($payment['status']);
+                                ?>
+                                <div class="schedule-card">
+                                    <div class="info-row">
+                                        <span class="info-label">Installment</span>
+                                        <span class="info-value">
+                                            <strong>#<?php echo $installment; ?></strong>
+                                        </span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">Amount</span>
+                                        <span class="info-value">
+                                            <strong class="text-success">£<?php echo $payment_amount; ?></strong>
+                                        </span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">Date</span>
+                                        <span class="info-value">
+                                            <i class="fas fa-calendar text-muted me-1"></i>
+                                            <?php echo $payment_date; ?>
+                                        </span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">Status</span>
+                                        <span class="info-value">
+                                            <span class="badge <?php echo $badge_class; ?>">
+                                                <?php echo $payment_status; ?>
+                                            </span>
+                                        </span>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
                 <?php else: ?>
-                    <div class="card">
+                    <div class="card mb-4">
                         <div class="card-body text-center py-5">
                             <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
                             <h5>No Active Payment Plan</h5>
-                            <p class="text-muted">You don't have an active payment plan at this time.</p>
+                            <p class="text-muted mb-3">You don't have an active payment plan at this time.</p>
+                            <a href="make-payment.php" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Make a Payment
+                            </a>
                         </div>
                     </div>
                 <?php endif; ?>
-            </div>
         </main>
     </div>
 </div>
