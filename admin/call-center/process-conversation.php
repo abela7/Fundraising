@@ -336,7 +336,7 @@ try {
         $update_session = $db->prepare("
             UPDATE call_center_sessions 
             SET outcome = 'payment_plan_created',
-                conversation_stage = 'completed',
+                conversation_stage = 'plan_finalized',
                 payment_plan_id = ?,
                 duration_seconds = COALESCE(duration_seconds, 0) + ?,
                 call_ended_at = NOW()

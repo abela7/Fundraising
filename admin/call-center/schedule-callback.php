@@ -43,6 +43,40 @@ date_default_timezone_set('Europe/London');
         'requested_later' => 'Requested Later',
         'other' => 'Other'
     ];
+
+    // Determine correct outcome based on status and reason (using existing ENUMs)
+    function determine_outcome($status, $reason) {
+        if ($status === 'not_picked_up') return 'no_answer';
+        if ($status === 'busy') return 'busy_signal';
+        if ($status === 'not_ready_to_pay') return 'interested_needs_time';
+        
+        if ($status === 'busy_cant_talk') {
+            switch ($reason) {
+                case 'driving': return 'driving_cannot_talk';
+                case 'at_work': return 'at_work_cannot_talk';
+                case 'with_family': return 'with_family_cannot_talk';
+                case 'eating': 
+                case 'sleeping': 
+                case 'bad_time': 
+                case 'requested_later': 
+                case 'other': 
+                default:
+                    return 'busy_call_back_later';
+            }
+        }
+        
+        return 'no_answer'; // Default fallback
+    }
+
+    // Determine correct stage based on status (using existing ENUMs)
+    function determine_stage($status) {
+        // If phone was picked up (busy_cant_talk or not_ready_to_pay), contact was made
+        if ($status === 'busy_cant_talk' || $status === 'not_ready_to_pay') {
+            return 'connected_no_identity_check';
+        }
+        // Otherwise (no answer, busy signal), no connection
+        return 'no_connection';
+    }
     
     if (!$donor_id) {
         throw new Exception("Missing Donor ID");
@@ -51,21 +85,8 @@ date_default_timezone_set('Europe/London');
     // Create session if not exists (Lazy creation for No Answer/Busy outcomes)
     // Only on GET request to prevent duplicate creation on POST if session_id was lost
     if ($session_id <= 0 && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        $outcome_map = [
-            'not_picked_up' => 'no_answer',
-            'busy' => 'busy_signal',
-            'busy_cant_talk' => 'callback_requested',
-            'not_ready_to_pay' => 'not_ready_to_pay'
-        ];
-        $outcome = $outcome_map[$status] ?? 'no_answer';
-        
-        $stage_map = [
-            'not_picked_up' => 'no_answer',
-            'busy' => 'busy_signal',
-            'busy_cant_talk' => 'callback_scheduled',
-            'not_ready_to_pay' => 'callback_scheduled'
-        ];
-        $conversation_stage = $stage_map[$status] ?? 'no_answer';
+        $outcome = determine_outcome($status, $reason);
+        $conversation_stage = determine_stage($status);
         
         $session_query = "
             INSERT INTO call_center_sessions 
@@ -242,22 +263,8 @@ date_default_timezone_set('Europe/London');
                 // Update session if exists
                 if ($session_id > 0) {
                     $callback_datetime = $appointment_date . ' ' . $appointment_time;
-                    $outcome_map = [
-                        'not_picked_up' => 'no_answer',
-                        'busy' => 'busy_signal',
-                        'busy_cant_talk' => 'callback_requested',
-                        'not_ready_to_pay' => 'not_ready_to_pay'
-                    ];
-                    $outcome = $outcome_map[$status] ?? 'no_answer';
-                    
-                    // Map status to conversation_stage for accurate tracking
-                    $stage_map = [
-                        'not_picked_up' => 'no_answer',
-                        'busy' => 'busy_signal',
-                        'busy_cant_talk' => 'callback_scheduled',
-                        'not_ready_to_pay' => 'callback_scheduled'
-                    ];
-                    $conversation_stage = $stage_map[$status] ?? 'no_answer';
+                    $outcome = determine_outcome($status, $reason);
+                    $conversation_stage = determine_stage($status);
                     
                     $update_session = "
                         UPDATE call_center_sessions 
