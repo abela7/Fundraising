@@ -15,6 +15,7 @@ $filter_min_balance = isset($_GET['min_balance']) && $_GET['min_balance'] !== ''
 $filter_max_balance = isset($_GET['max_balance']) && $_GET['max_balance'] !== '' ? (float)$_GET['max_balance'] : null;
 $filter_registrar = isset($_GET['registrar']) && $_GET['registrar'] !== '' ? (int)$_GET['registrar'] : null;
 $filter_assignment = $_GET['assignment'] ?? 'all'; // all, assigned, unassigned
+$filter_donation_type = $_GET['donation_type'] ?? 'all'; // all, pledge, payment
 
 // Handle bulk assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
@@ -142,6 +143,12 @@ try {
         $params[] = $filter_registrar;
         $params[] = $filter_registrar;
         $types .= 'ii';
+    }
+    
+    if ($filter_donation_type === 'pledge') {
+        $where_conditions[] = "d.id IN (SELECT DISTINCT donor_id FROM pledges WHERE donor_id IS NOT NULL)";
+    } elseif ($filter_donation_type === 'payment') {
+        $where_conditions[] = "d.id IN (SELECT DISTINCT donor_id FROM payments WHERE donor_id IS NOT NULL)";
     }
     
     if ($filter_assignment === 'assigned') {
@@ -658,24 +665,76 @@ try {
             $unassigned_count = 0;
             
             try {
-                $total_result = $db->query("SELECT COUNT(*) as count FROM donors");
-                if ($total_result) {
-                    $total_donors = (int)($total_result->fetch_assoc()['count'] ?? 0);
+                // Build WHERE clause for filtered counts
+                $count_where = $where_conditions;
+                $count_params = $params;
+                $count_types = $types;
+                
+                $where_clause = !empty($count_where) ? "WHERE " . implode(" AND ", $count_where) : "";
+                
+                // Total filtered donors
+                $total_query = "SELECT COUNT(*) as count FROM donors d {$where_clause}";
+                if (!empty($count_params)) {
+                    $total_stmt = $db->prepare($total_query);
+                    $total_stmt->bind_param($count_types, ...$count_params);
+                    $total_stmt->execute();
+                    $total_result = $total_stmt->get_result();
+                    if ($total_result) {
+                        $total_donors = (int)($total_result->fetch_assoc()['count'] ?? 0);
+                    }
+                } else {
+                    $total_result = $db->query($total_query);
+                    if ($total_result) {
+                        $total_donors = (int)($total_result->fetch_assoc()['count'] ?? 0);
+                    }
                 }
                 
-                $assigned_result = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL");
-                if ($assigned_result) {
-                    $assigned_count = (int)($assigned_result->fetch_assoc()['count'] ?? 0);
+                // Assigned filtered donors
+                $assigned_where = array_merge($count_where, ["d.agent_id IS NOT NULL"]);
+                $assigned_query = "SELECT COUNT(*) as count FROM donors d WHERE " . implode(" AND ", $assigned_where);
+                if (!empty($count_params)) {
+                    $assigned_stmt = $db->prepare($assigned_query);
+                    $assigned_stmt->bind_param($count_types, ...$count_params);
+                    $assigned_stmt->execute();
+                    $assigned_result = $assigned_stmt->get_result();
+                    if ($assigned_result) {
+                        $assigned_count = (int)($assigned_result->fetch_assoc()['count'] ?? 0);
+                    }
+                } else {
+                    $assigned_result = $db->query($assigned_query);
+                    if ($assigned_result) {
+                        $assigned_count = (int)($assigned_result->fetch_assoc()['count'] ?? 0);
+                    }
                 }
                 
-                $unassigned_result = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL");
-                if ($unassigned_result) {
-                    $unassigned_count = (int)($unassigned_result->fetch_assoc()['count'] ?? 0);
+                // Unassigned filtered donors
+                $unassigned_where = array_merge($count_where, ["d.agent_id IS NULL"]);
+                $unassigned_query = "SELECT COUNT(*) as count FROM donors d WHERE " . implode(" AND ", $unassigned_where);
+                if (!empty($count_params)) {
+                    $unassigned_stmt = $db->prepare($unassigned_query);
+                    $unassigned_stmt->bind_param($count_types, ...$count_params);
+                    $unassigned_stmt->execute();
+                    $unassigned_result = $unassigned_stmt->get_result();
+                    if ($unassigned_result) {
+                        $unassigned_count = (int)($unassigned_result->fetch_assoc()['count'] ?? 0);
+                    }
+                } else {
+                    $unassigned_result = $db->query($unassigned_query);
+                    if ($unassigned_result) {
+                        $unassigned_count = (int)($unassigned_result->fetch_assoc()['count'] ?? 0);
+                    }
                 }
             } catch (Exception $e) {
                 // Silently fail - show zeros
                 error_log("Stats query error: " . $e->getMessage());
             }
+            ?>
+            <?php
+            // Check if any filters are active
+            $has_active_filters = !empty($filter_search) || $filter_min_pledge !== null || 
+                                  $filter_max_pledge !== null || $filter_min_balance !== null || 
+                                  $filter_max_balance !== null || $filter_registrar !== null || 
+                                  $filter_assignment !== 'all' || $filter_donation_type !== 'all';
             ?>
             <div class="row g-2 mb-3">
                 <div class="col-auto">
@@ -683,7 +742,7 @@ try {
                         <div class="d-flex align-items-center gap-2">
                             <i class="fas fa-users text-primary"></i>
                             <span class="fw-bold"><?php echo number_format($total_donors); ?></span>
-                            <small class="text-muted">Total Donors</small>
+                            <small class="text-muted"><?php echo $has_active_filters ? 'Results' : 'Total Donors'; ?></small>
                                 </div>
                             </div>
                         </div>
@@ -717,6 +776,7 @@ try {
             if ($filter_max_balance !== null) $active_filters++;
             if ($filter_registrar !== null) $active_filters++;
             if ($filter_assignment !== 'all') $active_filters++;
+            if ($filter_donation_type !== 'all') $active_filters++;
             ?>
             <button class="filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="<?php echo $active_filters > 0 ? 'true' : 'false'; ?>">
                 <div class="d-flex align-items-center gap-2">
@@ -758,8 +818,21 @@ try {
                                 </select>
                             </div>
 
+                            <!-- Donation Type -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                    Donation Type
+                                </label>
+                                <select name="donation_type" class="form-select">
+                                    <option value="all" <?php echo $filter_donation_type === 'all' ? 'selected' : ''; ?>>All Types</option>
+                                    <option value="pledge" <?php echo $filter_donation_type === 'pledge' ? 'selected' : ''; ?>>Pledges Only</option>
+                                    <option value="payment" <?php echo $filter_donation_type === 'payment' ? 'selected' : ''; ?>>Payments Only</option>
+                                </select>
+                            </div>
+
                             <!-- Registrar Filter -->
-                            <div class="col-md-12">
+                            <div class="col-md-6">
                                 <label class="form-label">
                                     <i class="fas fa-user-tie"></i>
                                     Registered By (Registrar)
