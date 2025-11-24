@@ -675,8 +675,8 @@ try {
                                         echo "<td>" . ($row['agent_name'] ? '<span class="badge badge-modern bg-primary"><i class="fas fa-user me-1"></i>' . htmlspecialchars($row['agent_name']) . '</span>' : '<span class="text-muted"><i class="fas fa-user-slash me-1"></i>Unassigned</span>') . "</td>";
                                         echo "<td>";
                                         echo "<form method='POST' class='d-flex gap-2 align-items-center'>";
-                                        echo "<input type='hidden' name='donor_id' value='" . $row['id'] . "'>";
-                                        echo "<select name='agent_id' class='form-select form-select-sm form-select-modern' style='flex: 1; min-width: 150px;'>";
+                                        echo "<input type='hidden' name='donor_id' value='" . $row['id'] . "' data-agent-id='" . ($row['agent_id'] ?? '') . "'>";
+                                        echo "<select name='agent_id' class='form-select form-select-sm form-select-modern' style='flex: 1; min-width: 150px;' onchange='updateButtonText(this)'>";
                                         echo "<option value='0'>Unassign</option>";
                                         if (!empty($agents)) {
                                             foreach ($agents as $agent) {
@@ -685,8 +685,12 @@ try {
                                             }
                                         }
                                         echo "</select>";
-                                        echo "<button type='submit' name='assign' class='btn btn-sm btn-primary btn-modern'>";
-                                        echo "<i class='fas fa-check me-1'></i>Assign";
+                                        $is_assigned = !empty($row['agent_id']);
+                                        $button_class = $is_assigned ? 'btn-warning' : 'btn-primary';
+                                        $button_text = $is_assigned ? 'Update' : 'Assign';
+                                        $button_icon = $is_assigned ? 'fa-edit' : 'fa-check';
+                                        echo "<button type='submit' name='assign' class='btn btn-sm " . $button_class . " btn-modern'>";
+                                        echo "<i class='fas " . $button_icon . " me-1'></i><span class='btn-text'>" . $button_text . "</span>";
                                         echo "</button>";
                                         echo "</form>";
                                         echo "</td>";
@@ -984,6 +988,43 @@ function bulkUnassign() {
     
     document.body.appendChild(form);
     form.submit();
+}
+
+function updateButtonText(selectElement) {
+    const form = selectElement.closest('form');
+    const button = form.querySelector('button[type="submit"]');
+    const buttonText = button.querySelector('.btn-text');
+    const buttonIcon = button.querySelector('i');
+    
+    const selectedValue = selectElement.value;
+    const donorInput = form.querySelector('input[name="donor_id"]');
+    const currentAgentId = donorInput ? (donorInput.getAttribute('data-agent-id') || '') : '';
+    const isCurrentlyAssigned = currentAgentId !== '' && currentAgentId !== '0';
+    
+    // Remove all button color classes
+    button.className = button.className.replace(/btn-(primary|warning|danger)/g, '').trim() + ' btn-sm btn-modern';
+    
+    if (selectedValue === '0') {
+        // Unassign selected
+        button.className += ' btn-danger';
+        buttonIcon.className = 'fas fa-user-minus me-1';
+        buttonText.textContent = 'Unassign';
+    } else if (selectedValue === currentAgentId) {
+        // Same agent selected - no change needed
+        button.className += ' btn-secondary';
+        buttonIcon.className = 'fas fa-check me-1';
+        buttonText.textContent = 'No Change';
+    } else if (isCurrentlyAssigned) {
+        // Changing assignment
+        button.className += ' btn-warning';
+        buttonIcon.className = 'fas fa-edit me-1';
+        buttonText.textContent = 'Update';
+    } else {
+        // New assignment
+        button.className += ' btn-primary';
+        buttonIcon.className = 'fas fa-check me-1';
+        buttonText.textContent = 'Assign';
+    }
 }
 
 // Add smooth scroll behavior
