@@ -32,6 +32,49 @@ $error_message = '';
 
 // Calculate amount due
 $amount_due = $donor['balance'] > 0 ? $donor['balance'] : 0;
+$active_pledges = [];
+
+if ($db_connection_ok) {
+    try {
+        // Check if pledge_payments exists
+        $has_pp_table = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+        
+        // Fetch active pledges
+        $query = "
+            SELECT 
+                p.id, 
+                p.amount, 
+                p.notes, 
+                p.created_at,
+                " . ($has_pp_table ? "COALESCE(SUM(pp.amount), 0)" : "0") . " as paid
+            FROM pledges p
+            " . ($has_pp_table ? "LEFT JOIN pledge_payments pp ON p.id = pp.pledge_id AND pp.status = 'confirmed'" : "") . "
+            WHERE p.donor_id = ? AND p.status = 'approved'
+            GROUP BY p.id
+            HAVING (p.amount - paid) > 0.01
+            ORDER BY p.created_at ASC
+        ";
+        
+        $stmt = $db->prepare($query);
+        $stmt->bind_param('i', $donor['id']);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        
+        while ($row = $res->fetch_assoc()) {
+            $active_pledges[] = [
+                'id' => $row['id'],
+                'amount' => (float)$row['amount'],
+                'paid' => (float)$row['paid'],
+                'remaining' => (float)$row['amount'] - (float)$row['paid'],
+                'date' => date('d M Y', strtotime($row['created_at'])),
+                'notes' => $row['notes']
+            ];
+        }
+    } catch (Exception $e) {
+        error_log('Error fetching donor pledges: ' . $e->getMessage());
+    }
+}
+
 if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connection_ok) {
     try {
         $plan_stmt = $db->prepare("
@@ -139,54 +182,123 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $payment_method = trim($_POST['payment_method'] ?? '');
     $reference = trim($_POST['reference'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
+    $pledge_id = (int)($_POST['pledge_id'] ?? 0);
     
+    // Basic Validation
     if ($payment_amount <= 0) {
         $error_message = 'Please enter a valid payment amount.';
     } elseif ($payment_amount > $donor['balance']) {
         $error_message = 'Payment amount cannot exceed your remaining balance of £' . number_format($donor['balance'], 2) . '.';
     } elseif (!in_array($payment_method, ['cash', 'bank_transfer', 'card', 'other'])) {
         $error_message = 'Please select a valid payment method.';
+    } elseif ($pledge_id <= 0 && !empty($active_pledges)) {
+        $error_message = 'Please select a pledge to pay towards.';
     } else {
-        // Create pending payment record
-        if ($db_connection_ok) {
+        // File Upload Handling
+        $payment_proof = null;
+        $has_file = isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK;
+        
+        if ($has_file) {
+            $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'];
+            $file_type = $_FILES['payment_proof']['type'];
+            
+            if (!in_array($file_type, $allowed_types)) {
+                $error_message = "Invalid file type. Only images (JPG, PNG, GIF, WEBP) and PDF allowed.";
+            } elseif ($_FILES['payment_proof']['size'] > 5 * 1024 * 1024) { // 5MB max
+                $error_message = "File too large. Maximum 5MB allowed.";
+            } else {
+                // Create uploads directory if not exists
+                $upload_dir = __DIR__ . '/../uploads/payment_proofs/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+                
+                // Generate unique filename
+                $ext = pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
+                $filename = 'proof_donor_' . $donor['id'] . '_' . time() . '_' . uniqid() . '.' . $ext;
+                $filepath = $upload_dir . $filename;
+                
+                if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $filepath)) {
+                    $payment_proof = 'uploads/payment_proofs/' . $filename;
+                } else {
+                    $error_message = "Failed to upload payment proof.";
+                }
+            }
+        } else {
+            $payment_proof = ''; // Empty string for MySQLi compatibility
+        }
+
+        // Proceed if no upload errors
+        if (empty($error_message) && $db_connection_ok) {
             try {
                 $db->begin_transaction();
                 
-                $insert_stmt = $db->prepare("
-                    INSERT INTO payments (
-                        donor_id, donor_name, donor_phone, 
-                        amount, method, reference, notes, 
-                        status, source, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'donor_portal', NOW())
-                ");
-                $insert_stmt->bind_param(
-                    'issdssss',
-                    $donor['id'],
-                    $donor['name'],
-                    $donor['phone'],
-                    $payment_amount,
-                    $payment_method,
-                    $reference,
-                    $notes
-                );
+                // Use pledge_payments table if pledge_id is provided
+                if ($pledge_id > 0) {
+                    $insert_stmt = $db->prepare("
+                        INSERT INTO pledge_payments (
+                            pledge_id, donor_id, amount, payment_method, 
+                            payment_date, reference_number, payment_proof, notes, 
+                            status
+                        ) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, 'pending')
+                    ");
+                    $insert_stmt->bind_param(
+                        'iidssss',
+                        $pledge_id,
+                        $donor['id'],
+                        $payment_amount,
+                        $payment_method,
+                        $reference,
+                        $payment_proof,
+                        $notes
+                    );
+                    $entity_type = 'pledge_payment';
+                } else {
+                    // Fallback to generic payments table (legacy/no-pledge flow)
+                    // Note: Ideally all donor payments should be linked to a pledge if they have one
+                    // But for 'immediate_payment' donors without pledges, we might still use payments table
+                    // For this specific task, we are focusing on the pledge flow.
+                     $insert_stmt = $db->prepare("
+                        INSERT INTO payments (
+                            donor_id, donor_name, donor_phone, 
+                            amount, method, reference, notes, 
+                            status, source, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'donor_portal', NOW())
+                    ");
+                    $insert_stmt->bind_param(
+                        'issdssss',
+                        $donor['id'],
+                        $donor['name'],
+                        $donor['phone'],
+                        $payment_amount,
+                        $payment_method,
+                        $reference,
+                        $notes
+                    );
+                    $entity_type = 'payment';
+                }
+
                 $insert_stmt->execute();
                 $payment_id = $db->insert_id;
                 
                 // Audit log
                 $audit_data = json_encode([
                     'payment_id' => $payment_id,
+                    'pledge_id' => $pledge_id,
                     'amount' => $payment_amount,
                     'method' => $payment_method,
                     'reference' => $reference,
                     'donor_id' => $donor['id'],
-                    'donor_name' => $donor['name']
+                    'donor_name' => $donor['name'],
+                    'proof_file' => $payment_proof
                 ], JSON_UNESCAPED_SLASHES);
+                
                 $audit_stmt = $db->prepare("
                     INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
-                    VALUES(?, 'payment', ?, 'create_pending', ?, 'donor_portal')
+                    VALUES(?, ?, ?, 'create_pending', ?, 'donor_portal')
                 ");
                 $user_id = 0; // System/Donor portal
-                $audit_stmt->bind_param('iis', $user_id, $payment_id, $audit_data);
+                $audit_stmt->bind_param('isis', $user_id, $entity_type, $payment_id, $audit_data);
                 $audit_stmt->execute();
                 
                 $db->commit();
@@ -213,7 +325,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
             } catch (Exception $e) {
                 $db->rollback();
+                // Cleanup uploaded file
+                if ($payment_proof && file_exists(__DIR__ . '/../' . $payment_proof)) {
+                    unlink(__DIR__ . '/../' . $payment_proof);
+                }
                 $error_message = 'An error occurred while submitting your payment. Please try again or contact support.';
+                error_log('Payment submission error: ' . $e->getMessage());
             }
         }
     }
@@ -274,10 +391,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                         <p class="mb-0">You have completed all your payments!</p>
                                     </div>
                                 <?php else: ?>
-                                    <form method="POST" id="paymentForm">
+                            <form method="POST" id="paymentForm" enctype="multipart/form-data">
                                         <?php echo csrf_input(); ?>
                                         <input type="hidden" name="action" value="submit_payment">
                                         
+                                        <!-- Pledge Selection -->
+                                        <?php if (!empty($active_pledges)): ?>
+                                            <div class="mb-4">
+                                                <label class="form-label fw-bold mb-2">
+                                                    <i class="fas fa-list-ul me-2"></i>Select Pledge <span class="text-danger">*</span>
+                                                </label>
+                                                <div class="table-responsive border rounded">
+                                                    <table class="table table-hover align-middle mb-0">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th width="40"></th>
+                                                                <th>Pledge Date</th>
+                                                                <th class="text-end">Amount</th>
+                                                                <th class="text-end">Remaining</th>
+                                                                <th class="d-none d-md-table-cell">Notes</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <?php foreach ($active_pledges as $index => $pledge): ?>
+                                                                <tr class="pledge-row <?php echo $index === 0 ? 'table-active' : ''; ?>" 
+                                                                    onclick="selectPledge(<?php echo $pledge['id']; ?>, <?php echo $pledge['remaining']; ?>)">
+                                                                    <td class="text-center">
+                                                                        <input type="radio" name="pledge_id" value="<?php echo $pledge['id']; ?>" 
+                                                                               id="pledge_<?php echo $pledge['id']; ?>" 
+                                                                               class="form-check-input" 
+                                                                               <?php echo $index === 0 ? 'checked' : ''; ?>>
+                                                                    </td>
+                                                                    <td><?php echo htmlspecialchars($pledge['date']); ?></td>
+                                                                    <td class="text-end">£<?php echo number_format($pledge['amount'], 2); ?></td>
+                                                                    <td class="text-end fw-bold text-danger">£<?php echo number_format($pledge['remaining'], 2); ?></td>
+                                                                    <td class="d-none d-md-table-cell small text-muted"><?php echo htmlspecialchars($pledge['notes'] ?? '-'); ?></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="form-text">Select the pledge you wish to pay towards.</div>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i> No active pledges found.
+                                            </div>
+                                            <!-- Allow general payment if no pledges? Or block? For now, assuming pledge-based flow. -->
+                                            <input type="hidden" name="pledge_id" value="0"> 
+                                        <?php endif; ?>
+
                                         <!-- Payment Amount -->
                                         <div class="mb-4">
                                             <label class="form-label fw-bold">
@@ -289,15 +452,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                        class="form-control" 
                                                        name="payment_amount" 
                                                        id="payment_amount"
-                                                       value="<?php echo number_format($amount_due, 2, '.', ''); ?>"
+                                                       value="<?php echo !empty($active_pledges) ? number_format($active_pledges[0]['remaining'], 2, '.', '') : number_format($amount_due, 2, '.', ''); ?>"
                                                        min="0.01" 
-                                                       max="<?php echo $donor['balance']; ?>"
+                                                       max="<?php echo !empty($active_pledges) ? $active_pledges[0]['remaining'] : $donor['balance']; ?>"
                                                        step="0.01"
                                                        required>
                                             </div>
                                             <div class="form-text">
-                                                <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="setAmount(<?php echo $amount_due; ?>)">
-                                                    Pay Full Amount (£<?php echo number_format($donor['balance'], 2); ?>)
+                                                <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnPayFull" 
+                                                        onclick="setAmount(<?php echo !empty($active_pledges) ? $active_pledges[0]['remaining'] : $amount_due; ?>)">
+                                                    Pay Full Amount (£<span id="maxAmountLabel"><?php echo !empty($active_pledges) ? number_format($active_pledges[0]['remaining'], 2) : number_format($donor['balance'], 2); ?></span>)
                                                 </button>
                                                 <?php if ($donor['has_active_plan'] && $amount_due < $donor['balance']): ?>
                                                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAmount(<?php echo $amount_due; ?>)">
@@ -417,6 +581,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                             <div class="form-text">Include a reference number if available (transaction ID, receipt number, etc.)</div>
                                         </div>
 
+                                        <!-- Payment Proof -->
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">
+                                                <i class="fas fa-paperclip me-2"></i>Payment Proof <span class="text-muted fw-normal">(Optional)</span>
+                                            </label>
+                                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
+                                            <div class="form-text">Upload a receipt or screenshot of your payment (JPG, PNG, PDF, Max 5MB).</div>
+                                        </div>
+
                                         <!-- Notes -->
                                         <div class="mb-4">
                                             <label class="form-label fw-bold">
@@ -496,6 +669,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <script>
 function setAmount(amount) {
     document.getElementById('payment_amount').value = amount.toFixed(2);
+}
+
+function selectPledge(id, remaining) {
+    // Check radio button
+    document.getElementById('pledge_' + id).checked = true;
+    
+    // Update row styling
+    document.querySelectorAll('.pledge-row').forEach(row => row.classList.remove('table-active'));
+    document.getElementById('pledge_' + id).closest('tr').classList.add('table-active');
+    
+    // Update amount fields
+    const amountInput = document.getElementById('payment_amount');
+    amountInput.value = remaining.toFixed(2);
+    amountInput.max = remaining.toFixed(2);
+    
+    // Update helper buttons
+    const payFullBtn = document.getElementById('btnPayFull');
+    const maxLabel = document.getElementById('maxAmountLabel');
+    
+    if (payFullBtn && maxLabel) {
+        maxLabel.textContent = remaining.toFixed(2);
+        payFullBtn.onclick = function() { setAmount(remaining); };
+    }
 }
 
 // Page-specific behaviour for Make Payment
