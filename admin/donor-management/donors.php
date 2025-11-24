@@ -4,8 +4,7 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
-// Note: Both admins and agents (registrars) can access this page
-// Agents will only see donors assigned to them, admins see all donors
+require_admin();
 
 // Resiliently load settings and check for DB errors
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
@@ -315,21 +314,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
     }
 }
 
-// Get donors list with payment plan details
+// Get donors list with payment plan details (filtered by assigned agent)
 $donors = [];
 try {
-    // Build WHERE clause based on user role
-    // If user is not a full admin, only show donors assigned to them
-    $where_clause = "";
-    $user_role = $current_user['role'] ?? 'registrar';
     $user_id = (int)$current_user['id'];
     
-    // Only full admins see all donors, everyone else sees only their assigned donors
-    if ($user_role !== 'admin') {
-        $where_clause = "WHERE d.agent_id = {$user_id}";
-    }
-    
-    $donors_query = "
+    $stmt = $db->prepare("
         SELECT 
             d.id, d.name, d.phone, d.email, d.city, d.baptism_name, d.church_id,
             d.preferred_language, d.preferred_payment_method, d.source, 
@@ -356,11 +346,13 @@ try {
         LEFT JOIN churches c ON d.church_id = c.id
         LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id AND pp.status = 'active'
         LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
-        {$where_clause}
+        WHERE d.agent_id = ?
         ORDER BY d.created_at DESC
-    ";
+    ");
     
-    $donors_result = $db->query($donors_query);
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $donors_result = $stmt->get_result();
     
     if ($donors_result) {
         $donors = $donors_result->fetch_all(MYSQLI_ASSOC);
@@ -510,18 +502,6 @@ unset($donor); // Break reference
                 <?php include '../includes/db_error_banner.php'; ?>
                 
 
-                <?php if ($user_role !== 'admin'): ?>
-                <div class="alert alert-info border-0 shadow-sm mb-3">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-info-circle me-2 fs-4"></i>
-                        <div>
-                            <strong>Viewing Your Assigned Donors</strong>
-                            <p class="mb-0 small">You are viewing only the donors that have been assigned to you. Admins can assign more donors to you from the <a href="../call-center/assign-donors.php" class="alert-link">Assign Donors</a> page.</p>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-
                 <!-- Stats Cards -->
                 <div class="row g-4 mb-4">
                     <div class="col-12 col-sm-6 col-lg-3">
@@ -531,9 +511,9 @@ unset($donor); // Break reference
                             </div>
                             <div class="stat-content">
                                 <h3 class="stat-value"><?php echo number_format($total_donors); ?></h3>
-                                <p class="stat-label"><?php echo $user_role === 'admin' ? 'Total Donors' : 'Assigned to Me'; ?></p>
+                                <p class="stat-label">Total Donors</p>
                                 <div class="stat-trend text-muted">
-                                    <i class="fas fa-<?php echo $user_role === 'admin' ? 'database' : 'user-check'; ?>"></i> <?php echo $user_role === 'admin' ? 'In system' : 'My list'; ?>
+                                    <i class="fas fa-database"></i> In system
                                 </div>
                             </div>
                         </div>
@@ -591,13 +571,7 @@ unset($donor); // Break reference
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h5 class="mb-0">
                                 <i class="fas fa-table me-2 text-primary"></i>
-                                <?php 
-                                if ($user_role === 'admin') {
-                                    echo 'All Donors';
-                                } else {
-                                    echo 'My Assigned Donors';
-                                }
-                                ?>
+                                My Assigned Donors
                             </h5>
                             <button class="btn btn-sm btn-outline-primary" id="toggleFilter" type="button">
                                 <i class="fas fa-filter me-1"></i>Filters

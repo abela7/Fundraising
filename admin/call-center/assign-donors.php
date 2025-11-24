@@ -149,29 +149,29 @@ try {
 
     // Build WHERE clause for filters
     $where_conditions = [];
-    $params = [];
+$params = [];
     $types = '';
-    
+
     if (!empty($filter_search)) {
         $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ?)";
         $search_param = "%{$filter_search}%";
-        $params[] = $search_param;
-        $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
         $types .= 'ss';
-    }
-    
+}
+
     if ($filter_min_pledge !== null) {
         $where_conditions[] = "COALESCE(d.total_pledged, 0) >= ?";
         $params[] = $filter_min_pledge;
         $types .= 'd';
-    }
-    
+}
+
     if ($filter_max_pledge !== null) {
         $where_conditions[] = "COALESCE(d.total_pledged, 0) <= ?";
         $params[] = $filter_max_pledge;
         $types .= 'd';
-    }
-    
+}
+
     if ($filter_min_balance !== null) {
         $where_conditions[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) >= ?";
         $params[] = $filter_min_balance;
@@ -182,8 +182,8 @@ try {
         $where_conditions[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) <= ?";
         $params[] = $filter_max_balance;
         $types .= 'd';
-    }
-    
+}
+
     if ($filter_registrar !== null) {
         $where_conditions[] = "(d.id IN (
             SELECT DISTINCT donor_id FROM pledges WHERE created_by_user_id = ? AND donor_id IS NOT NULL
@@ -193,8 +193,8 @@ try {
         $params[] = $filter_registrar;
         $params[] = $filter_registrar;
         $types .= 'ii';
-    }
-    
+}
+
     if ($filter_donation_type === 'pledge') {
         $where_conditions[] = "d.id IN (SELECT DISTINCT donor_id FROM pledges WHERE donor_id IS NOT NULL)";
     } elseif ($filter_donation_type === 'payment') {
@@ -205,7 +205,7 @@ try {
         $where_conditions[] = "d.agent_id IS NOT NULL";
     } elseif ($filter_assignment === 'unassigned') {
         $where_conditions[] = "d.agent_id IS NULL";
-    }
+}
 
     // Get donors by agent (with filters)
     foreach ($agents as $agent) {
@@ -217,7 +217,7 @@ try {
             COALESCE(d.total_pledged, 0) as total_pledged,
             COALESCE(d.total_paid, 0) as total_paid,
             (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
-            FROM donors d
+    FROM donors d
             WHERE " . implode(" AND ", $agent_where) . "
             ORDER BY {$order_by_clause}";
         
@@ -587,7 +587,7 @@ try {
         .stat-card:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
-        }
+            }
 
         /* Responsive Design */
         @media (max-width: 768px) {
@@ -829,19 +829,19 @@ try {
                             <i class="fas fa-user-check text-success"></i>
                             <span class="fw-bold"><?php echo number_format($assigned_count); ?></span>
                             <small class="text-muted">Assigned</small>
+                    </div>
+                </div>
                                 </div>
-                            </div>
-                        </div>
                 <div class="col-auto">
                     <div class="stat-card" style="border-left-color: #ffc107; padding: 10px 16px;">
                         <div class="d-flex align-items-center gap-2">
                             <i class="fas fa-user-slash text-warning"></i>
                             <span class="fw-bold"><?php echo number_format($unassigned_count); ?></span>
                             <small class="text-muted">Unassigned</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
             <!-- Filter Toggle Button -->
             <?php
@@ -880,7 +880,7 @@ try {
                                 <input type="text" name="search" class="form-control" 
                                        value="<?php echo htmlspecialchars($filter_search); ?>" 
                                        placeholder="Enter name or phone number">
-                            </div>
+                        </div>
 
                             <!-- Assignment Status -->
                             <div class="col-md-6">
@@ -888,12 +888,12 @@ try {
                                     <i class="fas fa-user-check"></i>
                                     Assignment Status
                                 </label>
-                                <select name="assignment" class="form-select">
+                            <select name="assignment" class="form-select">
                                     <option value="all" <?php echo $filter_assignment === 'all' ? 'selected' : ''; ?>>All Donors</option>
                                     <option value="assigned" <?php echo $filter_assignment === 'assigned' ? 'selected' : ''; ?>>Assigned Only</option>
                                     <option value="unassigned" <?php echo $filter_assignment === 'unassigned' ? 'selected' : ''; ?>>Unassigned Only</option>
-                                </select>
-                            </div>
+                            </select>
+                        </div>
 
                             <!-- Donation Type -->
                             <div class="col-md-6">
@@ -905,8 +905,8 @@ try {
                                     <option value="all" <?php echo $filter_donation_type === 'all' ? 'selected' : ''; ?>>All Types</option>
                                     <option value="pledge" <?php echo $filter_donation_type === 'pledge' ? 'selected' : ''; ?>>Pledges Only</option>
                                     <option value="payment" <?php echo $filter_donation_type === 'payment' ? 'selected' : ''; ?>>Payments Only</option>
-                                </select>
-                            </div>
+                            </select>
+                        </div>
 
                             <!-- Registrar Filter -->
                             <div class="col-md-6">
@@ -920,11 +920,11 @@ try {
                                         <?php foreach ($registrars as $registrar): ?>
                                             <option value="<?php echo $registrar['id']; ?>" <?php echo $filter_registrar == $registrar['id'] ? 'selected' : ''; ?>>
                                                 <?php echo htmlspecialchars($registrar['name']); ?>
-                                            </option>
+                                </option>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
-                                </select>
-                            </div>
+                            </select>
+                        </div>
 
                             <!-- Pledge Amount Range -->
                             <div class="col-md-6">
@@ -935,7 +935,7 @@ try {
                                 <input type="number" name="min_pledge" class="form-control" 
                                        value="<?php echo $filter_min_pledge !== null ? $filter_min_pledge : ''; ?>" 
                                        placeholder="e.g., 400.00" step="0.01" min="0">
-                            </div>
+                        </div>
 
                             <div class="col-md-6">
                                 <label class="form-label">
@@ -973,7 +973,7 @@ try {
                                 <div class="d-flex gap-2 flex-wrap">
                                     <button type="submit" class="btn btn-primary btn-modern">
                                         <i class="fas fa-check me-1"></i>Apply Filters
-                                    </button>
+                            </button>
                                     <a href="assign-donors.php" class="btn btn-outline-secondary btn-modern">
                                         <i class="fas fa-times me-1"></i>Clear All
                                     </a>
@@ -1220,8 +1220,8 @@ try {
                         </div>
                     <?php endif; ?>
                 </div>
-                            </div>
-                        </div>
+                    </div>
+                </div>
                         <?php 
                             endforeach;
                         }
@@ -1272,7 +1272,7 @@ try {
                                                                     <?php foreach ($agents as $agent): ?>
                                                                         <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
                                                                     <?php endforeach; ?>
-                            <?php endif; ?>
+                <?php endif; ?>
                                                             </select>
                                                             <button type="submit" name="assign" class="btn btn-sm btn-primary btn-modern">
                                                                 <i class="fas fa-user-plus me-1"></i>Assign
@@ -1283,13 +1283,13 @@ try {
                                                 <?php endforeach; ?>
                                             </tbody>
                                         </table>
-                                    </div>
-                                </div>
-                    </div>
-                </div>
+            </div>
+    </div>
+</div>
+            </div>
                 <?php endif; ?>
-                    </div>
                 </div>
+            </div>
             </div>
         </main>
     </div>
@@ -1339,8 +1339,8 @@ function toggleSelectAllAgent(agentId) {
     
     checkboxes.forEach(cb => cb.checked = checked);
     updateBulkBar();
-    }
-    
+}
+
 function toggleSelectAllUnassigned() {
     const accordion = document.getElementById('collapseUnassigned');
     if (!accordion) return;
@@ -1431,7 +1431,7 @@ function bulkUnassign() {
 // Toggle filter chevron icon
 const filterPanel = document.getElementById('filterPanel');
 const filterChevron = document.getElementById('filterChevron');
-
+    
 if (filterPanel && filterChevron) {
     filterPanel.addEventListener('show.bs.collapse', function () {
         filterChevron.classList.remove('fa-chevron-down');
