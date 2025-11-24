@@ -13,9 +13,36 @@ $is_admin = ($user_role === 'admin');
 $page_title = 'Call Center Reports';
 
 // Initialize Filters
-$date_from = $_GET['date_from'] ?? date('Y-m-d'); // Default to today
-$date_to = $_GET['date_to'] ?? date('Y-m-d');     // Default to today
+$quick_filter = $_GET['quick'] ?? 'today'; // today, week, month, all
 $agent_id = isset($_GET['agent_id']) ? (int)$_GET['agent_id'] : ($is_admin ? 0 : $current_user_id); // 0 = All Agents (Admin only)
+
+// Calculate date range based on quick filter
+switch ($quick_filter) {
+    case 'week':
+        $date_from = date('Y-m-d', strtotime('monday this week'));
+        $date_to = date('Y-m-d', strtotime('sunday this week'));
+        break;
+    case 'month':
+        $date_from = date('Y-m-01');
+        $date_to = date('Y-m-t');
+        break;
+    case 'all':
+        $date_from = '2000-01-01'; // Far past date
+        $date_to = date('Y-m-d');
+        break;
+    case 'today':
+    default:
+        $date_from = date('Y-m-d');
+        $date_to = date('Y-m-d');
+        break;
+}
+
+// Allow custom date override
+if (isset($_GET['date_from']) && isset($_GET['date_to'])) {
+    $date_from = $_GET['date_from'];
+    $date_to = $_GET['date_to'];
+    $quick_filter = 'custom';
+}
 
 // Restrict non-admins to their own data
 if (!$is_admin && $agent_id !== $current_user_id) {
@@ -219,6 +246,30 @@ $success_rate = $stats['total_calls'] > 0
             margin-bottom: 2rem;
         }
         
+        /* Quick Filter Buttons */
+        .btn-group {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+        
+        .btn-group .btn {
+            font-size: 0.875rem;
+            padding: 0.5rem 0.75rem;
+            white-space: nowrap;
+        }
+        
+        @media (max-width: 576px) {
+            .btn-group {
+                flex-wrap: wrap;
+            }
+            
+            .btn-group .btn {
+                flex: 1 1 calc(50% - 0.25rem);
+                margin-bottom: 0.5rem;
+                font-size: 0.8125rem;
+            }
+        }
+        
         /* Mobile Responsive Adjustments */
         @media (max-width: 768px) {
             .report-value {
@@ -245,7 +296,32 @@ $success_rate = $stats['total_calls'] > 0
                         <h1 class="h3 fw-bold text-primary mb-1">
                             <i class="fas fa-chart-pie me-2"></i>Call Center Reports
                         </h1>
-                        <p class="text-muted mb-0">Performance metrics and analytics</p>
+                        <p class="text-muted mb-0">
+                            <?php 
+                            $period_label = match($quick_filter) {
+                                'week' => 'This Week',
+                                'month' => 'This Month',
+                                'all' => 'All Time',
+                                'custom' => date('M j', strtotime($date_from)) . ' - ' . date('M j, Y', strtotime($date_to)),
+                                default => 'Today'
+                            };
+                            echo $period_label;
+                            ?>
+                            <?php if ($is_admin && $agent_id > 0): ?>
+                                <?php 
+                                $agent_name = 'Unknown Agent';
+                                foreach ($agents as $agent) {
+                                    if ($agent['id'] == $agent_id) {
+                                        $agent_name = $agent['name'];
+                                        break;
+                                    }
+                                }
+                                ?>
+                                · <?php echo htmlspecialchars($agent_name); ?>
+                            <?php elseif ($is_admin): ?>
+                                · All Agents
+                            <?php endif; ?>
+                        </p>
                     </div>
                     <div>
                         <a href="index.php" class="btn btn-outline-secondary">
@@ -256,13 +332,37 @@ $success_rate = $stats['total_calls'] > 0
 
                 <!-- Filters -->
                 <div class="filter-card">
+                    <!-- Quick Filters -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small mb-2">Quick Filters</label>
+                        <div class="btn-group w-100" role="group">
+                            <a href="?quick=today<?php echo $is_admin && $agent_id > 0 ? '&agent_id=' . $agent_id : ''; ?>" 
+                               class="btn <?php echo $quick_filter === 'today' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+                                <i class="fas fa-calendar-day me-1"></i>Today
+                            </a>
+                            <a href="?quick=week<?php echo $is_admin && $agent_id > 0 ? '&agent_id=' . $agent_id : ''; ?>" 
+                               class="btn <?php echo $quick_filter === 'week' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+                                <i class="fas fa-calendar-week me-1"></i>This Week
+                            </a>
+                            <a href="?quick=month<?php echo $is_admin && $agent_id > 0 ? '&agent_id=' . $agent_id : ''; ?>" 
+                               class="btn <?php echo $quick_filter === 'month' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+                                <i class="fas fa-calendar-alt me-1"></i>This Month
+                            </a>
+                            <a href="?quick=all<?php echo $is_admin && $agent_id > 0 ? '&agent_id=' . $agent_id : ''; ?>" 
+                               class="btn <?php echo $quick_filter === 'all' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+                                <i class="fas fa-infinity me-1"></i>All Time
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Range -->
                     <form method="GET" class="row g-3 align-items-end">
                         <div class="col-12 col-md-3">
-                            <label class="form-label fw-bold text-secondary small">Date From</label>
+                            <label class="form-label fw-bold text-secondary small">Custom Date From</label>
                             <input type="date" name="date_from" class="form-control" value="<?php echo htmlspecialchars($date_from); ?>">
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label fw-bold text-secondary small">Date To</label>
+                            <label class="form-label fw-bold text-secondary small">Custom Date To</label>
                             <input type="date" name="date_to" class="form-control" value="<?php echo htmlspecialchars($date_to); ?>">
                         </div>
                         
@@ -281,8 +381,8 @@ $success_rate = $stats['total_calls'] > 0
                         <?php endif; ?>
                         
                         <div class="col-12 col-md-3">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter me-2"></i>Update Report
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-search me-2"></i>Apply Custom Range
                             </button>
                         </div>
                     </form>
