@@ -134,9 +134,14 @@ try {
     }
     
     if ($filter_registrar !== null) {
-        $where_conditions[] = "d.registered_by_user_id = ?";
+        $where_conditions[] = "(d.id IN (
+            SELECT DISTINCT donor_id FROM pledges WHERE created_by_user_id = ? AND donor_id IS NOT NULL
+            UNION
+            SELECT DISTINCT donor_id FROM payments WHERE received_by_user_id = ? AND donor_id IS NOT NULL
+        ))";
         $params[] = $filter_registrar;
-        $types .= 'i';
+        $params[] = $filter_registrar;
+        $types .= 'ii';
     }
     
     if ($filter_assignment === 'assigned') {
