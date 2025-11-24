@@ -1295,11 +1295,15 @@ function formatDateTime($date) {
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="donor_id" id="editAssignmentDonorId" value="<?php echo $donor_id; ?>">
                 <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small>You can update church/representative, agent, or all at once. Leave fields empty to keep current values.</small>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Church <span class="text-danger">*</span></label>
-                            <select class="form-select" name="church_id" id="editAssignmentChurchId" required>
-                                <option value="">-- Select Church --</option>
+                            <label class="form-label">Church</label>
+                            <select class="form-select" name="church_id" id="editAssignmentChurchId">
+                                <option value="">-- Keep Current / No Change --</option>
                                 <?php
                                 // Fetch all churches
                                 $churches_query = "SELECT id, name, city FROM churches ORDER BY city ASC, name ASC";
@@ -1312,14 +1316,15 @@ function formatDateTime($date) {
                                 </option>
                                 <?php endwhile; ?>
                             </select>
+                            <small class="text-muted">Optional: Leave empty to keep current church</small>
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Representative <span class="text-danger">*</span></label>
-                            <select class="form-select" name="representative_id" id="editAssignmentRepId" required>
-                                <option value="">-- Select Church First --</option>
+                            <label class="form-label">Representative</label>
+                            <select class="form-select" name="representative_id" id="editAssignmentRepId">
+                                <option value="">-- Keep Current / No Change --</option>
                             </select>
-                            <small class="text-muted">Select a church first to load representatives</small>
+                            <small class="text-muted">Optional: Select a church first to load representatives</small>
                         </div>
                         
                         <div class="col-12">
@@ -1477,7 +1482,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (churchSelect) {
         churchSelect.addEventListener('change', function() {
             const churchId = this.value;
-            loadRepresentatives(churchId);
+            if (churchId) {
+                loadRepresentatives(churchId);
+            } else {
+                // Clear representatives if no church selected
+                const repSelect = document.getElementById('editAssignmentRepId');
+                repSelect.innerHTML = '<option value="">-- Keep Current / No Change --</option>';
+            }
         });
     }
 });
@@ -1487,14 +1498,14 @@ function loadRepresentatives(churchId) {
     repSelect.innerHTML = '<option value="">-- Loading --</option>';
     
     if (!churchId) {
-        repSelect.innerHTML = '<option value="">-- Select Church First --</option>';
+        repSelect.innerHTML = '<option value="">-- Keep Current / No Change --</option>';
         return;
     }
     
     fetch('../church-management/get-representatives.php?church_id=' + churchId)
         .then(response => response.json())
         .then(data => {
-            repSelect.innerHTML = '<option value="">-- Select Representative --</option>';
+            repSelect.innerHTML = '<option value="">-- Keep Current / No Change --</option>';
             if (data.representatives && data.representatives.length > 0) {
                 data.representatives.forEach(rep => {
                     const option = document.createElement('option');
@@ -1503,12 +1514,16 @@ function loadRepresentatives(churchId) {
                     repSelect.appendChild(option);
                 });
             } else {
-                repSelect.innerHTML = '<option value="">No representatives found</option>';
+                // No representatives found - still allow keeping current
+                const noRepsOption = document.createElement('option');
+                noRepsOption.disabled = true;
+                noRepsOption.textContent = 'No representatives found for this church';
+                repSelect.appendChild(noRepsOption);
             }
         })
         .catch(error => {
             console.error('Error loading representatives:', error);
-            repSelect.innerHTML = '<option value="">Error loading representatives</option>';
+            repSelect.innerHTML = '<option value="">-- Keep Current / No Change --</option><option disabled>Error loading representatives</option>';
         });
 }
 </script>

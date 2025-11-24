@@ -629,7 +629,7 @@ unset($donor); // Break reference
                     <div id="filterPanel" class="border-bottom" style="display: none;">
                         <div class="p-3 bg-light">
                             <form method="GET" action="donors.php">
-                                <div class="row g-2">
+                            <div class="row g-2">
                                     <div class="col-12 col-sm-6 col-lg-4">
                                         <label class="form-label small fw-bold mb-1">
                                             <i class="fas fa-user-tie me-1"></i>Assigned Agent
@@ -647,50 +647,50 @@ unset($donor); // Break reference
                                         </select>
                                     </div>
                                     
-                                    <div class="col-12 col-sm-6 col-lg-3">
-                                        <label class="form-label small fw-bold mb-1">Donor Type</label>
-                                        <select class="form-select form-select-sm" id="filter_donor_type">
-                                            <option value="">All Types</option>
-                                            <option value="pledge">Pledge Donors</option>
-                                            <option value="immediate">Immediate Payers</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="col-12 col-sm-6 col-lg-3">
-                                        <label class="form-label small fw-bold mb-1">Payment Status</label>
-                                        <select class="form-select form-select-sm" id="filter_payment_status">
-                                            <option value="">All Statuses</option>
-                                            <option value="no_pledge">No Pledge</option>
-                                            <option value="not_started">Not Started</option>
-                                            <option value="paying">Paying</option>
-                                            <option value="overdue">Overdue</option>
-                                            <option value="completed">Completed</option>
-                                            <option value="defaulted">Defaulted</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="col-12 col-sm-6 col-lg-2">
-                                        <label class="form-label small fw-bold mb-1">Payment Method</label>
-                                        <select class="form-select form-select-sm" id="filter_payment_method">
-                                            <option value="">All Methods</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="cash">Cash</option>
-                                            <option value="card">Card</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="col-12 mt-2">
-                                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1">Donor Type</label>
+                                    <select class="form-select form-select-sm" id="filter_donor_type">
+                                        <option value="">All Types</option>
+                                        <option value="pledge">Pledge Donors</option>
+                                        <option value="immediate">Immediate Payers</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1">Payment Status</label>
+                                    <select class="form-select form-select-sm" id="filter_payment_status">
+                                        <option value="">All Statuses</option>
+                                        <option value="no_pledge">No Pledge</option>
+                                        <option value="not_started">Not Started</option>
+                                        <option value="paying">Paying</option>
+                                        <option value="overdue">Overdue</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="defaulted">Defaulted</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12 col-sm-6 col-lg-2">
+                                    <label class="form-label small fw-bold mb-1">Payment Method</label>
+                                    <select class="form-select form-select-sm" id="filter_payment_method">
+                                        <option value="">All Methods</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-12 mt-2">
+                                    <div class="d-flex flex-wrap gap-2 align-items-center">
                                             <button type="submit" class="btn btn-sm btn-primary">
                                                 <i class="fas fa-check me-1"></i>Apply
-                                            </button>
+                                        </button>
                                             <a href="donors.php" class="btn btn-sm btn-danger">
                                                 <i class="fas fa-times me-1"></i>Clear All
                                             </a>
-                                            <span class="text-muted small" id="filterResultCount"></span>
-                                        </div>
+                                        <span class="text-muted small" id="filterResultCount"></span>
                                     </div>
                                 </div>
+                            </div>
                             </form>
                         </div>
                     </div>
