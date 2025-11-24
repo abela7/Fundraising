@@ -782,11 +782,22 @@ function formatDateTime($date) {
                                                     <td data-label="Actions">
                                                         <?php if (isset($pay['payment_type']) && $pay['payment_type'] === 'pledge'): ?>
                                                             <!-- Pledge payments are managed through review-pledge-payments.php -->
-                                                            <a href="../donations/review-pledge-payments.php?filter=all" 
-                                                               class="btn btn-sm btn-outline-info" 
-                                                               title="View in Payment Review">
-                                                                <i class="fas fa-eye"></i>
-                                                            </a>
+                                                            <div class="d-flex gap-1">
+                                                                <a href="../donations/review-pledge-payments.php?filter=all" 
+                                                                   class="btn btn-sm btn-outline-info" 
+                                                                   title="View in Payment Review">
+                                                                    <i class="fas fa-eye"></i>
+                                                                </a>
+                                                                <?php if ($pay['status'] === 'voided'): ?>
+                                                                    <!-- Only allow deletion of voided pledge payments -->
+                                                                    <button type="button" 
+                                                                            class="btn btn-sm btn-danger" 
+                                                                            onclick="deletePledgePayment(<?php echo $pay['id']; ?>, <?php echo $donor_id; ?>)"
+                                                                            title="Delete Voided Payment">
+                                                                        <i class="fas fa-trash-alt"></i>
+                                                                    </button>
+                                                                <?php endif; ?>
+                                                            </div>
                                                         <?php else: ?>
                                                             <!-- Instant payments can be edited/deleted here -->
                                                             <div class="d-flex gap-1">
@@ -1624,6 +1635,40 @@ function loadRepresentatives(churchId) {
             console.error('Error loading representatives:', error);
             repSelect.innerHTML = '<option value="">-- Keep Current / No Change --</option><option disabled>Error loading representatives</option>';
         });
+}
+
+// Delete Pledge Payment (only for voided payments)
+function deletePledgePayment(paymentId, donorId) {
+    if (!confirm('⚠️ PERMANENT DELETION\n\nAre you sure you want to permanently delete this voided payment record?\n\nThis action cannot be undone!\n\nThe payment record will be completely removed from the database.')) {
+        return;
+    }
+    
+    // Second confirmation for safety
+    if (!confirm('Final confirmation: Delete payment #' + paymentId + '?\n\nClick OK to proceed with deletion.')) {
+        return;
+    }
+    
+    fetch('../donations/delete-pledge-payment.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            payment_id: paymentId,
+            donor_id: donorId
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            alert('✅ Payment deleted successfully!');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + res.message);
+        }
+    })
+    .catch(err => {
+        console.error('Delete error:', err);
+        alert('❌ Failed to delete payment. Please try again.');
+    });
 }
 </script>
 <script>
