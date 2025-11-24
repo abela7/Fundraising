@@ -137,62 +137,45 @@ try {
             --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
         }
 
-        /* Modern Bulk Actions Bar - Floating */
+        /* Bulk Actions Bar - Sticky Top */
         .bulk-actions-bar {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            z-index: 1050;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 16px 24px;
+            position: sticky;
+            top: 70px;
+            z-index: 100;
+            background: white;
+            border: 1px solid #dee2e6;
             border-radius: var(--border-radius);
-            box-shadow: var(--shadow-lg);
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            min-width: 90%;
-            max-width: 600px;
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+            display: none;
+            transition: all 0.3s ease;
         }
 
         .bulk-actions-bar.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            display: block;
         }
 
         .bulk-actions-bar .badge-count {
-            background: rgba(255,255,255,0.2);
+            background: #0d6efd;
             color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
+            padding: 6px 12px;
+            border-radius: 6px;
             font-weight: 600;
             font-size: 0.875rem;
         }
 
-        .bulk-actions-bar select,
-        .bulk-actions-bar button {
-            border: none;
-            border-radius: 8px;
-            font-weight: 500;
-        }
-
         .bulk-actions-bar select {
-            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
             padding: 8px 12px;
-            min-width: 180px;
+            min-width: 200px;
         }
 
         .bulk-actions-bar button {
-            padding: 8px 20px;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .bulk-actions-bar button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
         }
 
         /* Modern Card Design */
@@ -365,22 +348,28 @@ try {
         /* Responsive Design */
         @media (max-width: 768px) {
             .bulk-actions-bar {
-                bottom: 10px;
-                left: 10px;
-                right: 10px;
-                transform: translateX(0) translateY(100px);
-                max-width: none;
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .bulk-actions-bar.show {
-                transform: translateX(0) translateY(0);
+                top: 56px;
+                padding: 12px 16px;
             }
 
             .bulk-actions-bar > div {
                 flex-direction: column;
-                gap: 8px;
+                align-items: stretch !important;
+                gap: 12px;
+            }
+
+            .bulk-actions-bar .d-flex {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+
+            .bulk-actions-bar select {
+                width: 100%;
+                min-width: auto;
+            }
+
+            .bulk-actions-bar button {
+                width: 100%;
             }
 
             .table-modern {
@@ -563,32 +552,36 @@ try {
                 <div class="loading-spinner"></div>
             </div>
 
-            <!-- Bulk Actions Bar - Floating -->
+            <!-- Bulk Actions Bar -->
             <div class="bulk-actions-bar" id="bulkActionsBar">
-                <div class="d-flex align-items-center gap-3 flex-wrap">
-                    <span class="badge-count">
-                        <i class="fas fa-check-circle me-1"></i>
-                        <span id="selectedCount">0</span> selected
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge-count">
+                            <i class="fas fa-check-circle me-1"></i>
+                            <span id="selectedCount">0</span> selected
                         </span>
-                    <select id="bulkAgentSelect" class="form-select form-select-sm">
-                        <option value="0">Select Agent...</option>
-                        <?php if (!empty($agents)): ?>
-                            <?php foreach ($agents as $agent): ?>
-                                <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                        </select>
-                    <button type="button" class="btn btn-sm btn-light" onclick="clearSelection()">
-                        <i class="fas fa-times me-1"></i>Clear
-                    </button>
-                    <button type="button" class="btn btn-sm btn-success btn-modern" onclick="bulkAssign()">
-                        <i class="fas fa-user-plus me-1"></i>Assign
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                            <i class="fas fa-times me-1"></i>Clear
                         </button>
-                    <button type="button" class="btn btn-sm btn-danger btn-modern" onclick="bulkUnassign()">
-                        <i class="fas fa-user-minus me-1"></i>Unassign
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <select id="bulkAgentSelect" class="form-select form-select-sm">
+                            <option value="0">Select Agent...</option>
+                            <?php if (!empty($agents)): ?>
+                                <?php foreach ($agents as $agent): ?>
+                                    <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-success" onclick="bulkAssign()">
+                            <i class="fas fa-user-plus me-1"></i>Assign
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="bulkUnassign()">
+                            <i class="fas fa-user-minus me-1"></i>Unassign
                         </button>
                     </div>
                 </div>
+            </div>
             
             <!-- Tabs -->
             <ul class="nav nav-tabs nav-tabs-modern" id="myTab" role="tablist">
@@ -981,21 +974,6 @@ function bulkUnassign() {
     form.submit();
 }
 
-// Add smooth scroll behavior
-document.addEventListener('DOMContentLoaded', function() {
-    // Smooth scroll to top when bulk actions bar appears
-    const observer = new MutationObserver(function(mutations) {
-        const bar = document.getElementById('bulkActionsBar');
-        if (bar.classList.contains('show')) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    });
-    
-    observer.observe(document.getElementById('bulkActionsBar'), {
-        attributes: true,
-        attributeFilter: ['class']
-    });
-    });
 </script>
 </body>
 </html>
