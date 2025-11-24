@@ -60,6 +60,8 @@ $stats = [
     'outcomes' => []
 ];
 
+$issues_data = [];
+
 try {
     $db = db();
 
@@ -167,6 +169,30 @@ try {
     $stmt->execute();
     $balance_result = $stmt->get_result()->fetch_assoc();
     $stats['outstanding_amount'] = (float)($balance_result['total'] ?? 0);
+    $stmt->close();
+
+    // 5. Fetch Issues (Refused/Invalid Cases)
+    $issues_query = "
+        SELECT 
+            s.id, s.donor_id, s.call_started_at, s.outcome, s.conversation_stage, s.notes,
+            d.name as donor_name, d.phone as donor_phone,
+            u.name as agent_name
+        FROM call_center_sessions s
+        LEFT JOIN donors d ON s.donor_id = d.id
+        LEFT JOIN users u ON s.agent_id = u.id
+        WHERE {$where_sql}
+        AND s.conversation_stage IN ('closed_refused', 'invalid_data')
+        ORDER BY s.call_started_at DESC
+        LIMIT 100
+    ";
+    
+    $stmt = $db->prepare($issues_query);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $issues_res = $stmt->get_result();
+    while ($row = $issues_res->fetch_assoc()) {
+        $issues_data[] = $row;
+    }
     $stmt->close();
 
 } catch (Exception $e) {
@@ -288,6 +314,27 @@ $success_rate = $stats['total_calls'] > 0
             font-size: 0.875rem;
             padding: 0.5rem 0.75rem;
             white-space: nowrap;
+        }
+        
+        /* Tabs Styling */
+        .nav-tabs .nav-link {
+            color: #64748b;
+            font-weight: 600;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 1rem 1.5rem;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #0a6286;
+            border-bottom-color: #0a6286;
+            background: none;
+        }
+        
+        .nav-tabs .nav-link:hover:not(.active) {
+            color: #0a6286;
+            background: #f8fafc;
+            border-bottom-color: #cbd5e1;
         }
         
         @media (max-width: 576px) {
@@ -420,171 +467,262 @@ $success_rate = $stats['total_calls'] > 0
                     </form>
                 </div>
 
-                <!-- Stats Grid -->
-                <div class="row g-3 g-lg-4 mb-4">
-                    <!-- Total Calls -->
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="report-card">
-                            <div class="report-icon icon-primary">
-                                <i class="fas fa-phone-alt"></i>
-                            </div>
-                            <div class="report-value"><?php echo number_format($stats['total_calls']); ?></div>
-                            <div class="report-label">Total Calls</div>
-                        </div>
-                    </div>
+                <!-- Tabs Navigation -->
+                <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                            <i class="fas fa-chart-pie me-2"></i>Performance Overview
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" type="button" role="tab" aria-controls="issues" aria-selected="false">
+                            <i class="fas fa-exclamation-circle me-2 text-danger"></i>Issues & Refusals 
+                            <span class="badge bg-danger rounded-pill ms-1"><?php echo count($issues_data); ?></span>
+                        </button>
+                    </li>
+                </ul>
 
-                    <!-- Success Rate -->
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="report-card">
-                            <div class="report-icon icon-success">
-                                <i class="far fa-check-circle"></i>
-                            </div>
-                            <div class="report-value"><?php echo $success_rate; ?>%</div>
-                            <div class="report-label">Success Rate</div>
-                            <small class="text-muted"><?php echo number_format($stats['successful_calls']); ?> successful</small>
-                        </div>
-                    </div>
-
-                    <!-- Outstanding Balance -->
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="report-card">
-                            <div class="report-icon icon-danger">
-                                <i class="far fa-money-bill-alt"></i>
-                            </div>
-                            <div class="report-value">£<?php echo number_format($stats['outstanding_amount']); ?></div>
-                            <div class="report-label">Outstanding Balance</div>
-                            <small class="text-muted">Assigned donors</small>
-                        </div>
-                    </div>
-
-                    <!-- Talk Time -->
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <div class="report-card">
-                            <div class="report-icon icon-info">
-                                <i class="far fa-clock"></i>
-                            </div>
-                            <div class="report-value" style="font-size: 1.5rem;"><?php echo $formatted_time; ?></div>
-                            <div class="report-label">Total Talk Time</div>
-                            <small class="text-muted">Avg: <?php echo $stats['total_calls'] > 0 ? gmdate("i:s", (int)($stats['total_talk_time'] / $stats['total_calls'])) : '00:00'; ?> / call</small>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row g-3 g-lg-4">
-                    <!-- Call Outcomes Breakdown -->
-                    <div class="col-12 col-lg-6">
-                        <div class="card shadow-sm h-100 border-0">
-                            <div class="card-header bg-white py-3 border-bottom">
-                                <h5 class="mb-0 fw-bold"><i class="fas fa-chart-bar me-2 text-secondary"></i>Outcome Breakdown</h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($stats['outcomes'])): ?>
-                                    <div class="text-center py-5 text-muted">
-                                        <i class="fas fa-chart-simple fa-3x mb-3 opacity-25"></i>
-                                        <p>No data available for selected period</p>
+                <!-- Tab Content -->
+                <div class="tab-content" id="reportTabContent">
+                    
+                    <!-- Overview Tab -->
+                    <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                        <!-- Stats Grid -->
+                        <div class="row g-3 g-lg-4 mb-4">
+                            <!-- Total Calls -->
+                            <div class="col-12 col-sm-6 col-lg-3">
+                                <div class="report-card">
+                                    <div class="report-icon icon-primary">
+                                        <i class="fas fa-phone-alt"></i>
                                     </div>
-                                <?php else: ?>
-                                    <div class="d-flex flex-column gap-3">
-                                        <?php foreach ($stats['outcomes'] as $outcome): 
-                                            $color = 'secondary';
-                                            $icon = 'circle';
-                                            $out_key = $outcome['outcome'] ?? 'unknown';
-                                            
-                                            // Success outcomes - Green
-                                            if (in_array($out_key, ['connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full'])) {
-                                                $color = 'success';
-                                                $icon = 'check-circle';
-                                            } 
-                                            // Positive/Callback outcomes - Info/Blue
-                                            elseif (in_array($out_key, ['callback_requested', 'interested_needs_time', 'callback_scheduled'])) {
-                                                $color = 'info';
-                                                $icon = 'calendar-check';
-                                            } 
-                                            // Busy/Warning outcomes - Warning/Orange
-                                            elseif (in_array($out_key, ['busy_signal', 'not_ready_to_pay'])) {
-                                                $color = 'warning';
-                                                $icon = 'hourglass-half';
-                                            } 
-                                            // No Contact outcomes - Secondary/Gray
-                                            elseif (in_array($out_key, ['no_answer', 'no_connection', 'voicemail_left'])) {
-                                                $color = 'secondary';
-                                                $icon = 'phone-slash';
-                                            } 
-                                            // Negative outcomes - Danger/Red
-                                            elseif (in_array($out_key, ['invalid_number', 'wrong_number', 'network_error', 'number_not_in_service', 'not_interested', 'financial_hardship', 'moved_abroad'])) {
-                                                $color = 'danger';
-                                                $icon = 'times-circle';
-                                            }
-                                        ?>
-                                        <div>
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span class="fw-semibold text-<?php echo $color; ?>">
-                                                    <i class="fas fa-<?php echo $icon; ?> me-2"></i>
-                                                    <?php echo ucwords(str_replace('_', ' ', $out_key)); ?>
-                                                </span>
-                                                <span class="fw-bold"><?php echo number_format($outcome['count']); ?> <small class="text-muted fw-normal">(<?php echo $outcome['percentage']; ?>%)</small></span>
+                                    <div class="report-value"><?php echo number_format($stats['total_calls']); ?></div>
+                                    <div class="report-label">Total Calls</div>
+                                </div>
+                            </div>
+
+                            <!-- Success Rate -->
+                            <div class="col-12 col-sm-6 col-lg-3">
+                                <div class="report-card">
+                                    <div class="report-icon icon-success">
+                                        <i class="far fa-check-circle"></i>
+                                    </div>
+                                    <div class="report-value"><?php echo $success_rate; ?>%</div>
+                                    <div class="report-label">Success Rate</div>
+                                    <small class="text-muted"><?php echo number_format($stats['successful_calls']); ?> successful</small>
+                                </div>
+                            </div>
+
+                            <!-- Outstanding Balance -->
+                            <div class="col-12 col-sm-6 col-lg-3">
+                                <div class="report-card">
+                                    <div class="report-icon icon-danger">
+                                        <i class="far fa-money-bill-alt"></i>
+                                    </div>
+                                    <div class="report-value">£<?php echo number_format($stats['outstanding_amount']); ?></div>
+                                    <div class="report-label">Outstanding Balance</div>
+                                    <small class="text-muted">Assigned donors</small>
+                                </div>
+                            </div>
+
+                            <!-- Talk Time -->
+                            <div class="col-12 col-sm-6 col-lg-3">
+                                <div class="report-card">
+                                    <div class="report-icon icon-info">
+                                        <i class="far fa-clock"></i>
+                                    </div>
+                                    <div class="report-value" style="font-size: 1.5rem;"><?php echo $formatted_time; ?></div>
+                                    <div class="report-label">Total Talk Time</div>
+                                    <small class="text-muted">Avg: <?php echo $stats['total_calls'] > 0 ? gmdate("i:s", (int)($stats['total_talk_time'] / $stats['total_calls'])) : '00:00'; ?> / call</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 g-lg-4">
+                            <!-- Call Outcomes Breakdown -->
+                            <div class="col-12 col-lg-6">
+                                <div class="card shadow-sm h-100 border-0">
+                                    <div class="card-header bg-white py-3 border-bottom">
+                                        <h5 class="mb-0 fw-bold"><i class="fas fa-chart-bar me-2 text-secondary"></i>Outcome Breakdown</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <?php if (empty($stats['outcomes'])): ?>
+                                            <div class="text-center py-5 text-muted">
+                                                <i class="fas fa-chart-simple fa-3x mb-3 opacity-25"></i>
+                                                <p>No data available for selected period</p>
                                             </div>
-                                            <div class="progress progress-custom">
-                                                <div class="progress-bar bg-<?php echo $color; ?>" style="width: <?php echo $outcome['percentage']; ?>%"></div>
+                                        <?php else: ?>
+                                            <div class="d-flex flex-column gap-3">
+                                                <?php foreach ($stats['outcomes'] as $outcome): 
+                                                    $color = 'secondary';
+                                                    $icon = 'circle';
+                                                    $out_key = $outcome['outcome'] ?? 'unknown';
+                                                    
+                                                    // Success outcomes - Green
+                                                    if (in_array($out_key, ['connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full'])) {
+                                                        $color = 'success';
+                                                        $icon = 'check-circle';
+                                                    } 
+                                                    // Positive/Callback outcomes - Info/Blue
+                                                    elseif (in_array($out_key, ['callback_requested', 'interested_needs_time', 'callback_scheduled'])) {
+                                                        $color = 'info';
+                                                        $icon = 'calendar-check';
+                                                    } 
+                                                    // Busy/Warning outcomes - Warning/Orange
+                                                    elseif (in_array($out_key, ['busy_signal', 'not_ready_to_pay'])) {
+                                                        $color = 'warning';
+                                                        $icon = 'hourglass-half';
+                                                    } 
+                                                    // No Contact outcomes - Secondary/Gray
+                                                    elseif (in_array($out_key, ['no_answer', 'no_connection', 'voicemail_left'])) {
+                                                        $color = 'secondary';
+                                                        $icon = 'phone-slash';
+                                                    } 
+                                                    // Negative outcomes - Danger/Red
+                                                    elseif (in_array($out_key, ['invalid_number', 'wrong_number', 'network_error', 'number_not_in_service', 'not_interested', 'financial_hardship', 'moved_abroad', 'donor_deceased', 'never_pledged_denies', 'already_paid_claims'])) {
+                                                        $color = 'danger';
+                                                        $icon = 'times-circle';
+                                                    }
+                                                ?>
+                                                <div>
+                                                    <div class="d-flex justify-content-between mb-1">
+                                                        <span class="fw-semibold text-<?php echo $color; ?>">
+                                                            <i class="fas fa-<?php echo $icon; ?> me-2"></i>
+                                                            <?php echo ucwords(str_replace('_', ' ', $out_key)); ?>
+                                                        </span>
+                                                        <span class="fw-bold"><?php echo number_format($outcome['count']); ?> <small class="text-muted fw-normal">(<?php echo $outcome['percentage']; ?>%)</small></span>
+                                                    </div>
+                                                    <div class="progress progress-custom">
+                                                        <div class="progress-bar bg-<?php echo $color; ?>" style="width: <?php echo $outcome['percentage']; ?>%"></div>
+                                                    </div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Activity Summary -->
+                            <div class="col-12 col-lg-6">
+                                <div class="card shadow-sm h-100 border-0">
+                                    <div class="card-header bg-white py-3 border-bottom">
+                                        <h5 class="mb-0 fw-bold"><i class="fas fa-list-ul me-2 text-secondary"></i>Activity Summary</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3 text-center">
+                                            <?php 
+                                            $base_link = "call-history.php?" . ($agent_id > 0 ? "agent={$agent_id}&" : "") . "date_from={$date_from}&date_to={$date_to}";
+                                            ?>
+                                            <div class="col-6">
+                                                <a href="<?php echo $base_link; ?>&outcome=busy_signal" class="text-decoration-none">
+                                                    <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                        <h3 class="fw-bold text-warning mb-1"><?php echo number_format($stats['busy_calls']); ?></h3>
+                                                        <p class="mb-0 text-muted small text-uppercase fw-bold">Busy Signals</p>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                            <div class="col-6">
+                                                <a href="<?php echo $base_link; ?>&outcome=no_answer" class="text-decoration-none">
+                                                    <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                        <h3 class="fw-bold text-secondary mb-1"><?php echo number_format($stats['no_answer_calls']); ?></h3>
+                                                        <p class="mb-0 text-muted small text-uppercase fw-bold">No Answer</p>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                            <div class="col-6">
+                                                <a href="<?php echo $base_link; ?>&outcome=callback_scheduled" class="text-decoration-none">
+                                                    <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                        <h3 class="fw-bold text-info mb-1"><?php echo number_format($stats['callbacks_scheduled']); ?></h3>
+                                                        <p class="mb-0 text-muted small text-uppercase fw-bold">Callbacks Scheduled</p>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                            <div class="col-6">
+                                                <a href="<?php echo $base_link; ?>&outcome=connected" class="text-decoration-none">
+                                                    <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                        <h3 class="fw-bold text-success mb-1"><?php echo number_format($stats['successful_calls']); ?></h3>
+                                                        <p class="mb-0 text-muted small text-uppercase fw-bold">Successful Contacts</p>
+                                                    </div>
+                                                </a>
                                             </div>
                                         </div>
-                                        <?php endforeach; ?>
+                                        
+                                        <div class="mt-4 text-center">
+                                            <a href="call-history.php<?php echo $agent_id > 0 ? '?agent=' . $agent_id : ''; ?>" class="btn btn-outline-primary btn-sm">
+                                                View Full Call Logs <i class="fas fa-arrow-right ms-2"></i>
+                                            </a>
+                                        </div>
                                     </div>
-                                <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Activity Summary -->
-                    <div class="col-12 col-lg-6">
-                        <div class="card shadow-sm h-100 border-0">
+                    <!-- Issues Tab -->
+                    <div class="tab-pane fade" id="issues" role="tabpanel" aria-labelledby="issues-tab">
+                        <div class="card shadow-sm border-0">
                             <div class="card-header bg-white py-3 border-bottom">
-                                <h5 class="mb-0 fw-bold"><i class="fas fa-list-ul me-2 text-secondary"></i>Activity Summary</h5>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0 fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Problematic Cases</h5>
+                                    <span class="badge bg-danger-subtle text-danger">Refused or Invalid</span>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <div class="row g-3 text-center">
-                                    <?php 
-                                    $base_link = "call-history.php?" . ($agent_id > 0 ? "agent={$agent_id}&" : "") . "date_from={$date_from}&date_to={$date_to}";
-                                    ?>
-                                    <div class="col-6">
-                                        <a href="<?php echo $base_link; ?>&outcome=busy_signal" class="text-decoration-none">
-                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
-                                                <h3 class="fw-bold text-warning mb-1"><?php echo number_format($stats['busy_calls']); ?></h3>
-                                                <p class="mb-0 text-muted small text-uppercase fw-bold">Busy Signals</p>
-                                            </div>
-                                        </a>
-                                    </div>
-                                    <div class="col-6">
-                                        <a href="<?php echo $base_link; ?>&outcome=no_answer" class="text-decoration-none">
-                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
-                                                <h3 class="fw-bold text-secondary mb-1"><?php echo number_format($stats['no_answer_calls']); ?></h3>
-                                                <p class="mb-0 text-muted small text-uppercase fw-bold">No Answer</p>
-                                            </div>
-                                        </a>
-                                    </div>
-                                    <div class="col-6">
-                                        <a href="<?php echo $base_link; ?>&outcome=callback_scheduled" class="text-decoration-none">
-                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
-                                                <h3 class="fw-bold text-info mb-1"><?php echo number_format($stats['callbacks_scheduled']); ?></h3>
-                                                <p class="mb-0 text-muted small text-uppercase fw-bold">Callbacks Scheduled</p>
-                                            </div>
-                                        </a>
-                                    </div>
-                                    <div class="col-6">
-                                        <a href="<?php echo $base_link; ?>&outcome=connected" class="text-decoration-none">
-                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
-                                                <h3 class="fw-bold text-success mb-1"><?php echo number_format($stats['successful_calls']); ?></h3>
-                                                <p class="mb-0 text-muted small text-uppercase fw-bold">Successful Contacts</p>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-4 text-center">
-                                    <a href="call-history.php<?php echo $agent_id > 0 ? '?agent=' . $agent_id : ''; ?>" class="btn btn-outline-primary btn-sm">
-                                        View Full Call Logs <i class="fas fa-arrow-right ms-2"></i>
-                                    </a>
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Donor</th>
+                                            <th>Stage</th>
+                                            <th>Outcome</th>
+                                            <th>Agent</th>
+                                            <th>Notes</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($issues_data)): ?>
+                                            <tr>
+                                                <td colspan="7" class="text-center py-5 text-muted">
+                                                    <i class="fas fa-check-circle fa-2x mb-3 text-success opacity-50"></i>
+                                                    <p class="mb-0">No flagged issues found in this period.</p>
+                                                </td>
+                                            </tr>
+                                        <?php else: ?>
+                                            <?php foreach ($issues_data as $issue): ?>
+                                                <tr>
+                                                    <td><?php echo date('M j, H:i', strtotime($issue['call_started_at'])); ?></td>
+                                                    <td>
+                                                        <div class="fw-bold"><?php echo htmlspecialchars($issue['donor_name'] ?? 'Unknown'); ?></div>
+                                                        <div class="small text-muted"><?php echo htmlspecialchars($issue['donor_phone'] ?? ''); ?></div>
+                                                    </td>
+                                                    <td>
+                                                        <?php if ($issue['conversation_stage'] === 'closed_refused'): ?>
+                                                            <span class="badge bg-warning text-dark">Refused</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-danger">Invalid Data</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td><?php echo ucwords(str_replace('_', ' ', $issue['outcome'] ?? '')); ?></td>
+                                                    <td><?php echo htmlspecialchars($issue['agent_name'] ?? 'Unknown'); ?></td>
+                                                    <td>
+                                                        <span class="d-inline-block text-truncate" style="max-width: 200px;" title="<?php echo htmlspecialchars($issue['notes'] ?? ''); ?>">
+                                                            <?php echo htmlspecialchars($issue['notes'] ?? '-'); ?>
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <a href="../donor-management/view-donor.php?id=<?php echo $issue['donor_id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-user"></i>
+                                                        </a>
+                                                        <a href="call-details.php?id=<?php echo $issue['id']; ?>" class="btn btn-sm btn-outline-secondary">
+                                                            <i class="fas fa-info-circle"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -609,4 +747,3 @@ function toggleFilters() {
 </script>
 </body>
 </html>
-
