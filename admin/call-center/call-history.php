@@ -47,8 +47,9 @@ if ($outcome_filter) {
         // Special handling for callback scheduled
         $where_conditions[] = "(s.outcome = 'callback_scheduled' OR s.callback_scheduled_for IS NOT NULL)";
     } elseif ($outcome_filter === 'connected') {
-        // Special handling for successful contacts
-        $success_outcomes = "'connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full'";
+        // Special handling for successful contacts (Any contact made)
+        // This must match the logic in reports.php for "Successful Contacts"
+        $success_outcomes = "'connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full', 'callback_requested', 'interested_needs_time', 'callback_scheduled', 'not_ready_to_pay', 'financial_hardship', 'moved_abroad', 'not_interested'";
         $where_conditions[] = "s.outcome IN ($success_outcomes)";
     } else {
         $where_conditions[] = "s.outcome = ?";
