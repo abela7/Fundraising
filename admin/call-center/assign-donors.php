@@ -65,9 +65,26 @@ $count_stmt = $db->prepare($count_query);
 if ($params) {
     $count_stmt->bind_param($param_types, ...$params);
 }
-$count_stmt->execute();
-$total_donors = $count_stmt->get_result()->fetch_assoc()['total'];
-$total_pages = ceil($total_donors / $per_page);
+
+try {
+    $count_stmt->execute();
+    $total_donors = $count_stmt->get_result()->fetch_assoc()['total'];
+    $total_pages = ceil($total_donors / $per_page);
+} catch (mysqli_sql_exception $e) {
+    $error = $e->getMessage();
+    if (strpos($error, "Unknown column") !== false) {
+        $fix_url = 'check-database.php';
+        die("
+            <div style='padding: 20px; font-family: sans-serif;'>
+                <h2 style='color: #dc3545;'>Database Schema Error</h2>
+                <p>The database is missing required columns (likely <code>donor_type</code> or <code>agent_id</code>).</p>
+                <p>Error detail: <code>{$error}</code></p>
+                <p><strong>Solution:</strong> Please run the <a href='{$fix_url}' style='color: #0d6efd; font-weight: bold;'>Database Readiness Check</a> tool to automatically generate the fix.</p>
+            </div>
+        ");
+    }
+    throw $e;
+}
 
 // Get donors
 $donor_query = "

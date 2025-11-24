@@ -136,7 +136,7 @@ if ($donors_table_check && $donors_table_check->num_rows > 0) {
         $donors_existing[] = $col['Field'];
     }
     
-    $donors_required = ['baptism_name', 'city', 'church_id', 'portal_profile_completed', 'portal_profile_completed_at'];
+    $donors_required = ['baptism_name', 'city', 'church_id', 'portal_profile_completed', 'portal_profile_completed_at', 'donor_type', 'agent_id'];
     $donors_missing = array_diff($donors_required, $donors_existing);
     
     $donors_columns_check = [
@@ -252,6 +252,16 @@ foreach ($donors_columns_check['missing'] as $col) {
             break;
         case 'portal_profile_completed_at':
             $sql .= "ALTER TABLE `donors` ADD COLUMN `portal_profile_completed_at` datetime DEFAULT NULL COMMENT 'When donor completed their profile' AFTER `portal_profile_completed`;\n";
+            break;
+        case 'donor_type':
+            $sql .= "ALTER TABLE `donors` ADD COLUMN `donor_type` ENUM('immediate_payment', 'pledge') NOT NULL DEFAULT 'immediate_payment' COMMENT 'Type of donor: immediate_payment or pledge' AFTER `id`;\n";
+            $sql .= "UPDATE `donors` SET `donor_type` = CASE WHEN `total_pledged` > 0 THEN 'pledge' ELSE 'immediate_payment' END;\n";
+            $sql .= "ALTER TABLE `donors` ADD INDEX `idx_donor_type` (`donor_type`);\n";
+            break;
+        case 'agent_id':
+            $sql .= "ALTER TABLE `donors` ADD COLUMN `agent_id` INT NULL COMMENT 'Agent responsible for following up with this donor' AFTER `registered_by_user_id`;\n";
+            $sql .= "ALTER TABLE `donors` ADD INDEX `idx_agent` (`agent_id`);\n";
+            $sql .= "ALTER TABLE `donors` ADD CONSTRAINT `fk_donor_agent` FOREIGN KEY (`agent_id`) REFERENCES `users`(`id`) ON DELETE SET NULL;\n";
             break;
     }
 }
