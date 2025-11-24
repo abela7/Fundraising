@@ -65,20 +65,10 @@ if (isLocalEnvironment()) {
 
 date_default_timezone_set('Africa/Addis_Ababa');
 
-// Error handling configuration
-if (isLocalEnvironment()) {
-    // LOCAL: Show errors for debugging
-    ini_set('display_errors', '1');
-    ini_set('display_startup_errors', '1');
-    error_reporting(E_ALL);
-} else {
-    // PRODUCTION: Hide errors from users
-    ini_set('display_errors', '0');
-    error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED);
-}
-
-// Load global error handler (prevents frozen pages on errors)
-require_once __DIR__ . '/../shared/error_handler.php';
+// Production error handling
+ini_set('display_errors', '0');
+// Show all except notices/strict/deprecated to keep logs useful
+error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED);
 
 // Session hardening
 ini_set('session.use_strict_mode', '1');

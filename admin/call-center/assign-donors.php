@@ -4,8 +4,17 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_admin(); // Only admins can assign donors
 
-$db = db();
 $page_title = 'Assign Donors to Agents';
+$error_message = null;
+$donors = null;
+$churches = null;
+$agents = null;
+$stats = ['total' => 0, 'assigned' => 0, 'unassigned' => 0];
+$total_donors = 0;
+$total_pages = 1;
+
+try {
+    $db = db();
 
 // Get filter parameters
 $search = $_GET['search'] ?? '';
@@ -66,25 +75,9 @@ if ($params) {
     $count_stmt->bind_param($param_types, ...$params);
 }
 
-try {
     $count_stmt->execute();
     $total_donors = $count_stmt->get_result()->fetch_assoc()['total'];
     $total_pages = ceil($total_donors / $per_page);
-} catch (mysqli_sql_exception $e) {
-    $error = $e->getMessage();
-    if (strpos($error, "Unknown column") !== false) {
-        $fix_url = 'check-database.php';
-        die("
-            <div style='padding: 20px; font-family: sans-serif;'>
-                <h2 style='color: #dc3545;'>Database Schema Error</h2>
-                <p>The database is missing required columns (likely <code>donor_type</code> or <code>agent_id</code>).</p>
-                <p>Error detail: <code>{$error}</code></p>
-                <p><strong>Solution:</strong> Please run the <a href='{$fix_url}' style='color: #0d6efd; font-weight: bold;'>Database Readiness Check</a> tool to automatically generate the fix.</p>
-            </div>
-        ");
-    }
-    throw $e;
-}
 
 // Get donors
 $donor_query = "
@@ -129,12 +122,27 @@ $churches = $db->query("SELECT id, name FROM churches ORDER BY name");
 // Get agents for filter and assignment
 $agents = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
 
-// Get statistics
-$stats = [
-    'total' => $db->query("SELECT COUNT(*) as count FROM donors WHERE donor_type = 'pledge'")->fetch_assoc()['count'],
-    'assigned' => $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL")->fetch_assoc()['count'],
-    'unassigned' => $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL AND donor_type = 'pledge'")->fetch_assoc()['count'],
-];
+    // Get statistics
+    $stats = [
+        'total' => $db->query("SELECT COUNT(*) as count FROM donors WHERE donor_type = 'pledge'")->fetch_assoc()['count'],
+        'assigned' => $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL")->fetch_assoc()['count'],
+        'unassigned' => $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL AND donor_type = 'pledge'")->fetch_assoc()['count'],
+    ];
+
+} catch (mysqli_sql_exception $e) {
+    $error_message = $e->getMessage();
+    
+    // Check if it's a schema error (missing column)
+    if (strpos($error_message, "Unknown column") !== false) {
+        if (strpos($error_message, "donor_type") !== false) {
+            $error_message = "Missing column 'donor_type' in donors table. Please run the database migration.";
+        } elseif (strpos($error_message, "agent_id") !== false) {
+            $error_message = "Missing column 'agent_id' in donors table. Please run the database migration.";
+        }
+    }
+} catch (Exception $e) {
+    $error_message = "Database error: " . $e->getMessage();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -191,6 +199,21 @@ $stats = [
         <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
+            <?php if ($error_message): ?>
+            <!-- Error Alert -->
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Database Error</h5>
+                <p class="mb-2"><?php echo htmlspecialchars($error_message); ?></p>
+                <hr>
+                <p class="mb-0">
+                    <strong>To fix this:</strong>
+                    <a href="check-database.php" class="btn btn-sm btn-warning ms-2">
+                        <i class="fas fa-tools me-1"></i>Run Database Check
+                    </a>
+                </p>
+            </div>
+            <?php endif; ?>
+
             <!-- Page Header -->
             <div class="content-header mb-4">
                 <div>
@@ -276,24 +299,32 @@ $stats = [
                             <select name="agent" class="form-select">
                                 <option value="0">All Agents</option>
                                 <?php 
-                                $agents->data_seek(0);
-                                while ($agent = $agents->fetch_assoc()): 
+                                if ($agents) {
+                                    $agents->data_seek(0);
+                                    while ($agent = $agents->fetch_assoc()): 
+                                    ?>
+                                    <option value="<?php echo $agent['id']; ?>" <?php echo $agent_filter === $agent['id'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($agent['name']); ?>
+                                    </option>
+                                    <?php endwhile; 
+                                }
                                 ?>
-                                <option value="<?php echo $agent['id']; ?>" <?php echo $agent_filter === $agent['id'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($agent['name']); ?>
-                                </option>
-                                <?php endwhile; ?>
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small">Church</label>
                             <select name="church" class="form-select">
                                 <option value="0">All Churches</option>
-                                <?php while ($church = $churches->fetch_assoc()): ?>
-                                <option value="<?php echo $church['id']; ?>" <?php echo $church_filter === $church['id'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($church['name']); ?>
-                                </option>
-                                <?php endwhile; ?>
+                                <?php 
+                                if ($churches) {
+                                    while ($church = $churches->fetch_assoc()): 
+                                    ?>
+                                    <option value="<?php echo $church['id']; ?>" <?php echo $church_filter === $church['id'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($church['name']); ?>
+                                    </option>
+                                    <?php endwhile;
+                                }
+                                ?>
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -328,13 +359,16 @@ $stats = [
                         <select id="bulkAgentSelect" class="form-select form-select-sm d-inline-block w-auto me-2">
                             <option value="">Select Agent...</option>
                             <?php 
-                            $agents->data_seek(0);
-                            while ($agent = $agents->fetch_assoc()): 
+                            if ($agents) {
+                                $agents->data_seek(0);
+                                while ($agent = $agents->fetch_assoc()): 
+                                ?>
+                                <option value="<?php echo $agent['id']; ?>">
+                                    <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
+                                </option>
+                                <?php endwhile;
+                            }
                             ?>
-                            <option value="<?php echo $agent['id']; ?>">
-                                <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
-                            </option>
-                            <?php endwhile; ?>
                         </select>
                         <button type="button" class="btn btn-sm btn-success" onclick="assignBulk()">
                             <i class="fas fa-check me-1"></i>Assign
@@ -359,7 +393,7 @@ $stats = [
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <?php if ($donors->num_rows > 0): ?>
+                    <?php if ($donors && $donors->num_rows > 0): ?>
                         <div class="list-group list-group-flush">
                             <?php while ($donor = $donors->fetch_assoc()): ?>
                             <div class="list-group-item donor-card" data-donor-id="<?php echo $donor['id']; ?>">
@@ -491,13 +525,16 @@ $stats = [
                     <select id="quickAssignAgentSelect" class="form-select">
                         <option value="">Select an agent...</option>
                         <?php 
-                        $agents->data_seek(0);
-                        while ($agent = $agents->fetch_assoc()): 
+                        if ($agents) {
+                            $agents->data_seek(0);
+                            while ($agent = $agents->fetch_assoc()): 
+                            ?>
+                            <option value="<?php echo $agent['id']; ?>">
+                                <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
+                            </option>
+                            <?php endwhile;
+                        }
                         ?>
-                        <option value="<?php echo $agent['id']; ?>">
-                            <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
-                        </option>
-                        <?php endwhile; ?>
                     </select>
                 </div>
             </div>
