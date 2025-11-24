@@ -31,49 +31,64 @@ if ($search || $selected_donor_id) {
             $donors[] = $row;
         }
     } elseif ($search) {
-        // Search by donor details OR pledge notes (reference number)
-        $term = "%$search%";
-        
-        // Get donor IDs from pledges with matching notes
-        $pledge_donors_sql = "
-            SELECT DISTINCT donor_id 
-            FROM pledges 
-            WHERE notes LIKE ? 
-               OR reference_number LIKE ?
-        ";
-        $stmt = $db->prepare($pledge_donors_sql);
-        $stmt->bind_param('ss', $term, $term);
-        $stmt->execute();
-        $pledge_donor_ids = [];
-        $res = $stmt->get_result();
-        while ($row = $res->fetch_assoc()) {
-            $pledge_donor_ids[] = (int)$row['donor_id'];
-        }
-        
-        // Build donor query
-        $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance FROM donors d WHERE ";
-        
-        if (!empty($pledge_donor_ids)) {
-            // Search by name/phone/email OR pledge reference
-            $placeholders = implode(',', array_fill(0, count($pledge_donor_ids), '?'));
-            $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ? OR d.id IN ($placeholders))";
+        try {
+            // Search by donor details OR pledge notes (reference number)
+            $term = "%$search%";
             
-            $types = 'sss' . str_repeat('i', count($pledge_donor_ids));
-            $params = [$term, $term, $term, ...$pledge_donor_ids];
-        } else {
-            // Only search by name/phone/email
-            $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
-            $types = 'sss';
-            $params = [$term, $term, $term];
-        }
-        
-        $donor_sql .= " LIMIT 20";
-        $stmt = $db->prepare($donor_sql);
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        while ($row = $res->fetch_assoc()) {
-            $donors[] = $row;
+            // Get donor IDs from pledges with matching notes OR payment references
+            $pledge_donors_sql = "
+                SELECT DISTINCT donor_id FROM pledges WHERE notes LIKE ?
+                UNION
+                SELECT DISTINCT donor_id FROM pledge_payments WHERE reference_number LIKE ?
+            ";
+            $stmt = $db->prepare($pledge_donors_sql);
+            $stmt->bind_param('ss', $term, $term);
+            $stmt->execute();
+            $pledge_donor_ids = [];
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $pledge_donor_ids[] = (int)$row['donor_id'];
+            }
+            
+            // Build donor query
+            $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance FROM donors d WHERE ";
+            
+            if (!empty($pledge_donor_ids)) {
+                // Search by name/phone/email OR pledge reference
+                $placeholders = implode(',', array_fill(0, count($pledge_donor_ids), '?'));
+                $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ? OR d.id IN ($placeholders))";
+                
+                $types = 'sss' . str_repeat('i', count($pledge_donor_ids));
+                $params = array_merge([$term, $term, $term], $pledge_donor_ids);
+            } else {
+                // Only search by name/phone/email
+                $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
+                $types = 'sss';
+                $params = [$term, $term, $term];
+            }
+            
+            $donor_sql .= " LIMIT 20";
+            $stmt = $db->prepare($donor_sql);
+            
+            // PHP 8.0 compatible binding
+            $bind_params = [$types];
+            // Create a separate array for references to ensure stability
+            $refs = [];
+            foreach ($params as $key => $value) {
+                $refs[$key] = $value;
+                $bind_params[] = &$refs[$key];
+            }
+            call_user_func_array([$stmt, 'bind_param'], $bind_params);
+            
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $donors[] = $row;
+            }
+        } catch (Exception $e) {
+            // Silently fail or log error, but don't crash page
+            // For admin debugging, maybe echo in comment
+            echo "<!-- Search Error: " . htmlspecialchars($e->getMessage()) . " -->";
         }
     }
 }
