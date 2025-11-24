@@ -140,6 +140,50 @@ try {
     $progress = $total_amount > 0 ? ($amount_paid / $total_amount) * 100 : 0;
     $remaining = $total_amount - $amount_paid;
 
+    // 7. Calculate Schedule
+    $schedule = [];
+    if (!empty($plan['start_date']) && !empty($plan['total_payments'])) {
+        try {
+            $current_date = new DateTime($plan['start_date']);
+            $today = new DateTime('today');
+            $freq_unit = $plan['plan_frequency_unit'] ?? 'month';
+            $freq_num = (int)($plan['plan_frequency_number'] ?? 1);
+            $payments_made = (int)($plan['payments_made'] ?? 0);
+            
+            for ($i = 1; $i <= $plan['total_payments']; $i++) {
+                $status = 'pending';
+                if ($i <= $payments_made) {
+                    $status = 'paid';
+                } elseif ($current_date < $today) {
+                    $status = 'overdue';
+                }
+                
+                $schedule[] = [
+                    'number' => $i,
+                    'date' => $current_date->format('Y-m-d'),
+                    'amount' => $monthly_amount,
+                    'status' => $status
+                ];
+                
+                // Add interval
+                if ($freq_unit === 'day') {
+                    $current_date->modify("+{$freq_num} days");
+                } elseif ($freq_unit === 'week') {
+                    $current_date->modify("+{$freq_num} weeks");
+                } elseif ($freq_unit === 'month') {
+                    $current_date->modify("+{$freq_num} months");
+                } elseif ($freq_unit === 'year') {
+                    $current_date->modify("+{$freq_num} years");
+                } else {
+                    // Default to monthly
+                    $current_date->modify("+1 month");
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Schedule calculation error: " . $e->getMessage());
+        }
+    }
+
 } catch (Throwable $e) {
     // Catch ANY error and display it safely
     die('<div class="alert alert-danger m-5">
@@ -187,6 +231,26 @@ try {
         .table-compact { font-size: 0.9rem; }
         .table-compact th { background: #f8f9fa; font-weight: 600; text-transform: uppercase; 
                            font-size: 0.8rem; letter-spacing: 0.5px; }
+        
+        /* Tab Styles */
+        .nav-tabs .nav-link {
+            color: #64748b;
+            font-weight: 600;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 1rem 1.5rem;
+        }
+        .nav-tabs .nav-link.active {
+            color: #0a6286;
+            border-bottom-color: #0a6286;
+            background: none;
+        }
+        .nav-tabs .nav-link:hover:not(.active) {
+            color: #0a6286;
+            background: #f8fafc;
+            border-bottom-color: #cbd5e1;
+        }
+        
         @media (max-width: 768px) {
             .stat-value { font-size: 1.5rem; }
             .donor-name { font-size: 1.5rem; }
@@ -289,89 +353,228 @@ try {
                     </div>
                 </div>
 
-                <div class="row">
-                    <!-- Left Column -->
-                    <div class="col-lg-8">
-                        <div class="content-card">
-                            <h5><i class="fas fa-info-circle me-2"></i>Plan Information</h5>
-                            
-                            <div class="mb-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="fw-bold">Progress</span>
-                                    <span class="fw-bold text-primary"><?php echo number_format($progress, 1); ?>%</span>
-                                </div>
-                                <div class="progress progress-lg">
-                                    <div class="progress-bar bg-gradient bg-success" role="progressbar" 
-                                         style="width: <?php echo $progress; ?>%" 
-                                         aria-valuenow="<?php echo $progress; ?>" aria-valuemin="0" aria-valuemax="100">
-                                        <?php echo number_format($progress, 1); ?>%
+                <!-- Tabs Navigation -->
+                <ul class="nav nav-tabs mb-4" id="planTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                            <i class="fas fa-info-circle me-2"></i>Overview
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" type="button" role="tab" aria-controls="schedule" aria-selected="false">
+                            <i class="fas fa-calendar-alt me-2"></i>Schedule
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="planTabContent">
+                    <!-- Overview Tab -->
+                    <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                        <div class="row">
+                            <!-- Left Column -->
+                            <div class="col-lg-8">
+                                <div class="content-card">
+                                    <h5><i class="fas fa-chart-line me-2"></i>Plan Progress</h5>
+                                    
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="fw-bold">Paid</span>
+                                            <span class="fw-bold text-primary"><?php echo number_format($progress, 1); ?>%</span>
+                                        </div>
+                                        <div class="progress progress-lg">
+                                            <div class="progress-bar bg-gradient bg-success" role="progressbar" 
+                                                 style="width: <?php echo $progress; ?>%" 
+                                                 aria-valuenow="<?php echo $progress; ?>" aria-valuemin="0" aria-valuemax="100">
+                                                <?php echo number_format($progress, 1); ?>%
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-row">
+                                        <span class="info-label"><i class="fas fa-money-bill-wave me-2 text-primary"></i>Monthly Installment</span>
+                                        <span class="info-value fs-5 text-primary">£<?php echo number_format($monthly_amount, 2); ?></span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label"><i class="fas fa-calendar me-2"></i>Duration</span>
+                                        <span class="info-value"><?php echo (int)($plan['total_months'] ?? 0); ?> Months</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label"><i class="fas fa-play-circle me-2"></i>Start Date</span>
+                                        <span class="info-value"><?php echo !empty($plan['start_date']) ? date('d M Y', strtotime($plan['start_date'])) : '-'; ?></span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label"><i class="fas fa-clock me-2"></i>Payment Day</span>
+                                        <span class="info-value">Day <?php echo (int)($plan['payment_day'] ?? 1); ?></span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label"><i class="fas fa-credit-card me-2"></i>Payment Method</span>
+                                        <span class="info-value text-uppercase"><?php echo htmlspecialchars($plan['payment_method'] ?? '-'); ?></span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label"><i class="fas fa-bell me-2 text-danger"></i>Next Payment Due</span>
+                                        <span class="info-value text-danger fw-bold"><?php echo !empty($plan['next_payment_due']) ? date('d M Y', strtotime($plan['next_payment_due'])) : '-'; ?></span>
                                     </div>
                                 </div>
+
+                                <!-- Payment History -->
+                                <div class="content-card">
+                                    <h5><i class="fas fa-history me-2"></i>Payment History</h5>
+                                    <?php if(empty($payments)): ?>
+                                        <div class="alert alert-info border-0">
+                                            <i class="fas fa-info-circle me-2"></i>No payments recorded yet.
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover table-compact mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Amount</th>
+                                                        <th>Method</th>
+                                                        <th>Status</th>
+                                                        <th class="d-none d-md-table-cell">Received By</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php foreach($payments as $pay): ?>
+                                                    <tr>
+                                                        <td><?php echo date('d M Y', strtotime($pay['created_at'] ?? $pay['received_at'] ?? 'now')); ?></td>
+                                                        <td class="fw-bold text-success">£<?php echo number_format((float)$pay['amount'], 2); ?></td>
+                                                        <td><span class="badge bg-light text-dark"><?php echo ucfirst($pay['payment_method']); ?></span></td>
+                                                        <td>
+                                                            <?php 
+                                                            $badge = match($pay['status']) {
+                                                                'approved' => 'success',
+                                                                'pending' => 'warning',
+                                                                'rejected' => 'danger',
+                                                                default => 'secondary'
+                                                            };
+                                                            ?>
+                                                            <span class="badge bg-<?php echo $badge; ?>"><?php echo ucfirst($pay['status']); ?></span>
+                                                        </td>
+                                                        <td class="small text-muted d-none d-md-table-cell"><?php echo htmlspecialchars($pay['received_by_name']); ?></td>
+                                                    </tr>
+                                                    <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
 
-                            <div class="info-row">
-                                <span class="info-label"><i class="fas fa-money-bill-wave me-2 text-primary"></i>Monthly Installment</span>
-                                <span class="info-value fs-5 text-primary">£<?php echo number_format($monthly_amount, 2); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label"><i class="fas fa-calendar me-2"></i>Duration</span>
-                                <span class="info-value"><?php echo (int)($plan['total_months'] ?? 0); ?> Months</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label"><i class="fas fa-play-circle me-2"></i>Start Date</span>
-                                <span class="info-value"><?php echo !empty($plan['start_date']) ? date('d M Y', strtotime($plan['start_date'])) : '-'; ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label"><i class="fas fa-clock me-2"></i>Payment Day</span>
-                                <span class="info-value">Day <?php echo (int)($plan['payment_day'] ?? 1); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label"><i class="fas fa-credit-card me-2"></i>Payment Method</span>
-                                <span class="info-value text-uppercase"><?php echo htmlspecialchars($plan['payment_method'] ?? '-'); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label"><i class="fas fa-bell me-2 text-danger"></i>Next Payment Due</span>
-                                <span class="info-value text-danger fw-bold"><?php echo !empty($plan['next_payment_due']) ? date('d M Y', strtotime($plan['next_payment_due'])) : '-'; ?></span>
+                            <!-- Right Column -->
+                            <div class="col-lg-4">
+                                
+                                <!-- Quick Links -->
+                                <div class="content-card">
+                                    <h5><i class="fas fa-link me-2"></i>Quick Links</h5>
+                                    <div class="d-grid gap-2">
+                                        <a href="view-donor.php?id=<?php echo $plan['donor_id']; ?>" class="btn btn-outline-primary">
+                                            <i class="fas fa-user me-2"></i>View Donor Profile
+                                        </a>
+                                        <a href="donors.php" class="btn btn-outline-secondary">
+                                            <i class="fas fa-users me-2"></i>All Donors
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Church & Representative -->
+                                <?php if(!empty($church) || !empty($representative)): ?>
+                                <div class="content-card">
+                                    <h5><i class="fas fa-church me-2"></i>Church Information</h5>
+                                    <?php if(!empty($church)): ?>
+                                    <div class="mb-3">
+                                        <div class="small text-muted mb-1">Church</div>
+                                        <div class="fw-bold"><?php echo htmlspecialchars($church['name']); ?></div>
+                                        <?php if(!empty($church['city'])): ?>
+                                        <div class="small text-muted">
+                                            <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($church['city']); ?>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if(!empty($representative)): ?>
+                                    <div class="pt-3 border-top">
+                                        <div class="small text-muted mb-1">Representative</div>
+                                        <div class="fw-bold"><?php echo htmlspecialchars($representative['name']); ?></div>
+                                        <?php if(!empty($representative['phone'])): ?>
+                                        <div class="small text-muted">
+                                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($representative['phone']); ?>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Pledge Info -->
+                                <?php if(!empty($pledge)): ?>
+                                <div class="content-card">
+                                    <h5><i class="fas fa-hand-holding-heart me-2"></i>Original Pledge</h5>
+                                    <div class="info-row">
+                                        <span class="info-label">Amount</span>
+                                        <span class="info-value">£<?php echo number_format((float)$pledge['amount'], 2); ?></span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">Date</span>
+                                        <span class="info-value"><?php echo date('d M Y', strtotime($pledge['created_at'])); ?></span>
+                                    </div>
+                                    <?php if(!empty($pledge['notes'])): ?>
+                                    <div class="mt-3 bg-light p-3 rounded">
+                                        <div class="small fw-bold mb-1">Notes:</div>
+                                        <div class="small text-muted"><?php echo nl2br(htmlspecialchars($pledge['notes'])); ?></div>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Template Info -->
+                                <?php if(!empty($template)): ?>
+                                <div class="content-card">
+                                    <h5><i class="fas fa-file-alt me-2"></i>Plan Template</h5>
+                                    <div class="fw-bold mb-1"><?php echo htmlspecialchars($template['name']); ?></div>
+                                    <div class="small text-muted"><?php echo htmlspecialchars($template['description'] ?? ''); ?></div>
+                                </div>
+                                <?php endif; ?>
+
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Payment History -->
+                    <!-- Schedule Tab -->
+                    <div class="tab-pane fade" id="schedule" role="tabpanel" aria-labelledby="schedule-tab">
                         <div class="content-card">
-                            <h5><i class="fas fa-history me-2"></i>Payment History</h5>
-                            <?php if(empty($payments)): ?>
-                                <div class="alert alert-info border-0">
-                                    <i class="fas fa-info-circle me-2"></i>No payments recorded yet.
+                            <h5><i class="fas fa-calendar-alt me-2"></i>Payment Schedule</h5>
+                            <?php if(empty($schedule)): ?>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>Unable to calculate schedule (missing start date or duration).
                                 </div>
                             <?php else: ?>
                                 <div class="table-responsive">
                                     <table class="table table-hover table-compact mb-0">
                                         <thead>
                                             <tr>
-                                                <th>Date</th>
+                                                <th style="width: 50px;">#</th>
+                                                <th>Due Date</th>
                                                 <th>Amount</th>
-                                                <th>Method</th>
                                                 <th>Status</th>
-                                                <th class="d-none d-md-table-cell">Received By</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php foreach($payments as $pay): ?>
-                                            <tr>
-                                                <td><?php echo date('d M Y', strtotime($pay['created_at'] ?? $pay['received_at'] ?? 'now')); ?></td>
-                                                <td class="fw-bold text-success">£<?php echo number_format((float)$pay['amount'], 2); ?></td>
-                                                <td><span class="badge bg-light text-dark"><?php echo ucfirst($pay['payment_method']); ?></span></td>
+                                            <?php foreach($schedule as $item): ?>
+                                            <tr class="<?php echo $item['status'] === 'paid' ? 'table-success' : ''; ?>">
+                                                <td><?php echo $item['number']; ?></td>
+                                                <td><?php echo date('d M Y', strtotime($item['date'])); ?></td>
+                                                <td class="fw-bold">£<?php echo number_format($item['amount'], 2); ?></td>
                                                 <td>
-                                                    <?php 
-                                                    $badge = match($pay['status']) {
-                                                        'approved' => 'success',
-                                                        'pending' => 'warning',
-                                                        'rejected' => 'danger',
-                                                        default => 'secondary'
-                                                    };
-                                                    ?>
-                                                    <span class="badge bg-<?php echo $badge; ?>"><?php echo ucfirst($pay['status']); ?></span>
+                                                    <?php if($item['status'] === 'paid'): ?>
+                                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Paid</span>
+                                                    <?php elseif($item['status'] === 'overdue'): ?>
+                                                        <span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i>Overdue</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-secondary"><i class="fas fa-clock me-1"></i>Pending</span>
+                                                    <?php endif; ?>
                                                 </td>
-                                                <td class="small text-muted d-none d-md-table-cell"><?php echo htmlspecialchars($pay['received_by_name']); ?></td>
                                             </tr>
                                             <?php endforeach; ?>
                                         </tbody>
@@ -379,83 +582,6 @@ try {
                                 </div>
                             <?php endif; ?>
                         </div>
-                    </div>
-
-                    <!-- Right Column -->
-                    <div class="col-lg-4">
-                        
-                        <!-- Quick Links -->
-                        <div class="content-card">
-                            <h5><i class="fas fa-link me-2"></i>Quick Links</h5>
-                            <div class="d-grid gap-2">
-                                <a href="view-donor.php?id=<?php echo $plan['donor_id']; ?>" class="btn btn-outline-primary">
-                                    <i class="fas fa-user me-2"></i>View Donor Profile
-                                </a>
-                                <a href="donors.php" class="btn btn-outline-secondary">
-                                    <i class="fas fa-users me-2"></i>All Donors
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Church & Representative -->
-                        <?php if(!empty($church) || !empty($representative)): ?>
-                        <div class="content-card">
-                            <h5><i class="fas fa-church me-2"></i>Church Information</h5>
-                            <?php if(!empty($church)): ?>
-                            <div class="mb-3">
-                                <div class="small text-muted mb-1">Church</div>
-                                <div class="fw-bold"><?php echo htmlspecialchars($church['name']); ?></div>
-                                <?php if(!empty($church['city'])): ?>
-                                <div class="small text-muted">
-                                    <i class="fas fa-map-marker-alt me-1"></i><?php echo htmlspecialchars($church['city']); ?>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                            <?php endif; ?>
-                            <?php if(!empty($representative)): ?>
-                            <div class="pt-3 border-top">
-                                <div class="small text-muted mb-1">Representative</div>
-                                <div class="fw-bold"><?php echo htmlspecialchars($representative['name']); ?></div>
-                                <?php if(!empty($representative['phone'])): ?>
-                                <div class="small text-muted">
-                                    <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($representative['phone']); ?>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-
-                        <!-- Pledge Info -->
-                        <?php if(!empty($pledge)): ?>
-                        <div class="content-card">
-                            <h5><i class="fas fa-hand-holding-heart me-2"></i>Original Pledge</h5>
-                            <div class="info-row">
-                                <span class="info-label">Amount</span>
-                                <span class="info-value">£<?php echo number_format((float)$pledge['amount'], 2); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Date</span>
-                                <span class="info-value"><?php echo date('d M Y', strtotime($pledge['created_at'])); ?></span>
-                            </div>
-                            <?php if(!empty($pledge['notes'])): ?>
-                            <div class="mt-3 bg-light p-3 rounded">
-                                <div class="small fw-bold mb-1">Notes:</div>
-                                <div class="small text-muted"><?php echo nl2br(htmlspecialchars($pledge['notes'])); ?></div>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-
-                        <!-- Template Info -->
-                        <?php if(!empty($template)): ?>
-                        <div class="content-card">
-                            <h5><i class="fas fa-file-alt me-2"></i>Plan Template</h5>
-                            <div class="fw-bold mb-1"><?php echo htmlspecialchars($template['name']); ?></div>
-                            <div class="small text-muted"><?php echo htmlspecialchars($template['description'] ?? ''); ?></div>
-                        </div>
-                        <?php endif; ?>
-
                     </div>
                 </div>
 
@@ -509,8 +635,10 @@ try {
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Frequency Unit <span class="text-danger">*</span></label>
                             <select class="form-select" name="plan_frequency_unit" id="edit_frequency_unit" required>
+                                <option value="day" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'day' ? 'selected' : ''; ?>>Day</option>
                                 <option value="week" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'week' ? 'selected' : ''; ?>>Week</option>
                                 <option value="month" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'month' ? 'selected' : ''; ?>>Month</option>
+                                <option value="year" <?php echo ($plan['plan_frequency_unit'] ?? 'month') === 'year' ? 'selected' : ''; ?>>Year</option>
                             </select>
                         </div>
                         <div class="col-md-6">
