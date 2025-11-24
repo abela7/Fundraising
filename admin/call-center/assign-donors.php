@@ -347,19 +347,42 @@ try {
             padding: 20px;
         }
 
-        /* Statistics Cards */
+        /* Statistics Cards - Compact */
         .stat-card {
             background: white;
-            border-radius: var(--border-radius);
-            padding: 20px;
+            border-radius: 8px;
+            padding: 12px 16px;
             box-shadow: var(--shadow-sm);
-            border-left: 4px solid var(--primary-color);
+            border-left: 3px solid var(--primary-color);
             transition: all 0.2s;
         }
 
         .stat-card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-1px);
             box-shadow: var(--shadow-md);
+        }
+
+        .stat-card .stat-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+        }
+
+        .stat-card .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin: 0;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 2px;
         }
 
         /* Responsive Design */
@@ -404,6 +427,24 @@ try {
 
             .card-header {
                 padding: 12px 16px;
+            }
+
+            .stat-card {
+                padding: 10px 12px;
+            }
+
+            .stat-card .stat-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+
+            .stat-card .stat-value {
+                font-size: 1.1rem;
+            }
+
+            .stat-card .stat-label {
+                font-size: 0.7rem;
             }
         }
 
@@ -486,12 +527,11 @@ try {
         
         <main class="main-content">
             <!-- Page Header -->
-            <div class="content-header mb-4">
+            <div class="content-header mb-3">
                 <div>
                     <h1 class="content-title">
                         <i class="fas fa-users-cog me-2"></i>Assign Donors to Agents
                     </h1>
-                    <p class="text-muted mb-0">Select donors and assign them to agents for follow-up</p>
                 </div>
                 <div>
                     <a href="index.php" class="btn btn-outline-secondary">
@@ -534,42 +574,42 @@ try {
                 error_log("Stats query error: " . $e->getMessage());
             }
             ?>
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-4">
                     <div class="stat-card" style="border-left-color: #0d6efd;">
                         <div class="d-flex align-items-center">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-users fa-2x text-primary"></i>
+                            <div class="stat-icon bg-primary bg-opacity-10 text-primary me-2">
+                                <i class="fas fa-users"></i>
                             </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h4 class="mb-0"><?php echo number_format($total_donors); ?></h4>
-                                <small class="text-muted">Total Donors</small>
+                            <div class="flex-grow-1">
+                                <div class="stat-value text-primary"><?php echo number_format($total_donors); ?></div>
+                                <div class="stat-label">Total Donors</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-6 col-md-4">
                     <div class="stat-card" style="border-left-color: #198754;">
                         <div class="d-flex align-items-center">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-user-check fa-2x text-success"></i>
+                            <div class="stat-icon bg-success bg-opacity-10 text-success me-2">
+                                <i class="fas fa-user-check"></i>
                             </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h4 class="mb-0"><?php echo number_format($assigned_count); ?></h4>
-                                <small class="text-muted">Assigned</small>
+                            <div class="flex-grow-1">
+                                <div class="stat-value text-success"><?php echo number_format($assigned_count); ?></div>
+                                <div class="stat-label">Assigned</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-12 col-md-4">
                     <div class="stat-card" style="border-left-color: #ffc107;">
                         <div class="d-flex align-items-center">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-user-slash fa-2x text-warning"></i>
+                            <div class="stat-icon bg-warning bg-opacity-10 text-warning me-2">
+                                <i class="fas fa-user-slash"></i>
                             </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h4 class="mb-0"><?php echo number_format($unassigned_count); ?></h4>
-                                <small class="text-muted">Unassigned</small>
+                            <div class="flex-grow-1">
+                                <div class="stat-value text-warning"><?php echo number_format($unassigned_count); ?></div>
+                                <div class="stat-label">Unassigned</div>
                             </div>
                         </div>
                     </div>
