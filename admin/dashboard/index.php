@@ -209,6 +209,14 @@ $page_title = 'Dashboard';
                   </a>
                 </div>
                 <div class="col-6 col-md-4">
+                  <a href="../call-center/assign-donors.php" class="quick-action-btn">
+                    <div class="quick-action-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                      <i class="fas fa-users-cog"></i>
+                    </div>
+                    <span>Assign Donors</span>
+                  </a>
+                </div>
+                <div class="col-6 col-md-4">
                   <a href="../settings/" class="quick-action-btn">
                     <div class="quick-action-icon bg-secondary">
                       <i class="fas fa-cog"></i>
