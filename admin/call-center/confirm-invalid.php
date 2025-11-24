@@ -18,6 +18,7 @@ try {
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     $reason = isset($_GET['reason']) ? $_GET['reason'] : 'not_working';
+    $call_started_at_param = isset($_GET['call_started_at']) ? urldecode($_GET['call_started_at']) : '';
     
     if (!$donor_id) {
         header('Location: ../donor-management/donors.php');
@@ -38,9 +39,9 @@ try {
         exit;
     }
     
-    // Get call details from session if exists
-    // Use current browser time (will be set via JavaScript)
-    $call_datetime_iso = date('c'); // ISO 8601 format for JavaScript
+    // Get call details
+    // Use passed time or current time
+    $call_datetime_iso = $call_started_at_param ? date('c', strtotime($call_started_at_param)) : date('c');
     $agent_name = $user_name;
     
     if ($session_id > 0) {
@@ -58,9 +59,7 @@ try {
             $stmt->close();
             
             if ($session && $session->call_started_at) {
-                // Pass raw datetime to JavaScript - let browser handle timezone conversion
-                // Format as ISO 8601 for JavaScript Date parsing
-                $call_datetime_iso = $session->call_started_at;
+                $call_datetime_iso = date('c', strtotime($session->call_started_at));
                 
                 // Get agent name
                 $agent_query = "SELECT name FROM users WHERE id = ? LIMIT 1";
@@ -89,6 +88,11 @@ try {
         ];
         $outcome = $outcome_map[$reason] ?? 'number_not_in_service';
         
+        // Get start time from form or default
+        $call_start_time = isset($_POST['original_call_start']) && $_POST['original_call_start'] 
+            ? $_POST['original_call_start'] 
+            : date('Y-m-d H:i:s');
+        
         // Update session if session_id exists
         if ($session_id > 0) {
             $update_session = "
@@ -108,7 +112,6 @@ try {
             }
         } else {
             // Create session for tracking
-            $call_started_at = date('Y-m-d H:i:s');
             $insert_session = "
                 INSERT INTO call_center_sessions 
                 (donor_id, agent_id, call_started_at, call_ended_at, outcome, disposition, conversation_stage, notes, created_at)
@@ -117,13 +120,25 @@ try {
             $notes = "Number marked as invalid: " . ucfirst(str_replace('_', ' ', $reason));
             $stmt = $db->prepare($insert_session);
             if ($stmt) {
-                $stmt->bind_param('iisss', $donor_id, $user_id, $call_started_at, $outcome, $notes);
+                $stmt->bind_param('iisss', $donor_id, $user_id, $call_start_time, $outcome, $notes);
                 $stmt->execute();
                 $stmt->close();
+                
+                // Update queue attempts count
+                if ($queue_id > 0) {
+                    $update_queue_attempts = "UPDATE call_center_queues 
+                                    SET attempts_count = attempts_count + 1, 
+                                        last_attempt_at = NOW(),
+                                        status = 'completed'
+                                    WHERE id = ?";
+                    $stmt = $db->prepare($update_queue_attempts);
+                    $stmt->bind_param('i', $queue_id);
+                    $stmt->execute();
+                }
             }
         }
         
-        // Update queue status if queue_id exists
+        // Update queue status if queue_id exists (mark as completed/removed)
         if ($queue_id > 0) {
             $update_queue = "
                 UPDATE call_center_queues 
@@ -411,6 +426,7 @@ $confirmation_question = $reason_questions[$reason] ?? 'Are you sure this number
                         <input type="hidden" name="confirm" value="yes">
                         <input type="hidden" name="call_date" id="call_date_input" value="">
                         <input type="hidden" name="call_time" id="call_time_input" value="">
+                        <input type="hidden" name="original_call_start" value="<?php echo htmlspecialchars($call_started_at_param); ?>">
                         <div class="action-buttons">
                             <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?><?php echo $session_id > 0 ? '&session_id=' . $session_id : ''; ?>" 
                                class="btn btn-outline-secondary">

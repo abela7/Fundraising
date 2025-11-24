@@ -35,42 +35,14 @@ try {
         exit;
     }
     
-    // Record call start time in database (store in UTC for consistency)
+    // Record call start time (will be passed to next step)
+    // We DON'T create a session record yet - only when an outcome is selected
     $now = new DateTime('now', new DateTimeZone('Europe/London'));
     $now->setTimezone(new DateTimeZone('UTC'));
     $call_started_at = $now->format('Y-m-d H:i:s');
     
-    // Create a new call session record
-    // Note: conversation_stage starts as 'no_connection' until we know if they picked up
-    $session_query = "
-        INSERT INTO call_center_sessions 
-        (donor_id, agent_id, call_started_at, conversation_stage, created_at)
-        VALUES (?, ?, ?, 'no_connection', NOW())
-    ";
-    
+    // Session ID is 0 initially
     $session_id = 0;
-    $stmt = $db->prepare($session_query);
-    if ($stmt) {
-        $stmt->bind_param('iis', $donor_id, $user_id, $call_started_at);
-        $stmt->execute();
-        $session_id = $db->insert_id;
-        $stmt->close();
-        
-        // Update queue attempts count and last attempt time
-        if ($queue_id > 0) {
-        $update_queue = "UPDATE call_center_queues 
-                        SET attempts_count = attempts_count + 1, 
-                            last_attempt_at = NOW(),
-                            status = 'in_progress'
-                        WHERE id = ?";
-        $stmt = $db->prepare($update_queue);
-        if ($stmt) {
-            $stmt->bind_param('i', $queue_id);
-            $stmt->execute();
-            $stmt->close();
-            }
-        }
-    }
     
 } catch (Exception $e) {
     error_log("Call Status Error: " . $e->getMessage());
@@ -277,9 +249,9 @@ $page_title = 'Call Status';
                 
                 <div class="option-grid">
                     <?php 
-                    $session_param = $session_id > 0 ? "session_id={$session_id}&" : '';
+                    $common_params = "donor_id={$donor_id}&queue_id={$queue_id}&call_started_at=" . urlencode($call_started_at);
                     ?>
-                    <a href="availability-check.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=picked_up" 
+                    <a href="availability-check.php?<?php echo $common_params; ?>&status=picked_up" 
                        class="option-card success">
                         <div class="option-icon">
                             <i class="fas fa-phone-alt"></i>
@@ -288,7 +260,7 @@ $page_title = 'Call Status';
                         <div class="option-desc">Donor answered the call</div>
                     </a>
                     
-                    <a href="schedule-callback.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=not_picked_up" 
+                    <a href="schedule-callback.php?<?php echo $common_params; ?>&status=not_picked_up" 
                        class="option-card danger">
                         <div class="option-icon">
                             <i class="fas fa-phone-slash"></i>
@@ -297,7 +269,7 @@ $page_title = 'Call Status';
                         <div class="option-desc">Donor didn't pick up</div>
                     </a>
                     
-                    <a href="schedule-callback.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&status=busy" 
+                    <a href="schedule-callback.php?<?php echo $common_params; ?>&status=busy" 
                        class="option-card danger">
                         <div class="option-icon">
                             <i class="fas fa-ban"></i>
@@ -306,7 +278,7 @@ $page_title = 'Call Status';
                         <div class="option-desc">Line was busy</div>
                     </a>
                     
-                    <a href="confirm-invalid.php?<?php echo $session_param; ?>donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&reason=not_working" 
+                    <a href="confirm-invalid.php?<?php echo $common_params; ?>&reason=not_working" 
                        class="option-card danger">
                         <div class="option-icon">
                             <i class="fas fa-times-circle"></i>

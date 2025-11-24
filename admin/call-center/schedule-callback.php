@@ -30,6 +30,7 @@ date_default_timezone_set('Europe/London');
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     $status = isset($_GET['status']) ? $_GET['status'] : 'not_picked_up';
     $reason = isset($_GET['reason']) ? $_GET['reason'] : '';
+    $call_started_at = isset($_GET['call_started_at']) ? urldecode($_GET['call_started_at']) : gmdate('Y-m-d H:i:s');
     
     // Reason labels
     $reason_labels = [
@@ -45,6 +46,54 @@ date_default_timezone_set('Europe/London');
     
     if (!$donor_id) {
         throw new Exception("Missing Donor ID");
+    }
+
+    // Create session if not exists (Lazy creation for No Answer/Busy outcomes)
+    if ($session_id <= 0) {
+        $outcome_map = [
+            'not_picked_up' => 'no_answer',
+            'busy' => 'busy_signal',
+            'busy_cant_talk' => 'callback_requested',
+            'not_ready_to_pay' => 'not_ready_to_pay'
+        ];
+        $outcome = $outcome_map[$status] ?? 'no_answer';
+        
+        $stage_map = [
+            'not_picked_up' => 'no_answer',
+            'busy' => 'busy_signal',
+            'busy_cant_talk' => 'callback_scheduled',
+            'not_ready_to_pay' => 'callback_scheduled'
+        ];
+        $conversation_stage = $stage_map[$status] ?? 'no_answer';
+        
+        $session_query = "
+            INSERT INTO call_center_sessions 
+            (donor_id, agent_id, call_started_at, conversation_stage, outcome, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
+        ";
+        
+        $stmt = $db->prepare($session_query);
+        if ($stmt) {
+            $stmt->bind_param('iisss', $donor_id, $user_id, $call_started_at, $conversation_stage, $outcome);
+            $stmt->execute();
+            $session_id = $db->insert_id;
+            $stmt->close();
+            
+            // Update queue attempts count
+            if ($queue_id > 0) {
+                $update_queue = "UPDATE call_center_queues 
+                                SET attempts_count = attempts_count + 1, 
+                                    last_attempt_at = NOW(),
+                                    status = 'in_progress'
+                                WHERE id = ?";
+                $stmt = $db->prepare($update_queue);
+                if ($stmt) {
+                    $stmt->bind_param('i', $queue_id);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        }
     }
     
     // Get donor info for widget and display

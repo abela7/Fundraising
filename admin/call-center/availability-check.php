@@ -14,10 +14,43 @@ try {
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
     $status = isset($_GET['status']) ? $_GET['status'] : '';
+    $call_started_at = isset($_GET['call_started_at']) ? urldecode($_GET['call_started_at']) : gmdate('Y-m-d H:i:s');
     
     if (!$donor_id || $status !== 'picked_up') {
         header('Location: ../donor-management/donors.php');
         exit;
+    }
+    
+    // Create session if not exists (Lazy creation)
+    if ($session_id <= 0) {
+        $session_query = "
+            INSERT INTO call_center_sessions 
+            (donor_id, agent_id, call_started_at, conversation_stage, created_at)
+            VALUES (?, ?, ?, 'connection_made', NOW())
+        ";
+        
+        $stmt = $db->prepare($session_query);
+        if ($stmt) {
+            $stmt->bind_param('iis', $donor_id, $user_id, $call_started_at);
+            $stmt->execute();
+            $session_id = $db->insert_id;
+            $stmt->close();
+            
+            // Update queue attempts count and last attempt time
+            if ($queue_id > 0) {
+                $update_queue = "UPDATE call_center_queues 
+                                SET attempts_count = attempts_count + 1, 
+                                    last_attempt_at = NOW(),
+                                    status = 'in_progress'
+                                WHERE id = ?";
+                $stmt = $db->prepare($update_queue);
+                if ($stmt) {
+                    $stmt->bind_param('i', $queue_id);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        }
     }
     
     // Get donor name and details for display and widget
