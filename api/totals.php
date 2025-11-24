@@ -33,16 +33,12 @@ try {
     
     // Logic for Projector Display:
     // Total Paid = All cash received (Instant + Pledge Installments)
-    // Total Pledged = Total pledge promises made (static, shows commitment)
-    // Grand Total = Total Pledged + Instant Payments
-    //   Note: Pledge installments are NOT added to Grand Total because they're already
-    //   represented in the pledge amount. Only instant payments add new value.
-    //   Example: £500 pledge + £100 paid towards it + £50 instant = Grand Total £550
-    //   (not £650, because the £100 is part of the £500 pledge)
+    // Total Pledged = Outstanding Pledges (Total Promises - Paid Installments)
+    // Grand Total = Paid + Outstanding (Total Value)
     
     $paidTotalDisplay = $instantTotal + $pledgePaidTotal;
-    $pledgedTotalDisplay = $pledgedTotal;
-    $grandTotalDisplay = $pledgedTotal + $instantTotal;
+    $pledgedTotalDisplay = max(0, $pledgedTotal - $pledgePaidTotal);
+    $grandTotalDisplay = $paidTotalDisplay + $pledgedTotalDisplay;
     
     $target = max(1.0, (float)$settings['target_amount']);
     $progress = min(100.0, round(($grandTotalDisplay / $target) * 100, 2));

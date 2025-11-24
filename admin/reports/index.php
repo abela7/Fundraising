@@ -28,12 +28,14 @@ if ($hasPledgePayments) {
 
 // 3. Pledges
 $pledgeRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledges WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
-$pledgedTotal = (float)$pledgeRow['t'];
+$rawPledgedTotal = (float)$pledgeRow['t'];
 
 // Logic:
 // Total Paid = Instant + Pledge Installments (cash in hand)
-// Grand Total = Total Paid + Total Pledged (total commitments + cash)
+// Total Pledged (Display) = Outstanding Pledges (Total Pledged - Pledge Payments)
+// Grand Total = Total Paid + Outstanding Pledges
 $paidTotal    = $instantTotal + $pledgePaidTotal;
+$pledgedTotal = max(0, $rawPledgedTotal - $pledgePaidTotal);
 $grandTotal   = $paidTotal + $pledgedTotal;
 
 // Donor count: distinct donors across approved pledges, approved payments, and pledge_payments
