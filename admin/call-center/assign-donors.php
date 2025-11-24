@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
             exit;
         } catch (Exception $e) {
             $message = "Error: " . $e->getMessage();
-        }
+}
     }
 }
 
@@ -101,7 +101,7 @@ try {
         COALESCE(d.total_pledged, 0) as total_pledged,
         COALESCE(d.total_paid, 0) as total_paid,
         (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
-        FROM donors d
+    FROM donors d
         WHERE d.agent_id IS NULL
         ORDER BY d.name");
     
@@ -350,103 +350,104 @@ try {
         /* Statistics Cards - Compact */
         .stat-card {
             background: white;
-            border-radius: 8px;
-            padding: 12px 16px;
+            border-radius: 10px;
+            padding: 16px;
             box-shadow: var(--shadow-sm);
-            border-left: 3px solid var(--primary-color);
+            border-left: 4px solid var(--primary-color);
             transition: all 0.2s;
         }
 
         .stat-card:hover {
-            transform: translateY(-1px);
+            transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
 
         .stat-card .stat-icon {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 8px;
-            font-size: 1.1rem;
+            font-size: 1.25rem;
         }
 
         .stat-card .stat-value {
-            font-size: 1.25rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            line-height: 1.2;
+            line-height: 1;
             margin: 0;
         }
 
         .stat-card .stat-label {
-            font-size: 0.75rem;
+            font-size: 0.8125rem;
             color: #6c757d;
-            margin-top: 2px;
+            margin-top: 4px;
+            font-weight: 500;
         }
 
         /* Responsive Design */
-        @media (max-width: 768px) {
-            .bulk-actions-bar {
-                bottom: 10px;
-                left: 10px;
-                right: 10px;
-                transform: translateX(0) translateY(100px);
-                max-width: none;
-                flex-direction: column;
-                align-items: stretch;
-            }
+            @media (max-width: 768px) {
+                .bulk-actions-bar {
+                    bottom: 10px;
+                    left: 10px;
+                    right: 10px;
+                    transform: translateX(0) translateY(100px);
+                    max-width: none;
+                    flex-direction: column;
+                    align-items: stretch;
+                }
 
-            .bulk-actions-bar.show {
-                transform: translateX(0) translateY(0);
-            }
+                .bulk-actions-bar.show {
+                    transform: translateX(0) translateY(0);
+                }
 
-            .bulk-actions-bar > div {
-                flex-direction: column;
-                gap: 8px;
-            }
+                .bulk-actions-bar > div {
+                    flex-direction: column;
+                    gap: 8px;
+                }
 
-            .table-modern {
-                font-size: 0.875rem;
-            }
+                .table-modern {
+                    font-size: 0.875rem;
+                }
 
-            .table-modern thead th,
-            .table-modern tbody td {
-                padding: 12px 8px;
-            }
+                .table-modern thead th,
+                .table-modern tbody td {
+                    padding: 12px 8px;
+                }
 
-            .nav-tabs-modern .nav-link {
-                padding: 10px 16px;
-                font-size: 0.875rem;
-            }
+                .nav-tabs-modern .nav-link {
+                    padding: 10px 16px;
+                    font-size: 0.875rem;
+                }
 
-            .accordion-modern .accordion-button {
-                padding: 12px 16px;
-                font-size: 0.875rem;
-            }
+                .accordion-modern .accordion-button {
+                    padding: 12px 16px;
+                    font-size: 0.875rem;
+                }
 
-            .card-header {
-                padding: 12px 16px;
-            }
+                .card-header {
+                    padding: 12px 16px;
+                }
 
-            .stat-card {
-                padding: 10px 12px;
-            }
+                .stat-card {
+                    padding: 12px;
+                }
 
-            .stat-card .stat-icon {
-                width: 32px;
-                height: 32px;
-                font-size: 1rem;
-            }
+                .stat-card .stat-icon {
+                    width: 36px;
+                    height: 36px;
+                    font-size: 1.1rem;
+                }
 
-            .stat-card .stat-value {
-                font-size: 1.1rem;
-            }
+                .stat-card .stat-value {
+                    font-size: 1.5rem;
+                }
 
-            .stat-card .stat-label {
-                font-size: 0.7rem;
+                .stat-card .stat-label {
+                    font-size: 0.75rem;
+                }
             }
-        }
 
         @media (max-width: 576px) {
             .table-responsive {
@@ -583,7 +584,7 @@ try {
                             </div>
                             <div class="flex-grow-1">
                                 <div class="stat-value text-primary"><?php echo number_format($total_donors); ?></div>
-                                <div class="stat-label">Total Donors</div>
+                                <div class="stat-label">Total</div>
                             </div>
                         </div>
                     </div>
@@ -615,7 +616,7 @@ try {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Loading Overlay -->
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="loading-spinner"></div>
@@ -627,7 +628,7 @@ try {
                     <span class="badge-count">
                         <i class="fas fa-check-circle me-1"></i>
                         <span id="selectedCount">0</span> selected
-                    </span>
+                        </span>
                     <select id="bulkAgentSelect" class="form-select form-select-sm">
                         <option value="0">Select Agent...</option>
                         <?php if (!empty($agents)): ?>
@@ -635,18 +636,18 @@ try {
                                 <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
                             <?php endforeach; ?>
                         <?php endif; ?>
-                    </select>
+                        </select>
                     <button type="button" class="btn btn-sm btn-light" onclick="clearSelection()">
                         <i class="fas fa-times me-1"></i>Clear
                     </button>
                     <button type="button" class="btn btn-sm btn-success btn-modern" onclick="bulkAssign()">
                         <i class="fas fa-user-plus me-1"></i>Assign
-                    </button>
+                        </button>
                     <button type="button" class="btn btn-sm btn-danger btn-modern" onclick="bulkUnassign()">
                         <i class="fas fa-user-minus me-1"></i>Unassign
-                    </button>
+                        </button>
+                    </div>
                 </div>
-            </div>
             
             <!-- Tabs -->
             <ul class="nav nav-tabs nav-tabs-modern" id="myTab" role="tablist">
@@ -666,16 +667,16 @@ try {
                 <!-- All Donors Tab -->
                 <div class="tab-pane fade show active" id="all" role="tabpanel">
                     <div class="modern-card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
                                 <i class="fas fa-users me-2"></i>All Donors
-                            </h6>
+                    </h6>
                             <div class="d-flex align-items-center gap-2">
                                 <input type="checkbox" id="selectAllAll" class="donor-checkbox" onchange="toggleSelectAll('all')">
                                 <label for="selectAllAll" class="mb-0 small">Select All</label>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
+                    </div>
+                </div>
+                <div class="card-body p-0">
                             <?php
                             try {
                                 $result = $db->query("SELECT d.id, d.name, d.agent_id,
@@ -760,9 +761,9 @@ try {
                                 echo "</div>";
                             }
                             ?>
-                        </div>
-                    </div>
-                </div>
+                                        </div>
+                                    </div>
+                                </div>
                 
                 <!-- By Agents Tab -->
                 <div class="tab-pane fade" id="agents" role="tabpanel">
@@ -789,7 +790,7 @@ try {
                                         <div class="mb-3 d-flex align-items-center gap-2">
                                             <input type="checkbox" class="select-all-agent donor-checkbox" data-agent="<?php echo $agent['id']; ?>" onchange="toggleSelectAllAgent(<?php echo $agent['id']; ?>)">
                                             <label class="mb-0 small">Select All</label>
-                                        </div>
+                            </div>
                                         <div class="table-responsive">
                                             <table class="table table-modern table-sm">
                                                 <thead>
@@ -823,21 +824,21 @@ try {
                                                     <?php endforeach; ?>
                                                 </tbody>
                                             </table>
-                                        </div>
-                                    <?php else: ?>
+                        </div>
+                    <?php else: ?>
                                         <div class="empty-state py-4">
                                             <i class="fas fa-inbox"></i>
                                             <p class="mt-2 mb-0">No donors assigned to this agent.</p>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
                             </div>
                         </div>
                         <?php 
                             endforeach;
                         }
                         ?>
-                        
+
                         <!-- Unassigned Donors -->
                         <?php if (count($unassigned_donors) > 0): ?>
                         <div class="accordion-item">
@@ -883,7 +884,7 @@ try {
                                                                     <?php foreach ($agents as $agent): ?>
                                                                         <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
                                                                     <?php endforeach; ?>
-                                                                <?php endif; ?>
+                            <?php endif; ?>
                                                             </select>
                                                             <button type="submit" name="assign" class="btn btn-sm btn-primary btn-modern">
                                                                 <i class="fas fa-user-plus me-1"></i>Assign
@@ -896,9 +897,9 @@ try {
                                         </table>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -1053,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', function() {
         attributes: true,
         attributeFilter: ['class']
     });
-});
+    });
 </script>
 </body>
 </html>
