@@ -66,20 +66,38 @@ try {
         exit;
     }
     
-    // Check if this is truly a first call
-    $call_history_query = "SELECT COUNT(*) as call_count FROM call_center_sessions WHERE donor_id = ?";
+    // Get actual call count and history
+    $call_history_query = "
+        SELECT s.*, u.name as agent_name 
+        FROM call_center_sessions s
+        LEFT JOIN users u ON s.agent_id = u.id
+        WHERE s.donor_id = ? 
+        ORDER BY s.call_started_at DESC
+    ";
     $stmt = $db->prepare($call_history_query);
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
-    $history = $stmt->get_result()->fetch_object();
+    $history_result = $stmt->get_result();
+    $total_calls = $history_result->num_rows;
+    
+    $call_history = [];
+    while ($row = $history_result->fetch_object()) {
+        $call_history[] = $row;
+    }
     $stmt->close();
     
-    $is_first_call = $history->call_count == 0;
+    $is_first_call = $total_calls == 0;
+    
+    // Get last call details
+    $last_call = $total_calls > 0 ? $call_history[0] : null;
     
     // Format last contact
     $last_contact = 'Never';
-    if (!empty($donor->last_call_date)) {
-        $last_contact = date('M j, Y g:i A', strtotime($donor->last_call_date));
+    $last_outcome = 'N/A';
+    
+    if ($last_call) {
+        $last_contact = date('M j, Y g:i A', strtotime($last_call->call_started_at));
+        $last_outcome = ucwords(str_replace('_', ' ', $last_call->outcome ?? 'Unknown'));
     } elseif (!empty($donor->last_contacted_at)) {
         $last_contact = date('M j, Y', strtotime($donor->last_contacted_at));
     }
@@ -380,6 +398,64 @@ $page_title = 'Call: ' . $donor->name;
             margin-right: 0.375rem;
             font-size: 0.75rem;
         }
+
+        /* History Modal */
+        .history-timeline {
+            position: relative;
+            padding-left: 1.5rem;
+            border-left: 2px solid #e2e8f0;
+            margin: 1rem 0 1rem 0.5rem;
+        }
+
+        .history-item {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .history-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .history-dot {
+            position: absolute;
+            left: -1.95rem;
+            top: 0.25rem;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #0a6286;
+        }
+
+        .history-content {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .history-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.8125rem;
+            color: #64748b;
+        }
+
+        .history-outcome {
+            font-weight: 700;
+            color: #0a6286;
+            margin-bottom: 0.25rem;
+        }
+
+        .history-notes {
+            font-size: 0.875rem;
+            color: #334155;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #e2e8f0;
+        }
     </style>
 </head>
 <body>
@@ -423,12 +499,21 @@ $page_title = 'Call: ' . $donor->name;
                         <div class="info-card-body">
                             <div class="info-item">
                                 <span class="info-label">Attempts</span>
-                                <span class="badge bg-info"><?php echo (int)$donor->attempts_count; ?> calls</span>
+                                <span class="badge bg-info"><?php echo $total_calls; ?> calls</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Last Contact</span>
                                 <span class="info-value"><?php echo htmlspecialchars($last_contact); ?></span>
                             </div>
+                            <?php if ($last_call): ?>
+                            <div class="info-item">
+                                <span class="info-label">Last Outcome</span>
+                                <span class="info-value"><?php echo htmlspecialchars($last_outcome); ?></span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary w-100 mt-2" data-bs-toggle="modal" data-bs-target="#historyModal">
+                                <i class="fas fa-list-ul me-2"></i>View Call History
+                            </button>
+                            <?php endif; ?>
                         </div>
                     </div>
                     
@@ -499,6 +584,56 @@ $page_title = 'Call: ' . $donor->name;
                 </div>
             </div>
         </main>
+    </div>
+</div>
+
+<!-- Call History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="historyModalLabel">
+                    <i class="fas fa-history me-2 text-primary"></i>Call History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="history-timeline">
+                    <?php foreach ($call_history as $call): ?>
+                        <?php 
+                            $call_date = date('M j, Y', strtotime($call->call_started_at));
+                            $call_time = date('g:i A', strtotime($call->call_started_at));
+                            $outcome_label = ucwords(str_replace('_', ' ', $call->outcome ?? 'Unknown'));
+                        ?>
+                        <div class="history-item">
+                            <div class="history-dot"></div>
+                            <div class="history-content">
+                                <div class="history-meta">
+                                    <span><i class="far fa-calendar me-1"></i><?php echo $call_date; ?> at <?php echo $call_time; ?></span>
+                                    <span><i class="far fa-user me-1"></i><?php echo htmlspecialchars($call->agent_name ?? 'Unknown'); ?></span>
+                                </div>
+                                <div class="history-outcome">
+                                    <?php echo $outcome_label; ?>
+                                </div>
+                                <?php if (!empty($call->notes)): ?>
+                                    <div class="history-notes">
+                                        <?php echo nl2br(htmlspecialchars($call->notes)); ?>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="mt-2 text-end">
+                                    <a href="call-details.php?id=<?php echo $call->id; ?>" class="btn btn-sm btn-link text-decoration-none p-0">
+                                        View Details <i class="fas fa-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
     </div>
 </div>
 
