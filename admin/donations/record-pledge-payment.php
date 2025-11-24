@@ -215,9 +215,9 @@ if ($search || $selected_donor_id) {
                                             <input type="text" name="reference_number" class="form-control" placeholder="e.g. Receipt #123">
                                         </div>
                                         <div class="col-12">
-                                            <label class="form-label fw-bold">Payment Proof <span class="text-danger">*</span></label>
-                                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf" required>
-                                            <small class="text-muted">Upload receipt, bank statement, or payment screenshot (required for approval)</small>
+                                            <label class="form-label fw-bold">Payment Proof <small class="text-muted">(Optional)</small></label>
+                                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
+                                            <small class="text-muted">Upload receipt, bank statement, or payment screenshot (recommended for faster approval)</small>
                                         </div>
                                         <div class="col-12">
                                             <label class="form-label fw-bold">Notes</label>
@@ -306,12 +306,6 @@ function selectPledge(id, remaining) {
 
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
-    const fileInput = document.querySelector('input[name="payment_proof"]');
-    if (!fileInput.files || fileInput.files.length === 0) {
-        alert('Please upload payment proof (receipt/bank statement)');
-        return;
-    }
     
     if(!confirm('Submit this payment for approval?\n\nThe payment will be reviewed by an admin before being finalized.')) return;
     

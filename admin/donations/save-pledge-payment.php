@@ -35,20 +35,20 @@ try {
     if ($pledge_id <= 0) throw new Exception("Invalid pledge");
     if ($amount <= 0) throw new Exception("Amount must be greater than 0");
     
-    // Validate Payment Proof Upload (but don't move file yet)
-    if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception("Payment proof is required");
-    }
+    // Validate Payment Proof Upload (optional, but validate if provided)
+    $has_file = isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK;
     
-    $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'];
-    $file_type = $_FILES['payment_proof']['type'];
-    
-    if (!in_array($file_type, $allowed_types)) {
-        throw new Exception("Invalid file type. Only images (JPG, PNG, GIF, WEBP) and PDF allowed.");
-    }
-    
-    if ($_FILES['payment_proof']['size'] > 5 * 1024 * 1024) { // 5MB max
-        throw new Exception("File too large. Maximum 5MB allowed.");
+    if ($has_file) {
+        $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'];
+        $file_type = $_FILES['payment_proof']['type'];
+        
+        if (!in_array($file_type, $allowed_types)) {
+            throw new Exception("Invalid file type. Only images (JPG, PNG, GIF, WEBP) and PDF allowed.");
+        }
+        
+        if ($_FILES['payment_proof']['size'] > 5 * 1024 * 1024) { // 5MB max
+            throw new Exception("File too large. Maximum 5MB allowed.");
+        }
     }
     
     $db = db();
@@ -64,23 +64,29 @@ try {
     if ($pledge['donor_id'] != $donor_id) throw new Exception("Pledge does not belong to this donor");
     if ($pledge['status'] === 'cancelled') throw new Exception("Cannot pay towards a cancelled pledge");
     
-    // 2. NOW Upload the file (after validation, before final insert)
-    // Create uploads directory if not exists
-    $upload_dir = __DIR__ . '/../../uploads/payment_proofs/';
-    if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0755, true);
+    // 2. Upload the file if provided (after validation, before final insert)
+    $payment_proof = null;
+    if ($has_file) {
+        // Create uploads directory if not exists
+        $upload_dir = __DIR__ . '/../../uploads/payment_proofs/';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        // Generate unique filename
+        $ext = pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
+        $filename = 'proof_' . time() . '_' . uniqid() . '.' . $ext;
+        $filepath = $upload_dir . $filename;
+        
+        if (!move_uploaded_file($_FILES['payment_proof']['tmp_name'], $filepath)) {
+            throw new Exception("Failed to upload payment proof");
+        }
+        
+        $payment_proof = 'uploads/payment_proofs/' . $filename; // Relative path for DB
+    } else {
+        // For MySQLi compatibility, use empty string instead of NULL for optional fields
+        $payment_proof = '';
     }
-    
-    // Generate unique filename
-    $ext = pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
-    $filename = 'proof_' . time() . '_' . uniqid() . '.' . $ext;
-    $filepath = $upload_dir . $filename;
-    
-    if (!move_uploaded_file($_FILES['payment_proof']['tmp_name'], $filepath)) {
-        throw new Exception("Failed to upload payment proof");
-    }
-    
-    $payment_proof = 'uploads/payment_proofs/' . $filename; // Relative path for DB
     
     // 3. Insert Payment with PENDING status (awaits approval)
     $stmt = $db->prepare("
