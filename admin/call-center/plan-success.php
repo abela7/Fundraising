@@ -121,22 +121,20 @@ try {
     
     // Calculate last payment date
     $last_payment_date = 'N/A';
-    if ($summary->plan_start_date && $summary->total_payments) {
+    if ($summary->plan_start_date && $summary->total_payments > 0) {
         $start = new DateTime($summary->plan_start_date);
         $frequency = $summary->plan_frequency_unit ?? 'month';
         $frequency_num = (int)($summary->plan_frequency_number ?? 1);
         
-        // Calculate months for last payment
-        $months_to_add = 0;
-        if ($frequency === 'week') {
-            $months_to_add = ceil(($summary->total_payments * $frequency_num) / 4.33);
-        } elseif ($frequency === 'month') {
-            $months_to_add = $summary->total_payments * $frequency_num;
-        } elseif ($frequency === 'year') {
-            $months_to_add = $summary->total_payments * 12;
+        // Logic: Start Date + (Total Payments - 1) * Frequency
+        $intervals_to_add = ($summary->total_payments - 1) * $frequency_num;
+        
+        if ($intervals_to_add > 0) {
+            // Ensure singular unit for modify string (e.g. "month" -> "months")
+            $unit_str = $frequency . 's'; 
+            $start->modify("+{$intervals_to_add} {$unit_str}");
         }
         
-        $start->modify("+{$months_to_add} months");
         $last_payment_date = $start->format('M j, Y');
     }
     
@@ -146,7 +144,9 @@ try {
         $unit = $summary->plan_frequency_unit;
         $num = (int)($summary->plan_frequency_number ?? 1);
         
-        if ($unit === 'week') {
+        if ($unit === 'day') {
+            $frequency_display = $num === 1 ? 'Daily' : "Every {$num} days";
+        } elseif ($unit === 'week') {
             $frequency_display = $num === 1 ? 'Weekly' : "Every {$num} weeks";
         } elseif ($unit === 'month') {
             $frequency_display = $num === 1 ? 'Monthly' : "Every {$num} months";

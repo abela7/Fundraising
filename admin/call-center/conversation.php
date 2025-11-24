@@ -1009,14 +1009,16 @@ $page_title = 'Live Call';
                                                     <!-- Custom Plan Options (Visible only for custom) -->
                                                     <div id="customPlanOptions" style="display: none;">
                                                         <div class="mb-3">
-                                                            <label class="form-label small fw-bold text-muted">Frequency</label>
-                                                            <select class="form-select form-select-sm" name="custom_frequency" id="customFrequency" onchange="calculatePreview()">
-                                                                <option value="weekly">Weekly</option>
-                                                                <option value="biweekly">Bi-Weekly</option>
-                                                                <option value="monthly" selected>Monthly</option>
-                                                                <option value="quarterly">Quarterly</option>
-                                                                <option value="annually">Annually</option>
-                                                            </select>
+                                                            <label class="form-label small fw-bold text-muted">Repeat Every</label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" class="form-control" name="custom_frequency_number" id="customFreqNumber" value="1" min="1" onchange="calculatePreview()">
+                                                                <select class="form-select" name="custom_frequency_unit" id="customFreqUnit" onchange="calculatePreview()">
+                                                                    <option value="day">Day(s)</option>
+                                                                    <option value="week">Week(s)</option>
+                                                                    <option value="month" selected>Month(s)</option>
+                                                                    <option value="year">Year(s)</option>
+                                                                </select>
+                                                            </div>
                                                         </div>
                                                         
                                                         <div class="mb-3">
@@ -1743,21 +1745,22 @@ $page_title = 'Live Call';
     }
     
     function calculatePreview(isStandard = false) {
-        let frequency = 'monthly';
+        let frequencyUnit = 'month';
+        let frequencyNum = 1;
         let count = selectedDuration; // Default for standard
         let amountLabel = 'Monthly';
         
         if (!isStandard && document.getElementById('selectedPlanId').value === 'custom') {
-            frequency = document.getElementById('customFrequency').value;
+            frequencyUnit = document.getElementById('customFreqUnit').value;
+            frequencyNum = parseInt(document.getElementById('customFreqNumber').value) || 1;
             count = parseInt(document.getElementById('customPayments').value) || 12;
             
             // Update label based on frequency
-            switch(frequency) {
-                case 'weekly': amountLabel = 'Weekly'; break;
-                case 'biweekly': amountLabel = 'Bi-Weekly'; break;
-                case 'quarterly': amountLabel = 'Quarterly'; break;
-                case 'annually': amountLabel = 'Annually'; break;
-                default: amountLabel = 'Monthly';
+            if (frequencyNum === 1) {
+                amountLabel = frequencyUnit.charAt(0).toUpperCase() + frequencyUnit.slice(1) + 'ly'; // Monthly, Weekly...
+                if (amountLabel === 'Dayly') amountLabel = 'Daily';
+            } else {
+                amountLabel = `Every ${frequencyNum} ${frequencyUnit}s`;
             }
         } else {
             // Standard plan is always monthly
@@ -1765,7 +1768,6 @@ $page_title = 'Live Call';
         }
         
         document.getElementById('previewAmountLabel').textContent = amountLabel;
-        // If standard plan, selectedDuration is months. If custom, count is payments.
         
         // Calculate Installment Amount
         const installment = donorBalance / count;
@@ -1786,16 +1788,17 @@ $page_title = 'Live Call';
             let end = new Date(startDateInput);
             
             // Calculate End Date based on Frequency * Count
-            if (frequency === 'weekly') {
-                end.setDate(end.getDate() + (7 * (count - 1)));
-            } else if (frequency === 'biweekly') {
-                end.setDate(end.getDate() + (14 * (count - 1)));
-            } else if (frequency === 'monthly') {
-                end.setMonth(end.getMonth() + (count - 1));
-            } else if (frequency === 'quarterly') {
-                end.setMonth(end.getMonth() + (3 * (count - 1)));
-            } else if (frequency === 'annually') {
-                end.setFullYear(end.getFullYear() + (count - 1));
+            // We add (count - 1) intervals
+            const intervals = count - 1;
+            
+            if (frequencyUnit === 'day') {
+                end.setDate(end.getDate() + (intervals * frequencyNum));
+            } else if (frequencyUnit === 'week') {
+                end.setDate(end.getDate() + (intervals * frequencyNum * 7));
+            } else if (frequencyUnit === 'month') {
+                end.setMonth(end.getMonth() + (intervals * frequencyNum));
+            } else if (frequencyUnit === 'year') {
+                end.setFullYear(end.getFullYear() + (intervals * frequencyNum));
             }
             
             const options = { day: 'numeric', month: 'short', year: 'numeric' };
