@@ -256,8 +256,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get filter parameters
 $allowedStatuses = ['all','pending','approved','rejected','voided', 'cancelled'];
-$allowedTypes = ['all','payment','pledge'];
-$allowedMethods = ['all','cash','bank','card','other'];
+$allowedTypes = ['all','payment','pledge','pledge_payment'];
+$allowedMethods = ['all','cash','bank','bank_transfer','card','cheque','other'];
 
 $statusFilter = in_array($_GET['status'] ?? 'all', $allowedStatuses, true) ? ($_GET['status'] ?? 'all') : 'all';
 $typeFilter = in_array($_GET['type'] ?? 'all', $allowedTypes, true) ? ($_GET['type'] ?? 'all') : 'all';
@@ -266,7 +266,7 @@ $search = trim($_GET['search'] ?? '');
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 
-// Corrected Base UNION Query
+// Corrected Base UNION Query (includes pledge_payments if available)
 $baseQuery = "
 (SELECT 
     p.id,
@@ -308,7 +308,33 @@ UNION ALL
     dp2.sqm_meters as package_sqm
  FROM pledges pl
  LEFT JOIN users u2 ON pl.approved_by_user_id = u2.id
- LEFT JOIN donation_packages dp2 ON pl.package_id = dp2.id)";
+ LEFT JOIN donation_packages dp2 ON pl.package_id = dp2.id)" .
+($has_pledge_payments ? "
+UNION ALL
+(SELECT 
+    pp.id,
+    'pledge_payment' as donation_type,
+    d.name as donor_name,
+    d.phone as donor_phone,
+    d.email as donor_email,
+    pp.amount,
+    pp.payment_method as method,
+    pp.reference_number as notes,
+    CASE 
+        WHEN pp.status = 'confirmed' THEN 'approved'
+        WHEN pp.status = 'voided' THEN 'voided'
+        ELSE 'pending'
+    END as status,
+    0 as anonymous,
+    NULL as pledge_type,
+    pp.created_at,
+    pp.approved_at as processed_at,
+    approver.name as processed_by,
+    NULL as package_label,
+    NULL as package_sqm
+ FROM pledge_payments pp
+ LEFT JOIN donors d ON pp.donor_id = d.id
+ LEFT JOIN users approver ON pp.approved_by_user_id = approver.id)" : "");
 
 // Build WHERE clause
 $where_conditions = [];
@@ -328,8 +354,15 @@ if ($statusFilter !== 'all') {
 }
 
 if ($methodFilter !== 'all' && $typeFilter !== 'pledge') {
-    $where_conditions[] = "method = ?";
-    $params[] = $methodFilter;
+    // Handle method name variations between payments and pledge_payments tables
+    if ($methodFilter === 'bank') {
+        // Match both 'bank' (payments) and 'bank_transfer' (pledge_payments)
+        $where_conditions[] = "(method = ? OR method = 'bank_transfer')";
+        $params[] = $methodFilter;
+    } else {
+        $where_conditions[] = "method = ?";
+        $params[] = $methodFilter;
+    }
     $types .= 's';
 }
 
@@ -394,17 +427,35 @@ if ($stmt) {
     $stmt->close();
 }
 
-// Get statistics
-$statsResult = $db->query("
+// Check if pledge_payments table exists
+$has_pledge_payments = false;
+try {
+    $check_pp = $db->query("SHOW TABLES LIKE 'pledge_payments'");
+    $has_pledge_payments = ($check_pp && $check_pp->num_rows > 0);
+} catch (Exception $e) {
+    $has_pledge_payments = false;
+}
+
+// Get statistics (including pledge_payments if available)
+$statsQuery = "
     SELECT 
-        (SELECT COUNT(*) FROM payments) + (SELECT COUNT(*) FROM pledges) as total_count,
-        (SELECT COUNT(*) FROM payments) as payment_count,
+        (SELECT COUNT(*) FROM payments) + (SELECT COUNT(*) FROM pledges)" . 
+        ($has_pledge_payments ? " + (SELECT COUNT(*) FROM pledge_payments)" : "") . " as total_count,
+        (SELECT COUNT(*) FROM payments)" . 
+        ($has_pledge_payments ? " + (SELECT COUNT(*) FROM pledge_payments WHERE status='confirmed')" : "") . " as payment_count,
         (SELECT COUNT(*) FROM pledges) as pledge_count,
-        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='approved') + (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='approved') as approved_amount,
-        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='pending') + (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='pending') as pending_amount,
-        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='approved') as paid_amount,
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='approved') + 
+        (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='approved')" .
+        ($has_pledge_payments ? " + (SELECT COALESCE(SUM(amount), 0) FROM pledge_payments WHERE status='confirmed')" : "") . " as approved_amount,
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='pending') + 
+        (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='pending')" .
+        ($has_pledge_payments ? " + (SELECT COALESCE(SUM(amount), 0) FROM pledge_payments WHERE status='pending')" : "") . " as pending_amount,
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='approved')" .
+        ($has_pledge_payments ? " + (SELECT COALESCE(SUM(amount), 0) FROM pledge_payments WHERE status='confirmed')" : "") . " as paid_amount,
         (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE status='approved') as pledged_amount
-")->fetch_assoc();
+";
+
+$statsResult = $db->query($statsQuery)->fetch_assoc();
 
 $stats = [
     'total_count' => (int)($statsResult['total_count'] ?? 0),
@@ -435,6 +486,185 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/donations.css">
+    <style>
+        /* Enhanced Mobile Responsive Styles */
+        .donation-row {
+            transition: background-color 0.2s;
+        }
+        
+        .donation-row:hover {
+            background-color: #f8f9fa;
+        }
+        
+        /* Mobile Table - Card View */
+        @media (max-width: 768px) {
+            .table-responsive {
+                overflow-x: visible;
+            }
+            
+            .table thead {
+                display: none;
+            }
+            
+            .table tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #dee2e6;
+                border-radius: 0.5rem;
+                padding: 1rem;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .table tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border: none;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .table tbody td:last-child {
+                border-bottom: none;
+            }
+            
+            .table tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #6c757d;
+                margin-right: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .table tbody td:has(.btn-group) {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            
+            .table tbody td:has(.btn-group)::before {
+                content: "Actions";
+            }
+            
+            .btn-group {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .btn-group .btn {
+                width: 100%;
+                margin-bottom: 0.25rem;
+            }
+            
+            /* Stats Cards Mobile */
+            .stat-card {
+                margin-bottom: 1rem;
+            }
+            
+            /* Page Header Mobile */
+            .d-flex.justify-content-between {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 1rem;
+            }
+            
+            .d-flex.justify-content-between > div:last-child {
+                width: 100%;
+            }
+            
+            .d-flex.justify-content-between > div:last-child .btn {
+                flex: 1;
+            }
+            
+            /* Filters Mobile */
+            .card-body .row > [class*="col-"] {
+                margin-bottom: 1rem;
+            }
+            
+            .input-group {
+                flex-wrap: wrap;
+            }
+            
+            .input-group .form-control {
+                flex: 1 1 100%;
+                margin-bottom: 0.25rem;
+            }
+        }
+        
+        /* Very Small Devices */
+        @media (max-width: 576px) {
+            .container-fluid {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            .card-header h6,
+            .card-header h5 {
+                font-size: 0.95rem;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .stat-label {
+                font-size: 0.875rem;
+            }
+            
+            .stat-detail {
+                font-size: 0.75rem;
+            }
+            
+            .badge {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .btn-sm {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.875rem;
+            }
+            
+            .table tbody td {
+                font-size: 0.875rem;
+            }
+            
+            .donor-info {
+                font-size: 0.875rem;
+            }
+        }
+        
+        /* Enhanced Button Styles */
+        .btn-group .btn {
+            min-width: 38px;
+        }
+        
+        /* Better spacing for action buttons */
+        .btn-group {
+            gap: 0.25rem;
+        }
+        
+        /* Improved filter form */
+        @media (max-width: 991px) {
+            .card-body .row {
+                margin-bottom: 0.5rem;
+            }
+        }
+        
+        /* Pagination Mobile */
+        @media (max-width: 576px) {
+            .pagination {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .pagination .page-link {
+                padding: 0.375rem 0.5rem;
+                font-size: 0.875rem;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -456,14 +686,14 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
             <?php endif; ?>
 
             <!-- Page Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
                 <div>
                     <h1 class="h3 mb-1 text-primary">
                         <i class="fas fa-donate me-2"></i>Donations Management
                     </h1>
-                    <p class="text-muted mb-0">Comprehensive view and management of all payments and pledges</p>
+                    <p class="text-muted mb-0 small">Comprehensive view and management of all payments and pledges<?php if ($has_pledge_payments): ?>, including pledge payments<?php endif; ?></p>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
                     <button type="button" class="btn btn-outline-primary" onclick="exportDonations()">
                         <i class="fas fa-download me-2"></i>Export
                     </button>
@@ -484,7 +714,7 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                             <div class="stat-value"><?php echo number_format($stats['total_count']); ?></div>
                             <div class="stat-label">Total Donations</div>
                             <div class="stat-detail">
-                                <?php echo number_format($stats['payment_count']); ?> payments, 
+                                <?php echo number_format($stats['payment_count']); ?> payments<?php if ($has_pledge_payments): ?> (incl. pledge payments)<?php endif; ?>, 
                                 <?php echo number_format($stats['pledge_count']); ?> pledges
                             </div>
                         </div>
@@ -544,7 +774,7 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                         </button>
                     </h6>
                 </div>
-                <div class="collapse show" id="filtersCollapse">
+                <div class="collapse" id="filtersCollapse">
                     <div class="card-body">
                         <form method="get" class="row g-3" id="filterForm">
                             <div class="col-lg-2 col-md-4 col-sm-6">
@@ -553,6 +783,9 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                                     <option value="all" <?php echo $typeFilter === 'all' ? 'selected' : ''; ?>>All Types</option>
                                     <option value="payment" <?php echo $typeFilter === 'payment' ? 'selected' : ''; ?>>Payments</option>
                                     <option value="pledge" <?php echo $typeFilter === 'pledge' ? 'selected' : ''; ?>>Pledges</option>
+                                    <?php if ($has_pledge_payments): ?>
+                                    <option value="pledge_payment" <?php echo $typeFilter === 'pledge_payment' ? 'selected' : ''; ?>>Pledge Payments</option>
+                                    <?php endif; ?>
                                 </select>
                             </div>
                             <div class="col-lg-2 col-md-4 col-sm-6">
@@ -573,6 +806,9 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                                     <option value="cash" <?php echo $methodFilter === 'cash' ? 'selected' : ''; ?>>Cash</option>
                                     <option value="bank" <?php echo $methodFilter === 'bank' ? 'selected' : ''; ?>>Bank Transfer</option>
                                     <option value="card" <?php echo $methodFilter === 'card' ? 'selected' : ''; ?>>Card</option>
+                                    <?php if ($has_pledge_payments): ?>
+                                    <option value="cheque" <?php echo $methodFilter === 'cheque' ? 'selected' : ''; ?>>Cheque</option>
+                                    <?php endif; ?>
                                     <option value="other" <?php echo $methodFilter === 'other' ? 'selected' : ''; ?>>Other</option>
                                 </select>
                             </div>
@@ -646,34 +882,38 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                             <tbody>
                                 <?php foreach ($donations as $donation): ?>
                                 <tr class="donation-row">
-                                    <td>
+                                    <td data-label="ID">
                                         <span class="text-primary fw-bold">
                                             <?php echo strtoupper(substr($donation['donation_type'], 0, 1)) . str_pad((string)$donation['id'], 4, '0', STR_PAD_LEFT); ?>
                                         </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Date & Time">
                                         <div class="timestamp">
                                             <div class="fw-medium"><?php echo date('d M Y', strtotime($donation['created_at'])); ?></div>
                                             <small class="text-muted"><?php echo date('h:i A', strtotime($donation['created_at'])); ?></small>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Type">
                                         <?php if ($donation['donation_type'] === 'payment'): ?>
                                         <span class="badge bg-success">
                                             <i class="fas fa-credit-card me-1"></i>Payment
+                                        </span>
+                                        <?php elseif ($donation['donation_type'] === 'pledge_payment'): ?>
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-file-invoice-dollar me-1"></i>Pledge Payment
                                         </span>
                                         <?php else: ?>
                                         <span class="badge bg-warning">
                                             <i class="fas fa-handshake me-1"></i>Pledge
                                         </span>
                                         <?php if ($donation['pledge_type'] === 'paid'): ?>
-                                        <span class="badge bg-info mt-1">
+                                        <span class="badge bg-info mt-1 d-block">
                                             <i class="fas fa-check me-1"></i>Paid at Reg.
                                         </span>
                                         <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
-                                    <td>
+                                    <td data-label="Donor">
                                         <div class="donor-info">
                                             <?php if ($donation['anonymous']): ?>
                                             <div class="fw-medium text-muted">
@@ -687,28 +927,31 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                                             <?php endif; ?>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Amount">
                                         <span class="fw-bold text-success"><?php echo $currency; ?> <?php echo number_format((float)$donation['amount'], 2); ?></span>
                                     </td>
-                                    <td>
+                                    <td data-label="Method">
                                         <?php if ($donation['method']): ?>
                                         <?php 
                                         $methodIcons = [
                                             'cash' => 'fas fa-money-bill-wave',
                                             'bank' => 'fas fa-university',
+                                            'bank_transfer' => 'fas fa-university',
                                             'card' => 'fas fa-credit-card',
+                                            'cheque' => 'fas fa-file-invoice-dollar',
                                             'other' => 'fas fa-question-circle'
                                         ];
-                                        $icon = $methodIcons[$donation['method']] ?? 'fas fa-question-circle';
+                                        $method = str_replace('_', ' ', $donation['method']);
+                                        $icon = $methodIcons[$donation['method']] ?? $methodIcons[str_replace('_', '', $donation['method'])] ?? 'fas fa-question-circle';
                                         ?>
                                         <span class="badge bg-secondary">
-                                            <i class="<?php echo $icon; ?> me-1"></i><?php echo ucfirst($donation['method']); ?>
+                                            <i class="<?php echo $icon; ?> me-1"></i><?php echo ucfirst($method); ?>
                                         </span>
                                         <?php else: ?>
                                         <span class="text-muted">N/A</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>
+                                    <td data-label="Status">
                                         <?php
                                         $statusColors = [
                                             'pending' => 'warning',
@@ -732,7 +975,7 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                                             <i class="<?php echo $icon; ?> me-1"></i><?php echo ucfirst($status); ?>
                                         </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Package">
                                         <?php if ($donation['package_label']): ?>
                                         <span class="badge bg-light text-dark border">
                                             <?php echo htmlspecialchars($donation['package_label']); ?>
@@ -744,10 +987,10 @@ $packages = $db->query("SELECT id, label, price FROM donation_packages WHERE act
                                         <span class="text-muted">Custom</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>
+                                    <td data-label="Processed By">
                                         <small class="text-muted"><?php echo htmlspecialchars($donation['processed_by'] ?: 'System'); ?></small>
                                     </td>
-                                    <td class="text-center">
+                                    <td data-label="Actions" class="text-center">
                                         <div class="btn-group" role="group">
                                             <button class="btn btn-sm btn-outline-primary" 
                                                     onclick="viewDonationDetails(<?php echo htmlspecialchars(json_encode($donation)); ?>)" 
@@ -1077,6 +1320,42 @@ if (typeof window.toggleSidebar !== 'function') {
     }
   };
 }
+
+// Mobile enhancements
+(function() {
+    // Auto-collapse filters on mobile on page load
+    if (window.innerWidth < 768) {
+        const filtersCollapse = document.getElementById('filtersCollapse');
+        if (filtersCollapse) {
+            const bsCollapse = new bootstrap.Collapse(filtersCollapse, { toggle: false });
+            bsCollapse.hide();
+        }
+    }
+    
+    // Improve mobile table card view
+    function enhanceMobileTable() {
+        if (window.innerWidth < 768) {
+            const rows = document.querySelectorAll('.donation-row');
+            rows.forEach(row => {
+                row.classList.add('mobile-card-view');
+            });
+        }
+    }
+    
+    // Run on load and resize
+    enhanceMobileTable();
+    window.addEventListener('resize', enhanceMobileTable);
+    
+    // Helper function for filter submission
+    window.submitFilters = function() {
+        document.getElementById('filterForm').submit();
+    };
+    
+    // Export function placeholder
+    window.exportDonations = function() {
+        alert('Export functionality coming soon!');
+    };
+})();
 </script>
 </body>
 </html>
