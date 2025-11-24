@@ -147,14 +147,22 @@ if ($search || $selected_donor_id) {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             background: #0d6efd;
             color: white;
             border-radius: 50%;
             font-weight: 600;
             font-size: 0.875rem;
             margin-right: 0.5rem;
+            transition: all 0.3s;
+        }
+        .step-indicator.active {
+            background: #0d6efd;
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.2);
+        }
+        .step-indicator.completed {
+            background: #198754;
         }
         .form-group-custom {
             margin-bottom: 1.25rem;
@@ -266,10 +274,25 @@ if ($search || $selected_donor_id) {
                     </div>
                 </div>
                 
-                <div class="row g-3 g-md-4">
-                    <!-- Left: Donor Selection -->
-                    <div class="col-lg-4">
-                        <div class="card shadow-sm border-0 h-100">
+                <!-- Step Progress Indicator -->
+                <div class="mb-4">
+                    <div class="d-flex align-items-center justify-content-center gap-3">
+                        <div class="d-flex align-items-center">
+                            <div class="step-indicator" id="stepIndicator1">1</div>
+                            <span class="small fw-bold text-muted" id="stepLabel1">Select Donor</span>
+                        </div>
+                        <div class="text-muted">→</div>
+                        <div class="d-flex align-items-center">
+                            <div class="step-indicator bg-secondary" id="stepIndicator2">2</div>
+                            <span class="small text-muted" id="stepLabel2">Enter Payment</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row justify-content-center">
+                    <!-- Step 1: Donor Selection -->
+                    <div class="col-lg-8 col-xl-6" id="step1Container">
+                        <div class="card shadow-sm border-0">
                             <div class="card-body">
                                 <div class="section-title">
                                     <span class="step-indicator">1</span>
@@ -320,17 +343,35 @@ if ($search || $selected_donor_id) {
                                         <?php endforeach; ?>
                                     <?php endif; ?>
                                 </div>
+                                
+                                <!-- Step 1 Action Buttons -->
+                                <div class="mt-4 pt-3 border-top text-end" id="step1Actions" style="display: none;">
+                                    <button type="button" class="btn btn-primary px-4" id="btnNext">
+                                        <span>Next: Enter Payment</span>
+                                        <i class="fas fa-arrow-right ms-2"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Right: Payment Details -->
-                    <div class="col-lg-8">
-                        <div class="card shadow-sm border-0" id="paymentCard" style="display: none;">
+                    <!-- Step 2: Payment Details -->
+                    <div class="col-lg-10 col-xl-8" id="step2Container" style="display: none;">
+                        <div class="card shadow-sm border-0">
                             <div class="card-body">
                                 <div class="section-title">
                                     <span class="step-indicator">2</span>
                                     Select Pledge & Enter Payment
+                                </div>
+                                
+                                <div class="alert alert-info mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-user-circle fa-2x me-3"></i>
+                                        <div>
+                                            <strong>Selected Donor:</strong> <span id="selectedDonorNameTop" class="text-primary"></span><br>
+                                            <small class="text-muted">Recording payment for this donor</small>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <h6 class="mb-3">
@@ -418,9 +459,9 @@ if ($search || $selected_donor_id) {
                                         </div>
                                     </div>
                                     
-                                    <div class="mt-3 mt-md-4 pt-3 border-top d-flex flex-column flex-sm-row justify-content-end gap-2">
-                                        <button type="button" class="btn btn-light order-2 order-sm-1" onclick="location.reload()">
-                                            <i class="fas fa-times me-2"></i>Cancel
+                                    <div class="mt-3 mt-md-4 pt-3 border-top d-flex flex-column flex-sm-row justify-content-between gap-2">
+                                        <button type="button" class="btn btn-light order-2 order-sm-1" id="btnBack">
+                                            <i class="fas fa-arrow-left me-2"></i>Back to Donors
                                         </button>
                                         <button type="submit" class="btn btn-primary px-4 order-1 order-sm-2" id="btnSubmit">
                                             <i class="fas fa-check me-2"></i>
@@ -429,14 +470,6 @@ if ($search || $selected_donor_id) {
                                         </button>
                                     </div>
                                 </form>
-                            </div>
-                        </div>
-                        
-                        <div id="emptyState" class="card shadow-sm border-0">
-                            <div class="card-body text-center py-5">
-                                <i class="fas fa-arrow-left fa-3x mb-3 text-muted opacity-25"></i>
-                                <h5 class="text-muted">Select a Donor</h5>
-                                <p class="text-muted mb-0">Search and select a donor from the list to continue</p>
                             </div>
                         </div>
                     </div>
@@ -449,18 +482,78 @@ if ($search || $selected_donor_id) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
+let selectedDonorId = null;
+let selectedDonorName = '';
+
 function selectDonor(id, name) {
+    selectedDonorId = id;
+    selectedDonorName = name;
+    
     document.getElementById('formDonorId').value = id;
     document.getElementById('selectedDonorName').textContent = name;
-    document.getElementById('paymentCard').style.display = 'block';
-    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('selectedDonorNameTop').textContent = name;
     
-    // Update UI selection
+    // Show next button
+    document.getElementById('step1Actions').style.display = 'block';
+    
+    // Highlight selected card
     document.querySelectorAll('.donor-card').forEach(c => c.classList.remove('selected'));
-    // Ideally select the clicked one but simpler to just reload styling via class logic if using pure JS/PHP mix
-    
-    fetchPledges(id);
+    event.target.closest('.donor-card').classList.add('selected');
 }
+
+// Next button: Go to Step 2
+document.getElementById('btnNext').addEventListener('click', function() {
+    if (!selectedDonorId) {
+        alert('Please select a donor first');
+        return;
+    }
+    
+    // Hide Step 1
+    document.getElementById('step1Container').style.display = 'none';
+    
+    // Show Step 2
+    document.getElementById('step2Container').style.display = 'block';
+    
+    // Update progress indicators
+    document.getElementById('stepIndicator1').classList.remove('active');
+    document.getElementById('stepIndicator1').classList.add('completed');
+    document.getElementById('stepLabel1').classList.remove('text-muted');
+    document.getElementById('stepLabel1').classList.add('text-success');
+    
+    document.getElementById('stepIndicator2').classList.remove('bg-secondary');
+    document.getElementById('stepIndicator2').classList.add('active');
+    document.getElementById('stepLabel2').classList.remove('text-muted');
+    document.getElementById('stepLabel2').classList.add('fw-bold');
+    
+    // Fetch pledges
+    fetchPledges(selectedDonorId);
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// Back button: Go to Step 1
+document.getElementById('btnBack').addEventListener('click', function() {
+    // Show Step 1
+    document.getElementById('step1Container').style.display = 'block';
+    
+    // Hide Step 2
+    document.getElementById('step2Container').style.display = 'none';
+    
+    // Update progress indicators
+    document.getElementById('stepIndicator1').classList.add('active');
+    document.getElementById('stepIndicator1').classList.remove('completed');
+    document.getElementById('stepLabel1').classList.add('text-muted');
+    document.getElementById('stepLabel1').classList.remove('text-success');
+    
+    document.getElementById('stepIndicator2').classList.add('bg-secondary');
+    document.getElementById('stepIndicator2').classList.remove('active');
+    document.getElementById('stepLabel2').classList.add('text-muted');
+    document.getElementById('stepLabel2').classList.remove('fw-bold');
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
 
 function fetchPledges(donorId) {
     const tbody = document.getElementById('pledgeListBody');
