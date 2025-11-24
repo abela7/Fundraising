@@ -68,14 +68,17 @@ date_default_timezone_set('Europe/London');
         return 'no_answer'; // Default fallback
     }
 
-    // Determine correct stage based on status (using existing ENUMs)
+    // Determine correct stage based on status (using NEW ENUMs)
     function determine_stage($status) {
         // If phone was picked up (busy_cant_talk or not_ready_to_pay), contact was made
-        if ($status === 'busy_cant_talk' || $status === 'not_ready_to_pay') {
-            return 'connected_no_identity_check';
+        if ($status === 'busy_cant_talk') {
+            return 'callback_scheduled';
+        }
+        if ($status === 'not_ready_to_pay') {
+            return 'interested_follow_up';
         }
         // Otherwise (no answer, busy signal), no connection
-        return 'no_connection';
+        return 'attempt_failed';
     }
     
     if (!$donor_id) {

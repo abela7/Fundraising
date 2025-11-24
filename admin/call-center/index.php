@@ -43,8 +43,7 @@ try {
             SELECT 
                 COUNT(*) as total_calls,
                 SUM(CASE 
-                    WHEN outcome NOT IN ('no_answer', 'busy_signal', 'invalid_number', 'wrong_number', 'number_not_in_service', 'network_error', 'voicemail') 
-                    AND conversation_stage != 'no_connection'
+                    WHEN conversation_stage NOT IN ('pending', 'attempt_failed', 'invalid_data')
                     THEN 1 
                     ELSE 0 
                 END) as positive_outcomes,
@@ -631,12 +630,14 @@ $talk_time_formatted = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                                 <?php foreach ($recent_calls as $call): 
                                     $stage = $call['conversation_stage'] ?? 'unknown';
                                     $status_map = [
-                                        'connected' => ['label' => 'Connected', 'class' => 'success'],
-                                        'agreement_reached' => ['label' => 'Agreed', 'class' => 'success'],
+                                        'contact_made' => ['label' => 'Contact Made', 'class' => 'info'],
+                                        'success_pledged' => ['label' => 'Success', 'class' => 'success'],
                                         'callback_scheduled' => ['label' => 'Callback', 'class' => 'warning'],
-                                        'no_answer' => ['label' => 'No Answer', 'class' => 'secondary'],
-                                        'busy_signal' => ['label' => 'Busy', 'class' => 'warning'],
-                                        'no_connection' => ['label' => 'Not Connected', 'class' => 'secondary']
+                                        'interested_follow_up' => ['label' => 'Interested', 'class' => 'info'],
+                                        'closed_refused' => ['label' => 'Refused', 'class' => 'danger'],
+                                        'attempt_failed' => ['label' => 'No Contact', 'class' => 'secondary'],
+                                        'invalid_data' => ['label' => 'Invalid', 'class' => 'danger'],
+                                        'pending' => ['label' => 'Pending', 'class' => 'secondary']
                                     ];
                                     $status_info = $status_map[$stage] ?? ['label' => 'Other', 'class' => 'secondary'];
                                 ?>

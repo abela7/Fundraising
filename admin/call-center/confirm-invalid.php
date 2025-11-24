@@ -99,6 +99,7 @@ try {
                 UPDATE call_center_sessions 
                 SET outcome = ?,
                     disposition = 'mark_for_removal',
+                    conversation_stage = 'invalid_data',
                     call_ended_at = NOW(),
                     notes = ?
                 WHERE id = ? AND agent_id = ?
@@ -115,7 +116,7 @@ try {
             $insert_session = "
                 INSERT INTO call_center_sessions 
                 (donor_id, agent_id, call_started_at, call_ended_at, outcome, disposition, conversation_stage, notes, created_at)
-                VALUES (?, ?, ?, NOW(), ?, 'mark_for_removal', 'no_connection', ?, NOW())
+                VALUES (?, ?, ?, NOW(), ?, 'mark_for_removal', 'invalid_data', ?, NOW())
             ";
             $notes = "Number marked as invalid: " . ucfirst(str_replace('_', ' ', $reason));
             $stmt = $db->prepare($insert_session);

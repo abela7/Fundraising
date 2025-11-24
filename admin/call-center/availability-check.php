@@ -27,7 +27,7 @@ try {
         $session_query = "
             INSERT INTO call_center_sessions 
             (donor_id, agent_id, call_started_at, conversation_stage, created_at)
-            VALUES (?, ?, ?, 'connected_no_identity_check', NOW())
+            VALUES (?, ?, ?, 'contact_made', NOW())
         ";
         
         $stmt = $db->prepare($session_query);

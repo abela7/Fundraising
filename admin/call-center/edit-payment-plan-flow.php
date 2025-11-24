@@ -67,7 +67,7 @@ try {
     
     // 4. Reset Session (Unlink plan, reset outcome)
     // We keep duration accumulated so far!
-    $db->query("UPDATE call_center_sessions SET payment_plan_id = NULL, outcome = NULL, conversation_stage = 'connected_no_identity_check' WHERE id = $session_id");
+    $db->query("UPDATE call_center_sessions SET payment_plan_id = NULL, outcome = NULL, conversation_stage = 'contact_made' WHERE id = $session_id");
     
     // 5. Get Queue ID (needed for conversation.php)
     // Find queue from session or guess? conversation.php needs queue_id for links.

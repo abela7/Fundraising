@@ -92,8 +92,7 @@ try {
         SELECT 
             COUNT(*) as total_calls,
             SUM(CASE 
-                WHEN outcome NOT IN ('no_answer', 'busy_signal', 'invalid_number', 'wrong_number', 'number_not_in_service', 'network_error', 'voicemail', 'no_connection') 
-                AND conversation_stage != 'no_connection'
+                WHEN conversation_stage NOT IN ('pending', 'attempt_failed', 'invalid_data')
                 THEN 1 
                 ELSE 0 
             END) as successful_calls,
