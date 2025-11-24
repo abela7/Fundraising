@@ -6,166 +6,158 @@ require_admin(); // Only admins can assign donors
 
 $page_title = 'Assign Donors to Agents';
 $error_message = null;
-$donors = false; // Set to false initially
-$churches = false;
-$agents = false;
+$donors = null;
+$churches = null;
+$agents = null;
 $stats = ['total' => 0, 'assigned' => 0, 'unassigned' => 0];
 $total_donors = 0;
 $total_pages = 1;
+
+try {
+    $db = db();
+    
+    // Check if required columns exist before running queries
+    $columns_check = $db->query("SHOW COLUMNS FROM donors");
+    $existing_cols = [];
+    while ($col = $columns_check->fetch_assoc()) {
+        $existing_cols[] = $col['Field'];
+    }
+    
+    $required = ['donor_type', 'agent_id'];
+    $missing = array_diff($required, $existing_cols);
+    
+    if (!empty($missing)) {
+        throw new Exception("Missing required columns in donors table: " . implode(', ', $missing));
+    }
+
+// Get filter parameters
 $search = $_GET['search'] ?? '';
 $church_filter = isset($_GET['church']) ? (int)$_GET['church'] : 0;
 $status_filter = $_GET['status'] ?? '';
-$assignment_filter = $_GET['assignment'] ?? 'all';
+$assignment_filter = $_GET['assignment'] ?? 'all'; // all, assigned, unassigned
 $agent_filter = isset($_GET['agent']) ? (int)$_GET['agent'] : 0;
+
+// Pagination
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $per_page = 50;
 $offset = ($page - 1) * $per_page;
 
-$db = null;
-try {
-    $db = db();
-    
-    // Early column existence check - fail fast if schema is wrong
-    $columns_result = $db->query("SHOW COLUMNS FROM donors");
-    if (!$columns_result) {
-        throw new Exception("Cannot access donors table columns. Check if table exists.");
-    }
-    
-    $existing_columns = [];
-    while ($col = $columns_result->fetch_assoc()) {
-        $existing_columns[] = $col['Field'];
-    }
-    
-    $required_columns = ['donor_type', 'agent_id', 'church_id', 'balance', 'total_pledged', 'payment_status'];
-    $missing_columns = array_diff($required_columns, $existing_columns);
-    
-    if (!empty($missing_columns)) {
-        throw new Exception("Missing required columns in 'donors' table: " . implode(', ', $missing_columns) . ". Run the Database Check tool to fix.");
-    }
-    
-    // Build WHERE clause
-    $where_conditions = ["d.donor_type = 'pledge'"];
-    $params = [];
-    $param_types = '';
-    
-    if ($search) {
-        $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
-        $search_param = "%{$search}%";
-        $params = array_fill(0, 3, $search_param);
-        $param_types = 'sss';
-    }
-    
-    if ($church_filter > 0) {
-        $where_conditions[] = "d.church_id = ?";
-        $params[] = $church_filter;
-        $param_types .= 'i';
-    }
-    
-    if ($status_filter) {
-        $where_conditions[] = "d.payment_status = ?";
-        $params[] = $status_filter;
-        $param_types .= 's';
-    }
-    
-    if ($assignment_filter === 'assigned') {
-        $where_conditions[] = "d.agent_id IS NOT NULL";
-    } elseif ($assignment_filter === 'unassigned') {
-        $where_conditions[] = "d.agent_id IS NULL";
-    }
-    
-    if ($agent_filter > 0) {
-        $where_conditions[] = "d.agent_id = ?";
-        $params[] = $agent_filter;
-        $param_types .= 'i';
-    }
-    
-    $where_clause = implode(' AND ', $where_conditions);
-    
-    // Count query - use copy of params
-    $count_params = $params;
-    $count_param_types = $param_types;
-    
-    $count_query = "SELECT COUNT(*) as total FROM donors d WHERE {$where_clause}";
-    $count_stmt = $db->prepare($count_query);
-    if (!empty($count_params)) {
-        $count_stmt->bind_param($count_param_types, ...$count_params);
-    }
-    $count_stmt->execute();
-    $count_result = $count_stmt->get_result();
-    $total_donors = $count_result->fetch_assoc()['total'];
-    $total_pages = ceil($total_donors / $per_page);
-    
-    // Donor list query - fresh params copy
-    $donor_params = $params;
-    $donor_param_types = $param_types;
-    $donor_params[] = $per_page;
-    $donor_params[] = $offset;
-    $donor_param_types .= 'ii';
-    
-    $donor_query = "
-        SELECT 
-            d.id,
-            d.name,
-            d.phone,
-            d.email,
-            d.balance,
-            d.total_pledged,
-            d.payment_status,
-            d.agent_id,
-            d.church_id,
-            c.name as church_name,
-            u.name as agent_name
-        FROM donors d
-        LEFT JOIN churches c ON d.church_id = c.id
-        LEFT JOIN users u ON d.agent_id = u.id
-        WHERE {$where_clause}
-        ORDER BY 
-            CASE WHEN d.agent_id IS NULL THEN 0 ELSE 1 END,
-            d.balance DESC,
-            d.name ASC
-        LIMIT ? OFFSET ?
-    ";
-    
-    $donor_stmt = $db->prepare($donor_query);
-    if (!empty($donor_params)) {
-        $donor_stmt->bind_param($donor_param_types, ...$donor_params);
-    }
-    $donor_stmt->execute();
-    $donors = $donor_stmt->get_result();
-    
-    // Get churches
-    $churches_result = $db->query("SELECT id, name FROM churches ORDER BY name");
-    $churches = $churches_result ? $churches_result : false;
-    
-    // Get agents
-    $agents_result = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
-    $agents = $agents_result ? $agents_result : false;
-    
-    // Stats queries
-    $total_result = $db->query("SELECT COUNT(*) as count FROM donors WHERE donor_type = 'pledge'");
-    $stats['total'] = $total_result ? $total_result->fetch_assoc()['count'] : 0;
-    
-    $assigned_result = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL");
-    $stats['assigned'] = $assigned_result ? $assigned_result->fetch_assoc()['count'] : 0;
-    
-    $unassigned_result = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL AND donor_type = 'pledge'");
-    $stats['unassigned'] = $unassigned_result ? $unassigned_result->fetch_assoc()['count'] : 0;
+// Build WHERE clause
+$where_conditions = ["d.donor_type = 'pledge'"];
+$params = [];
+$param_types = '';
 
-} catch (mysqli_sql_exception $e) {
-    $error_message = "Database query error: " . $e->getMessage();
-    if (strpos($error_message, "Unknown column") !== false) {
-        $error_message .= "<br><strong>Fix:</strong> Missing database columns. Go to <a href='check-database.php'>Database Check</a>.";
-    }
-} catch (Exception $e) {
-    $error_message = "Error: " . $e->getMessage();
-    if (strpos($error_message, "Missing required columns") !== false) {
-        $error_message .= "<br><strong>Fix:</strong> Run <a href='check-database.php'>Database Check</a> to add missing columns.";
-    }
+if ($search) {
+    $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
+    $search_param = "%{$search}%";
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $param_types .= 'sss';
 }
 
-// Always close DB if open
-if ($db) {
-    $db->close();
+if ($church_filter > 0) {
+    $where_conditions[] = "d.church_id = ?";
+    $params[] = $church_filter;
+    $param_types .= 'i';
+}
+
+if ($status_filter) {
+    $where_conditions[] = "d.payment_status = ?";
+    $params[] = $status_filter;
+    $param_types .= 's';
+}
+
+if ($assignment_filter === 'assigned') {
+    $where_conditions[] = "d.agent_id IS NOT NULL";
+} elseif ($assignment_filter === 'unassigned') {
+    $where_conditions[] = "d.agent_id IS NULL";
+}
+
+if ($agent_filter > 0) {
+    $where_conditions[] = "d.agent_id = ?";
+    $params[] = $agent_filter;
+    $param_types .= 'i';
+}
+
+$where_clause = implode(' AND ', $where_conditions);
+
+// Get total count for pagination
+$count_query = "SELECT COUNT(*) as total FROM donors d WHERE {$where_clause}";
+$count_stmt = $db->prepare($count_query);
+if (!empty($params)) {
+    $count_stmt->bind_param($param_types, ...$params);
+}
+$count_stmt->execute();
+$total_donors = $count_stmt->get_result()->fetch_assoc()['total'];
+$total_pages = ceil($total_donors / $per_page);
+
+// Get donors - prepare fresh params array for this query
+$donor_params = $params; // Copy the filter params
+$donor_param_types = $param_types; // Copy the param types
+
+// Add pagination params to the copy
+$donor_params[] = $per_page;
+$donor_params[] = $offset;
+$donor_param_types .= 'ii';
+
+$donor_query = "
+    SELECT 
+        d.id,
+        d.name,
+        d.phone,
+        d.email,
+        d.balance,
+        d.total_pledged,
+        d.payment_status,
+        d.agent_id,
+        d.church_id,
+        c.name as church_name,
+        u.name as agent_name
+    FROM donors d
+    LEFT JOIN churches c ON d.church_id = c.id
+    LEFT JOIN users u ON d.agent_id = u.id
+    WHERE {$where_clause}
+    ORDER BY 
+        CASE WHEN d.agent_id IS NULL THEN 0 ELSE 1 END,
+        d.balance DESC,
+        d.name ASC
+    LIMIT ? OFFSET ?
+";
+
+$donor_stmt = $db->prepare($donor_query);
+if (!empty($donor_params)) {
+    $donor_stmt->bind_param($donor_param_types, ...$donor_params);
+}
+$donor_stmt->execute();
+$donors = $donor_stmt->get_result();
+
+// Get churches for filter
+$churches = $db->query("SELECT id, name FROM churches ORDER BY name");
+
+// Get agents for filter and assignment
+$agents = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+
+    // Get statistics
+    $stats = [
+        'total' => $db->query("SELECT COUNT(*) as count FROM donors WHERE donor_type = 'pledge'")->fetch_assoc()['count'],
+        'assigned' => $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL")->fetch_assoc()['count'],
+        'unassigned' => $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL AND donor_type = 'pledge'")->fetch_assoc()['count'],
+    ];
+
+} catch (mysqli_sql_exception $e) {
+    $error_message = $e->getMessage();
+    
+    // Check if it's a schema error (missing column)
+    if (strpos($error_message, "Unknown column") !== false) {
+        if (strpos($error_message, "donor_type") !== false) {
+            $error_message = "Missing column 'donor_type' in donors table. Please run the database migration.";
+        } elseif (strpos($error_message, "agent_id") !== false) {
+            $error_message = "Missing column 'agent_id' in donors table. Please run the database migration.";
+        }
+    }
+} catch (Exception $e) {
+    $error_message = "Database error: " . $e->getMessage();
 }
 ?>
 <!DOCTYPE html>
@@ -179,13 +171,40 @@ if ($db) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        .donor-card { transition: all 0.2s; border-left: 3px solid transparent; }
-        .donor-card:hover { box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.1); border-left-color: var(--bs-primary); }
-        .donor-card.selected { background-color: #e7f3ff; border-left-color: var(--bs-primary); }
-        .stat-card { border-left: 3px solid; }
-        .bulk-actions { position: sticky; top: 70px; z-index: 100; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .agent-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
-        @media (max-width: 768px) { .donor-card { font-size: 0.9rem; } .bulk-actions { top: 56px; } }
+        .donor-card {
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .donor-card:hover {
+            box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.1);
+            border-left-color: var(--bs-primary);
+        }
+        .donor-card.selected {
+            background-color: #e7f3ff;
+            border-left-color: var(--bs-primary);
+        }
+        .stat-card {
+            border-left: 3px solid;
+        }
+        .bulk-actions {
+            position: sticky;
+            top: 70px;
+            z-index: 100;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .agent-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        @media (max-width: 768px) {
+            .donor-card {
+                font-size: 0.9rem;
+            }
+            .bulk-actions {
+                top: 56px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -197,10 +216,17 @@ if ($db) {
         
         <main class="main-content">
             <?php if ($error_message): ?>
+            <!-- Error Alert -->
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Database Issue:</strong> <?php echo $error_message; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Database Error</h5>
+                <p class="mb-2"><?php echo htmlspecialchars($error_message); ?></p>
+                <hr>
+                <p class="mb-0">
+                    <strong>To fix this:</strong>
+                    <a href="check-database.php" class="btn btn-sm btn-warning ms-2">
+                        <i class="fas fa-tools me-1"></i>Run Database Check
+                    </a>
+                </p>
             </div>
             <?php endif; ?>
 
@@ -219,7 +245,7 @@ if ($db) {
                 </div>
             </div>
 
-            <!-- Statistics (show defaults if error) -->
+            <!-- Statistics -->
             <div class="row mb-4">
                 <div class="col-md-4">
                     <div class="card stat-card border-primary">
@@ -288,30 +314,33 @@ if ($db) {
                             <label class="form-label small">Agent</label>
                             <select name="agent" class="form-select">
                                 <option value="0">All Agents</option>
-                                <?php if ($agents): ?>
-                                    <?php $agents->data_seek(0); while ($agent = $agents->fetch_assoc()): ?>
-                                    <option value="<?php echo $agent['id']; ?>" <?php echo $agent_filter == $agent['id'] ? 'selected' : ''; ?>>
+                                <?php 
+                                if ($agents) {
+                                    $agents->data_seek(0);
+                                    while ($agent = $agents->fetch_assoc()): 
+                                    ?>
+                                    <option value="<?php echo $agent['id']; ?>" <?php echo $agent_filter === $agent['id'] ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($agent['name']); ?>
                                     </option>
-                                    <?php endwhile; ?>
-                                <?php else: ?>
-                                    <option disabled>No agents loaded (database error)</option>
-                                <?php endif; ?>
+                                    <?php endwhile; 
+                                }
+                                ?>
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small">Church</label>
                             <select name="church" class="form-select">
                                 <option value="0">All Churches</option>
-                                <?php if ($churches): ?>
-                                    <?php while ($church = $churches->fetch_assoc()): ?>
-                                    <option value="<?php echo $church['id']; ?>" <?php echo $church_filter == $church['id'] ? 'selected' : ''; ?>>
+                                <?php 
+                                if ($churches) {
+                                    while ($church = $churches->fetch_assoc()): 
+                                    ?>
+                                    <option value="<?php echo $church['id']; ?>" <?php echo $church_filter === $church['id'] ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($church['name']); ?>
                                     </option>
-                                    <?php endwhile; ?>
-                                <?php else: ?>
-                                    <option disabled>No churches loaded (database error)</option>
-                                <?php endif; ?>
+                                    <?php endwhile;
+                                }
+                                ?>
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -333,8 +362,7 @@ if ($db) {
                 </div>
             </div>
 
-            <!-- Bulk Actions Bar (hide if error) -->
-            <?php if (!$error_message): ?>
+            <!-- Bulk Actions Bar (Sticky) -->
             <div class="bulk-actions p-3 mb-3 rounded" id="bulkActionsBar" style="display: none;">
                 <div class="row align-items-center">
                     <div class="col-md-6">
@@ -346,13 +374,17 @@ if ($db) {
                     <div class="col-md-6 text-md-end">
                         <select id="bulkAgentSelect" class="form-select form-select-sm d-inline-block w-auto me-2">
                             <option value="">Select Agent...</option>
-                            <?php if ($agents): ?>
-                                <?php $agents->data_seek(0); while ($agent = $agents->fetch_assoc()): ?>
+                            <?php 
+                            if ($agents) {
+                                $agents->data_seek(0);
+                                while ($agent = $agents->fetch_assoc()): 
+                                ?>
                                 <option value="<?php echo $agent['id']; ?>">
                                     <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
                                 </option>
-                                <?php endwhile; ?>
-                            <?php endif; ?>
+                                <?php endwhile;
+                            }
+                            ?>
                         </select>
                         <button type="button" class="btn btn-sm btn-success" onclick="assignBulk()">
                             <i class="fas fa-check me-1"></i>Assign
@@ -363,7 +395,6 @@ if ($db) {
                     </div>
                 </div>
             </div>
-            <?php endif; ?>
 
             <!-- Donors List -->
             <div class="card">
@@ -372,46 +403,47 @@ if ($db) {
                         <i class="fas fa-list me-2"></i>
                         Donors (<?php echo number_format($total_donors); ?>)
                     </h6>
-                    <?php if (!$error_message && $donors): ?>
                     <div>
                         <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
                         <label class="form-check-label ms-1" for="selectAll">Select All</label>
                     </div>
-                    <?php endif; ?>
                 </div>
                 <div class="card-body p-0">
-                    <?php if ($error_message): ?>
-                        <div class="p-4 text-center">
-                            <i class="fas fa-database fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">Cannot load donors due to database issue. Fix above to continue.</p>
-                            <a href="check-database.php" class="btn btn-primary">Run Database Check</a>
-                        </div>
-                    <?php elseif ($donors && $donors->num_rows > 0): ?>
+                    <?php if ($donors && $donors->num_rows > 0): ?>
                         <div class="list-group list-group-flush">
                             <?php while ($donor = $donors->fetch_assoc()): ?>
                             <div class="list-group-item donor-card" data-donor-id="<?php echo $donor['id']; ?>">
                                 <div class="row align-items-center">
+                                    <!-- Checkbox -->
                                     <div class="col-auto">
                                         <input type="checkbox" class="form-check-input donor-checkbox" 
                                                value="<?php echo $donor['id']; ?>" 
                                                onchange="updateSelection()">
                                     </div>
+
+                                    <!-- Donor Info -->
                                     <div class="col-md-3 col-12">
                                         <div class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></div>
                                         <small class="text-muted">
                                             <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor['phone'] ?? 'N/A'); ?>
                                         </small>
                                     </div>
+
+                                    <!-- Balance -->
                                     <div class="col-md-2 col-6">
                                         <small class="text-muted d-block">Balance</small>
                                         <span class="badge bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">
                                             £<?php echo number_format($donor['balance'], 2); ?>
                                         </span>
                                     </div>
+
+                                    <!-- Church -->
                                     <div class="col-md-2 col-6 d-none d-md-block">
                                         <small class="text-muted d-block">Church</small>
                                         <small><?php echo htmlspecialchars($donor['church_name'] ?? 'Not assigned'); ?></small>
                                     </div>
+
+                                    <!-- Current Agent -->
                                     <div class="col-md-3 col-12 mt-2 mt-md-0">
                                         <small class="text-muted d-block">Assigned Agent</small>
                                         <?php if ($donor['agent_id']): ?>
@@ -422,6 +454,8 @@ if ($db) {
                                             <span class="badge bg-secondary agent-badge">Unassigned</span>
                                         <?php endif; ?>
                                     </div>
+
+                                    <!-- Quick Actions -->
                                     <div class="col-md-2 col-12 text-md-end mt-2 mt-md-0">
                                         <div class="btn-group btn-group-sm">
                                             <button type="button" class="btn btn-outline-primary btn-sm" 
@@ -444,16 +478,13 @@ if ($db) {
                         <div class="text-center py-5">
                             <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
                             <p class="text-muted">No donors found matching your filters</p>
-                            <?php if (!$donors): ?>
-                                <p class="text-warning">Or database query failed – check error above.</p>
-                            <?php endif; ?>
                             <a href="assign-donors.php" class="btn btn-sm btn-primary">Clear Filters</a>
                         </div>
                     <?php endif; ?>
                 </div>
 
-                <!-- Pagination (only if no error and results) -->
-                <?php if (!$error_message && $total_pages > 1 && $donors): ?>
+                <!-- Pagination -->
+                <?php if ($total_pages > 1): ?>
                 <div class="card-footer">
                     <nav>
                         <ul class="pagination pagination-sm mb-0 justify-content-center">
@@ -495,7 +526,7 @@ if ($db) {
     </div>
 </div>
 
-<!-- Quick Assign Modal (always include, but disable if error) -->
+<!-- Quick Assign Modal -->
 <div class="modal fade" id="quickAssignModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -507,188 +538,166 @@ if ($db) {
                 <input type="hidden" id="quickAssignDonorId">
                 <div class="mb-3">
                     <label class="form-label">Select Agent</label>
-                    <select id="quickAssignAgentSelect" class="form-select" <?php echo $error_message ? 'disabled' : ''; ?>>
+                    <select id="quickAssignAgentSelect" class="form-select">
                         <option value="">Select an agent...</option>
-                        <?php if ($agents): ?>
-                            <?php $agents->data_seek(0); while ($agent = $agents->fetch_assoc()): ?>
+                        <?php 
+                        if ($agents) {
+                            $agents->data_seek(0);
+                            while ($agent = $agents->fetch_assoc()): 
+                            ?>
                             <option value="<?php echo $agent['id']; ?>">
                                 <?php echo htmlspecialchars($agent['name']); ?> (<?php echo ucfirst($agent['role']); ?>)
                             </option>
-                            <?php endwhile; ?>
-                        <?php endif; ?>
+                            <?php endwhile;
+                        }
+                        ?>
                     </select>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmQuickAssign()" <?php echo $error_message ? 'disabled' : ''; ?>>Assign</button>
+                <button type="button" class="btn btn-primary" onclick="confirmQuickAssign()">Assign</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Always load JS - never let errors break this -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
-    // Safe JS - check if elements exist before using
-    let selectedDonors = new Set();
-    
-    function updateSelection() {
-        selectedDonors.clear();
-        const checkboxes = document.querySelectorAll('.donor-checkbox:checked');
-        checkboxes.forEach(cb => {
-            selectedDonors.add(cb.value);
-            const card = cb.closest('.donor-card');
-            if (card) card.classList.add('selected');
-        });
-        
-        const unchecked = document.querySelectorAll('.donor-checkbox:not(:checked)');
-        unchecked.forEach(cb => {
-            const card = cb.closest('.donor-card');
-            if (card) card.classList.remove('selected');
-        });
-        
-        const countEl = document.getElementById('selectedCount');
-        if (countEl) countEl.textContent = selectedDonors.size;
-        
-        const bar = document.getElementById('bulkActionsBar');
-        if (bar) bar.style.display = selectedDonors.size > 0 ? 'block' : 'none';
-    }
-    
-    function toggleSelectAll(checkbox) {
-        document.querySelectorAll('.donor-checkbox').forEach(cb => {
-            cb.checked = checkbox.checked;
-        });
-        updateSelection();
-    }
-    
-    function clearSelection() {
-        document.querySelectorAll('.donor-checkbox').forEach(cb => {
-            cb.checked = false;
-        });
-        const selectAll = document.getElementById('selectAll');
-        if (selectAll) selectAll.checked = false;
-        updateSelection();
-    }
-    
-    function assignBulk() {
-        const select = document.getElementById('bulkAgentSelect');
-        if (!select) return;
-        const agentId = select.value;
-        if (!agentId) {
-            alert('Please select an agent');
-            return;
-        }
-        
-        if (selectedDonors.size === 0) {
-            alert('Please select at least one donor');
-            return;
-        }
-        
-        if (!confirm(`Assign ${selectedDonors.size} donor(s) to the selected agent?`)) {
-            return;
-        }
-        
-        processBulkAction('assign', agentId);
-    }
-    
-    function unassignBulk() {
-        if (selectedDonors.size === 0) {
-            alert('Please select at least one donor');
-            return;
-        }
-        
-        if (!confirm(`Remove agent assignment from ${selectedDonors.size} donor(s)?`)) {
-            return;
-        }
-        
-        processBulkAction('unassign', null);
-    }
-    
-    function processBulkAction(action, agentId) {
-        const donorIds = Array.from(selectedDonors);
-        
-        fetch('process-assignment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: action,
-                donor_ids: donorIds,
-                agent_id: agentId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            alert('Error processing request');
-            console.error(error);
-        });
-    }
-    
-    function quickAssign(donorId) {
-        const input = document.getElementById('quickAssignDonorId');
-        if (!input) return;
-        input.value = donorId;
-        const modalEl = document.getElementById('quickAssignModal');
-        if (modalEl) {
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
-        }
-    }
-    
-    function confirmQuickAssign() {
-        const donorInput = document.getElementById('quickAssignDonorId');
-        const agentSelect = document.getElementById('quickAssignAgentSelect');
-        if (!donorInput || !agentSelect) return;
-        
-        const donorId = donorInput.value;
-        const agentId = agentSelect.value;
-        
-        if (!agentId) {
-            alert('Please select an agent');
-            return;
-        }
-        
-        fetch('process-assignment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'assign',
-                donor_ids: [donorId],
-                agent_id: agentId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            alert('Error processing request');
-            console.error(error);
-        });
-    }
-    
-    // Initialize on load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Re-attach event listeners safely
-        const checkboxes = document.querySelectorAll('.donor-checkbox');
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', updateSelection);
-        });
+let selectedDonors = new Set();
+
+function updateSelection() {
+    selectedDonors.clear();
+    document.querySelectorAll('.donor-checkbox:checked').forEach(cb => {
+        selectedDonors.add(cb.value);
+        cb.closest('.donor-card').classList.add('selected');
     });
+    
+    document.querySelectorAll('.donor-checkbox:not(:checked)').forEach(cb => {
+        cb.closest('.donor-card').classList.remove('selected');
+    });
+    
+    document.getElementById('selectedCount').textContent = selectedDonors.size;
+    document.getElementById('bulkActionsBar').style.display = selectedDonors.size > 0 ? 'block' : 'none';
+}
+
+function toggleSelectAll(checkbox) {
+    document.querySelectorAll('.donor-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelection();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.donor-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    updateSelection();
+}
+
+function assignBulk() {
+    const agentId = document.getElementById('bulkAgentSelect').value;
+    if (!agentId) {
+        alert('Please select an agent');
+        return;
+    }
+    
+    if (selectedDonors.size === 0) {
+        alert('Please select at least one donor');
+        return;
+    }
+    
+    if (!confirm(`Assign ${selectedDonors.size} donor(s) to the selected agent?`)) {
+        return;
+    }
+    
+    processBulkAction('assign', agentId);
+}
+
+function unassignBulk() {
+    if (selectedDonors.size === 0) {
+        alert('Please select at least one donor');
+        return;
+    }
+    
+    if (!confirm(`Remove agent assignment from ${selectedDonors.size} donor(s)?`)) {
+        return;
+    }
+    
+    processBulkAction('unassign', null);
+}
+
+function processBulkAction(action, agentId) {
+    const donorIds = Array.from(selectedDonors);
+    
+    fetch('process-assignment.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: action,
+            donor_ids: donorIds,
+            agent_id: agentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error processing request');
+        console.error(error);
+    });
+}
+
+function quickAssign(donorId) {
+    document.getElementById('quickAssignDonorId').value = donorId;
+    const modal = new bootstrap.Modal(document.getElementById('quickAssignModal'));
+    modal.show();
+}
+
+function confirmQuickAssign() {
+    const donorId = document.getElementById('quickAssignDonorId').value;
+    const agentId = document.getElementById('quickAssignAgentSelect').value;
+    
+    if (!agentId) {
+        alert('Please select an agent');
+        return;
+    }
+    
+    fetch('process-assignment.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'assign',
+            donor_ids: [donorId],
+            agent_id: agentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error processing request');
+        console.error(error);
+    });
+}
 </script>
 </body>
 </html>
