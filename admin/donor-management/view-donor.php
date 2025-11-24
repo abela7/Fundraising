@@ -47,9 +47,9 @@ try {
     // 2. Pledges & Grid Cells
     $pledges = [];
     $pledge_query = "
-        SELECT p.*, u.name as approver_name 
+        SELECT p.*, u.name as registrar_name 
         FROM pledges p 
-        LEFT JOIN users u ON p.approved_by_user_id = u.id
+        LEFT JOIN users u ON p.created_by_user_id = u.id
         WHERE p.donor_id = ? 
         ORDER BY p.created_at DESC
     ";
@@ -595,7 +595,7 @@ function formatDateTime($date) {
                                                 <th>Amount</th>
                                                 <th>Status</th>
                                                 <th>Grid Allocation</th>
-                                                <th>Approved By</th>
+                                                <th>Registered By</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
@@ -624,7 +624,7 @@ function formatDateTime($date) {
                                                             <span class="text-muted small">No cells allocated</span>
                                                         <?php endif; ?>
                                                     </td>
-                                                    <td data-label="Approved By"><?php echo htmlspecialchars($pledge['approver_name'] ?? 'System'); ?></td>
+                                                    <td data-label="Registered By"><?php echo htmlspecialchars($pledge['registrar_name'] ?? 'System'); ?></td>
                                                     <td data-label="Actions">
                                                         <div class="d-flex gap-1">
                                                             <button type="button" class="btn btn-sm btn-outline-primary" 
