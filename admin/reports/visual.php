@@ -60,12 +60,24 @@ if ($db && $db_error_message === '') {
     require_once __DIR__ . '/../../shared/FinancialCalculator.php';
     
     $calculator = new FinancialCalculator();
-    $totals = $calculator->getTotals($fromDate, $toDate);
     
-    $data['metrics']['paid_total'] = $totals['total_paid'];
-    // For date-filtered activity reports, use RAW pledge total (activity semantic)
-    $data['metrics']['pledged_total'] = $totals['total_pledges'];
-    $data['metrics']['grand_total'] = $data['metrics']['paid_total'] + $data['metrics']['pledged_total'];
+    // Special handling for "All Time" reports
+    $range = $_GET['date'] ?? 'month';
+    if ($range === 'all') {
+        // For "All Time", use position semantic (no date filter) to match dashboard
+        $totals = $calculator->getTotals();
+        
+        $data['metrics']['paid_total'] = $totals['total_paid'];
+        $data['metrics']['pledged_total'] = $totals['outstanding_pledged']; // Position: outstanding
+        $data['metrics']['grand_total'] = $totals['grand_total'];
+    } else {
+        // For date-filtered reports, use activity semantic
+        $totals = $calculator->getTotals($fromDate, $toDate);
+        
+        $data['metrics']['paid_total'] = $totals['total_paid'];
+        $data['metrics']['pledged_total'] = $totals['total_pledges']; // Activity: raw pledges created
+        $data['metrics']['grand_total'] = $data['metrics']['paid_total'] + $data['metrics']['pledged_total'];
+    }
     
     $hasPledgePayments = $totals['has_pledge_payments'];
 

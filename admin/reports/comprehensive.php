@@ -126,18 +126,28 @@ if ($db && $db_error_message === '') {
     
     // Calculate totals using centralized logic
     $calculator = new FinancialCalculator();
-    $totals = $calculator->getTotals($fromDate, $toDate);
-
-    $metrics['paid_total'] = $totals['total_paid'];
-    $metrics['payments_count'] = $totals['total_payment_count'];
     
-    // For date-filtered activity reports, use RAW pledge total (activity semantic)
-    // NOT outstanding (which would be position semantic)
-    // This matches the original behavior and the "Range Outstanding" calculation below
-    $metrics['pledged_total'] = $totals['total_pledges']; 
-    $metrics['pledges_count'] = $totals['pledge_count'];
-
-    $metrics['grand_total'] = $metrics['paid_total'] + $metrics['pledged_total'];
+    // Special handling for "All Time" reports
+    $range = $_GET['range'] ?? 'month';
+    if ($range === 'all') {
+        // For "All Time", use position semantic (no date filter) to match dashboard
+        $totals = $calculator->getTotals();
+        
+        $metrics['paid_total'] = $totals['total_paid'];
+        $metrics['payments_count'] = $totals['total_payment_count'];
+        $metrics['pledged_total'] = $totals['outstanding_pledged']; // Position: outstanding
+        $metrics['pledges_count'] = $totals['pledge_count'];
+        $metrics['grand_total'] = $totals['grand_total'];
+    } else {
+        // For date-filtered reports, use activity semantic
+        $totals = $calculator->getTotals($fromDate, $toDate);
+        
+        $metrics['paid_total'] = $totals['total_paid'];
+        $metrics['payments_count'] = $totals['total_payment_count'];
+        $metrics['pledged_total'] = $totals['total_pledges']; // Activity: raw pledges created
+        $metrics['pledges_count'] = $totals['pledge_count'];
+        $metrics['grand_total'] = $metrics['paid_total'] + $metrics['pledged_total'];
+    }
     
     // Extract for SQL query construction
     $hasPledgePayments = $totals['has_pledge_payments'];
