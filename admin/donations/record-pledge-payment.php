@@ -20,32 +20,61 @@ $selected_donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
 
 $donors = [];
 if ($search || $selected_donor_id) {
-    $query = "SELECT id, name, phone, email, balance FROM donors WHERE 1=1";
-    $params = [];
-    $types = "";
-    
     if ($selected_donor_id) {
-        $query .= " AND id = ?";
-        $params[] = $selected_donor_id;
-        $types .= "i";
+        // Direct donor ID lookup
+        $query = "SELECT id, name, phone, email, balance FROM donors WHERE id = ?";
+        $stmt = $db->prepare($query);
+        $stmt->bind_param('i', $selected_donor_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $donors[] = $row;
+        }
     } elseif ($search) {
+        // Search by donor details OR pledge notes (reference number)
         $term = "%$search%";
-        $query .= " AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)";
-        $params[] = $term; 
-        $params[] = $term;
-        $params[] = $term;
-        $types .= "sss";
-    }
-    
-    $query .= " LIMIT 20";
-    $stmt = $db->prepare($query);
-    if ($params) {
+        
+        // Get donor IDs from pledges with matching notes
+        $pledge_donors_sql = "
+            SELECT DISTINCT donor_id 
+            FROM pledges 
+            WHERE notes LIKE ? 
+               OR reference_number LIKE ?
+        ";
+        $stmt = $db->prepare($pledge_donors_sql);
+        $stmt->bind_param('ss', $term, $term);
+        $stmt->execute();
+        $pledge_donor_ids = [];
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $pledge_donor_ids[] = (int)$row['donor_id'];
+        }
+        
+        // Build donor query
+        $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance FROM donors d WHERE ";
+        
+        if (!empty($pledge_donor_ids)) {
+            // Search by name/phone/email OR pledge reference
+            $placeholders = implode(',', array_fill(0, count($pledge_donor_ids), '?'));
+            $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ? OR d.id IN ($placeholders))";
+            
+            $types = 'sss' . str_repeat('i', count($pledge_donor_ids));
+            $params = [$term, $term, $term, ...$pledge_donor_ids];
+        } else {
+            // Only search by name/phone/email
+            $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
+            $types = 'sss';
+            $params = [$term, $term, $term];
+        }
+        
+        $donor_sql .= " LIMIT 20";
+        $stmt = $db->prepare($donor_sql);
         $stmt->bind_param($types, ...$params);
-    }
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc()) {
-        $donors[] = $row;
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $donors[] = $row;
+        }
     }
 }
 ?>
@@ -85,9 +114,12 @@ if ($search || $selected_donor_id) {
                             <div class="card-body">
                                 <form method="GET" class="mb-3">
                                     <div class="input-group">
-                                        <input type="text" name="search" class="form-control" placeholder="Name, phone, or email..." value="<?php echo htmlspecialchars($search); ?>">
+                                        <input type="text" name="search" class="form-control" placeholder="Name, phone, email, or pledge reference..." value="<?php echo htmlspecialchars($search); ?>">
                                         <button class="btn btn-primary"><i class="fas fa-search"></i></button>
                                     </div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>Search by donor details or pledge reference number
+                                    </small>
                                 </form>
                                 
                                 <div class="list-group list-group-flush" id="donorList">
