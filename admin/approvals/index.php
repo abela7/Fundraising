@@ -1243,6 +1243,9 @@ if ($cntRes) {
                   <a href="../approved/" class="btn btn-sm btn-outline-success">
                     <i class="fas fa-check-circle"></i> View Approved
                   </a>
+                  <a href="../donations/review-pledge-payments.php" class="btn btn-sm btn-outline-warning">
+                    <i class="fas fa-file-invoice-dollar"></i> Payments
+                  </a>
                   <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">
                     <i class="fas fa-sync-alt"></i> Manual Refresh
                   </button>
