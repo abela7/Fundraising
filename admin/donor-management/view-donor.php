@@ -160,14 +160,16 @@ try {
         }
     }
 
-    // 6. Assignment Info (Church & Representative)
+    // 6. Assignment Info (Church, Representative & Agent)
     $assignment = [
         'church_id' => $donor['church_id'] ?? null,
         'church_name' => $donor['church_name'] ?? null,
         'representative_id' => null,
         'representative_name' => null,
         'representative_role' => null,
-        'representative_phone' => null
+        'representative_phone' => null,
+        'agent_id' => $donor['agent_id'] ?? null,
+        'agent_name' => null
     ];
     
     // Check if representative_id column exists
@@ -190,6 +192,20 @@ try {
                 $assignment['representative_name'] = $rep_result['name'];
                 $assignment['representative_role'] = $rep_result['role'];
                 $assignment['representative_phone'] = $rep_result['phone'];
+            }
+        }
+    }
+    
+    // Fetch agent information if assigned
+    if (!empty($assignment['agent_id'])) {
+        $agent_query = "SELECT id, name FROM users WHERE id = ?";
+        $agent_stmt = $db->prepare($agent_query);
+        if ($agent_stmt) {
+            $agent_stmt->bind_param('i', $assignment['agent_id']);
+            $agent_stmt->execute();
+            $agent_result = $agent_stmt->get_result()->fetch_assoc();
+            if ($agent_result) {
+                $assignment['agent_name'] = $agent_result['name'];
             }
         }
     }
@@ -865,7 +881,7 @@ function formatDateTime($date) {
                                 </div>
                                 
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-6 col-lg-4">
                                         <div class="info-row">
                                             <span class="info-label">Church</span>
                                             <span class="info-value">
@@ -877,7 +893,7 @@ function formatDateTime($date) {
                                             </span>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-6 col-lg-4">
                                         <div class="info-row">
                                             <span class="info-label">Representative</span>
                                             <span class="info-value">
@@ -895,13 +911,40 @@ function formatDateTime($date) {
                                             </span>
                                         </div>
                                     </div>
+                                    <div class="col-md-12 col-lg-4">
+                                        <div class="info-row">
+                                            <span class="info-label">Assigned Agent</span>
+                                            <span class="info-value">
+                                                <?php if ($assignment['agent_name']): ?>
+                                                    <span class="badge bg-primary" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+                                                        <i class="fas fa-user-cog me-1"></i><?php echo htmlspecialchars($assignment['agent_name']); ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">Not assigned</span>
+                                                <?php endif; ?>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                                 
-                                <?php if (!$assignment['church_id'] && !$assignment['representative_id']): ?>
+                                <?php if (!$assignment['church_id'] && !$assignment['representative_id'] && !$assignment['agent_name']): ?>
                                 <div class="alert alert-info mt-3 mb-0">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    This donor is not currently assigned to any church or representative.
-                                    <a href="../church-management/assign-donors.php?donor_id=<?php echo $donor_id; ?>" class="alert-link">Assign now</a>
+                                    This donor is not currently assigned to any church, representative, or agent.
+                                    <div class="mt-2 d-flex flex-wrap gap-2">
+                                        <a href="../church-management/assign-donors.php?donor_id=<?php echo $donor_id; ?>" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-church me-1"></i>Assign to Church
+                                        </a>
+                                        <a href="../call-center/assign-donors.php" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-user-cog me-1"></i>Assign to Agent
+                                        </a>
+                                    </div>
+                                </div>
+                                <?php elseif (!$assignment['agent_name']): ?>
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    This donor is not assigned to an agent yet.
+                                    <a href="../call-center/assign-donors.php" class="alert-link">Assign to agent</a>
                                 </div>
                                 <?php endif; ?>
                             </div>
