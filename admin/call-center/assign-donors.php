@@ -15,6 +15,20 @@ $total_pages = 1;
 
 try {
     $db = db();
+    
+    // Check if required columns exist before running queries
+    $columns_check = $db->query("SHOW COLUMNS FROM donors");
+    $existing_cols = [];
+    while ($col = $columns_check->fetch_assoc()) {
+        $existing_cols[] = $col['Field'];
+    }
+    
+    $required = ['donor_type', 'agent_id'];
+    $missing = array_diff($required, $existing_cols);
+    
+    if (!empty($missing)) {
+        throw new Exception("Missing required columns in donors table: " . implode(', ', $missing));
+    }
 
 // Get filter parameters
 $search = $_GET['search'] ?? '';
@@ -71,15 +85,22 @@ $where_clause = implode(' AND ', $where_conditions);
 // Get total count for pagination
 $count_query = "SELECT COUNT(*) as total FROM donors d WHERE {$where_clause}";
 $count_stmt = $db->prepare($count_query);
-if ($params) {
+if (!empty($params)) {
     $count_stmt->bind_param($param_types, ...$params);
 }
+$count_stmt->execute();
+$total_donors = $count_stmt->get_result()->fetch_assoc()['total'];
+$total_pages = ceil($total_donors / $per_page);
 
-    $count_stmt->execute();
-    $total_donors = $count_stmt->get_result()->fetch_assoc()['total'];
-    $total_pages = ceil($total_donors / $per_page);
+// Get donors - prepare fresh params array for this query
+$donor_params = $params; // Copy the filter params
+$donor_param_types = $param_types; // Copy the param types
 
-// Get donors
+// Add pagination params to the copy
+$donor_params[] = $per_page;
+$donor_params[] = $offset;
+$donor_param_types .= 'ii';
+
 $donor_query = "
     SELECT 
         d.id,
@@ -104,14 +125,9 @@ $donor_query = "
     LIMIT ? OFFSET ?
 ";
 
-// Add pagination params
-$params[] = $per_page;
-$params[] = $offset;
-$param_types .= 'ii';
-
 $donor_stmt = $db->prepare($donor_query);
-if ($params) {
-    $donor_stmt->bind_param($param_types, ...$params);
+if (!empty($donor_params)) {
+    $donor_stmt->bind_param($donor_param_types, ...$donor_params);
 }
 $donor_stmt->execute();
 $donors = $donor_stmt->get_result();
