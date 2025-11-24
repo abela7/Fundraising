@@ -302,63 +302,63 @@ try {
                 <div class="tab-content">
                     <!-- Overview Tab -->
                     <div class="tab-pane fade show active" id="overview" role="tabpanel">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="content-card">
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="content-card">
                                     <h5>Plan Details</h5>
                                     <div class="info-row">
                                         <span class="info-label">Monthly Installment</span>
                                         <span class="info-value text-primary fw-bold">£<?php echo number_format($monthly_amount, 2); ?></span>
                                     </div>
-                                    <div class="info-row">
+                            <div class="info-row">
                                         <span class="info-label">Frequency</span>
                                         <span class="info-value"><?php echo ucfirst($plan['plan_frequency_unit'] ?? 'month'); ?>ly (Every <?php echo $plan['plan_frequency_number'] ?? 1; ?>)</span>
-                                    </div>
-                                    <div class="info-row">
+                            </div>
+                            <div class="info-row">
                                         <span class="info-label">Payment Method</span>
-                                        <span class="info-value text-uppercase"><?php echo htmlspecialchars($plan['payment_method'] ?? '-'); ?></span>
-                                    </div>
-                                    <div class="info-row">
+                                <span class="info-value text-uppercase"><?php echo htmlspecialchars($plan['payment_method'] ?? '-'); ?></span>
+                            </div>
+                            <div class="info-row">
                                         <span class="info-label">Next Due</span>
                                         <span class="info-value text-danger"><?php echo !empty($plan['next_payment_due']) ? date('d M Y', strtotime($plan['next_payment_due'])) : '-'; ?></span>
-                                    </div>
-                                </div>
+                            </div>
+                        </div>
 
-                                <div class="content-card">
+                        <div class="content-card">
                                     <h5>Payment History</h5>
-                                    <?php if(empty($payments)): ?>
+                            <?php if(empty($payments)): ?>
                                         <div class="text-muted">No payments yet.</div>
-                                    <?php else: ?>
-                                        <div class="table-responsive">
-                                            <table class="table table-hover table-compact mb-0">
-                                                <thead>
+                            <?php else: ?>
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-compact mb-0">
+                                        <thead>
                                                     <tr><th>Date</th><th>Amount</th><th>Status</th></tr>
-                                                </thead>
-                                                <tbody>
+                                        </thead>
+                                        <tbody>
                                                     <?php foreach($payments as $p): ?>
-                                                    <tr>
+                                            <tr>
                                                         <td><?php echo date('d M Y', strtotime($p['created_at'])); ?></td>
                                                         <td class="fw-bold">£<?php echo number_format((float)$p['amount'], 2); ?></td>
                                                         <td><span class="badge bg-<?php echo $p['status']=='approved'?'success':'secondary'; ?>"><?php echo ucfirst($p['status']); ?></span></td>
-                                                    </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    <?php endif; ?>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
                                 </div>
-                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
 
-                            <div class="col-lg-4">
-                                <div class="content-card">
+                    <div class="col-lg-4">
+                        <div class="content-card">
                                     <h5>Quick Links</h5>
-                                    <div class="d-grid gap-2">
+                            <div class="d-grid gap-2">
                                         <a href="view-donor.php?id=<?php echo $plan['donor_id']; ?>" class="btn btn-outline-primary">Donor Profile</a>
                                     </div>
                                 </div>
                             </div>
+                            </div>
                         </div>
-                    </div>
 
                     <!-- Schedule Tab -->
                     <div class="tab-pane fade" id="schedule" role="tabpanel">

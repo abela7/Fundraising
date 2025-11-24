@@ -1,0 +1,90 @@
+<?php
+// admin/donations/void-pledge-payment.php
+require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../config/db.php';
+
+header('Content-Type: application/json');
+
+try {
+    require_admin();
+    
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Invalid request method');
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $payment_id = isset($input['id']) ? (int)$input['id'] : 0;
+    $reason = isset($input['reason']) ? trim($input['reason']) : '';
+    $user_id = (int)$_SESSION['user']['id'];
+    
+    if ($payment_id <= 0) {
+        throw new Exception('Invalid payment ID');
+    }
+    
+    if (empty($reason)) {
+        throw new Exception('Rejection reason is required');
+    }
+    
+    $db = db();
+    $db->begin_transaction();
+    
+    // 1. Fetch payment details
+    $stmt = $db->prepare("SELECT * FROM pledge_payments WHERE id = ?");
+    $stmt->bind_param('i', $payment_id);
+    $stmt->execute();
+    $payment = $stmt->get_result()->fetch_assoc();
+    
+    if (!$payment) {
+        throw new Exception('Payment not found');
+    }
+    
+    if ($payment['status'] !== 'pending') {
+        throw new Exception('Only pending payments can be rejected. Current status: ' . $payment['status']);
+    }
+    
+    // 2. Update payment status to 'voided'
+    $stmt = $db->prepare("
+        UPDATE pledge_payments 
+        SET 
+            status = 'voided',
+            voided_by_user_id = ?,
+            voided_at = NOW(),
+            void_reason = ?
+        WHERE id = ?
+    ");
+    $stmt->bind_param('isi', $user_id, $reason, $payment_id);
+    $stmt->execute();
+    
+    // 3. NO donor balance updates needed (payment was never confirmed)
+    
+    // 4. Audit Log
+    $log_json = json_encode([
+        'action' => 'payment_rejected',
+        'payment_id' => $payment_id,
+        'donor_id' => $payment['donor_id'],
+        'pledge_id' => $payment['pledge_id'],
+        'amount' => $payment['amount'],
+        'reason' => $reason,
+        'rejected_by' => $user_id,
+        'rejected_at' => date('Y-m-d H:i:s')
+    ]);
+    
+    $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'reject', ?, 'admin')");
+    $log->bind_param('iis', $user_id, $payment_id, $log_json);
+    $log->execute();
+    
+    $db->commit();
+    
+    echo json_encode([
+        'success' => true, 
+        'message' => 'Payment rejected',
+        'payment_id' => $payment_id
+    ]);
+    
+} catch (Exception $e) {
+    if (isset($db)) $db->rollback();
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+}
+?>
+

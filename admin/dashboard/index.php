@@ -233,6 +233,14 @@ $page_title = 'Dashboard';
                   </a>
                 </div>
                 <div class="col-6 col-md-4">
+                  <a href="../donations/review-pledge-payments.php" class="quick-action-btn">
+                    <div class="quick-action-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                      <i class="fas fa-check-double"></i>
+                    </div>
+                    <span>Review Payments</span>
+                  </a>
+                </div>
+                <div class="col-6 col-md-4">
                   <a href="../settings/" class="quick-action-btn">
                     <div class="quick-action-icon bg-secondary">
                       <i class="fas fa-cog"></i>

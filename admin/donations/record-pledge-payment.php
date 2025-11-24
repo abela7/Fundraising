@@ -168,6 +168,11 @@ if ($search || $selected_donor_id) {
                                             <input type="text" name="reference_number" class="form-control" placeholder="e.g. Receipt #123">
                                         </div>
                                         <div class="col-12">
+                                            <label class="form-label fw-bold">Payment Proof <span class="text-danger">*</span></label>
+                                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf" required>
+                                            <small class="text-muted">Upload receipt, bank statement, or payment screenshot (required for approval)</small>
+                                        </div>
+                                        <div class="col-12">
                                             <label class="form-label fw-bold">Notes</label>
                                             <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
                                         </div>
@@ -254,9 +259,19 @@ function selectPledge(id, remaining) {
 
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    if(!confirm('Are you sure you want to record this payment?')) return;
+    
+    const fileInput = document.querySelector('input[name="payment_proof"]');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please upload payment proof (receipt/bank statement)');
+        return;
+    }
+    
+    if(!confirm('Submit this payment for approval?\n\nThe payment will be reviewed by an admin before being finalized.')) return;
     
     const formData = new FormData(this);
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
     
     fetch('save-pledge-payment.php', {
         method: 'POST',
@@ -265,13 +280,19 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
     .then(r => r.json())
     .then(res => {
         if(res.success) {
-            alert('Payment recorded successfully!');
-            location.reload(); // Refresh to update balances
+            alert('Payment submitted for approval!\n\nAn admin will review and approve it shortly.');
+            location.reload();
         } else {
             alert('Error: ' + res.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-2"></i>Save Payment';
         }
     })
-    .catch(err => alert('System error occurred'));
+    .catch(err => {
+        alert('System error occurred');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-2"></i>Save Payment';
+    });
 });
 
 <?php if($selected_donor_id): ?>

@@ -35,6 +35,23 @@ try {
     if ($pledge_id <= 0) throw new Exception("Invalid pledge");
     if ($amount <= 0) throw new Exception("Amount must be greater than 0");
     
+    // Validate Payment Proof Upload (but don't move file yet)
+    if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
+        throw new Exception("Payment proof is required");
+    }
+    
+    $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'];
+    $file_type = $_FILES['payment_proof']['type'];
+    
+    if (!in_array($file_type, $allowed_types)) {
+        throw new Exception("Invalid file type. Only images (JPG, PNG, GIF, WEBP) and PDF allowed.");
+    }
+    
+    if ($_FILES['payment_proof']['size'] > 5 * 1024 * 1024) { // 5MB max
+        throw new Exception("File too large. Maximum 5MB allowed.");
+    }
+    
+    $db = db();
     $db->begin_transaction();
     
     // 1. Verify Pledge Ownership & Status
@@ -47,73 +64,48 @@ try {
     if ($pledge['donor_id'] != $donor_id) throw new Exception("Pledge does not belong to this donor");
     if ($pledge['status'] === 'cancelled') throw new Exception("Cannot pay towards a cancelled pledge");
     
-    // 2. Insert Payment
+    // 2. NOW Upload the file (after validation, before final insert)
+    // Create uploads directory if not exists
+    $upload_dir = __DIR__ . '/../../uploads/payment_proofs/';
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0755, true);
+    }
+    
+    // Generate unique filename
+    $ext = pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
+    $filename = 'proof_' . time() . '_' . uniqid() . '.' . $ext;
+    $filepath = $upload_dir . $filename;
+    
+    if (!move_uploaded_file($_FILES['payment_proof']['tmp_name'], $filepath)) {
+        throw new Exception("Failed to upload payment proof");
+    }
+    
+    $payment_proof = 'uploads/payment_proofs/' . $filename; // Relative path for DB
+    
+    // 3. Insert Payment with PENDING status (awaits approval)
     $stmt = $db->prepare("
         INSERT INTO pledge_payments 
-        (pledge_id, donor_id, amount, payment_method, payment_date, reference_number, notes, processed_by_user_id, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')
+        (pledge_id, donor_id, amount, payment_method, payment_date, reference_number, payment_proof, notes, processed_by_user_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     ");
-    $stmt->bind_param('iidsssis', $pledge_id, $donor_id, $amount, $method, $payment_date, $reference, $notes, $user_id);
+    $stmt->bind_param('iidsssssi', $pledge_id, $donor_id, $amount, $method, $payment_date, $reference, $payment_proof, $notes, $user_id);
     $stmt->execute();
     $payment_id = $db->insert_id;
     
-    // 3. Update Donor Totals (The Smart Logic)
-    // total_paid = SUM(payments) + SUM(pledge_payments)
-    // balance = total_pledged - SUM(pledge_payments)
-    $update_donor = $db->prepare("
-        UPDATE donors d
-        SET 
-            d.total_paid = (
-                COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
-                COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-            ),
-            d.balance = (
-                d.total_pledged - 
-                COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-            ),
-            d.last_payment_date = NOW(),
-            d.payment_status = 'paying'
-        WHERE d.id = ?
-    ");
-    $update_donor->bind_param('i', $donor_id);
-    $update_donor->execute();
-    
-    // 4. Check Pledge Full Fulfillment
-    // Calculate total paid for THIS pledge
-    $sum_q = $db->prepare("SELECT SUM(amount) as total FROM pledge_payments WHERE pledge_id = ? AND status = 'confirmed'");
-    $sum_q->bind_param('i', $pledge_id);
-    $sum_q->execute();
-    $paid_so_far = (float)$sum_q->get_result()->fetch_assoc()['total'];
-    
-    // Update pledge status if fully paid
-    // Use a small epsilon for float comparison safety
-    if ($paid_so_far >= ((float)$pledge['amount'] - 0.01)) {
-        // Mark pledge as completed/paid? 
-        // The enum in DB is 'pending','approved','rejected','cancelled'. 
-        // It doesn't have 'completed' or 'paid'.
-        // Maybe we should just leave it as 'approved' but update donor balance (which is done).
-        // Or maybe we should add 'fulfilled' to the enum?
-        // For now, we rely on the balance being 0.
-        
-        // Update donor payment_status to 'completed' if balance is 0
-        // Check if donor has ANY balance left
-        $bal_q = $db->prepare("SELECT balance FROM donors WHERE id = ?");
-        $bal_q->bind_param('i', $donor_id);
-        $bal_q->execute();
-        $d_bal = (float)$bal_q->get_result()->fetch_assoc()['balance'];
-        
-        if ($d_bal <= 0.01) {
-            $db->query("UPDATE donors SET payment_status = 'completed' WHERE id = $donor_id");
-        }
-    }
+    // 4. DO NOT UPDATE DONOR TOTALS YET
+    // Totals will be updated only when payment is APPROVED by admin
+    // This ensures financial integrity - no double-counting or premature reporting
     
     // 5. Audit Log
     $log_json = json_encode([
-        'action' => 'pledge_payment',
+        'action' => 'pledge_payment_submitted',
         'amount' => $amount,
         'pledge_id' => $pledge_id,
+        'donor_id' => $donor_id,
         'method' => $method,
-        'payment_id' => $payment_id
+        'payment_id' => $payment_id,
+        'status' => 'pending',
+        'proof_file' => $payment_proof
     ]);
     
     $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'create', ?, 'admin')");
@@ -122,10 +114,21 @@ try {
     
     $db->commit();
     
-    echo json_encode(['success' => true, 'message' => 'Payment recorded successfully', 'id' => $payment_id]);
+    echo json_encode([
+        'success' => true, 
+        'message' => 'Payment submitted for approval. An admin will review it shortly.', 
+        'id' => $payment_id,
+        'status' => 'pending'
+    ]);
     
 } catch (Exception $e) {
     if (isset($db)) $db->rollback();
+    
+    // Cleanup: Delete uploaded file if transaction failed
+    if (isset($filepath) && file_exists($filepath)) {
+        unlink($filepath);
+    }
+    
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
