@@ -486,13 +486,7 @@ try {
         
         <main class="main-content">
             <!-- Page Header -->
-            <div class="content-header mb-4">
-                <div>
-                    <h1 class="content-title">
-                        <i class="fas fa-users-cog me-2"></i>Assign Donors to Agents
-                    </h1>
-                    <p class="text-muted mb-0">Select donors and assign them to agents for follow-up</p>
-                </div>
+            <div class="content-header mb-3">
                 <div>
                     <a href="index.php" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back
@@ -534,43 +528,31 @@ try {
                 error_log("Stats query error: " . $e->getMessage());
             }
             ?>
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                    <div class="stat-card" style="border-left-color: #0d6efd;">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-shrink-0">
-                                    <i class="fas fa-users fa-2x text-primary"></i>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                <h4 class="mb-0"><?php echo number_format($total_donors); ?></h4>
-                                <small class="text-muted">Total Donors</small>
-                            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-auto">
+                    <div class="stat-card" style="border-left-color: #0d6efd; padding: 10px 16px;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-users text-primary"></i>
+                            <span class="fw-bold"><?php echo number_format($total_donors); ?></span>
+                            <small class="text-muted">Total Donors</small>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="stat-card" style="border-left-color: #198754;">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-shrink-0">
-                                    <i class="fas fa-user-check fa-2x text-success"></i>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                <h4 class="mb-0"><?php echo number_format($assigned_count); ?></h4>
-                                <small class="text-muted">Assigned</small>
-                            </div>
+                <div class="col-auto">
+                    <div class="stat-card" style="border-left-color: #198754; padding: 10px 16px;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-user-check text-success"></i>
+                            <span class="fw-bold"><?php echo number_format($assigned_count); ?></span>
+                            <small class="text-muted">Assigned</small>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="stat-card" style="border-left-color: #ffc107;">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-shrink-0">
-                                    <i class="fas fa-user-slash fa-2x text-warning"></i>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                <h4 class="mb-0"><?php echo number_format($unassigned_count); ?></h4>
-                                <small class="text-muted">Unassigned</small>
-                            </div>
+                <div class="col-auto">
+                    <div class="stat-card" style="border-left-color: #ffc107; padding: 10px 16px;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-user-slash text-warning"></i>
+                            <span class="fw-bold"><?php echo number_format($unassigned_count); ?></span>
+                            <small class="text-muted">Unassigned</small>
                         </div>
                     </div>
                 </div>
