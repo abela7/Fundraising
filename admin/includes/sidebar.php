@@ -1,7 +1,91 @@
 <?php
 // Reusable Sidebar Navigation Component
+require_once __DIR__ . '/../../shared/url.php';
+
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 $current_dir = basename(dirname($_SERVER['PHP_SELF']));
+$user_role = $_SESSION['user']['role'] ?? '';
+
+// --- Special Sidebar for Registrars accessing Admin Pages (Call Center / Donor Management) ---
+if ($user_role === 'registrar') {
+?>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-brand">
+      <i class="fas fa-headset brand-icon"></i>
+      <span class="brand-text">Call Center</span>
+    </div>
+    <button class="sidebar-close d-lg-none" onclick="toggleSidebar()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-section-title">
+        <span>Registrar Panel</span>
+      </div>
+      <a href="<?php echo url_for('registrar/index.php'); ?>" class="nav-link">
+        <span class="nav-icon">
+          <i class="fas fa-arrow-left"></i>
+        </span>
+        <span class="nav-label">Back to Registrar</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">
+        <span>Call Center</span>
+      </div>
+      <a href="<?php echo url_for('admin/call-center/'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'call-center' && $current_page === 'index') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-tachometer-alt"></i>
+        </span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a href="<?php echo url_for('admin/call-center/my-schedule.php'); ?>" 
+         class="nav-link <?php echo $current_page === 'my-schedule' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-calendar-check"></i>
+        </span>
+        <span class="nav-label">My Schedule</span>
+      </a>
+      <a href="<?php echo url_for('admin/call-center/call-history.php'); ?>" 
+         class="nav-link <?php echo $current_page === 'call-history' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-history"></i>
+        </span>
+        <span class="nav-label">Call History</span>
+      </a>
+    </div>
+    
+    <div class="nav-section">
+      <div class="nav-section-title">
+        <span>Tools</span>
+      </div>
+      <a href="<?php echo url_for('admin/donor-management/donors.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'donor-management') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-users"></i>
+        </span>
+        <span class="nav-label">Donor List</span>
+      </a>
+    </div>
+  </nav>
+  
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-content">
+      <i class="fas fa-church"></i>
+      <span>Church Fundraising</span>
+    </div>
+  </div>
+</aside>
+<?php
+    return; // Stop rendering the full admin sidebar
+}
+
+// --- End Special Sidebar ---
 
 // --- Resilient Pending Applications Count ---
 $pending_applications_count = 0;
