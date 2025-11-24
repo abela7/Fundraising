@@ -124,6 +124,41 @@ $stats = [
             border-left-color: #dc3545;
         }
         
+        /* Enhanced button styles */
+        .btn-undo {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+            transition: all 0.3s ease;
+        }
+        .btn-undo:hover {
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        }
+        
+        /* Approved payment card enhancement */
+        .approved-card {
+            border-left: 4px solid #198754;
+        }
+        .pending-card {
+            border-left: 4px solid #ffc107;
+        }
+        .rejected-card {
+            border-left: 4px solid #dc3545;
+        }
+        
+        /* Icon visibility fix */
+        .fa, .fas, .far, .fal, .fab {
+            display: inline-block;
+            font-style: normal;
+            font-variant: normal;
+            text-rendering: auto;
+            -webkit-font-smoothing: antialiased;
+        }
+        
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .stat-card h3 {
@@ -140,18 +175,21 @@ $stats = [
                 margin-right: 0;
                 text-align: left;
             }
-            .payment-card .row {
-                flex-direction: column;
-            }
             .payment-card .col-auto {
                 margin-bottom: 1rem;
             }
-            .payment-card .text-end {
-                text-align: left !important;
-            }
-            .payment-card .btn {
+            .btn-undo {
                 width: 100%;
-                margin-bottom: 0.5rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .proof-thumbnail {
+                width: 50px;
+                height: 50px;
+            }
+            .payment-card .card-body {
+                padding: 1rem !important;
             }
         }
     </style>
@@ -275,7 +313,11 @@ $stats = [
                     <div class="row g-3">
                         <?php foreach ($payments as $p): ?>
                             <div class="col-12">
-                                <div class="card payment-card shadow-sm border-0">
+                                <div class="card payment-card shadow-sm <?php 
+                                    if ($p['status'] === 'confirmed') echo 'approved-card';
+                                    elseif ($p['status'] === 'pending') echo 'pending-card';
+                                    elseif ($p['status'] === 'voided') echo 'rejected-card';
+                                ?>">
                                     <div class="card-body p-3 p-md-4">
                                         <div class="row g-3 align-items-start">
                                             <!-- Payment Proof Thumbnail -->
@@ -303,93 +345,143 @@ $stats = [
                                             </div>
 
                                             <!-- Payment Details -->
-                                            <div class="col-md-6 col-lg-7">
+                                            <div class="col-12 col-md">
                                                 <div class="row g-2">
                                                     <div class="col-12">
-                                                        <h6 class="mb-1 fw-bold">
-                                                            <i class="fas fa-user me-1 text-primary"></i>
+                                                        <h5 class="mb-1 fw-bold">
+                                                            <i class="fas fa-user me-2 text-primary"></i>
                                                             <?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown'); ?>
-                                                        </h6>
-                                                        <p class="mb-1 small text-muted">
-                                                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($p['donor_phone'] ?? '-'); ?>
+                                                        </h5>
+                                                        <p class="mb-2 text-muted">
+                                                            <i class="fas fa-phone me-1"></i>
+                                                            <?php echo htmlspecialchars($p['donor_phone'] ?? '-'); ?>
                                                         </p>
                                                     </div>
-                                                    <div class="col-12 col-sm-6">
-                                                        <p class="mb-1 small">
-                                                            <strong>Amount:</strong> 
-                                                            <span class="text-success fw-bold">£<?php echo number_format((float)$p['amount'], 2); ?></span>
-                                                        </p>
-                                                        <p class="mb-1 small">
-                                                            <strong>Method:</strong> <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
-                                                        </p>
-                                                    </div>
-                                                    <div class="col-12 col-sm-6">
-                                                        <p class="mb-1 small">
-                                                            <strong>Date:</strong> <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
-                                                        </p>
-                                                        <?php if ($p['reference_number']): ?>
-                                                            <p class="mb-1 small">
-                                                                <strong>Ref:</strong> <?php echo htmlspecialchars($p['reference_number']); ?>
-                                                            </p>
-                                                        <?php endif; ?>
+                                                    <div class="col-12">
+                                                        <div class="d-flex flex-wrap gap-3 mb-2">
+                                                            <div>
+                                                                <small class="text-muted d-block">Amount</small>
+                                                                <span class="text-success fw-bold fs-5">
+                                                                    <i class="fas fa-pound-sign me-1"></i>
+                                                                    <?php echo number_format((float)$p['amount'], 2); ?>
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <small class="text-muted d-block">Method</small>
+                                                                <span class="fw-semibold">
+                                                                    <?php 
+                                                                    $method_icons = [
+                                                                        'cash' => 'money-bill-wave',
+                                                                        'bank_transfer' => 'university',
+                                                                        'card' => 'credit-card',
+                                                                        'cheque' => 'file-invoice-dollar',
+                                                                        'other' => 'hand-holding-usd'
+                                                                    ];
+                                                                    $icon = $method_icons[$p['payment_method']] ?? 'money-bill';
+                                                                    ?>
+                                                                    <i class="fas fa-<?php echo $icon; ?> me-1 text-info"></i>
+                                                                    <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <small class="text-muted d-block">Date</small>
+                                                                <span class="fw-semibold">
+                                                                    <i class="far fa-calendar-alt me-1 text-secondary"></i>
+                                                                    <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
+                                                                </span>
+                                                            </div>
+                                                            <?php if ($p['reference_number']): ?>
+                                                            <div>
+                                                                <small class="text-muted d-block">Reference</small>
+                                                                <span class="fw-semibold font-monospace">
+                                                                    <i class="fas fa-hashtag me-1 text-muted"></i>
+                                                                    <?php echo htmlspecialchars($p['reference_number']); ?>
+                                                                </span>
+                                                            </div>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </div>
                                                     <?php if ($p['notes']): ?>
                                                         <div class="col-12">
-                                                            <p class="mb-0 small text-muted fst-italic">
-                                                                <i class="fas fa-sticky-note me-1"></i><?php echo htmlspecialchars($p['notes']); ?>
-                                                            </p>
+                                                            <div class="alert alert-info py-2 px-3 mb-0">
+                                                                <small>
+                                                                    <i class="fas fa-sticky-note me-1"></i>
+                                                                    <strong>Notes:</strong> <?php echo htmlspecialchars($p['notes']); ?>
+                                                                </small>
+                                                            </div>
                                                         </div>
                                                     <?php endif; ?>
                                                 </div>
-                                                <div class="mt-2 pt-2 border-top">
-                                                    <small class="text-muted d-block d-md-inline">
-                                                        <i class="fas fa-user-check me-1"></i>Submitted by <strong><?php echo htmlspecialchars($p['processed_by_name'] ?? 'Unknown'); ?></strong> 
-                                                        on <?php echo date('d M Y H:i', strtotime($p['created_at'])); ?>
-                                                    </small>
-                                                    <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
-                                                        <small class="text-success d-block d-md-inline ms-md-2">
-                                                            <i class="fas fa-check-circle me-1"></i>Approved by <strong><?php echo htmlspecialchars($p['approved_by_name']); ?></strong>
-                                                            <?php if ($p['approved_at']): ?>
-                                                                on <?php echo date('d M Y H:i', strtotime($p['approved_at'])); ?>
-                                                            <?php endif; ?>
+                                                <div class="mt-3 pt-3 border-top">
+                                                    <div class="d-flex flex-column gap-1">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-user-plus me-1"></i>
+                                                            Submitted by <strong class="text-dark"><?php echo htmlspecialchars($p['processed_by_name'] ?? 'Unknown'); ?></strong> 
+                                                            <span class="text-muted">on <?php echo date('d M Y', strtotime($p['created_at'])); ?> at <?php echo date('H:i', strtotime($p['created_at'])); ?></span>
                                                         </small>
-                                                    <?php endif; ?>
-                                                    <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
-                                                        <small class="text-danger d-block d-md-inline ms-md-2">
-                                                            <i class="fas fa-times-circle me-1"></i>Rejected by <strong><?php echo htmlspecialchars($p['voided_by_name']); ?></strong>
-                                                            <?php if ($p['voided_at']): ?>
-                                                                on <?php echo date('d M Y H:i', strtotime($p['voided_at'])); ?>
-                                                            <?php endif; ?>
-                                                        </small>
-                                                    <?php endif; ?>
+                                                        <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
+                                                            <small class="text-success">
+                                                                <i class="fas fa-check-circle me-1"></i>
+                                                                Approved by <strong><?php echo htmlspecialchars($p['approved_by_name']); ?></strong>
+                                                                <?php if ($p['approved_at']): ?>
+                                                                    <span class="text-muted">on <?php echo date('d M Y', strtotime($p['approved_at'])); ?> at <?php echo date('H:i', strtotime($p['approved_at'])); ?></span>
+                                                                <?php endif; ?>
+                                                            </small>
+                                                        <?php endif; ?>
+                                                        <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
+                                                            <small class="text-danger">
+                                                                <i class="fas fa-times-circle me-1"></i>
+                                                                Rejected by <strong><?php echo htmlspecialchars($p['voided_by_name']); ?></strong>
+                                                                <?php if ($p['voided_at']): ?>
+                                                                    <span class="text-muted">on <?php echo date('d M Y', strtotime($p['voided_at'])); ?> at <?php echo date('H:i', strtotime($p['voided_at'])); ?></span>
+                                                                <?php endif; ?>
+                                                            </small>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </div>
                                             </div>
 
                                             <!-- Status & Actions -->
-                                            <div class="col-12 col-md-auto text-md-end">
-                                                <?php if ($p['status'] === 'pending'): ?>
-                                                    <span class="badge bg-warning text-dark status-badge d-inline-block mb-2 mb-md-3">PENDING REVIEW</span>
-                                                    <div class="d-flex d-md-block gap-2">
-                                                        <button class="btn btn-success btn-sm flex-fill flex-md-none" onclick="approvePayment(<?php echo $p['id']; ?>)">
-                                                            <i class="fas fa-check me-1"></i>Approve
-                                                        </button>
-                                                        <button class="btn btn-danger btn-sm flex-fill flex-md-none" onclick="voidPayment(<?php echo $p['id']; ?>)">
-                                                            <i class="fas fa-times me-1"></i>Reject
-                                                        </button>
-                                                    </div>
-                                                <?php elseif ($p['status'] === 'confirmed'): ?>
-                                                    <span class="badge bg-success status-badge d-inline-block mb-2 mb-md-3">APPROVED</span>
-                                                    <button class="btn btn-outline-danger btn-sm w-100 w-md-auto" onclick="undoPayment(<?php echo $p['id']; ?>)">
-                                                        <i class="fas fa-undo me-1"></i>Undo
-                                                    </button>
-                                                <?php elseif ($p['status'] === 'voided'): ?>
-                                                    <span class="badge bg-danger status-badge d-inline-block mb-2">REJECTED</span>
-                                                    <?php if ($p['void_reason']): ?>
-                                                        <small class="text-muted d-block mt-1" style="max-width: 200px;">
-                                                            <i class="fas fa-info-circle me-1"></i><?php echo htmlspecialchars($p['void_reason']); ?>
-                                                        </small>
+                                            <div class="col-12 col-md-auto ms-md-auto">
+                                                <div class="d-flex flex-column align-items-start align-items-md-end">
+                                                    <?php if ($p['status'] === 'pending'): ?>
+                                                        <span class="badge bg-warning text-dark status-badge mb-2">
+                                                            <i class="fas fa-clock me-1"></i>PENDING REVIEW
+                                                        </span>
+                                                        <div class="d-flex flex-column flex-md-row gap-2 w-100">
+                                                            <button class="btn btn-success btn-sm" onclick="approvePayment(<?php echo $p['id']; ?>)">
+                                                                <i class="fas fa-check me-1"></i>Approve
+                                                            </button>
+                                                            <button class="btn btn-danger btn-sm" onclick="voidPayment(<?php echo $p['id']; ?>)">
+                                                                <i class="fas fa-times me-1"></i>Reject
+                                                            </button>
+                                                        </div>
+                                                    <?php elseif ($p['status'] === 'confirmed'): ?>
+                                                        <span class="badge bg-success status-badge mb-2">
+                                                            <i class="fas fa-check-circle me-1"></i>APPROVED
+                                                        </span>
+                                                        <div class="d-flex flex-column gap-2">
+                                                            <button class="btn btn-undo btn-sm" onclick="undoPayment(<?php echo $p['id']; ?>)">
+                                                                <i class="fas fa-undo me-1"></i>Undo Payment
+                                                            </button>
+                                                            <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" 
+                                                               class="btn btn-outline-primary btn-sm">
+                                                                <i class="fas fa-user me-1"></i>View Donor
+                                                            </a>
+                                                        </div>
+                                                    <?php elseif ($p['status'] === 'voided'): ?>
+                                                        <span class="badge bg-danger status-badge mb-2">
+                                                            <i class="fas fa-ban me-1"></i>REJECTED
+                                                        </span>
+                                                        <?php if ($p['void_reason']): ?>
+                                                            <div class="alert alert-danger py-2 px-3 mb-0 small" role="alert" style="max-width: 250px;">
+                                                                <i class="fas fa-info-circle me-1"></i>
+                                                                <strong>Reason:</strong><br>
+                                                                <?php echo htmlspecialchars($p['void_reason']); ?>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     <?php endif; ?>
-                                                <?php endif; ?>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
