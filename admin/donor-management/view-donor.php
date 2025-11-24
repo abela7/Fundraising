@@ -373,6 +373,14 @@ function formatDateTime($date) {
                 min-width: 30%;
             }
             
+            /* Modal responsive */
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+            .modal-body .row > div {
+                margin-bottom: 1rem;
+            }
+            
             .info-row {
                 flex-direction: column;
                 align-items: flex-start;
@@ -865,7 +873,7 @@ function formatDateTime($date) {
                         </h2>
                         <div id="collapseAssignment" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
                             <div class="accordion-body">
-                                <div class="d-flex justify-content-end mb-3">
+                                <div class="d-flex flex-wrap justify-content-end gap-2 mb-3">
                                     <button type="button" class="btn btn-sm btn-outline-primary" 
                                             data-bs-toggle="modal" data-bs-target="#editAssignmentModal"
                                             onclick="loadAssignmentData(<?php echo $donor_id; ?>)">
@@ -873,7 +881,7 @@ function formatDateTime($date) {
                                     </button>
                                     <?php if ($assignment['church_id'] || $assignment['representative_id']): ?>
                                     <a href="delete-assignment.php?donor_id=<?php echo $donor_id; ?>&confirm=no" 
-                                       class="btn btn-sm btn-danger ms-2"
+                                       class="btn btn-sm btn-danger"
                                        onclick="return confirm('Are you sure you want to remove this assignment? This will unassign the donor from the church and representative.');">
                                         <i class="fas fa-trash-alt me-1"></i>Remove Assignment
                                     </a>
@@ -1287,29 +1295,55 @@ function formatDateTime($date) {
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="donor_id" id="editAssignmentDonorId" value="<?php echo $donor_id; ?>">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Church <span class="text-danger">*</span></label>
-                        <select class="form-select" name="church_id" id="editAssignmentChurchId" required>
-                            <option value="">-- Select Church --</option>
-                            <?php
-                            // Fetch all churches
-                            $churches_query = "SELECT id, name, city FROM churches ORDER BY city ASC, name ASC";
-                            $churches_result = $db->query($churches_query);
-                            while ($church = $churches_result->fetch_assoc()):
-                            ?>
-                            <option value="<?php echo $church['id']; ?>" 
-                                    data-city="<?php echo htmlspecialchars($church['city']); ?>">
-                                <?php echo htmlspecialchars($church['name']); ?> - <?php echo htmlspecialchars($church['city']); ?>
-                            </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Representative <span class="text-danger">*</span></label>
-                        <select class="form-select" name="representative_id" id="editAssignmentRepId" required>
-                            <option value="">-- Select Church First --</option>
-                        </select>
-                        <small class="text-muted">Select a church first to load representatives</small>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Church <span class="text-danger">*</span></label>
+                            <select class="form-select" name="church_id" id="editAssignmentChurchId" required>
+                                <option value="">-- Select Church --</option>
+                                <?php
+                                // Fetch all churches
+                                $churches_query = "SELECT id, name, city FROM churches ORDER BY city ASC, name ASC";
+                                $churches_result = $db->query($churches_query);
+                                while ($church = $churches_result->fetch_assoc()):
+                                ?>
+                                <option value="<?php echo $church['id']; ?>" 
+                                        data-city="<?php echo htmlspecialchars($church['city']); ?>">
+                                    <?php echo htmlspecialchars($church['name']); ?> - <?php echo htmlspecialchars($church['city']); ?>
+                                </option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Representative <span class="text-danger">*</span></label>
+                            <select class="form-select" name="representative_id" id="editAssignmentRepId" required>
+                                <option value="">-- Select Church First --</option>
+                            </select>
+                            <small class="text-muted">Select a church first to load representatives</small>
+                        </div>
+                        
+                        <div class="col-12">
+                            <hr class="my-3">
+                            <h6 class="mb-3"><i class="fas fa-user-cog me-2 text-primary"></i>Agent Assignment</h6>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Assign to Agent</label>
+                            <select class="form-select" name="agent_id" id="editAssignmentAgentId">
+                                <option value="">-- No Agent (Unassign) --</option>
+                                <?php
+                                // Fetch all agents (admins and registrars)
+                                $agents_query = "SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC";
+                                $agents_result = $db->query($agents_query);
+                                while ($agent = $agents_result->fetch_assoc()):
+                                ?>
+                                <option value="<?php echo $agent['id']; ?>">
+                                    <?php echo htmlspecialchars($agent['name']); ?>
+                                </option>
+                                <?php endwhile; ?>
+                            </select>
+                            <small class="text-muted">Optional: Assign this donor to an agent for follow-up calls</small>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1420,6 +1454,12 @@ function loadAssignmentData(donorId) {
         document.getElementById('editAssignmentChurchId').value = currentChurchId;
         // Load representatives for this church
         loadRepresentatives(currentChurchId);
+    }
+    
+    // Set current agent
+    const currentAgentId = <?php echo json_encode($assignment['agent_id'] ?? ''); ?>;
+    if (currentAgentId) {
+        document.getElementById('editAssignmentAgentId').value = currentAgentId;
     }
     
     // Set current representative after a short delay to allow dropdown to populate
