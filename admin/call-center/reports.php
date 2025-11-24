@@ -268,6 +268,17 @@ $success_rate = $stats['total_calls'] > 0
             margin-bottom: 2rem;
         }
         
+        .card-hover-effect {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card-hover-effect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background-color: #fff !important;
+            border-color: currentColor !important;
+        }
+        
         /* Quick Filter Buttons */
         .btn-group {
             flex-wrap: nowrap;
@@ -533,29 +544,40 @@ $success_rate = $stats['total_calls'] > 0
                             </div>
                             <div class="card-body">
                                 <div class="row g-3 text-center">
+                                    <?php 
+                                    $base_link = "call-history.php?" . ($agent_id > 0 ? "agent={$agent_id}&" : "") . "date_from={$date_from}&date_to={$date_to}";
+                                    ?>
                                     <div class="col-6">
-                                        <div class="p-3 border rounded-3 bg-light">
-                                            <h3 class="fw-bold text-warning mb-1"><?php echo number_format($stats['busy_calls']); ?></h3>
-                                            <p class="mb-0 text-muted small text-uppercase fw-bold">Busy Signals</p>
-                                        </div>
+                                        <a href="<?php echo $base_link; ?>&outcome=busy_signal" class="text-decoration-none">
+                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                <h3 class="fw-bold text-warning mb-1"><?php echo number_format($stats['busy_calls']); ?></h3>
+                                                <p class="mb-0 text-muted small text-uppercase fw-bold">Busy Signals</p>
+                                            </div>
+                                        </a>
                                     </div>
                                     <div class="col-6">
-                                        <div class="p-3 border rounded-3 bg-light">
-                                            <h3 class="fw-bold text-secondary mb-1"><?php echo number_format($stats['no_answer_calls']); ?></h3>
-                                            <p class="mb-0 text-muted small text-uppercase fw-bold">No Answer</p>
-                                        </div>
+                                        <a href="<?php echo $base_link; ?>&outcome=no_answer" class="text-decoration-none">
+                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                <h3 class="fw-bold text-secondary mb-1"><?php echo number_format($stats['no_answer_calls']); ?></h3>
+                                                <p class="mb-0 text-muted small text-uppercase fw-bold">No Answer</p>
+                                            </div>
+                                        </a>
                                     </div>
                                     <div class="col-6">
-                                        <div class="p-3 border rounded-3 bg-light">
-                                            <h3 class="fw-bold text-info mb-1"><?php echo number_format($stats['callbacks_scheduled']); ?></h3>
-                                            <p class="mb-0 text-muted small text-uppercase fw-bold">Callbacks Scheduled</p>
-                                        </div>
+                                        <a href="<?php echo $base_link; ?>&outcome=callback_scheduled" class="text-decoration-none">
+                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                <h3 class="fw-bold text-info mb-1"><?php echo number_format($stats['callbacks_scheduled']); ?></h3>
+                                                <p class="mb-0 text-muted small text-uppercase fw-bold">Callbacks Scheduled</p>
+                                            </div>
+                                        </a>
                                     </div>
                                     <div class="col-6">
-                                        <div class="p-3 border rounded-3 bg-light">
-                                            <h3 class="fw-bold text-success mb-1"><?php echo number_format($stats['successful_calls']); ?></h3>
-                                            <p class="mb-0 text-muted small text-uppercase fw-bold">Successful Contacts</p>
-                                        </div>
+                                        <a href="<?php echo $base_link; ?>&outcome=connected" class="text-decoration-none">
+                                            <div class="p-3 border rounded-3 bg-light h-100 card-hover-effect">
+                                                <h3 class="fw-bold text-success mb-1"><?php echo number_format($stats['successful_calls']); ?></h3>
+                                                <p class="mb-0 text-muted small text-uppercase fw-bold">Successful Contacts</p>
+                                            </div>
+                                        </a>
                                     </div>
                                 </div>
                                 
