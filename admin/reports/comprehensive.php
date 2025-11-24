@@ -128,7 +128,7 @@ if ($db && $db_error_message === '') {
     $calculator = new FinancialCalculator();
     
     // Special handling for "All Time" reports
-    $range = $_GET['range'] ?? 'month';
+    $range = $_GET['date'] ?? 'month';
     if ($range === 'all') {
         // For "All Time", use position semantic (no date filter) to match dashboard
         $totals = $calculator->getTotals();
