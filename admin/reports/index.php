@@ -11,24 +11,59 @@ $db = db();
 $settings = $db->query("SELECT target_amount, currency_code FROM settings WHERE id=1")->fetch_assoc() ?: ['target_amount'=>0,'currency_code'=>'GBP'];
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
 
-// Dynamic totals from approved rows to match comprehensive report
-$paidRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
+// Dynamic totals including pledge_payments
+// 1. Instant Payments
+$instRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
+$instantTotal = (float)$instRow['t'];
+
+// 2. Pledge Payments (Check table exists)
+$pledgePaidTotal = 0;
+$check = $db->query("SHOW TABLES LIKE 'pledge_payments'");
+$hasPledgePayments = ($check && $check->num_rows > 0);
+
+if ($hasPledgePayments) {
+    $ppRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledge_payments WHERE status='confirmed'")->fetch_assoc() ?: ['t'=>0];
+    $pledgePaidTotal = (float)$ppRow['t'];
+}
+
+// 3. Pledges
 $pledgeRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledges WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
-$paidTotal    = (float)$paidRow['t'];
 $pledgedTotal = (float)$pledgeRow['t'];
+
+// Logic:
+// Total Paid = Instant + Pledge Installments (cash in hand)
+// Grand Total = Total Paid + Total Pledged (total commitments + cash)
+$paidTotal    = $instantTotal + $pledgePaidTotal;
 $grandTotal   = $paidTotal + $pledgedTotal;
 
-// Donor count: distinct donors across approved pledges and approved payments
-$donorCountRow = $db->query("SELECT COUNT(*) AS c FROM (
-  SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident FROM payments WHERE status='approved'
+// Donor count: distinct donors across approved pledges, approved payments, and pledge_payments
+$donorUnionSql = "SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident FROM payments WHERE status='approved'
   UNION
-  SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident FROM pledges WHERE status='approved'
-) t")->fetch_assoc();
+  SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident FROM pledges WHERE status='approved'";
+
+if ($hasPledgePayments) {
+    $donorUnionSql .= "
+  UNION
+  SELECT DISTINCT CONCAT(COALESCE(d.name,''),'|',COALESCE(d.phone,''),'|',COALESCE(d.email,'')) ident 
+  FROM pledge_payments pp 
+  LEFT JOIN donors d ON pp.donor_id = d.id 
+  WHERE pp.status='confirmed'";
+}
+
+$donorCountRow = $db->query("SELECT COUNT(*) AS c FROM ($donorUnionSql) t")->fetch_assoc();
 $donorCount = (int)($donorCountRow['c'] ?? 0);
 
-// Average donation based on approved payments only
-$avgDonationRow = $db->query("SELECT COALESCE(AVG(amount),0) AS avg_amt FROM payments WHERE status='approved'")->fetch_assoc();
-$avgDonation = (float)($avgDonationRow['avg_amt'] ?? 0);
+// Average donation (Total Paid / Payment Count)
+// Count all payment transactions (instant + pledge payments)
+$paymentCount = $db->query("SELECT COUNT(*) AS c FROM payments WHERE status='approved'")->fetch_assoc();
+$totalPaymentCount = (int)($paymentCount['c'] ?? 0);
+
+if ($hasPledgePayments) {
+    $ppCount = $db->query("SELECT COUNT(*) AS c FROM pledge_payments WHERE status='confirmed'")->fetch_assoc();
+    $totalPaymentCount += (int)($ppCount['c'] ?? 0);
+}
+
+$avgDonation = $totalPaymentCount > 0 ? ($paidTotal / $totalPaymentCount) : 0;
 
 $progress = ($settings['target_amount'] > 0) ? round(($grandTotal / (float)$settings['target_amount']) * 100) : 0;
 
@@ -60,6 +95,7 @@ if (isset($_GET['report'])) {
     fputcsv($out,['Donor','Phone','Email','Total Pledged','Total Paid','Outstanding','Last Seen']);
 
     // Build donor aggregates by grouping on name/phone/email across pledges and payments
+    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
     $sql = "SELECT donor_name, donor_phone, donor_email,
                    SUM(CASE WHEN src='pledge' THEN amount ELSE 0 END) AS total_pledged,
                    SUM(CASE WHEN src='payment' THEN amount ELSE 0 END) AS total_paid,
@@ -72,10 +108,24 @@ if (isset($_GET['report'])) {
               SELECT donor_name, donor_phone, donor_email, amount, received_at AS last_seen_at, 'payment' AS src
               FROM payments
               WHERE status='approved' AND received_at BETWEEN ? AND ?
+              " . ($hasPledgePayments ? "
+              UNION ALL
+              SELECT d.name AS donor_name, d.phone AS donor_phone, d.email AS donor_email, pp.amount, pp.created_at AS last_seen_at, 'payment' AS src
+              FROM pledge_payments pp
+              LEFT JOIN donors d ON pp.donor_id = d.id
+              WHERE pp.status='confirmed' AND pp.created_at BETWEEN ? AND ?
+              " : "") . "
             ) c
             GROUP BY donor_name, donor_phone, donor_email
             ORDER BY total_paid DESC";
-    $stmt = $db->prepare($sql); $stmt->bind_param('ssss',$fromDate,$toDate,$fromDate,$toDate); $stmt->execute();
+    
+    $stmt = $db->prepare($sql);
+    if ($hasPledgePayments) {
+        $stmt->bind_param('ssssss', $fromDate, $toDate, $fromDate, $toDate, $fromDate, $toDate);
+    } else {
+        $stmt->bind_param('ssss', $fromDate, $toDate, $fromDate, $toDate);
+    }
+    $stmt->execute();
     $res=$stmt->get_result();
     while($r=$res->fetch_assoc()){
       $totalPledged = (float)($r['total_pledged'] ?? 0);
@@ -183,7 +233,9 @@ if (isset($_GET['report'])) {
         $pledgesSql .= " AND p.created_at BETWEEN ? AND ?";
         $pledgesSql .= " ORDER BY p.created_at DESC";
         $pledgesStmt = $db->prepare($pledgesSql);
-        $pledgesStmt->bind_param('ss', $_GET['from'] . ' 00:00:00', $_GET['to'] . ' 23:59:59');
+        $cFrom = $_GET['from'] . ' 00:00:00';
+        $cTo = $_GET['to'] . ' 23:59:59';
+        $pledgesStmt->bind_param('ss', $cFrom, $cTo);
         $pledgesStmt->execute();
         $pledgesResult = $pledgesStmt->get_result();
       } else {
@@ -233,7 +285,9 @@ if (isset($_GET['report'])) {
         $paymentsSql .= " AND p.received_at BETWEEN ? AND ?";
         $paymentsSql .= " ORDER BY p.received_at DESC";
         $paymentsStmt = $db->prepare($paymentsSql);
-        $paymentsStmt->bind_param('ss', $_GET['from'] . ' 00:00:00', $_GET['to'] . ' 23:59:59');
+        $cFrom = $_GET['from'] . ' 00:00:00';
+        $cTo = $_GET['to'] . ' 23:59:59';
+        $paymentsStmt->bind_param('ss', $cFrom, $cTo);
         $paymentsStmt->execute();
         $paymentsResult = $paymentsStmt->get_result();
       } else {
@@ -247,14 +301,70 @@ if (isset($_GET['report'])) {
         echo '<td>' . htmlspecialchars($payment['donation_type']) . '</td>';
         echo '<td class="number">' . number_format((float)$payment['amount'], 2) . '</td>';
         $totalAmount += (float)$payment['amount'];
-        echo '<td>' . htmlspecialchars(ucfirst($payment['status'])) . '</td>';
-        echo '<td>' . htmlspecialchars($payment['notes'] ?: '') . '</td>';
-        echo '<td>' . htmlspecialchars($payment['donor_phone'] ?: '') . '</td>';
-        echo '<td>' . htmlspecialchars($payment['payment_email'] ?: '') . '</td>';
-        echo '<td>' . htmlspecialchars($payment['package_label'] ?: 'Custom') . '</td>';
+            echo '<td>' . htmlspecialchars(ucfirst($payment['status'])) . '</td>';
+            echo '<td>' . htmlspecialchars($payment['notes'] ?: '') . '</td>';
+            echo '<td>' . htmlspecialchars($payment['donor_phone'] ?: '') . '</td>';
+            echo '<td>' . htmlspecialchars($payment['donor_email'] ?: '') . '</td>';
+            echo '<td>' . htmlspecialchars($payment['package_label'] ?: 'Custom') . '</td>';
         echo '<td>' . date('d/m/Y H:i', strtotime($payment['transaction_date'])) . '</td>';
         echo '<td>' . htmlspecialchars($payment['received_by_name'] ?: 'Direct') . '</td>';
         echo '</tr>';
+      }
+
+      // Get pledge payments
+      $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+      if ($hasPledgePayments) {
+          $ppSql = "
+            SELECT 
+              pp.id,
+              COALESCE(d.name, 'Unknown') AS donor_name,
+              'Pledge Payment' AS donation_type,
+              pp.amount,
+              pp.status,
+              pp.notes,
+              COALESCE(d.phone, '') AS donor_phone,
+              COALESCE(d.email, '') AS donor_email,
+              'Pledge Fulfillment' AS package_label,
+              pp.created_at AS transaction_date,
+              COALESCE(u.name, 'Admin') AS received_by_name
+            FROM pledge_payments pp
+            LEFT JOIN donors d ON d.id = pp.donor_id
+            LEFT JOIN users u ON u.id = pp.processed_by_user_id
+            WHERE pp.status IN ('confirmed', 'cancelled')
+          ";
+
+          if (isset($_GET['date']) && $_GET['date'] === 'custom' && isset($_GET['from']) && isset($_GET['to'])) {
+            $ppSql .= " AND pp.created_at BETWEEN ? AND ?";
+            $ppSql .= " ORDER BY pp.created_at DESC";
+            $ppStmt = $db->prepare($ppSql);
+            $cFrom = $_GET['from'] . ' 00:00:00';
+            $cTo = $_GET['to'] . ' 23:59:59';
+            $ppStmt->bind_param('ss', $cFrom, $cTo);
+            $ppStmt->execute();
+            $ppResult = $ppStmt->get_result();
+          } else {
+            $ppSql .= " ORDER BY pp.created_at DESC";
+            $ppResult = $db->query($ppSql);
+          }
+
+          while ($pp = $ppResult->fetch_assoc()) {
+            echo '<tr>';
+            echo '<td>' . $rowNumber++ . '</td>';
+            echo '<td>' . htmlspecialchars($pp['donor_name']) . '</td>';
+            echo '<td>' . htmlspecialchars($pp['donation_type']) . '</td>';
+            echo '<td class="number">' . number_format((float)$pp['amount'], 2) . '</td>';
+            if ($pp['status'] === 'confirmed') {
+                $totalAmount += (float)$pp['amount'];
+            }
+            echo '<td>' . htmlspecialchars(ucfirst($pp['status'])) . '</td>';
+            echo '<td>' . htmlspecialchars($pp['notes'] ?: '') . '</td>';
+            echo '<td>' . htmlspecialchars($pp['donor_phone'] ?: '') . '</td>';
+            echo '<td>' . htmlspecialchars($pp['donor_email'] ?: '') . '</td>';
+            echo '<td>' . htmlspecialchars($pp['package_label'] ?: '') . '</td>';
+            echo '<td>' . date('d/m/Y H:i', strtotime($pp['transaction_date'])) . '</td>';
+            echo '<td>' . htmlspecialchars($pp['received_by_name'] ?: 'Admin') . '</td>';
+            echo '</tr>';
+          }
       }
       
       // Add summary row

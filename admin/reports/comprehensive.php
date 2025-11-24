@@ -123,41 +123,84 @@ $recent_notes = [ 'payments' => [], 'pledges' => [] ];
 
 if ($db && $db_error_message === '') {
     // Totals in range
-    $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($sum, $cnt); $stmt->fetch(); $stmt->close();
-    $metrics['paid_total'] = (float)$sum; $metrics['payments_count'] = (int)$cnt;
+    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
 
+    // 1. Instant Payments
+    $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?");
+    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($instSum, $instCnt); $stmt->fetch(); $stmt->close();
+    $instSum = (float)$instSum;
+
+    // 2. Pledge Payments
+    $ppSum = 0; $ppCnt = 0;
+    if ($hasPledgePayments) {
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM pledge_payments WHERE status='confirmed' AND created_at BETWEEN ? AND ?");
+        $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($ppSum, $ppCnt); $stmt->fetch(); $stmt->close();
+    }
+    $ppSum = (float)$ppSum;
+
+    $metrics['paid_total'] = $instSum + $ppSum;
+    $metrics['payments_count'] = (int)$instCnt + (int)$ppCnt;
+
+    // 3. Pledges
     $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($sum, $cnt); $stmt->fetch(); $stmt->close();
-    $metrics['pledged_total'] = (float)$sum; $metrics['pledges_count'] = (int)$cnt;
+    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($pledgedSum, $pledgedCnt); $stmt->fetch(); $stmt->close();
+    $metrics['pledged_total'] = (float)$pledgedSum; $metrics['pledges_count'] = (int)$pledgedCnt;
 
     $metrics['grand_total'] = $metrics['paid_total'] + $metrics['pledged_total'];
 
-    // Donor count in range (distinct across pledges/payments)
-    $sql = "SELECT COUNT(*) AS c FROM (
-              SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident
+    // Donor count in range (distinct across pledges/payments/pledge_payments)
+    $unionSql = "SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident
               FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?
               UNION
               SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident
-              FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ?
-            ) t";
-    $stmt = $db->prepare($sql); $stmt->bind_param('ssss',$fromDate,$toDate,$fromDate,$toDate); $stmt->execute(); $res=$stmt->get_result(); $row=$res->fetch_assoc(); $metrics['donor_count'] = (int)($row['c'] ?? 0);
+              FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ?";
+    
+    if ($hasPledgePayments) {
+        $unionSql .= " UNION
+              SELECT DISTINCT CONCAT(COALESCE(d.name,''),'|',COALESCE(d.phone,''),'|',COALESCE(d.email,'')) ident
+              FROM pledge_payments pp LEFT JOIN donors d ON pp.donor_id=d.id
+              WHERE pp.status='confirmed' AND pp.created_at BETWEEN ? AND ?";
+    }
 
-    // Average donation (approved payments)
-    $stmt = $db->prepare("SELECT COALESCE(AVG(amount),0) FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($avg); $stmt->fetch(); $stmt->close();
-    $metrics['avg_donation'] = (float)$avg;
+    $sql = "SELECT COUNT(*) AS c FROM ($unionSql) t";
+    $stmt = $db->prepare($sql); 
+    if ($hasPledgePayments) {
+        $stmt->bind_param('ssssss',$fromDate,$toDate,$fromDate,$toDate,$fromDate,$toDate);
+    } else {
+        $stmt->bind_param('ssss',$fromDate,$toDate,$fromDate,$toDate);
+    }
+    $stmt->execute(); $res=$stmt->get_result(); $row=$res->fetch_assoc(); $metrics['donor_count'] = (int)($row['c'] ?? 0);
 
-    // Outstanding (overall lifetime and range)
-    $row = $db->query("SELECT
-              (SELECT COALESCE(SUM(amount),0) FROM pledges WHERE status='approved')
-            - (SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved') AS outstanding")->fetch_assoc() ?: ['outstanding'=>0];
-    $metrics['overall_outstanding'] = (float)$row['outstanding'];
+    // Average donation (approved payments + pledge payments)
+    // Weighted average? Or just Total Paid / Total Count?
+    // Simple average: (Total Paid Amount) / (Total Count)
+    if ($metrics['payments_count'] > 0) {
+        $metrics['avg_donation'] = $metrics['paid_total'] / $metrics['payments_count'];
+    } else {
+        $metrics['avg_donation'] = 0;
+    }
 
-    $row = $db->query("SELECT
-              (SELECT COALESCE(SUM(amount),0) FROM pledges WHERE status='approved' AND created_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."')
-            - (SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved' AND received_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."') AS outstanding")->fetch_assoc() ?: ['outstanding'=>0];
-    $metrics['range_outstanding'] = (float)$row['outstanding'];
+    // Outstanding (Overall: Total Pledged - Total Paid)
+    // Total Paid includes both instant payments and pledge payments
+    $sqlOutstanding = "SELECT (SELECT COALESCE(SUM(amount),0) FROM pledges WHERE status='approved') - (
+        (SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved')";
+    if ($hasPledgePayments) {
+        $sqlOutstanding .= " + (SELECT COALESCE(SUM(amount),0) FROM pledge_payments WHERE status='confirmed')";
+    }
+    $sqlOutstanding .= ") AS outstanding";
+    $row = $db->query($sqlOutstanding)->fetch_assoc() ?: ['outstanding'=>0];
+    $metrics['overall_outstanding'] = max(0, (float)$row['outstanding']);
+
+    // Range Outstanding (Pledges in range - Total Payments in range)
+    $rangePledgeSql = "SELECT COALESCE(SUM(amount),0) FROM pledges WHERE status='approved' AND created_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."'";
+    $rangePaymentsSql = "SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved' AND received_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."'";
+    $rangePPSql = "SELECT 0";
+    if ($hasPledgePayments) {
+        $rangePPSql = "SELECT COALESCE(SUM(amount),0) FROM pledge_payments WHERE status='confirmed' AND created_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."'";
+    }
+    
+    $row = $db->query("SELECT ($rangePledgeSql) - (($rangePaymentsSql) + ($rangePPSql)) AS outstanding")->fetch_assoc() ?: ['outstanding'=>0];
+    $metrics['range_outstanding'] = max(0, (float)$row['outstanding']);
 
     // Breakdowns
     $stmt = $db->prepare("SELECT method, COUNT(*) c, COALESCE(SUM(amount),0) t FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ? GROUP BY method ORDER BY t DESC");
@@ -208,11 +251,24 @@ if ($db && $db_error_message === '') {
               UNION ALL
               SELECT donor_name, donor_phone, donor_email, amount, received_at AS last_seen_at, 'payment' AS src
               FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?
+              " . ($hasPledgePayments ? "
+              UNION ALL
+              SELECT d.name AS donor_name, d.phone AS donor_phone, d.email AS donor_email, pp.amount, pp.created_at AS last_seen_at, 'payment' AS src
+              FROM pledge_payments pp
+              LEFT JOIN donors d ON pp.donor_id = d.id
+              WHERE pp.status='confirmed' AND pp.created_at BETWEEN ? AND ?
+              " : "") . "
             ) c
             GROUP BY donor_name, donor_phone, donor_email
             ORDER BY total_paid DESC, total_pledged DESC
             LIMIT 50";
-    $stmt = $db->prepare($sql); $stmt->bind_param('ssss',$fromDate,$toDate,$fromDate,$toDate); $stmt->execute(); $res=$stmt->get_result();
+    $stmt = $db->prepare($sql); 
+    if ($hasPledgePayments) {
+        $stmt->bind_param('ssssss',$fromDate,$toDate,$fromDate,$toDate,$fromDate,$toDate);
+    } else {
+        $stmt->bind_param('ssss',$fromDate,$toDate,$fromDate,$toDate);
+    }
+    $stmt->execute(); $res=$stmt->get_result();
     while($r=$res->fetch_assoc()){ $top_donors[] = $r; }
 
     // Top registrars (payments received_by)

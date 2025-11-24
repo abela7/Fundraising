@@ -323,7 +323,7 @@ try {
                                         <span class="info-value text-danger"><?php echo !empty($plan['next_payment_due']) ? date('d M Y', strtotime($plan['next_payment_due'])) : '-'; ?></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="content-card">
                                     <h5>Payment History</h5>
                                     <?php if(empty($payments)): ?>
@@ -348,7 +348,7 @@ try {
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            
+
                             <div class="col-lg-4">
                                 <div class="content-card">
                                     <h5>Quick Links</h5>
@@ -377,7 +377,7 @@ try {
                                     <i class="fas fa-exclamation-triangle me-2"></i>
                                     This is a legacy calculated schedule. 
                                     <a href="migrate_schedules.php" class="alert-link">Run Migration</a> to enable editing.
-                                </div>
+                            </div>
                             <?php endif; ?>
                             
                             <div class="table-responsive">
@@ -419,7 +419,7 @@ try {
                                                 </button>
                                                 <?php endif; ?>
                                             </td>
-                                            <?php endif; ?>
+                        <?php endif; ?>
                                         </tr>
                                         <?php endforeach; ?>
                                     </tbody>

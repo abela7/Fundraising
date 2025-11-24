@@ -57,19 +57,44 @@ $data = [
 
 if ($db && $db_error_message === '') {
     // Metrics
+    // 1. Instant Payments
     $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($sumPaid); $stmt->fetch(); $stmt->close();
+    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($instSum); $stmt->fetch(); $stmt->close();
+
+    // 2. Pledge Payments
+    $ppSum = 0;
+    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+    if ($hasPledgePayments) {
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM pledge_payments WHERE status='confirmed' AND created_at BETWEEN ? AND ?");
+        $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($ppSum); $stmt->fetch(); $stmt->close();
+    }
+
+    // 3. Pledges
     $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ?");
     $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($sumPledged); $stmt->fetch(); $stmt->close();
-    $data['metrics']['paid_total'] = (float)$sumPaid;
+
+    $data['metrics']['paid_total'] = (float)$instSum + (float)$ppSum;
     $data['metrics']['pledged_total'] = (float)$sumPledged;
-    $data['metrics']['grand_total'] = (float)$sumPaid + (float)$sumPledged;
+    $data['metrics']['grand_total'] = $data['metrics']['paid_total'] + $data['metrics']['pledged_total'];
 
     // Time series per day
     $paymentsByDay = [];
     $pledgesByDay  = [];
+    
+    // Instant Payments by day
     $res = $db->query("SELECT DATE(received_at) d, COALESCE(SUM(amount),0) t FROM payments WHERE status='approved' AND received_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."' GROUP BY d ORDER BY d");
     while($r=$res->fetch_assoc()){ $paymentsByDay[$r['d']] = (float)$r['t']; }
+    
+    // Pledge Payments by day (add to paymentsByDay)
+    if ($hasPledgePayments) {
+        $res = $db->query("SELECT DATE(created_at) d, COALESCE(SUM(amount),0) t FROM pledge_payments WHERE status='confirmed' AND created_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."' GROUP BY d ORDER BY d");
+        while($r=$res->fetch_assoc()){ 
+            $day = $r['d'];
+            $paymentsByDay[$day] = ($paymentsByDay[$day] ?? 0) + (float)$r['t']; 
+        }
+    }
+    
+    // Pledges by day
     $res = $db->query("SELECT DATE(created_at) d, COALESCE(SUM(amount),0) t FROM pledges WHERE status='approved' AND created_at BETWEEN '".$db->real_escape_string($fromDate)."' AND '".$db->real_escape_string($toDate)."' GROUP BY d ORDER BY d");
     while($r=$res->fetch_assoc()){ $pledgesByDay[$r['d']] = (float)$r['t']; }
     // Build continuous date axis
