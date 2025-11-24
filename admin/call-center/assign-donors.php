@@ -7,6 +7,15 @@ require_admin();
 $db = db();
 $page_title = 'Assign Donors to Agents';
 
+// Get filter parameters
+$filter_min_amount = isset($_GET['min_amount']) ? (float)$_GET['min_amount'] : 0;
+$filter_max_amount = isset($_GET['max_amount']) ? (float)$_GET['max_amount'] : 0;
+$filter_agent = isset($_GET['filter_agent']) ? (int)$_GET['filter_agent'] : 0;
+$filter_assignment = $_GET['filter_assignment'] ?? 'all'; // all, assigned, unassigned
+$filter_min_balance = isset($_GET['min_balance']) ? (float)$_GET['min_balance'] : 0;
+$filter_max_balance = isset($_GET['max_balance']) ? (float)$_GET['max_balance'] : 0;
+$filter_search = $_GET['search'] ?? '';
+
 // Handle bulk assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
     $donor_ids = $_POST['donor_ids'] ?? [];
@@ -96,14 +105,55 @@ try {
         }
     }
 
-    // Get unassigned donors
-    $unassigned_result = $db->query("SELECT d.id, d.name,
+    // Get unassigned donors (with filters if applicable)
+    $unassigned_where = ["d.agent_id IS NULL"];
+    $unassigned_params = [];
+    $unassigned_types = '';
+    
+    if (!empty($filter_search)) {
+        $unassigned_where[] = "(d.name LIKE ? OR d.phone LIKE ?)";
+        $search_param = "%{$filter_search}%";
+        $unassigned_params[] = $search_param;
+        $unassigned_params[] = $search_param;
+        $unassigned_types .= 'ss';
+    }
+    if ($filter_min_amount > 0) {
+        $unassigned_where[] = "COALESCE(d.total_pledged, 0) >= ?";
+        $unassigned_params[] = $filter_min_amount;
+        $unassigned_types .= 'd';
+    }
+    if ($filter_max_amount > 0) {
+        $unassigned_where[] = "COALESCE(d.total_pledged, 0) <= ?";
+        $unassigned_params[] = $filter_max_amount;
+        $unassigned_types .= 'd';
+    }
+    if ($filter_min_balance > 0) {
+        $unassigned_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) >= ?";
+        $unassigned_params[] = $filter_min_balance;
+        $unassigned_types .= 'd';
+    }
+    if ($filter_max_balance > 0) {
+        $unassigned_where[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) <= ?";
+        $unassigned_params[] = $filter_max_balance;
+        $unassigned_types .= 'd';
+    }
+    
+    $unassigned_query = "SELECT d.id, d.name,
         COALESCE(d.total_pledged, 0) as total_pledged,
         COALESCE(d.total_paid, 0) as total_paid,
         (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
-    FROM donors d
-        WHERE d.agent_id IS NULL
-        ORDER BY d.name");
+        FROM donors d
+        WHERE " . implode(" AND ", $unassigned_where) . "
+        ORDER BY d.name";
+    
+    if (!empty($unassigned_params)) {
+        $unassigned_stmt = $db->prepare($unassigned_query);
+        $unassigned_stmt->bind_param($unassigned_types, ...$unassigned_params);
+        $unassigned_stmt->execute();
+        $unassigned_result = $unassigned_stmt->get_result();
+    } else {
+        $unassigned_result = $db->query($unassigned_query);
+    }
     
     if ($unassigned_result) {
         while ($donor = $unassigned_result->fetch_assoc()) {
@@ -464,6 +514,17 @@ try {
             opacity: 0.3;
             margin-bottom: 16px;
         }
+
+        /* Filter Panel */
+        #filterPanel .card {
+            border: 1px solid #dee2e6;
+            box-shadow: var(--shadow-sm);
+        }
+
+        #filterPanel .form-label {
+            font-weight: 500;
+            color: #495057;
+        }
     </style>
 </head>
 <body>
@@ -583,6 +644,102 @@ try {
                 </div>
             </div>
             
+            <!-- Filter Button and Panel -->
+            <div class="mb-3">
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="<?php echo $has_filters ? 'true' : 'false'; ?>">
+                    <i class="fas fa-filter me-2"></i>Filters
+                    <?php 
+                    $has_filters = $filter_min_amount > 0 || $filter_max_amount > 0 || $filter_agent > 0 || 
+                                   $filter_assignment !== 'all' || $filter_min_balance > 0 || 
+                                   $filter_max_balance > 0 || !empty($filter_search);
+                    if ($has_filters): 
+                    ?>
+                        <span class="badge bg-primary ms-2">Active</span>
+                    <?php endif; ?>
+                </button>
+                
+                <div class="collapse mt-3 <?php echo $has_filters ? 'show' : ''; ?>" id="filterPanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <form method="GET" class="row g-3">
+                                <!-- Search -->
+                                <div class="col-md-6">
+                                    <label class="form-label small">Search Name/Phone</label>
+                                    <input type="text" name="search" class="form-control form-control-sm" 
+                                           value="<?php echo htmlspecialchars($filter_search); ?>" 
+                                           placeholder="Search...">
+                                </div>
+                                
+                                <!-- Assignment Status -->
+                                <div class="col-md-6">
+                                    <label class="form-label small">Assignment Status</label>
+                                    <select name="filter_assignment" class="form-select form-select-sm">
+                                        <option value="all" <?php echo $filter_assignment === 'all' ? 'selected' : ''; ?>>All</option>
+                                        <option value="assigned" <?php echo $filter_assignment === 'assigned' ? 'selected' : ''; ?>>Assigned</option>
+                                        <option value="unassigned" <?php echo $filter_assignment === 'unassigned' ? 'selected' : ''; ?>>Unassigned</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Agent Filter -->
+                                <div class="col-md-6">
+                                    <label class="form-label small">Assigned Agent</label>
+                                    <select name="filter_agent" class="form-select form-select-sm">
+                                        <option value="0">All Agents</option>
+                                        <?php if (!empty($agents)): ?>
+                                            <?php foreach ($agents as $agent): ?>
+                                                <option value="<?php echo $agent['id']; ?>" <?php echo $filter_agent == $agent['id'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($agent['name']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+                                
+                                <!-- Pledge Amount Range -->
+                                <div class="col-md-3">
+                                    <label class="form-label small">Min Pledge Amount (£)</label>
+                                    <input type="number" name="min_amount" class="form-control form-control-sm" 
+                                           value="<?php echo $filter_min_amount > 0 ? $filter_min_amount : ''; ?>" 
+                                           placeholder="0" step="0.01" min="0">
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label small">Max Pledge Amount (£)</label>
+                                    <input type="number" name="max_amount" class="form-control form-control-sm" 
+                                           value="<?php echo $filter_max_amount > 0 ? $filter_max_amount : ''; ?>" 
+                                           placeholder="0" step="0.01" min="0">
+                                </div>
+                                
+                                <!-- Balance Range -->
+                                <div class="col-md-3">
+                                    <label class="form-label small">Min Balance (£)</label>
+                                    <input type="number" name="min_balance" class="form-control form-control-sm" 
+                                           value="<?php echo $filter_min_balance > 0 ? $filter_min_balance : ''; ?>" 
+                                           placeholder="0" step="0.01" min="0">
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label small">Max Balance (£)</label>
+                                    <input type="number" name="max_balance" class="form-control form-control-sm" 
+                                           value="<?php echo $filter_max_balance > 0 ? $filter_max_balance : ''; ?>" 
+                                           placeholder="0" step="0.01" min="0">
+                                </div>
+                                
+                                <!-- Filter Actions -->
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-search me-1"></i>Apply Filters
+                                    </button>
+                                    <a href="assign-donors.php" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times me-1"></i>Clear All
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Tabs -->
             <ul class="nav nav-tabs nav-tabs-modern" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -613,15 +770,80 @@ try {
                 <div class="card-body p-0">
                             <?php
                             try {
-                                $result = $db->query("SELECT d.id, d.name, d.agent_id,
+                                // Build WHERE clause
+                                $where_conditions = [];
+                                $params = [];
+                                $param_types = '';
+                                
+                                // Search filter
+                                if (!empty($filter_search)) {
+                                    $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ?)";
+                                    $search_param = "%{$filter_search}%";
+                                    $params[] = $search_param;
+                                    $params[] = $search_param;
+                                    $param_types .= 'ss';
+                                }
+                                
+                                // Pledge amount filters
+                                if ($filter_min_amount > 0) {
+                                    $where_conditions[] = "COALESCE(d.total_pledged, 0) >= ?";
+                                    $params[] = $filter_min_amount;
+                                    $param_types .= 'd';
+                                }
+                                if ($filter_max_amount > 0) {
+                                    $where_conditions[] = "COALESCE(d.total_pledged, 0) <= ?";
+                                    $params[] = $filter_max_amount;
+                                    $param_types .= 'd';
+                                }
+                                
+                                // Balance filters
+                                if ($filter_min_balance > 0) {
+                                    $where_conditions[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) >= ?";
+                                    $params[] = $filter_min_balance;
+                                    $param_types .= 'd';
+                                }
+                                if ($filter_max_balance > 0) {
+                                    $where_conditions[] = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) <= ?";
+                                    $params[] = $filter_max_balance;
+                                    $param_types .= 'd';
+                                }
+                                
+                                // Agent filter
+                                if ($filter_agent > 0) {
+                                    $where_conditions[] = "d.agent_id = ?";
+                                    $params[] = $filter_agent;
+                                    $param_types .= 'i';
+                                }
+                                
+                                // Assignment status filter
+                                if ($filter_assignment === 'assigned') {
+                                    $where_conditions[] = "d.agent_id IS NOT NULL";
+                                } elseif ($filter_assignment === 'unassigned') {
+                                    $where_conditions[] = "d.agent_id IS NULL";
+                                }
+                                
+                                $where_clause = !empty($where_conditions) ? "WHERE " . implode(" AND ", $where_conditions) : "";
+                                
+                                // Build query
+                                $query = "SELECT d.id, d.name, d.agent_id,
                                     COALESCE(d.total_pledged, 0) as total_pledged,
                                     COALESCE(d.total_paid, 0) as total_paid,
                                     (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance,
                                     u.name as agent_name
                                     FROM donors d
                                     LEFT JOIN users u ON d.agent_id = u.id
+                                    {$where_clause}
                                     ORDER BY d.name
-                                    LIMIT 100");
+                                    LIMIT 100";
+                                
+                                if (!empty($params)) {
+                                    $stmt = $db->prepare($query);
+                                    $stmt->bind_param($param_types, ...$params);
+                                    $stmt->execute();
+                                    $result = $stmt->get_result();
+                                } else {
+                                    $result = $db->query($query);
+                                }
                                 
                                 if ($result && $result->num_rows > 0) {
                                     echo "<div class='table-responsive'>";
