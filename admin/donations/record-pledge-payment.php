@@ -133,15 +133,6 @@ if ($search || $selected_donor_id) {
             background: #e7f1ff;
             border-left: 3px solid #0d6efd;
         }
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .stat-card h3 { font-size: 1.75rem; font-weight: 700; margin: 0; }
-        .stat-card p { margin: 0; opacity: 0.9; font-size: 0.875rem; }
         .section-title {
             font-size: 0.875rem;
             font-weight: 600;
@@ -178,9 +169,81 @@ if ($search || $selected_donor_id) {
             border-color: #0d6efd;
             box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
         }
-        @media (max-width: 768px) {
-            .stat-card h3 { font-size: 1.5rem; }
-            .donor-card { padding: 0.75rem; }
+        .donor-list-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        /* Mobile Optimizations */
+        @media (max-width: 991.98px) {
+            .main-content {
+                padding: 0.5rem !important;
+            }
+            .section-title {
+                font-size: 0.75rem;
+            }
+            .step-indicator {
+                width: 24px;
+                height: 24px;
+                font-size: 0.75rem;
+            }
+            .donor-card {
+                padding: 0.75rem;
+                margin-bottom: 0.5rem;
+            }
+            .donor-list-container {
+                max-height: 300px;
+            }
+            .table {
+                font-size: 0.875rem;
+            }
+            .form-group-custom {
+                margin-bottom: 1rem;
+            }
+            .form-group-custom label {
+                font-size: 0.8rem;
+            }
+        }
+        
+        @media (max-width: 575.98px) {
+            .main-content {
+                padding: 0.5rem !important;
+            }
+            h1 {
+                font-size: 1.25rem !important;
+            }
+            .card-body {
+                padding: 1rem;
+            }
+            .donor-card {
+                padding: 0.625rem;
+            }
+            .section-title {
+                font-size: 0.7rem;
+                margin-bottom: 0.75rem;
+            }
+            .table {
+                font-size: 0.75rem;
+            }
+            .table th, .table td {
+                padding: 0.5rem 0.25rem;
+            }
+            .form-control, .form-select {
+                font-size: 0.875rem;
+                padding: 0.5rem;
+            }
+            .btn {
+                font-size: 0.875rem;
+                padding: 0.5rem 1rem;
+            }
+            .input-group-text {
+                padding: 0.5rem;
+                font-size: 0.875rem;
+            }
+            /* Hide less important columns on very small screens */
+            .table .hide-xs {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -192,10 +255,14 @@ if ($search || $selected_donor_id) {
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
                 <!-- Page Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 mb-md-4">
                     <div>
-                        <h1 class="h4 mb-1"><i class="fas fa-hand-holding-usd text-primary me-2"></i>Record Pledge Payment</h1>
-                        <p class="text-muted small mb-0">Submit installment payments against pledges for approval</p>
+                        <h1 class="h4 mb-1">
+                            <i class="fas fa-hand-holding-usd text-primary me-2"></i>
+                            <span class="d-none d-md-inline">Record Pledge Payment</span>
+                            <span class="d-inline d-md-none">Record Payment</span>
+                        </h1>
+                        <p class="text-muted small mb-0 d-none d-sm-block">Submit installment payments against pledges for approval</p>
                     </div>
                 </div>
                 
@@ -223,14 +290,14 @@ if ($search || $selected_donor_id) {
                                     </small>
                                 </form>
                                 
-                                <div id="donorList" style="max-height: 500px; overflow-y: auto;">
+                                <div class="donor-list-container">
                                     <?php if (empty($donors) && $search): ?>
-                                        <div class="text-center py-4 text-muted">
+                                        <div class="text-center py-3 py-md-4 text-muted">
                                             <i class="fas fa-search fa-2x mb-2 opacity-25"></i>
                                             <p class="small mb-0">No donors found</p>
                                         </div>
                                     <?php elseif (empty($donors) && !$selected_donor_id): ?>
-                                        <div class="text-center py-4 text-muted">
+                                        <div class="text-center py-3 py-md-4 text-muted">
                                             <i class="fas fa-users fa-2x mb-2 opacity-25"></i>
                                             <p class="small mb-0">Search to find donors</p>
                                         </div>
@@ -239,13 +306,13 @@ if ($search || $selected_donor_id) {
                                             <div class="donor-card <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?>" 
                                                  onclick="selectDonor(<?php echo $d['id']; ?>, '<?php echo addslashes($d['name']); ?>')">
                                                 <div class="d-flex justify-content-between align-items-start">
-                                                    <div class="flex-grow-1">
+                                                    <div class="flex-grow-1 me-2">
                                                         <div class="fw-bold mb-1"><?php echo htmlspecialchars($d['name']); ?></div>
                                                         <div class="small text-muted">
                                                             <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($d['phone']); ?>
                                                         </div>
                                                     </div>
-                                                    <div>
+                                                    <div class="flex-shrink-0">
                                                         <span class="badge bg-danger">£<?php echo number_format($d['balance'], 2); ?></span>
                                                     </div>
                                                 </div>
@@ -266,17 +333,19 @@ if ($search || $selected_donor_id) {
                                     Select Pledge & Enter Payment
                                 </div>
                                 
-                                <h6 class="mb-3">Active Pledges for <span id="selectedDonorName" class="text-primary fw-bold"></span></h6>
+                                <h6 class="mb-3">
+                                    Active Pledges for <span id="selectedDonorName" class="text-primary fw-bold"></span>
+                                </h6>
                                 
-                                <div class="table-responsive mb-4">
+                                <div class="table-responsive mb-3 mb-md-4">
                                     <table class="table table-sm table-hover align-middle">
                                         <thead class="table-light">
                                             <tr>
-                                                <th width="40"></th>
+                                                <th width="30"></th>
                                                 <th>Date</th>
                                                 <th class="text-end">Amount</th>
                                                 <th class="text-end">Remaining</th>
-                                                <th>Notes</th>
+                                                <th class="hide-xs">Notes</th>
                                             </tr>
                                         </thead>
                                         <tbody id="pledgeListBody">
@@ -349,12 +418,14 @@ if ($search || $selected_donor_id) {
                                         </div>
                                     </div>
                                     
-                                    <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
-                                        <button type="button" class="btn btn-light" onclick="location.reload()">
+                                    <div class="mt-3 mt-md-4 pt-3 border-top d-flex flex-column flex-sm-row justify-content-end gap-2">
+                                        <button type="button" class="btn btn-light order-2 order-sm-1" onclick="location.reload()">
                                             <i class="fas fa-times me-2"></i>Cancel
                                         </button>
-                                        <button type="submit" class="btn btn-primary px-4" id="btnSubmit">
-                                            <i class="fas fa-check me-2"></i>Submit for Approval
+                                        <button type="submit" class="btn btn-primary px-4 order-1 order-sm-2" id="btnSubmit">
+                                            <i class="fas fa-check me-2"></i>
+                                            <span class="d-none d-sm-inline">Submit for Approval</span>
+                                            <span class="d-inline d-sm-none">Submit</span>
                                         </button>
                                     </div>
                                 </form>
@@ -397,7 +468,7 @@ function fetchPledges(donorId) {
         <tr>
             <td colspan="5" class="text-center py-3">
                 <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                <span class="text-muted">Loading pledges...</span>
+                <span class="text-muted small">Loading pledges...</span>
             </td>
         </tr>
     `;
@@ -411,14 +482,19 @@ function fetchPledges(donorId) {
                 const tr = document.createElement('tr');
                 tr.className = 'pledge-row';
                 tr.onclick = () => selectPledge(p.id, p.remaining);
+                
+                // Truncate notes for mobile
+                const notes = p.notes || '—';
+                const displayNotes = notes.length > 20 ? notes.substring(0, 20) + '...' : notes;
+                
                 tr.innerHTML = `
                     <td class="text-center">
                         <input type="radio" name="pledge_select" value="${p.id}" id="pledge_${p.id}" class="form-check-input">
                     </td>
-                    <td><small>${p.date}</small></td>
-                    <td class="text-end">£${p.amount.toFixed(2)}</td>
-                    <td class="text-end"><strong class="text-danger">£${p.remaining.toFixed(2)}</strong></td>
-                    <td><small class="text-muted">${p.notes || '—'}</small></td>
+                    <td><small class="text-nowrap">${p.date}</small></td>
+                    <td class="text-end text-nowrap"><small>£${p.amount.toFixed(2)}</small></td>
+                    <td class="text-end text-nowrap"><strong class="text-danger">£${p.remaining.toFixed(2)}</strong></td>
+                    <td class="hide-xs"><small class="text-muted">${displayNotes}</small></td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -427,9 +503,9 @@ function fetchPledges(donorId) {
         } else {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center py-4">
-                        <i class="fas fa-inbox fa-2x mb-2 text-muted opacity-25"></i>
-                        <p class="text-muted small mb-0">No active unpaid pledges found for this donor</p>
+                    <td colspan="5" class="text-center py-3 py-md-4">
+                        <i class="fas fa-inbox fa-2x mb-2 text-muted opacity-25 d-block"></i>
+                        <p class="text-muted small mb-0">No active unpaid pledges</p>
                     </td>
                 </tr>
             `;
@@ -440,7 +516,8 @@ function fetchPledges(donorId) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="5" class="text-center py-3 text-danger">
-                    <i class="fas fa-exclamation-circle me-2"></i>Error loading pledges
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <span class="small">Error loading pledges</span>
                 </td>
             </tr>
         `;
