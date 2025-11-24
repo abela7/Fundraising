@@ -49,9 +49,8 @@ if ($outcome_filter) {
     } elseif ($outcome_filter === 'connected') {
         // Special handling for successful contacts (Any contact made)
         // This must match the logic in reports.php for "Successful Contacts"
-        // Includes all outcomes where a human was reached, even if they couldn't talk or were not interested
-        $success_outcomes = "'connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full', 'callback_requested', 'interested_needs_time', 'callback_scheduled', 'not_ready_to_pay', 'financial_hardship', 'moved_abroad', 'not_interested', 'driving_cannot_talk', 'at_work_cannot_talk', 'with_family_cannot_talk', 'busy_call_back_later'";
-        $where_conditions[] = "s.outcome IN ($success_outcomes)";
+        // Logic: conversation_stage NOT IN ('pending', 'attempt_failed', 'invalid_data')
+        $where_conditions[] = "s.conversation_stage NOT IN ('pending', 'attempt_failed', 'invalid_data')";
     } else {
     $where_conditions[] = "s.outcome = ?";
     $params[] = $outcome_filter;
