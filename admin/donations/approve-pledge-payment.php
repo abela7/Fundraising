@@ -81,6 +81,8 @@ try {
     // 4. Update Payment Plan if linked OR if donor has active plan with matching amount
     $payment_plan_id = null;
     $plan = null;
+    $plan_status = null;
+    $next_payment_due = null;
     
     // First, check if payment has payment_plan_id set
     if (isset($payment['payment_plan_id']) && $payment['payment_plan_id'] > 0) {
@@ -176,8 +178,14 @@ try {
                 
                 // Start from current next_payment_due date (the one being paid now)
                 // If that's not set, use start_date
-                $base_date = $plan['next_payment_due'] ?? $plan['start_date'];
-                $next_date = new DateTime($base_date);
+                $base_date = $plan['next_payment_due'] ?? $plan['start_date'] ?? date('Y-m-d');
+                
+                try {
+                    $next_date = new DateTime($base_date);
+                } catch (Exception $date_error) {
+                    // Fallback to today if date is invalid
+                    $next_date = new DateTime();
+                }
                 
                 // Add frequency period
                 if ($frequency_unit === 'week') {
@@ -243,7 +251,6 @@ try {
                 $update_donor->close();
             }
         }
-    }
     
     // 5. Check if pledge is fully paid
     $pledge_id = (int)$payment['pledge_id'];
@@ -273,8 +280,14 @@ try {
     $db->commit();
     
     $message = 'Payment approved and donor balance updated';
-    if ($plan) {
-        $message .= '. Payment plan updated: ' . ($plan_status === 'completed' ? 'Plan completed!' : 'Next payment due ' . date('d M Y', strtotime($next_payment_due)));
+    if ($plan && $plan_status) {
+        if ($plan_status === 'completed') {
+            $message .= '. Payment plan updated: Plan completed!';
+        } elseif ($next_payment_due) {
+            $message .= '. Payment plan updated: Next payment due ' . date('d M Y', strtotime($next_payment_due));
+        } else {
+            $message .= '. Payment plan updated.';
+        }
     }
     
     echo json_encode([
@@ -285,9 +298,17 @@ try {
     ]);
     
 } catch (Exception $e) {
-    if (isset($db)) $db->rollback();
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    if (isset($db) && $db->in_transaction) {
+        $db->rollback();
+    }
+    http_response_code(500);
+    error_log("Approve pledge payment error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Error: ' . $e->getMessage(),
+        'error' => $e->getMessage()
+    ]);
+    exit;
 }
 ?>
 
