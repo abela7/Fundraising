@@ -134,7 +134,7 @@ try {
     }
     
     if ($filter_registrar !== null) {
-        $where_conditions[] = "d.registered_by = ?";
+        $where_conditions[] = "d.registered_by_user_id = ?";
         $params[] = $filter_registrar;
         $types .= 'i';
     }
