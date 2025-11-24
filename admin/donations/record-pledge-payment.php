@@ -103,11 +103,115 @@ if ($search || $selected_donor_id) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        .donor-card { cursor: pointer; transition: all 0.2s; border: 1px solid #dee2e6; }
-        .donor-card:hover { border-color: #0d6efd; background: #f8f9fa; }
-        .donor-card.selected { border-color: #0d6efd; background: #e7f1ff; ring: 2px solid #0d6efd; }
-        .pledge-row { cursor: pointer; }
-        .pledge-row.selected { background-color: #e7f1ff; }
+        .donor-card {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+        .donor-card:hover {
+            border-color: #0d6efd;
+            box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+            transform: translateY(-2px);
+        }
+        .donor-card.selected {
+            border-color: #0d6efd;
+            background: linear-gradient(135deg, #e7f1ff 0%, #f8f9ff 100%);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+        }
+        .pledge-card {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+        .pledge-card:hover {
+            border-color: #198754;
+            box-shadow: 0 2px 8px rgba(25, 135, 84, 0.15);
+        }
+        .pledge-card.selected {
+            border-color: #198754;
+            background: linear-gradient(135deg, #d1f4e0 0%, #e8f8f0 100%);
+            box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+        }
+        .step-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-right: 0.5rem;
+        }
+        .card-header-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 1.25rem;
+        }
+        .stat-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .stat-badge.balance {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .stat-badge.remaining {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+        .empty-state {
+            padding: 3rem 1rem;
+            text-align: center;
+            color: #6c757d;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            opacity: 0.3;
+            margin-bottom: 1rem;
+        }
+        .form-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-submit-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transition: all 0.2s ease;
+        }
+        .btn-submit-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+        @media (max-width: 768px) {
+            .donor-card {
+                margin-bottom: 0.5rem;
+            }
+            .pledge-card {
+                padding: 0.75rem;
+            }
+            .step-badge {
+                width: 28px;
+                height: 28px;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -116,39 +220,75 @@ if ($search || $selected_donor_id) {
     <div class="admin-content">
         <?php include '../includes/topbar.php'; ?>
         <main class="main-content">
-            <div class="container-fluid p-4">
-                <h1 class="h3 mb-4"><i class="fas fa-hand-holding-usd me-2"></i>Record Pledge Payment</h1>
+            <div class="container-fluid p-3 p-md-4">
+                <!-- Page Header -->
+                <div class="d-flex align-items-center mb-4">
+                    <div class="me-3">
+                        <div class="icon-circle" style="width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class="fas fa-hand-holding-usd" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h1 class="h3 mb-0">Record Pledge Payment</h1>
+                        <p class="text-muted mb-0 small">Submit installment payments for pending approval</p>
+                    </div>
+                </div>
                 
-                <div class="row g-4">
+                <div class="row g-3 g-md-4">
                     <!-- Left: Donor Selection -->
-                    <div class="col-md-4">
-                        <div class="card shadow-sm h-100">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0 h6">1. Select Donor</h5>
+                    <div class="col-lg-4">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-header-custom">
+                                <div class="d-flex align-items-center">
+                                    <span class="step-badge">1</span>
+                                    <h5 class="mb-0">Select Donor</h5>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <form method="GET" class="mb-3">
-                                    <div class="input-group">
-                                        <input type="text" name="search" class="form-control" placeholder="Name, phone, email, or pledge reference..." value="<?php echo htmlspecialchars($search); ?>">
-                                        <button class="btn btn-primary"><i class="fas fa-search"></i></button>
+                                    <div class="input-group shadow-sm">
+                                        <input type="text" name="search" class="form-control border-0" 
+                                               placeholder="Search by name, phone..." 
+                                               value="<?php echo htmlspecialchars($search); ?>">
+                                        <button class="btn btn-primary border-0" type="submit">
+                                            <i class="fas fa-search"></i>
+                                        </button>
                                     </div>
-                                    <small class="text-muted">
-                                        <i class="fas fa-info-circle me-1"></i>Search by donor details or pledge reference number
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-info-circle me-1"></i>You can also search by pledge reference
                                     </small>
                                 </form>
                                 
-                                <div class="list-group list-group-flush" id="donorList">
+                                <div id="donorList" style="max-height: 500px; overflow-y: auto;">
                                     <?php if (empty($donors) && $search): ?>
-                                        <div class="text-center py-3 text-muted">No donors found.</div>
+                                        <div class="empty-state">
+                                            <i class="fas fa-search"></i>
+                                            <p class="mb-0">No donors found</p>
+                                            <small>Try a different search term</small>
+                                        </div>
                                     <?php elseif (empty($donors) && !$selected_donor_id): ?>
-                                        <div class="text-center py-3 text-muted small">Search to find donors</div>
+                                        <div class="empty-state">
+                                            <i class="fas fa-users"></i>
+                                            <p class="mb-0">Start searching</p>
+                                            <small>Enter name, phone, or reference</small>
+                                        </div>
                                     <?php else: ?>
                                         <?php foreach ($donors as $d): ?>
-                                            <div class="list-group-item donor-card p-3 <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?>" 
+                                            <div class="donor-card <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?>" 
                                                  onclick="selectDonor(<?php echo $d['id']; ?>, '<?php echo addslashes($d['name']); ?>')">
-                                                <div class="fw-bold"><?php echo htmlspecialchars($d['name']); ?></div>
-                                                <div class="small text-muted"><i class="fas fa-phone me-1"></i> <?php echo htmlspecialchars($d['phone']); ?></div>
-                                                <div class="small text-muted"><i class="fas fa-wallet me-1"></i> Balance: £<?php echo number_format($d['balance'], 2); ?></div>
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div class="flex-grow-1">
+                                                        <div class="fw-bold mb-1"><?php echo htmlspecialchars($d['name']); ?></div>
+                                                        <div class="small text-muted">
+                                                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($d['phone']); ?>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <span class="stat-badge balance">
+                                                            £<?php echo number_format($d['balance'], 2); ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
@@ -158,85 +298,128 @@ if ($search || $selected_donor_id) {
                     </div>
                     
                     <!-- Right: Payment Details -->
-                    <div class="col-md-8">
-                        <div class="card shadow-sm" id="paymentCard" style="display: none;">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0 h6">2. Select Pledge & Enter Payment</h5>
+                    <div class="col-lg-8">
+                        <div class="card shadow-sm border-0" id="paymentCard" style="display: none;">
+                            <div class="card-header-custom">
+                                <div class="d-flex align-items-center">
+                                    <span class="step-badge">2</span>
+                                    <h5 class="mb-0">Select Pledge & Enter Payment</h5>
+                                </div>
                             </div>
                             <div class="card-body">
-                                <h6 class="border-bottom pb-2 mb-3">Active Pledges for <span id="selectedDonorName" class="text-primary"></span></h6>
-                                
-                                <div class="table-responsive mb-4">
-                                    <table class="table table-hover border" id="pledgeTable">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th width="40"></th>
-                                                <th>Date</th>
-                                                <th>Pledge Amount</th>
-                                                <th>Remaining</th>
-                                                <th>Notes</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="pledgeListBody">
-                                            <tr><td colspan="5" class="text-center">Loading pledges...</td></tr>
-                                        </tbody>
-                                    </table>
+                                <!-- Pledges Section -->
+                                <div class="mb-4">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-list-ul me-2"></i>Active Pledges for 
+                                        <span id="selectedDonorName" class="text-primary fw-bold"></span>
+                                    </h6>
+                                    
+                                    <div id="pledgeListBody">
+                                        <div class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p class="text-muted mt-2 small">Loading pledges...</p>
+                                        </div>
+                                    </div>
                                 </div>
                                 
-                                <form id="paymentForm">
-                                    <input type="hidden" name="donor_id" id="formDonorId">
-                                    <input type="hidden" name="pledge_id" id="formPledgeId">
+                                <!-- Payment Form -->
+                                <div class="form-section">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-credit-card me-2"></i>Payment Details
+                                    </h6>
                                     
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Payment Amount</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">£</span>
-                                                <input type="number" step="0.01" name="amount" id="paymentAmount" class="form-control" required>
+                                    <form id="paymentForm">
+                                        <input type="hidden" name="donor_id" id="formDonorId">
+                                        <input type="hidden" name="pledge_id" id="formPledgeId">
+                                        
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="fas fa-pound-sign me-1 text-primary"></i>Payment Amount
+                                                </label>
+                                                <div class="input-group shadow-sm">
+                                                    <span class="input-group-text bg-primary text-white border-0">£</span>
+                                                    <input type="number" step="0.01" name="amount" id="paymentAmount" 
+                                                           class="form-control border-0" required>
+                                                </div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i>Max: £<span id="maxAmount" class="fw-bold">0.00</span>
+                                                </small>
                                             </div>
-                                            <small class="text-muted">Max: £<span id="maxAmount">0.00</span></small>
+                                            
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="fas fa-calendar me-1 text-success"></i>Payment Date
+                                                </label>
+                                                <input type="date" name="payment_date" class="form-control shadow-sm border-0" 
+                                                       value="<?php echo date('Y-m-d'); ?>" required>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="fas fa-wallet me-1 text-warning"></i>Payment Method
+                                                </label>
+                                                <select name="payment_method" class="form-select shadow-sm border-0" required>
+                                                    <option value="cash">💵 Cash</option>
+                                                    <option value="bank_transfer">🏦 Bank Transfer</option>
+                                                    <option value="card">💳 Card</option>
+                                                    <option value="cheque">📝 Cheque</option>
+                                                    <option value="other">📌 Other</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="fas fa-hashtag me-1 text-info"></i>Reference Number
+                                                </label>
+                                                <input type="text" name="reference_number" class="form-control shadow-sm border-0" 
+                                                       placeholder="e.g. Receipt #123">
+                                            </div>
+                                            
+                                            <div class="col-12">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="fas fa-file-upload me-1 text-secondary"></i>Payment Proof 
+                                                    <span class="badge bg-light text-secondary ms-1">Optional</span>
+                                                </label>
+                                                <input type="file" name="payment_proof" class="form-control shadow-sm border-0" 
+                                                       accept="image/*,.pdf">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-shield-check me-1"></i>Upload receipt or screenshot (helps speed up approval)
+                                                </small>
+                                            </div>
+                                            
+                                            <div class="col-12">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="fas fa-sticky-note me-1 text-muted"></i>Notes
+                                                </label>
+                                                <textarea name="notes" class="form-control shadow-sm border-0" rows="2" 
+                                                          placeholder="Any additional information..."></textarea>
+                                            </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Payment Date</label>
-                                            <input type="date" name="payment_date" class="form-control" value="<?php echo date('Y-m-d'); ?>" required>
+                                        
+                                        <div class="mt-4 pt-3 text-center">
+                                            <button type="submit" class="btn btn-submit-custom btn-lg px-5" id="btnSubmit">
+                                                <i class="fas fa-check-circle me-2"></i>Submit for Approval
+                                            </button>
+                                            <p class="text-muted small mt-2 mb-0">
+                                                <i class="fas fa-info-circle me-1"></i>Payment will be reviewed by an admin before being confirmed
+                                            </p>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Payment Method</label>
-                                            <select name="payment_method" class="form-select" required>
-                                                <option value="cash">Cash</option>
-                                                <option value="bank_transfer">Bank Transfer</option>
-                                                <option value="card">Card</option>
-                                                <option value="cheque">Cheque</option>
-                                                <option value="other">Other</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Reference Number</label>
-                                            <input type="text" name="reference_number" class="form-control" placeholder="e.g. Receipt #123">
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label fw-bold">Payment Proof <small class="text-muted">(Optional)</small></label>
-                                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
-                                            <small class="text-muted">Upload receipt, bank statement, or payment screenshot (recommended for faster approval)</small>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label fw-bold">Notes</label>
-                                            <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mt-4 pt-3 border-top text-end">
-                                        <button type="submit" class="btn btn-success px-4" id="btnSubmit">
-                                            <i class="fas fa-save me-2"></i>Save Payment
-                                        </button>
-                                    </div>
-                                </form>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                         
-                        <div id="emptyState" class="text-center py-5 text-muted border rounded bg-white shadow-sm">
-                            <i class="fas fa-arrow-left fa-2x mb-3"></i>
-                            <p>Select a donor from the list to proceed.</p>
+                        <div id="emptyState" class="card shadow-sm border-0">
+                            <div class="card-body">
+                                <div class="empty-state">
+                                    <i class="fas fa-arrow-left"></i>
+                                    <p class="mb-0 fw-semibold">Select a donor to continue</p>
+                                    <small>Choose a donor from the list on the left</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -262,31 +445,69 @@ function selectDonor(id, name) {
 }
 
 function fetchPledges(donorId) {
-    const tbody = document.getElementById('pledgeListBody');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+    const container = document.getElementById('pledgeListBody');
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2 small">Loading pledges...</p>
+        </div>
+    `;
     
     fetch(`get-donor-pledges.php?donor_id=${donorId}`)
     .then(r => r.json())
     .then(res => {
-        tbody.innerHTML = '';
+        container.innerHTML = '';
         if (res.success && res.pledges.length > 0) {
             res.pledges.forEach(p => {
-                const tr = document.createElement('tr');
-                tr.className = 'pledge-row';
-                tr.onclick = () => selectPledge(p.id, p.remaining);
-                tr.innerHTML = `
-                    <td><input type="radio" name="pledge_select" value="${p.id}" id="pledge_${p.id}"></td>
-                    <td>${p.date}</td>
-                    <td>£${p.amount.toFixed(2)}</td>
-                    <td class="fw-bold text-danger">£${p.remaining.toFixed(2)}</td>
-                    <td><small class="text-muted">${p.notes || '-'}</small></td>
+                const card = document.createElement('div');
+                card.className = 'pledge-card';
+                card.id = `pledge_card_${p.id}`;
+                card.onclick = () => selectPledge(p.id, p.remaining);
+                card.innerHTML = `
+                    <div class="d-flex align-items-start justify-content-between mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="pledge_select" value="${p.id}" id="pledge_${p.id}">
+                            <label class="form-check-label fw-bold" for="pledge_${p.id}">
+                                Pledge from ${p.date}
+                            </label>
+                        </div>
+                        <span class="stat-badge remaining">
+                            <i class="fas fa-exclamation-circle me-1"></i>£${p.remaining.toFixed(2)} due
+                        </span>
+                    </div>
+                    <div class="row g-2 small">
+                        <div class="col-6">
+                            <div class="text-muted">Pledged Amount</div>
+                            <div class="fw-semibold">£${p.amount.toFixed(2)}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted">Status</div>
+                            <div class="fw-semibold text-${p.remaining > 0 ? 'danger' : 'success'}">
+                                ${p.remaining > 0 ? 'Outstanding' : 'Fully Paid'}
+                            </div>
+                        </div>
+                        ${p.notes ? `
+                        <div class="col-12 mt-1">
+                            <div class="text-muted">Notes</div>
+                            <div class="small">${p.notes}</div>
+                        </div>
+                        ` : ''}
+                    </div>
                 `;
-                tbody.appendChild(tr);
+                container.appendChild(card);
             });
             // Auto-select first one
             selectPledge(res.pledges[0].id, res.pledges[0].remaining);
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No active unpaid pledges found for this donor.</td></tr>';
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p class="mb-0">No active unpaid pledges</p>
+                    <small>This donor has no outstanding pledges</small>
+                </div>
+            `;
             document.getElementById('btnSubmit').disabled = true;
         }
     });
@@ -299,9 +520,10 @@ function selectPledge(id, remaining) {
     document.getElementById('maxAmount').textContent = remaining.toFixed(2);
     document.getElementById('btnSubmit').disabled = false;
     
-    // Highlight row
-    document.querySelectorAll('.pledge-row').forEach(r => r.classList.remove('selected'));
-    document.getElementById(`pledge_${id}`).closest('tr').classList.add('selected');
+    // Highlight card
+    document.querySelectorAll('.pledge-card').forEach(c => c.classList.remove('selected'));
+    const card = document.getElementById(`pledge_card_${id}`);
+    if(card) card.classList.add('selected');
 }
 
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
@@ -312,7 +534,7 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
     const formData = new FormData(this);
     const btn = document.getElementById('btnSubmit');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
     
     fetch('save-pledge-payment.php', {
         method: 'POST',
@@ -321,18 +543,29 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
     .then(r => r.json())
     .then(res => {
         if(res.success) {
-            alert('Payment submitted for approval!\n\nAn admin will review and approve it shortly.');
-            location.reload();
+            // Success alert with modern styling
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+            successDiv.style.zIndex = '9999';
+            successDiv.style.minWidth = '300px';
+            successDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Success!</strong> Payment submitted for approval.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(successDiv);
+            
+            setTimeout(() => location.reload(), 1500);
         } else {
             alert('Error: ' + res.message);
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-save me-2"></i>Save Payment';
+            btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Submit for Approval';
         }
     })
     .catch(err => {
-        alert('System error occurred');
+        alert('System error occurred. Please try again.');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-save me-2"></i>Save Payment';
+        btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Submit for Approval';
     });
 });
 
