@@ -58,6 +58,13 @@ if ($user_role === 'registrar') {
         </span>
         <span class="nav-label">Call History</span>
       </a>
+      <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'record-pledge-payment') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-hand-holding-usd"></i>
+        </span>
+        <span class="nav-label">Record Payment</span>
+      </a>
     </div>
     
     <div class="nav-section">
@@ -222,6 +229,13 @@ try {
           <i class="fas fa-headset"></i>
         </span>
         <span class="nav-label">Call Center</span>
+      </a>
+      <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'record-pledge-payment') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-hand-holding-usd"></i>
+        </span>
+        <span class="nav-label">Record Payment</span>
       </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'reports' ? './' : '../reports/'; ?>" 
          class="nav-link <?php echo $current_dir === 'reports' ? 'active' : ''; ?>">

@@ -4,6 +4,13 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
 require_login();
+// Allow both admin and registrar roles
+$user = current_user();
+$role = strtolower(trim((string)($user['role'] ?? '')));
+if (!in_array($role, ['admin', 'registrar'], true)) {
+    header('Location: ../error/403.php');
+    exit;
+}
 $page_title = 'Record Pledge Payment';
 
 $db = db();
