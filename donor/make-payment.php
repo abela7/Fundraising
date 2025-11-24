@@ -131,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $reference = trim($_POST['reference'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
     $pledge_id = (int)($_POST['pledge_id'] ?? 0);
+    $payment_plan_id = (int)($_POST['payment_plan_id'] ?? 0);
     
     // Validate
     if ($payment_amount <= 0) {
@@ -166,9 +167,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             try {
                 $db->begin_transaction();
                 
-                // Check if payment plan should be linked
-                $payment_plan_id = null;
-                if ($active_plan && isset($active_plan['id'])) {
+                // Use payment_plan_id from form (set if user has active plan)
+                // If not provided but active plan exists, use it
+                if ($payment_plan_id <= 0 && $active_plan && isset($active_plan['id'])) {
                     $payment_plan_id = (int)$active_plan['id'];
                 }
                 
@@ -176,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     // Check if pledge_payments table has payment_plan_id column
                     $has_plan_col = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'")->num_rows > 0;
                     
-                    if ($has_plan_col && $payment_plan_id) {
+                    if ($has_plan_col && $payment_plan_id > 0) {
                         $sql = "INSERT INTO pledge_payments (pledge_id, donor_id, payment_plan_id, amount, payment_method, payment_date, reference_number, payment_proof, notes, status) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, 'pending')";
                         $stmt = $db->prepare($sql);
                         $stmt->bind_param('iiidssss', $pledge_id, $donor['id'], $payment_plan_id, $payment_amount, $payment_method, $reference, $payment_proof, $notes);
@@ -198,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // Audit Log
                 $audit = json_encode([
                     'payment_id' => $payment_id, 'amount' => $payment_amount, 'method' => $payment_method,
-                    'pledge_id' => $pledge_id, 'proof' => $payment_proof
+                    'pledge_id' => $pledge_id, 'payment_plan_id' => $payment_plan_id > 0 ? $payment_plan_id : null, 'proof' => $payment_proof
                 ]);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, ?, ?, 'create_pending', ?, 'donor_portal')");
                 $log->bind_param('sis', $entity_type, $payment_id, $audit);
@@ -279,11 +280,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 <?php else: ?>
 
                 <form method="POST" id="paymentWizardForm" enctype="multipart/form-data">
-                                        <?php echo csrf_input(); ?>
-                                        <input type="hidden" name="action" value="submit_payment">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="action" value="submit_payment">
                     <input type="hidden" name="payment_amount" id="finalAmount">
                     <input type="hidden" name="pledge_id" id="finalPledgeId">
                     <input type="hidden" name="payment_method" id="finalMethod">
+                    <input type="hidden" name="payment_plan_id" id="finalPaymentPlanId" value="<?php echo $active_plan ? $active_plan['id'] : ''; ?>">
                     
                     <!-- Wizard Navigation -->
                     <div class="wizard-nav d-flex justify-content-between align-items-center overflow-auto">
@@ -316,16 +318,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <!-- Step 1: Payment Plan Priority -->
                     <div class="wizard-step active" id="step1">
                         <h5 class="mb-4">Payment Plan Status</h5>
-                        <?php if ($active_plan): ?>
-                            <div class="card mb-4">
-                                <div class="card-header">
+                        <?php if ($active_plan): 
+                            // Calculate installment number
+                            $payments_made = (int)($active_plan['payments_made'] ?? 0);
+                            $total_payments = (int)($active_plan['total_payments'] ?? $active_plan['total_months'] ?? 1);
+                            $next_installment = $payments_made + 1;
+                            $is_last_payment = ($next_installment >= $total_payments);
+                            $plan_progress = $total_payments > 0 ? round(($payments_made / $total_payments) * 100) : 0;
+                        ?>
+                            <div class="card mb-4 border-primary">
+                                <div class="card-header bg-primary text-white">
                                     <h5 class="card-title mb-0">
-                                        <i class="fas fa-calendar-alt text-primary me-2"></i>Active Payment Plan
+                                        <i class="fas fa-calendar-check me-2"></i>Active Payment Plan
                                     </h5>
                                 </div>
                                 <div class="card-body">
+                                    <!-- Installment Badge -->
+                                    <div class="alert alert-info mb-4 d-flex align-items-center">
+                                        <i class="fas fa-info-circle fa-2x me-3"></i>
+                                        <div class="flex-grow-1">
+                                            <strong>This is Payment <?php echo $next_installment; ?> of <?php echo $total_payments; ?></strong>
+                                            <br>
+                                            <small>Part of your scheduled payment plan</small>
+                                        </div>
+                                        <?php if ($is_last_payment): ?>
+                                            <span class="badge bg-warning text-dark ms-2">Final Payment</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <!-- Progress Bar -->
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <small class="text-muted">Plan Progress</small>
+                                            <small class="text-muted fw-bold"><?php echo $payments_made; ?> / <?php echo $total_payments; ?> payments</small>
+                                        </div>
+                                        <div class="progress" style="height: 25px;">
+                                            <div class="progress-bar bg-success progress-bar-striped" 
+                                                 role="progressbar" 
+                                                 style="width: <?php echo $plan_progress; ?>%"
+                                                 aria-valuenow="<?php echo $plan_progress; ?>" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                <strong><?php echo $plan_progress; ?>%</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <div class="row g-3 mb-4">
-                                        <div class="col-md-6">
+                                        <div class="col-md-6 col-12">
                                             <div class="border-start border-4 border-info ps-3">
                                                 <small class="text-muted d-block mb-1">Next Payment Due</small>
                                                 <h5 class="mb-0 text-info">
@@ -333,22 +373,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 </h5>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-6 col-12">
                                             <div class="border-start border-4 border-success ps-3">
-                                                <small class="text-muted d-block mb-1">Monthly Amount</small>
+                                                <small class="text-muted d-block mb-1">Amount Due</small>
                                                 <h5 class="mb-0 text-success">£<?php echo number_format($active_plan['monthly_amount'], 2); ?></h5>
                                             </div>
                                         </div>
                                     </div>
                                     
+                                    <!-- Plan Summary -->
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-4 col-6">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <small class="text-muted d-block">Total Plan Amount</small>
+                                                <strong class="text-primary">£<?php echo number_format($active_plan['total_amount'] ?? ($active_plan['monthly_amount'] * $total_payments), 2); ?></strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 col-6">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <small class="text-muted d-block">Amount Paid</small>
+                                                <strong class="text-success">£<?php echo number_format($active_plan['amount_paid'] ?? 0, 2); ?></strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 col-12">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <small class="text-muted d-block">Remaining</small>
+                                                <strong class="text-warning">£<?php echo number_format(($active_plan['total_amount'] ?? ($active_plan['monthly_amount'] * $total_payments)) - ($active_plan['amount_paid'] ?? 0), 2); ?></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <div class="d-grid gap-2 d-md-flex">
-                                        <button type="button" class="btn btn-success btn-lg flex-fill" onclick="selectPlanAmount(<?php echo $active_plan['monthly_amount']; ?>)">
-                                            <i class="fas fa-credit-card me-2"></i>Pay Monthly Amount (£<?php echo number_format($active_plan['monthly_amount'], 2); ?>)
+                                        <button type="button" class="btn btn-success btn-lg flex-fill" onclick="selectPlanAmount(<?php echo $active_plan['monthly_amount']; ?>, <?php echo $active_plan['id']; ?>)">
+                                            <i class="fas fa-credit-card me-2"></i>Pay Installment <?php echo $next_installment; ?> (£<?php echo number_format($active_plan['monthly_amount'], 2); ?>)
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary btn-lg flex-fill" onclick="goToStep(2)">
                                             <i class="fas fa-edit me-2"></i>Pay Different Amount
                                         </button>
                                     </div>
+                                    
+                                    <?php if ($is_last_payment): ?>
+                                        <div class="alert alert-warning mt-3 mb-0">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>Final Payment:</strong> After this payment, your payment plan will be completed.
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php else: ?>
@@ -679,8 +748,12 @@ let currentStep = 1;
 let selectedAmount = 0;
 let selectedMethod = '';
 let selectedPledgeId = 0;
+let selectedPaymentPlanId = <?php echo $active_plan ? $active_plan['id'] : 0; ?>;
 let maxBalance = <?php echo $donor['balance']; ?>;
 let assignedRep = <?php echo json_encode($assigned_rep ? true : false); ?>;
+let isPlanPayment = <?php echo $active_plan ? 'true' : 'false'; ?>;
+let planInstallment = <?php echo $active_plan ? (($active_plan['payments_made'] ?? 0) + 1) : 0; ?>;
+let planTotal = <?php echo $active_plan ? ($active_plan['total_payments'] ?? $active_plan['total_months'] ?? 1) : 0; ?>;
 
 // --- Navigation ---
 function goToStep(step) {
@@ -710,9 +783,13 @@ function goToStep(step) {
 }
 
 // --- Step 1 Logic ---
-function selectPlanAmount(amount) {
+function selectPlanAmount(amount, planId) {
     selectedAmount = amount;
+    selectedPaymentPlanId = planId || 0;
+    isPlanPayment = planId > 0;
+    
     document.getElementById('step2_amount').value = amount.toFixed(2);
+    document.getElementById('finalPaymentPlanId').value = planId || '';
     
     // Auto-select first pledge
     const pledgeRadio = document.querySelector('input[name="step2_pledge"]:checked');
@@ -736,6 +813,11 @@ function validateStep2() {
     selectedAmount = amt;
     const pledgeRadio = document.querySelector('input[name="step2_pledge"]:checked');
     selectedPledgeId = pledgeRadio ? pledgeRadio.value : 0;
+    
+    // If user manually enters amount, check if they still want to link to plan
+    // Keep plan link if amount matches monthly amount (or let them choose)
+    // For now, we'll keep the plan link if it was set initially
+    // User can clear it by going back to step 1
     
     goToStep(3);
 }
@@ -795,6 +877,24 @@ function setupStep5() {
     document.getElementById('confirmAmount').textContent = selectedAmount.toFixed(2);
     document.getElementById('confirmMethod').textContent = selectedMethod.replace('_', ' ');
     
+    // Show payment plan info if applicable
+    const confirmCard = document.querySelector('#step5 .card');
+    if (confirmCard && isPlanPayment && planInstallment > 0) {
+        let planInfo = confirmCard.querySelector('.plan-info');
+        if (!planInfo) {
+            planInfo = document.createElement('div');
+            planInfo.className = 'alert alert-info mb-3 plan-info';
+            confirmCard.querySelector('.card-body').insertBefore(planInfo, confirmCard.querySelector('.card-body').firstChild);
+        }
+        planInfo.innerHTML = `
+            <i class="fas fa-calendar-check me-2"></i>
+            <strong>Payment Plan Installment:</strong> Payment ${planInstallment} of ${planTotal}
+        `;
+    } else if (confirmCard) {
+        const planInfo = confirmCard.querySelector('.plan-info');
+        if (planInfo) planInfo.remove();
+    }
+    
     // Show/hide relevant fields
     const bankFields = document.getElementById('bankConfirmFields');
     const cashMessage = document.getElementById('cashConfirmMessage');
@@ -811,7 +911,8 @@ function setupStep5() {
     document.getElementById('finalAmount').value = selectedAmount;
     document.getElementById('finalPledgeId').value = selectedPledgeId;
     document.getElementById('finalMethod').value = selectedMethod;
-    }
+    document.getElementById('finalPaymentPlanId').value = selectedPaymentPlanId || '';
+}
 
 // --- Cash Representative Finder Logic ---
 function loadCities() {
