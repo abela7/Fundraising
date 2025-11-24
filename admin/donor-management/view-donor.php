@@ -79,8 +79,12 @@ try {
         $pledges[] = $p;
     }
 
-    // 3. Payments
+    // 3. Payments (includes both instant payments and pledge payments)
     $payments = [];
+    
+    // Check if pledge_payments table exists
+    $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+    
     // Check payments table columns first to handle schema variations
     $payment_columns = [];
     $col_query = $db->query("SHOW COLUMNS FROM payments");
@@ -97,23 +101,75 @@ try {
     $method_col = in_array('payment_method', $payment_columns) ? 'payment_method' : 'method';
     $ref_col = in_array('transaction_ref', $payment_columns) ? 'transaction_ref' : 'reference';
 
-    $payment_query = "
-        SELECT pay.*, u.name as approver_name 
-        FROM payments pay
-        LEFT JOIN users u ON pay.{$approver_col} = u.id
-        WHERE pay.donor_phone = ? 
-        ORDER BY pay.{$date_col} DESC
-    ";
-    $stmt = $db->prepare($payment_query);
-    $stmt->bind_param('s', $donor['phone']);
-    $stmt->execute();
-    $payment_result = $stmt->get_result();
-    while ($pay = $payment_result->fetch_assoc()) {
-        // Normalize keys for display
-        $pay['display_date'] = $pay[$date_col];
-        $pay['display_method'] = $pay[$method_col];
-        $pay['display_ref'] = $pay[$ref_col];
-        $payments[] = $pay;
+    if ($has_pledge_payments) {
+        // UNION query to get both instant payments and pledge payments
+        $payment_query = "
+            SELECT 
+                pay.id,
+                pay.{$date_col} as payment_date,
+                pay.amount,
+                pay.{$method_col} as payment_method,
+                pay.{$ref_col} as reference,
+                pay.status,
+                u.name as approver_name,
+                'instant' as payment_type,
+                NULL as pledge_id,
+                pay.{$date_col} as sort_date
+            FROM payments pay
+            LEFT JOIN users u ON pay.{$approver_col} = u.id
+            WHERE pay.donor_phone = ?
+            
+            UNION ALL
+            
+            SELECT 
+                pp.id,
+                pp.payment_date,
+                pp.amount,
+                pp.payment_method,
+                pp.reference_number as reference,
+                pp.status,
+                approver.name as approver_name,
+                'pledge' as payment_type,
+                pp.pledge_id,
+                pp.payment_date as sort_date
+            FROM pledge_payments pp
+            LEFT JOIN users approver ON pp.approved_by_user_id = approver.id
+            WHERE pp.donor_id = ?
+            
+            ORDER BY sort_date DESC
+        ";
+        $stmt = $db->prepare($payment_query);
+        $stmt->bind_param('si', $donor['phone'], $donor_id);
+        $stmt->execute();
+        $payment_result = $stmt->get_result();
+        while ($pay = $payment_result->fetch_assoc()) {
+            // Normalize keys for display
+            $pay['display_date'] = $pay['payment_date'];
+            $pay['display_method'] = $pay['payment_method'];
+            $pay['display_ref'] = $pay['reference'];
+            $payments[] = $pay;
+        }
+    } else {
+        // Fallback: Only instant payments
+        $payment_query = "
+            SELECT pay.*, u.name as approver_name 
+            FROM payments pay
+            LEFT JOIN users u ON pay.{$approver_col} = u.id
+            WHERE pay.donor_phone = ? 
+            ORDER BY pay.{$date_col} DESC
+        ";
+        $stmt = $db->prepare($payment_query);
+        $stmt->bind_param('s', $donor['phone']);
+        $stmt->execute();
+        $payment_result = $stmt->get_result();
+        while ($pay = $payment_result->fetch_assoc()) {
+            // Normalize keys for display
+            $pay['display_date'] = $pay[$date_col];
+            $pay['display_method'] = $pay[$method_col];
+            $pay['display_ref'] = $pay[$ref_col];
+            $pay['payment_type'] = 'instant';
+            $payments[] = $pay;
+        }
     }
 
     // 4. Payment Plans
@@ -665,6 +721,7 @@ function formatDateTime($date) {
                                         <thead>
                                             <tr>
                                                 <th>ID</th>
+                                                <th>Type</th>
                                                 <th>Date</th>
                                                 <th>Amount</th>
                                                 <th>Method</th>
@@ -676,35 +733,77 @@ function formatDateTime($date) {
                                         </thead>
                                         <tbody>
                                             <?php if (empty($payments)): ?>
-                                                <tr><td colspan="8" class="text-center py-3 text-muted">No payments found.</td></tr>
+                                                <tr><td colspan="9" class="text-center py-3 text-muted">No payments found.</td></tr>
                                             <?php else: ?>
                                                 <?php foreach ($payments as $pay): ?>
                                                 <tr>
                                                     <td data-label="ID">#<?php echo $pay['id']; ?></td>
+                                                    <td data-label="Type">
+                                                        <?php if (isset($pay['payment_type']) && $pay['payment_type'] === 'pledge'): ?>
+                                                            <span class="badge bg-info">
+                                                                <i class="fas fa-file-invoice me-1"></i>Pledge Payment
+                                                            </span>
+                                                            <?php if ($pay['pledge_id']): ?>
+                                                                <br><small class="text-muted">Pledge #<?php echo $pay['pledge_id']; ?></small>
+                                                            <?php endif; ?>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-primary">
+                                                                <i class="fas fa-hand-holding-usd me-1"></i>Instant
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </td>
                                                     <td data-label="Date"><?php echo formatDate($pay['display_date']); ?></td>
                                                     <td data-label="Amount" class="fw-bold text-success"><?php echo formatMoney($pay['amount']); ?></td>
                                                     <td data-label="Method"><?php echo ucwords(str_replace('_', ' ', $pay['display_method'])); ?></td>
                                                     <td data-label="Reference" class="text-muted small"><?php echo htmlspecialchars($pay['display_ref'] ?? '-'); ?></td>
                                                     <td data-label="Status">
-                                                        <span class="badge bg-<?php echo $pay['status'] == 'approved' ? 'success' : 'warning'; ?>">
-                                                            <?php echo ucfirst($pay['status']); ?>
+                                                        <?php
+                                                        // Handle different status values for different payment types
+                                                        $status = $pay['status'];
+                                                        $badge_class = 'secondary';
+                                                        $status_text = ucfirst($status);
+                                                        
+                                                        if ($status === 'approved' || $status === 'confirmed') {
+                                                            $badge_class = 'success';
+                                                            $status_text = 'Approved';
+                                                        } elseif ($status === 'pending') {
+                                                            $badge_class = 'warning';
+                                                            $status_text = 'Pending';
+                                                        } elseif ($status === 'voided' || $status === 'rejected') {
+                                                            $badge_class = 'danger';
+                                                            $status_text = 'Voided';
+                                                        }
+                                                        ?>
+                                                        <span class="badge bg-<?php echo $badge_class; ?>">
+                                                            <?php echo $status_text; ?>
                                                         </span>
                                                     </td>
                                                     <td data-label="Approved By"><?php echo htmlspecialchars($pay['approver_name'] ?? 'System'); ?></td>
                                                     <td data-label="Actions">
-                                                        <div class="d-flex gap-1">
-                                                            <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                                    data-bs-toggle="modal" data-bs-target="#editPaymentModal" 
-                                                                    onclick="loadPaymentData(<?php echo $pay['id']; ?>, <?php echo $donor_id; ?>)"
-                                                                    title="Edit Payment">
-                                                                <i class="fas fa-edit"></i>
-                                                            </button>
-                                                            <a href="delete-payment.php?id=<?php echo $pay['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
-                                                               class="btn btn-sm btn-danger" 
-                                                               title="Delete Payment">
-                                                                <i class="fas fa-trash-alt"></i>
+                                                        <?php if (isset($pay['payment_type']) && $pay['payment_type'] === 'pledge'): ?>
+                                                            <!-- Pledge payments are managed through review-pledge-payments.php -->
+                                                            <a href="../donations/review-pledge-payments.php?filter=all" 
+                                                               class="btn btn-sm btn-outline-info" 
+                                                               title="View in Payment Review">
+                                                                <i class="fas fa-eye"></i>
                                                             </a>
-                                                        </div>
+                                                        <?php else: ?>
+                                                            <!-- Instant payments can be edited/deleted here -->
+                                                            <div class="d-flex gap-1">
+                                                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                                        data-bs-toggle="modal" data-bs-target="#editPaymentModal" 
+                                                                        onclick="loadPaymentData(<?php echo $pay['id']; ?>, <?php echo $donor_id; ?>)"
+                                                                        title="Edit Payment">
+                                                                    <i class="fas fa-edit"></i>
+                                                                </button>
+                                                                <a href="delete-payment.php?id=<?php echo $pay['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                                   class="btn btn-sm btn-danger" 
+                                                                   title="Delete Payment">
+                                                                    <i class="fas fa-trash-alt"></i>
+                                                                </a>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </td>
                                                     </td>
                                                 </tr>
                                                 <?php endforeach; ?>
