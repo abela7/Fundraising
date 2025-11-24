@@ -262,18 +262,6 @@ if ($search || $selected_donor_id) {
         <?php include '../includes/topbar.php'; ?>
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
-                <!-- Page Header -->
-                <div class="d-flex justify-content-between align-items-center mb-3 mb-md-4">
-                    <div>
-                        <h1 class="h4 mb-1">
-                            <i class="fas fa-hand-holding-usd text-primary me-2"></i>
-                            <span class="d-none d-md-inline">Record Pledge Payment</span>
-                            <span class="d-inline d-md-none">Record Payment</span>
-                        </h1>
-                        <p class="text-muted small mb-0 d-none d-sm-block">Submit installment payments against pledges for approval</p>
-                    </div>
-                </div>
-                
                 <!-- Step Progress Indicator -->
                 <div class="mb-4">
                     <div class="d-flex align-items-center justify-content-center gap-3">
