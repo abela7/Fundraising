@@ -12,8 +12,6 @@ try {
     $db = db();
     // Check if tables exist before querying
     $settings_table_exists = $db->query("SHOW TABLES LIKE 'settings'")->num_rows > 0;
-    $payments_table_exists = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
-    $pledges_table_exists  = $db->query("SHOW TABLES LIKE 'pledges'")->num_rows > 0;
 
     if ($settings_table_exists) {
         $settings = $db->query('SELECT target_amount, currency_code, display_token, refresh_seconds FROM settings WHERE id = 1')->fetch_assoc() ?: [];
@@ -21,22 +19,23 @@ try {
         $db_error_message .= '`settings` table not found. ';
     }
 
-    // Dynamic, authoritative totals from live data (approved only), to match reports
-    $paidTotal    = 0.0;
+    // Use centralized FinancialCalculator for consistency
+    require_once __DIR__ . '/../../shared/FinancialCalculator.php';
+    
+    $paidTotal = 0.0;
     $pledgedTotal = 0.0;
-    if ($payments_table_exists) {
-        $row = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE status='approved'")->fetch_assoc();
-        $paidTotal = (float)($row['t'] ?? 0);
-    } else {
-        $db_error_message .= '`payments` table not found. ';
+    $grandTotal = 0.0;
+    
+    try {
+        $calculator = new FinancialCalculator();
+        $totals = $calculator->getTotals();
+        
+        $paidTotal = $totals['total_paid'];
+        $pledgedTotal = $totals['outstanding_pledged'];
+        $grandTotal = $totals['grand_total'];
+    } catch (Exception $calc_error) {
+        $db_error_message .= 'Unable to calculate totals: ' . $calc_error->getMessage();
     }
-    if ($pledges_table_exists) {
-        $row = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledges WHERE status='approved'")->fetch_assoc();
-        $pledgedTotal = (float)($row['t'] ?? 0);
-    } else {
-        $db_error_message .= '`pledges` table not found. ';
-    }
-    $grandTotal = $paidTotal + $pledgedTotal;
 } catch (Exception $e) {
     // This catches connection errors
     $db_error_message = 'Database connection failed: ' . $e->getMessage();

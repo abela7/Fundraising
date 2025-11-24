@@ -56,26 +56,18 @@ $data = [
 ];
 
 if ($db && $db_error_message === '') {
-    // Metrics
-    // 1. Instant Payments
-    $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($instSum); $stmt->fetch(); $stmt->close();
-
-    // 2. Pledge Payments
-    $ppSum = 0;
-    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
-    if ($hasPledgePayments) {
-        $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM pledge_payments WHERE status='confirmed' AND created_at BETWEEN ? AND ?");
-        $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($ppSum); $stmt->fetch(); $stmt->close();
-    }
-
-    // 3. Pledges
-    $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0) FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($sumPledged); $stmt->fetch(); $stmt->close();
-
-    $data['metrics']['paid_total'] = (float)$instSum + (float)$ppSum;
-    $data['metrics']['pledged_total'] = (float)$sumPledged;
+    // Use centralized FinancialCalculator for consistency
+    require_once __DIR__ . '/../../shared/FinancialCalculator.php';
+    
+    $calculator = new FinancialCalculator();
+    $totals = $calculator->getTotals($fromDate, $toDate);
+    
+    $data['metrics']['paid_total'] = $totals['total_paid'];
+    // For date-filtered activity reports, use RAW pledge total (activity semantic)
+    $data['metrics']['pledged_total'] = $totals['total_pledges'];
     $data['metrics']['grand_total'] = $data['metrics']['paid_total'] + $data['metrics']['pledged_total'];
+    
+    $hasPledgePayments = $totals['has_pledge_payments'];
 
     // Time series per day
     $paymentsByDay = [];

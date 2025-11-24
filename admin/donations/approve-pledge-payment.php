@@ -54,31 +54,21 @@ try {
     $stmt->bind_param('ii', $user_id, $payment_id);
     $stmt->execute();
     
-    // 3. Update donor totals (THE CRITICAL FINANCIAL UPDATE)
-    // total_paid = SUM(approved instant payments) + SUM(confirmed pledge payments)
-    // balance = total_pledged - SUM(confirmed pledge payments)
+    // 3. Update donor totals using centralized FinancialCalculator
+    // Use approve-specific logic to set status to 'paying' when balance > 0
+    require_once __DIR__ . '/../../shared/FinancialCalculator.php';
+    
     $donor_id = (int)$payment['donor_id'];
-    $update_donor = $db->prepare("
-        UPDATE donors d
-        SET 
-            d.total_paid = (
-                COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
-                COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-            ),
-            d.balance = (
-                d.total_pledged - 
-                COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-            ),
-            d.last_payment_date = NOW(),
-            d.payment_status = CASE
-                WHEN (d.total_pledged - COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)) <= 0.01 
-                THEN 'completed'
-                ELSE 'paying'
-            END
-        WHERE d.id = ?
-    ");
-    $update_donor->bind_param('i', $donor_id);
-    $update_donor->execute();
+    $calculator = new FinancialCalculator();
+    
+    if (!$calculator->recalculateDonorTotalsAfterApprove($donor_id)) {
+        throw new Exception('Failed to update donor totals');
+    }
+    
+    // Update last payment date
+    $stmt = $db->prepare("UPDATE donors SET last_payment_date = NOW() WHERE id = ?");
+    $stmt->bind_param('i', $donor_id);
+    $stmt->execute();
     
     // 4. Check if pledge is fully paid
     $pledge_id = (int)$payment['pledge_id'];

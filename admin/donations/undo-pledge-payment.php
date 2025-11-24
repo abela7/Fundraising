@@ -59,31 +59,17 @@ try {
     $stmt->bind_param('isi', $user_id, $undo_reason, $payment_id);
     $stmt->execute();
     
-    // 4. REVERSE donor balance updates (THE CRITICAL REVERSAL)
-    // Recalculate totals WITHOUT this payment
+    // 4. REVERSE donor balance updates using centralized FinancialCalculator
+    // Recalculate totals WITHOUT this payment (since it's now voided)
+    // Use undo-specific logic to revert status to 'pending' if balance remains
+    require_once __DIR__ . '/../../shared/FinancialCalculator.php';
+    
     $donor_id = (int)$payment['donor_id'];
-    $update_donor = $db->prepare("
-        UPDATE donors d
-        SET 
-            d.total_paid = (
-                COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
-                COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-            ),
-            d.balance = (
-                d.total_pledged - 
-                COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-            ),
-            d.payment_status = CASE
-                WHEN d.total_pledged > 0 AND (d.total_pledged - COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)) > 0.01 
-                THEN 'pending'
-                WHEN (d.total_pledged - COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)) <= 0.01 
-                THEN 'completed'
-                ELSE 'pending'
-            END
-        WHERE d.id = ?
-    ");
-    $update_donor->bind_param('i', $donor_id);
-    $update_donor->execute();
+    $calculator = new FinancialCalculator();
+    
+    if (!$calculator->recalculateDonorTotalsAfterUndo($donor_id)) {
+        throw new Exception('Failed to reverse donor totals');
+    }
     
     // 5. Comprehensive Audit Log
     $log_json = json_encode([

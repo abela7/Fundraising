@@ -11,32 +11,16 @@ $db = db();
 $settings = $db->query("SELECT target_amount, currency_code FROM settings WHERE id=1")->fetch_assoc() ?: ['target_amount'=>0,'currency_code'=>'GBP'];
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
 
-// Dynamic totals including pledge_payments
-// 1. Instant Payments
-$instRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
-$instantTotal = (float)$instRow['t'];
+// Use centralized FinancialCalculator for consistency
+require_once __DIR__ . '/../../shared/FinancialCalculator.php';
 
-// 2. Pledge Payments (Check table exists)
-$pledgePaidTotal = 0;
-$check = $db->query("SHOW TABLES LIKE 'pledge_payments'");
-$hasPledgePayments = ($check && $check->num_rows > 0);
+$calculator = new FinancialCalculator();
+$totals = $calculator->getTotals();
 
-if ($hasPledgePayments) {
-    $ppRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledge_payments WHERE status='confirmed'")->fetch_assoc() ?: ['t'=>0];
-    $pledgePaidTotal = (float)$ppRow['t'];
-}
-
-// 3. Pledges
-$pledgeRow = $db->query("SELECT COALESCE(SUM(amount),0) AS t FROM pledges WHERE status='approved'")->fetch_assoc() ?: ['t'=>0];
-$rawPledgedTotal = (float)$pledgeRow['t'];
-
-// Logic:
-// Total Paid = Instant + Pledge Installments (cash in hand)
-// Total Pledged (Display) = Outstanding Pledges (Total Pledged - Pledge Payments)
-// Grand Total = Total Paid + Outstanding Pledges
-$paidTotal    = $instantTotal + $pledgePaidTotal;
-$pledgedTotal = max(0, $rawPledgedTotal - $pledgePaidTotal);
-$grandTotal   = $paidTotal + $pledgedTotal;
+$paidTotal = $totals['total_paid'];
+$pledgedTotal = $totals['outstanding_pledged'];
+$grandTotal = $totals['grand_total'];
+$hasPledgePayments = $totals['has_pledge_payments'];
 
 // Donor count: distinct donors across approved pledges, approved payments, and pledge_payments
 $donorUnionSql = "SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident FROM payments WHERE status='approved'
@@ -97,7 +81,7 @@ if (isset($_GET['report'])) {
     fputcsv($out,['Donor','Phone','Email','Total Pledged','Total Paid','Outstanding','Last Seen']);
 
     // Build donor aggregates by grouping on name/phone/email across pledges and payments
-    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+    // Note: $hasPledgePayments already set from FinancialCalculator at top of file
     $sql = "SELECT donor_name, donor_phone, donor_email,
                    SUM(CASE WHEN src='pledge' THEN amount ELSE 0 END) AS total_pledged,
                    SUM(CASE WHEN src='payment' THEN amount ELSE 0 END) AS total_paid,
@@ -314,7 +298,7 @@ if (isset($_GET['report'])) {
       }
 
       // Get pledge payments
-      $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+      // Note: $hasPledgePayments already set from FinancialCalculator at top of file
       if ($hasPledgePayments) {
           $ppSql = "
             SELECT 

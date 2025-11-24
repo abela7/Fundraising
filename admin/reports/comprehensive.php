@@ -122,31 +122,25 @@ $data_quality = [ 'missing_contact_payments' => 0, 'missing_contact_pledges' => 
 $recent_notes = [ 'payments' => [], 'pledges' => [] ];
 
 if ($db && $db_error_message === '') {
-    // Totals in range
-    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+    require_once '../../shared/FinancialCalculator.php';
+    
+    // Calculate totals using centralized logic
+    $calculator = new FinancialCalculator();
+    $totals = $calculator->getTotals($fromDate, $toDate);
 
-    // 1. Instant Payments
-    $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE status='approved' AND received_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($instSum, $instCnt); $stmt->fetch(); $stmt->close();
-    $instSum = (float)$instSum;
-
-    // 2. Pledge Payments
-    $ppSum = 0; $ppCnt = 0;
-    if ($hasPledgePayments) {
-        $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM pledge_payments WHERE status='confirmed' AND created_at BETWEEN ? AND ?");
-        $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($ppSum, $ppCnt); $stmt->fetch(); $stmt->close();
-    }
-    $ppSum = (float)$ppSum;
-
-    $metrics['paid_total'] = $instSum + $ppSum;
-    $metrics['payments_count'] = (int)$instCnt + (int)$ppCnt;
-
-    // 3. Pledges
-    $stmt = $db->prepare("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM pledges WHERE status='approved' AND created_at BETWEEN ? AND ?");
-    $stmt->bind_param('ss',$fromDate,$toDate); $stmt->execute(); $stmt->bind_result($pledgedSum, $pledgedCnt); $stmt->fetch(); $stmt->close();
-    $metrics['pledged_total'] = (float)$pledgedSum; $metrics['pledges_count'] = (int)$pledgedCnt;
+    $metrics['paid_total'] = $totals['total_paid'];
+    $metrics['payments_count'] = $totals['total_payment_count'];
+    
+    // For date-filtered activity reports, use RAW pledge total (activity semantic)
+    // NOT outstanding (which would be position semantic)
+    // This matches the original behavior and the "Range Outstanding" calculation below
+    $metrics['pledged_total'] = $totals['total_pledges']; 
+    $metrics['pledges_count'] = $totals['pledge_count'];
 
     $metrics['grand_total'] = $metrics['paid_total'] + $metrics['pledged_total'];
+    
+    // Extract for SQL query construction
+    $hasPledgePayments = $totals['has_pledge_payments'];
 
     // Donor count in range (distinct across pledges/payments/pledge_payments)
     $unionSql = "SELECT DISTINCT CONCAT(COALESCE(donor_name,''),'|',COALESCE(donor_phone,''),'|',COALESCE(donor_email,'')) ident
