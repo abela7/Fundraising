@@ -35,6 +35,24 @@ try {
         }
     }
     
+    // Sync 'Next Payment Due' on main plan
+    // Find the plan ID
+    $pid_res = $db->query("SELECT plan_id FROM payment_plan_schedule WHERE id = $schedule_id");
+    if ($pid_row = $pid_res->fetch_assoc()) {
+        $plan_id = $pid_row['plan_id'];
+        
+        // Find earliest pending date
+        $min_res = $db->query("SELECT MIN(due_date) as next_due FROM payment_plan_schedule WHERE plan_id = $plan_id AND status = 'pending'");
+        if ($min_row = $min_res->fetch_assoc()) {
+            $next_due = $min_row['next_due'];
+            if ($next_due) {
+                $up_stmt = $db->prepare("UPDATE donor_payment_plans SET next_payment_due = ?, updated_at = NOW() WHERE id = ?");
+                $up_stmt->bind_param('si', $next_due, $plan_id);
+                $up_stmt->execute();
+            }
+        }
+    }
+    
     echo json_encode(['success' => true]);
     
 } catch (Exception $e) {

@@ -71,6 +71,12 @@ try {
         }
     }
     
+    // 4. Sync 'Next Due' in Main Plan
+    // The user provided 'start_date' is the new due date for the first pending installment
+    $sync_stmt = $db->prepare("UPDATE donor_payment_plans SET next_payment_due = ?, updated_at = NOW() WHERE id = ?");
+    $sync_stmt->bind_param('si', $new_start_date, $plan_id);
+    $sync_stmt->execute();
+    
     echo json_encode(['success' => true, 'count' => count($pending_rows)]);
     
 } catch (Exception $e) {
