@@ -2,9 +2,31 @@
 declare(strict_types=1);
 
 // ============================================
+// CRITICAL: Error handling - catch ALL errors
+// ============================================
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    // Log but don't die on warnings/notices
+    if ($errno === E_ERROR || $errno === E_PARSE || $errno === E_CORE_ERROR) {
+        error_log("FATAL PHP ERROR: {$errstr} in {$errfile}:{$errline}");
+        // Don't output - let the page handle it
+    }
+    return false; // Let PHP handle it normally
+});
+
+// ============================================
 // CRITICAL: Start output buffering to catch any premature output
 // ============================================
 ob_start();
+
+// ============================================
+// CRITICAL: Ensure output buffer flushes at end
+// ============================================
+register_shutdown_function(function() {
+    // Flush any remaining output
+    if (ob_get_level() > 0) {
+        ob_end_flush();
+    }
+});
 
 // ============================================
 // DEBUG MODE - Track Every Step
@@ -837,25 +859,31 @@ if (!empty($premature_output) && trim($premature_output) !== '') {
                 <div class="card-footer">
                     <nav>
                         <ul class="pagination pagination-sm mb-0 justify-content-center">
-                            <?php if ($page > 1): ?>
+                            <?php if (isset($page) && $page > 1): ?>
                             <li class="page-item">
-                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">
+                                <a class="page-link" href="?<?php echo htmlspecialchars(http_build_query(array_merge($_GET ?? [], ['page' => $page - 1]))); ?>">
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
                             </li>
                             <?php endif; ?>
 
-                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                            <?php 
+                            if (isset($page) && isset($total_pages)) {
+                                for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): 
+                            ?>
                             <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>">
+                                <a class="page-link" href="?<?php echo htmlspecialchars(http_build_query(array_merge($_GET ?? [], ['page' => $i]))); ?>">
                                     <?php echo $i; ?>
                                 </a>
                             </li>
-                            <?php endfor; ?>
+                            <?php 
+                                endfor;
+                            }
+                            ?>
 
-                            <?php if ($page < $total_pages): ?>
+                            <?php if (isset($page) && isset($total_pages) && $page < $total_pages): ?>
                             <li class="page-item">
-                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">
+                                <a class="page-link" href="?<?php echo htmlspecialchars(http_build_query(array_merge($_GET ?? [], ['page' => $page + 1]))); ?>">
                                     <i class="fas fa-chevron-right"></i>
                                 </a>
                             </li>
@@ -912,17 +940,46 @@ if (!empty($premature_output) && trim($premature_output) !== '') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/admin.js"></script>
 <script>
+// ============================================
+// CRITICAL: Define functions BEFORE loading admin.js
+// ============================================
 console.log('[DEBUG] JavaScript started loading');
 
-// Debug panel toggle
+// Debug panel toggle - MUST be defined early
 function toggleDebug() {
     const panel = document.getElementById('debugPanel');
     if (panel) {
         panel.classList.toggle('active');
         console.log('[DEBUG] Panel toggled');
+    } else {
+        console.error('[DEBUG] debugPanel element not found!');
     }
+}
+
+// Fallback for toggleSidebar if admin.js fails to load
+if (typeof toggleSidebar === 'undefined') {
+    window.toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar) {
+            sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
+            console.log('[DEBUG] Sidebar toggled (fallback function)');
+        } else {
+            console.error('[DEBUG] Sidebar element not found!');
+        }
+    };
+    console.log('[DEBUG] toggleSidebar fallback function defined');
+}
+</script>
+<script src="../assets/admin.js"></script>
+<script>
+console.log('[DEBUG] admin.js loaded, checking toggleSidebar');
+if (typeof toggleSidebar !== 'undefined') {
+    console.log('[DEBUG] toggleSidebar exists from admin.js');
+} else {
+    console.warn('[DEBUG] toggleSidebar NOT found in admin.js, using fallback');
 }
 
 // Track JavaScript execution
