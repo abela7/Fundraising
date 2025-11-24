@@ -1,6 +1,6 @@
 <?php
 /**
- * Donor Portal - Make a Payment
+ * Donor Portal - Make a Payment (Wizard)
  */
 
 require_once __DIR__ . '/../shared/auth.php';
@@ -25,27 +25,37 @@ function require_donor_login(): void {
 require_donor_login();
 $donor = current_donor();
 $page_title = 'Make a Payment';
-$current_donor = $donor;
 
 $success_message = '';
 $error_message = '';
 
-// Calculate amount due
-$amount_due = $donor['balance'] > 0 ? $donor['balance'] : 0;
-$active_pledges = [];
+// --- Data Fetching ---
 
+// 1. Active Payment Plan
+$active_plan = null;
+if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connection_ok) {
+    try {
+        $plan_stmt = $db->prepare("
+            SELECT pp.*, t.name as template_name
+            FROM donor_payment_plans pp
+            LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
+            WHERE pp.id = ? AND pp.donor_id = ? AND pp.status = 'active'
+            LIMIT 1
+        ");
+        $plan_stmt->bind_param('ii', $donor['active_payment_plan_id'], $donor['id']);
+        $plan_stmt->execute();
+        $active_plan = $plan_stmt->get_result()->fetch_assoc();
+    } catch (Exception $e) {}
+}
+
+// 2. Active Pledges
+$active_pledges = [];
 if ($db_connection_ok) {
     try {
-        // Check if pledge_payments exists
         $has_pp_table = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
-        
-        // Fetch active pledges
         $query = "
             SELECT 
-                p.id, 
-                p.amount, 
-                p.notes, 
-                p.created_at,
+                p.id, p.amount, p.notes, p.created_at,
                 " . ($has_pp_table ? "COALESCE(SUM(pp.amount), 0)" : "0") . " as paid
             FROM pledges p
             " . ($has_pp_table ? "LEFT JOIN pledge_payments pp ON p.id = pp.pledge_id AND pp.status = 'confirmed'" : "") . "
@@ -54,12 +64,10 @@ if ($db_connection_ok) {
             HAVING (p.amount - paid) > 0.01
             ORDER BY p.created_at ASC
         ";
-        
         $stmt = $db->prepare($query);
         $stmt->bind_param('i', $donor['id']);
         $stmt->execute();
         $res = $stmt->get_result();
-        
         while ($row = $res->fetch_assoc()) {
             $active_pledges[] = [
                 'id' => $row['id'],
@@ -71,110 +79,50 @@ if ($db_connection_ok) {
             ];
         }
     } catch (Exception $e) {
-        error_log('Error fetching donor pledges: ' . $e->getMessage());
+        error_log('Error fetching pledges: ' . $e->getMessage());
     }
 }
 
-if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connection_ok) {
+// 3. Assigned Representative (for Cash logic)
+$assigned_rep = null;
+if ($db_connection_ok) {
     try {
-        $plan_stmt = $db->prepare("
-            SELECT monthly_amount, next_payment_due
-            FROM donor_payment_plans
-            WHERE id = ? AND donor_id = ? AND status = 'active'
-            LIMIT 1
-        ");
-        $plan_stmt->bind_param('ii', $donor['active_payment_plan_id'], $donor['id']);
-        $plan_stmt->execute();
-        $plan_result = $plan_stmt->get_result();
-        $plan = $plan_result->fetch_assoc();
-        if ($plan && $plan['monthly_amount']) {
-            // If there's a payment plan, suggest the monthly amount
-            $amount_due = min($plan['monthly_amount'], $donor['balance']);
+        // Check columns first
+        $has_rep_col = $db->query("SHOW COLUMNS FROM donors LIKE 'representative_id'")->num_rows > 0;
+        if ($has_rep_col) {
+             $rep_query = "
+                SELECT cr.name, cr.phone, c.name as church_name, c.city
+                FROM donors d
+                JOIN church_representatives cr ON d.representative_id = cr.id
+                JOIN churches c ON cr.church_id = c.id
+                WHERE d.id = ?
+             ";
+             $stmt = $db->prepare($rep_query);
+             $stmt->bind_param('i', $donor['id']);
+             $stmt->execute();
+             $assigned_rep = $stmt->get_result()->fetch_assoc();
         }
-    } catch (Exception $e) {
-        // Silent fail
-    }
+    } catch (Exception $e) {}
 }
 
-// Bank transfer details (static)
+// --- Bank Details ---
 $bank_account_name   = 'LMKATH';
 $bank_account_number = '85455687';
 $bank_sort_code      = '53-70-44';
 
-// Build suggested bank transfer reference: FirstName + 4‑digit code from pledge notes (if available)
-$bank_reference_digits = '';
-$bank_reference_label  = '';
-
-if ($db_connection_ok) {
-    try {
-        // Only attempt lookup if pledges table exists
-        $pledges_table_exists = $db->query("SHOW TABLES LIKE 'pledges'")->num_rows > 0;
-        if ($pledges_table_exists) {
-            // Prefer donor_id if column exists, otherwise fall back to donor_phone
-            $has_donor_id_col = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'")->num_rows > 0;
-
-            if ($has_donor_id_col) {
-                $ref_stmt = $db->prepare("
-                    SELECT notes 
-                    FROM pledges 
-                    WHERE donor_id = ? AND status = 'approved'
-                    ORDER BY created_at DESC, id DESC
-                    LIMIT 1
-                ");
-                $ref_stmt->bind_param('i', $donor['id']);
-            } else {
-                $ref_stmt = $db->prepare("
-                    SELECT notes 
-                    FROM pledges 
-                    WHERE donor_phone = ? AND status = 'approved'
-                    ORDER BY created_at DESC, id DESC
-                    LIMIT 1
-                ");
-                $ref_stmt->bind_param('s', $donor['phone']);
-            }
-
-            if ($ref_stmt && $ref_stmt->execute()) {
-                $ref_result = $ref_stmt->get_result();
-                $row = $ref_result->fetch_assoc();
-                if ($row && !empty($row['notes'])) {
-                    // Extract digits from notes (e.g. 4‑digit code)
-                    $digits_only = preg_replace('/\D+/', '', (string)$row['notes']);
-                    if ($digits_only !== '') {
-                        // Use last 4 digits where possible
-                        $bank_reference_digits = strlen($digits_only) >= 4
-                            ? substr($digits_only, -4)
-                            : $digits_only;
-                    }
-                }
-            }
-            if ($ref_stmt) {
-                $ref_stmt->close();
-            }
-        }
-    } catch (Exception $e) {
-        // If anything fails, silently fall back to name‑only reference
-        error_log('Bank reference lookup failed in donor make-payment: ' . $e->getMessage());
-    }
-}
-
-// Derive first name from donor name
-$reference_name_part = '';
+// Reference Generation
+$bank_reference_label = '';
 if (!empty($donor['name'])) {
     $name_parts = preg_split('/\s+/', trim((string)$donor['name']));
-    if (!empty($name_parts[0])) {
-        $reference_name_part = $name_parts[0];
+    $bank_reference_label = $name_parts[0] ?? 'Donor';
+    // Append digits from pledge notes if available
+    if (!empty($active_pledges)) {
+        $digits = preg_replace('/\D+/', '', (string)($active_pledges[0]['notes'] ?? ''));
+        if ($digits) $bank_reference_label .= (strlen($digits) >= 4 ? substr($digits, -4) : $digits);
     }
 }
 
-if ($reference_name_part !== '' && $bank_reference_digits !== '') {
-    $bank_reference_label = $reference_name_part . $bank_reference_digits;
-} elseif ($reference_name_part !== '') {
-    $bank_reference_label = $reference_name_part;
-} elseif ($bank_reference_digits !== '') {
-    $bank_reference_label = $bank_reference_digits;
-}
-
-// Handle payment submission
+// --- Handle Submission ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_payment') {
     verify_csrf();
     
@@ -184,482 +132,394 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $notes = trim($_POST['notes'] ?? '');
     $pledge_id = (int)($_POST['pledge_id'] ?? 0);
     
-    // Basic Validation
+    // Validate
     if ($payment_amount <= 0) {
         $error_message = 'Please enter a valid payment amount.';
     } elseif ($payment_amount > $donor['balance']) {
-        $error_message = 'Payment amount cannot exceed your remaining balance of £' . number_format($donor['balance'], 2) . '.';
+        $error_message = 'Payment amount cannot exceed your remaining balance.';
     } elseif (!in_array($payment_method, ['cash', 'bank_transfer', 'card', 'other'])) {
-        $error_message = 'Please select a valid payment method.';
-    } elseif ($pledge_id <= 0 && !empty($active_pledges)) {
-        $error_message = 'Please select a pledge to pay towards.';
+        $error_message = 'Invalid payment method.';
     } else {
-        // File Upload Handling
+        // Handle File Upload
         $payment_proof = null;
-        $has_file = isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK;
-        
-        if ($has_file) {
-            $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'];
-            $file_type = $_FILES['payment_proof']['type'];
-            
-            if (!in_array($file_type, $allowed_types)) {
-                $error_message = "Invalid file type. Only images (JPG, PNG, GIF, WEBP) and PDF allowed.";
-            } elseif ($_FILES['payment_proof']['size'] > 5 * 1024 * 1024) { // 5MB max
-                $error_message = "File too large. Maximum 5MB allowed.";
-            } else {
-                // Create uploads directory if not exists
-                $upload_dir = __DIR__ . '/../uploads/payment_proofs/';
-                if (!is_dir($upload_dir)) {
-                    mkdir($upload_dir, 0755, true);
-                }
-                
-                // Generate unique filename
-                $ext = pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
-                $filename = 'proof_donor_' . $donor['id'] . '_' . time() . '_' . uniqid() . '.' . $ext;
-                $filepath = $upload_dir . $filename;
-                
-                if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $filepath)) {
-                    $payment_proof = 'uploads/payment_proofs/' . $filename;
-                } else {
-                    $error_message = "Failed to upload payment proof.";
-                }
-            }
+        if (isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK) {
+             $allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+             if (!in_array($_FILES['payment_proof']['type'], $allowed)) {
+                 $error_message = "Invalid file type.";
+             } elseif ($_FILES['payment_proof']['size'] > 5 * 1024 * 1024) {
+                 $error_message = "File too large (Max 5MB).";
+             } else {
+                 $dir = __DIR__ . '/../uploads/payment_proofs/';
+                 if (!is_dir($dir)) mkdir($dir, 0755, true);
+                 $fn = 'proof_donor_' . $donor['id'] . '_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
+                 if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $dir . $fn)) {
+                     $payment_proof = 'uploads/payment_proofs/' . $fn;
+                 } else {
+                     $error_message = "Upload failed.";
+                 }
+             }
         } else {
-            $payment_proof = ''; // Empty string for MySQLi compatibility
+             $payment_proof = '';
         }
 
-        // Proceed if no upload errors
         if (empty($error_message) && $db_connection_ok) {
             try {
                 $db->begin_transaction();
                 
-                // Use pledge_payments table if pledge_id is provided
                 if ($pledge_id > 0) {
-                    $insert_stmt = $db->prepare("
-                        INSERT INTO pledge_payments (
-                            pledge_id, donor_id, amount, payment_method, 
-                            payment_date, reference_number, payment_proof, notes, 
-                            status
-                        ) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, 'pending')
-                    ");
-                    $insert_stmt->bind_param(
-                        'iidssss',
-                        $pledge_id,
-                        $donor['id'],
-                        $payment_amount,
-                        $payment_method,
-                        $reference,
-                        $payment_proof,
-                        $notes
-                    );
+                    $sql = "INSERT INTO pledge_payments (pledge_id, donor_id, amount, payment_method, payment_date, reference_number, payment_proof, notes, status) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, 'pending')";
+                    $stmt = $db->prepare($sql);
+                    $stmt->bind_param('iidssss', $pledge_id, $donor['id'], $payment_amount, $payment_method, $reference, $payment_proof, $notes);
                     $entity_type = 'pledge_payment';
                 } else {
-                    // Fallback to generic payments table (legacy/no-pledge flow)
-                    // Note: Ideally all donor payments should be linked to a pledge if they have one
-                    // But for 'immediate_payment' donors without pledges, we might still use payments table
-                    // For this specific task, we are focusing on the pledge flow.
-                     $insert_stmt = $db->prepare("
-                        INSERT INTO payments (
-                            donor_id, donor_name, donor_phone, 
-                            amount, method, reference, notes, 
-                            status, source, created_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'donor_portal', NOW())
-                    ");
-                    $insert_stmt->bind_param(
-                        'issdssss',
-                        $donor['id'],
-                        $donor['name'],
-                        $donor['phone'],
-                        $payment_amount,
-                        $payment_method,
-                        $reference,
-                        $notes
-                    );
+                    $sql = "INSERT INTO payments (donor_id, donor_name, donor_phone, amount, method, reference, notes, status, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'donor_portal', NOW())";
+                    $stmt = $db->prepare($sql);
+                    $stmt->bind_param('issdsss', $donor['id'], $donor['name'], $donor['phone'], $payment_amount, $payment_method, $reference, $notes);
                     $entity_type = 'payment';
                 }
-
-                $insert_stmt->execute();
+                $stmt->execute();
                 $payment_id = $db->insert_id;
                 
-                // Audit log
-                $audit_data = json_encode([
-                    'payment_id' => $payment_id,
-                    'pledge_id' => $pledge_id,
-                    'amount' => $payment_amount,
-                    'method' => $payment_method,
-                    'reference' => $reference,
-                    'donor_id' => $donor['id'],
-                    'donor_name' => $donor['name'],
-                    'proof_file' => $payment_proof
-                ], JSON_UNESCAPED_SLASHES);
-                
-                $audit_stmt = $db->prepare("
-                    INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
-                    VALUES(?, ?, ?, 'create_pending', ?, 'donor_portal')
-                ");
-                $user_id = 0; // System/Donor portal
-                $audit_stmt->bind_param('isis', $user_id, $entity_type, $payment_id, $audit_data);
-                $audit_stmt->execute();
+                // Audit Log
+                $audit = json_encode([
+                    'payment_id' => $payment_id, 'amount' => $payment_amount, 'method' => $payment_method,
+                    'pledge_id' => $pledge_id, 'proof' => $payment_proof
+                ]);
+                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, ?, ?, 'create_pending', ?, 'donor_portal')");
+                $log->bind_param('sis', $entity_type, $payment_id, $audit);
+                $log->execute();
                 
                 $db->commit();
+                $success_message = "Payment submitted successfully!";
                 
-                $success_message = 'Payment submitted successfully! Your payment of £' . number_format($payment_amount, 2) . ' is pending approval. You will receive a confirmation once it\'s been processed.';
+                // Refresh Session
+                $ref = $db->prepare("SELECT * FROM donors WHERE id = ?");
+                $ref->bind_param('i', $donor['id']);
+                $ref->execute();
+                if ($d = $ref->get_result()->fetch_assoc()) $_SESSION['donor'] = $d;
                 
-                // Refresh donor data
-                $refresh_stmt = $db->prepare("
-                    SELECT id, name, phone, total_pledged, total_paid, balance, 
-                           has_active_plan, active_payment_plan_id, plan_monthly_amount,
-                           plan_duration_months, plan_start_date, plan_next_due_date,
-                           payment_status, preferred_payment_method, preferred_language
-                    FROM donors 
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-                $refresh_stmt->bind_param('i', $donor['id']);
-                $refresh_stmt->execute();
-                $refresh_result = $refresh_stmt->get_result();
-                $updated_donor = $refresh_result->fetch_assoc();
-                if ($updated_donor) {
-                    $_SESSION['donor'] = $updated_donor;
-                    $donor = $updated_donor;
-                }
             } catch (Exception $e) {
                 $db->rollback();
-                // Cleanup uploaded file
-                if ($payment_proof && file_exists(__DIR__ . '/../' . $payment_proof)) {
-                    unlink(__DIR__ . '/../' . $payment_proof);
-                }
-                $error_message = 'An error occurred while submitting your payment. Please try again or contact support.';
-                error_log('Payment submission error: ' . $e->getMessage());
+                $error_message = "System error: " . $e->getMessage();
             }
         }
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars($donor['preferred_language'] ?? 'en'); ?>">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo htmlspecialchars($page_title); ?> - Donor Portal</title>
-    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+    <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
-    <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
+    <link rel="stylesheet" href="../assets/theme.css">
+    <link rel="stylesheet" href="assets/donor.css">
+    <style>
+        .wizard-step { display: none; }
+        .wizard-step.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .step-indicator { width: 30px; height: 30px; border-radius: 50%; background: #e9ecef; color: #6c757d; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+        .step-indicator.active { background: #0d6efd; color: white; }
+        .step-indicator.completed { background: #198754; color: white; }
+        .wizard-nav { border-bottom: 1px solid #dee2e6; margin-bottom: 20px; padding-bottom: 15px; }
+        .card-radio { cursor: pointer; transition: all 0.2s; border: 2px solid #dee2e6; }
+        .card-radio:hover { border-color: #aeccea; background: #f8f9fa; }
+        .card-radio.selected { border-color: #0d6efd; background: #f0f7ff; }
+        .rep-finder-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
+    </style>
 </head>
 <body>
 <div class="app-wrapper">
     <?php include 'includes/sidebar.php'; ?>
-    
     <div class="app-content">
         <?php include 'includes/topbar.php'; ?>
-        
         <main class="main-content">
-                <div class="page-header mb-3">
+            <div class="container-fluid p-0">
+                <div class="page-header mb-4">
                     <h1 class="page-title">Make a Payment</h1>
                 </div>
 
                 <?php if ($success_message): ?>
-                    <div class="alert alert-success alert-dismissible fade show mb-3">
-                        <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success_message); ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="fas fa-check-circle me-2"></i><?php echo $success_message; ?>
+                        <button class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
-
                 <?php if ($error_message): ?>
-                    <div class="alert alert-danger alert-dismissible fade show mb-3">
-                        <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error_message); ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fas fa-exclamation-circle me-2"></i><?php echo $error_message; ?>
+                        <button class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
-                <div class="row g-3 g-lg-4">
-                    <!-- Payment Form (shows first on mobile) -->
-                    <div class="col-lg-8 order-1 order-lg-2">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="fas fa-credit-card text-primary"></i>Payment Details
-                                </h5>
+                <?php if ($donor['balance'] <= 0): ?>
+                    <div class="alert alert-success text-center py-5">
+                        <i class="fas fa-check-circle fa-3x mb-3"></i>
+                        <h5>No Payment Due</h5>
+                        <p>You have completed all your payments! Thank you for your generosity.</p>
+                        <a href="index.php" class="btn btn-primary mt-3">Return to Dashboard</a>
+                    </div>
+                <?php else: ?>
+
+                <form method="POST" id="paymentWizardForm" enctype="multipart/form-data">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="action" value="submit_payment">
+                    <input type="hidden" name="payment_amount" id="finalAmount">
+                    <input type="hidden" name="pledge_id" id="finalPledgeId">
+                    <input type="hidden" name="payment_method" id="finalMethod">
+                    
+                    <!-- Wizard Navigation -->
+                    <div class="wizard-nav d-flex justify-content-between align-items-center overflow-auto">
+                        <div class="d-flex align-items-center">
+                            <div class="step-indicator active" id="ind1">1</div>
+                            <span class="fw-bold d-none d-sm-inline">Plan</span>
+                        </div>
+                        <div class="text-muted mx-2"><i class="fas fa-chevron-right small"></i></div>
+                        <div class="d-flex align-items-center">
+                            <div class="step-indicator" id="ind2">2</div>
+                            <span class="fw-bold d-none d-sm-inline text-muted">Amount</span>
+                        </div>
+                        <div class="text-muted mx-2"><i class="fas fa-chevron-right small"></i></div>
+                        <div class="d-flex align-items-center">
+                            <div class="step-indicator" id="ind3">3</div>
+                            <span class="fw-bold d-none d-sm-inline text-muted">Method</span>
+                        </div>
+                        <div class="text-muted mx-2"><i class="fas fa-chevron-right small"></i></div>
+                        <div class="d-flex align-items-center">
+                            <div class="step-indicator" id="ind4">4</div>
+                            <span class="fw-bold d-none d-sm-inline text-muted">Confirm</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Payment Plan Priority -->
+                    <div class="wizard-step active" id="step1">
+                        <h5 class="mb-3">Payment Plan Status</h5>
+                        <?php if ($active_plan): ?>
+                            <div class="card border-primary mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h5 class="card-title text-primary"><i class="fas fa-calendar-check me-2"></i>Active Plan</h5>
+                                            <p class="mb-1">Next Due: <strong><?php echo date('d M Y', strtotime($active_plan['next_payment_due'])); ?></strong></p>
+                                            <p class="mb-0">Amount: <strong>£<?php echo number_format($active_plan['monthly_amount'], 2); ?></strong></p>
+                                        </div>
+                                        <span class="badge bg-primary">Active</span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-grid gap-2">
+                                        <button type="button" class="btn btn-primary btn-lg" onclick="selectPlanAmount(<?php echo $active_plan['monthly_amount']; ?>)">
+                                            Pay Monthly Amount (£<?php echo number_format($active_plan['monthly_amount'], 2); ?>)
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
+                                            Pay Different Amount
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <?php if ($donor['balance'] <= 0): ?>
-                                    <div class="alert alert-success text-center py-5">
-                                        <i class="fas fa-check-circle fa-3x mb-3"></i>
-                                        <h5>No Payment Due</h5>
-                                        <p class="mb-0">You have completed all your payments!</p>
+                        <?php else: ?>
+                            <div class="card mb-3">
+                                <div class="card-body text-center py-4">
+                                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                                    <h5>No Active Payment Plan</h5>
+                                    <p class="text-muted">You don't have a scheduled payment plan set up.</p>
+                                    <div class="d-grid gap-2 d-md-block">
+                                        <button type="button" class="btn btn-primary px-4" onclick="goToStep(2)">Make One-Time Payment</button>
+                                        <a href="payment-plan.php" class="btn btn-outline-primary px-4">Create Payment Plan</a>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Step 2: Amount & Pledge Selection -->
+                    <div class="wizard-step" id="step2">
+                        <h5 class="mb-3">Select Pledge & Amount</h5>
+                        
+                        <?php if (!empty($active_pledges)): ?>
+                            <div class="mb-3">
+                                <label class="form-label">Select Pledge</label>
+                                <div class="list-group">
+                                    <?php foreach ($active_pledges as $idx => $p): ?>
+                                        <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center pledge-item">
+                                            <div>
+                                                <input class="form-check-input me-2" type="radio" name="step2_pledge" value="<?php echo $p['id']; ?>" 
+                                                       data-remaining="<?php echo $p['remaining']; ?>" 
+                                                       <?php echo $idx === 0 ? 'checked' : ''; ?> 
+                                                       onchange="updateMaxAmount(this)">
+                                                <strong><?php echo $p['date']; ?></strong>
+                                                <div class="small text-muted"><?php echo htmlspecialchars($p['notes'] ?? ''); ?></div>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-light text-dark border">Rem: £<?php echo number_format($p['remaining'], 2); ?></span>
+                                            </div>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-warning mb-3">No active pledges found. You can still make a general payment.</div>
+                            <input type="hidden" name="step2_pledge" value="0">
+                        <?php endif; ?>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Payment Amount</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">£</span>
+                                <input type="number" class="form-control" id="step2_amount" step="0.01" min="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-text">Max: £<span id="maxAmountDisplay"><?php echo number_format($donor['balance'], 2); ?></span></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)">Back</button>
+                            <button type="button" class="btn btn-primary px-4" onclick="validateStep2()">Next: Method</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Payment Method -->
+                    <div class="wizard-step" id="step3">
+                        <h5 class="mb-3">Choose Payment Method</h5>
+                        
+                        <div class="row g-3 mb-4">
+                            <!-- Bank Transfer -->
+                            <div class="col-6">
+                                <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('bank_transfer')" id="card_bank_transfer">
+                                    <i class="fas fa-university fa-2x mb-2 text-primary"></i>
+                                    <div class="fw-bold">Bank Transfer</div>
+                                </div>
+                            </div>
+                            <!-- Cash -->
+                            <div class="col-6">
+                                <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('cash')" id="card_cash">
+                                    <i class="fas fa-money-bill-wave fa-2x mb-2 text-success"></i>
+                                    <div class="fw-bold">Cash</div>
+                                </div>
+                            </div>
+                            <!-- Card -->
+                            <div class="col-6">
+                                <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('card')" id="card_card">
+                                    <i class="fas fa-credit-card fa-2x mb-2 text-info"></i>
+                                    <div class="fw-bold">Card</div>
+                                </div>
+                            </div>
+                            <!-- Other -->
+                            <div class="col-6">
+                                <div class="card card-radio p-3 text-center h-100" onclick="selectMethod('other')" id="card_other">
+                                    <i class="fas fa-ellipsis-h fa-2x mb-2 text-secondary"></i>
+                                    <div class="fw-bold">Other</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cash Logic Container -->
+                        <div id="cashDetails" style="display: none;">
+                            <div class="alert alert-success">
+                                <h6 class="alert-heading"><i class="fas fa-hand-holding-usd me-2"></i>Cash Payment</h6>
+                                
+                                <?php if ($assigned_rep): ?>
+                                    <!-- Scenario A: Assigned Rep -->
+                                    <p class="mb-2">Please pay to your assigned representative:</p>
+                                    <div class="card border-success mb-3">
+                                        <div class="card-body">
+                                            <h5 class="card-title fw-bold"><?php echo htmlspecialchars($assigned_rep['name']); ?></h5>
+                                            <p class="card-text mb-1"><i class="fas fa-church me-2"></i><?php echo htmlspecialchars($assigned_rep['church_name']); ?> (<?php echo htmlspecialchars($assigned_rep['city']); ?>)</p>
+                                            <p class="card-text"><i class="fas fa-phone me-2"></i><a href="tel:<?php echo htmlspecialchars($assigned_rep['phone']); ?>"><?php echo htmlspecialchars($assigned_rep['phone']); ?></a></p>
+                                        </div>
                                     </div>
                                 <?php else: ?>
-                            <form method="POST" id="paymentForm" enctype="multipart/form-data">
-                                        <?php echo csrf_input(); ?>
-                                        <input type="hidden" name="action" value="submit_payment">
-                                        
-                                        <!-- Pledge Selection -->
-                                        <?php if (!empty($active_pledges)): ?>
-                                            <div class="mb-4">
-                                                <label class="form-label fw-bold mb-2">
-                                                    <i class="fas fa-list-ul me-2"></i>Select Pledge <span class="text-danger">*</span>
-                                                </label>
-                                                <div class="table-responsive border rounded">
-                                                    <table class="table table-hover align-middle mb-0">
-                                                        <thead class="table-light">
-                                                            <tr>
-                                                                <th width="40"></th>
-                                                                <th>Pledge Date</th>
-                                                                <th class="text-end">Amount</th>
-                                                                <th class="text-end">Remaining</th>
-                                                                <th class="d-none d-md-table-cell">Notes</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <?php foreach ($active_pledges as $index => $pledge): ?>
-                                                                <tr class="pledge-row <?php echo $index === 0 ? 'table-active' : ''; ?>" 
-                                                                    onclick="selectPledge(<?php echo $pledge['id']; ?>, <?php echo $pledge['remaining']; ?>)">
-                                                                    <td class="text-center">
-                                                                        <input type="radio" name="pledge_id" value="<?php echo $pledge['id']; ?>" 
-                                                                               id="pledge_<?php echo $pledge['id']; ?>" 
-                                                                               class="form-check-input" 
-                                                                               <?php echo $index === 0 ? 'checked' : ''; ?>>
-                                                                    </td>
-                                                                    <td><?php echo htmlspecialchars($pledge['date']); ?></td>
-                                                                    <td class="text-end">£<?php echo number_format($pledge['amount'], 2); ?></td>
-                                                                    <td class="text-end fw-bold text-danger">£<?php echo number_format($pledge['remaining'], 2); ?></td>
-                                                                    <td class="d-none d-md-table-cell small text-muted"><?php echo htmlspecialchars($pledge['notes'] ?? '-'); ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div class="form-text">Select the pledge you wish to pay towards.</div>
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="alert alert-warning">
-                                                <i class="fas fa-exclamation-triangle me-2"></i> No active pledges found.
-                                            </div>
-                                            <!-- Allow general payment if no pledges? Or block? For now, assuming pledge-based flow. -->
-                                            <input type="hidden" name="pledge_id" value="0"> 
-                                        <?php endif; ?>
-
-                                        <!-- Payment Amount -->
-                                        <div class="mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-pound-sign me-2"></i>Payment Amount <span class="text-danger">*</span>
-                                            </label>
-                                            <div class="input-group input-group-lg">
-                                                <span class="input-group-text">£</span>
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       name="payment_amount" 
-                                                       id="payment_amount"
-                                                       value="<?php echo !empty($active_pledges) ? number_format($active_pledges[0]['remaining'], 2, '.', '') : number_format($amount_due, 2, '.', ''); ?>"
-                                                       min="0.01" 
-                                                       max="<?php echo !empty($active_pledges) ? $active_pledges[0]['remaining'] : $donor['balance']; ?>"
-                                                       step="0.01"
-                                                       required>
-                                            </div>
-                                            <div class="form-text">
-                                                <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnPayFull" 
-                                                        onclick="setAmount(<?php echo !empty($active_pledges) ? $active_pledges[0]['remaining'] : $amount_due; ?>)">
-                                                    Pay Full Amount (£<span id="maxAmountLabel"><?php echo !empty($active_pledges) ? number_format($active_pledges[0]['remaining'], 2) : number_format($donor['balance'], 2); ?></span>)
-                                                </button>
-                                                <?php if ($donor['has_active_plan'] && $amount_due < $donor['balance']): ?>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAmount(<?php echo $amount_due; ?>)">
-                                                        Pay Monthly Amount (£<?php echo number_format($amount_due, 2); ?>)
-                                                    </button>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-
-                                        <!-- Payment Method -->
-                                        <div class="mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-credit-card me-2"></i>Payment Method <span class="text-danger">*</span>
-                                            </label>
-                                            <select class="form-select form-select-lg" name="payment_method" id="payment_method" required>
-                                                <option value="">Select payment method...</option>
-                                                <option value="bank_transfer" <?php echo ($donor['preferred_payment_method'] ?? '') === 'bank_transfer' ? 'selected' : ''; ?>>
-                                                    Bank Transfer
-                                                </option>
-                                                <option value="cash">Cash</option>
-                                                <option value="card">Card</option>
-                                                <option value="other">Other</option>
+                                    <!-- Scenario B: No Rep - Find One -->
+                                    <p class="mb-2">You are not assigned to a representative yet. Please find one near you to make a cash payment.</p>
+                                    
+                                    <div class="rep-finder-container">
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">1. Select City</label>
+                                            <select class="form-select form-select-sm" id="finderCity" onchange="loadChurches(this.value)">
+                                                <option value="">-- Choose City --</option>
                                             </select>
                                         </div>
-
-                                        <!-- Bank Transfer Details (shown only when Bank Transfer is selected) -->
-                                        <div class="mb-4" id="bankTransferDetails" style="display: none;"
-                                             data-reference="<?php echo htmlspecialchars($bank_reference_label, ENT_QUOTES, 'UTF-8'); ?>">
-                                            <div class="alert alert-secondary mb-0 alert-persistent">
-                                                <h6 class="alert-heading mb-3">
-                                                    <i class="fas fa-university me-2"></i>Bank Transfer Details
-                                                </h6>
-
-                                                <!-- Account Name -->
-                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                                    <div class="small text-muted">Account Name</div>
-                                                    <div class="d-flex align-items-center mt-1 mt-sm-0">
-                                                        <strong class="me-2" id="bankAccountName"><?php echo htmlspecialchars($bank_account_name); ?></strong>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-link p-0 copy-btn"
-                                                                data-copy-value="<?php echo htmlspecialchars($bank_account_name, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                data-bs-toggle="tooltip"
-                                                                title="Copy account name">
-                                                            <i class="far fa-copy"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Account Number -->
-                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                                    <div class="small text-muted">Account Number</div>
-                                                    <div class="d-flex align-items-center mt-1 mt-sm-0">
-                                                        <strong class="me-2" id="bankAccountNumber"><?php echo htmlspecialchars($bank_account_number); ?></strong>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-link p-0 copy-btn"
-                                                                data-copy-value="<?php echo htmlspecialchars($bank_account_number, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                data-bs-toggle="tooltip"
-                                                                title="Copy account number">
-                                                            <i class="far fa-copy"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Sort Code -->
-                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                                                    <div class="small text-muted">Sort Code</div>
-                                                    <div class="d-flex align-items-center mt-1 mt-sm-0">
-                                                        <strong class="me-2" id="bankSortCode"><?php echo htmlspecialchars($bank_sort_code); ?></strong>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-link p-0 copy-btn"
-                                                                data-copy-value="<?php echo htmlspecialchars($bank_sort_code, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                data-bs-toggle="tooltip"
-                                                                title="Copy sort code">
-                                                            <i class="far fa-copy"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Recommended Reference -->
-                                                <?php if ($bank_reference_label !== ''): ?>
-                                                <div class="border-top pt-3 mt-2">
-                                                    <small class="text-muted d-block mb-1">
-                                                        When making a transfer, <strong>please use this reference</strong>:
-                                                    </small>
-                                                    <div class="d-flex flex-wrap justify-content-between align-items-center">
-                                                        <div class="fw-bold text-primary" id="bankReferenceText">
-                                                            <?php echo htmlspecialchars($bank_reference_label); ?>
-                                                        </div>
-                                                        <button type="button"
-                                                                class="btn btn-sm btn-link p-0 copy-btn mt-1 mt-sm-0"
-                                                                data-copy-value="<?php echo htmlspecialchars($bank_reference_label, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                data-bs-toggle="tooltip"
-                                                                title="Copy reference">
-                                                            <i class="far fa-copy"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <?php else: ?>
-                                                <div class="border-top pt-3 mt-2">
-                                                    <small class="text-muted">
-                                                        When making a transfer, please use your <strong>first name</strong> as the payment reference.
-                                                    </small>
-                                                </div>
-                                                <?php endif; ?>
-                                            </div>
+                                        <div class="mb-3" id="divChurch" style="display:none;">
+                                            <label class="form-label small fw-bold">2. Select Church</label>
+                                            <select class="form-select form-select-sm" id="finderChurch" onchange="loadReps(this.value)">
+                                                <option value="">-- Choose Church --</option>
+                                            </select>
                                         </div>
-
-                                        <!-- Reference Number -->
-                                        <div class="mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-hashtag me-2"></i>Reference Number
-                                            </label>
-                                            <input type="text" 
-                                                   class="form-control form-control-lg" 
-                                                   name="reference" 
-                                                   placeholder="Transaction reference, receipt number, etc. (optional)">
-                                            <div class="form-text">Include a reference number if available (transaction ID, receipt number, etc.)</div>
+                                        <div class="mb-3" id="divRep" style="display:none;">
+                                            <label class="form-label small fw-bold">3. Select Representative</label>
+                                            <select class="form-select form-select-sm" id="finderRep">
+                                                <option value="">-- Choose Representative --</option>
+                                            </select>
                                         </div>
-
-                                        <!-- Payment Proof -->
-                                        <div class="mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-paperclip me-2"></i>Payment Proof <span class="text-muted fw-normal">(Optional)</span>
-                                            </label>
-                                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
-                                            <div class="form-text">Upload a receipt or screenshot of your payment (JPG, PNG, PDF, Max 5MB).</div>
-                                        </div>
-
-                                        <!-- Notes -->
-                                        <div class="mb-4">
-                                            <label class="form-label fw-bold">
-                                                <i class="fas fa-sticky-note me-2"></i>Additional Notes
-                                            </label>
-                                            <textarea class="form-control" 
-                                                      name="notes" 
-                                                      rows="3" 
-                                                      placeholder="Any additional information about this payment (optional)"></textarea>
-                                        </div>
-
-                                        <!-- Payment Instructions -->
-                                        <div class="alert alert-info">
-                                            <h6 class="alert-heading">
-                                                <i class="fas fa-info-circle me-2"></i>Payment Instructions
-                                            </h6>
-                                            <p class="mb-0">
-                                                After submitting this form, your payment will be marked as <strong>pending</strong> and sent for approval. 
-                                                Once approved, your balance will be updated automatically. You'll receive a confirmation when your payment is processed.
-                                            </p>
-                                        </div>
-
-                                        <!-- Submit Button -->
-                                        <div class="d-grid gap-2">
-                                            <button type="submit" class="btn btn-success btn-lg">
-                                                <i class="fas fa-paper-plane me-2"></i>Submit Payment
-                                            </button>
-                                            <a href="<?php echo htmlspecialchars(url_for('donor/index.php')); ?>" class="btn btn-outline-secondary">
-                                                <i class="fas fa-arrow-left me-2"></i>Cancel
-                                            </a>
-                                        </div>
-                                    </form>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Payment Summary (shows second on mobile, right side on desktop) -->
-                    <div class="col-lg-4 order-2 order-lg-1">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="fas fa-info-circle text-primary"></i>Payment Summary
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3 pb-3 border-bottom">
-                                    <small class="text-muted d-block">Total Pledged</small>
-                                    <h4 class="mb-0">£<?php echo number_format($donor['total_pledged'], 2); ?></h4>
-                                </div>
-                                <div class="mb-3 pb-3 border-bottom">
-                                    <small class="text-muted d-block">Total Paid</small>
-                                    <h4 class="mb-0 text-success">£<?php echo number_format($donor['total_paid'], 2); ?></h4>
-                                </div>
-                                <div class="mb-3">
-                                    <small class="text-muted d-block">Remaining Balance</small>
-                                    <h4 class="mb-0 text-<?php echo $donor['balance'] > 0 ? 'warning' : 'secondary'; ?>">
-                                        £<?php echo number_format($donor['balance'], 2); ?>
-                                    </h4>
-                                </div>
-                                <?php if ($donor['has_active_plan']): ?>
-                                    <div class="alert alert-info mb-0">
-                                        <i class="fas fa-calendar-alt me-2"></i>
-                                        <strong>Monthly Amount:</strong> £<?php echo number_format($amount_due, 2); ?>
+                                        <button type="button" class="btn btn-success w-100 btn-sm" id="btnAssignRep" onclick="assignRepresentative()" disabled>
+                                            Assign & View Contact Info
+                                        </button>
                                     </div>
+                                    <div id="newRepDetails" class="mt-3" style="display:none;"></div>
                                 <?php endif; ?>
                             </div>
                         </div>
+
+                        <!-- Bank/Details Container -->
+                        <div id="bankDetails" style="display: none;">
+                            <div class="alert alert-primary">
+                                <h6 class="mb-2">Bank Transfer Details</h6>
+                                <p class="mb-1 small"><strong>Account:</strong> <?php echo $bank_account_name; ?></p>
+                                <p class="mb-1 small"><strong>Sort Code:</strong> <?php echo $bank_sort_code; ?></p>
+                                <p class="mb-1 small"><strong>Account No:</strong> <?php echo $bank_account_number; ?></p>
+                                <p class="mb-0 small"><strong>Ref:</strong> <span class="text-primary fw-bold"><?php echo $bank_reference_label; ?></span></p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">Back</button>
+                            <button type="button" class="btn btn-primary px-4" id="btnMethodNext" disabled onclick="validateStep3()">Next: Confirm</button>
+                        </div>
                     </div>
-                </div>
+
+                    <!-- Step 4: Confirmation -->
+                    <div class="wizard-step" id="step4">
+                        <h5 class="mb-3">Review & Confirm</h5>
+                        
+                        <div class="card bg-light border-0 mb-3">
+                            <div class="card-body">
+                                <div class="row mb-2">
+                                    <div class="col-6 text-muted">Amount:</div>
+                                    <div class="col-6 fw-bold text-end">£<span id="confirmAmount">0.00</span></div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-6 text-muted">Method:</div>
+                                    <div class="col-6 fw-bold text-end text-capitalize"><span id="confirmMethod">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Optional Fields -->
+                        <div class="mb-3">
+                            <label class="form-label">Reference Number (Optional)</label>
+                            <input type="text" name="reference" class="form-control" placeholder="e.g. Transaction ID">
+                        </div>
+                        
+                        <div class="mb-3" id="proofUploadDiv">
+                            <label class="form-label">Payment Proof (Receipt/Screenshot)</label>
+                            <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
+                            <div class="form-text">Recommended for faster approval.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Additional Notes</label>
+                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="goToStep(3)">Back</button>
+                            <button type="submit" class="btn btn-success px-4 fw-bold">Submit Payment</button>
+                        </div>
+                    </div>
+
+                </form>
+                <?php endif; ?>
+            </div>
         </main>
     </div>
 </div>
@@ -667,108 +527,210 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/donor.js"></script>
 <script>
-function setAmount(amount) {
-    document.getElementById('payment_amount').value = amount.toFixed(2);
+// --- State ---
+let currentStep = 1;
+let selectedAmount = 0;
+let selectedMethod = '';
+let selectedPledgeId = 0;
+let maxBalance = <?php echo $donor['balance']; ?>;
+
+// --- Navigation ---
+function goToStep(step) {
+    // Hide all
+    document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.step-indicator').forEach(el => {
+        el.classList.remove('active');
+        if(parseInt(el.id.replace('ind','')) < step) el.classList.add('completed');
+        else el.classList.remove('completed');
+    });
+
+    // Show target
+    document.getElementById('step' + step).classList.add('active');
+    document.getElementById('ind' + step).classList.add('active');
+    currentStep = step;
+    
+    // Init logic for specific steps
+    if(step === 3) checkCashLogic();
 }
 
-function selectPledge(id, remaining) {
-    // Check radio button
-    document.getElementById('pledge_' + id).checked = true;
+// --- Step 1 Logic ---
+function selectPlanAmount(amount) {
+    selectedAmount = amount;
+    // Auto-select relevant pledge if possible (logic simplified: select first active)
+    document.getElementById('step2_amount').value = amount.toFixed(2);
+    goToStep(2); // Review amount/pledge
+    validateStep2(); // Auto-validate if simple
+    goToStep(3); // Skip to method
+}
+
+// --- Step 2 Logic ---
+function updateMaxAmount(radio) {
+    const rem = parseFloat(radio.getAttribute('data-remaining'));
+    document.getElementById('maxAmountDisplay').textContent = rem.toFixed(2);
+    document.getElementById('step2_amount').value = rem.toFixed(2); // Auto-fill
+}
+
+function validateStep2() {
+    const amt = parseFloat(document.getElementById('step2_amount').value);
+    if(!amt || amt <= 0) { alert('Please enter a valid amount'); return; }
+    if(amt > maxBalance) { alert('Amount exceeds your total balance'); return; }
     
-    // Update row styling
-    document.querySelectorAll('.pledge-row').forEach(row => row.classList.remove('table-active'));
-    document.getElementById('pledge_' + id).closest('tr').classList.add('table-active');
+    selectedAmount = amt;
+    const pledgeRadio = document.querySelector('input[name="step2_pledge"]:checked');
+    selectedPledgeId = pledgeRadio ? pledgeRadio.value : 0;
     
-    // Update amount fields
-    const amountInput = document.getElementById('payment_amount');
-    amountInput.value = remaining.toFixed(2);
-    amountInput.max = remaining.toFixed(2);
+    goToStep(3);
+}
+
+// --- Step 3 Logic ---
+function selectMethod(method) {
+    selectedMethod = method;
     
-    // Update helper buttons
-    const payFullBtn = document.getElementById('btnPayFull');
-    const maxLabel = document.getElementById('maxAmountLabel');
+    // UI Highlight
+    document.querySelectorAll('.card-radio').forEach(el => el.classList.remove('selected'));
+    document.getElementById('card_' + method).classList.add('selected');
     
-    if (payFullBtn && maxLabel) {
-        maxLabel.textContent = remaining.toFixed(2);
-        payFullBtn.onclick = function() { setAmount(remaining); };
+    // Visibility
+    document.getElementById('cashDetails').style.display = (method === 'cash' ? 'block' : 'none');
+    document.getElementById('bankDetails').style.display = (method === 'bank_transfer' ? 'block' : 'none');
+    
+    // Enable Next
+    document.getElementById('btnMethodNext').disabled = false;
+    
+    // Load cities if cash & no rep
+    if(method === 'cash' && !<?php echo json_encode($assigned_rep ? true : false); ?>) {
+        loadCities();
     }
 }
 
-// Page-specific behaviour for Make Payment
-document.addEventListener('DOMContentLoaded', function () {
-    const methodSelect = document.getElementById('payment_method');
-    const bankDetails  = document.getElementById('bankTransferDetails');
-    const referenceInput = document.querySelector('input[name="reference"]');
+function validateStep3() {
+    if(!selectedMethod) return;
+    
+    // Populate Confirm Screen
+    document.getElementById('confirmAmount').textContent = selectedAmount.toFixed(2);
+    document.getElementById('confirmMethod').textContent = selectedMethod.replace('_', ' ');
+    document.getElementById('proofUploadDiv').style.display = (selectedMethod === 'cash' ? 'none' : 'block');
+    
+    // Populate Hidden Inputs
+    document.getElementById('finalAmount').value = selectedAmount;
+    document.getElementById('finalPledgeId').value = selectedPledgeId;
+    document.getElementById('finalMethod').value = selectedMethod;
+    
+    goToStep(4);
+}
 
-    function updateBankDetailsVisibility() {
-        if (!methodSelect || !bankDetails) return;
-        const isBank = methodSelect.value === 'bank_transfer';
-        bankDetails.style.display = isBank ? 'block' : 'none';
-
-        // If switching to bank transfer and reference is empty, pre-fill with suggested reference
-        if (isBank && referenceInput && referenceInput.value.trim() === '') {
-            const suggestedRef = bankDetails.getAttribute('data-reference') || '';
-            if (suggestedRef !== '') {
-                referenceInput.value = suggestedRef;
-            }
-        }
-    }
-
-    if (methodSelect && bankDetails) {
-        methodSelect.addEventListener('change', updateBankDetailsVisibility);
-        // Run once on load to handle pre-selected method
-        updateBankDetailsVisibility();
-    }
-
-    // Copy-to-clipboard buttons
-    document.querySelectorAll('.copy-btn[data-copy-value]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const value = btn.getAttribute('data-copy-value') || '';
-            if (!value) return;
-
-            function showCopiedTooltip() {
-                try {
-                    // If Bootstrap tooltip is enabled, temporarily change title
-                    const originalTitle = btn.getAttribute('data-bs-original-title') || btn.getAttribute('title') || 'Copy';
-                    btn.setAttribute('data-bs-original-title', 'Copied!');
-                    btn.setAttribute('title', 'Copied!');
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-                        const tooltip = bootstrap.Tooltip.getInstance(btn) || new bootstrap.Tooltip(btn);
-                        tooltip.show();
-                        setTimeout(function () {
-                            tooltip.hide();
-                            btn.setAttribute('data-bs-original-title', originalTitle);
-                            btn.setAttribute('title', originalTitle);
-                        }, 1200);
-                    }
-                } catch (e) {
-                    // Silent fail if tooltips not available
-                }
-            }
-
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(value).then(showCopiedTooltip).catch(function () {
-                    showCopiedTooltip();
+// --- Cash Representative Finder Logic ---
+function loadCities() {
+    const sel = document.getElementById('finderCity');
+    if(sel.options.length > 1) return; // Already loaded
+    
+    fetch('api/location-data.php?action=get_cities')
+        .then(r => r.json())
+        .then(d => {
+            if(d.success) {
+                d.cities.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    sel.appendChild(opt);
                 });
-            } else {
-                // Fallback for older browsers
-                const tempInput = document.createElement('input');
-                tempInput.type = 'text';
-                tempInput.value = value;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                try {
-                    document.execCommand('copy');
-                } catch (e) {
-                    // ignore
-                }
-                document.body.removeChild(tempInput);
-                showCopiedTooltip();
             }
         });
-    });
-});
+}
+
+function loadChurches(city) {
+    const sel = document.getElementById('finderChurch');
+    sel.innerHTML = '<option value="">-- Choose Church --</option>';
+    document.getElementById('divChurch').style.display = city ? 'block' : 'none';
+    document.getElementById('divRep').style.display = 'none';
+    document.getElementById('btnAssignRep').disabled = true;
+    
+    if(!city) return;
+    
+    fetch(`api/location-data.php?action=get_churches&city=${encodeURIComponent(city)}`)
+        .then(r => r.json())
+        .then(d => {
+            if(d.success) {
+                d.churches.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    sel.appendChild(opt);
+                });
+            }
+        });
+}
+
+function loadReps(churchId) {
+    const sel = document.getElementById('finderRep');
+    sel.innerHTML = '<option value="">-- Choose Representative --</option>';
+    document.getElementById('divRep').style.display = churchId ? 'block' : 'none';
+    document.getElementById('btnAssignRep').disabled = true;
+    
+    if(!churchId) return;
+    
+    fetch(`api/location-data.php?action=get_representatives&church_id=${churchId}`)
+        .then(r => r.json())
+        .then(d => {
+            if(d.success) {
+                d.representatives.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = r.name + ' (' + r.role + ')';
+                    // Store data for display
+                    opt.setAttribute('data-phone', r.phone);
+                    opt.setAttribute('data-name', r.name);
+                    sel.appendChild(opt);
+                });
+            }
+        });
+        
+    sel.onchange = function() {
+        document.getElementById('btnAssignRep').disabled = !this.value;
+    }
+}
+
+function assignRepresentative() {
+    const repId = document.getElementById('finderRep').value;
+    const churchId = document.getElementById('finderChurch').value;
+    const btn = document.getElementById('btnAssignRep');
+    
+    // Get display details before saving
+    const sel = document.getElementById('finderRep');
+    const opt = sel.options[sel.selectedIndex];
+    const name = opt.getAttribute('data-name');
+    const phone = opt.getAttribute('data-phone');
+    
+    btn.disabled = true;
+    btn.textContent = 'Assigning...';
+    
+    const fd = new FormData();
+    fd.append('representative_id', repId);
+    fd.append('church_id', churchId);
+    
+    fetch('api/location-data.php?action=assign_rep', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if(d.success) {
+                // Hide finder, show details
+                document.querySelector('.rep-finder-container').style.display = 'none';
+                const det = document.getElementById('newRepDetails');
+                det.style.display = 'block';
+                det.innerHTML = `
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i><strong>Assigned!</strong><br>
+                        Please contact <strong>${name}</strong> to arrange payment.<br>
+                        <i class="fas fa-phone me-2"></i><a href="tel:${phone}">${phone}</a>
+                    </div>
+                `;
+            } else {
+                alert('Error: ' + d.message);
+                btn.disabled = false;
+                btn.textContent = 'Assign & View Contact Info';
+            }
+        });
+}
+
 </script>
 </body>
 </html>
-
