@@ -46,7 +46,8 @@ try {
     }
 
     // Build Query Conditions
-    $where_clauses = ["s.created_at BETWEEN ? AND ?"];
+    // Filter by actual call time (call_started_at), not record creation time
+    $where_clauses = ["s.call_started_at BETWEEN ? AND ?"];
     $params = [$date_from . ' 00:00:00', $date_to . ' 23:59:59'];
     $types = "ss";
 
@@ -59,7 +60,7 @@ try {
     $where_sql = implode(" AND ", $where_clauses);
 
     // 2. Main Stats Query
-    // Calculate duration from timestamps (call_started_at to call_ended_at)
+    // Calculate total talk time using multiple sources for accuracy
     $stats_query = "
         SELECT 
             COUNT(*) as total_calls,
@@ -72,10 +73,15 @@ try {
             SUM(CASE WHEN outcome = 'busy_signal' THEN 1 ELSE 0 END) as busy_calls,
             SUM(CASE WHEN outcome IN ('no_answer', 'voicemail') THEN 1 ELSE 0 END) as no_answer_calls,
             SUM(CASE WHEN callback_scheduled_for IS NOT NULL THEN 1 ELSE 0 END) as callbacks_scheduled,
-            SUM(COALESCE(
-                TIMESTAMPDIFF(SECOND, s.call_started_at, s.call_ended_at),
-                COALESCE(s.duration_seconds, 0)
-            )) as total_talk_time
+            SUM(
+                CASE 
+                    WHEN s.duration_seconds IS NOT NULL AND s.duration_seconds > 0
+                    THEN s.duration_seconds
+                    WHEN s.call_ended_at IS NOT NULL AND s.call_started_at IS NOT NULL
+                    THEN TIMESTAMPDIFF(SECOND, s.call_started_at, s.call_ended_at)
+                    ELSE 0
+                END
+            ) as total_talk_time
         FROM call_center_sessions s
         WHERE {$where_sql}
     ";
