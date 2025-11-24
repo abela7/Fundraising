@@ -89,6 +89,8 @@ if ($user_role === 'registrar') {
   </div>
 </aside>
 <?php
+    // Include FAB for registrars
+    include_once __DIR__ . '/fab.php';
     return; // Stop rendering the full admin sidebar
 }
 
@@ -313,3 +315,8 @@ try {
 
 <!-- Mobile Sidebar Overlay -->
 <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<?php
+// Include Floating Action Button (FAB) menu
+include_once __DIR__ . '/fab.php';
+?>
