@@ -215,7 +215,7 @@
         <!-- 1. Add Donation (Pledge) -->
         <li class="fab-item">
             <span class="fab-label">Add Donation</span>
-            <a href="<?php echo url_for('admin/donations/pledge.php'); ?>" class="fab-btn bg-primary">
+            <a href="<?php echo url_for('registrar/index.php'); ?>" class="fab-btn bg-primary">
                 <i class="fas fa-hand-holding-heart"></i>
             </a>
         </li>
