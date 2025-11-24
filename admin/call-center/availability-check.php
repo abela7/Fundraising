@@ -22,7 +22,8 @@ try {
     }
     
     // Create session if not exists (Lazy creation)
-    if ($session_id <= 0) {
+    // Only on GET request and redirect immediately to persist state
+    if ($session_id <= 0 && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $session_query = "
             INSERT INTO call_center_sessions 
             (donor_id, agent_id, call_started_at, conversation_stage, created_at)
@@ -50,6 +51,13 @@ try {
                     $stmt->close();
                 }
             }
+            
+            // REDIRECT to self with session_id
+            $query_params = $_GET;
+            $query_params['session_id'] = $session_id;
+            $new_url = 'availability-check.php?' . http_build_query($query_params);
+            header("Location: " . $new_url);
+            exit;
         }
     }
     

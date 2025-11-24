@@ -49,7 +49,8 @@ date_default_timezone_set('Europe/London');
     }
 
     // Create session if not exists (Lazy creation for No Answer/Busy outcomes)
-    if ($session_id <= 0) {
+    // Only on GET request to prevent duplicate creation on POST if session_id was lost
+    if ($session_id <= 0 && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $outcome_map = [
             'not_picked_up' => 'no_answer',
             'busy' => 'busy_signal',
@@ -93,6 +94,14 @@ date_default_timezone_set('Europe/London');
                     $stmt->close();
                 }
             }
+            
+            // REDIRECT to self with session_id to prevent duplicate creation on refresh or POST
+            // Preserve all existing query parameters
+            $query_params = $_GET;
+            $query_params['session_id'] = $session_id;
+            $new_url = 'schedule-callback.php?' . http_build_query($query_params);
+            header("Location: " . $new_url);
+            exit;
         }
     }
     
