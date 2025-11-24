@@ -19,14 +19,25 @@ $db = db();
     
     <?php
     try {
-        $result = $db->query("SELECT id, name FROM donors LIMIT 50");
+        $result = $db->query("SELECT id, name, 
+            COALESCE(total_pledged, 0) as total_pledged,
+            COALESCE(total_paid, 0) as total_paid,
+            (COALESCE(total_pledged, 0) - COALESCE(total_paid, 0)) as balance
+            FROM donors LIMIT 50");
         
         if ($result && $result->num_rows > 0) {
-            echo "<ul>";
+            echo "<table class='table table-striped'>";
+            echo "<thead><tr><th>ID</th><th>Name</th><th>Balance</th></tr></thead>";
+            echo "<tbody>";
             while ($row = $result->fetch_assoc()) {
-                echo "<li>" . htmlspecialchars($row['name']) . " (ID: " . $row['id'] . ")</li>";
+                $balance = (float)$row['balance'];
+                echo "<tr>";
+                echo "<td>" . $row['id'] . "</td>";
+                echo "<td>" . htmlspecialchars($row['name']) . "</td>";
+                echo "<td>£" . number_format($balance, 2) . "</td>";
+                echo "</tr>";
             }
-            echo "</ul>";
+            echo "</tbody></table>";
         } else {
             echo "<p>No donors found</p>";
         }
