@@ -413,61 +413,110 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             </div>
                         </div>
 
-                        <!-- Cash Logic Container -->
-                        <div id="cashDetails" style="display: none;">
-                            <div class="alert alert-success">
-                                <h6 class="alert-heading"><i class="fas fa-hand-holding-usd me-2"></i>Cash Payment</h6>
-                                
-                                <?php if ($assigned_rep): ?>
-                                    <!-- Scenario A: Assigned Rep -->
-                                    <p class="mb-2">Please pay to your assigned representative:</p>
-                                    <div class="card border-success mb-3">
-                                        <div class="card-body">
-                                            <h5 class="card-title fw-bold"><?php echo htmlspecialchars($assigned_rep['name']); ?></h5>
-                                            <p class="card-text mb-1"><i class="fas fa-church me-2"></i><?php echo htmlspecialchars($assigned_rep['church_name']); ?> (<?php echo htmlspecialchars($assigned_rep['city']); ?>)</p>
-                                            <p class="card-text"><i class="fas fa-phone me-2"></i><a href="tel:<?php echo htmlspecialchars($assigned_rep['phone']); ?>"><?php echo htmlspecialchars($assigned_rep['phone']); ?></a></p>
-                                        </div>
-                                    </div>
-                                <?php else: ?>
-                                    <!-- Scenario B: No Rep - Find One -->
-                                    <p class="mb-2">You are not assigned to a representative yet. Please find one near you to make a cash payment.</p>
+                        <!-- Dynamic Details Section -->
+                        <div id="methodDetailsArea">
+                            <!-- Bank Details (For Bank Transfer & Card) -->
+                            <div id="bankDetails" style="display: none;">
+                                <div class="alert alert-light border shadow-sm">
+                                    <h6 class="mb-3 fw-bold text-primary"><i class="fas fa-info-circle me-2"></i>Payment Details</h6>
                                     
-                                    <div class="rep-finder-container">
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-bold">1. Select City</label>
-                                            <select class="form-select form-select-sm" id="finderCity" onchange="loadChurches(this.value)">
-                                                <option value="">-- Choose City --</option>
-                                            </select>
+                                    <!-- Account Name -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                                        <span class="text-muted small">Account Name</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2"><?php echo $bank_account_name; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_account_name; ?>')">Copy</button>
                                         </div>
-                                        <div class="mb-3" id="divChurch" style="display:none;">
-                                            <label class="form-label small fw-bold">2. Select Church</label>
-                                            <select class="form-select form-select-sm" id="finderChurch" onchange="loadReps(this.value)">
-                                                <option value="">-- Choose Church --</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3" id="divRep" style="display:none;">
-                                            <label class="form-label small fw-bold">3. Select Representative</label>
-                                            <select class="form-select form-select-sm" id="finderRep">
-                                                <option value="">-- Choose Representative --</option>
-                                            </select>
-                                        </div>
-                                        <button type="button" class="btn btn-success w-100 btn-sm" id="btnAssignRep" onclick="assignRepresentative()" disabled>
-                                            Assign & View Contact Info
-                                        </button>
                                     </div>
-                                    <div id="newRepDetails" class="mt-3" style="display:none;"></div>
-                                <?php endif; ?>
+                                    
+                                    <!-- Account Number -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                                        <span class="text-muted small">Account Number</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2"><?php echo $bank_account_number; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_account_number; ?>')">Copy</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Sort Code -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                                        <span class="text-muted small">Sort Code</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2"><?php echo $bank_sort_code; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_sort_code; ?>')">Copy</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Reference -->
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="text-muted small">Reference</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold text-primary me-2"><?php echo $bank_reference_label; ?></span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyText('<?php echo $bank_reference_label; ?>')">Copy</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3 small text-muted fst-italic" id="cardNote" style="display:none;">
+                                        Note: Please use these bank details to make a card transfer if your banking app supports it.
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Bank/Details Container -->
-                        <div id="bankDetails" style="display: none;">
-                            <div class="alert alert-primary">
-                                <h6 class="mb-2">Bank Transfer Details</h6>
-                                <p class="mb-1 small"><strong>Account:</strong> <?php echo $bank_account_name; ?></p>
-                                <p class="mb-1 small"><strong>Sort Code:</strong> <?php echo $bank_sort_code; ?></p>
-                                <p class="mb-1 small"><strong>Account No:</strong> <?php echo $bank_account_number; ?></p>
-                                <p class="mb-0 small"><strong>Ref:</strong> <span class="text-primary fw-bold"><?php echo $bank_reference_label; ?></span></p>
+                            <!-- Cash Details -->
+                            <div id="cashDetails" style="display: none;">
+                                <div class="alert alert-success shadow-sm">
+                                    <h6 class="alert-heading fw-bold mb-3"><i class="fas fa-hand-holding-usd me-2"></i>Cash Payment</h6>
+                                    
+                                    <?php if ($assigned_rep): ?>
+                                        <!-- Scenario A: Assigned Rep -->
+                                        <p class="mb-2">Please pay to your assigned representative:</p>
+                                        <div class="card bg-white border-0 shadow-sm mb-3">
+                                            <div class="card-body">
+                                                <h5 class="card-title fw-bold text-success"><?php echo htmlspecialchars($assigned_rep['name']); ?></h5>
+                                                <p class="card-text mb-1"><i class="fas fa-church me-2 text-muted"></i><?php echo htmlspecialchars($assigned_rep['church_name']); ?> (<?php echo htmlspecialchars($assigned_rep['city']); ?>)</p>
+                                                <p class="card-text mb-0">
+                                                    <i class="fas fa-phone me-2 text-muted"></i>
+                                                    <a href="tel:<?php echo htmlspecialchars($assigned_rep['phone']); ?>" class="fw-bold text-decoration-none"><?php echo htmlspecialchars($assigned_rep['phone']); ?></a>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <!-- Scenario B: No Rep - Find One -->
+                                        <p class="mb-3">You are not assigned to a representative yet. Please find one near you to make a cash payment.</p>
+                                        
+                                        <div class="rep-finder-container bg-white border rounded p-3">
+                                            <div class="mb-2">
+                                                <label class="form-label small fw-bold text-muted text-uppercase">1. Select City</label>
+                                                <select class="form-select form-select-sm" id="finderCity" onchange="loadChurches(this.value)">
+                                                    <option value="">-- Choose City --</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-2" id="divChurch" style="display:none;">
+                                                <label class="form-label small fw-bold text-muted text-uppercase">2. Select Church</label>
+                                                <select class="form-select form-select-sm" id="finderChurch" onchange="loadReps(this.value)">
+                                                    <option value="">-- Choose Church --</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3" id="divRep" style="display:none;">
+                                                <label class="form-label small fw-bold text-muted text-uppercase">3. Select Representative</label>
+                                                <select class="form-select form-select-sm" id="finderRep">
+                                                    <option value="">-- Choose Representative --</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" class="btn btn-success w-100 btn-sm fw-bold" id="btnAssignRep" onclick="assignRepresentative()" disabled>
+                                                <i class="fas fa-check me-1"></i> Assign & View Contact Info
+                                            </button>
+                                        </div>
+                                        <div id="newRepDetails" class="mt-3" style="display:none;"></div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <!-- Other Details -->
+                            <div id="otherDetails" style="display: none;">
+                                <div class="alert alert-secondary">
+                                    <i class="fas fa-info-circle me-2"></i>Please provide details in the notes section on the next step.
+                                </div>
                             </div>
                         </div>
 
@@ -533,6 +582,7 @@ let selectedAmount = 0;
 let selectedMethod = '';
 let selectedPledgeId = 0;
 let maxBalance = <?php echo $donor['balance']; ?>;
+let assignedRep = <?php echo json_encode($assigned_rep ? true : false); ?>;
 
 // --- Navigation ---
 function goToStep(step) {
@@ -550,7 +600,7 @@ function goToStep(step) {
     currentStep = step;
     
     // Init logic for specific steps
-    if(step === 3) checkCashLogic();
+    // if(step === 3) checkCashLogic(); // Logic moved to selection
 }
 
 // --- Step 1 Logic ---
@@ -590,17 +640,32 @@ function selectMethod(method) {
     document.querySelectorAll('.card-radio').forEach(el => el.classList.remove('selected'));
     document.getElementById('card_' + method).classList.add('selected');
     
-    // Visibility
-    document.getElementById('cashDetails').style.display = (method === 'cash' ? 'block' : 'none');
-    document.getElementById('bankDetails').style.display = (method === 'bank_transfer' ? 'block' : 'none');
+    // Hide all details first
+    document.getElementById('bankDetails').style.display = 'none';
+    document.getElementById('cashDetails').style.display = 'none';
+    document.getElementById('otherDetails').style.display = 'none';
+    document.getElementById('cardNote').style.display = 'none';
     
-    // Enable Next
-    document.getElementById('btnMethodNext').disabled = false;
+    // Enable/Disable Next based on method
+    let canProceed = true;
     
-    // Load cities if cash & no rep
-    if(method === 'cash' && !<?php echo json_encode($assigned_rep ? true : false); ?>) {
-        loadCities();
+    if(method === 'bank_transfer') {
+        document.getElementById('bankDetails').style.display = 'block';
+    } else if (method === 'card') {
+        document.getElementById('bankDetails').style.display = 'block';
+        document.getElementById('cardNote').style.display = 'block';
+    } else if (method === 'cash') {
+        document.getElementById('cashDetails').style.display = 'block';
+        // Only proceed if assigned rep exists
+        if (!assignedRep) {
+            canProceed = false;
+            loadCities(); // Load finder
+        }
+    } else {
+        document.getElementById('otherDetails').style.display = 'block';
     }
+    
+    document.getElementById('btnMethodNext').disabled = !canProceed;
 }
 
 function validateStep3() {
@@ -723,12 +788,31 @@ function assignRepresentative() {
                         <i class="fas fa-phone me-2"></i><a href="tel:${phone}">${phone}</a>
                     </div>
                 `;
+                // Update global state and enable Next
+                assignedRep = true;
+                document.getElementById('btnMethodNext').disabled = false;
             } else {
                 alert('Error: ' + d.message);
                 btn.disabled = false;
                 btn.textContent = 'Assign & View Contact Info';
             }
         });
+}
+
+// Helper: Copy Text
+function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+    } else {
+        // Fallback
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("Copy");
+        textArea.remove();
+        alert('Copied to clipboard!');
+    }
 }
 
 </script>

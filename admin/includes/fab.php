@@ -9,6 +9,12 @@
         flex-direction: column;
         align-items: flex-end;
         gap: 12px;
+        pointer-events: none; /* Don't block clicks when closed */
+    }
+    
+    .fab-container .fab-main,
+    .fab-container.active {
+        pointer-events: auto; /* Enable clicks on main button and when open */
     }
 
     .fab-main {
