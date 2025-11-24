@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 
@@ -430,6 +431,9 @@ $page_title = 'Appointment Details';
                     <a href="make-call.php?donor_id=<?php echo $appointment->donor_id; ?>&queue_id=<?php echo $appointment->queue_id ?? 0; ?>" class="btn btn-success">
                         <i class="fas fa-phone me-2"></i>Start Call
                     </a>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="fas fa-trash me-2"></i>Delete Appointment
+                    </button>
                     <?php endif; ?>
                     <a href="call-history.php?donor_id=<?php echo $appointment->donor_id; ?>" class="btn btn-info">
                         <i class="fas fa-history me-2"></i>Full History
@@ -437,6 +441,39 @@ $page_title = 'Appointment Details';
                 </div>
             </div>
         </main>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Are you sure you want to delete this appointment?</p>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>This action cannot be undone.</strong> The appointment will be permanently removed from your schedule.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <form action="delete-appointment.php" method="POST" style="display: inline;">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="appointment_id" value="<?php echo $appointment->id; ?>">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Appointment
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
