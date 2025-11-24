@@ -64,41 +64,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign']) && !isset($
     }
 }
 
-// Get agents
-$agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+// Initialize variables
 $agents = [];
-while ($agent = $agents_result->fetch_assoc()) {
-    $agents[] = $agent;
-}
-
-// Get donors by agent
 $donors_by_agent = [];
-foreach ($agents as $agent) {
-    $donors_result = $db->query("SELECT d.id, d.name,
+$unassigned_donors = [];
+
+try {
+    // Get agents
+    $agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+    if ($agents_result) {
+        while ($agent = $agents_result->fetch_assoc()) {
+            $agents[] = $agent;
+        }
+    }
+
+    // Get donors by agent
+    foreach ($agents as $agent) {
+        $donors_result = $db->query("SELECT d.id, d.name,
+            COALESCE(d.total_pledged, 0) as total_pledged,
+            COALESCE(d.total_paid, 0) as total_paid,
+            (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
+            FROM donors d
+            WHERE d.agent_id = " . (int)$agent['id'] . "
+            ORDER BY d.name");
+        
+        $donors_by_agent[$agent['id']] = [];
+        if ($donors_result) {
+            while ($donor = $donors_result->fetch_assoc()) {
+                $donors_by_agent[$agent['id']][] = $donor;
+            }
+        }
+    }
+
+    // Get unassigned donors
+    $unassigned_result = $db->query("SELECT d.id, d.name,
         COALESCE(d.total_pledged, 0) as total_pledged,
         COALESCE(d.total_paid, 0) as total_paid,
         (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
         FROM donors d
-        WHERE d.agent_id = " . (int)$agent['id'] . "
+        WHERE d.agent_id IS NULL
         ORDER BY d.name");
     
-    $donors_by_agent[$agent['id']] = [];
-    while ($donor = $donors_result->fetch_assoc()) {
-        $donors_by_agent[$agent['id']][] = $donor;
+    if ($unassigned_result) {
+        while ($donor = $unassigned_result->fetch_assoc()) {
+            $unassigned_donors[] = $donor;
+        }
     }
-}
-
-// Get unassigned donors
-$unassigned_result = $db->query("SELECT d.id, d.name,
-    COALESCE(d.total_pledged, 0) as total_pledged,
-    COALESCE(d.total_paid, 0) as total_paid,
-    (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance
-    FROM donors d
-    WHERE d.agent_id IS NULL
-    ORDER BY d.name");
-$unassigned_donors = [];
-while ($donor = $unassigned_result->fetch_assoc()) {
-    $unassigned_donors[] = $donor;
+} catch (Exception $e) {
+    // Silently handle errors - page will still load
+    error_log("Assign donors page error: " . $e->getMessage());
 }
 ?>
 <!DOCTYPE html>
@@ -496,14 +510,28 @@ while ($donor = $unassigned_result->fetch_assoc()) {
 
             <!-- Statistics Cards -->
             <?php
+            $total_donors = 0;
+            $assigned_count = 0;
+            $unassigned_count = 0;
+            
             try {
-                $total_donors = $db->query("SELECT COUNT(*) as count FROM donors")->fetch_assoc()['count'];
-                $assigned_count = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL")->fetch_assoc()['count'];
-                $unassigned_count = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL")->fetch_assoc()['count'];
+                $total_result = $db->query("SELECT COUNT(*) as count FROM donors");
+                if ($total_result) {
+                    $total_donors = (int)($total_result->fetch_assoc()['count'] ?? 0);
+                }
+                
+                $assigned_result = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NOT NULL");
+                if ($assigned_result) {
+                    $assigned_count = (int)($assigned_result->fetch_assoc()['count'] ?? 0);
+                }
+                
+                $unassigned_result = $db->query("SELECT COUNT(*) as count FROM donors WHERE agent_id IS NULL");
+                if ($unassigned_result) {
+                    $unassigned_count = (int)($unassigned_result->fetch_assoc()['count'] ?? 0);
+                }
             } catch (Exception $e) {
-                $total_donors = 0;
-                $assigned_count = 0;
-                $unassigned_count = 0;
+                // Silently fail - show zeros
+                error_log("Stats query error: " . $e->getMessage());
             }
             ?>
             <div class="row g-3 mb-4">
@@ -562,9 +590,11 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                     </span>
                     <select id="bulkAgentSelect" class="form-select form-select-sm">
                         <option value="0">Select Agent...</option>
-                        <?php foreach ($agents as $agent): ?>
-                            <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
-                        <?php endforeach; ?>
+                        <?php if (!empty($agents)): ?>
+                            <?php foreach ($agents as $agent): ?>
+                                <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </select>
                     <button type="button" class="btn btn-sm btn-light" onclick="clearSelection()">
                         <i class="fas fa-times me-1"></i>Clear
@@ -648,9 +678,11 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                         echo "<input type='hidden' name='donor_id' value='" . $row['id'] . "'>";
                                         echo "<select name='agent_id' class='form-select form-select-sm form-select-modern' style='flex: 1; min-width: 150px;'>";
                                         echo "<option value='0'>Unassign</option>";
-                                        foreach ($agents as $agent) {
-                                            $selected = ($row['agent_id'] == $agent['id']) ? 'selected' : '';
-                                            echo "<option value='" . $agent['id'] . "' $selected>" . htmlspecialchars($agent['name']) . "</option>";
+                                        if (!empty($agents)) {
+                                            foreach ($agents as $agent) {
+                                                $selected = ($row['agent_id'] == $agent['id']) ? 'selected' : '';
+                                                echo "<option value='" . $agent['id'] . "' $selected>" . htmlspecialchars($agent['name']) . "</option>";
+                                            }
                                         }
                                         echo "</select>";
                                         echo "<button type='submit' name='assign' class='btn btn-sm btn-primary btn-modern'>";
@@ -684,10 +716,11 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                     <div class="accordion accordion-modern" id="agentsAccordion">
                         <?php
                         $accordion_index = 0;
-                        foreach ($agents as $agent):
-                            $donors = $donors_by_agent[$agent['id']] ?? [];
-                            $count = count($donors);
-                            $accordion_index++;
+                        if (!empty($agents)) {
+                            foreach ($agents as $agent):
+                                $donors = $donors_by_agent[$agent['id']] ?? [];
+                                $count = count($donors);
+                                $accordion_index++;
                         ?>
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="heading<?php echo $accordion_index; ?>">
@@ -747,7 +780,10 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                 </div>
                             </div>
                         </div>
-                        <?php endforeach; ?>
+                        <?php 
+                            endforeach;
+                        }
+                        ?>
                         
                         <!-- Unassigned Donors -->
                         <?php if (count($unassigned_donors) > 0): ?>
@@ -790,9 +826,11 @@ while ($donor = $unassigned_result->fetch_assoc()) {
                                                             <input type="hidden" name="donor_id" value="<?php echo $donor['id']; ?>">
                                                             <select name="agent_id" class="form-select form-select-sm form-select-modern" style="flex: 1; min-width: 150px;">
                                                                 <option value="0">Select...</option>
-                                                                <?php foreach ($agents as $agent): ?>
-                                                                    <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
-                                                                <?php endforeach; ?>
+                                                                <?php if (!empty($agents)): ?>
+                                                                    <?php foreach ($agents as $agent): ?>
+                                                                        <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
+                                                                    <?php endforeach; ?>
+                                                                <?php endif; ?>
                                                             </select>
                                                             <button type="submit" name="assign" class="btn btn-sm btn-primary btn-modern">
                                                                 <i class="fas fa-user-plus me-1"></i>Assign
