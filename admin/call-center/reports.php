@@ -215,8 +215,30 @@ $success_rate = $stats['total_calls'] > 0
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 1.125rem;
             margin-bottom: 1rem;
+            border: 2px solid;
+            background: transparent !important;
+        }
+        
+        .report-icon.icon-primary {
+            color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        
+        .report-icon.icon-success {
+            color: #198754;
+            border-color: #198754;
+        }
+        
+        .report-icon.icon-danger {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .report-icon.icon-info {
+            color: #0dcaf0;
+            border-color: #0dcaf0;
         }
         .report-value {
             font-size: 2rem;
@@ -323,7 +345,10 @@ $success_rate = $stats['total_calls'] > 0
                             <?php endif; ?>
                         </p>
                     </div>
-                    <div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" onclick="toggleFilters()">
+                            <i class="fas fa-filter me-2"></i>Filters
+                        </button>
                         <a href="index.php" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
                         </a>
@@ -331,7 +356,7 @@ $success_rate = $stats['total_calls'] > 0
                 </div>
 
                 <!-- Filters -->
-                <div class="filter-card">
+                <div class="filter-card" id="filterSection" style="display: none;">
                     <!-- Quick Filters -->
                     <div class="mb-3">
                         <label class="form-label fw-bold text-secondary small mb-2">Quick Filters</label>
@@ -393,8 +418,8 @@ $success_rate = $stats['total_calls'] > 0
                     <!-- Total Calls -->
                     <div class="col-12 col-sm-6 col-lg-3">
                         <div class="report-card">
-                            <div class="report-icon bg-primary bg-opacity-10 text-primary">
-                                <i class="fas fa-phone"></i>
+                            <div class="report-icon icon-primary">
+                                <i class="far fa-phone"></i>
                             </div>
                             <div class="report-value"><?php echo number_format($stats['total_calls']); ?></div>
                             <div class="report-label">Total Calls</div>
@@ -404,8 +429,8 @@ $success_rate = $stats['total_calls'] > 0
                     <!-- Success Rate -->
                     <div class="col-12 col-sm-6 col-lg-3">
                         <div class="report-card">
-                            <div class="report-icon bg-success bg-opacity-10 text-success">
-                                <i class="fas fa-check-circle"></i>
+                            <div class="report-icon icon-success">
+                                <i class="far fa-check-circle"></i>
                             </div>
                             <div class="report-value"><?php echo $success_rate; ?>%</div>
                             <div class="report-label">Success Rate</div>
@@ -416,8 +441,8 @@ $success_rate = $stats['total_calls'] > 0
                     <!-- Outstanding Balance -->
                     <div class="col-12 col-sm-6 col-lg-3">
                         <div class="report-card">
-                            <div class="report-icon bg-danger bg-opacity-10 text-danger">
-                                <i class="fas fa-coins"></i>
+                            <div class="report-icon icon-danger">
+                                <i class="far fa-money-bill-alt"></i>
                             </div>
                             <div class="report-value">£<?php echo number_format($stats['outstanding_amount']); ?></div>
                             <div class="report-label">Outstanding Balance</div>
@@ -428,8 +453,8 @@ $success_rate = $stats['total_calls'] > 0
                     <!-- Talk Time -->
                     <div class="col-12 col-sm-6 col-lg-3">
                         <div class="report-card">
-                            <div class="report-icon bg-info bg-opacity-10 text-info">
-                                <i class="fas fa-clock"></i>
+                            <div class="report-icon icon-info">
+                                <i class="far fa-clock"></i>
                             </div>
                             <div class="report-value" style="font-size: 1.5rem;"><?php echo $formatted_time; ?></div>
                             <div class="report-label">Total Talk Time</div>
@@ -458,18 +483,30 @@ $success_rate = $stats['total_calls'] > 0
                                             $icon = 'circle';
                                             $out_key = $outcome['outcome'] ?? 'unknown';
                                             
-                                            if (in_array($out_key, ['connected', 'agreement_reached', 'payment_method_selected'])) {
+                                            // Success outcomes - Green
+                                            if (in_array($out_key, ['connected', 'agreement_reached', 'payment_method_selected', 'payment_plan_created', 'agreed_to_pay_full'])) {
                                                 $color = 'success';
-                                                $icon = 'check';
-                                            } elseif (in_array($out_key, ['busy_signal', 'callback_scheduled'])) {
+                                                $icon = 'check-circle';
+                                            } 
+                                            // Positive/Callback outcomes - Info/Blue
+                                            elseif (in_array($out_key, ['callback_requested', 'interested_needs_time', 'callback_scheduled'])) {
+                                                $color = 'info';
+                                                $icon = 'calendar-check';
+                                            } 
+                                            // Busy/Warning outcomes - Warning/Orange
+                                            elseif (in_array($out_key, ['busy_signal', 'not_ready_to_pay'])) {
                                                 $color = 'warning';
-                                                $icon = 'clock';
-                                            } elseif (in_array($out_key, ['no_answer', 'no_connection'])) {
+                                                $icon = 'hourglass-half';
+                                            } 
+                                            // No Contact outcomes - Secondary/Gray
+                                            elseif (in_array($out_key, ['no_answer', 'no_connection', 'voicemail_left'])) {
                                                 $color = 'secondary';
                                                 $icon = 'phone-slash';
-                                            } elseif (in_array($out_key, ['invalid_number', 'wrong_number', 'network_error'])) {
+                                            } 
+                                            // Negative outcomes - Danger/Red
+                                            elseif (in_array($out_key, ['invalid_number', 'wrong_number', 'network_error', 'number_not_in_service', 'not_interested', 'financial_hardship', 'moved_abroad'])) {
                                                 $color = 'danger';
-                                                $icon = 'exclamation-circle';
+                                                $icon = 'times-circle';
                                             }
                                         ?>
                                         <div>
@@ -542,6 +579,16 @@ $success_rate = $stats['total_calls'] > 0
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+function toggleFilters() {
+    const filterSection = document.getElementById('filterSection');
+    if (filterSection.style.display === 'none') {
+        filterSection.style.display = 'block';
+    } else {
+        filterSection.style.display = 'none';
+    }
+}
+</script>
 </body>
 </html>
 
