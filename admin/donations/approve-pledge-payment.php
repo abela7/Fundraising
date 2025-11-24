@@ -24,6 +24,9 @@ try {
     $db->begin_transaction();
     
     // 1. Fetch payment details
+    // Check if payment_plan_id column exists
+    $has_plan_col = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'")->num_rows > 0;
+    
     $stmt = $db->prepare("
         SELECT pp.*, p.amount AS pledge_amount
         FROM pledge_payments pp
@@ -33,6 +36,11 @@ try {
     $stmt->bind_param('i', $payment_id);
     $stmt->execute();
     $payment = $stmt->get_result()->fetch_assoc();
+    
+    // If column doesn't exist, set payment_plan_id to null
+    if (!$has_plan_col) {
+        $payment['payment_plan_id'] = null;
+    }
     
     if (!$payment) {
         throw new Exception('Payment not found');
@@ -70,7 +78,118 @@ try {
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
     
-    // 4. Check if pledge is fully paid
+    // 4. Update Payment Plan if linked
+    $payment_plan_id = null;
+    if (isset($payment['payment_plan_id']) && $payment['payment_plan_id'] > 0) {
+        $payment_plan_id = (int)$payment['payment_plan_id'];
+        
+        // Fetch payment plan details
+        $plan_stmt = $db->prepare("
+            SELECT * FROM donor_payment_plans 
+            WHERE id = ? AND donor_id = ? AND status = 'active'
+            LIMIT 1
+        ");
+        $plan_stmt->bind_param('ii', $payment_plan_id, $donor_id);
+        $plan_stmt->execute();
+        $plan = $plan_stmt->get_result()->fetch_assoc();
+        $plan_stmt->close();
+        
+        if ($plan) {
+            $payment_amount = (float)$payment['amount'];
+            $current_payments_made = (int)($plan['payments_made'] ?? 0);
+            $current_amount_paid = (float)($plan['amount_paid'] ?? 0);
+            $total_payments = (int)($plan['total_payments'] ?? $plan['total_months'] ?? 1);
+            $monthly_amount = (float)($plan['monthly_amount'] ?? 0);
+            
+            // Calculate new values
+            $new_payments_made = $current_payments_made + 1;
+            $new_amount_paid = $current_amount_paid + $payment_amount;
+            
+            // Calculate next payment due date
+            $next_payment_due = null;
+            $plan_status = 'active';
+            
+            if ($new_payments_made >= $total_payments) {
+                // Plan is completed
+                $plan_status = 'completed';
+            } else {
+                // Calculate next payment date based on plan frequency
+                $frequency_unit = $plan['plan_frequency_unit'] ?? 'month';
+                $frequency_number = (int)($plan['plan_frequency_number'] ?? 1);
+                $payment_day = (int)($plan['payment_day'] ?? 1);
+                
+                // Start from current next_payment_due date (the one being paid now)
+                // If that's not set, use start_date
+                $base_date = $plan['next_payment_due'] ?? $plan['start_date'];
+                $next_date = new DateTime($base_date);
+                
+                // Add frequency period
+                if ($frequency_unit === 'week') {
+                    $next_date->modify("+{$frequency_number} weeks");
+                } elseif ($frequency_unit === 'month') {
+                    $next_date->modify("+{$frequency_number} months");
+                    // Set payment day (1-28 to avoid month-end issues)
+                    if ($payment_day >= 1 && $payment_day <= 28) {
+                        $day_to_set = min($payment_day, (int)$next_date->format('t')); // Don't exceed days in month
+                        $next_date->setDate((int)$next_date->format('Y'), (int)$next_date->format('m'), $day_to_set);
+                    }
+                } elseif ($frequency_unit === 'year') {
+                    $next_date->modify("+{$frequency_number} years");
+                    if ($payment_day >= 1 && $payment_day <= 28) {
+                        $day_to_set = min($payment_day, (int)$next_date->format('t'));
+                        $next_date->setDate((int)$next_date->format('Y'), (int)$next_date->format('m'), $day_to_set);
+                    }
+                }
+                
+                $next_payment_due = $next_date->format('Y-m-d');
+            }
+            
+            // Update payment plan
+            $update_plan = $db->prepare("
+                UPDATE donor_payment_plans 
+                SET 
+                    payments_made = ?,
+                    amount_paid = ?,
+                    next_payment_due = ?,
+                    last_payment_date = CURDATE(),
+                    status = ?,
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $update_plan->bind_param('idssi', $new_payments_made, $new_amount_paid, $next_payment_due, $plan_status, $payment_plan_id);
+            $update_plan->execute();
+            $update_plan->close();
+            
+            // If plan completed, update donor's active_payment_plan_id
+            if ($plan_status === 'completed') {
+                $update_donor = $db->prepare("
+                    UPDATE donors 
+                    SET has_active_plan = 0, 
+                        active_payment_plan_id = NULL,
+                        payment_status = CASE 
+                            WHEN balance <= 0 THEN 'completed'
+                            ELSE 'paying'
+                        END
+                    WHERE id = ? AND active_payment_plan_id = ?
+                ");
+                $update_donor->bind_param('ii', $donor_id, $payment_plan_id);
+                $update_donor->execute();
+                $update_donor->close();
+            } else {
+                // Update donor's next payment due date
+                $update_donor = $db->prepare("
+                    UPDATE donors 
+                    SET plan_next_due_date = ?
+                    WHERE id = ? AND active_payment_plan_id = ?
+                ");
+                $update_donor->bind_param('sii', $next_payment_due, $donor_id, $payment_plan_id);
+                $update_donor->execute();
+                $update_donor->close();
+            }
+        }
+    }
+    
+    // 5. Check if pledge is fully paid
     $pledge_id = (int)$payment['pledge_id'];
     $sum_q = $db->prepare("SELECT SUM(amount) as total FROM pledge_payments WHERE pledge_id = ? AND status = 'confirmed'");
     $sum_q->bind_param('i', $pledge_id);
@@ -80,7 +199,7 @@ try {
     // If pledge is fully paid, potentially mark pledge as 'fulfilled' if that status exists
     // For now, we just rely on balance calculations
     
-    // 5. Audit Log
+    // 6. Audit Log
     $log_json = json_encode([
         'action' => 'payment_approved',
         'payment_id' => $payment_id,

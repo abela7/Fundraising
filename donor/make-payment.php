@@ -166,10 +166,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             try {
                 $db->begin_transaction();
                 
+                // Check if payment plan should be linked
+                $payment_plan_id = null;
+                if ($active_plan && isset($active_plan['id'])) {
+                    $payment_plan_id = (int)$active_plan['id'];
+                }
+                
                 if ($pledge_id > 0) {
-                    $sql = "INSERT INTO pledge_payments (pledge_id, donor_id, amount, payment_method, payment_date, reference_number, payment_proof, notes, status) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, 'pending')";
-                    $stmt = $db->prepare($sql);
-                    $stmt->bind_param('iidssss', $pledge_id, $donor['id'], $payment_amount, $payment_method, $reference, $payment_proof, $notes);
+                    // Check if pledge_payments table has payment_plan_id column
+                    $has_plan_col = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'")->num_rows > 0;
+                    
+                    if ($has_plan_col && $payment_plan_id) {
+                        $sql = "INSERT INTO pledge_payments (pledge_id, donor_id, payment_plan_id, amount, payment_method, payment_date, reference_number, payment_proof, notes, status) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, 'pending')";
+                        $stmt = $db->prepare($sql);
+                        $stmt->bind_param('iiidssss', $pledge_id, $donor['id'], $payment_plan_id, $payment_amount, $payment_method, $reference, $payment_proof, $notes);
+                    } else {
+                        $sql = "INSERT INTO pledge_payments (pledge_id, donor_id, amount, payment_method, payment_date, reference_number, payment_proof, notes, status) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, 'pending')";
+                        $stmt = $db->prepare($sql);
+                        $stmt->bind_param('iidssss', $pledge_id, $donor['id'], $payment_amount, $payment_method, $reference, $payment_proof, $notes);
+                    }
                     $entity_type = 'pledge_payment';
                 } else {
                     $sql = "INSERT INTO payments (donor_id, donor_name, donor_phone, amount, method, reference, notes, status, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'donor_portal', NOW())";
