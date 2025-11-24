@@ -674,21 +674,34 @@ try {
                                         echo "<td><span class='badge badge-modern bg-" . ($balance > 0 ? 'warning' : 'success') . "'>£" . number_format($balance, 2) . "</span></td>";
                                         echo "<td>" . ($row['agent_name'] ? '<span class="badge badge-modern bg-primary"><i class="fas fa-user me-1"></i>' . htmlspecialchars($row['agent_name']) . '</span>' : '<span class="text-muted"><i class="fas fa-user-slash me-1"></i>Unassigned</span>') . "</td>";
                                         echo "<td>";
-                                        echo "<form method='POST' class='d-flex gap-2 align-items-center'>";
-                                        echo "<input type='hidden' name='donor_id' value='" . $row['id'] . "'>";
-                                        echo "<select name='agent_id' class='form-select form-select-sm form-select-modern' style='flex: 1; min-width: 150px;'>";
-                                        echo "<option value='0'>Unassign</option>";
-                                        if (!empty($agents)) {
-                                            foreach ($agents as $agent) {
-                                                $selected = ($row['agent_id'] == $agent['id']) ? 'selected' : '';
-                                                echo "<option value='" . $agent['id'] . "' $selected>" . htmlspecialchars($agent['name']) . "</option>";
+                                        
+                                        if (!empty($row['agent_id'])) {
+                                            // Donor is assigned - show unassign button
+                                            echo "<form method='POST' class='d-flex gap-2 align-items-center'>";
+                                            echo "<input type='hidden' name='donor_id' value='" . $row['id'] . "'>";
+                                            echo "<input type='hidden' name='agent_id' value='0'>";
+                                            echo "<button type='submit' name='assign' class='btn btn-sm btn-danger btn-modern'>";
+                                            echo "<i class='fas fa-user-minus me-1'></i>Unassign";
+                                            echo "</button>";
+                                            echo "</form>";
+                                        } else {
+                                            // Donor is not assigned - show assign dropdown
+                                            echo "<form method='POST' class='d-flex gap-2 align-items-center'>";
+                                            echo "<input type='hidden' name='donor_id' value='" . $row['id'] . "'>";
+                                            echo "<select name='agent_id' class='form-select form-select-sm form-select-modern' style='flex: 1; min-width: 150px;'>";
+                                            echo "<option value='0'>Select Agent...</option>";
+                                            if (!empty($agents)) {
+                                                foreach ($agents as $agent) {
+                                                    echo "<option value='" . $agent['id'] . "'>" . htmlspecialchars($agent['name']) . "</option>";
+                                                }
                                             }
+                                            echo "</select>";
+                                            echo "<button type='submit' name='assign' class='btn btn-sm btn-primary btn-modern'>";
+                                            echo "<i class='fas fa-check me-1'></i>Assign";
+                                            echo "</button>";
+                                            echo "</form>";
                                         }
-                                        echo "</select>";
-                                        echo "<button type='submit' name='assign' class='btn btn-sm btn-primary btn-modern'>";
-                                        echo "<i class='fas fa-check me-1'></i>Assign";
-                                        echo "</button>";
-                                        echo "</form>";
+                                        
                                         echo "</td>";
                                         echo "</tr>";
                                     }
