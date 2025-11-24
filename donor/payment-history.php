@@ -27,22 +27,66 @@ $donor = current_donor();
 $page_title = 'Payment History';
 $current_donor = $donor;
 
-// Load all payments
+// Load all payments (instant payments + pledge payments)
 $payments = [];
 if ($db_connection_ok) {
     try {
-        $payments_stmt = $db->prepare("
-            SELECT id, amount, method, reference, status, received_at, created_at, notes
-            FROM payments
-            WHERE donor_phone = ?
-            ORDER BY received_at DESC, created_at DESC
-        ");
-        $payments_stmt->bind_param('s', $donor['phone']);
-        $payments_stmt->execute();
-        $payments_result = $payments_stmt->get_result();
-        $payments = $payments_result->fetch_all(MYSQLI_ASSOC);
+        // Check if pledge_payments table exists
+        $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+        
+        if ($has_pledge_payments) {
+            // Get both instant payments and pledge payments using UNION
+            $sql = "
+                SELECT 
+                    p.id,
+                    p.amount,
+                    p.method,
+                    p.reference,
+                    p.status,
+                    COALESCE(p.received_at, p.created_at) as payment_date,
+                    p.created_at,
+                    p.notes,
+                    'instant' as payment_type
+                FROM payments p
+                WHERE p.donor_phone = ?
+                
+                UNION ALL
+                
+                SELECT 
+                    pp.id,
+                    pp.amount,
+                    pp.payment_method as method,
+                    pp.reference_number as reference,
+                    pp.status,
+                    COALESCE(pp.payment_date, pp.created_at) as payment_date,
+                    pp.created_at,
+                    pp.notes,
+                    'pledge' as payment_type
+                FROM pledge_payments pp
+                WHERE pp.donor_id = ?
+                
+                ORDER BY payment_date DESC, created_at DESC
+            ";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param('si', $donor['phone'], $donor['id']);
+            $stmt->execute();
+            $payments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        } else {
+            // Fallback: Only instant payments
+            $payments_stmt = $db->prepare("
+                SELECT id, amount, method, reference, status, received_at as payment_date, created_at, notes, 'instant' as payment_type
+                FROM payments
+                WHERE donor_phone = ?
+                ORDER BY received_at DESC, created_at DESC
+            ");
+            $payments_stmt->bind_param('s', $donor['phone']);
+            $payments_stmt->execute();
+            $payments = $payments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $payments_stmt->close();
+        }
     } catch (Exception $e) {
-        // Silent fail
+        error_log("Payment history error: " . $e->getMessage());
     }
 }
 ?>
@@ -81,6 +125,9 @@ if ($db_connection_ok) {
                             <div class="text-center py-5 text-muted">
                                 <i class="fas fa-inbox fa-3x mb-3"></i>
                                 <p>No payments recorded yet.</p>
+                                <a href="make-payment.php" class="btn btn-primary mt-2">
+                                    <i class="fas fa-plus me-2"></i>Make Your First Payment
+                                </a>
                             </div>
                         <?php else: ?>
                             <div class="table-responsive">
@@ -99,7 +146,7 @@ if ($db_connection_ok) {
                                         <tr>
                                             <td>
                                                 <?php 
-                                                $date = $payment['received_at'] ?? $payment['created_at'];
+                                                $date = $payment['payment_date'] ?? $payment['created_at'];
                                                 echo $date ? date('d M Y', strtotime($date)) : '-';
                                                 ?>
                                             </td>
@@ -113,10 +160,23 @@ if ($db_connection_ok) {
                                             <td>
                                                 <?php 
                                                 $status = $payment['status'] ?? 'pending';
-                                                $badge_class = $status === 'approved' ? 'bg-success' : ($status === 'pending' ? 'bg-warning' : 'bg-secondary');
+                                                // Handle both 'approved' (instant) and 'confirmed' (pledge) statuses
+                                                if ($status === 'approved' || $status === 'confirmed') {
+                                                    $badge_class = 'bg-success';
+                                                    $display_status = 'Approved';
+                                                } elseif ($status === 'pending') {
+                                                    $badge_class = 'bg-warning text-dark';
+                                                    $display_status = 'Pending';
+                                                } elseif ($status === 'voided' || $status === 'rejected') {
+                                                    $badge_class = 'bg-danger';
+                                                    $display_status = ucfirst($status);
+                                                } else {
+                                                    $badge_class = 'bg-secondary';
+                                                    $display_status = ucfirst($status);
+                                                }
                                                 ?>
                                                 <span class="badge <?php echo $badge_class; ?>">
-                                                    <?php echo ucfirst($status); ?>
+                                                    <?php echo $display_status; ?>
                                                 </span>
                                             </td>
                                         </tr>
