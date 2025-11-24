@@ -38,10 +38,16 @@ try {
         $today_start = date('Y-m-d 00:00:00');
         $today_end = date('Y-m-d 23:59:59');
 
+        // Successful calls = Contact made (excludes no answer, busy, invalid, etc.)
         $call_stats = $db->prepare("
             SELECT 
                 COUNT(*) as total_calls,
-                SUM(CASE WHEN conversation_stage NOT IN ('no_connection', 'disconnected') THEN 1 ELSE 0 END) as positive_outcomes,
+                SUM(CASE 
+                    WHEN outcome NOT IN ('no_answer', 'busy_signal', 'invalid_number', 'wrong_number', 'number_not_in_service', 'network_error', 'voicemail') 
+                    AND conversation_stage != 'no_connection'
+                    THEN 1 
+                    ELSE 0 
+                END) as positive_outcomes,
                 SUM(CASE WHEN callback_scheduled_for IS NOT NULL THEN 1 ELSE 0 END) as callbacks_scheduled,
                 SUM(COALESCE(duration_seconds, 0)) as total_talk_time
             FROM call_center_sessions
@@ -110,19 +116,22 @@ try {
         }
     }
 
-    // Get donor stats
-    $donor_stats = $db->query("
+    // Get donor stats (assigned to agent only)
+    $donor_stats_query = $db->prepare("
         SELECT 
             COUNT(CASE WHEN balance > 0 THEN 1 END) as with_balance,
             SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END) as total_outstanding,
             COUNT(CASE WHEN has_active_plan = 1 THEN 1 END) as active_plans
         FROM donors
-        WHERE donor_type = 'pledge'
-    ")->fetch_assoc();
+        WHERE agent_id = ? AND donor_type = 'pledge'
+    ");
+    $donor_stats_query->bind_param('i', $user_id);
+    $donor_stats_query->execute();
+    $donor_stats = $donor_stats_query->get_result()->fetch_assoc();
     
-    $stats['donors_with_balance'] = (int)$donor_stats['with_balance'];
-    $stats['total_outstanding'] = (float)$donor_stats['total_outstanding'];
-    $stats['active_plans'] = (int)$donor_stats['active_plans'];
+    $stats['donors_with_balance'] = (int)($donor_stats['with_balance'] ?? 0);
+    $stats['total_outstanding'] = (float)($donor_stats['total_outstanding'] ?? 0);
+    $stats['active_plans'] = (int)($donor_stats['active_plans'] ?? 0);
 
 } catch (Exception $e) {
     $error_message = $e->getMessage();
