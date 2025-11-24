@@ -36,6 +36,7 @@ function initSidebar() {
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', function() {
             sidebar.classList.add('show');
+            sidebar.classList.remove('collapsed'); // Remove collapsed to show full text
             if (sidebarOverlay) {
                 sidebarOverlay.classList.add('show');
             }

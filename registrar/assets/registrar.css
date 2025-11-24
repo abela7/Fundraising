@@ -86,8 +86,38 @@ body {
     justify-content: center;
 }
 
+/* Ensure text is visible when sidebar is open (not collapsed) */
+.sidebar:not(.collapsed) .sidebar-brand-text,
+.sidebar:not(.collapsed) .nav-link-text,
+.sidebar:not(.collapsed) .nav-section-title {
+    display: block;
+}
+
+.sidebar:not(.collapsed) .sidebar-brand {
+    justify-content: flex-start;
+}
+
+.sidebar:not(.collapsed) .nav-link {
+    justify-content: flex-start;
+}
+
 .sidebar.show {
   left: 0;
+}
+
+/* When sidebar is shown (mobile), ensure text is visible */
+.sidebar.show .sidebar-brand-text,
+.sidebar.show .nav-link-text,
+.sidebar.show .nav-section-title {
+  display: block !important;
+}
+
+.sidebar.show .sidebar-brand {
+  justify-content: flex-start !important;
+}
+
+.sidebar.show .nav-link {
+  justify-content: flex-start !important;
 }
 
 /* Sidebar overlay for mobile */
