@@ -287,11 +287,11 @@ if (isset($_GET['report'])) {
         echo '<td>' . htmlspecialchars($payment['donation_type']) . '</td>';
         echo '<td class="number">' . number_format((float)$payment['amount'], 2) . '</td>';
         $totalAmount += (float)$payment['amount'];
-            echo '<td>' . htmlspecialchars(ucfirst($payment['status'])) . '</td>';
-            echo '<td>' . htmlspecialchars($payment['notes'] ?: '') . '</td>';
-            echo '<td>' . htmlspecialchars($payment['donor_phone'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars(ucfirst($payment['status'])) . '</td>';
+        echo '<td>' . htmlspecialchars($payment['notes'] ?: '') . '</td>';
+        echo '<td>' . htmlspecialchars($payment['donor_phone'] ?: '') . '</td>';
             echo '<td>' . htmlspecialchars($payment['donor_email'] ?: '') . '</td>';
-            echo '<td>' . htmlspecialchars($payment['package_label'] ?: 'Custom') . '</td>';
+        echo '<td>' . htmlspecialchars($payment['package_label'] ?: 'Custom') . '</td>';
         echo '<td>' . date('d/m/Y H:i', strtotime($payment['transaction_date'])) . '</td>';
         echo '<td>' . htmlspecialchars($payment['received_by_name'] ?: 'Direct') . '</td>';
         echo '</tr>';
