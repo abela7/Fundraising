@@ -79,30 +79,14 @@ if ($params) {
     $total_donors = $count_stmt->get_result()->fetch_assoc()['total'];
     $total_pages = ceil($total_donors / $per_page);
 
-// Get donors
-// NOTE: Calculate balance in SELECT instead of using generated column (causes crashes)
+// Get donors - SIMPLE QUERY FIRST
 $donor_query = "
     SELECT 
         d.id,
-        d.name,
-        d.phone,
-        d.email,
-        COALESCE(d.total_pledged, 0) as total_pledged,
-        COALESCE(d.total_paid, 0) as total_paid,
-        (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) as balance,
-        d.payment_status,
-        d.agent_id,
-        d.church_id,
-        c.name as church_name,
-        u.name as agent_name
+        d.name
     FROM donors d
-    LEFT JOIN churches c ON d.church_id = c.id
-    LEFT JOIN users u ON d.agent_id = u.id
     WHERE {$where_clause}
-    ORDER BY 
-        CASE WHEN d.agent_id IS NULL THEN 0 ELSE 1 END,
-        (COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0)) DESC,
-        d.name ASC
+    ORDER BY d.name ASC
     LIMIT ? OFFSET ?
 ";
 
@@ -408,53 +392,9 @@ $agents = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', '
                                     </div>
 
                                     <!-- Donor Info -->
-                                    <div class="col-md-3 col-12">
+                                    <div class="col-12">
                                         <div class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></div>
-                                        <small class="text-muted">
-                                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor['phone'] ?? 'N/A'); ?>
-                                        </small>
-                                    </div>
-
-                                    <!-- Balance -->
-                                    <div class="col-md-2 col-6">
-                                        <small class="text-muted d-block">Balance</small>
-                                        <span class="badge bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">
-                                            £<?php echo number_format($donor['balance'], 2); ?>
-                                        </span>
-                                    </div>
-
-                                    <!-- Church -->
-                                    <div class="col-md-2 col-6 d-none d-md-block">
-                                        <small class="text-muted d-block">Church</small>
-                                        <small><?php echo htmlspecialchars($donor['church_name'] ?? 'Not assigned'); ?></small>
-                                    </div>
-
-                                    <!-- Current Agent -->
-                                    <div class="col-md-3 col-12 mt-2 mt-md-0">
-                                        <small class="text-muted d-block">Assigned Agent</small>
-                                        <?php if ($donor['agent_id']): ?>
-                                            <span class="badge bg-primary agent-badge">
-                                                <i class="fas fa-user me-1"></i><?php echo htmlspecialchars($donor['agent_name']); ?>
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="badge bg-secondary agent-badge">Unassigned</span>
-                                        <?php endif; ?>
-                                    </div>
-
-                                    <!-- Quick Actions -->
-                                    <div class="col-md-2 col-12 text-md-end mt-2 mt-md-0">
-                                        <div class="btn-group btn-group-sm">
-                                            <button type="button" class="btn btn-outline-primary btn-sm" 
-                                                    onclick="quickAssign(<?php echo $donor['id']; ?>)" 
-                                                    title="Quick Assign">
-                                                <i class="fas fa-user-plus"></i>
-                                            </button>
-                                            <a href="../donor-management/view-donor.php?id=<?php echo $donor['id']; ?>" 
-                                               class="btn btn-outline-secondary btn-sm" 
-                                               title="View Details">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                        </div>
+                                        <small class="text-muted">ID: <?php echo $donor['id']; ?></small>
                                     </div>
                                 </div>
                             </div>
