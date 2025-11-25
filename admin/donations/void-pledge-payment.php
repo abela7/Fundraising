@@ -6,7 +6,12 @@ require_once __DIR__ . '/../../config/db.php';
 header('Content-Type: application/json');
 
 try {
-    require_admin();
+    // Allow both admin and registrar access
+    require_login();
+    $current_user = current_user();
+    if (!in_array($current_user['role'] ?? '', ['admin', 'registrar'])) {
+        throw new Exception('Access denied. Admin or Registrar role required.');
+    }
     
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
@@ -16,6 +21,8 @@ try {
     $payment_id = isset($input['id']) ? (int)$input['id'] : 0;
     $reason = isset($input['reason']) ? trim($input['reason']) : '';
     $user_id = (int)$_SESSION['user']['id'];
+    $user_name = $current_user['name'] ?? 'Unknown';
+    $user_role = $current_user['role'] ?? 'unknown';
     
     if ($payment_id <= 0) {
         throw new Exception('Invalid payment ID');
@@ -57,20 +64,26 @@ try {
     
     // 3. NO donor balance updates needed (payment was never confirmed)
     
-    // 4. Audit Log
+    // 4. Audit Log - Enhanced with user details
     $log_json = json_encode([
         'action' => 'payment_rejected',
         'payment_id' => $payment_id,
         'donor_id' => $payment['donor_id'],
         'pledge_id' => $payment['pledge_id'],
         'amount' => $payment['amount'],
+        'payment_method' => $payment['payment_method'] ?? null,
         'reason' => $reason,
-        'rejected_by' => $user_id,
-        'rejected_at' => date('Y-m-d H:i:s')
+        'rejected_by_user_id' => $user_id,
+        'rejected_by_name' => $user_name,
+        'rejected_by_role' => $user_role,
+        'rejected_at' => date('Y-m-d H:i:s'),
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+        'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)
     ]);
     
-    $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'reject', ?, 'admin')");
-    $log->bind_param('iis', $user_id, $payment_id, $log_json);
+    $source = ($user_role === 'registrar') ? 'registrar' : 'admin';
+    $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'reject', ?, ?)");
+    $log->bind_param('iiss', $user_id, $payment_id, $log_json, $source);
     $log->execute();
     
     $db->commit();

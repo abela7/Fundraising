@@ -6,7 +6,12 @@ require_once __DIR__ . '/../../config/db.php';
 header('Content-Type: application/json');
 
 try {
-    require_admin();
+    // Allow both admin and registrar access
+    require_login();
+    $current_user = current_user();
+    if (!in_array($current_user['role'] ?? '', ['admin', 'registrar'])) {
+        throw new Exception('Access denied. Admin or Registrar role required.');
+    }
     
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
@@ -15,6 +20,8 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     $payment_id = isset($input['id']) ? (int)$input['id'] : 0;
     $user_id = (int)$_SESSION['user']['id'];
+    $user_name = $current_user['name'] ?? 'Unknown';
+    $user_role = $current_user['role'] ?? 'unknown';
     
     if ($payment_id <= 0) {
         throw new Exception('Invalid payment ID');
@@ -216,7 +223,7 @@ try {
     // If pledge is fully paid, potentially mark pledge as 'fulfilled' if that status exists
     // For now, we just rely on balance calculations
     
-    // 6. Audit Log
+    // 6. Audit Log - Enhanced with user details
     $log_json = json_encode([
         'action' => 'payment_approved',
         'payment_id' => $payment_id,
@@ -225,12 +232,18 @@ try {
         'payment_plan_id' => $payment_plan_id > 0 ? $payment_plan_id : null,
         'plan_updated' => $plan ? true : false,
         'amount' => $payment['amount'],
-        'approved_by' => $user_id,
-        'approved_at' => date('Y-m-d H:i:s')
+        'payment_method' => $payment['payment_method'] ?? null,
+        'approved_by_user_id' => $user_id,
+        'approved_by_name' => $user_name,
+        'approved_by_role' => $user_role,
+        'approved_at' => date('Y-m-d H:i:s'),
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+        'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)
     ]);
     
-    $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'approve', ?, 'admin')");
-    $log->bind_param('iis', $user_id, $payment_id, $log_json);
+    $source = ($user_role === 'registrar') ? 'registrar' : 'admin';
+    $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'approve', ?, ?)");
+    $log->bind_param('iiss', $user_id, $payment_id, $log_json, $source);
     $log->execute();
     
     $db->commit();

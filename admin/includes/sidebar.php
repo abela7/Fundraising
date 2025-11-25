@@ -65,14 +65,28 @@ if ($user_role === 'registrar') {
         </span>
         <span class="nav-label">Record Payment</span>
       </a>
+      <a href="<?php echo url_for('admin/donations/review-pledge-payments.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'review-pledge-payments') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-check-circle"></i>
+        </span>
+        <span class="nav-label">Approve Payments</span>
+      </a>
     </div>
     
     <div class="nav-section">
       <div class="nav-section-title">
         <span>Tools</span>
       </div>
+      <a href="<?php echo url_for('admin/donor-management/payments.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'donor-management' && $current_page === 'payments') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-money-bill-wave"></i>
+        </span>
+        <span class="nav-label">Payment Management</span>
+      </a>
       <a href="<?php echo url_for('admin/donor-management/donors.php'); ?>" 
-         class="nav-link <?php echo ($current_dir === 'donor-management') ? 'active' : ''; ?>">
+         class="nav-link <?php echo ($current_dir === 'donor-management' && $current_page === 'donors') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-users"></i>
         </span>

@@ -3,7 +3,14 @@
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 
-require_admin();
+// Allow both admin and registrar access
+require_login();
+$current_user = current_user();
+if (!in_array($current_user['role'] ?? '', ['admin', 'registrar'])) {
+    header('Location: ' . url_for('index.php'));
+    exit;
+}
+
 $page_title = 'Review Pledge Payments';
 
 $db = db();
