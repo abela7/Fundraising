@@ -211,19 +211,11 @@
             </a>
         </li>
 
-        <!-- 3. Add Payment -->
+        <!-- 2. Add Payment -->
         <li class="fab-item">
             <span class="fab-label">Add Payment</span>
             <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" class="fab-btn bg-teal">
                 <i class="fas fa-file-invoice-dollar"></i>
-            </a>
-        </li>
-
-        <!-- 2. Approve Donation (Pledge) -->
-        <li class="fab-item">
-            <span class="fab-label">Approve Donation</span>
-            <a href="<?php echo url_for('admin/approvals/index.php'); ?>" class="fab-btn bg-orange">
-                <i class="fas fa-check-double"></i>
             </a>
         </li>
 
