@@ -150,6 +150,7 @@
     .fab-item:nth-child(4) { transition-delay: 0.2s; }
     .fab-item:nth-child(5) { transition-delay: 0.25s; }
     .fab-item:nth-child(6) { transition-delay: 0.3s; }
+    .fab-item:nth-child(7) { transition-delay: 0.35s; }
 
     /* Mobile adjustments */
     @media (max-width: 576px) {
@@ -178,7 +179,7 @@
 
 <div class="fab-container" id="fabContainer">
     <ul class="fab-options">
-        <!-- 6. Donor Management -->
+        <!-- 7. Donor Management -->
         <li class="fab-item">
             <span class="fab-label">Donor Management</span>
             <a href="<?php echo url_for('admin/donor-management/donors.php'); ?>" class="fab-btn bg-purple">
@@ -186,7 +187,7 @@
             </a>
         </li>
         
-        <!-- 5. Call Center -->
+        <!-- 6. Call Center -->
         <li class="fab-item">
             <span class="fab-label">Call Center</span>
             <a href="<?php echo url_for('admin/call-center/index.php'); ?>" class="fab-btn bg-indigo">
@@ -194,7 +195,15 @@
             </a>
         </li>
 
-        <!-- 4. Approve Payment -->
+        <!-- 4. Payment Management -->
+        <li class="fab-item">
+            <span class="fab-label">Payment Management</span>
+            <a href="<?php echo url_for('admin/donor-management/payments.php'); ?>" class="fab-btn bg-cyan">
+                <i class="fas fa-money-bill-wave"></i>
+            </a>
+        </li>
+
+        <!-- 5. Approve Payment -->
         <li class="fab-item">
             <span class="fab-label">Approve Payment</span>
             <a href="<?php echo url_for('admin/donations/review-pledge-payments.php'); ?>" class="fab-btn bg-success">
