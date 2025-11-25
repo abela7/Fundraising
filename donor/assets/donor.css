@@ -502,247 +502,370 @@ body {
   overflow: hidden;
 }
 
-/* Pledge Progress Card - Enhanced Mobile Design */
+/* ===========================================
+   PLEDGE PROGRESS CARD - Mobile First Design
+   =========================================== */
 .pledge-progress-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border: 2px solid var(--primary-blue);
-  box-shadow: 0 4px 12px rgba(10, 98, 134, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(10, 98, 134, 0.12);
+  overflow: hidden;
+  position: relative;
 }
 
-.pledge-progress-card .card-header {
-  background: transparent;
-  border-bottom: 2px solid var(--gray-100);
-  padding-bottom: 0.875rem;
-  margin-bottom: 1rem;
+.pledge-progress-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-blue) 0%, #10b981 50%, var(--primary-gold) 100%);
 }
 
-.pledge-progress-card .card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--primary-blue);
-  margin: 0;
+.pledge-progress-card .card-body {
+  padding: 1.25rem;
 }
 
-.pledge-amount-summary {
-  margin-bottom: 1rem;
-}
-
-.pledge-amount-row {
+/* Header with title and percentage badge */
+.pledge-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
-  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  gap: 1rem;
+}
+
+.pledge-title {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
-}
-
-.pledge-label {
-  font-size: 0.875rem;
-  color: var(--gray-600);
-  font-weight: 500;
-}
-
-.pledge-amount-value {
   font-size: 1rem;
   font-weight: 700;
-  color: var(--gray-900);
-  text-align: right;
-  white-space: nowrap;
+  color: var(--gray-800);
 }
 
-.pledge-percentage-display {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, var(--primary-blue) 0%, #0ea5e9 100%);
-  border-radius: 10px;
-  color: white;
-  margin-top: 0.5rem;
+.pledge-title i {
+  color: var(--primary-blue);
+  font-size: 1.125rem;
 }
 
-.pledge-percentage-value {
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.pledge-percentage-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  opacity: 0.95;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.pledge-progress-wrapper {
-  margin: 1rem 0;
-}
-
-.pledge-progress-bar {
-  height: 24px;
-  border-radius: 12px;
-  background-color: var(--gray-200);
-  overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.pledge-progress-bar .progress-bar {
-  border-radius: 12px;
-  transition: width 0.6s ease;
-  font-size: 0.75rem;
-  font-weight: 700;
+.pledge-percentage-badge {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
+  min-width: 70px;
+  padding: 0.5rem 0.875rem;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, #0ea5e9 100%);
+  border-radius: 20px;
+  box-shadow: 0 3px 10px rgba(10, 98, 134, 0.3);
 }
 
-.pledge-status-message {
+.pledge-percentage-badge.halfway {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+}
+
+.pledge-percentage-badge.completed {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3);
+}
+
+.percentage-value {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Amount display - horizontal on mobile */
+.pledge-amounts {
   display: flex;
   align-items: center;
-  padding: 0.75rem 1rem;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.875rem;
   background: var(--gray-50);
-  border-radius: 8px;
-  font-size: 0.875rem;
-  color: var(--gray-700);
-  margin-top: 1rem;
-  border-left: 3px solid var(--primary-blue);
+  border-radius: 12px;
+  border: 1px solid var(--gray-100);
 }
 
-.pledge-status-message i {
-  color: var(--primary-blue);
-  flex-shrink: 0;
+.amount-paid, .amount-total {
+  text-align: center;
+  flex: 1;
 }
 
-.pledge-status-success {
-  background: #d1f2eb;
-  color: #0a6286;
-  border-left-color: #10b981;
+.amount-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
 }
 
-.pledge-status-success i {
+.amount-value {
+  display: block;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.amount-paid .amount-value {
   color: #10b981;
 }
 
-/* Mobile Optimizations for Pledge Progress */
-@media (max-width: 575px) {
-  .pledge-progress-card {
+.amount-separator {
+  color: var(--gray-400);
+  font-size: 0.875rem;
+}
+
+/* Progress bar container */
+.pledge-progress-container {
+  margin-bottom: 1rem;
+}
+
+.pledge-progress-track {
+  height: 16px;
+  background: var(--gray-200);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pledge-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-blue) 0%, #10b981 100%);
+  border-radius: 10px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  min-width: 0;
+}
+
+.pledge-progress-fill.completed {
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+}
+
+.pledge-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.pledge-progress-markers {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  padding: 0 0.125rem;
+}
+
+.pledge-progress-markers .marker {
+  font-size: 0.6875rem;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+/* Status message */
+.pledge-status {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background: #eff6ff;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: var(--gray-700);
+  border-left: 3px solid var(--primary-blue);
+}
+
+.pledge-status i {
+  color: var(--primary-blue);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.pledge-status.completed {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-left-color: #10b981;
+  color: #065f46;
+}
+
+.pledge-status.completed i {
+  color: #10b981;
+}
+
+/* ===============================
+   Responsive Adjustments
+   =============================== */
+
+/* Small mobile devices */
+@media (max-width: 374px) {
+  .pledge-progress-card .card-body {
     padding: 1rem;
   }
   
-  .pledge-progress-card .card-header {
-    padding-bottom: 0.75rem;
-    margin-bottom: 0.875rem;
-  }
-  
-  .pledge-progress-card .card-title {
-    font-size: 0.9375rem;
-  }
-  
-  .pledge-amount-row {
+  .pledge-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.375rem;
-  }
-  
-  .pledge-amount-value {
-    font-size: 1.125rem;
-    text-align: left;
-    width: 100%;
-  }
-  
-  .pledge-percentage-display {
-    padding: 0.625rem;
-    margin-top: 0.75rem;
-  }
-  
-  .pledge-percentage-value {
-    font-size: 1.75rem;
-  }
-  
-  .pledge-percentage-label {
-    font-size: 0.8125rem;
-  }
-  
-  .pledge-progress-bar {
-    height: 20px;
-  }
-  
-  .pledge-status-message {
-    padding: 0.625rem 0.875rem;
-    font-size: 0.8125rem;
-    flex-wrap: wrap;
-  }
-  
-  .pledge-status-message i {
-    margin-right: 0.5rem;
-  }
-}
-
-/* Tablet Optimizations */
-@media (min-width: 576px) and (max-width: 767px) {
-  .pledge-percentage-value {
-    font-size: 1.875rem;
-  }
-  
-  .pledge-progress-bar {
-    height: 22px;
-  }
-}
-
-/* Desktop Enhancements */
-@media (min-width: 768px) {
-  .pledge-progress-card {
-    padding: 1.5rem;
-  }
-  
-  .pledge-progress-card .card-header {
-    padding-bottom: 1rem;
-    margin-bottom: 1.25rem;
-  }
-  
-  .pledge-progress-card .card-title {
-    font-size: 1.125rem;
-  }
-  
-  .pledge-amount-row {
+    gap: 0.75rem;
     margin-bottom: 1rem;
   }
   
-  .pledge-label {
-    font-size: 0.9375rem;
+  .pledge-percentage-badge {
+    align-self: flex-start;
   }
   
-  .pledge-amount-value {
+  .percentage-value {
+    font-size: 1rem;
+  }
+  
+  .pledge-amounts {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+  
+  .amount-separator {
+    transform: rotate(90deg);
+  }
+  
+  .amount-value {
+    font-size: 1.25rem;
+  }
+  
+  .pledge-progress-track {
+    height: 14px;
+  }
+  
+  .pledge-status {
+    flex-wrap: wrap;
+    font-size: 0.8125rem;
+    padding: 0.625rem 0.875rem;
+  }
+}
+
+/* Regular mobile */
+@media (min-width: 375px) and (max-width: 575px) {
+  .pledge-amounts {
+    gap: 0.5rem;
+  }
+  
+  .amount-value {
+    font-size: 1.125rem;
+  }
+}
+
+/* Tablet */
+@media (min-width: 576px) and (max-width: 767px) {
+  .pledge-progress-card .card-body {
+    padding: 1.5rem;
+  }
+  
+  .pledge-title {
+    font-size: 1.0625rem;
+  }
+  
+  .percentage-value {
+    font-size: 1.25rem;
+  }
+  
+  .amount-value {
+    font-size: 1.25rem;
+  }
+  
+  .pledge-progress-track {
+    height: 18px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .pledge-progress-card .card-body {
+    padding: 1.75rem;
+  }
+  
+  .pledge-header {
+    margin-bottom: 1.5rem;
+  }
+  
+  .pledge-title {
     font-size: 1.125rem;
   }
   
-  .pledge-percentage-display {
-    padding: 1rem;
-    margin-top: 0.75rem;
+  .pledge-title i {
+    font-size: 1.25rem;
   }
   
-  .pledge-percentage-value {
-    font-size: 2.25rem;
+  .pledge-percentage-badge {
+    min-width: 85px;
+    padding: 0.625rem 1rem;
   }
   
-  .pledge-percentage-label {
+  .percentage-value {
+    font-size: 1.375rem;
+  }
+  
+  .pledge-amounts {
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .amount-label {
+    font-size: 0.8125rem;
+  }
+  
+  .amount-value {
+    font-size: 1.5rem;
+  }
+  
+  .pledge-progress-track {
+    height: 20px;
+    border-radius: 12px;
+  }
+  
+  .pledge-progress-fill {
+    border-radius: 12px;
+  }
+  
+  .pledge-progress-markers .marker {
+    font-size: 0.75rem;
+  }
+  
+  .pledge-status {
+    padding: 0.875rem 1.25rem;
     font-size: 0.9375rem;
   }
-  
-  .pledge-progress-wrapper {
-    margin: 1.25rem 0;
+}
+
+/* Large desktop */
+@media (min-width: 1024px) {
+  .pledge-progress-card .card-body {
+    padding: 2rem;
   }
   
-  .pledge-progress-bar {
-    height: 28px;
-  }
-  
-  .pledge-status-message {
-    padding: 0.875rem 1.125rem;
-    font-size: 0.9375rem;
+  .pledge-amounts {
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
