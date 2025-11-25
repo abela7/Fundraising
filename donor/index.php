@@ -244,43 +244,26 @@ $badge_labels = [
                 <?php if ($donor['total_pledged'] > 0): ?>
                 <div class="card pledge-progress-card">
                     <div class="card-body">
-                        <!-- Header with percentage badge -->
+                        <!-- Header -->
                         <div class="pledge-header">
                             <div class="pledge-title">
                                 <i class="fas fa-bullseye"></i>
                                 <span>Pledge Progress</span>
                             </div>
-                            <div class="pledge-percentage-badge <?php echo $progress_percentage >= 100 ? 'completed' : ($progress_percentage >= 50 ? 'halfway' : ''); ?>">
-                                <span class="percentage-value"><?php echo round($progress_percentage, 1); ?>%</span>
+                            <div class="pledge-amounts-inline">
+                                <span class="paid-amount">£<?php echo number_format($donor['total_paid'], 2); ?></span>
+                                <span class="separator">/</span>
+                                <span class="total-amount">£<?php echo number_format($donor['total_pledged'], 2); ?></span>
                             </div>
                         </div>
                         
-                        <!-- Amount display -->
-                        <div class="pledge-amounts">
-                            <div class="amount-paid">
-                                <span class="amount-label">Paid</span>
-                                <span class="amount-value">£<?php echo number_format($donor['total_paid'], 2); ?></span>
-                            </div>
-                            <div class="amount-separator">
-                                <i class="fas fa-arrow-right"></i>
-                            </div>
-                            <div class="amount-total">
-                                <span class="amount-label">Goal</span>
-                                <span class="amount-value">£<?php echo number_format($donor['total_pledged'], 2); ?></span>
-                            </div>
-                        </div>
-                        
-                        <!-- Progress bar with percentage overlay -->
+                        <!-- Progress bar with percentage -->
                         <div class="pledge-progress-container">
                             <div class="pledge-progress-track">
                                 <div class="pledge-progress-fill <?php echo $progress_percentage >= 100 ? 'completed' : ''; ?>" 
-                                     style="width: <?php echo min($progress_percentage, 100); ?>%">
+                                     style="width: <?php echo max(min($progress_percentage, 100), 8); ?>%">
+                                    <span class="progress-percentage"><?php echo round($progress_percentage, 1); ?>%</span>
                                 </div>
-                            </div>
-                            <div class="pledge-progress-markers">
-                                <span class="marker">0%</span>
-                                <span class="marker">50%</span>
-                                <span class="marker">100%</span>
                             </div>
                         </div>
                         
@@ -288,12 +271,12 @@ $badge_labels = [
                         <?php if ($donor['balance'] > 0): ?>
                             <div class="pledge-status">
                                 <i class="fas fa-info-circle"></i>
-                                <span><strong>£<?php echo number_format($donor['balance'], 2); ?></strong> remaining to complete your pledge</span>
+                                <span><strong>£<?php echo number_format($donor['balance'], 2); ?></strong> remaining</span>
                             </div>
                         <?php else: ?>
                             <div class="pledge-status completed">
-                                <i class="fas fa-trophy"></i>
-                                <span>Congratulations! You've completed your pledge! 🎉</span>
+                                <i class="fas fa-check-circle"></i>
+                                <span>Pledge completed! 🎉</span>
                             </div>
                         <?php endif; ?>
                     </div>
