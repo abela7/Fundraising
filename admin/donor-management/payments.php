@@ -103,12 +103,14 @@ if (empty($error_message)) {
         }
         
         if (!empty($search)) {
-            $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR pp.reference_number LIKE ?)";
+            // Search in donor name, phone, payment reference, and pledge notes (for 4-digit reference)
+            $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR pp.reference_number LIKE ? OR pl.notes LIKE ?)";
             $search_param = "%{$search}%";
             $params[] = $search_param;
             $params[] = $search_param;
             $params[] = $search_param;
-            $types .= 'sss';
+            $params[] = $search_param;
+            $types .= 'ssss';
         }
         
         $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
@@ -140,6 +142,7 @@ if (empty($error_message)) {
                 d.payment_status as donor_payment_status,
                 d.has_active_plan,
                 pl.amount as pledge_amount,
+                pl.notes as pledge_notes,
                 approver.name as approved_by_name,
                 voider.name as voided_by_name
                 " . ($has_plan_col ? ",
