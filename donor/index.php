@@ -101,43 +101,82 @@ if ($donor['has_active_plan'] && $donor['active_payment_plan_id'] && $db_connect
     }
 }
 
-// Load last payment
+// Load last payment (from both payments and pledge_payments tables)
 $last_payment = null;
 if ($db_connection_ok) {
     try {
-        $last_payment_stmt = $db->prepare("
-            SELECT amount, method, reference, status, received_at, created_at
-            FROM payments
-            WHERE donor_phone = ? AND status = 'approved'
-            ORDER BY received_at DESC, created_at DESC
-            LIMIT 1
-        ");
-        $last_payment_stmt->bind_param('s', $donor['phone']);
-        $last_payment_stmt->execute();
-        $last_payment_result = $last_payment_stmt->get_result();
-        $last_payment = $last_payment_result->fetch_assoc();
+        // Check which tables exist
+        $has_payments = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
+        $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+        
+        $union_parts = [];
+        
+        if ($has_pledge_payments) {
+            $union_parts[] = "
+                SELECT pp.amount, pp.payment_method as method, pp.reference_number as reference, 
+                       pp.status, pp.payment_date as received_at, pp.payment_date as created_at,
+                       'pledge_payment' as source
+                FROM pledge_payments pp
+                WHERE pp.donor_id = {$donor['id']} AND pp.status = 'confirmed'
+            ";
+        }
+        
+        if ($has_payments) {
+            $union_parts[] = "
+                SELECT p.amount, p.method, p.reference, p.status, 
+                       p.received_at, p.created_at, 'payment' as source
+                FROM payments p
+                WHERE p.donor_phone = '{$db->real_escape_string($donor['phone'])}' AND p.status = 'approved'
+            ";
+        }
+        
+        if (!empty($union_parts)) {
+            $query = "(" . implode(") UNION ALL (", $union_parts) . ") ORDER BY received_at DESC, created_at DESC LIMIT 1";
+            $result = $db->query($query);
+            $last_payment = $result->fetch_assoc();
+        }
     } catch (Exception $e) {
         // Silent fail
+        error_log("Error fetching last payment: " . $e->getMessage());
     }
 }
 
-// Load recent payments
+// Load recent payments (from both payments and pledge_payments tables)
 $recent_payments = [];
 if ($db_connection_ok) {
     try {
-        $payments_stmt = $db->prepare("
-            SELECT id, amount, method, reference, status, received_at, created_at
-            FROM payments
-            WHERE donor_phone = ?
-            ORDER BY received_at DESC, created_at DESC
-            LIMIT 5
-        ");
-        $payments_stmt->bind_param('s', $donor['phone']);
-        $payments_stmt->execute();
-        $payments_result = $payments_stmt->get_result();
-        $recent_payments = $payments_result->fetch_all(MYSQLI_ASSOC);
+        $has_payments = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
+        $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+        
+        $union_parts = [];
+        
+        if ($has_pledge_payments) {
+            $union_parts[] = "
+                SELECT pp.id, pp.amount, pp.payment_method as method, pp.reference_number as reference, 
+                       pp.status, pp.payment_date as received_at, pp.payment_date as created_at,
+                       'pledge_payment' as source
+                FROM pledge_payments pp
+                WHERE pp.donor_id = {$donor['id']}
+            ";
+        }
+        
+        if ($has_payments) {
+            $union_parts[] = "
+                SELECT p.id, p.amount, p.method, p.reference, p.status, 
+                       p.received_at, p.created_at, 'payment' as source
+                FROM payments p
+                WHERE p.donor_phone = '{$db->real_escape_string($donor['phone'])}'
+            ";
+        }
+        
+        if (!empty($union_parts)) {
+            $query = "(" . implode(") UNION ALL (", $union_parts) . ") ORDER BY received_at DESC, created_at DESC LIMIT 5";
+            $result = $db->query($query);
+            $recent_payments = $result->fetch_all(MYSQLI_ASSOC);
+        }
     } catch (Exception $e) {
         // Silent fail
+        error_log("Error fetching recent payments: " . $e->getMessage());
     }
 }
 
@@ -451,10 +490,11 @@ $badge_labels = [
                                             <td>
                                                 <?php 
                                                 $status = $payment['status'] ?? 'pending';
-                                                $badge_class = $status === 'approved' ? 'bg-success' : 'bg-warning';
+                                                $badge_class = in_array($status, ['approved', 'confirmed']) ? 'bg-success' : ($status === 'voided' ? 'bg-danger' : 'bg-warning');
+                                                $display_status = $status === 'confirmed' ? 'Approved' : ucfirst($status);
                                                 ?>
                                                 <span class="badge <?php echo $badge_class; ?>">
-                                                    <?php echo ucfirst($status); ?>
+                                                    <?php echo $display_status; ?>
                                                 </span>
                                             </td>
                                         </tr>

@@ -25,11 +25,9 @@ function initSidebar() {
         });
     }
 
-    // Ensure collapsed by default on desktop
-    if (sidebar && window.matchMedia('(min-width: 768px)').matches) {
-        sidebar.classList.add('collapsed');
-        if (appContent) { appContent.classList.add('collapsed'); }
-    }
+    // On desktop, sidebar is expanded by default (not collapsed)
+    // The collapse state can be toggled by the user via desktopSidebarToggle
+    // Removed auto-collapse to fix alignment issue
 
     // Toggle sidebar (desktop)
     if (desktopSidebarToggle) {

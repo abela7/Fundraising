@@ -25,6 +25,32 @@ function require_donor_login(): void {
 require_donor_login();
 $donor = current_donor();
 $page_title = 'Pledges & Plans';
+
+// Refresh donor data from database to ensure latest values
+if ($donor && $db_connection_ok) {
+    try {
+        $refresh_stmt = $db->prepare("
+            SELECT id, name, phone, total_pledged, total_paid, balance, 
+                   has_active_plan, active_payment_plan_id,
+                   payment_status, preferred_payment_method, preferred_language
+            FROM donors 
+            WHERE id = ? 
+            LIMIT 1
+        ");
+        $refresh_stmt->bind_param('i', $donor['id']);
+        $refresh_stmt->execute();
+        $fresh_donor = $refresh_stmt->get_result()->fetch_assoc();
+        $refresh_stmt->close();
+        
+        if ($fresh_donor) {
+            $_SESSION['donor'] = $fresh_donor;
+            $donor = $fresh_donor;
+        }
+    } catch (Exception $e) {
+        // Silent fail - continue with session data
+    }
+}
+
 $current_donor = $donor;
 
 // Load all pledges
