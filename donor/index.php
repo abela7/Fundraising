@@ -255,7 +255,7 @@ $badge_labels = [
                                 <span class="separator">/</span>
                                 <span class="total-amount">£<?php echo number_format($donor['total_pledged'], 2); ?></span>
                             </div>
-                        </div>
+                    </div>
                         
                         <!-- Progress bar with percentage -->
                         <div class="pledge-progress-container">
@@ -263,7 +263,7 @@ $badge_labels = [
                                 <div class="pledge-progress-fill <?php echo $progress_percentage >= 100 ? 'completed' : ''; ?>" 
                                      style="width: <?php echo max(min($progress_percentage, 100), 8); ?>%">
                                     <span class="progress-percentage"><?php echo round($progress_percentage, 1); ?>%</span>
-                                </div>
+                        </div>
                             </div>
                         </div>
                         
