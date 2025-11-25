@@ -78,6 +78,24 @@ try {
         $p['allocated_cells'] = $cells;
         $pledges[] = $p;
     }
+    
+    // Extract 4-digit reference number from pledge notes
+    $donor_reference = null;
+    if (!empty($pledges)) {
+        // Get the most recent pledge's notes
+        $most_recent_pledge = $pledges[0];
+        if (!empty($most_recent_pledge['notes'])) {
+            // Look for a 4-digit number in the notes
+            // Pattern: could be "REF: 1234", "Reference: 1234", "1234", or similar
+            if (preg_match('/\b(\d{4})\b/', $most_recent_pledge['notes'], $matches)) {
+                $donor_reference = $matches[1];
+            }
+        }
+    }
+    // Fallback to donor ID if no reference found
+    if (!$donor_reference) {
+        $donor_reference = str_pad((string)$donor['id'], 4, '0', STR_PAD_LEFT);
+    }
 
     // 3. Payments (includes both instant payments and pledge payments)
     $payments = [];
@@ -516,7 +534,7 @@ function formatDateTime($date) {
                         <i class="fas fa-arrow-left me-2"></i>Back to Donor List
                     </a>
                     <div class="text-muted small">
-                        <i class="fas fa-info-circle me-1"></i>Donor ID: #<?php echo $donor['id']; ?>
+                        <i class="fas fa-info-circle me-1"></i>Reference: #<?php echo htmlspecialchars($donor_reference); ?>
                     </div>
                 </div>
 
@@ -533,7 +551,7 @@ function formatDateTime($date) {
                                 <i class="fas fa-phone me-1"></i> <?php echo htmlspecialchars($donor['phone']); ?>
                             </div>
                             <span class="badge bg-light text-dark border-0">
-                                ID: #<?php echo $donor['id']; ?>
+                                Ref: #<?php echo htmlspecialchars($donor_reference); ?>
                             </span>
                             <?php if($donor['baptism_name']): ?>
                             <span class="badge bg-info border-0 ms-2">
