@@ -4,7 +4,13 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
-require_admin();
+
+// Allow both admin and registrar access
+$user = current_user();
+if (!in_array($user['role'] ?? '', ['admin', 'registrar'])) {
+    header('Location: ' . url_for('index.php'));
+    exit;
+}
 
 // Resiliently load settings and check for DB errors
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
@@ -12,6 +18,7 @@ require_once __DIR__ . '/../includes/resilient_db_loader.php';
 $page_title = 'Payment Management';
 $current_user = current_user();
 $db = db();
+$is_admin = ($current_user['role'] ?? '') === 'admin';
 
 $success_message = '';
 $error_message = '';
@@ -191,69 +198,402 @@ if (empty($error_message)) {
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/donor-management.css">
     <style>
+        /* Enhanced Payment Card Styles */
         .payment-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 12px;
+            overflow: hidden;
             transition: all 0.2s ease;
-            border-left: 4px solid transparent;
+            border: 1px solid #e5e7eb;
         }
         .payment-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .payment-card.status-pending {
-            border-left-color: #ffc107;
         }
         .payment-card.status-confirmed {
-            border-left-color: #198754;
+            border-left: 4px solid #10b981;
+        }
+        .payment-card.status-pending {
+            border-left: 4px solid #f59e0b;
         }
         .payment-card.status-voided {
-            border-left-color: #dc3545;
-        }
-        .proof-thumbnail {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .proof-thumbnail:hover {
-            transform: scale(1.1);
-        }
-        .filter-btn {
-            border-radius: 20px;
-            padding: 0.375rem 1rem;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-        .filter-btn.active {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
-        .donor-link {
-            color: inherit;
-            text-decoration: none;
-        }
-        .donor-link:hover {
-            color: #0d6efd;
-        }
-        .plan-badge {
-            font-size: 0.7rem;
-            padding: 0.2rem 0.4rem;
+            border-left: 4px solid #ef4444;
         }
         
-        /* Mobile responsive adjustments */
-        @media (max-width: 768px) {
-            .filter-btn {
-                font-size: 0.75rem;
-                padding: 0.25rem 0.75rem;
+        .payment-card-header {
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .payment-card-body {
+            padding: 12px 16px;
+        }
+        .payment-card-footer {
+            padding: 10px 16px;
+            background: #f9fafb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .donor-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .donor-name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .donor-phone {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .amount-display {
+            text-align: right;
+        }
+        .amount-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #10b981;
+        }
+        .amount-pledge {
+            font-size: 0.7rem;
+            color: #9ca3af;
+        }
+        
+        .payment-meta {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .meta-label {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .meta-value {
+            font-size: 0.85rem;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .status-pill.confirmed {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+        }
+        .status-pill.pending {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+        }
+        .status-pill.voided {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+        }
+        
+        .method-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #4b5563;
+        }
+        
+        .plan-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-radius: 6px;
+            font-size: 0.7rem;
+            color: #1e40af;
+            font-weight: 600;
+        }
+        
+        .action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #6b7280;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .action-btn:hover {
+            background: #f3f4f6;
+            color: #1f2937;
+            border-color: #d1d5db;
+        }
+        .action-btn.proof { color: #8b5cf6; }
+        .action-btn.proof:hover { background: #f5f3ff; border-color: #c4b5fd; }
+        .action-btn.view { color: #3b82f6; }
+        .action-btn.view:hover { background: #eff6ff; border-color: #93c5fd; }
+        .action-btn.pending-action { color: #f59e0b; }
+        .action-btn.pending-action:hover { background: #fffbeb; border-color: #fcd34d; }
+        
+        /* Filter Pills */
+        .filter-pills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 24px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .filter-pill.all {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        .filter-pill.all:hover, .filter-pill.all.active {
+            background: #1f2937;
+            color: #fff;
+        }
+        .filter-pill.confirmed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .filter-pill.confirmed:hover, .filter-pill.confirmed.active {
+            background: #10b981;
+            color: #fff;
+        }
+        .filter-pill.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .filter-pill.pending:hover, .filter-pill.pending.active {
+            background: #f59e0b;
+            color: #fff;
+        }
+        .filter-pill.voided {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .filter-pill.voided:hover, .filter-pill.voided.active {
+            background: #ef4444;
+            color: #fff;
+        }
+        .filter-pill .count {
+            background: rgba(255,255,255,0.3);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+        .filter-pill.active .count {
+            background: rgba(255,255,255,0.25);
+        }
+        
+        /* Search & Filter Bar */
+        .search-filter-bar {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .search-input {
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+        }
+        .search-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Stats Mini Cards */
+        .stats-mini {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-mini-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        .stat-mini-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .stat-mini-label {
+            font-size: 0.7rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-mini-sub {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .empty-state-icon {
+            width: 80px;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+            color: #9ca3af;
+        }
+        
+        /* Approved by text */
+        .approved-by {
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+        
+        /* Desktop Table Styles - Hidden on mobile */
+        .desktop-table {
+            display: none;
+        }
+        
+        /* Mobile cards - shown by default */
+        .mobile-cards {
+            display: block;
+        }
+        
+        /* Desktop view */
+        @media (min-width: 992px) {
+            .desktop-table {
+                display: block;
             }
-            .table td, .table th {
-                padding: 0.5rem 0.35rem;
+            .mobile-cards {
+                display: none;
+            }
+            .stats-mini {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        /* Tablet adjustments */
+        @media (max-width: 991px) and (min-width: 768px) {
+            .stats-mini {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .payment-meta {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 767px) {
+            .stats-mini {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stat-mini-value {
+                font-size: 1.25rem;
+            }
+            .filter-pills {
+                justify-content: center;
+            }
+            .filter-pill {
+                padding: 6px 12px;
                 font-size: 0.8rem;
             }
+            .page-header-actions {
+                width: 100%;
+                justify-content: center;
+            }
+            .amount-value {
+                font-size: 1.1rem;
+            }
+        }
+        
+        /* Desktop Table Enhancements */
+        .payments-table {
+            width: 100%;
+        }
+        .payments-table th {
+            background: #f9fafb;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            padding: 12px 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .payments-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+        .payments-table tbody tr {
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+        .payments-table tbody tr:hover {
+            background: #f9fafb;
+        }
+        .payments-table .donor-cell {
+            min-width: 180px;
+        }
+        .payments-table .amount-cell {
+            font-weight: 600;
+            color: #10b981;
         }
     </style>
 </head>
@@ -265,7 +605,7 @@ if (empty($error_message)) {
         <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
-            <div class="container-fluid">
+            <div class="container-fluid px-3 px-lg-4">
                 <?php include '../includes/db_error_banner.php'; ?>
                 
                 <?php if ($error_message): ?>
@@ -275,321 +615,355 @@ if (empty($error_message)) {
                 <?php endif; ?>
                 
                 <!-- Page Header -->
-                <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                     <div>
-                        <h4 class="mb-1">
-                            <i class="fas fa-money-bill-wave me-2 text-success"></i>Payment Management
+                        <h4 class="mb-0 fw-bold">
+                            <i class="fas fa-money-bill-wave me-2 text-success"></i>Payments
                         </h4>
-                        <p class="text-muted mb-0 small">Track and manage all donor payments</p>
+                        <p class="text-muted mb-0 small d-none d-sm-block">Track all donor payments</p>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 page-header-actions">
+                        <?php if ($is_admin): ?>
                         <a href="../donations/record-pledge-payment.php" class="btn btn-primary btn-sm">
-                            <i class="fas fa-plus me-1"></i>Record Payment
+                            <i class="fas fa-plus me-1"></i><span class="d-none d-sm-inline">Record</span>
                         </a>
-                        <a href="../donations/review-pledge-payments.php" class="btn btn-warning btn-sm">
-                            <i class="fas fa-clock me-1"></i>Pending (<?php echo (int)$stats['pending']; ?>)
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Stats Cards -->
-                <div class="row g-3 mb-4">
-                    <div class="col-6 col-lg-3">
-                        <div class="stat-card" style="color: #0a6286;">
-                            <div class="stat-icon bg-primary">
-                                <i class="fas fa-users"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format($paying_donors_count); ?></h3>
-                                <p class="stat-label">Paying Donors</p>
-                                <div class="stat-trend text-muted">
-                                    <i class="fas fa-user-check"></i> Have paid
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-6 col-lg-3">
-                        <div class="stat-card" style="color: #0d7f4d;">
-                            <div class="stat-icon bg-success">
-                                <i class="fas fa-check-double"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format((int)$stats['confirmed']); ?></h3>
-                                <p class="stat-label">Confirmed</p>
-                                <div class="stat-trend text-success">
-                                    £<?php echo number_format((float)$stats['confirmed_amount'], 2); ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-6 col-lg-3">
-                        <div class="stat-card" style="color: #b88a1a;">
-                            <div class="stat-icon bg-warning">
-                                <i class="fas fa-hourglass-half"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value"><?php echo number_format((int)$stats['pending']); ?></h3>
-                                <p class="stat-label">Pending</p>
-                                <div class="stat-trend text-warning">
-                                    £<?php echo number_format((float)$stats['pending_amount'], 2); ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-6 col-lg-3">
-                        <div class="stat-card" style="color: #6b7280;">
-                            <div class="stat-icon bg-secondary">
-                                <i class="fas fa-pound-sign"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 class="stat-value">£<?php echo number_format((float)$stats['total_amount'], 0); ?></h3>
-                                <p class="stat-label">Total Amount</p>
-                                <div class="stat-trend text-muted">
-                                    <i class="fas fa-receipt"></i> <?php echo number_format((int)$stats['total']); ?> payments
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Payments Table Card -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                            <h5 class="mb-0">
-                                <i class="fas fa-list me-2 text-primary"></i>All Payments
-                            </h5>
-                            <div class="d-flex flex-wrap gap-2">
-                                <!-- Quick Status Filters -->
-                                <a href="?status=all" class="btn btn-sm filter-btn <?php echo $filter_status === 'all' ? 'btn-primary active' : 'btn-outline-secondary'; ?>">
-                                    All
-                                </a>
-                                <a href="?status=confirmed" class="btn btn-sm filter-btn <?php echo $filter_status === 'confirmed' ? 'btn-success active' : 'btn-outline-success'; ?>">
-                                    <i class="fas fa-check me-1"></i>Confirmed
-                                </a>
-                                <a href="?status=pending" class="btn btn-sm filter-btn <?php echo $filter_status === 'pending' ? 'btn-warning active' : 'btn-outline-warning'; ?>">
-                                    <i class="fas fa-clock me-1"></i>Pending
-                                </a>
-                                <a href="?status=voided" class="btn btn-sm filter-btn <?php echo $filter_status === 'voided' ? 'btn-danger active' : 'btn-outline-danger'; ?>">
-                                    <i class="fas fa-ban me-1"></i>Voided
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Advanced Filters -->
-                    <div class="card-body border-bottom bg-light py-3">
-                        <form method="GET" class="row g-2 align-items-end">
-                            <input type="hidden" name="status" value="<?php echo htmlspecialchars($filter_status); ?>">
-                            
-                            <div class="col-12 col-sm-6 col-lg-3">
-                                <label class="form-label small fw-bold mb-1">
-                                    <i class="fas fa-search me-1"></i>Search
-                                </label>
-                                <input type="text" class="form-control form-control-sm" name="search" 
-                                       placeholder="Name, phone, or reference..." 
-                                       value="<?php echo htmlspecialchars($search); ?>">
-                            </div>
-                            
-                            <div class="col-6 col-sm-3 col-lg-2">
-                                <label class="form-label small fw-bold mb-1">
-                                    <i class="fas fa-credit-card me-1"></i>Method
-                                </label>
-                                <select class="form-select form-select-sm" name="method">
-                                    <option value="">All Methods</option>
-                                    <option value="bank_transfer" <?php echo $filter_method === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
-                                    <option value="cash" <?php echo $filter_method === 'cash' ? 'selected' : ''; ?>>Cash</option>
-                                    <option value="card" <?php echo $filter_method === 'card' ? 'selected' : ''; ?>>Card</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-6 col-sm-3 col-lg-2">
-                                <label class="form-label small fw-bold mb-1">
-                                    <i class="fas fa-calendar me-1"></i>From
-                                </label>
-                                <input type="date" class="form-control form-control-sm" name="date_from" 
-                                       value="<?php echo htmlspecialchars($filter_date_from); ?>">
-                            </div>
-                            
-                            <div class="col-6 col-sm-3 col-lg-2">
-                                <label class="form-label small fw-bold mb-1">
-                                    <i class="fas fa-calendar me-1"></i>To
-                                </label>
-                                <input type="date" class="form-control form-control-sm" name="date_to" 
-                                       value="<?php echo htmlspecialchars($filter_date_to); ?>">
-                            </div>
-                            
-                            <div class="col-6 col-sm-3 col-lg-3">
-                                <div class="d-flex gap-2">
-                                    <button type="submit" class="btn btn-sm btn-primary">
-                                        <i class="fas fa-filter me-1"></i>Filter
-                                    </button>
-                                    <a href="payments.php" class="btn btn-sm btn-outline-secondary">
-                                        <i class="fas fa-times me-1"></i>Clear
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    <div class="card-body p-0">
-                        <?php if (empty($payments)): ?>
-                            <div class="text-center py-5">
-                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">No payments found matching your criteria.</p>
-                                <a href="payments.php" class="btn btn-sm btn-outline-primary">Clear Filters</a>
-                            </div>
-                        <?php else: ?>
-                            <div class="table-responsive">
-                                <table id="paymentsTable" class="table table-hover align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th class="ps-3">#</th>
-                                            <th>Donor</th>
-                                            <th>Amount</th>
-                                            <th>Method</th>
-                                            <th>Date</th>
-                                            <th>Status</th>
-                                            <th>Plan</th>
-                                            <th>Reference</th>
-                                            <th class="text-end pe-3">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($payments as $index => $payment): ?>
-                                            <?php
-                                            $status_class = match($payment['status']) {
-                                                'confirmed' => 'success',
-                                                'pending' => 'warning',
-                                                'voided' => 'danger',
-                                                default => 'secondary'
-                                            };
-                                            $method_icon = match($payment['payment_method']) {
-                                                'bank_transfer' => 'fa-university',
-                                                'cash' => 'fa-money-bill',
-                                                'card' => 'fa-credit-card',
-                                                default => 'fa-wallet'
-                                            };
-                                            ?>
-                                            <tr class="payment-row" data-payment='<?php echo htmlspecialchars(json_encode($payment), ENT_QUOTES); ?>'>
-                                                <td class="ps-3 text-muted"><?php echo $index + 1; ?></td>
-                                                <td>
-                                                    <a href="view-donor.php?id=<?php echo (int)$payment['donor_id']; ?>" 
-                                                       class="donor-link fw-bold" 
-                                                       onclick="event.stopPropagation();">
-                                                        <?php echo htmlspecialchars($payment['donor_name'] ?? 'Unknown'); ?>
-                                                    </a>
-                                                    <div class="small text-muted">
-                                                        <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($payment['donor_phone'] ?? '-'); ?>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="fw-bold text-success">£<?php echo number_format((float)$payment['amount'], 2); ?></span>
-                                                    <?php if (!empty($payment['pledge_amount'])): ?>
-                                                        <div class="small text-muted">
-                                                            of £<?php echo number_format((float)$payment['pledge_amount'], 2); ?> pledge
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-light text-dark border">
-                                                        <i class="fas <?php echo $method_icon; ?> me-1"></i>
-                                                        <?php echo ucwords(str_replace('_', ' ', $payment['payment_method'] ?? 'Unknown')); ?>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="small">
-                                                        <?php 
-                                                        $date = $payment['payment_date'] ?? $payment['created_at'];
-                                                        echo $date ? date('d M Y', strtotime($date)) : '-'; 
-                                                        ?>
-                                                    </div>
-                                                    <div class="small text-muted">
-                                                        <?php echo $date ? date('H:i', strtotime($date)) : ''; ?>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-<?php echo $status_class; ?>">
-                                                        <?php echo ucfirst($payment['status']); ?>
-                                                    </span>
-                                                    <?php if ($payment['status'] === 'confirmed' && !empty($payment['approved_by_name'])): ?>
-                                                        <div class="small text-muted">by <?php echo htmlspecialchars($payment['approved_by_name']); ?></div>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <?php if ($has_plan_col && !empty($payment['plan_id'])): ?>
-                                                        <span class="badge bg-info plan-badge">
-                                                            <i class="fas fa-calendar-check me-1"></i>
-                                                            <?php echo (int)$payment['plan_payments_made']; ?>/<?php echo (int)$payment['plan_total_payments']; ?>
-                                                        </span>
-                                                    <?php elseif (!empty($payment['has_active_plan'])): ?>
-                                                        <span class="badge bg-secondary plan-badge">
-                                                            <i class="fas fa-calendar me-1"></i>Has Plan
-                                                        </span>
-                                                    <?php else: ?>
-                                                        <span class="text-muted small">-</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <?php if (!empty($payment['reference_number'])): ?>
-                                                        <code class="small"><?php echo htmlspecialchars(substr($payment['reference_number'], 0, 15)); ?></code>
-                                                    <?php else: ?>
-                                                        <span class="text-muted small">-</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-end pe-3">
-                                                    <div class="btn-group btn-group-sm">
-                                                        <?php if (!empty($payment['payment_proof'])): ?>
-                                                            <button type="button" class="btn btn-outline-secondary btn-view-proof" 
-                                                                    data-proof="../../<?php echo htmlspecialchars($payment['payment_proof']); ?>"
-                                                                    title="View Proof"
-                                                                    onclick="event.stopPropagation();">
-                                                                <i class="fas fa-image"></i>
-                                                            </button>
-                                                        <?php endif; ?>
-                                                        
-                                                        <?php if ($payment['status'] === 'pending'): ?>
-                                                            <a href="../donations/review-pledge-payments.php?filter=pending" 
-                                                               class="btn btn-outline-warning"
-                                                               title="Review"
-                                                               onclick="event.stopPropagation();">
-                                                                <i class="fas fa-clock"></i>
-                                                            </a>
-                                                        <?php endif; ?>
-                                                        
-                                                        <a href="view-donor.php?id=<?php echo (int)$payment['donor_id']; ?>" 
-                                                           class="btn btn-outline-primary"
-                                                           title="View Donor"
-                                                           onclick="event.stopPropagation();">
-                                                            <i class="fas fa-user"></i>
-                                                        </a>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
                         <?php endif; ?>
+                        <a href="../donations/review-pledge-payments.php" class="btn btn-warning btn-sm">
+                            <i class="fas fa-clock me-1"></i>Pending <span class="badge bg-dark ms-1"><?php echo (int)$stats['pending']; ?></span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Stats Mini Cards -->
+                <div class="stats-mini">
+                    <div class="stat-mini-card">
+                        <div class="stat-mini-value text-primary"><?php echo number_format($paying_donors_count); ?></div>
+                        <div class="stat-mini-label">Donors</div>
+                        <div class="stat-mini-sub">Have paid</div>
+                    </div>
+                    <div class="stat-mini-card">
+                        <div class="stat-mini-value text-success"><?php echo number_format((int)$stats['confirmed']); ?></div>
+                        <div class="stat-mini-label">Confirmed</div>
+                        <div class="stat-mini-sub">£<?php echo number_format((float)$stats['confirmed_amount'], 0); ?></div>
+                    </div>
+                    <div class="stat-mini-card">
+                        <div class="stat-mini-value text-warning"><?php echo number_format((int)$stats['pending']); ?></div>
+                        <div class="stat-mini-label">Pending</div>
+                        <div class="stat-mini-sub">£<?php echo number_format((float)$stats['pending_amount'], 0); ?></div>
+                    </div>
+                    <div class="stat-mini-card">
+                        <div class="stat-mini-value text-secondary"><?php echo number_format((int)$stats['total']); ?></div>
+                        <div class="stat-mini-label">Total</div>
+                        <div class="stat-mini-sub">£<?php echo number_format((float)$stats['total_amount'], 0); ?></div>
+                    </div>
+                </div>
+                
+                <!-- Filter Pills -->
+                <div class="filter-pills">
+                    <a href="?status=all" class="filter-pill all <?php echo $filter_status === 'all' ? 'active' : ''; ?>">
+                        All <span class="count"><?php echo number_format((int)$stats['total']); ?></span>
+                    </a>
+                    <a href="?status=confirmed" class="filter-pill confirmed <?php echo $filter_status === 'confirmed' ? 'active' : ''; ?>">
+                        <i class="fas fa-check-circle"></i> Confirmed <span class="count"><?php echo number_format((int)$stats['confirmed']); ?></span>
+                    </a>
+                    <a href="?status=pending" class="filter-pill pending <?php echo $filter_status === 'pending' ? 'active' : ''; ?>">
+                        <i class="fas fa-clock"></i> Pending <span class="count"><?php echo number_format((int)$stats['pending']); ?></span>
+                    </a>
+                    <a href="?status=voided" class="filter-pill voided <?php echo $filter_status === 'voided' ? 'active' : ''; ?>">
+                        <i class="fas fa-ban"></i> Voided <span class="count"><?php echo number_format((int)$stats['voided']); ?></span>
+                    </a>
+                </div>
+                
+                <!-- Search & Advanced Filters -->
+                <div class="search-filter-bar">
+                    <form method="GET" class="row g-2 align-items-end">
+                        <input type="hidden" name="status" value="<?php echo htmlspecialchars($filter_status); ?>">
+                        
+                        <div class="col-12 col-md-4">
+                            <input type="text" class="form-control search-input" name="search" 
+                                   placeholder="Search name, phone, reference..." 
+                                   value="<?php echo htmlspecialchars($search); ?>">
+                        </div>
+                        
+                        <div class="col-6 col-md-2">
+                            <select class="form-select search-input" name="method">
+                                <option value="">All Methods</option>
+                                <option value="bank_transfer" <?php echo $filter_method === 'bank_transfer' ? 'selected' : ''; ?>>Bank</option>
+                                <option value="cash" <?php echo $filter_method === 'cash' ? 'selected' : ''; ?>>Cash</option>
+                                <option value="card" <?php echo $filter_method === 'card' ? 'selected' : ''; ?>>Card</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-6 col-md-2">
+                            <input type="date" class="form-control search-input" name="date_from" 
+                                   placeholder="From"
+                                   value="<?php echo htmlspecialchars($filter_date_from); ?>">
+                        </div>
+                        
+                        <div class="col-6 col-md-2">
+                            <input type="date" class="form-control search-input" name="date_to" 
+                                   placeholder="To"
+                                   value="<?php echo htmlspecialchars($filter_date_to); ?>">
+                        </div>
+                        
+                        <div class="col-6 col-md-2">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                <a href="payments.php" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <?php if (empty($payments)): ?>
+                    <!-- Empty State -->
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-inbox"></i>
+                        </div>
+                        <h5 class="text-muted mb-2">No payments found</h5>
+                        <p class="text-muted small mb-3">Try adjusting your filters or search terms</p>
+                        <a href="payments.php" class="btn btn-outline-primary btn-sm">Clear Filters</a>
+                    </div>
+                <?php else: ?>
+                    
+                    <!-- Mobile Card View -->
+                    <div class="mobile-cards">
+                        <?php foreach ($payments as $payment): ?>
+                            <?php
+                            $status_class = $payment['status'];
+                            $method_icon = match($payment['payment_method']) {
+                                'bank_transfer' => 'fa-university',
+                                'cash' => 'fa-money-bill',
+                                'card' => 'fa-credit-card',
+                                default => 'fa-wallet'
+                            };
+                            $date = $payment['payment_date'] ?? $payment['created_at'];
+                            ?>
+                            <div class="payment-card status-<?php echo $status_class; ?>" 
+                                 data-payment='<?php echo htmlspecialchars(json_encode($payment), ENT_QUOTES); ?>'
+                                 onclick="showPaymentDetail(this)">
+                                
+                                <div class="payment-card-header">
+                                    <div class="donor-info">
+                                        <div class="donor-name"><?php echo htmlspecialchars($payment['donor_name'] ?? 'Unknown'); ?></div>
+                                        <div class="donor-phone">
+                                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($payment['donor_phone'] ?? '-'); ?>
+                                        </div>
+                                    </div>
+                                    <div class="amount-display">
+                                        <div class="amount-value">£<?php echo number_format((float)$payment['amount'], 2); ?></div>
+                                        <?php if (!empty($payment['pledge_amount'])): ?>
+                                            <div class="amount-pledge">of £<?php echo number_format((float)$payment['pledge_amount'], 0); ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                
+                                <div class="payment-card-body">
+                                    <div class="payment-meta">
+                                        <div class="meta-item">
+                                            <span class="meta-label">Method</span>
+                                            <span class="method-badge">
+                                                <i class="fas <?php echo $method_icon; ?>"></i>
+                                                <?php echo ucwords(str_replace('_', ' ', $payment['payment_method'] ?? 'Unknown')); ?>
+                                            </span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="meta-label">Date</span>
+                                            <span class="meta-value"><?php echo $date ? date('d M Y', strtotime($date)) : '-'; ?></span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="meta-label">Status</span>
+                                            <span class="status-pill <?php echo $status_class; ?>">
+                                                <?php if ($status_class === 'confirmed'): ?><i class="fas fa-check"></i><?php endif; ?>
+                                                <?php if ($status_class === 'pending'): ?><i class="fas fa-clock"></i><?php endif; ?>
+                                                <?php if ($status_class === 'voided'): ?><i class="fas fa-ban"></i><?php endif; ?>
+                                                <?php echo ucfirst($payment['status']); ?>
+                                            </span>
+                                            <?php if ($payment['status'] === 'confirmed' && !empty($payment['approved_by_name'])): ?>
+                                                <div class="approved-by">by <?php echo htmlspecialchars($payment['approved_by_name']); ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="meta-label">Plan</span>
+                                            <?php if ($has_plan_col && !empty($payment['plan_id'])): ?>
+                                                <span class="plan-indicator">
+                                                    <i class="fas fa-calendar-check"></i>
+                                                    <?php echo (int)$payment['plan_payments_made']; ?>/<?php echo (int)$payment['plan_total_payments']; ?>
+                                                </span>
+                                            <?php elseif (!empty($payment['has_active_plan'])): ?>
+                                                <span class="plan-indicator">
+                                                    <i class="fas fa-calendar"></i> Active
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="meta-value text-muted">-</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="payment-card-footer">
+                                    <div>
+                                        <?php if (!empty($payment['reference_number'])): ?>
+                                            <code class="small text-muted"><?php echo htmlspecialchars(substr($payment['reference_number'], 0, 20)); ?></code>
+                                        <?php else: ?>
+                                            <span class="text-muted small">No reference</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <?php if (!empty($payment['payment_proof'])): ?>
+                                            <button type="button" class="action-btn proof" 
+                                                    onclick="event.stopPropagation(); viewProof('../../<?php echo htmlspecialchars($payment['payment_proof']); ?>')"
+                                                    title="View Proof">
+                                                <i class="fas fa-image"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                        <?php if ($payment['status'] === 'pending' && $is_admin): ?>
+                                            <a href="../donations/review-pledge-payments.php?filter=pending" 
+                                               class="action-btn pending-action"
+                                               onclick="event.stopPropagation();"
+                                               title="Review">
+                                                <i class="fas fa-clock"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                        <a href="view-donor.php?id=<?php echo (int)$payment['donor_id']; ?>" 
+                                           class="action-btn view"
+                                           onclick="event.stopPropagation();"
+                                           title="View Donor">
+                                            <i class="fas fa-user"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                     
-                    <?php if (!empty($payments)): ?>
-                        <div class="card-footer bg-white border-top">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                <span class="text-muted small">
-                                    Showing <?php echo count($payments); ?> payment<?php echo count($payments) !== 1 ? 's' : ''; ?>
-                                </span>
-                                <div class="small text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Click on a row to view payment details
+                    <!-- Desktop Table View -->
+                    <div class="desktop-table">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="payments-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Donor</th>
+                                                <th>Amount</th>
+                                                <th>Method</th>
+                                                <th>Date</th>
+                                                <th>Status</th>
+                                                <th>Plan</th>
+                                                <th>Reference</th>
+                                                <th class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($payments as $payment): ?>
+                                                <?php
+                                                $status_class = $payment['status'];
+                                                $method_icon = match($payment['payment_method']) {
+                                                    'bank_transfer' => 'fa-university',
+                                                    'cash' => 'fa-money-bill',
+                                                    'card' => 'fa-credit-card',
+                                                    default => 'fa-wallet'
+                                                };
+                                                $date = $payment['payment_date'] ?? $payment['created_at'];
+                                                ?>
+                                                <tr data-payment='<?php echo htmlspecialchars(json_encode($payment), ENT_QUOTES); ?>'
+                                                    onclick="showPaymentDetail(this)">
+                                                    <td class="donor-cell">
+                                                        <div class="donor-name"><?php echo htmlspecialchars($payment['donor_name'] ?? 'Unknown'); ?></div>
+                                                        <div class="donor-phone small">
+                                                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($payment['donor_phone'] ?? '-'); ?>
+                                                        </div>
+                                                    </td>
+                                                    <td class="amount-cell">
+                                                        £<?php echo number_format((float)$payment['amount'], 2); ?>
+                                                        <?php if (!empty($payment['pledge_amount'])): ?>
+                                                            <div class="small text-muted">of £<?php echo number_format((float)$payment['pledge_amount'], 0); ?></div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <span class="method-badge">
+                                                            <i class="fas <?php echo $method_icon; ?>"></i>
+                                                            <?php echo ucwords(str_replace('_', ' ', $payment['payment_method'] ?? '')); ?>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <?php echo $date ? date('d M Y', strtotime($date)) : '-'; ?>
+                                                        <div class="small text-muted"><?php echo $date ? date('H:i', strtotime($date)) : ''; ?></div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="status-pill <?php echo $status_class; ?>">
+                                                            <?php echo ucfirst($payment['status']); ?>
+                                                        </span>
+                                                        <?php if ($payment['status'] === 'confirmed' && !empty($payment['approved_by_name'])): ?>
+                                                            <div class="approved-by">by <?php echo htmlspecialchars($payment['approved_by_name']); ?></div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if ($has_plan_col && !empty($payment['plan_id'])): ?>
+                                                            <span class="plan-indicator">
+                                                                <i class="fas fa-calendar-check"></i>
+                                                                <?php echo (int)$payment['plan_payments_made']; ?>/<?php echo (int)$payment['plan_total_payments']; ?>
+                                                            </span>
+                                                        <?php elseif (!empty($payment['has_active_plan'])): ?>
+                                                            <span class="plan-indicator">Has Plan</span>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">-</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (!empty($payment['reference_number'])): ?>
+                                                            <code class="small"><?php echo htmlspecialchars(substr($payment['reference_number'], 0, 15)); ?></code>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">-</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <div class="d-flex gap-1 justify-content-end">
+                                                            <?php if (!empty($payment['payment_proof'])): ?>
+                                                                <button type="button" class="action-btn proof" 
+                                                                        onclick="event.stopPropagation(); viewProof('../../<?php echo htmlspecialchars($payment['payment_proof']); ?>')"
+                                                                        title="View Proof">
+                                                                    <i class="fas fa-image"></i>
+                                                                </button>
+                                                            <?php endif; ?>
+                                                            <?php if ($payment['status'] === 'pending' && $is_admin): ?>
+                                                                <a href="../donations/review-pledge-payments.php?filter=pending" 
+                                                                   class="action-btn pending-action"
+                                                                   onclick="event.stopPropagation();"
+                                                                   title="Review">
+                                                                    <i class="fas fa-clock"></i>
+                                                                </a>
+                                                            <?php endif; ?>
+                                                            <a href="view-donor.php?id=<?php echo (int)$payment['donor_id']; ?>" 
+                                                               class="action-btn view"
+                                                               onclick="event.stopPropagation();"
+                                                               title="View Donor">
+                                                                <i class="fas fa-user"></i>
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
-                    <?php endif; ?>
-                </div>
+                    </div>
+                    
+                    <!-- Results Count -->
+                    <div class="text-center text-muted small mt-3 mb-4">
+                        Showing <?php echo count($payments); ?> payment<?php echo count($payments) !== 1 ? 's' : ''; ?>
+                        • Tap a payment for details
+                    </div>
+                    
+                <?php endif; ?>
             </div>
         </main>
     </div>
@@ -597,111 +971,100 @@ if (empty($error_message)) {
 
 <!-- Payment Detail Modal -->
 <div class="modal fade" id="paymentDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
+            <div class="modal-header bg-success text-white py-3">
                 <div>
-                    <h5 class="modal-title mb-1">
+                    <h6 class="modal-title mb-0">
                         <i class="fas fa-receipt me-2"></i>Payment Details
-                    </h5>
+                    </h6>
                     <small class="text-white-50">Payment #<span id="modal_payment_id">-</span></small>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="row g-4">
-                    <!-- Payment Info -->
-                    <div class="col-md-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0 small"><i class="fas fa-pound-sign me-2 text-success"></i>Payment Information</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1">Amount</small>
-                                        <h4 class="text-success mb-0" id="modal_amount">£0.00</h4>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1">Status</small>
-                                        <span id="modal_status" class="badge">-</span>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1">Method</small>
-                                        <strong id="modal_method">-</strong>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1">Date</small>
-                                        <strong id="modal_date">-</strong>
-                                    </div>
-                                    <div class="col-12">
-                                        <small class="text-muted d-block mb-1">Reference</small>
-                                        <code id="modal_reference">-</code>
-                                    </div>
-                                    <div class="col-12" id="modal_notes_section" style="display: none;">
-                                        <small class="text-muted d-block mb-1">Notes</small>
-                                        <p id="modal_notes" class="mb-0 small">-</p>
-                                    </div>
-                                </div>
-                            </div>
+                <!-- Amount Highlight -->
+                <div class="text-center mb-4 py-3" style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 12px;">
+                    <div class="text-success small text-uppercase fw-bold mb-1">Payment Amount</div>
+                    <h2 class="text-success mb-0" id="modal_amount">£0.00</h2>
+                </div>
+                
+                <div class="row g-3">
+                    <!-- Status & Method -->
+                    <div class="col-6">
+                        <div class="p-3 rounded" style="background: #f9fafb;">
+                            <small class="text-muted d-block mb-1">Status</small>
+                            <span id="modal_status" class="status-pill">-</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded" style="background: #f9fafb;">
+                            <small class="text-muted d-block mb-1">Method</small>
+                            <strong id="modal_method">-</strong>
                         </div>
                     </div>
                     
-                    <!-- Donor Info -->
-                    <div class="col-md-6">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0 small"><i class="fas fa-user me-2 text-primary"></i>Donor Information</h6>
+                    <!-- Date & Reference -->
+                    <div class="col-6">
+                        <div class="p-3 rounded" style="background: #f9fafb;">
+                            <small class="text-muted d-block mb-1">Date</small>
+                            <strong id="modal_date">-</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded" style="background: #f9fafb;">
+                            <small class="text-muted d-block mb-1">Reference</small>
+                            <code id="modal_reference" class="small">-</code>
+                        </div>
+                    </div>
+                    
+                    <!-- Donor Info Section -->
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-primary bg-opacity-10 py-2">
+                                <h6 class="mb-0 small text-primary"><i class="fas fa-user me-2"></i>Donor</h6>
                             </div>
-                            <div class="card-body">
-                                <div class="row g-3">
+                            <div class="card-body py-3">
+                                <div class="row g-2">
                                     <div class="col-12">
-                                        <small class="text-muted d-block mb-1">Name</small>
-                                        <strong id="modal_donor_name">-</strong>
+                                        <strong id="modal_donor_name" class="d-block">-</strong>
+                                        <small id="modal_donor_phone" class="text-muted">-</small>
                                     </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1">Phone</small>
-                                        <strong id="modal_donor_phone">-</strong>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1">Pledge</small>
+                                    <div class="col-4 text-center">
+                                        <small class="text-muted d-block">Pledge</small>
                                         <strong id="modal_pledge_amount">-</strong>
                                     </div>
-                                    <div class="col-4">
-                                        <small class="text-muted d-block mb-1">Total Paid</small>
-                                        <strong class="text-success" id="modal_total_paid">£0.00</strong>
+                                    <div class="col-4 text-center">
+                                        <small class="text-muted d-block">Paid</small>
+                                        <strong class="text-success" id="modal_total_paid">£0</strong>
                                     </div>
-                                    <div class="col-4">
-                                        <small class="text-muted d-block mb-1">Balance</small>
-                                        <strong class="text-danger" id="modal_balance">£0.00</strong>
-                                    </div>
-                                    <div class="col-4">
-                                        <small class="text-muted d-block mb-1">Status</small>
-                                        <span id="modal_donor_status" class="badge">-</span>
+                                    <div class="col-4 text-center">
+                                        <small class="text-muted d-block">Balance</small>
+                                        <strong class="text-danger" id="modal_balance">£0</strong>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Payment Plan Info (if applicable) -->
+                    <!-- Plan Info (if applicable) -->
                     <div class="col-12" id="modal_plan_section" style="display: none;">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0 small"><i class="fas fa-calendar-alt me-2 text-info"></i>Payment Plan</h6>
+                            <div class="card-header bg-info bg-opacity-10 py-2">
+                                <h6 class="mb-0 small text-info"><i class="fas fa-calendar-alt me-2"></i>Payment Plan</h6>
                             </div>
-                            <div class="card-body">
-                                <div class="row g-3">
+                            <div class="card-body py-3">
+                                <div class="row g-2 text-center">
                                     <div class="col-4">
-                                        <small class="text-muted d-block mb-1">Progress</small>
+                                        <small class="text-muted d-block">Progress</small>
                                         <strong id="modal_plan_progress">-</strong>
                                     </div>
                                     <div class="col-4">
-                                        <small class="text-muted d-block mb-1">Monthly Amount</small>
+                                        <small class="text-muted d-block">Amount</small>
                                         <strong id="modal_plan_amount">-</strong>
                                     </div>
                                     <div class="col-4">
-                                        <small class="text-muted d-block mb-1">Plan Status</small>
+                                        <small class="text-muted d-block">Status</small>
                                         <span id="modal_plan_status" class="badge">-</span>
                                     </div>
                                 </div>
@@ -712,35 +1075,20 @@ if (empty($error_message)) {
                     <!-- Proof Image -->
                     <div class="col-12" id="modal_proof_section" style="display: none;">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0 small"><i class="fas fa-image me-2 text-secondary"></i>Payment Proof</h6>
+                            <div class="card-header bg-secondary bg-opacity-10 py-2">
+                                <h6 class="mb-0 small text-secondary"><i class="fas fa-image me-2"></i>Payment Proof</h6>
                             </div>
-                            <div class="card-body text-center">
-                                <img id="modal_proof_image" src="" alt="Payment Proof" class="img-fluid rounded" style="max-height: 300px;">
+                            <div class="card-body text-center py-3">
+                                <img id="modal_proof_image" src="" alt="Proof" class="img-fluid rounded" style="max-height: 200px; cursor: pointer;" onclick="viewProof(this.src)">
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Processing Info -->
-                    <div class="col-12" id="modal_processing_section" style="display: none;">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0 small"><i class="fas fa-history me-2 text-secondary"></i>Processing History</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-6" id="modal_approved_section" style="display: none;">
-                                        <small class="text-muted d-block mb-1">Approved By</small>
-                                        <strong id="modal_approved_by">-</strong>
-                                        <div class="small text-muted" id="modal_approved_at">-</div>
-                                    </div>
-                                    <div class="col-6" id="modal_voided_section" style="display: none;">
-                                        <small class="text-muted d-block mb-1">Voided By</small>
-                                        <strong id="modal_voided_by">-</strong>
-                                        <div class="small text-muted" id="modal_voided_at">-</div>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- Notes -->
+                    <div class="col-12" id="modal_notes_section" style="display: none;">
+                        <div class="p-3 rounded" style="background: #fef3c7;">
+                            <small class="text-muted d-block mb-1"><i class="fas fa-sticky-note me-1"></i>Notes</small>
+                            <p id="modal_notes" class="mb-0 small">-</p>
                         </div>
                     </div>
                 </div>
@@ -759,8 +1107,8 @@ if (empty($error_message)) {
 <div class="modal fade" id="proofModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-image me-2"></i>Payment Proof</h5>
+            <div class="modal-header py-2">
+                <h6 class="modal-title"><i class="fas fa-image me-2"></i>Payment Proof</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center p-0">
@@ -771,142 +1119,87 @@ if (empty($error_message)) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="../assets/admin.js"></script>
 
 <script>
-$(document).ready(function() {
-    // Initialize DataTable
-    const table = $('#paymentsTable').DataTable({
-        order: [[4, 'desc']], // Order by date
-        pageLength: 25,
-        lengthMenu: [[25, 50, 100, -1], [25, 50, 100, "All"]],
-        language: {
-            search: "Search:",
-            lengthMenu: "Show _MENU_ per page"
-        },
-        columnDefs: [
-            { orderable: false, targets: [8] } // Disable sorting on actions column
-        ]
-    });
+// View proof image
+function viewProof(url) {
+    document.getElementById('proofImage').src = url;
+    new bootstrap.Modal(document.getElementById('proofModal')).show();
+}
+
+// Show payment detail modal
+function showPaymentDetail(element) {
+    const payment = JSON.parse(element.dataset.payment);
     
-    // View proof button
-    $(document).on('click', '.btn-view-proof', function(e) {
-        e.stopPropagation();
-        const proofUrl = $(this).data('proof');
-        $('#proofImage').attr('src', proofUrl);
-        new bootstrap.Modal('#proofModal').show();
-    });
+    // Basic info
+    document.getElementById('modal_payment_id').textContent = payment.id;
+    document.getElementById('modal_amount').textContent = '£' + parseFloat(payment.amount).toFixed(2);
     
-    // Click on row to show details
-    $(document).on('click', '.payment-row', function() {
-        const payment = JSON.parse($(this).attr('data-payment'));
+    // Status
+    const statusEl = document.getElementById('modal_status');
+    statusEl.className = 'status-pill ' + payment.status;
+    statusEl.textContent = payment.status.charAt(0).toUpperCase() + payment.status.slice(1);
+    
+    // Method
+    const methodText = (payment.payment_method || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    document.getElementById('modal_method').textContent = methodText;
+    
+    // Date
+    const date = payment.payment_date || payment.created_at;
+    document.getElementById('modal_date').textContent = date ? new Date(date).toLocaleDateString('en-GB') : '-';
+    
+    // Reference
+    document.getElementById('modal_reference').textContent = payment.reference_number || '-';
+    
+    // Notes
+    if (payment.notes && payment.notes.trim()) {
+        document.getElementById('modal_notes').textContent = payment.notes;
+        document.getElementById('modal_notes_section').style.display = 'block';
+    } else {
+        document.getElementById('modal_notes_section').style.display = 'none';
+    }
+    
+    // Donor info
+    document.getElementById('modal_donor_name').textContent = payment.donor_name || 'Unknown';
+    document.getElementById('modal_donor_phone').textContent = payment.donor_phone || '-';
+    document.getElementById('modal_pledge_amount').textContent = payment.pledge_amount ? '£' + parseFloat(payment.pledge_amount).toFixed(0) : '-';
+    document.getElementById('modal_total_paid').textContent = '£' + parseFloat(payment.total_paid || 0).toFixed(0);
+    document.getElementById('modal_balance').textContent = '£' + parseFloat(payment.balance || 0).toFixed(0);
+    
+    // Payment plan
+    if (payment.plan_id) {
+        document.getElementById('modal_plan_progress').textContent = (payment.plan_payments_made || 0) + ' / ' + (payment.plan_total_payments || 0);
+        document.getElementById('modal_plan_amount').textContent = '£' + parseFloat(payment.plan_monthly_amount || 0).toFixed(2);
         
-        // Basic payment info
-        $('#modal_payment_id').text(payment.id);
-        $('#modal_amount').text('£' + parseFloat(payment.amount).toFixed(2));
+        const planStatusEl = document.getElementById('modal_plan_status');
+        const planStatusClass = {
+            'active': 'bg-success',
+            'completed': 'bg-primary',
+            'paused': 'bg-warning'
+        }[payment.plan_status] || 'bg-secondary';
+        planStatusEl.className = 'badge ' + planStatusClass;
+        planStatusEl.textContent = (payment.plan_status || 'Unknown').charAt(0).toUpperCase() + (payment.plan_status || '').slice(1);
         
-        // Status badge
-        const statusClass = {
-            'confirmed': 'bg-success',
-            'pending': 'bg-warning',
-            'voided': 'bg-danger'
-        }[payment.status] || 'bg-secondary';
-        $('#modal_status').removeClass().addClass('badge ' + statusClass).text(payment.status.charAt(0).toUpperCase() + payment.status.slice(1));
-        
-        // Method
-        const methodText = (payment.payment_method || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        $('#modal_method').text(methodText);
-        
-        // Date
-        const date = payment.payment_date || payment.created_at;
-        $('#modal_date').text(date ? new Date(date).toLocaleString('en-GB') : '-');
-        
-        // Reference
-        $('#modal_reference').text(payment.reference_number || '-');
-        
-        // Notes
-        if (payment.notes && payment.notes.trim()) {
-            $('#modal_notes').text(payment.notes);
-            $('#modal_notes_section').show();
-        } else {
-            $('#modal_notes_section').hide();
-        }
-        
-        // Donor info
-        $('#modal_donor_name').text(payment.donor_name || 'Unknown');
-        $('#modal_donor_phone').text(payment.donor_phone || '-');
-        $('#modal_pledge_amount').text(payment.pledge_amount ? '£' + parseFloat(payment.pledge_amount).toFixed(2) : '-');
-        $('#modal_total_paid').text('£' + parseFloat(payment.total_paid || 0).toFixed(2));
-        $('#modal_balance').text('£' + parseFloat(payment.balance || 0).toFixed(2));
-        
-        // Donor status
-        const donorStatusClass = {
-            'completed': 'bg-success',
-            'paying': 'bg-primary',
-            'overdue': 'bg-danger',
-            'not_started': 'bg-warning'
-        }[payment.donor_payment_status] || 'bg-secondary';
-        const donorStatusText = (payment.donor_payment_status || 'no_pledge').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        $('#modal_donor_status').removeClass().addClass('badge ' + donorStatusClass).text(donorStatusText);
-        
-        // Payment plan
-        if (payment.plan_id) {
-            $('#modal_plan_progress').text((payment.plan_payments_made || 0) + ' / ' + (payment.plan_total_payments || 0));
-            $('#modal_plan_amount').text('£' + parseFloat(payment.plan_monthly_amount || 0).toFixed(2));
-            
-            const planStatusClass = {
-                'active': 'bg-success',
-                'completed': 'bg-primary',
-                'paused': 'bg-warning'
-            }[payment.plan_status] || 'bg-secondary';
-            $('#modal_plan_status').removeClass().addClass('badge ' + planStatusClass).text((payment.plan_status || 'Unknown').charAt(0).toUpperCase() + (payment.plan_status || '').slice(1));
-            
-            $('#modal_plan_section').show();
-        } else {
-            $('#modal_plan_section').hide();
-        }
-        
-        // Proof image
-        if (payment.payment_proof) {
-            $('#modal_proof_image').attr('src', '../../' + payment.payment_proof);
-            $('#modal_proof_section').show();
-        } else {
-            $('#modal_proof_section').hide();
-        }
-        
-        // Processing history
-        let showProcessing = false;
-        
-        if (payment.approved_by_name) {
-            $('#modal_approved_by').text(payment.approved_by_name);
-            $('#modal_approved_at').text(payment.approved_at ? new Date(payment.approved_at).toLocaleString('en-GB') : '-');
-            $('#modal_approved_section').show();
-            showProcessing = true;
-        } else {
-            $('#modal_approved_section').hide();
-        }
-        
-        if (payment.voided_by_name) {
-            $('#modal_voided_by').text(payment.voided_by_name);
-            $('#modal_voided_at').text(payment.voided_at ? new Date(payment.voided_at).toLocaleString('en-GB') : '-');
-            $('#modal_voided_section').show();
-            showProcessing = true;
-        } else {
-            $('#modal_voided_section').hide();
-        }
-        
-        $('#modal_processing_section').toggle(showProcessing);
-        
-        // View donor button
-        $('#modal_view_donor_btn').attr('href', 'view-donor.php?id=' + payment.donor_id);
-        
-        // Show modal
-        new bootstrap.Modal('#paymentDetailModal').show();
-    });
-});
+        document.getElementById('modal_plan_section').style.display = 'block';
+    } else {
+        document.getElementById('modal_plan_section').style.display = 'none';
+    }
+    
+    // Proof image
+    if (payment.payment_proof) {
+        document.getElementById('modal_proof_image').src = '../../' + payment.payment_proof;
+        document.getElementById('modal_proof_section').style.display = 'block';
+    } else {
+        document.getElementById('modal_proof_section').style.display = 'none';
+    }
+    
+    // View donor button
+    document.getElementById('modal_view_donor_btn').href = 'view-donor.php?id=' + payment.donor_id;
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('paymentDetailModal')).show();
+}
 
 // Fallback for sidebar toggle
 if (typeof window.toggleSidebar !== 'function') {
@@ -926,4 +1219,3 @@ if (typeof window.toggleSidebar !== 'function') {
 </script>
 </body>
 </html>
-
