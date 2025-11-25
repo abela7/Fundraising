@@ -707,7 +707,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             </div>
                             
                                 <div class="mb-3">
-                                <label class="form-label">Payment Proof <span class="text-danger">*</span></label>
+                                <label class="form-label">Payment Proof</label>
                                 <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
                                 <div class="form-text">Upload your bank transfer receipt for faster approval.</div>
                                 </div>
