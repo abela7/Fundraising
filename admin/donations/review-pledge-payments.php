@@ -366,22 +366,78 @@ function build_url($params) {
         
         /* Processing Info */
         .processing-info {
-            background: #fafafa;
-            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            padding: 0.625rem 0.875rem;
             font-size: 0.75rem;
             color: #64748b;
             border-top: 1px solid #f1f5f9;
         }
         .processing-info .info-row {
             display: flex;
-            align-items: center;
-            gap: 0.375rem;
-            margin-bottom: 0.25rem;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.375rem 0;
+            border-bottom: 1px dashed #e2e8f0;
         }
-        .processing-info .info-row:last-child { margin-bottom: 0; }
-        .processing-info .info-row i { width: 14px; text-align: center; }
-        .processing-info .text-success { color: var(--color-approved) !important; }
-        .processing-info .text-danger { color: var(--color-rejected) !important; }
+        .processing-info .info-row:last-child { 
+            margin-bottom: 0; 
+            border-bottom: none;
+        }
+        .processing-info .info-row i { 
+            width: 18px; 
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.625rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .processing-info .info-row i.fa-user-plus {
+            background: #e0e7ff;
+            color: #4f46e5;
+        }
+        .processing-info .info-row i.fa-check-circle {
+            background: #d1fae5;
+            color: #059669;
+        }
+        .processing-info .info-row i.fa-times-circle {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .processing-info .info-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .processing-info .info-action {
+            font-weight: 500;
+            color: #334155;
+        }
+        .processing-info .info-user {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .processing-info .info-time {
+            display: block;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .processing-info .text-success .info-action { color: var(--color-approved); }
+        .processing-info .text-danger .info-action { color: var(--color-rejected); }
+        
+        @media (min-width: 576px) {
+            .processing-info .info-time {
+                display: inline;
+                margin-top: 0;
+                margin-left: 0.25rem;
+            }
+            .processing-info .info-time::before {
+                content: "•";
+                margin-right: 0.25rem;
+            }
+        }
         
         /* Action Buttons */
         .card-actions {
@@ -858,26 +914,35 @@ function build_url($params) {
                                 <!-- Processing Info -->
                                 <div class="processing-info">
                                     <div class="info-row">
-                                        <i class="fas fa-user-plus text-muted"></i>
-                                        <span>Submitted by <strong><?php echo htmlspecialchars($p['processed_by_name'] ?? 'System'); ?></strong></span>
-                                        <span class="text-muted ms-1">• <?php echo date('d M Y, H:i', strtotime($p['created_at'])); ?></span>
+                                        <i class="fas fa-user-plus"></i>
+                                        <div class="info-content">
+                                            <span class="info-action">Submitted by</span>
+                                            <span class="info-user"><?php echo htmlspecialchars($p['processed_by_name'] ?? 'System'); ?></span>
+                                            <span class="info-time"><?php echo date('d M Y, H:i', strtotime($p['created_at'])); ?></span>
+                                        </div>
                                     </div>
                                     <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
                                         <div class="info-row text-success">
                                             <i class="fas fa-check-circle"></i>
-                                            <span>Approved by <strong><?php echo htmlspecialchars($p['approved_by_name']); ?></strong></span>
-                                            <?php if ($p['approved_at']): ?>
-                                                <span class="text-muted ms-1">• <?php echo date('d M Y, H:i', strtotime($p['approved_at'])); ?></span>
-                                            <?php endif; ?>
+                                            <div class="info-content">
+                                                <span class="info-action">Approved by</span>
+                                                <span class="info-user"><?php echo htmlspecialchars($p['approved_by_name']); ?></span>
+                                                <?php if ($p['approved_at']): ?>
+                                                    <span class="info-time"><?php echo date('d M Y, H:i', strtotime($p['approved_at'])); ?></span>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                     <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
                                         <div class="info-row text-danger">
                                             <i class="fas fa-times-circle"></i>
-                                            <span>Rejected by <strong><?php echo htmlspecialchars($p['voided_by_name']); ?></strong></span>
-                                            <?php if ($p['voided_at']): ?>
-                                                <span class="text-muted ms-1">• <?php echo date('d M Y, H:i', strtotime($p['voided_at'])); ?></span>
-                                            <?php endif; ?>
+                                            <div class="info-content">
+                                                <span class="info-action">Rejected by</span>
+                                                <span class="info-user"><?php echo htmlspecialchars($p['voided_by_name']); ?></span>
+                                                <?php if ($p['voided_at']): ?>
+                                                    <span class="info-time"><?php echo date('d M Y, H:i', strtotime($p['voided_at'])); ?></span>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 </div>
