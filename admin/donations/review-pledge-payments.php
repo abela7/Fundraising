@@ -92,515 +92,679 @@ $stats = [
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        :root {
-            --pending-color: #f59e0b;
-            --approved-color: #10b981;
-            --rejected-color: #ef4444;
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* ========== Page Layout ========== */
+        .review-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         }
         
-        /* Page Header */
-        .page-header {
-            background: var(--primary-gradient);
-            border-radius: 16px;
-            padding: 1.25rem 1.5rem;
-            margin-bottom: 1.5rem;
-            color: white;
+        .review-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
         }
-        .page-header h1 {
+        
+        /* ========== Page Title ========== */
+        .page-title-bar {
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+            color: white;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+        }
+        
+        .page-title-bar h1 {
             font-size: 1.25rem;
             font-weight: 700;
             margin: 0;
         }
-        .page-header .btn {
+        
+        .page-title-bar .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border-radius: 8px;
             background: rgba(255,255,255,0.2);
             border: 1px solid rgba(255,255,255,0.3);
             color: white;
-            backdrop-filter: blur(10px);
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
+            transition: all 0.2s;
         }
-        .page-header .btn:hover {
+        
+        .page-title-bar .btn:hover {
             background: rgba(255,255,255,0.3);
             color: white;
         }
         
-        /* Stats Cards - Compact */
+        /* ========== Stats Cards ========== */
         .stats-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 0.75rem;
             margin-bottom: 1rem;
         }
+        
         .stat-card {
             background: white;
             border-radius: 12px;
             padding: 1rem;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            border: 1px solid #f0f0f0;
-            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        
+        .stat-card:active {
+            transform: scale(0.98);
         }
-        .stat-card.pending { border-top: 3px solid var(--pending-color); }
-        .stat-card.approved { border-top: 3px solid var(--approved-color); }
-        .stat-card.rejected { border-top: 3px solid var(--rejected-color); }
+        
+        .stat-card.pending { border-left-color: #ffc107; }
+        .stat-card.approved { border-left-color: #198754; }
+        .stat-card.rejected { border-left-color: #dc3545; }
+        
         .stat-card .stat-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 0.5rem;
-            font-size: 1rem;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
         }
-        .stat-card.pending .stat-icon { background: #fef3c7; color: var(--pending-color); }
-        .stat-card.approved .stat-icon { background: #d1fae5; color: var(--approved-color); }
-        .stat-card.rejected .stat-icon { background: #fee2e2; color: var(--rejected-color); }
+        
+        .stat-card.pending .stat-icon { background: rgba(255, 193, 7, 0.15); color: #ffc107; }
+        .stat-card.approved .stat-icon { background: rgba(25, 135, 84, 0.15); color: #198754; }
+        .stat-card.rejected .stat-icon { background: rgba(220, 53, 69, 0.15); color: #dc3545; }
+        
         .stat-card .stat-value {
             font-size: 1.5rem;
             font-weight: 700;
             line-height: 1;
             margin-bottom: 0.25rem;
         }
-        .stat-card.pending .stat-value { color: var(--pending-color); }
-        .stat-card.approved .stat-value { color: var(--approved-color); }
-        .stat-card.rejected .stat-value { color: var(--rejected-color); }
+        
+        .stat-card.pending .stat-value { color: #ffc107; }
+        .stat-card.approved .stat-value { color: #198754; }
+        .stat-card.rejected .stat-value { color: #dc3545; }
+        
         .stat-card .stat-label {
             font-size: 0.7rem;
-            color: #6b7280;
+            color: #6c757d;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 600;
         }
         
-        /* Filter Tabs - Horizontal Scroll on Mobile */
+        /* ========== Filter Tabs ========== */
         .filter-tabs {
             display: flex;
             gap: 0.5rem;
             overflow-x: auto;
             padding-bottom: 0.5rem;
             margin-bottom: 1rem;
+            -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            -ms-overflow-style: none;
         }
+        
         .filter-tabs::-webkit-scrollbar { display: none; }
+        
         .filter-tab {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 0.5rem;
             padding: 0.625rem 1rem;
-            border-radius: 50px;
-            font-size: 0.8rem;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+            font-size: 0.8125rem;
             font-weight: 600;
+            color: #495057;
             text-decoration: none;
             white-space: nowrap;
-            transition: all 0.2s ease;
-            background: #f3f4f6;
-            color: #6b7280;
-            border: 1px solid transparent;
+            transition: all 0.2s;
+            flex-shrink: 0;
         }
+        
         .filter-tab:hover {
-            background: #e5e7eb;
-            color: #374151;
+            background: #f8f9fa;
+            color: #212529;
         }
+        
         .filter-tab.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-        .filter-tab .badge {
-            font-size: 0.7rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 20px;
-            font-weight: 700;
-        }
-        .filter-tab.active .badge {
-            background: rgba(255,255,255,0.25);
+            background: #0d6efd;
+            border-color: #0d6efd;
             color: white;
         }
         
-        /* Payment Cards */
+        .filter-tab .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 10px;
+        }
+        
+        .filter-tab.active .badge {
+            background: rgba(255,255,255,0.25) !important;
+            color: white !important;
+        }
+        
+        /* ========== Payment Cards ========== */
+        .payment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
         .payment-card {
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            border: 1px solid #f0f0f0;
-            margin-bottom: 0.75rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             overflow: hidden;
-            transition: all 0.2s ease;
-        }
-        .payment-card:hover {
-            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-        }
-        .payment-card.pending-card { border-left: 4px solid var(--pending-color); }
-        .payment-card.approved-card { border-left: 4px solid var(--approved-color); }
-        .payment-card.rejected-card { border-left: 4px solid var(--rejected-color); }
-        
-        .payment-card-body {
-            padding: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         
-        /* Payment Header */
-        .payment-header {
+        .payment-card:active {
+            transform: scale(0.995);
+        }
+        
+        .payment-card.pending-card { border-left: 4px solid #ffc107; }
+        .payment-card.approved-card { border-left: 4px solid #198754; }
+        .payment-card.rejected-card { border-left: 4px solid #dc3545; }
+        
+        .payment-card-header {
             display: flex;
             align-items: flex-start;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
         }
-        .proof-thumbnail {
-            width: 48px;
-            height: 48px;
-            min-width: 48px;
-            object-fit: cover;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: transform 0.2s;
-            border: 2px solid #f0f0f0;
-        }
-        .proof-thumbnail:hover {
-            transform: scale(1.05);
-        }
-        .proof-placeholder {
-            width: 48px;
-            height: 48px;
-            min-width: 48px;
-            border-radius: 10px;
-            background: #f9fafb;
-            border: 2px dashed #e5e7eb;
+        
+        .donor-info {
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: #9ca3af;
-        }
-        .donor-info {
+            gap: 0.75rem;
             flex: 1;
             min-width: 0;
         }
-        .donor-name {
-            font-size: 0.95rem;
+        
+        .donor-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
             font-weight: 700;
-            color: #1f2937;
+            flex-shrink: 0;
+        }
+        
+        .donor-details {
+            min-width: 0;
+            flex: 1;
+        }
+        
+        .donor-name {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: #212529;
             margin: 0 0 0.125rem 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        
         .donor-phone {
-            font-size: 0.8rem;
-            color: #6b7280;
+            font-size: 0.75rem;
+            color: #6c757d;
             margin: 0;
         }
-        .payment-status-badge {
-            padding: 0.35rem 0.75rem;
-            border-radius: 50px;
-            font-size: 0.7rem;
+        
+        .status-badge {
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.6875rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-        }
-        .payment-status-badge.pending {
-            background: #fef3c7;
-            color: #b45309;
-        }
-        .payment-status-badge.approved {
-            background: #d1fae5;
-            color: #047857;
-        }
-        .payment-status-badge.rejected {
-            background: #fee2e2;
-            color: #b91c1c;
+            white-space: nowrap;
         }
         
-        /* Payment Details Grid */
-        .payment-details {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
+        .status-badge.pending {
+            background: rgba(255, 193, 7, 0.15);
+            color: #997404;
         }
-        .payment-detail {
-            background: #f9fafb;
-            border-radius: 10px;
-            padding: 0.625rem 0.75rem;
+        
+        .status-badge.approved {
+            background: rgba(25, 135, 84, 0.15);
+            color: #146c43;
         }
-        .payment-detail-label {
-            font-size: 0.65rem;
-            color: #9ca3af;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
-            margin-bottom: 0.125rem;
+        
+        .status-badge.rejected {
+            background: rgba(220, 53, 69, 0.15);
+            color: #b02a37;
         }
-        .payment-detail-value {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #1f2937;
+        
+        .payment-card-body {
+            padding: 1rem;
+        }
+        
+        .payment-amount-row {
             display: flex;
             align-items: center;
-            gap: 0.375rem;
+            justify-content: space-between;
+            margin-bottom: 1rem;
         }
-        .payment-detail-value.amount {
-            color: var(--approved-color);
+        
+        .payment-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #198754;
+        }
+        
+        .payment-amount .currency {
             font-size: 1rem;
-            font-weight: 700;
-        }
-        .payment-detail.full-width {
-            grid-column: span 2;
-        }
-        
-        /* Plan Badge */
-        .plan-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-            color: white;
-            padding: 0.35rem 0.75rem;
-            border-radius: 50px;
-            font-size: 0.75rem;
             font-weight: 600;
+            margin-right: 0.125rem;
         }
         
-        /* Notes */
-        .payment-notes {
-            background: #eff6ff;
-            border-left: 3px solid #3b82f6;
-            border-radius: 0 10px 10px 0;
-            padding: 0.625rem 0.875rem;
-            margin-bottom: 0.75rem;
-        }
-        .payment-notes-text {
-            font-size: 0.8rem;
-            color: #1e40af;
-            margin: 0;
+        .proof-thumbnail {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 2px solid #e9ecef;
+            transition: transform 0.2s, border-color 0.2s;
         }
         
-        /* Meta Info */
-        .payment-meta {
-            border-top: 1px solid #f0f0f0;
-            padding-top: 0.75rem;
-            margin-bottom: 0.75rem;
+        .proof-thumbnail:hover {
+            border-color: #0d6efd;
+            transform: scale(1.05);
         }
-        .meta-item {
-            font-size: 0.75rem;
-            color: #6b7280;
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-            margin-bottom: 0.25rem;
-        }
-        .meta-item:last-child { margin-bottom: 0; }
-        .meta-item strong { color: #374151; }
-        .meta-item.approved { color: var(--approved-color); }
-        .meta-item.rejected { color: var(--rejected-color); }
         
-        /* Action Buttons */
-        .payment-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .btn-action {
-            flex: 1;
+        .proof-placeholder {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.375rem;
-            padding: 0.625rem 0.75rem;
-            border-radius: 10px;
-            font-size: 0.8rem;
+            color: #adb5bd;
+            font-size: 1rem;
+        }
+        
+        .pdf-proof {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: rgba(220, 53, 69, 0.1);
+            border: 2px solid rgba(220, 53, 69, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #dc3545;
+            font-size: 1.25rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .pdf-proof:hover {
+            background: rgba(220, 53, 69, 0.2);
+            border-color: #dc3545;
+        }
+        
+        .payment-meta {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+        
+        .meta-label {
+            font-size: 0.6875rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             font-weight: 600;
+        }
+        
+        .meta-value {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #212529;
+        }
+        
+        .meta-value i {
+            margin-right: 0.25rem;
+            opacity: 0.7;
+        }
+        
+        .payment-plan-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.625rem;
+            background: rgba(13, 202, 240, 0.15);
+            color: #087990;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .payment-notes {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.8125rem;
+            color: #495057;
+        }
+        
+        .payment-notes strong {
+            color: #212529;
+        }
+        
+        .payment-card-footer {
+            background: #f8f9fa;
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .audit-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+        
+        .audit-info strong {
+            color: #495057;
+        }
+        
+        .audit-info .success { color: #198754; }
+        .audit-info .danger { color: #dc3545; }
+        
+        .payment-actions {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .payment-actions .btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-approve {
+            background: linear-gradient(135deg, #198754 0%, #146c43 100%);
             border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-action.approve {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
-        }
-        .btn-action.approve:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-        .btn-action.reject {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-        .btn-action.reject:hover {
-            background: #fecaca;
-        }
-        .btn-action.undo {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-        .btn-action.undo:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-        }
-        .btn-action.view {
-            background: #e0e7ff;
-            color: #4338ca;
-        }
-        .btn-action.view:hover {
-            background: #c7d2fe;
+            box-shadow: 0 2px 8px rgba(25, 135, 84, 0.3);
         }
         
-        /* Void Reason */
-        .void-reason {
-            background: #fee2e2;
-            border-radius: 10px;
-            padding: 0.625rem 0.875rem;
-            margin-top: 0.5rem;
-        }
-        .void-reason-text {
-            font-size: 0.8rem;
-            color: #991b1b;
-            margin: 0;
+        .btn-approve:hover {
+            background: linear-gradient(135deg, #146c43 0%, #0f5132 100%);
+            color: white;
         }
         
-        /* Empty State */
+        .btn-reject {
+            background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+            border: none;
+            color: white;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        }
+        
+        .btn-reject:hover {
+            background: linear-gradient(135deg, #b02a37 0%, #9a2530 100%);
+            color: white;
+        }
+        
+        .btn-undo {
+            background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+            border: none;
+            color: white;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        }
+        
+        .btn-undo:hover {
+            background: linear-gradient(135deg, #b02a37 0%, #9a2530 100%);
+            color: white;
+        }
+        
+        .btn-view-donor {
+            background: white;
+            border: 2px solid #0d6efd;
+            color: #0d6efd;
+        }
+        
+        .btn-view-donor:hover {
+            background: #0d6efd;
+            color: white;
+        }
+        
+        /* ========== Empty State ========== */
         .empty-state {
             background: white;
-            border-radius: 16px;
-            padding: 3rem 1.5rem;
+            border-radius: 12px;
+            padding: 3rem 2rem;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
+        
         .empty-state-icon {
             width: 64px;
             height: 64px;
             border-radius: 50%;
-            background: #f3f4f6;
+            background: #f8f9fa;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 1rem;
             font-size: 1.5rem;
-            color: #9ca3af;
+            color: #adb5bd;
         }
+        
         .empty-state h5 {
             font-size: 1rem;
-            color: #374151;
-            margin-bottom: 0.5rem;
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 0.25rem;
         }
+        
         .empty-state p {
             font-size: 0.875rem;
-            color: #6b7280;
+            color: #6c757d;
             margin: 0;
         }
         
-        /* Modal Enhancement */
-        .modal-content {
-            border-radius: 16px;
-            border: none;
-            overflow: hidden;
-        }
-        .modal-header {
-            background: #f9fafb;
-            border-bottom: 1px solid #f0f0f0;
-            padding: 1rem 1.25rem;
-        }
-        .modal-title {
-            font-weight: 700;
-            font-size: 1rem;
-        }
-        .modal-body {
-            padding: 0;
-        }
-        .modal-body img {
-            display: block;
-            width: 100%;
-            max-height: 70vh;
-            object-fit: contain;
+        /* ========== Void Reason ========== */
+        .void-reason {
+            background: rgba(220, 53, 69, 0.1);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+            font-size: 0.8125rem;
+            color: #b02a37;
         }
         
-        /* Desktop Enhancements */
-        @media (min-width: 768px) {
-            .page-header {
-                padding: 1.5rem 2rem;
+        .void-reason strong {
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        
+        /* ========== Responsive Adjustments ========== */
+        @media (min-width: 576px) {
+            .review-container {
+                padding: 1.5rem;
             }
-            .page-header h1 {
+            
+            .page-title-bar {
+                padding: 1.25rem 1.5rem;
+            }
+            
+            .page-title-bar h1 {
                 font-size: 1.5rem;
             }
-            .stats-row {
-                gap: 1rem;
-            }
+            
             .stat-card {
                 padding: 1.25rem;
             }
-            .stat-card .stat-icon {
-                width: 44px;
-                height: 44px;
-                font-size: 1.125rem;
-            }
+            
             .stat-card .stat-value {
-                font-size: 2rem;
+                font-size: 1.75rem;
             }
+            
             .stat-card .stat-label {
                 font-size: 0.75rem;
             }
+            
+            .payment-card-header {
+                padding: 1.25rem;
+            }
+            
             .payment-card-body {
                 padding: 1.25rem;
             }
-            .payment-header {
-                gap: 1rem;
-            }
-            .proof-thumbnail,
-            .proof-placeholder {
-                width: 56px;
-                height: 56px;
-                min-width: 56px;
-            }
-            .donor-name {
-                font-size: 1.05rem;
-            }
-            .payment-details {
+            
+            .payment-meta {
                 grid-template-columns: repeat(4, 1fr);
-            }
-            .payment-detail.full-width {
-                grid-column: span 4;
-            }
-            .payment-actions {
-                justify-content: flex-end;
-            }
-            .btn-action {
-                flex: none;
-                min-width: 120px;
             }
         }
         
-        /* Touch-friendly for mobile */
-        @media (max-width: 767px) {
-            .btn-action {
-                min-height: 44px;
+        @media (min-width: 768px) {
+            .review-container {
+                padding: 2rem;
             }
-            .filter-tab {
-                min-height: 40px;
+            
+            .stats-row {
+                gap: 1rem;
             }
+            
+            .filter-tabs {
+                gap: 0.75rem;
+            }
+            
+            .payment-card {
+                border-left-width: 5px;
+            }
+            
+            .donor-avatar {
+                width: 52px;
+                height: 52px;
+                font-size: 1.125rem;
+            }
+            
+            .donor-name {
+                font-size: 1.0625rem;
+            }
+            
+            .payment-amount {
+                font-size: 1.75rem;
+            }
+        }
+        
+        @media (min-width: 992px) {
+            .payment-card-content {
+                display: flex;
+                gap: 1.5rem;
+            }
+            
+            .payment-card-main {
+                flex: 1;
+            }
+            
+            .payment-card-actions-desktop {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                min-width: 160px;
+            }
+            
+            .payment-card-actions-desktop .btn {
+                padding: 0.625rem 1rem;
+                font-size: 0.875rem;
+                font-weight: 600;
+                border-radius: 8px;
+            }
+            
+            .payment-actions-mobile {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 991px) {
+            .payment-card-actions-desktop {
+                display: none;
+            }
+        }
+        
+        /* ========== Icon Visibility Fix ========== */
+        .fa, .fas, .far, .fal, .fab {
+            display: inline-block;
+            font-style: normal;
+            font-variant: normal;
+            text-rendering: auto;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* ========== Modal Enhancement ========== */
+        #proofModal .modal-content {
+            border-radius: 12px;
+            border: none;
+        }
+        
+        #proofModal .modal-header {
+            border-bottom: 1px solid #e9ecef;
+            padding: 1rem 1.25rem;
+        }
+        
+        #proofModal .modal-title {
+            font-weight: 700;
+        }
+        
+        #proofModal .modal-body {
+            padding: 1.5rem;
+        }
+        
+        #proofModal .modal-body img {
+            border-radius: 8px;
         }
     </style>
 </head>
-<body>
+<body class="review-page">
 <div class="admin-wrapper">
     <?php include '../includes/sidebar.php'; ?>
     <div class="admin-content">
-        <?php include '../includes/topbar.php'; ?>
-        <main class="main-content">
-            <div class="container-fluid p-3 p-md-4">
-                <!-- Page Header -->
-                <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+        <main class="main-content" style="padding-top: 0;">
+            <div class="review-container">
+                <!-- Page Title Bar -->
+                <div class="page-title-bar d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2">
                     <h1>
                         <i class="fas fa-check-double me-2"></i>Review Payments
                     </h1>
                     <a href="record-pledge-payment.php" class="btn">
-                        <i class="fas fa-plus me-1"></i>New Payment
+                        <i class="fas fa-plus me-1"></i>Record Payment
                     </a>
                 </div>
 
@@ -608,28 +772,28 @@ $stats = [
                 <div class="stats-row">
                     <div class="stat-card pending">
                         <div class="stat-icon">
-                            <i class="fas fa-hourglass-half"></i>
+                            <i class="fas fa-clock"></i>
                         </div>
                         <div class="stat-value"><?php echo $stats['pending']; ?></div>
                         <div class="stat-label">Pending</div>
                     </div>
                     <div class="stat-card approved">
                         <div class="stat-icon">
-                            <i class="fas fa-check-circle"></i>
+                            <i class="fas fa-check"></i>
                         </div>
                         <div class="stat-value"><?php echo $stats['confirmed']; ?></div>
                         <div class="stat-label">Approved</div>
                     </div>
                     <div class="stat-card rejected">
                         <div class="stat-icon">
-                            <i class="fas fa-times-circle"></i>
+                            <i class="fas fa-ban"></i>
                         </div>
                         <div class="stat-value"><?php echo $stats['voided']; ?></div>
                         <div class="stat-label">Rejected</div>
                     </div>
                 </div>
 
-                <!-- Filter Tabs - Horizontal Scroll -->
+                <!-- Filter Tabs -->
                 <div class="filter-tabs">
                     <a class="filter-tab <?php echo $filter === 'pending' ? 'active' : ''; ?>" href="?filter=pending">
                         <i class="fas fa-clock"></i>
@@ -662,210 +826,242 @@ $stats = [
                         <p>There are no <?php echo $filter === 'all' ? '' : $filter; ?> payments to display.</p>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($payments as $p): 
-                        // Determine status class
-                        $status_class = '';
-                        if ($p['status'] === 'confirmed') $status_class = 'approved-card';
-                        elseif ($p['status'] === 'pending') $status_class = 'pending-card';
-                        elseif ($p['status'] === 'voided') $status_class = 'rejected-card';
-                        
-                        // Check payment plan info
-                        $show_plan_info = false;
-                        $plan_installment = null;
-                        if ($has_plan_col && isset($p['plan_id']) && $p['plan_id']) {
-                            $show_plan_info = true;
-                            $plan_installment = ($p['plan_payments_made'] ?? 0) + 1;
-                        } elseif (isset($p['donor_active_plan_id']) && $p['donor_active_plan_id']) {
-                            $plan_check = $db->prepare("SELECT monthly_amount FROM donor_payment_plans WHERE id = ? LIMIT 1");
-                            $plan_check->bind_param('i', $p['donor_active_plan_id']);
-                            $plan_check->execute();
-                            $plan_data = $plan_check->get_result()->fetch_assoc();
-                            $plan_check->close();
-                            if ($plan_data && abs((float)$p['amount'] - (float)$plan_data['monthly_amount']) < 0.01) {
-                                $show_plan_info = true;
-                                $plan_installment = '?';
+                    <div class="payment-list">
+                        <?php foreach ($payments as $p): ?>
+                            <?php 
+                            // Get donor initials
+                            $donor_name = $p['donor_name'] ?? 'Unknown';
+                            $initials = '';
+                            $name_parts = explode(' ', $donor_name);
+                            foreach ($name_parts as $part) {
+                                $initials .= mb_substr($part, 0, 1);
                             }
-                        }
-                        
-                        // Method icons
-                        $method_icons = [
-                            'cash' => 'money-bill-wave',
-                            'bank_transfer' => 'university',
-                            'card' => 'credit-card',
-                            'cheque' => 'file-invoice-dollar',
-                            'other' => 'hand-holding-usd'
-                        ];
-                        $icon = $method_icons[$p['payment_method']] ?? 'money-bill';
-                    ?>
-                        <div class="payment-card <?php echo $status_class; ?>">
-                            <div class="payment-card-body">
-                                <!-- Header: Proof + Donor + Status Badge -->
-                                <div class="payment-header">
-                                    <?php if ($p['payment_proof']): ?>
-                                        <?php 
-                                        $ext = strtolower(pathinfo($p['payment_proof'], PATHINFO_EXTENSION));
-                                        $is_pdf = ($ext === 'pdf');
-                                        ?>
-                                        <?php if ($is_pdf): ?>
-                                            <a href="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" target="_blank" class="proof-placeholder" style="background:#fee2e2; border-color:#fecaca; color:#ef4444;">
-                                                <i class="fas fa-file-pdf"></i>
-                                            </a>
-                                        <?php else: ?>
-                                            <img src="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" 
-                                                 alt="Proof" 
-                                                 class="proof-thumbnail"
-                                                 onclick="viewProof('../../<?php echo htmlspecialchars($p['payment_proof']); ?>')">
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <div class="proof-placeholder">
-                                            <i class="fas fa-image"></i>
-                                        </div>
-                                    <?php endif; ?>
-                                    
+                            $initials = mb_strtoupper(mb_substr($initials, 0, 2));
+                            
+                            // Method icons
+                            $method_icons = [
+                                'cash' => 'money-bill-wave',
+                                'bank_transfer' => 'university',
+                                'card' => 'credit-card',
+                                'cheque' => 'file-invoice-dollar',
+                                'other' => 'hand-holding-usd'
+                            ];
+                            $method_icon = $method_icons[$p['payment_method']] ?? 'money-bill';
+                            
+                            // Payment plan info
+                            $show_plan_info = false;
+                            $plan_installment = null;
+                            if ($has_plan_col && isset($p['plan_id']) && $p['plan_id']) {
+                                $show_plan_info = true;
+                                $plan_installment = ($p['plan_payments_made'] ?? 0) + 1;
+                            } elseif (isset($p['donor_active_plan_id']) && $p['donor_active_plan_id']) {
+                                $plan_check = $db->prepare("SELECT monthly_amount FROM donor_payment_plans WHERE id = ? LIMIT 1");
+                                $plan_check->bind_param('i', $p['donor_active_plan_id']);
+                                $plan_check->execute();
+                                $plan_data = $plan_check->get_result()->fetch_assoc();
+                                $plan_check->close();
+                                
+                                if ($plan_data && abs((float)$p['amount'] - (float)$plan_data['monthly_amount']) < 0.01) {
+                                    $show_plan_info = true;
+                                    $plan_installment = '?';
+                                }
+                            }
+                            ?>
+                            <div class="payment-card <?php 
+                                if ($p['status'] === 'confirmed') echo 'approved-card';
+                                elseif ($p['status'] === 'pending') echo 'pending-card';
+                                elseif ($p['status'] === 'voided') echo 'rejected-card';
+                            ?>">
+                                <!-- Card Header -->
+                                <div class="payment-card-header">
                                     <div class="donor-info">
-                                        <p class="donor-name">
-                                            <i class="fas fa-user me-1 text-primary"></i>
-                                            <?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown'); ?>
-                                        </p>
-                                        <p class="donor-phone">
-                                            <i class="fas fa-phone me-1"></i>
-                                            <?php echo htmlspecialchars($p['donor_phone'] ?? '-'); ?>
-                                        </p>
+                                        <div class="donor-avatar"><?php echo $initials; ?></div>
+                                        <div class="donor-details">
+                                            <h6 class="donor-name"><?php echo htmlspecialchars($donor_name); ?></h6>
+                                            <p class="donor-phone">
+                                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($p['donor_phone'] ?? '-'); ?>
+                                            </p>
+                                        </div>
                                     </div>
-                                    
-                                    <span class="payment-status-badge <?php echo $p['status'] === 'confirmed' ? 'approved' : $p['status']; ?>">
+                                    <span class="status-badge <?php 
+                                        if ($p['status'] === 'confirmed') echo 'approved';
+                                        elseif ($p['status'] === 'pending') echo 'pending';
+                                        elseif ($p['status'] === 'voided') echo 'rejected';
+                                    ?>">
                                         <?php if ($p['status'] === 'pending'): ?>
-                                            <i class="fas fa-clock"></i> Pending
+                                            <i class="fas fa-clock me-1"></i>Pending
                                         <?php elseif ($p['status'] === 'confirmed'): ?>
-                                            <i class="fas fa-check"></i> Approved
-                                        <?php else: ?>
-                                            <i class="fas fa-ban"></i> Rejected
+                                            <i class="fas fa-check me-1"></i>Approved
+                                        <?php elseif ($p['status'] === 'voided'): ?>
+                                            <i class="fas fa-ban me-1"></i>Rejected
                                         <?php endif; ?>
                                     </span>
                                 </div>
                                 
-                                <!-- Payment Details Grid -->
-                                <div class="payment-details">
-                                    <div class="payment-detail">
-                                        <div class="payment-detail-label">Amount</div>
-                                        <div class="payment-detail-value amount">
-                                            <i class="fas fa-pound-sign"></i>
-                                            <?php echo number_format((float)$p['amount'], 2); ?>
+                                <!-- Card Body -->
+                                <div class="payment-card-body">
+                                    <div class="payment-card-content">
+                                        <div class="payment-card-main">
+                                            <!-- Amount and Proof Row -->
+                                            <div class="payment-amount-row">
+                                                <div class="payment-amount">
+                                                    <span class="currency">£</span><?php echo number_format((float)$p['amount'], 2); ?>
+                                                </div>
+                                                <?php if ($p['payment_proof']): ?>
+                                                    <?php 
+                                                    $ext = strtolower(pathinfo($p['payment_proof'], PATHINFO_EXTENSION));
+                                                    $is_pdf = ($ext === 'pdf');
+                                                    ?>
+                                                    <?php if ($is_pdf): ?>
+                                                        <a href="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" target="_blank" class="pdf-proof">
+                                                            <i class="fas fa-file-pdf"></i>
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <img src="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" 
+                                                             alt="Proof" 
+                                                             class="proof-thumbnail"
+                                                             onclick="viewProof('../../<?php echo htmlspecialchars($p['payment_proof']); ?>')">
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <div class="proof-placeholder">
+                                                        <i class="fas fa-image"></i>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                            <!-- Payment Plan Badge -->
+                                            <?php if ($show_plan_info): ?>
+                                                <div class="payment-plan-badge">
+                                                    <i class="fas fa-calendar-check"></i>
+                                                    <?php if ($plan_installment !== '?'): ?>
+                                                        Installment <?php echo $plan_installment; ?> of <?php echo $p['plan_total_payments'] ?? '?'; ?>
+                                                    <?php else: ?>
+                                                        Plan Payment
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            
+                                            <!-- Payment Meta -->
+                                            <div class="payment-meta">
+                                                <div class="meta-item">
+                                                    <span class="meta-label">Method</span>
+                                                    <span class="meta-value">
+                                                        <i class="fas fa-<?php echo $method_icon; ?> text-info"></i>
+                                                        <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
+                                                    </span>
+                                                </div>
+                                                <div class="meta-item">
+                                                    <span class="meta-label">Date</span>
+                                                    <span class="meta-value">
+                                                        <i class="far fa-calendar text-secondary"></i>
+                                                        <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
+                                                    </span>
+                                                </div>
+                                                <?php if ($p['reference_number']): ?>
+                                                <div class="meta-item">
+                                                    <span class="meta-label">Reference</span>
+                                                    <span class="meta-value font-monospace">
+                                                        #<?php echo htmlspecialchars($p['reference_number']); ?>
+                                                    </span>
+                                                </div>
+                                                <?php endif; ?>
+                                                <div class="meta-item">
+                                                    <span class="meta-label">Submitted</span>
+                                                    <span class="meta-value">
+                                                        <?php echo date('d M, H:i', strtotime($p['created_at'])); ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Notes -->
+                                            <?php if ($p['notes']): ?>
+                                                <div class="payment-notes">
+                                                    <i class="fas fa-sticky-note me-1 text-info"></i>
+                                                    <strong>Notes:</strong> <?php echo htmlspecialchars($p['notes']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            
+                                            <!-- Void Reason -->
+                                            <?php if ($p['status'] === 'voided' && $p['void_reason']): ?>
+                                                <div class="void-reason">
+                                                    <strong><i class="fas fa-info-circle me-1"></i>Rejection Reason:</strong>
+                                                    <?php echo htmlspecialchars($p['void_reason']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        
+                                        <!-- Desktop Actions -->
+                                        <div class="payment-card-actions-desktop">
+                                            <?php if ($p['status'] === 'pending'): ?>
+                                                <button class="btn btn-approve" onclick="approvePayment(<?php echo $p['id']; ?>)">
+                                                    <i class="fas fa-check me-1"></i>Approve
+                                                </button>
+                                                <button class="btn btn-reject" onclick="voidPayment(<?php echo $p['id']; ?>)">
+                                                    <i class="fas fa-times me-1"></i>Reject
+                                                </button>
+                                            <?php elseif ($p['status'] === 'confirmed'): ?>
+                                                <button class="btn btn-undo" onclick="undoPayment(<?php echo $p['id']; ?>)">
+                                                    <i class="fas fa-undo me-1"></i>Undo
+                                                </button>
+                                                <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" class="btn btn-view-donor">
+                                                    <i class="fas fa-user me-1"></i>View Donor
+                                                </a>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                    <div class="payment-detail">
-                                        <div class="payment-detail-label">Method</div>
-                                        <div class="payment-detail-value">
-                                            <i class="fas fa-<?php echo $icon; ?> text-info"></i>
-                                            <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
-                                        </div>
-                                    </div>
-                                    <div class="payment-detail">
-                                        <div class="payment-detail-label">Date</div>
-                                        <div class="payment-detail-value">
-                                            <i class="far fa-calendar-alt text-secondary"></i>
-                                            <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
-                                        </div>
-                                    </div>
-                                    <?php if ($p['reference_number']): ?>
-                                    <div class="payment-detail">
-                                        <div class="payment-detail-label">Reference</div>
-                                        <div class="payment-detail-value" style="font-family: monospace;">
-                                            #<?php echo htmlspecialchars($p['reference_number']); ?>
-                                        </div>
-                                    </div>
-                                    <?php else: ?>
-                                    <div class="payment-detail">
-                                        <div class="payment-detail-label">ID</div>
-                                        <div class="payment-detail-value" style="font-family: monospace;">
-                                            #<?php echo $p['id']; ?>
-                                        </div>
-                                    </div>
-                                    <?php endif; ?>
                                 </div>
                                 
-                                <!-- Plan Badge -->
-                                <?php if ($show_plan_info): ?>
-                                <div class="mb-3">
-                                    <span class="plan-badge">
-                                        <i class="fas fa-calendar-check"></i>
-                                        <?php if ($plan_installment !== '?'): ?>
-                                            Installment <?php echo $plan_installment; ?> of <?php echo $p['plan_total_payments'] ?? '?'; ?>
-                                        <?php else: ?>
-                                            Plan Payment
+                                <!-- Card Footer - Audit Info -->
+                                <div class="payment-card-footer">
+                                    <div class="audit-info">
+                                        <span>
+                                            <i class="fas fa-user-plus me-1"></i>
+                                            Submitted by <strong><?php echo htmlspecialchars($p['processed_by_name'] ?? 'Unknown'); ?></strong>
+                                        </span>
+                                        <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
+                                            <span class="success">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                Approved by <strong><?php echo htmlspecialchars($p['approved_by_name']); ?></strong>
+                                                <?php if ($p['approved_at']): ?>
+                                                    on <?php echo date('d M Y, H:i', strtotime($p['approved_at'])); ?>
+                                                <?php endif; ?>
+                                            </span>
                                         <?php endif; ?>
-                                    </span>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <!-- Notes -->
-                                <?php if ($p['notes']): ?>
-                                <div class="payment-notes">
-                                    <p class="payment-notes-text">
-                                        <i class="fas fa-sticky-note me-1"></i>
-                                        <strong>Note:</strong> <?php echo htmlspecialchars($p['notes']); ?>
-                                    </p>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <!-- Meta Info -->
-                                <div class="payment-meta">
-                                    <div class="meta-item">
-                                        <i class="fas fa-user-plus"></i>
-                                        Submitted by <strong><?php echo htmlspecialchars($p['processed_by_name'] ?? 'Unknown'); ?></strong>
-                                        &bull; <?php echo date('d M Y, H:i', strtotime($p['created_at'])); ?>
-                                    </div>
-                                    <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
-                                    <div class="meta-item approved">
-                                        <i class="fas fa-check-circle"></i>
-                                        Approved by <strong><?php echo htmlspecialchars($p['approved_by_name']); ?></strong>
-                                        <?php if ($p['approved_at']): ?>
-                                            &bull; <?php echo date('d M Y, H:i', strtotime($p['approved_at'])); ?>
+                                        <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
+                                            <span class="danger">
+                                                <i class="fas fa-times-circle me-1"></i>
+                                                Rejected by <strong><?php echo htmlspecialchars($p['voided_by_name']); ?></strong>
+                                                <?php if ($p['voided_at']): ?>
+                                                    on <?php echo date('d M Y, H:i', strtotime($p['voided_at'])); ?>
+                                                <?php endif; ?>
+                                            </span>
                                         <?php endif; ?>
                                     </div>
-                                    <?php endif; ?>
-                                    <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
-                                    <div class="meta-item rejected">
-                                        <i class="fas fa-times-circle"></i>
-                                        Rejected by <strong><?php echo htmlspecialchars($p['voided_by_name']); ?></strong>
-                                        <?php if ($p['voided_at']): ?>
-                                            &bull; <?php echo date('d M Y, H:i', strtotime($p['voided_at'])); ?>
-                                        <?php endif; ?>
+                                </div>
+                                
+                                <!-- Mobile Actions -->
+                                <?php if ($p['status'] === 'pending'): ?>
+                                    <div class="payment-actions payment-actions-mobile">
+                                        <button class="btn btn-approve" onclick="approvePayment(<?php echo $p['id']; ?>)">
+                                            <i class="fas fa-check"></i>Approve
+                                        </button>
+                                        <button class="btn btn-reject" onclick="voidPayment(<?php echo $p['id']; ?>)">
+                                            <i class="fas fa-times"></i>Reject
+                                        </button>
                                     </div>
-                                    <?php endif; ?>
-                                </div>
-                                
-                                <!-- Void Reason -->
-                                <?php if ($p['status'] === 'voided' && !empty($p['void_reason'])): ?>
-                                <div class="void-reason">
-                                    <p class="void-reason-text">
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        <strong>Reason:</strong> <?php echo htmlspecialchars($p['void_reason']); ?>
-                                    </p>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <!-- Action Buttons -->
-                                <div class="payment-actions">
-                                    <?php if ($p['status'] === 'pending'): ?>
-                                        <button class="btn-action approve" onclick="approvePayment(<?php echo $p['id']; ?>)">
-                                            <i class="fas fa-check"></i> Approve
+                                <?php elseif ($p['status'] === 'confirmed'): ?>
+                                    <div class="payment-actions payment-actions-mobile">
+                                        <button class="btn btn-undo" onclick="undoPayment(<?php echo $p['id']; ?>)">
+                                            <i class="fas fa-undo"></i>Undo Payment
                                         </button>
-                                        <button class="btn-action reject" onclick="voidPayment(<?php echo $p['id']; ?>)">
-                                            <i class="fas fa-times"></i> Reject
-                                        </button>
-                                    <?php elseif ($p['status'] === 'confirmed'): ?>
-                                        <button class="btn-action undo" onclick="undoPayment(<?php echo $p['id']; ?>)">
-                                            <i class="fas fa-undo"></i> Undo
-                                        </button>
-                                        <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" class="btn-action view">
-                                            <i class="fas fa-user"></i> View Donor
+                                        <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" class="btn btn-view-donor">
+                                            <i class="fas fa-user"></i>View Donor
                                         </a>
-                                    <?php endif; ?>
-                                </div>
+                                    </div>
+                                <?php endif; ?>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
             </div>
         </main>
@@ -874,16 +1070,14 @@ $stats = [
 
 <!-- Image Viewer Modal -->
 <div class="modal fade" id="proofModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-file-image me-2 text-primary"></i>Payment Proof
-                </h5>
+                <h5 class="modal-title">Payment Proof</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center p-2">
-                <img id="proofImage" src="" alt="Payment Proof" class="img-fluid" style="border-radius: 8px;">
+            <div class="modal-body text-center">
+                <img id="proofImage" src="" alt="Payment Proof" class="img-fluid">
             </div>
         </div>
     </div>
