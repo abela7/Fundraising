@@ -119,6 +119,31 @@ if ($db) {
             $check_result = $db->query("SHOW TABLES LIKE 'sms_settings'");
             $settings_table_exists = $check_result && $check_result->num_rows > 0;
             
+            // Test VoodooSMS connection
+            if ($action === 'test_connection') {
+                require_once __DIR__ . '/../../../services/VoodooSMSService.php';
+                
+                $api_key = trim($_POST['api_key'] ?? '');
+                $api_secret = trim($_POST['api_secret'] ?? '');
+                $sender_id = trim($_POST['sender_id'] ?? 'ATEOTC');
+                
+                if (empty($api_key) || empty($api_secret)) {
+                    throw new Exception('Username and Password are required to test connection.');
+                }
+                
+                $sms = new VoodooSMSService($api_key, $api_secret, $sender_id);
+                $result = $sms->testConnection();
+                
+                if ($result['success']) {
+                    $_SESSION['success_message'] = '✅ ' . $result['message'];
+                } else {
+                    throw new Exception($result['message']);
+                }
+                
+                header('Location: settings.php');
+                exit;
+            }
+            
             if ($action === 'save_provider') {
                 if (!$providers_table_exists) {
                     throw new Exception('SMS providers table does not exist. Please run the database setup script first.');
@@ -540,14 +565,14 @@ $settings = array_merge([
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Provider Key <span class="text-danger">*</span></label>
-                        <select name="name" class="form-select" required>
-                            <option value="">Select provider...</option>
-                            <option value="twilio" <?php echo ($edit_provider['name'] ?? '') === 'twilio' ? 'selected' : ''; ?>>Twilio</option>
-                            <option value="textlocal" <?php echo ($edit_provider['name'] ?? '') === 'textlocal' ? 'selected' : ''; ?>>Textlocal</option>
-                            <option value="vonage" <?php echo ($edit_provider['name'] ?? '') === 'vonage' ? 'selected' : ''; ?>>Vonage (Nexmo)</option>
-                            <option value="aws_sns" <?php echo ($edit_provider['name'] ?? '') === 'aws_sns' ? 'selected' : ''; ?>>AWS SNS</option>
-                        </select>
+                        <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
+                        <input type="hidden" name="name" value="voodoosms">
+                        <div class="d-flex align-items-center gap-2 p-3 bg-light rounded">
+                            <img src="https://www.voodoosms.com/img/voodoo-logo.svg" alt="VoodooSMS" height="24" onerror="this.style.display='none'">
+                            <span class="fw-semibold">VoodooSMS (VOODOO)</span>
+                            <span class="badge bg-success ms-auto">UK Provider</span>
+                        </div>
+                        <div class="form-text">UK-based SMS provider with direct network routes. <a href="https://www.voodoosms.com" target="_blank">Learn more</a></div>
                     </div>
                     
                     <div class="mb-3">
@@ -558,24 +583,28 @@ $settings = array_merge([
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">API Key / Account SID</label>
-                        <input type="text" name="api_key" class="form-control"
-                               placeholder="Enter API key..."
+                        <label class="form-label fw-semibold">VoodooSMS Username <span class="text-danger">*</span></label>
+                        <input type="text" name="api_key" class="form-control" required
+                               placeholder="Your VoodooSMS API username"
                                value="<?php echo htmlspecialchars($edit_provider['api_key'] ?? ''); ?>">
+                        <div class="form-text">Found in: Send SMS → API SMS → HTTP API</div>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">API Secret / Auth Token</label>
-                        <input type="password" name="api_secret" class="form-control"
-                               placeholder="Enter API secret..."
+                        <label class="form-label fw-semibold">VoodooSMS Password <span class="text-danger">*</span></label>
+                        <input type="password" name="api_secret" class="form-control" required
+                               placeholder="Your VoodooSMS API password"
                                value="<?php echo htmlspecialchars($edit_provider['api_secret'] ?? ''); ?>">
+                        <div class="form-text">The password you set when creating the API client</div>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Sender ID / Phone</label>
-                        <input type="text" name="sender_id" class="form-control"
-                               placeholder="e.g., ATEOTC or +447123456789"
-                               value="<?php echo htmlspecialchars($edit_provider['sender_id'] ?? ''); ?>">
+                        <label class="form-label fw-semibold">Sender ID <span class="text-danger">*</span></label>
+                        <input type="text" name="sender_id" class="form-control" required
+                               placeholder="e.g., ATEOTC" maxlength="11"
+                               pattern="[A-Za-z0-9]+"
+                               value="<?php echo htmlspecialchars($edit_provider['sender_id'] ?? 'ATEOTC'); ?>">
+                        <div class="form-text">Max 11 alphanumeric characters. This is what recipients see as the sender.</div>
                     </div>
                     
                     <div class="mb-3">
@@ -603,6 +632,9 @@ $settings = array_merge([
                             <i class="fas fa-trash"></i>
                         </button>
                     <?php endif; ?>
+                    <button type="submit" name="action" value="test_connection" class="btn btn-outline-info">
+                        <i class="fas fa-plug me-1"></i>Test Connection
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Provider</button>
                 </div>

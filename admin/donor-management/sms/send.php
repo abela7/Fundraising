@@ -106,10 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     
     try {
-        if (!$queue_table_exists) {
-            throw new Exception('SMS queue table not found. Please run the database setup script first.');
-        }
-        $donor_id = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : null;
+        $donor_id = isset($_POST['donor_id']) && $_POST['donor_id'] !== '' ? (int)$_POST['donor_id'] : null;
         $phone_number = trim($_POST['phone_number'] ?? '');
         $message = trim($_POST['message'] ?? '');
         $template_id = isset($_POST['template_id']) && $_POST['template_id'] !== '' ? (int)$_POST['template_id'] : null;
@@ -126,14 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Message is required.');
         }
         
-        if (strlen($message) > 480) {
-            throw new Exception('Message is too long (max 480 characters).');
-        }
-        
-        // Validate phone format (UK)
-        $phone_number = preg_replace('/[^0-9+]/', '', $phone_number);
-        if (!preg_match('/^(07\d{9}|\+447\d{9})$/', $phone_number)) {
-            throw new Exception('Invalid UK phone number format.');
+        if (mb_strlen($message) > 918) {
+            throw new Exception('Message is too long (max 918 characters / 6 SMS segments).');
         }
         
         // Get donor name if donor_id provided
@@ -148,22 +139,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Insert into queue
-        $stmt = $db->prepare("
-            INSERT INTO sms_queue 
-            (donor_id, phone_number, recipient_name, template_id, message_content, message_language,
-             source_type, priority, scheduled_for, status, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, 'en', 'admin_manual', ?, ?, 'pending', ?, NOW())
-        ");
-        $stmt->bind_param('issisisi', 
-            $donor_id, $phone_number, $recipient_name, $template_id, $message, 
-            $priority, $scheduled_for, $current_user['id']
-        );
-        $stmt->execute();
-        
-        $success_message = $schedule === 'now' 
-            ? 'SMS queued for immediate delivery!' 
-            : 'SMS scheduled for ' . date('M j, g:i A', strtotime($scheduled_for));
+        // If scheduled for later, add to queue
+        if ($schedule === 'later' && $scheduled_for) {
+            if (!$queue_table_exists) {
+                throw new Exception('SMS queue table not found. Cannot schedule messages.');
+            }
+            
+            $stmt = $db->prepare("
+                INSERT INTO sms_queue 
+                (donor_id, phone_number, recipient_name, template_id, message_content, message_language,
+                 source_type, priority, scheduled_for, status, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, 'en', 'admin_manual', ?, ?, 'pending', ?, NOW())
+            ");
+            $stmt->bind_param('issisisi', 
+                $donor_id, $phone_number, $recipient_name, $template_id, $message, 
+                $priority, $scheduled_for, $current_user['id']
+            );
+            $stmt->execute();
+            
+            $success_message = 'SMS scheduled for ' . date('M j, g:i A', strtotime($scheduled_for));
+        } else {
+            // Send immediately via VoodooSMS
+            require_once __DIR__ . '/../../../services/VoodooSMSService.php';
+            
+            $sms = VoodooSMSService::fromDatabase($db);
+            
+            if (!$sms) {
+                throw new Exception('No SMS provider configured. Please add VoodooSMS credentials in Settings.');
+            }
+            
+            $result = $sms->send($phone_number, $message, [
+                'donor_id' => $donor_id,
+                'template_id' => $template_id,
+                'source_type' => 'admin_manual',
+                'log' => true
+            ]);
+            
+            if ($result['success']) {
+                $success_message = '✅ SMS sent successfully! (Used ' . $result['credits_used'] . ' credit' . ($result['credits_used'] > 1 ? 's' : '') . ')';
+            } else {
+                throw new Exception('Failed to send SMS: ' . ($result['error'] ?? 'Unknown error'));
+            }
+        }
         
     } catch (Exception $e) {
         $error_message = $e->getMessage();
