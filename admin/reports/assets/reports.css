@@ -714,6 +714,59 @@
     .accordion-body {
         padding: 0.75rem !important;
     }
+    
+    /* Accordion header badge on mobile */
+    .accordion-button .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Pledge Tracking Section Styles */
+.pledge-tracking-card {
+    transition: transform 0.2s ease;
+}
+
+.pledge-tracking-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Collection Rate Card Gradient */
+.bg-gradient {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+/* Donor Status Cards */
+@media (max-width: 576px) {
+    .col-6.col-md-3 .p-3 {
+        padding: 0.75rem !important;
+    }
+    
+    .col-6.col-md-3 .h4 {
+        font-size: 1.25rem;
+    }
+    
+    .col-6.col-md-3 .small {
+        font-size: 0.75rem;
+    }
+}
+
+/* Quick Stats Summary Mobile */
+@media (max-width: 576px) {
+    .row.text-center .col-6 {
+        padding: 0.5rem;
+    }
+    
+    .row.text-center .h5 {
+        font-size: 1rem;
+    }
+    
+    .row.text-center .border-end {
+        border-right: none !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
 }
 
 /* Print optimizations */
