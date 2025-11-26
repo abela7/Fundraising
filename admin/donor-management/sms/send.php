@@ -222,7 +222,7 @@ if (isset($_GET['donor_id'])) {
                 <div class="card send-form-card">
                     <div class="card-body p-4">
                         <form method="POST" id="sendForm">
-                            <?php echo csrf_field(); ?>
+                            <?php echo csrf_input(); ?>
                             
                             <!-- Recipient -->
                             <div class="mb-4">

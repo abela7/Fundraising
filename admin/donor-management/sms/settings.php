@@ -1,5 +1,11 @@
 <?php
 declare(strict_types=1);
+
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', '0'); // Don't display, we'll handle them
+ini_set('log_errors', '1');
+
 require_once __DIR__ . '/../../../shared/auth.php';
 require_once __DIR__ . '/../../../shared/csrf.php';
 require_once __DIR__ . '/../../../config/db.php';
@@ -8,163 +14,201 @@ require_admin();
 
 $page_title = 'SMS Settings';
 $current_user = current_user();
-$db = db();
 
+// Initialize variables
 $providers = [];
 $settings = [];
 $error_message = null;
 $success_message = $_SESSION['success_message'] ?? null;
 unset($_SESSION['success_message']);
+$tables_missing = true;
+$providers_table_exists = false;
+$settings_table_exists = false;
+$edit_provider = null;
 
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
-    $action = $_POST['action'] ?? '';
-    
-    try {
-        // Check if SMS tables exist
-        $providers_table_exists = $db->query("SHOW TABLES LIKE 'sms_providers'")->num_rows > 0;
-        $settings_table_exists = $db->query("SHOW TABLES LIKE 'sms_settings'")->num_rows > 0;
+// Try to get database connection
+try {
+    $db = db();
+    if (!$db) {
+        throw new Exception('Database connection failed');
+    }
+} catch (Exception $e) {
+    $error_message = 'Database connection error: ' . $e->getMessage();
+    $db = null;
+}
+
+// Only proceed with database operations if we have a connection
+if ($db) {
+    // Handle form submissions
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verify_csrf();
+        $action = $_POST['action'] ?? '';
         
-        if ($action === 'save_provider') {
-            if (!$providers_table_exists) {
-                throw new Exception('SMS providers table does not exist. Please run the database setup script first.');
-            }
-            $id = isset($_POST['provider_id']) ? (int)$_POST['provider_id'] : 0;
-            $name = trim($_POST['name'] ?? '');
-            $display_name = trim($_POST['display_name'] ?? '');
-            $api_key = trim($_POST['api_key'] ?? '');
-            $api_secret = trim($_POST['api_secret'] ?? '');
-            $sender_id = trim($_POST['sender_id'] ?? '');
-            $cost_per_sms = (float)($_POST['cost_per_sms'] ?? 3.00);
-            $is_active = isset($_POST['is_active']) ? 1 : 0;
-            $is_default = isset($_POST['is_default']) ? 1 : 0;
+        try {
+            // Check if SMS tables exist
+            $check_result = $db->query("SHOW TABLES LIKE 'sms_providers'");
+            $providers_table_exists = $check_result && $check_result->num_rows > 0;
             
-            if (empty($name) || empty($display_name)) {
-                throw new Exception('Provider name is required.');
-            }
+            $check_result = $db->query("SHOW TABLES LIKE 'sms_settings'");
+            $settings_table_exists = $check_result && $check_result->num_rows > 0;
             
-            // If setting as default, unset others
-            if ($is_default) {
-                $db->query("UPDATE sms_providers SET is_default = 0");
-            }
-            
-            if ($id > 0) {
-                // Update - 9 params: s,s,s,s,s,d,i,i,i
-                $stmt = $db->prepare("
-                    UPDATE sms_providers 
-                    SET name = ?, display_name = ?, api_key = ?, api_secret = ?, 
-                        sender_id = ?, cost_per_sms_pence = ?, is_active = ?, is_default = ?, updated_at = NOW()
-                    WHERE id = ?
-                ");
-                if (!$stmt) {
-                    throw new Exception('Database error: ' . $db->error);
+            if ($action === 'save_provider') {
+                if (!$providers_table_exists) {
+                    throw new Exception('SMS providers table does not exist. Please run the database setup script first.');
                 }
-                $stmt->bind_param('sssssdiii', $name, $display_name, $api_key, $api_secret, 
-                    $sender_id, $cost_per_sms, $is_active, $is_default, $id);
-            } else {
-                // Insert - 8 params: s,s,s,s,s,d,i,i
-                $stmt = $db->prepare("
-                    INSERT INTO sms_providers 
-                    (name, display_name, api_key, api_secret, sender_id, cost_per_sms_pence, is_active, is_default, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                ");
-                if (!$stmt) {
-                    throw new Exception('Database error: ' . $db->error);
+                
+                $id = isset($_POST['provider_id']) && $_POST['provider_id'] !== '' ? (int)$_POST['provider_id'] : 0;
+                $name = trim($_POST['name'] ?? '');
+                $display_name = trim($_POST['display_name'] ?? '');
+                $api_key = trim($_POST['api_key'] ?? '');
+                $api_secret = trim($_POST['api_secret'] ?? '');
+                $sender_id = trim($_POST['sender_id'] ?? '');
+                $cost_per_sms = (float)($_POST['cost_per_sms'] ?? 3.00);
+                $is_active = isset($_POST['is_active']) ? 1 : 0;
+                $is_default = isset($_POST['is_default']) ? 1 : 0;
+                
+                if (empty($name) || empty($display_name)) {
+                    throw new Exception('Provider name is required.');
                 }
-                $stmt->bind_param('sssssdii', $name, $display_name, $api_key, $api_secret, 
-                    $sender_id, $cost_per_sms, $is_active, $is_default);
-            }
-            if (!$stmt->execute()) {
-                throw new Exception('Failed to save provider: ' . $stmt->error);
+                
+                // If setting as default, unset others
+                if ($is_default) {
+                    $db->query("UPDATE sms_providers SET is_default = 0");
+                }
+                
+                if ($id > 0) {
+                    // Update
+                    $stmt = $db->prepare("
+                        UPDATE sms_providers 
+                        SET name = ?, display_name = ?, api_key = ?, api_secret = ?, 
+                            sender_id = ?, cost_per_sms_pence = ?, is_active = ?, is_default = ?, updated_at = NOW()
+                        WHERE id = ?
+                    ");
+                    if (!$stmt) {
+                        throw new Exception('Database error: ' . $db->error);
+                    }
+                    $stmt->bind_param('sssssdiii', $name, $display_name, $api_key, $api_secret, 
+                        $sender_id, $cost_per_sms, $is_active, $is_default, $id);
+                } else {
+                    // Insert
+                    $stmt = $db->prepare("
+                        INSERT INTO sms_providers 
+                        (name, display_name, api_key, api_secret, sender_id, cost_per_sms_pence, is_active, is_default, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    ");
+                    if (!$stmt) {
+                        throw new Exception('Database error: ' . $db->error);
+                    }
+                    $stmt->bind_param('sssssdii', $name, $display_name, $api_key, $api_secret, 
+                        $sender_id, $cost_per_sms, $is_active, $is_default);
+                }
+                
+                if (!$stmt->execute()) {
+                    throw new Exception('Failed to save provider: ' . $stmt->error);
+                }
+                
+                $_SESSION['success_message'] = 'Provider saved successfully!';
+                header('Location: settings.php');
+                exit;
             }
             
-            $_SESSION['success_message'] = 'Provider saved successfully!';
-            header('Location: settings.php');
-            exit;
-        }
-        
-        if ($action === 'delete_provider') {
-            if (!$providers_table_exists) {
-                throw new Exception('SMS providers table does not exist.');
-            }
-            $id = (int)$_POST['provider_id'];
-            $stmt = $db->prepare("DELETE FROM sms_providers WHERE id = ?");
-            if ($stmt) {
-                $stmt->bind_param('i', $id);
-                $stmt->execute();
-            }
-            $_SESSION['success_message'] = 'Provider deleted.';
-            header('Location: settings.php');
-            exit;
-        }
-        
-        if ($action === 'save_settings') {
-            if (!$settings_table_exists) {
-                throw new Exception('SMS settings table does not exist. Please run the database setup script first.');
-            }
-            
-            $settings_to_save = [
-                'sms_daily_limit' => (string)(int)($_POST['sms_daily_limit'] ?? 1000),
-                'sms_quiet_hours_start' => $_POST['sms_quiet_hours_start'] ?? '21:00',
-                'sms_quiet_hours_end' => $_POST['sms_quiet_hours_end'] ?? '09:00',
-                'sms_reminder_3day_enabled' => isset($_POST['sms_reminder_3day_enabled']) ? '1' : '0',
-                'sms_reminder_dueday_enabled' => isset($_POST['sms_reminder_dueday_enabled']) ? '1' : '0',
-                'sms_overdue_7day_enabled' => isset($_POST['sms_overdue_7day_enabled']) ? '1' : '0',
-            ];
-            
-            foreach ($settings_to_save as $key => $value) {
-                $stmt = $db->prepare("
-                    INSERT INTO sms_settings (setting_key, setting_value, updated_at)
-                    VALUES (?, ?, NOW())
-                    ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()
-                ");
+            if ($action === 'delete_provider') {
+                if (!$providers_table_exists) {
+                    throw new Exception('SMS providers table does not exist.');
+                }
+                $id = (int)$_POST['provider_id'];
+                $stmt = $db->prepare("DELETE FROM sms_providers WHERE id = ?");
                 if ($stmt) {
-                    $stmt->bind_param('sss', $key, $value, $value);
+                    $stmt->bind_param('i', $id);
                     $stmt->execute();
                 }
+                $_SESSION['success_message'] = 'Provider deleted.';
+                header('Location: settings.php');
+                exit;
             }
             
-            $_SESSION['success_message'] = 'Settings saved!';
-            header('Location: settings.php');
-            exit;
+            if ($action === 'save_settings') {
+                if (!$settings_table_exists) {
+                    throw new Exception('SMS settings table does not exist. Please run the database setup script first.');
+                }
+                
+                $settings_to_save = [
+                    'sms_daily_limit' => (string)(int)($_POST['sms_daily_limit'] ?? 1000),
+                    'sms_quiet_hours_start' => $_POST['sms_quiet_hours_start'] ?? '21:00',
+                    'sms_quiet_hours_end' => $_POST['sms_quiet_hours_end'] ?? '09:00',
+                    'sms_reminder_3day_enabled' => isset($_POST['sms_reminder_3day_enabled']) ? '1' : '0',
+                    'sms_reminder_dueday_enabled' => isset($_POST['sms_reminder_dueday_enabled']) ? '1' : '0',
+                    'sms_overdue_7day_enabled' => isset($_POST['sms_overdue_7day_enabled']) ? '1' : '0',
+                ];
+                
+                foreach ($settings_to_save as $key => $value) {
+                    $stmt = $db->prepare("
+                        INSERT INTO sms_settings (setting_key, setting_value, updated_at)
+                        VALUES (?, ?, NOW())
+                        ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()
+                    ");
+                    if ($stmt) {
+                        $stmt->bind_param('sss', $key, $value, $value);
+                        $stmt->execute();
+                    }
+                }
+                
+                $_SESSION['success_message'] = 'Settings saved!';
+                header('Location: settings.php');
+                exit;
+            }
+            
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+        }
+    }
+    
+    // Check if SMS tables exist
+    try {
+        $check_result = $db->query("SHOW TABLES LIKE 'sms_providers'");
+        $providers_table_exists = $check_result && $check_result->num_rows > 0;
+        
+        $check_result = $db->query("SHOW TABLES LIKE 'sms_settings'");
+        $settings_table_exists = $check_result && $check_result->num_rows > 0;
+        
+        $tables_missing = !$providers_table_exists || !$settings_table_exists;
+        
+        // Get providers if table exists
+        if ($providers_table_exists) {
+            $result = $db->query("SELECT * FROM sms_providers ORDER BY is_default DESC, name");
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $providers[] = $row;
+                }
+            }
         }
         
+        // Get settings if table exists
+        if ($settings_table_exists) {
+            $result = $db->query("SELECT setting_key, setting_value FROM sms_settings");
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $settings[$row['setting_key']] = $row['setting_value'];
+                }
+            }
+        }
     } catch (Exception $e) {
-        $error_message = $e->getMessage();
+        $error_message = 'Error loading data: ' . $e->getMessage();
     }
-}
-
-// Check if SMS tables exist
-$providers_table_check = $db->query("SHOW TABLES LIKE 'sms_providers'");
-$providers_table_exists = $providers_table_check && $providers_table_check->num_rows > 0;
-
-$settings_table_check = $db->query("SHOW TABLES LIKE 'sms_settings'");
-$settings_table_exists = $settings_table_check && $settings_table_check->num_rows > 0;
-
-$tables_missing = !$providers_table_exists || !$settings_table_exists;
-
-// Get providers if table exists
-if ($providers_table_exists) {
-    $result = $db->query("SELECT * FROM sms_providers ORDER BY is_default DESC, name");
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $providers[] = $row;
+    
+    // Edit provider from URL
+    if (isset($_GET['edit_provider'])) {
+        $edit_id = (int)$_GET['edit_provider'];
+        foreach ($providers as $p) {
+            if ((int)$p['id'] === $edit_id) {
+                $edit_provider = $p;
+                break;
+            }
         }
     }
 }
 
-// Get settings if table exists
-if ($settings_table_exists) {
-    $result = $db->query("SELECT setting_key, setting_value FROM sms_settings");
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $settings[$row['setting_key']] = $row['setting_value'];
-        }
-    }
-}
-
-// Defaults
+// Defaults - merge with any loaded settings
 $settings = array_merge([
     'sms_daily_limit' => '1000',
     'sms_quiet_hours_start' => '21:00',
@@ -173,24 +217,13 @@ $settings = array_merge([
     'sms_reminder_dueday_enabled' => '1',
     'sms_overdue_7day_enabled' => '1',
 ], $settings);
-
-$edit_provider = null;
-if (isset($_GET['edit_provider'])) {
-    $edit_id = (int)$_GET['edit_provider'];
-    foreach ($providers as $p) {
-        if ($p['id'] == $edit_id) {
-            $edit_provider = $p;
-            break;
-        }
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo $page_title; ?> - Fundraising Admin</title>
+    <title><?php echo htmlspecialchars($page_title); ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -267,23 +300,23 @@ if (isset($_GET['edit_provider'])) {
                                         <div class="d-flex align-items-center justify-content-between p-3 border rounded mb-2">
                                             <div>
                                                 <div class="fw-semibold">
-                                                    <?php echo htmlspecialchars($provider['display_name']); ?>
-                                                    <?php if ($provider['is_default']): ?>
+                                                    <?php echo htmlspecialchars($provider['display_name'] ?? ''); ?>
+                                                    <?php if (!empty($provider['is_default'])): ?>
                                                         <span class="badge bg-primary ms-1">Default</span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <small class="text-muted">
-                                                    <?php echo htmlspecialchars($provider['name']); ?> · 
-                                                    <?php echo number_format($provider['cost_per_sms_pence'], 1); ?>p/SMS
+                                                    <?php echo htmlspecialchars($provider['name'] ?? ''); ?> · 
+                                                    <?php echo number_format((float)($provider['cost_per_sms_pence'] ?? 0), 1); ?>p/SMS
                                                 </small>
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
-                                                <?php if ($provider['is_active']): ?>
+                                                <?php if (!empty($provider['is_active'])): ?>
                                                     <span class="badge bg-success">Active</span>
                                                 <?php else: ?>
                                                     <span class="badge bg-secondary">Inactive</span>
                                                 <?php endif; ?>
-                                                <a href="?edit_provider=<?php echo $provider['id']; ?>" 
+                                                <a href="?edit_provider=<?php echo (int)$provider['id']; ?>" 
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
@@ -303,7 +336,7 @@ if (isset($_GET['edit_provider'])) {
                             </div>
                             <div class="card-body">
                                 <form method="POST">
-                                    <?php echo csrf_field(); ?>
+                                    <?php echo csrf_input(); ?>
                                     <input type="hidden" name="action" value="save_settings">
                                     
                                     <div class="mb-3">
@@ -332,19 +365,19 @@ if (isset($_GET['edit_provider'])) {
                                     
                                     <div class="form-check form-switch mb-2">
                                         <input class="form-check-input" type="checkbox" name="sms_reminder_3day_enabled" id="reminder3day"
-                                               <?php echo $settings['sms_reminder_3day_enabled'] === '1' ? 'checked' : ''; ?>>
+                                               <?php echo ($settings['sms_reminder_3day_enabled'] ?? '') === '1' ? 'checked' : ''; ?>>
                                         <label class="form-check-label" for="reminder3day">3-Day Payment Reminder</label>
                                     </div>
                                     
                                     <div class="form-check form-switch mb-2">
                                         <input class="form-check-input" type="checkbox" name="sms_reminder_dueday_enabled" id="reminderDue"
-                                               <?php echo $settings['sms_reminder_dueday_enabled'] === '1' ? 'checked' : ''; ?>>
+                                               <?php echo ($settings['sms_reminder_dueday_enabled'] ?? '') === '1' ? 'checked' : ''; ?>>
                                         <label class="form-check-label" for="reminderDue">Due Day Reminder</label>
                                     </div>
                                     
                                     <div class="form-check form-switch mb-3">
                                         <input class="form-check-input" type="checkbox" name="sms_overdue_7day_enabled" id="overdue7day"
-                                               <?php echo $settings['sms_overdue_7day_enabled'] === '1' ? 'checked' : ''; ?>>
+                                               <?php echo ($settings['sms_overdue_7day_enabled'] ?? '') === '1' ? 'checked' : ''; ?>>
                                         <label class="form-check-label" for="overdue7day">7-Day Overdue Notice</label>
                                     </div>
                                     
@@ -365,12 +398,12 @@ if (isset($_GET['edit_provider'])) {
                     <div class="card-body">
                         <p class="text-muted mb-3">Add these cron jobs in your cPanel to enable automated SMS:</p>
                         
-                        <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: monospace; font-size: 0.875rem;">
+                        <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: monospace; font-size: 0.875rem; overflow-x: auto;">
                             <div class="mb-2"># Process SMS queue (every 5 minutes)</div>
-                            <code>*/5 * * * * /usr/local/bin/php /home/YOUR_USER/public_html/Fundraising/cron/process-sms-queue.php</code>
+                            <code style="word-break: break-all;">*/5 * * * * /usr/local/bin/php /home/YOUR_USER/public_html/Fundraising/cron/process-sms-queue.php</code>
                             
                             <div class="mt-3 mb-2"># Schedule payment reminders (daily at 8am)</div>
-                            <code>0 8 * * * /usr/local/bin/php /home/YOUR_USER/public_html/Fundraising/cron/schedule-payment-reminders.php</code>
+                            <code style="word-break: break-all;">0 8 * * * /usr/local/bin/php /home/YOUR_USER/public_html/Fundraising/cron/schedule-payment-reminders.php</code>
                         </div>
                         
                         <div class="alert alert-info mb-0">
@@ -386,19 +419,19 @@ if (isset($_GET['edit_provider'])) {
 </div>
 
 <!-- Provider Modal -->
-<div class="modal fade" id="providerModal" tabindex="-1">
+<div class="modal fade" id="providerModal" tabindex="-1" aria-labelledby="providerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST">
-                <?php echo csrf_field(); ?>
+                <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="save_provider">
-                <input type="hidden" name="provider_id" value="<?php echo $edit_provider['id'] ?? ''; ?>">
+                <input type="hidden" name="provider_id" value="<?php echo htmlspecialchars((string)($edit_provider['id'] ?? '')); ?>">
                 
                 <div class="modal-header">
-                    <h5 class="modal-title">
+                    <h5 class="modal-title" id="providerModalLabel">
                         <?php echo $edit_provider ? 'Edit Provider' : 'Add SMS Provider'; ?>
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
@@ -443,18 +476,18 @@ if (isset($_GET['edit_provider'])) {
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Cost per SMS (pence)</label>
                         <input type="number" name="cost_per_sms" class="form-control" step="0.1"
-                               value="<?php echo htmlspecialchars($edit_provider['cost_per_sms_pence'] ?? '3.0'); ?>">
+                               value="<?php echo htmlspecialchars((string)($edit_provider['cost_per_sms_pence'] ?? '3.0')); ?>">
                     </div>
                     
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" name="is_active" id="providerActive"
-                               <?php echo ($edit_provider['is_active'] ?? 0) ? 'checked' : ''; ?>>
+                               <?php echo !empty($edit_provider['is_active']) ? 'checked' : ''; ?>>
                         <label class="form-check-label" for="providerActive">Provider is active</label>
                     </div>
                     
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" name="is_default" id="providerDefault"
-                               <?php echo ($edit_provider['is_default'] ?? 0) ? 'checked' : ''; ?>>
+                               <?php echo !empty($edit_provider['is_default']) ? 'checked' : ''; ?>>
                         <label class="form-check-label" for="providerDefault">Set as default provider</label>
                     </div>
                 </div>
@@ -478,10 +511,13 @@ if (isset($_GET['edit_provider'])) {
 <?php if ($edit_provider): ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    new bootstrap.Modal(document.getElementById('providerModal')).show();
+    var modalEl = document.getElementById('providerModal');
+    if (modalEl) {
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
 });
 </script>
 <?php endif; ?>
 </body>
 </html>
-

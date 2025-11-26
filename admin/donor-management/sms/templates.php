@@ -251,7 +251,7 @@ $categories = [
                         </div>
                         <div class="card-body">
                             <form method="POST">
-                                <?php echo csrf_field(); ?>
+                                <?php echo csrf_input(); ?>
                                 <input type="hidden" name="action" value="<?php echo $edit_template ? 'update' : 'create'; ?>">
                                 <?php if ($edit_template): ?>
                                     <input type="hidden" name="template_id" value="<?php echo $edit_template['id']; ?>">
@@ -449,7 +449,7 @@ $categories = [
             </div>
             <div class="modal-footer">
                 <form method="POST" id="deleteForm">
-                    <?php echo csrf_field(); ?>
+                    <?php echo csrf_input(); ?>
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="template_id" id="deleteTemplateId">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

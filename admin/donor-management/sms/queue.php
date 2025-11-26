@@ -161,7 +161,7 @@ $total_items = $stats['pending'] + $stats['processing'] + $stats['failed'];
                     </div>
                     <?php if ($stats['pending'] > 0): ?>
                         <form method="POST" onsubmit="return confirm('Cancel ALL pending messages?');">
-                            <?php echo csrf_field(); ?>
+                            <?php echo csrf_input(); ?>
                             <input type="hidden" name="action" value="cancel_all">
                             <button type="submit" class="btn btn-outline-danger">
                                 <i class="fas fa-times-circle me-2"></i>Cancel All Pending
@@ -271,7 +271,7 @@ $total_items = $stats['pending'] + $stats['processing'] + $stats['failed'];
                                                 <div class="btn-group btn-group-sm">
                                                     <?php if ($item['status'] === 'pending'): ?>
                                                         <form method="POST" class="d-inline">
-                                                            <?php echo csrf_field(); ?>
+                                                            <?php echo csrf_input(); ?>
                                                             <input type="hidden" name="action" value="cancel">
                                                             <input type="hidden" name="queue_id" value="<?php echo $item['id']; ?>">
                                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel">
@@ -281,7 +281,7 @@ $total_items = $stats['pending'] + $stats['processing'] + $stats['failed'];
                                                     <?php endif; ?>
                                                     <?php if ($item['status'] === 'failed'): ?>
                                                         <form method="POST" class="d-inline">
-                                                            <?php echo csrf_field(); ?>
+                                                            <?php echo csrf_input(); ?>
                                                             <input type="hidden" name="action" value="retry">
                                                             <input type="hidden" name="queue_id" value="<?php echo $item['id']; ?>">
                                                             <button type="submit" class="btn btn-outline-primary btn-sm" title="Retry">

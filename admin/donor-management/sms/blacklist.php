@@ -229,7 +229,7 @@ $reasons = [
                                             <td>
                                                 <form method="POST" class="d-inline" 
                                                       onsubmit="return confirm('Remove this number from blacklist?');">
-                                                    <?php echo csrf_field(); ?>
+                                                    <?php echo csrf_input(); ?>
                                                     <input type="hidden" name="action" value="remove">
                                                     <input type="hidden" name="blacklist_id" value="<?php echo $item['id']; ?>">
                                                     <button type="submit" class="btn btn-sm btn-outline-success" title="Unblock">
@@ -255,7 +255,7 @@ $reasons = [
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST">
-                <?php echo csrf_field(); ?>
+                <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="add">
                 
                 <div class="modal-header">
