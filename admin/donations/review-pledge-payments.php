@@ -11,8 +11,6 @@ if (!in_array($current_user['role'] ?? '', ['admin', 'registrar'])) {
     exit;
 }
 
-$page_title = 'Review Pledge Payments';
-
 $db = db();
 
 // Check if table exists
@@ -21,25 +19,69 @@ if ($check->num_rows === 0) {
     die("<div class='alert alert-danger m-4'>Error: Table 'pledge_payments' not found.</div>");
 }
 
-// Get filter
+// Get filter (status)
 $filter = $_GET['filter'] ?? 'pending';
-
-// Build query based on filter
-$where_clause = "";
-if ($filter === 'pending') {
-    $where_clause = "pp.status = 'pending'";
-} elseif ($filter === 'confirmed') {
-    $where_clause = "pp.status = 'confirmed'";
-} elseif ($filter === 'voided') {
-    $where_clause = "pp.status = 'voided'";
-} else {
-    $where_clause = "1=1"; // all
+$valid_filters = ['pending', 'confirmed', 'voided', 'all'];
+if (!in_array($filter, $valid_filters)) {
+    $filter = 'pending';
 }
+
+// Pagination settings
+$per_page = 15;
+$page = max(1, intval($_GET['page'] ?? 1));
+$offset = ($page - 1) * $per_page;
+
+// Search
+$search = trim($_GET['search'] ?? '');
+
+// Build WHERE clause
+$where_conditions = [];
+$params = [];
+$types = '';
+
+if ($filter === 'pending') {
+    $where_conditions[] = "pp.status = 'pending'";
+} elseif ($filter === 'confirmed') {
+    $where_conditions[] = "pp.status = 'confirmed'";
+} elseif ($filter === 'voided') {
+    $where_conditions[] = "pp.status = 'voided'";
+}
+
+if (!empty($search)) {
+    $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR pp.reference_number LIKE ?)";
+    $search_param = "%{$search}%";
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $types .= 'sss';
+}
+
+$where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 // Check if payment_plan_id column exists
 $has_plan_col = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'")->num_rows > 0;
 
-// Fetch payments
+// Get total count for pagination
+$count_sql = "
+    SELECT COUNT(*) as total
+    FROM pledge_payments pp
+    LEFT JOIN donors d ON pp.donor_id = d.id
+    {$where_clause}
+";
+
+if (!empty($params)) {
+    $stmt = $db->prepare($count_sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $total_records = $stmt->get_result()->fetch_assoc()['total'];
+    $stmt->close();
+} else {
+    $total_records = $db->query($count_sql)->fetch_assoc()['total'];
+}
+
+$total_pages = ceil($total_records / $per_page);
+
+// Fetch payments with pagination
 $sql = "
     SELECT 
         pp.*,
@@ -64,14 +106,26 @@ $sql = "
     LEFT JOIN users voider ON pp.voided_by_user_id = voider.id" . 
     ($has_plan_col ? "
     LEFT JOIN donor_payment_plans pplan ON pp.payment_plan_id = pplan.id" : "") . "
-    WHERE $where_clause
+    {$where_clause}
     ORDER BY pp.created_at DESC
+    LIMIT {$per_page} OFFSET {$offset}
 ";
 
 $payments = [];
-$res = $db->query($sql);
-while ($row = $res->fetch_assoc()) {
-    $payments[] = $row;
+if (!empty($params)) {
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $payments[] = $row;
+    }
+    $stmt->close();
+} else {
+    $res = $db->query($sql);
+    while ($row = $res->fetch_assoc()) {
+        $payments[] = $row;
+    }
 }
 
 // Count statistics
@@ -80,132 +134,531 @@ $stats = [
     'confirmed' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='confirmed'")->fetch_assoc()['c'],
     'voided' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='voided'")->fetch_assoc()['c']
 ];
+$stats['all'] = $stats['pending'] + $stats['confirmed'] + $stats['voided'];
+
+// Page titles based on filter
+$page_titles = [
+    'pending' => 'Pending Payments',
+    'confirmed' => 'Approved Payments',
+    'voided' => 'Rejected Payments',
+    'all' => 'All Payments'
+];
+$page_title = $page_titles[$filter] ?? 'Review Payments';
+
+// Build pagination URL
+function build_url($params) {
+    $current = $_GET;
+    foreach ($params as $key => $value) {
+        if ($value === null) {
+            unset($current[$key]);
+        } else {
+            $current[$key] = $value;
+        }
+    }
+    return '?' . http_build_query($current);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo $page_title; ?></title>
+    <title><?php echo $page_title; ?> - Payment Review</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        .proof-thumbnail {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: transform 0.2s;
+        :root {
+            --color-pending: #f59e0b;
+            --color-approved: #10b981;
+            --color-rejected: #ef4444;
+            --color-all: #6366f1;
         }
-        .proof-thumbnail:hover {
-            transform: scale(1.05);
+        
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            color: white;
+        }
+        .page-header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .stat-mini {
+            background: white;
+            border-radius: 10px;
+            padding: 0.875rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-left: 3px solid;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+        .stat-mini:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            color: inherit;
+        }
+        .stat-mini.active {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        .stat-mini.pending { border-left-color: var(--color-pending); }
+        .stat-mini.approved { border-left-color: var(--color-approved); }
+        .stat-mini.rejected { border-left-color: var(--color-rejected); }
+        .stat-mini.all { border-left-color: var(--color-all); }
+        .stat-mini .stat-count {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .stat-mini.pending .stat-count { color: var(--color-pending); }
+        .stat-mini.approved .stat-count { color: var(--color-approved); }
+        .stat-mini.rejected .stat-count { color: var(--color-rejected); }
+        .stat-mini.all .stat-count { color: var(--color-all); }
+        .stat-mini .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-top: 0.25rem;
+            font-weight: 600;
+        }
+        
+        /* Search Bar */
+        .search-bar {
+            background: white;
+            border-radius: 10px;
+            padding: 0.875rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .search-bar .form-control {
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+        }
+        .search-bar .form-control:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .search-bar .btn {
+            border-radius: 8px;
+            padding: 0.625rem 1rem;
+        }
+        
+        /* Payment Cards */
+        .payment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
         .payment-card {
-            transition: all 0.2s;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow: hidden;
+            transition: all 0.2s ease;
         }
         .payment-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
         }
-        .status-badge {
-            font-size: 0.85rem;
-            padding: 0.35rem 0.75rem;
+        .payment-card.status-pending { border-left: 4px solid var(--color-pending); }
+        .payment-card.status-confirmed { border-left: 4px solid var(--color-approved); }
+        .payment-card.status-voided { border-left: 4px solid var(--color-rejected); }
+        
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1rem;
+            border-bottom: 1px solid #f1f5f9;
         }
-        /* Fix nav-pills visibility */
-        .nav-pills .nav-link {
-            color: #495057;
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
+        .donor-info h5 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 0.25rem;
+            color: #1e293b;
         }
-        .nav-pills .nav-link:hover {
-            background: #e9ecef;
-            color: #212529;
+        .donor-info .phone {
+            font-size: 0.8rem;
+            color: #64748b;
         }
-        .nav-pills .nav-link.active {
-            background: #0d6efd;
-            color: #fff;
-            border-color: #0d6efd;
-        }
-        .stat-card {
-            border-left: 4px solid;
-        }
-        .stat-card.pending {
-            border-left-color: #ffc107;
-        }
-        .stat-card.approved {
-            border-left-color: #198754;
-        }
-        .stat-card.rejected {
-            border-left-color: #dc3545;
+        .amount-badge {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--color-approved);
+            background: #ecfdf5;
+            padding: 0.375rem 0.75rem;
+            border-radius: 8px;
         }
         
-        /* Enhanced button styles */
-        .btn-undo {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        .card-body-content {
+            padding: 1rem;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .detail-item .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            margin-bottom: 0.125rem;
+        }
+        .detail-item .value {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #334155;
+        }
+        .detail-item .value i {
+            margin-right: 0.375rem;
+            width: 14px;
+            text-align: center;
+        }
+        
+        /* Payment Plan Badge */
+        .plan-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+            padding: 0.375rem 0.625rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        
+        /* Notes Section */
+        .notes-section {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 0.625rem 0.75rem;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: #475569;
+        }
+        .notes-section i { margin-right: 0.375rem; color: #94a3b8; }
+        
+        /* Processing Info */
+        .processing-info {
+            background: #fafafa;
+            padding: 0.75rem 1rem;
+            font-size: 0.75rem;
+            color: #64748b;
+            border-top: 1px solid #f1f5f9;
+        }
+        .processing-info .info-row {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            margin-bottom: 0.25rem;
+        }
+        .processing-info .info-row:last-child { margin-bottom: 0; }
+        .processing-info .info-row i { width: 14px; text-align: center; }
+        .processing-info .text-success { color: var(--color-approved) !important; }
+        .processing-info .text-danger { color: var(--color-rejected) !important; }
+        
+        /* Action Buttons */
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: #fafafa;
+            border-top: 1px solid #f1f5f9;
+        }
+        .card-actions .btn {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.375rem;
+        }
+        .btn-approve {
+            background: var(--color-approved);
             color: white;
             border: none;
-            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
-            transition: all 0.3s ease;
+        }
+        .btn-approve:hover {
+            background: #059669;
+            color: white;
+        }
+        .btn-reject {
+            background: var(--color-rejected);
+            color: white;
+            border: none;
+        }
+        .btn-reject:hover {
+            background: #dc2626;
+            color: white;
+        }
+        .btn-undo {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            border: none;
         }
         .btn-undo:hover {
-            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        }
+        .btn-view {
+            background: #e2e8f0;
+            color: #475569;
+            border: none;
+        }
+        .btn-view:hover {
+            background: #cbd5e1;
+            color: #1e293b;
         }
         
-        /* Approved payment card enhancement */
-        .approved-card {
-            border-left: 4px solid #198754;
+        /* Proof Thumbnail */
+        .proof-thumb {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s;
         }
-        .pending-card {
-            border-left: 4px solid #ffc107;
+        .proof-thumb:hover {
+            border-color: #6366f1;
+            transform: scale(1.05);
         }
-        .rejected-card {
-            border-left: 4px solid #dc3545;
+        .proof-placeholder {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
         }
         
-        /* Icon visibility fix */
-        .fa, .fas, .far, .fal, .fab {
-            display: inline-block;
-            font-style: normal;
-            font-variant: normal;
-            text-rendering: auto;
-            -webkit-font-smoothing: antialiased;
+        /* Status Badge */
+        .status-badge-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-badge-inline.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-badge-inline.confirmed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-badge-inline.voided {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* Void Reason */
+        .void-reason {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            color: #991b1b;
+            margin-top: 0.5rem;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .empty-state i {
+            font-size: 3rem;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+        .empty-state h5 {
+            color: #64748b;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        .empty-state p {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin: 0;
+        }
+        
+        /* Pagination */
+        .pagination-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            margin-top: 0.5rem;
+        }
+        .pagination-wrapper .page-info {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin: 0 0.5rem;
+        }
+        .pagination-wrapper .btn {
+            padding: 0.5rem 0.875rem;
+            font-size: 0.8rem;
+            border-radius: 8px;
+        }
+        .pagination-wrapper .btn-page {
+            background: white;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+        }
+        .pagination-wrapper .btn-page:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .pagination-wrapper .btn-page.active {
+            background: #6366f1;
+            border-color: #6366f1;
+            color: white;
+        }
+        .pagination-wrapper .btn-page:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Results Info */
+        .results-info {
+            background: white;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .results-info .count {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        .results-info .count strong {
+            color: #1e293b;
+        }
+        .results-info .btn {
+            font-size: 0.75rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
         }
         
         /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .stat-card h3 {
-                font-size: 1.5rem;
+        @media (max-width: 576px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
             }
-            .nav-pills {
+            .stat-mini {
+                padding: 0.75rem 0.5rem;
+            }
+            .stat-mini .stat-count {
+                font-size: 1.25rem;
+            }
+            .stat-mini .stat-label {
+                font-size: 0.65rem;
+            }
+            .page-header {
+                padding: 1rem;
+            }
+            .page-header h1 {
+                font-size: 1.125rem;
+            }
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+            .card-actions {
                 flex-direction: column;
             }
-            .nav-pills .nav-link {
+            .card-actions .btn {
                 width: 100%;
-                margin-right: 0;
-                text-align: left;
             }
-            .payment-card .col-auto {
-                margin-bottom: 1rem;
-            }
-            .btn-undo {
-                width: 100%;
+            .pagination-wrapper {
+                flex-wrap: wrap;
             }
         }
         
-        @media (max-width: 576px) {
-            .proof-thumbnail {
-                width: 50px;
-                height: 50px;
+        @media (min-width: 768px) {
+            .details-grid {
+                grid-template-columns: repeat(4, 1fr);
             }
-            .payment-card .card-body {
-                padding: 1rem !important;
+            .card-actions .btn {
+                flex: 0 0 auto;
+                min-width: 100px;
+            }
+        }
+        
+        /* Quick Action FAB for Mobile */
+        .quick-add-fab {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        .quick-add-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+            color: white;
+        }
+        @media (min-width: 768px) {
+            .quick-add-fab {
+                display: none;
             }
         }
     </style>
@@ -216,330 +669,344 @@ $stats = [
     <div class="admin-content">
         <?php include '../includes/topbar.php'; ?>
         <main class="main-content">
-            <div class="container-fluid p-3 p-md-4">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4">
-                    <h1 class="h4 mb-2 mb-md-0">
-                        <i class="fas fa-check-double text-primary me-2"></i>Review Pledge Payments
-                    </h1>
-                    <a href="record-pledge-payment.php" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Record New Payment
+            <div class="container-fluid p-2 p-md-4">
+                
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h1>
+                            <i class="fas fa-receipt me-2"></i><?php echo $page_title; ?>
+                        </h1>
+                        <a href="record-pledge-payment.php" class="btn btn-light btn-sm d-none d-md-inline-flex">
+                            <i class="fas fa-plus me-1"></i>Record Payment
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Stats Row (Clickable Tab Navigation) -->
+                <div class="stats-row">
+                    <a href="?filter=pending" class="stat-mini pending <?php echo $filter === 'pending' ? 'active' : ''; ?>">
+                        <div class="stat-count"><?php echo $stats['pending']; ?></div>
+                        <div class="stat-label"><i class="fas fa-clock"></i> Pending</div>
+                    </a>
+                    <a href="?filter=confirmed" class="stat-mini approved <?php echo $filter === 'confirmed' ? 'active' : ''; ?>">
+                        <div class="stat-count"><?php echo $stats['confirmed']; ?></div>
+                        <div class="stat-label"><i class="fas fa-check"></i> Approved</div>
+                    </a>
+                    <a href="?filter=voided" class="stat-mini rejected <?php echo $filter === 'voided' ? 'active' : ''; ?>">
+                        <div class="stat-count"><?php echo $stats['voided']; ?></div>
+                        <div class="stat-label"><i class="fas fa-ban"></i> Rejected</div>
+                    </a>
+                    <a href="?filter=all" class="stat-mini all <?php echo $filter === 'all' ? 'active' : ''; ?>">
+                        <div class="stat-count"><?php echo $stats['all']; ?></div>
+                        <div class="stat-label"><i class="fas fa-list"></i> All</div>
                     </a>
                 </div>
-
-                <!-- Statistics Cards -->
-                <div class="row g-3 mb-3 mb-md-4">
-                    <div class="col-6 col-md-4">
-                        <div class="card shadow-sm stat-card pending">
-                            <div class="card-body">
-                                <h6 class="text-muted small mb-1">
-                                    <i class="fas fa-hourglass-half me-1 text-warning"></i>Pending Review
-                                </h6>
-                                <h3 class="mb-0 text-warning fw-bold"><?php echo $stats['pending']; ?></h3>
-                            </div>
+                
+                <!-- Search Bar -->
+                <div class="search-bar">
+                    <form method="get" class="d-flex gap-2">
+                        <input type="hidden" name="filter" value="<?php echo htmlspecialchars($filter); ?>">
+                        <div class="flex-grow-1">
+                            <input type="text" name="search" class="form-control" 
+                                   placeholder="Search by name, phone, or reference..." 
+                                   value="<?php echo htmlspecialchars($search); ?>">
                         </div>
-                    </div>
-                    <div class="col-6 col-md-4">
-                        <div class="card shadow-sm stat-card approved">
-                            <div class="card-body">
-                                <h6 class="text-muted small mb-1">
-                                    <i class="fas fa-check-double me-1 text-success"></i>Approved
-                                </h6>
-                                <h3 class="mb-0 text-success fw-bold"><?php echo $stats['confirmed']; ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-4">
-                        <div class="card shadow-sm stat-card rejected">
-                            <div class="card-body">
-                                <h6 class="text-muted small mb-1">
-                                    <i class="fas fa-ban me-1 text-danger"></i>Rejected
-                                </h6>
-                                <h3 class="mb-0 text-danger fw-bold"><?php echo $stats['voided']; ?></h3>
-                            </div>
-                        </div>
-                    </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <?php if (!empty($search)): ?>
+                            <a href="?filter=<?php echo $filter; ?>" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        <?php endif; ?>
+                    </form>
                 </div>
-
-                <!-- Filter Tabs -->
-                <div class="mb-3 mb-md-4">
-                    <div class="nav nav-pills flex-wrap" role="tablist">
-                        <a class="nav-link <?php echo $filter === 'pending' ? 'active' : ''; ?>" 
-                           href="?filter=pending"
-                           style="color: <?php echo $filter === 'pending' ? '#fff' : '#495057'; ?>;">
-                            <i class="fas fa-clock me-1"></i> 
-                            <span class="fw-bold">Pending</span>
-                            <span class="badge bg-<?php echo $filter === 'pending' ? 'light text-dark' : 'warning'; ?> ms-1">
-                                <?php echo $stats['pending']; ?>
+                
+                <!-- Results Info -->
+                <?php if ($total_records > 0): ?>
+                    <div class="results-info">
+                        <span class="count">
+                            Showing <strong><?php echo min($offset + 1, $total_records); ?>-<?php echo min($offset + $per_page, $total_records); ?></strong> 
+                            of <strong><?php echo $total_records; ?></strong> payments
+                        </span>
+                        <?php if (!empty($search)): ?>
+                            <span class="badge bg-primary">
+                                Search: "<?php echo htmlspecialchars($search); ?>"
                             </span>
-                        </a>
-                        <a class="nav-link <?php echo $filter === 'confirmed' ? 'active' : ''; ?>" 
-                           href="?filter=confirmed"
-                           style="color: <?php echo $filter === 'confirmed' ? '#fff' : '#495057'; ?>;">
-                            <i class="fas fa-check me-1"></i> 
-                            <span class="fw-bold">Approved</span>
-                            <span class="badge bg-<?php echo $filter === 'confirmed' ? 'light text-dark' : 'success'; ?> ms-1">
-                                <?php echo $stats['confirmed']; ?>
-                            </span>
-                        </a>
-                        <a class="nav-link <?php echo $filter === 'voided' ? 'active' : ''; ?>" 
-                           href="?filter=voided"
-                           style="color: <?php echo $filter === 'voided' ? '#fff' : '#495057'; ?>;">
-                            <i class="fas fa-ban me-1"></i> 
-                            <span class="fw-bold">Rejected</span>
-                            <span class="badge bg-<?php echo $filter === 'voided' ? 'light text-dark' : 'danger'; ?> ms-1">
-                                <?php echo $stats['voided']; ?>
-                            </span>
-                        </a>
-                        <a class="nav-link <?php echo $filter === 'all' ? 'active' : ''; ?>" 
-                           href="?filter=all"
-                           style="color: <?php echo $filter === 'all' ? '#fff' : '#495057'; ?>;">
-                            <i class="fas fa-list me-1"></i> 
-                            <span class="fw-bold">All</span>
-                        </a>
+                        <?php endif; ?>
                     </div>
-                </div>
-
+                <?php endif; ?>
+                
                 <!-- Payments List -->
                 <?php if (empty($payments)): ?>
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body text-center py-5">
-                            <i class="fas fa-inbox fa-3x text-muted mb-3 opacity-25"></i>
-                            <h5 class="text-muted mb-2">No payments found</h5>
-                            <p class="text-muted mb-0 small">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h5>No payments found</h5>
+                        <p>
+                            <?php if (!empty($search)): ?>
+                                No results match your search "<?php echo htmlspecialchars($search); ?>".
+                            <?php else: ?>
                                 There are no <?php echo $filter === 'all' ? '' : $filter; ?> payments to display.
-                            </p>
-                        </div>
+                            <?php endif; ?>
+                        </p>
                     </div>
                 <?php else: ?>
-                    <div class="row g-3">
+                    <div class="payment-list">
                         <?php foreach ($payments as $p): ?>
-                            <div class="col-12">
-                                <div class="card payment-card shadow-sm <?php 
-                                    if ($p['status'] === 'confirmed') echo 'approved-card';
-                                    elseif ($p['status'] === 'pending') echo 'pending-card';
-                                    elseif ($p['status'] === 'voided') echo 'rejected-card';
-                                ?>">
-                                    <div class="card-body p-3 p-md-4">
-                                        <div class="row g-3 align-items-start">
-                                            <!-- Payment Proof Thumbnail -->
-                                            <div class="col-auto">
-                                                <?php if ($p['payment_proof']): ?>
-                                                    <?php 
-                                                    $ext = strtolower(pathinfo($p['payment_proof'], PATHINFO_EXTENSION));
-                                                    $is_pdf = ($ext === 'pdf');
-                                                    ?>
-                                                    <?php if ($is_pdf): ?>
-                                                        <a href="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" target="_blank" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                                            <i class="fas fa-file-pdf fa-lg"></i>
-                                                        </a>
-                                                    <?php else: ?>
-                                                        <img src="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" 
-                                                             alt="Payment Proof" 
-                                                             class="proof-thumbnail border"
-                                                             onclick="viewProof('../../<?php echo htmlspecialchars($p['payment_proof']); ?>')">
-                                                    <?php endif; ?>
-                                                <?php else: ?>
-                                                    <div class="proof-thumbnail border d-flex align-items-center justify-content-center bg-light">
-                                                        <i class="fas fa-file-image text-muted"></i>
-                                                    </div>
-                                                <?php endif; ?>
+                            <div class="payment-card status-<?php echo $p['status']; ?>">
+                                <!-- Card Header -->
+                                <div class="card-header-row">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <!-- Proof Thumbnail -->
+                                        <?php if ($p['payment_proof']): ?>
+                                            <?php 
+                                            $ext = strtolower(pathinfo($p['payment_proof'], PATHINFO_EXTENSION));
+                                            $is_pdf = ($ext === 'pdf');
+                                            ?>
+                                            <?php if ($is_pdf): ?>
+                                                <a href="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" target="_blank" class="proof-placeholder" style="background: #fee2e2; color: #dc2626;">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                </a>
+                                            <?php else: ?>
+                                                <img src="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" 
+                                                     alt="Proof" 
+                                                     class="proof-thumb"
+                                                     onclick="viewProof('../../<?php echo htmlspecialchars($p['payment_proof']); ?>')">
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <div class="proof-placeholder">
+                                                <i class="fas fa-receipt"></i>
                                             </div>
-
-                                            <!-- Payment Details -->
-                                            <div class="col-12 col-md">
-                                                <div class="row g-2">
-                                                    <div class="col-12">
-                                                        <h5 class="mb-1 fw-bold">
-                                                            <i class="fas fa-user me-2 text-primary"></i>
-                                                            <?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown'); ?>
-                                                        </h5>
-                                                        <p class="mb-2 text-muted">
-                                                            <i class="fas fa-phone me-1"></i>
-                                                            <?php echo htmlspecialchars($p['donor_phone'] ?? '-'); ?>
-                                                        </p>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <div class="d-flex flex-wrap gap-3 mb-2">
-                                                            <div>
-                                                                <small class="text-muted d-block">Amount</small>
-                                                                <span class="text-success fw-bold fs-5">
-                                                                    <i class="fas fa-pound-sign me-1"></i>
-                                                                    <?php echo number_format((float)$p['amount'], 2); ?>
-                                                                </span>
-                                                            </div>
-                                                            <div>
-                                                                <small class="text-muted d-block">Method</small>
-                                                                <span class="fw-semibold">
-                                                                    <?php 
-                                                                    $method_icons = [
-                                                                        'cash' => 'money-bill-wave',
-                                                                        'bank_transfer' => 'university',
-                                                                        'card' => 'credit-card',
-                                                                        'cheque' => 'file-invoice-dollar',
-                                                                        'other' => 'hand-holding-usd'
-                                                                    ];
-                                                                    $icon = $method_icons[$p['payment_method']] ?? 'money-bill';
-                                                                    ?>
-                                                                    <i class="fas fa-<?php echo $icon; ?> me-1 text-info"></i>
-                                                                    <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
-                                                                </span>
-                                                            </div>
-                                                            <div>
-                                                                <small class="text-muted d-block">Date</small>
-                                                                <span class="fw-semibold">
-                                                                    <i class="far fa-calendar-alt me-1 text-secondary"></i>
-                                                                    <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
-                                                                </span>
-                                                            </div>
-                                                            <?php if ($p['reference_number']): ?>
-                                                            <div>
-                                                                <small class="text-muted d-block">Reference</small>
-                                                                <span class="fw-semibold font-monospace">
-                                                                    <i class="fas fa-hashtag me-1 text-muted"></i>
-                                                                    <?php echo htmlspecialchars($p['reference_number']); ?>
-                                                                </span>
-                                                            </div>
-                                                            <?php endif; ?>
-                                                            <?php 
-                                                            // Show payment plan info if linked or if donor has active plan
-                                                            $show_plan_info = false;
-                                                            $plan_installment = null;
-                                                            if ($has_plan_col && isset($p['plan_id']) && $p['plan_id']) {
-                                                                $show_plan_info = true;
-                                                                $plan_installment = ($p['plan_payments_made'] ?? 0) + 1;
-                                                            } elseif (isset($p['donor_active_plan_id']) && $p['donor_active_plan_id']) {
-                                                                // Check if amount matches monthly amount (potential plan payment)
-                                                                $plan_check = $db->prepare("SELECT monthly_amount FROM donor_payment_plans WHERE id = ? LIMIT 1");
-                                                                $plan_check->bind_param('i', $p['donor_active_plan_id']);
-                                                                $plan_check->execute();
-                                                                $plan_data = $plan_check->get_result()->fetch_assoc();
-                                                                $plan_check->close();
-                                                                
-                                                                if ($plan_data && abs((float)$p['amount'] - (float)$plan_data['monthly_amount']) < 0.01) {
-                                                                    $show_plan_info = true;
-                                                                    $plan_installment = '?'; // Will be calculated on approval
-                                                                }
-                                                            }
-                                                            ?>
-                                                            <?php if ($show_plan_info): ?>
-                                                            <div>
-                                                                <small class="text-muted d-block">Payment Plan</small>
-                                                                <span class="badge bg-info">
-                                                                    <i class="fas fa-calendar-check me-1"></i>
-                                                                    <?php if ($plan_installment !== '?'): ?>
-                                                                        Installment <?php echo $plan_installment; ?> of <?php echo $p['plan_total_payments'] ?? '?'; ?>
-                                                                    <?php else: ?>
-                                                                        Plan Payment (Auto-link on approval)
-                                                                    <?php endif; ?>
-                                                                </span>
-                                                            </div>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                    </div>
-                                                    <?php if ($p['notes']): ?>
-                                                        <div class="col-12">
-                                                            <div class="alert alert-info py-2 px-3 mb-0">
-                                                                <small>
-                                                                    <i class="fas fa-sticky-note me-1"></i>
-                                                                    <strong>Notes:</strong> <?php echo htmlspecialchars($p['notes']); ?>
-                                                                </small>
-                                                            </div>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div class="mt-3 pt-3 border-top">
-                                                    <div class="d-flex flex-column gap-1">
-                                                        <small class="text-muted">
-                                                            <i class="fas fa-user-plus me-1"></i>
-                                                            Submitted by <strong class="text-dark"><?php echo htmlspecialchars($p['processed_by_name'] ?? 'Unknown'); ?></strong> 
-                                                            <span class="text-muted">on <?php echo date('d M Y', strtotime($p['created_at'])); ?> at <?php echo date('H:i', strtotime($p['created_at'])); ?></span>
-                                                        </small>
-                                                        <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
-                                                            <small class="text-success">
-                                                                <i class="fas fa-check-circle me-1"></i>
-                                                                Approved by <strong><?php echo htmlspecialchars($p['approved_by_name']); ?></strong>
-                                                                <?php if ($p['approved_at']): ?>
-                                                                    <span class="text-muted">on <?php echo date('d M Y', strtotime($p['approved_at'])); ?> at <?php echo date('H:i', strtotime($p['approved_at'])); ?></span>
-                                                                <?php endif; ?>
-                                                            </small>
-                                                        <?php endif; ?>
-                                                        <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
-                                                            <small class="text-danger">
-                                                                <i class="fas fa-times-circle me-1"></i>
-                                                                Rejected by <strong><?php echo htmlspecialchars($p['voided_by_name']); ?></strong>
-                                                                <?php if ($p['voided_at']): ?>
-                                                                    <span class="text-muted">on <?php echo date('d M Y', strtotime($p['voided_at'])); ?> at <?php echo date('H:i', strtotime($p['voided_at'])); ?></span>
-                                                                <?php endif; ?>
-                                                            </small>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Status & Actions -->
-                                            <div class="col-12 col-md-auto ms-md-auto">
-                                                <div class="d-flex flex-column align-items-start align-items-md-end">
-                                                    <?php if ($p['status'] === 'pending'): ?>
-                                                        <span class="badge bg-warning text-dark status-badge mb-2">
-                                                            <i class="fas fa-clock me-1"></i>PENDING REVIEW
-                                                        </span>
-                                                        <div class="d-flex flex-column flex-md-row gap-2 w-100">
-                                                            <button class="btn btn-success btn-sm" onclick="approvePayment(<?php echo $p['id']; ?>)">
-                                                                <i class="fas fa-check me-1"></i>Approve
-                                                            </button>
-                                                            <button class="btn btn-danger btn-sm" onclick="voidPayment(<?php echo $p['id']; ?>)">
-                                                                <i class="fas fa-times me-1"></i>Reject
-                                                            </button>
-                                                        </div>
-                                                    <?php elseif ($p['status'] === 'confirmed'): ?>
-                                                        <span class="badge bg-success status-badge mb-2">
-                                                            <i class="fas fa-check-circle me-1"></i>APPROVED
-                                                        </span>
-                                                        <div class="d-flex flex-column gap-2">
-                                                            <button class="btn btn-undo btn-sm" onclick="undoPayment(<?php echo $p['id']; ?>)">
-                                                                <i class="fas fa-undo me-1"></i>Undo Payment
-                                                            </button>
-                                                            <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" 
-                                                               class="btn btn-outline-primary btn-sm">
-                                                                <i class="fas fa-user me-1"></i>View Donor
-                                                            </a>
-                                                        </div>
-                                                    <?php elseif ($p['status'] === 'voided'): ?>
-                                                        <span class="badge bg-danger status-badge mb-2">
-                                                            <i class="fas fa-ban me-1"></i>REJECTED
-                                                        </span>
-                                                        <?php if ($p['void_reason']): ?>
-                                                            <div class="alert alert-danger py-2 px-3 mb-0 small" role="alert" style="max-width: 250px;">
-                                                                <i class="fas fa-info-circle me-1"></i>
-                                                                <strong>Reason:</strong><br>
-                                                                <?php echo htmlspecialchars($p['void_reason']); ?>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                    <?php endif; ?>
-                                                </div>
+                                        <?php endif; ?>
+                                        
+                                        <div class="donor-info">
+                                            <h5><?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown Donor'); ?></h5>
+                                            <div class="phone">
+                                                <i class="fas fa-phone"></i>
+                                                <?php echo htmlspecialchars($p['donor_phone'] ?? '-'); ?>
                                             </div>
                                         </div>
                                     </div>
+                                    <div class="text-end">
+                                        <div class="amount-badge">
+                                            £<?php echo number_format((float)$p['amount'], 2); ?>
+                                        </div>
+                                        <?php if ($filter === 'all'): ?>
+                                            <div class="mt-2">
+                                                <span class="status-badge-inline <?php echo $p['status']; ?>">
+                                                    <?php if ($p['status'] === 'pending'): ?>
+                                                        <i class="fas fa-clock"></i> Pending
+                                                    <?php elseif ($p['status'] === 'confirmed'): ?>
+                                                        <i class="fas fa-check"></i> Approved
+                                                    <?php else: ?>
+                                                        <i class="fas fa-ban"></i> Rejected
+                                                    <?php endif; ?>
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                
+                                <!-- Card Body -->
+                                <div class="card-body-content">
+                                    <div class="details-grid">
+                                        <div class="detail-item">
+                                            <span class="label">Method</span>
+                                            <span class="value">
+                                                <?php 
+                                                $method_icons = [
+                                                    'cash' => 'money-bill-wave',
+                                                    'bank_transfer' => 'university',
+                                                    'card' => 'credit-card',
+                                                    'cheque' => 'file-invoice-dollar',
+                                                    'other' => 'hand-holding-usd'
+                                                ];
+                                                $icon = $method_icons[$p['payment_method']] ?? 'money-bill';
+                                                ?>
+                                                <i class="fas fa-<?php echo $icon; ?> text-info"></i>
+                                                <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
+                                            </span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="label">Date</span>
+                                            <span class="value">
+                                                <i class="far fa-calendar text-secondary"></i>
+                                                <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
+                                            </span>
+                                        </div>
+                                        <?php if ($p['reference_number']): ?>
+                                        <div class="detail-item">
+                                            <span class="label">Reference</span>
+                                            <span class="value">
+                                                <i class="fas fa-hashtag text-muted"></i>
+                                                <?php echo htmlspecialchars($p['reference_number']); ?>
+                                            </span>
+                                        </div>
+                                        <?php endif; ?>
+                                        <div class="detail-item">
+                                            <span class="label">Pledge</span>
+                                            <span class="value">
+                                                <i class="fas fa-hand-holding-heart text-primary"></i>
+                                                £<?php echo number_format((float)($p['pledge_amount'] ?? 0), 2); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <?php 
+                                    // Show payment plan info
+                                    $show_plan_info = false;
+                                    $plan_installment = null;
+                                    if ($has_plan_col && isset($p['plan_id']) && $p['plan_id']) {
+                                        $show_plan_info = true;
+                                        $plan_installment = ($p['plan_payments_made'] ?? 0) + 1;
+                                    }
+                                    ?>
+                                    <?php if ($show_plan_info): ?>
+                                        <div class="plan-badge">
+                                            <i class="fas fa-calendar-check"></i>
+                                            Plan Payment: <?php echo $plan_installment; ?> of <?php echo $p['plan_total_payments'] ?? '?'; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($p['notes']): ?>
+                                        <div class="notes-section">
+                                            <i class="fas fa-sticky-note"></i>
+                                            <?php echo htmlspecialchars($p['notes']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($p['status'] === 'voided' && $p['void_reason']): ?>
+                                        <div class="void-reason">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <strong>Rejection Reason:</strong> <?php echo htmlspecialchars($p['void_reason']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Processing Info -->
+                                <div class="processing-info">
+                                    <div class="info-row">
+                                        <i class="fas fa-user-plus text-muted"></i>
+                                        <span>Submitted by <strong><?php echo htmlspecialchars($p['processed_by_name'] ?? 'System'); ?></strong></span>
+                                        <span class="text-muted ms-1">• <?php echo date('d M Y, H:i', strtotime($p['created_at'])); ?></span>
+                                    </div>
+                                    <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
+                                        <div class="info-row text-success">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Approved by <strong><?php echo htmlspecialchars($p['approved_by_name']); ?></strong></span>
+                                            <?php if ($p['approved_at']): ?>
+                                                <span class="text-muted ms-1">• <?php echo date('d M Y, H:i', strtotime($p['approved_at'])); ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
+                                        <div class="info-row text-danger">
+                                            <i class="fas fa-times-circle"></i>
+                                            <span>Rejected by <strong><?php echo htmlspecialchars($p['voided_by_name']); ?></strong></span>
+                                            <?php if ($p['voided_at']): ?>
+                                                <span class="text-muted ms-1">• <?php echo date('d M Y, H:i', strtotime($p['voided_at'])); ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Actions -->
+                                <div class="card-actions">
+                                    <?php if ($p['status'] === 'pending'): ?>
+                                        <button class="btn btn-approve" onclick="approvePayment(<?php echo $p['id']; ?>)">
+                                            <i class="fas fa-check"></i>
+                                            <span>Approve</span>
+                                        </button>
+                                        <button class="btn btn-reject" onclick="voidPayment(<?php echo $p['id']; ?>)">
+                                            <i class="fas fa-times"></i>
+                                            <span>Reject</span>
+                                        </button>
+                                    <?php elseif ($p['status'] === 'confirmed'): ?>
+                                        <button class="btn btn-undo" onclick="undoPayment(<?php echo $p['id']; ?>)">
+                                            <i class="fas fa-undo"></i>
+                                            <span>Undo</span>
+                                        </button>
+                                        <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" class="btn btn-view">
+                                            <i class="fas fa-user"></i>
+                                            <span>View Donor</span>
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" class="btn btn-view">
+                                            <i class="fas fa-user"></i>
+                                            <span>View Donor</span>
+                                        </a>
+                                    <?php endif; ?>
+                                    <?php if ($p['payment_proof']): ?>
+                                        <?php 
+                                        $ext = strtolower(pathinfo($p['payment_proof'], PATHINFO_EXTENSION));
+                                        $is_pdf = ($ext === 'pdf');
+                                        ?>
+                                        <?php if ($is_pdf): ?>
+                                            <a href="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" target="_blank" class="btn btn-view">
+                                                <i class="fas fa-file-pdf"></i>
+                                                <span>View PDF</span>
+                                            </a>
+                                        <?php else: ?>
+                                            <button class="btn btn-view" onclick="viewProof('../../<?php echo htmlspecialchars($p['payment_proof']); ?>')">
+                                                <i class="fas fa-image"></i>
+                                                <span>View Proof</span>
+                                            </button>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
+                    
+                    <!-- Pagination -->
+                    <?php if ($total_pages > 1): ?>
+                        <div class="pagination-wrapper">
+                            <a href="<?php echo build_url(['page' => 1]); ?>" 
+                               class="btn btn-page <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                            <a href="<?php echo build_url(['page' => max(1, $page - 1)]); ?>" 
+                               class="btn btn-page <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                            
+                            <span class="page-info">
+                                Page <?php echo $page; ?> of <?php echo $total_pages; ?>
+                            </span>
+                            
+                            <a href="<?php echo build_url(['page' => min($total_pages, $page + 1)]); ?>" 
+                               class="btn btn-page <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                            <a href="<?php echo build_url(['page' => $total_pages]); ?>" 
+                               class="btn btn-page <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
+                
             </div>
         </main>
     </div>
 </div>
 
+<!-- Quick Add FAB (Mobile Only) -->
+<a href="record-pledge-payment.php" class="quick-add-fab">
+    <i class="fas fa-plus"></i>
+</a>
+
 <!-- Image Viewer Modal -->
 <div class="modal fade" id="proofModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header border-0">
                 <h5 class="modal-title">Payment Proof</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center">
-                <img id="proofImage" src="" alt="Payment Proof" class="img-fluid">
+            <div class="modal-body text-center p-2">
+                <img id="proofImage" src="" alt="Payment Proof" class="img-fluid rounded" style="max-height: 70vh;">
             </div>
         </div>
     </div>
@@ -564,11 +1031,15 @@ function approvePayment(id) {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            alert('Payment approved successfully!');
+            alert('✓ Payment approved successfully!');
             location.reload();
         } else {
             alert('Error: ' + res.message);
         }
+    })
+    .catch(err => {
+        alert('Network error. Please try again.');
+        console.error(err);
     });
 }
 
@@ -589,6 +1060,10 @@ function voidPayment(id) {
         } else {
             alert('Error: ' + res.message);
         }
+    })
+    .catch(err => {
+        alert('Network error. Please try again.');
+        console.error(err);
     });
 }
 
@@ -606,14 +1081,17 @@ function undoPayment(id) {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            alert('Payment undone successfully.');
+            alert('✓ Payment undone successfully.');
             location.reload();
         } else {
             alert('Error: ' + res.message);
         }
+    })
+    .catch(err => {
+        alert('Network error. Please try again.');
+        console.error(err);
     });
 }
 </script>
 </body>
 </html>
-
