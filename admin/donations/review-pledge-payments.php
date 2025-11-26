@@ -632,35 +632,6 @@ function build_url($params) {
             }
         }
         
-        /* Quick Action FAB for Mobile */
-        .quick-add-fab {
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            color: white;
-            border: none;
-            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            z-index: 1000;
-            transition: all 0.3s ease;
-        }
-        .quick-add-fab:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-            color: white;
-        }
-        @media (min-width: 768px) {
-            .quick-add-fab {
-                display: none;
-            }
-        }
     </style>
 </head>
 <body>
@@ -677,8 +648,8 @@ function build_url($params) {
                         <h1>
                             <i class="fas fa-receipt me-2"></i><?php echo $page_title; ?>
                         </h1>
-                        <a href="record-pledge-payment.php" class="btn btn-light btn-sm d-none d-md-inline-flex">
-                            <i class="fas fa-plus me-1"></i>Record Payment
+                        <a href="record-pledge-payment.php" class="btn btn-light btn-sm">
+                            <i class="fas fa-plus me-1"></i><span class="d-none d-sm-inline">Record Payment</span>
                         </a>
                     </div>
                 </div>
@@ -991,11 +962,6 @@ function build_url($params) {
         </main>
     </div>
 </div>
-
-<!-- Quick Add FAB (Mobile Only) -->
-<a href="record-pledge-payment.php" class="quick-add-fab">
-    <i class="fas fa-plus"></i>
-</a>
 
 <!-- Image Viewer Modal -->
 <div class="modal fade" id="proofModal" tabindex="-1">
