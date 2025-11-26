@@ -25,19 +25,7 @@ if (isset($_GET['cron_key']) && $_GET['cron_key'] !== $valid_cron_key) {
 }
 
 require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../services/SMSServiceFactory.php';
-
-/**
- * Process template variables
- */
-function processTemplate(string $template, array $data): string
-{
-    foreach ($data as $key => $value) {
-        $template = str_replace('{' . $key . '}', (string)$value, $template);
-    }
-    $template = preg_replace('/\{[a-z_]+\}/', '', $template);
-    return trim($template);
-}
+require_once __DIR__ . '/../services/VoodooSMSService.php';
 
 // Logging function
 function cron_log(string $message): void {
@@ -294,7 +282,7 @@ function queueReminder($db, array $payment, string $templateKey, array $template
     }
     
     // Replace template variables
-    $message = processTemplate($message, [
+    $message = VoodooSMSService::processTemplate($message, [
         'name' => $payment['donor_name'],
         'amount' => number_format((float)$payment['amount'], 2),
         'due_date' => date('j M Y', strtotime($payment['due_date'])),

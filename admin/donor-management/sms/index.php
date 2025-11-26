@@ -566,7 +566,7 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                 <?php if (!$provider_status): ?>
                     <div class="setup-alert">
                         <h5><i class="fas fa-cog me-2"></i>Setup Required</h5>
-                        <p>Configure an SMS provider (VoodooSMS or The SMS Works) to start sending messages. Go to <a href="settings.php" class="fw-bold">SMS Settings</a> to add your provider credentials.</p>
+                        <p>Configure an SMS provider (Twilio, Textlocal, etc.) to start sending messages. Go to <a href="settings.php" class="fw-bold">SMS Settings</a> to add your provider credentials.</p>
                     </div>
                 <?php endif; ?>
                 
