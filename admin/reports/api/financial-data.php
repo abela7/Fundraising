@@ -1,0 +1,200 @@
+<?php
+require_once '../../../config/db.php';
+require_once '../../../shared/auth.php';
+
+// Set JSON header
+header('Content-Type: application/json');
+
+// Auth check
+if (!is_logged_in() || !is_admin()) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Unauthorized']);
+    exit;
+}
+
+$db = db();
+$response = [];
+
+// Date range filter (default to all time or last 12 months for trends)
+// For simplicity in this version, trends are last 12 months, totals are all time or filtered by year if requested.
+// We will implement basic totals first.
+
+// 1. KPI Cards Data
+// We use the efficient counters table for totals where possible, but dynamic queries for specific filters.
+// Here we will run dynamic queries to ensure accuracy with the dashboard filters if we add them later.
+// For now, global totals.
+
+$kpiQuery = "SELECT 
+    (SELECT IFNULL(SUM(amount),0) FROM pledges WHERE status = 'approved') as total_pledged,
+    (SELECT IFNULL(SUM(amount),0) FROM payments WHERE status = 'approved') as total_paid_direct,
+    (SELECT IFNULL(SUM(amount),0) FROM pledge_payments WHERE status = 'confirmed') as total_paid_pledge,
+    (SELECT COUNT(*) FROM donors) as total_donors,
+    (SELECT COUNT(*) FROM donor_payment_plans WHERE status = 'active') as active_plans";
+
+$kpiResult = $db->query($kpiQuery);
+$kpiData = $kpiResult->fetch_assoc();
+
+// Calculate true total paid (Direct + Pledge Payments)
+$totalPaid = $kpiData['total_paid_direct'] + $kpiData['total_paid_pledge'];
+// Outstanding is Pledged - Pledge Payments (roughly)
+// Or we can use the donor balances sum
+$balanceQuery = "SELECT SUM(balance) as total_balance FROM donors";
+$balanceResult = $db->query($balanceQuery);
+$balanceData = $balanceResult->fetch_assoc();
+
+$response['kpi'] = [
+    'total_pledged' => (float)$kpiData['total_pledged'],
+    'total_paid' => (float)$totalPaid,
+    'outstanding' => (float)$balanceData['total_balance'],
+    'total_donors' => (int)$kpiData['total_donors'],
+    'active_plans' => (int)$kpiData['active_plans'],
+    'collection_rate' => ($kpiData['total_pledged'] > 0) ? round(($totalPaid / $kpiData['total_pledged']) * 100, 1) : 0
+];
+
+// 2. Monthly Trends (Last 12 Months)
+// Pledges
+$trendPledges = $db->query("
+    SELECT DATE_FORMAT(created_at, '%Y-%m') as month, SUM(amount) as total 
+    FROM pledges 
+    WHERE status = 'approved' AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+    GROUP BY month 
+    ORDER BY month ASC
+");
+
+// Payments (Direct + Pledge Payments)
+// We need to combine them for the chart
+$trendPayments = $db->query("
+    SELECT month, SUM(total) as total FROM (
+        SELECT DATE_FORMAT(received_at, '%Y-%m') as month, SUM(amount) as total 
+        FROM payments 
+        WHERE status = 'approved' AND received_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY month
+        UNION ALL
+        SELECT DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(amount) as total 
+        FROM pledge_payments 
+        WHERE status = 'confirmed' AND payment_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY month
+    ) as combined
+    GROUP BY month
+    ORDER BY month ASC
+");
+
+$months = [];
+$pledgeData = [];
+$paymentData = [];
+
+// Initialize last 12 months
+for ($i = 11; $i >= 0; $i--) {
+    $m = date('Y-m', strtotime("-$i months"));
+    $months[$m] = ['label' => date('M Y', strtotime("-$i months")), 'pledged' => 0, 'paid' => 0];
+}
+
+while ($row = $trendPledges->fetch_assoc()) {
+    if (isset($months[$row['month']])) {
+        $months[$row['month']]['pledged'] = (float)$row['total'];
+    }
+}
+while ($row = $trendPayments->fetch_assoc()) {
+    if (isset($months[$row['month']])) {
+        $months[$row['month']]['paid'] = (float)$row['total'];
+    }
+}
+
+$response['trends'] = array_values($months);
+
+// 3. Payment Methods (All time)
+// Combine methods from both tables
+$methodsQuery = "
+    SELECT method, COUNT(*) as count, SUM(amount) as total FROM (
+        SELECT method, amount FROM payments WHERE status = 'approved'
+        UNION ALL
+        SELECT payment_method as method, amount FROM pledge_payments WHERE status = 'confirmed'
+    ) as combined
+    GROUP BY method
+";
+$methodsResult = $db->query($methodsQuery);
+$methodsData = [];
+while ($row = $methodsResult->fetch_assoc()) {
+    $methodsData[] = [
+        'method' => ucfirst($row['method']),
+        'count' => (int)$row['count'],
+        'total' => (float)$row['total']
+    ];
+}
+$response['payment_methods'] = $methodsData;
+
+// 4. Pledge Status Breakdown
+$pledgeStatusQuery = "SELECT status, COUNT(*) as count, SUM(amount) as total FROM pledges GROUP BY status";
+$pledgeStatusResult = $db->query($pledgeStatusQuery);
+$pledgeStatusData = [];
+while ($row = $pledgeStatusResult->fetch_assoc()) {
+    $pledgeStatusData[] = [
+        'status' => ucfirst($row['status']),
+        'count' => (int)$row['count'],
+        'total' => (float)$row['total']
+    ];
+}
+$response['pledge_status'] = $pledgeStatusData;
+
+// 5. Top 10 Donors (By Total Paid)
+$topDonorsQuery = "
+    SELECT name, total_pledged, total_paid 
+    FROM donors 
+    ORDER BY total_paid DESC 
+    LIMIT 10
+";
+$topDonorsResult = $db->query($topDonorsQuery);
+$topDonors = [];
+while ($row = $topDonorsResult->fetch_assoc()) {
+    $topDonors[] = [
+        'name' => $row['name'],
+        'pledged' => (float)$row['total_pledged'],
+        'paid' => (float)$row['total_paid']
+    ];
+}
+$response['top_donors'] = $topDonors;
+
+// 6. Recent Transactions (Last 10)
+// Union of direct payments and pledge payments
+$recentQuery = "
+    SELECT * FROM (
+        SELECT 'Direct' as type, donor_name, amount, method, status, received_at as date 
+        FROM payments 
+        WHERE status = 'approved'
+        UNION ALL
+        SELECT 'Pledge' as type, d.name as donor_name, pp.amount, pp.payment_method as method, pp.status, pp.created_at as date
+        FROM pledge_payments pp
+        LEFT JOIN donors d ON pp.donor_id = d.id
+        WHERE pp.status = 'confirmed'
+    ) as combined
+    ORDER BY date DESC
+    LIMIT 10
+";
+$recentResult = $db->query($recentQuery);
+$recentTransactions = [];
+while ($row = $recentResult->fetch_assoc()) {
+    $recentTransactions[] = [
+        'type' => $row['type'],
+        'donor' => $row['donor_name'] ?: 'Anonymous',
+        'amount' => (float)$row['amount'],
+        'method' => ucfirst($row['method']),
+        'date' => date('d M, H:i', strtotime($row['date'])),
+        'status' => ucfirst($row['status'])
+    ];
+}
+$response['recent_transactions'] = $recentTransactions;
+
+// 7. Payment Plan Status
+$planStatusQuery = "SELECT status, COUNT(*) as count FROM donor_payment_plans GROUP BY status";
+$planStatusResult = $db->query($planStatusQuery);
+$planStatusData = [];
+while ($row = $planStatusResult->fetch_assoc()) {
+    $planStatusData[] = [
+        'status' => ucfirst($row['status']),
+        'count' => (int)$row['count']
+    ];
+}
+$response['plan_status'] = $planStatusData;
+
+echo json_encode($response);
+
