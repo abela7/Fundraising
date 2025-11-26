@@ -516,6 +516,24 @@ if (isset($_GET['report'])) {
                                 <div class="card border-0 shadow-sm h-100 report-card">
                                     <div class="card-body text-center p-4">
                                         <div class="mb-3">
+                                            <div class="icon-circle bg-success mx-auto" style="width: 60px; height: 60px;">
+                                                <i class="fas fa-chart-line text-white fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <h5 class="card-title">Financial Dashboard</h5>
+                                        <p class="card-text text-muted">Interactive financial dashboard with charts, trends, and real-time data</p>
+                                        <div class="d-grid gap-2">
+                                            <a href="financial-dashboard.php" class="btn btn-success">
+                                                <i class="fas fa-tachometer-alt me-2"></i>Open Dashboard
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
                                             <div class="icon-circle bg-primary mx-auto" style="width: 60px; height: 60px;">
                                                 <i class="fas fa-chart-pie text-white fs-4"></i>
                                             </div>

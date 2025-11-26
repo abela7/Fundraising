@@ -12,14 +12,15 @@ if (!is_logged_in() || !is_admin()) {
     exit;
 }
 
-$db = db();
-$response = [];
+try {
+    $db = db();
+    $response = [];
 
-// Date range filter (default to all time or last 12 months for trends)
-// For simplicity in this version, trends are last 12 months, totals are all time or filtered by year if requested.
-// We will implement basic totals first.
+    // Date range filter (default to all time or last 12 months for trends)
+    // For simplicity in this version, trends are last 12 months, totals are all time or filtered by year if requested.
+    // We will implement basic totals first.
 
-// 1. KPI Cards Data
+    // 1. KPI Cards Data
 // We use the efficient counters table for totals where possible, but dynamic queries for specific filters.
 // Here we will run dynamic queries to ensure accuracy with the dashboard filters if we add them later.
 // For now, global totals.
@@ -103,20 +104,37 @@ while ($row = $trendPayments->fetch_assoc()) {
 $response['trends'] = array_values($months);
 
 // 3. Payment Methods (All time)
-// Combine methods from both tables
+// Combine methods from both tables - normalize method names
 $methodsQuery = "
     SELECT method, COUNT(*) as count, SUM(amount) as total FROM (
         SELECT method, amount FROM payments WHERE status = 'approved'
         UNION ALL
-        SELECT payment_method as method, amount FROM pledge_payments WHERE status = 'confirmed'
+        SELECT 
+            CASE 
+                WHEN payment_method = 'bank_transfer' THEN 'bank'
+                WHEN payment_method = 'card' THEN 'card'
+                WHEN payment_method = 'cash' THEN 'cash'
+                WHEN payment_method = 'cheque' THEN 'other'
+                ELSE 'other'
+            END as method, 
+            amount 
+        FROM pledge_payments 
+        WHERE status = 'confirmed'
     ) as combined
     GROUP BY method
 ";
 $methodsResult = $db->query($methodsQuery);
 $methodsData = [];
 while ($row = $methodsResult->fetch_assoc()) {
+    $methodName = $row['method'];
+    // Normalize display names
+    if ($methodName === 'bank') $methodName = 'Bank Transfer';
+    elseif ($methodName === 'card') $methodName = 'Card';
+    elseif ($methodName === 'cash') $methodName = 'Cash';
+    else $methodName = 'Other';
+    
     $methodsData[] = [
-        'method' => ucfirst($row['method']),
+        'method' => $methodName,
         'count' => (int)$row['count'],
         'total' => (float)$row['total']
     ];
@@ -162,7 +180,18 @@ $recentQuery = "
         FROM payments 
         WHERE status = 'approved'
         UNION ALL
-        SELECT 'Pledge' as type, d.name as donor_name, pp.amount, pp.payment_method as method, pp.status, pp.created_at as date
+        SELECT 
+            'Pledge' as type, 
+            COALESCE(d.name, 'Unknown') as donor_name, 
+            pp.amount, 
+            CASE 
+                WHEN pp.payment_method = 'bank_transfer' THEN 'bank'
+                WHEN pp.payment_method = 'card' THEN 'card'
+                WHEN pp.payment_method = 'cash' THEN 'cash'
+                ELSE 'other'
+            END as method, 
+            pp.status, 
+            pp.created_at as date
         FROM pledge_payments pp
         LEFT JOIN donors d ON pp.donor_id = d.id
         WHERE pp.status = 'confirmed'
@@ -173,11 +202,18 @@ $recentQuery = "
 $recentResult = $db->query($recentQuery);
 $recentTransactions = [];
 while ($row = $recentResult->fetch_assoc()) {
+    $methodName = $row['method'];
+    // Normalize display names
+    if ($methodName === 'bank') $methodName = 'Bank Transfer';
+    elseif ($methodName === 'card') $methodName = 'Card';
+    elseif ($methodName === 'cash') $methodName = 'Cash';
+    else $methodName = 'Other';
+    
     $recentTransactions[] = [
         'type' => $row['type'],
         'donor' => $row['donor_name'] ?: 'Anonymous',
         'amount' => (float)$row['amount'],
-        'method' => ucfirst($row['method']),
+        'method' => $methodName,
         'date' => date('d M, H:i', strtotime($row['date'])),
         'status' => ucfirst($row['status'])
     ];
@@ -194,7 +230,16 @@ while ($row = $planStatusResult->fetch_assoc()) {
         'count' => (int)$row['count']
     ];
 }
-$response['plan_status'] = $planStatusData;
+    $response['plan_status'] = $planStatusData;
 
-echo json_encode($response);
+    echo json_encode($response);
+
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Database error',
+        'message' => $e->getMessage()
+    ]);
+    error_log('Financial Dashboard API Error: ' . $e->getMessage());
+}
 
