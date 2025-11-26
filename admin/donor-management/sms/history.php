@@ -7,6 +7,7 @@ ini_set('display_errors', '1');
 
 try {
     require_once __DIR__ . '/../../../shared/auth.php';
+    require_once __DIR__ . '/../../../shared/csrf.php';
 } catch (Throwable $e) {
     die('Error loading auth.php: ' . $e->getMessage());
 }
@@ -22,6 +23,55 @@ try {
     require_admin();
 } catch (Throwable $e) {
     die('Auth error: ' . $e->getMessage());
+}
+
+$success_message = $_SESSION['success_message'] ?? null;
+unset($_SESSION['success_message']);
+
+// Handle delete action
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_sms') {
+    try {
+        verify_csrf();
+        
+        $sms_id = (int)($_POST['sms_id'] ?? 0);
+        
+        if ($sms_id <= 0) {
+            throw new Exception('Invalid SMS ID');
+        }
+        
+        $db = db();
+        
+        // Check if table exists
+        $check = $db->query("SHOW TABLES LIKE 'sms_log'");
+        if (!$check || $check->num_rows === 0) {
+            throw new Exception('SMS log table does not exist');
+        }
+        
+        // Delete the SMS record
+        $stmt = $db->prepare("DELETE FROM sms_log WHERE id = ?");
+        if (!$stmt) {
+            throw new Exception('Database error: ' . $db->error);
+        }
+        
+        $stmt->bind_param('i', $sms_id);
+        
+        if (!$stmt->execute()) {
+            throw new Exception('Failed to delete: ' . $stmt->error);
+        }
+        
+        $_SESSION['success_message'] = 'SMS record deleted successfully.';
+        
+        // Preserve filter parameters
+        $redirect_params = array_filter($_GET, function($key) {
+            return $key !== 'sms_id';
+        }, ARRAY_FILTER_USE_KEY);
+        
+        header('Location: history.php?' . http_build_query($redirect_params));
+        exit;
+        
+    } catch (Exception $e) {
+        $error_message = 'Delete failed: ' . $e->getMessage();
+    }
 }
 
 $page_title = 'SMS History';
@@ -124,7 +174,12 @@ if ($tables_exist) {
         
         // Get records
         $sql = "
-            SELECT l.*, d.name as donor_name, t.name as template_name
+            SELECT 
+                l.id, l.donor_id, l.phone_number, l.template_id, l.message_content, 
+                l.message_language, l.provider_id, l.provider_message_id, l.status, 
+                l.error_message, l.segments, l.cost_pence, l.source_type, l.sent_at,
+                d.name as donor_name, 
+                t.name as template_name
             FROM sms_log l
             LEFT JOIN donors d ON l.donor_id = d.id
             LEFT JOIN sms_templates t ON l.template_id = t.id
@@ -191,6 +246,26 @@ $total_pages = $total_records > 0 ? (int)ceil($total_records / $per_page) : 0;
                 font-size: 0.875rem;
             }
         }
+        .sms-detail-section {
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .sms-detail-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .message-preview-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            max-height: 300px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -238,6 +313,13 @@ $total_pages = $total_records > 0 ? (int)ceil($total_records / $per_page) : 0;
                         <h5 class="alert-heading"><i class="fas fa-database me-2"></i>Database Setup Required</h5>
                         <p class="mb-2">The SMS database tables have not been created yet.</p>
                         <p class="mb-0">Please run the setup script: <code>database/sms_system_tables.sql</code></p>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if ($success_message): ?>
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success_message); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
                 
@@ -314,6 +396,7 @@ $total_pages = $total_records > 0 ? (int)ceil($total_records / $per_page) : 0;
                                         <th>Status</th>
                                         <th class="d-none d-lg-table-cell">Source</th>
                                         <th class="d-none d-lg-table-cell">Cost</th>
+                                        <th style="width: 120px;" class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -355,6 +438,22 @@ $total_pages = $total_records > 0 ? (int)ceil($total_records / $per_page) : 0;
                                                 <?php else: ?>
                                                     <span class="text-muted">-</span>
                                                 <?php endif; ?>
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-outline-primary" 
+                                                            onclick="viewSMSDetails(<?php echo htmlspecialchars(json_encode($sms, JSON_HEX_APOS | JSON_HEX_QUOT)); ?>)"
+                                                            title="View Details"
+                                                            data-sms-id="<?php echo (int)$sms['id']; ?>">
+                                                        <i class="fas fa-eye"></i>
+                                                        <span class="d-none d-md-inline ms-1">View</span>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger" 
+                                                            onclick="confirmDelete(<?php echo (int)$sms['id']; ?>, '<?php echo htmlspecialchars(addslashes($sms['phone_number'] ?? '')); ?>')"
+                                                            title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -401,7 +500,160 @@ $total_pages = $total_records > 0 ? (int)ceil($total_records / $per_page) : 0;
     </div>
 </div>
 
+<!-- SMS Details Modal -->
+<div class="modal fade" id="smsDetailsModal" tabindex="-1" aria-labelledby="smsDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="smsDetailsModalLabel">
+                    <i class="fas fa-comment-dots text-primary me-2"></i>SMS Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="smsDetailsContent">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteSMSModal" tabindex="-1" aria-labelledby="deleteSMSModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="deleteSMSForm">
+                <?php echo csrf_input(); ?>
+                <input type="hidden" name="action" value="delete_sms">
+                <input type="hidden" name="sms_id" id="deleteSMSId">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteSMSModalLabel">
+                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>Delete SMS Record
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this SMS record?</p>
+                    <div class="alert alert-warning mb-0">
+                        <strong>Phone:</strong> <span id="deletePhoneNumber"></span><br>
+                        <small class="text-muted">This action cannot be undone. The SMS will be permanently removed from the database.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Permanently
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/admin.js"></script>
+<script>
+function viewSMSDetails(sms) {
+    const modal = new bootstrap.Modal(document.getElementById('smsDetailsModal'));
+    const content = document.getElementById('smsDetailsContent');
+    
+    const statusBadge = {
+        'delivered': '<span class="badge bg-success">Delivered</span>',
+        'sent': '<span class="badge bg-info">Sent</span>',
+        'failed': '<span class="badge bg-danger">Failed</span>',
+        'pending': '<span class="badge bg-warning">Pending</span>'
+    }[sms.status] || '<span class="badge bg-secondary">' + (sms.status || 'Unknown') + '</span>';
+    
+    const sentDate = sms.sent_at ? new Date(sms.sent_at).toLocaleString('en-GB', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }) : 'Not sent';
+    
+    content.innerHTML = `
+        <div class="row g-3">
+            <div class="col-12 sms-detail-section">
+                <h6 class="text-muted mb-3"><i class="fas fa-comment-dots me-2"></i>Message Content</h6>
+                <div class="message-preview-box">
+                    ${escapeHtml(sms.message_content || 'N/A')}
+                </div>
+                <div class="mt-2 text-muted small">
+                    <i class="fas fa-ruler me-1"></i>${(sms.message_content || '').length} characters
+                    ${sms.segments ? ' · <i class="fas fa-layer-group me-1"></i>' + sms.segments + ' segment(s)' : ''}
+                </div>
+            </div>
+            
+            <div class="col-md-6 sms-detail-section">
+                <h6 class="text-muted mb-3"><i class="fas fa-user me-2"></i>Recipient</h6>
+                <div class="mb-3">
+                    <strong>Name:</strong><br>
+                    ${escapeHtml(sms.donor_name || 'Unknown')}
+                </div>
+                <div class="mb-3">
+                    <strong>Phone:</strong><br>
+                    <code class="bg-light px-2 py-1 rounded">${escapeHtml(sms.phone_number || 'N/A')}</code>
+                </div>
+                ${sms.donor_id ? `<div><a href="../donors.php?id=${sms.donor_id}" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-user me-1"></i>View Donor Profile</a></div>` : ''}
+            </div>
+            
+            <div class="col-md-6 sms-detail-section">
+                <h6 class="text-muted mb-3"><i class="fas fa-paper-plane me-2"></i>Delivery Information</h6>
+                <div class="mb-3">
+                    <strong>Status:</strong><br>
+                    ${statusBadge}
+                </div>
+                <div class="mb-3">
+                    <strong>Sent At:</strong><br>
+                    <span class="text-muted">${sentDate}</span>
+                </div>
+                ${sms.error_message ? `<div class="mb-3"><strong>Error:</strong><br><span class="text-danger small">${escapeHtml(sms.error_message)}</span></div>` : ''}
+            </div>
+            
+            <div class="col-md-6 sms-detail-section">
+                <h6 class="text-muted mb-3"><i class="fas fa-info-circle me-2"></i>Message Details</h6>
+                <div class="mb-2">
+                    <strong>Source:</strong><br>
+                    <span class="badge bg-secondary">${escapeHtml((sms.source_type || 'unknown').replace(/_/g, ' '))}</span>
+                </div>
+                ${sms.template_name ? `<div class="mb-2"><strong>Template:</strong><br><span class="badge bg-info">${escapeHtml(sms.template_name)}</span></div>` : ''}
+                <div class="mb-2">
+                    <strong>Language:</strong><br>
+                    <span class="badge bg-light text-dark">${escapeHtml((sms.message_language || 'en').toUpperCase())}</span>
+                </div>
+            </div>
+            
+            <div class="col-md-6 sms-detail-section">
+                <h6 class="text-muted mb-3"><i class="fas fa-pound-sign me-2"></i>Cost & Provider</h6>
+                ${sms.cost_pence ? `<div class="mb-2"><strong>Cost:</strong><br><span class="fw-bold text-success">£${parseFloat(sms.cost_pence / 100).toFixed(2)}</span></div>` : '<div class="mb-2"><strong>Cost:</strong><br><span class="text-muted">Not recorded</span></div>'}
+                ${sms.provider_message_id ? `<div class="mb-2"><strong>Provider Reference:</strong><br><code class="small bg-light px-2 py-1 rounded d-inline-block">${escapeHtml(sms.provider_message_id)}</code></div>` : ''}
+                ${sms.provider_id ? `<div class="mb-2"><strong>Provider ID:</strong><br><span class="badge bg-secondary">${sms.provider_id}</span></div>` : ''}
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+}
+
+function confirmDelete(smsId, phoneNumber) {
+    document.getElementById('deleteSMSId').value = smsId;
+    document.getElementById('deletePhoneNumber').textContent = phoneNumber || 'Unknown';
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteSMSModal'));
+    modal.show();
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
 </body>
 </html>
