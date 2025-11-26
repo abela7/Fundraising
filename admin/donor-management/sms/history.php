@@ -26,6 +26,7 @@ try {
 
 $page_title = 'SMS History';
 $current_user = current_user();
+$db = null;
 
 try {
     $db = db();
@@ -36,6 +37,8 @@ try {
 $sms_logs = [];
 $error_message = null;
 $tables_exist = false;
+$total_records = 0;
+$total_pages = 0;
 
 // Check if SMS tables exist
 try {
@@ -49,7 +52,6 @@ try {
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 25;
 $offset = ($page - 1) * $per_page;
-$total_records = 0;
 
 // Filters
 $filter_status = $_GET['status'] ?? '';
@@ -58,99 +60,113 @@ $filter_date_from = $_GET['date_from'] ?? '';
 $filter_date_to = $_GET['date_to'] ?? '';
 $filter_search = trim($_GET['search'] ?? '');
 
-if (!$tables_exist) {
-    $error_message = 'SMS tables not found. Please run the database setup script.';
+// Only query if tables exist
+if ($tables_exist) {
+    try {
+        // Build query
+        $where_clauses = [];
+        $params = [];
+        $types = '';
+        
+        if ($filter_status) {
+            $where_clauses[] = "l.status = ?";
+            $params[] = $filter_status;
+            $types .= 's';
+        }
+        
+        if ($filter_source) {
+            $where_clauses[] = "l.source_type = ?";
+            $params[] = $filter_source;
+            $types .= 's';
+        }
+        
+        if ($filter_date_from) {
+            $where_clauses[] = "DATE(l.sent_at) >= ?";
+            $params[] = $filter_date_from;
+            $types .= 's';
+        }
+        
+        if ($filter_date_to) {
+            $where_clauses[] = "DATE(l.sent_at) <= ?";
+            $params[] = $filter_date_to;
+            $types .= 's';
+        }
+        
+        if ($filter_search) {
+            $where_clauses[] = "(l.phone_number LIKE ? OR d.name LIKE ? OR l.message_content LIKE ?)";
+            $search_param = "%$filter_search%";
+            $params[] = $search_param;
+            $params[] = $search_param;
+            $params[] = $search_param;
+            $types .= 'sss';
+        }
+        
+        $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+        
+        // Count total
+        $count_sql = "SELECT COUNT(*) as total FROM sms_log l LEFT JOIN donors d ON l.donor_id = d.id $where_sql";
+        if ($types) {
+            $stmt = $db->prepare($count_sql);
+            if ($stmt) {
+                $stmt->bind_param($types, ...$params);
+                $stmt->execute();
+                $count_result = $stmt->get_result();
+                if ($count_result) {
+                    $total_records = (int)($count_result->fetch_assoc()['total'] ?? 0);
+                }
+            }
+        } else {
+            $count_result = $db->query($count_sql);
+            if ($count_result) {
+                $total_records = (int)($count_result->fetch_assoc()['total'] ?? 0);
+            }
+        }
+        
+        // Get records
+        $sql = "
+            SELECT l.*, d.name as donor_name, t.name as template_name
+            FROM sms_log l
+            LEFT JOIN donors d ON l.donor_id = d.id
+            LEFT JOIN sms_templates t ON l.template_id = t.id
+            $where_sql
+            ORDER BY l.sent_at DESC
+            LIMIT $per_page OFFSET $offset
+        ";
+        
+        if ($types) {
+            $stmt = $db->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param($types, ...$params);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($result) {
+                    while ($row = $result->fetch_assoc()) {
+                        $sms_logs[] = $row;
+                    }
+                }
+            }
+        } else {
+            $result = $db->query($sql);
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $sms_logs[] = $row;
+                }
+            }
+        }
+        
+    } catch (Exception $e) {
+        $error_message = 'Error loading data: ' . $e->getMessage();
+    }
 }
 
-try {
-    if (!$tables_exist) throw new Exception('Tables not set up');
-    // Build query
-    $where_clauses = [];
-    $params = [];
-    $types = '';
-    
-    if ($filter_status) {
-        $where_clauses[] = "l.status = ?";
-        $params[] = $filter_status;
-        $types .= 's';
-    }
-    
-    if ($filter_source) {
-        $where_clauses[] = "l.source_type = ?";
-        $params[] = $filter_source;
-        $types .= 's';
-    }
-    
-    if ($filter_date_from) {
-        $where_clauses[] = "DATE(l.sent_at) >= ?";
-        $params[] = $filter_date_from;
-        $types .= 's';
-    }
-    
-    if ($filter_date_to) {
-        $where_clauses[] = "DATE(l.sent_at) <= ?";
-        $params[] = $filter_date_to;
-        $types .= 's';
-    }
-    
-    if ($filter_search) {
-        $where_clauses[] = "(l.phone_number LIKE ? OR d.name LIKE ? OR l.message_content LIKE ?)";
-        $search_param = "%$filter_search%";
-        $params[] = $search_param;
-        $params[] = $search_param;
-        $params[] = $search_param;
-        $types .= 'sss';
-    }
-    
-    $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
-    
-    // Count total
-    $count_sql = "SELECT COUNT(*) as total FROM sms_log l LEFT JOIN donors d ON l.donor_id = d.id $where_sql";
-    if ($types) {
-        $stmt = $db->prepare($count_sql);
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-        $total_records = $stmt->get_result()->fetch_assoc()['total'];
-    } else {
-        $total_records = $db->query($count_sql)->fetch_assoc()['total'];
-    }
-    
-    // Get records
-    $sql = "
-        SELECT l.*, d.name as donor_name, t.name as template_name
-        FROM sms_log l
-        LEFT JOIN donors d ON l.donor_id = d.id
-        LEFT JOIN sms_templates t ON l.template_id = t.id
-        $where_sql
-        ORDER BY l.sent_at DESC
-        LIMIT $per_page OFFSET $offset
-    ";
-    
-    if ($types) {
-        $stmt = $db->prepare($sql);
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-        $result = $stmt->get_result();
-    } else {
-        $result = $db->query($sql);
-    }
-    
-    while ($row = $result->fetch_assoc()) {
-        $sms_logs[] = $row;
-    }
-    
-} catch (Exception $e) {
-    $error_message = $e->getMessage();
-}
-
-$total_pages = ceil($total_records / $per_page);
+$total_pages = $total_records > 0 ? (int)ceil($total_records / $per_page) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo $page_title; ?> - Fundraising Admin</title>
+    <title><?php echo htmlspecialchars($page_title); ?> - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -179,10 +195,22 @@ $total_pages = ceil($total_records / $per_page);
 </head>
 <body>
 <div class="admin-wrapper">
-    <?php include '../../includes/sidebar.php'; ?>
+    <?php 
+    try {
+        include '../../includes/sidebar.php'; 
+    } catch (Throwable $e) {
+        echo '<div class="alert alert-danger m-3">Error loading sidebar: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
+    ?>
     
     <div class="admin-content">
-        <?php include '../../includes/topbar.php'; ?>
+        <?php 
+        try {
+            include '../../includes/topbar.php'; 
+        } catch (Throwable $e) {
+            echo '<div class="alert alert-danger m-3">Error loading topbar: ' . htmlspecialchars($e->getMessage()) . '</div>';
+        }
+        ?>
         
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
@@ -205,12 +233,21 @@ $total_pages = ceil($total_records / $per_page);
                     </div>
                 </div>
                 
+                <?php if (!$tables_exist): ?>
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading"><i class="fas fa-database me-2"></i>Database Setup Required</h5>
+                        <p class="mb-2">The SMS database tables have not been created yet.</p>
+                        <p class="mb-0">Please run the setup script: <code>database/sms_system_tables.sql</code></p>
+                    </div>
+                <?php endif; ?>
+                
                 <?php if ($error_message): ?>
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
                     </div>
                 <?php endif; ?>
                 
+                <?php if ($tables_exist): ?>
                 <!-- Filters -->
                 <div class="filter-card">
                     <form method="GET" class="row g-3">
@@ -234,11 +271,11 @@ $total_pages = ceil($total_records / $per_page);
                         </div>
                         <div class="col-6 col-md-3 col-lg-2">
                             <label class="form-label small fw-semibold">From Date</label>
-                            <input type="date" name="date_from" class="form-control form-control-sm" value="<?php echo $filter_date_from; ?>">
+                            <input type="date" name="date_from" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filter_date_from); ?>">
                         </div>
                         <div class="col-6 col-md-3 col-lg-2">
                             <label class="form-label small fw-semibold">To Date</label>
-                            <input type="date" name="date_to" class="form-control form-control-sm" value="<?php echo $filter_date_to; ?>">
+                            <input type="date" name="date_to" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filter_date_to); ?>">
                         </div>
                         <div class="col-12 col-md-6 col-lg-3">
                             <label class="form-label small fw-semibold">Search</label>
@@ -283,12 +320,12 @@ $total_pages = ceil($total_records / $per_page);
                                     <?php foreach ($sms_logs as $sms): ?>
                                         <tr>
                                             <td>
-                                                <div><?php echo date('M j', strtotime($sms['sent_at'])); ?></div>
-                                                <small class="text-muted"><?php echo date('g:i A', strtotime($sms['sent_at'])); ?></small>
+                                                <div><?php echo date('M j', strtotime($sms['sent_at'] ?? 'now')); ?></div>
+                                                <small class="text-muted"><?php echo date('g:i A', strtotime($sms['sent_at'] ?? 'now')); ?></small>
                                             </td>
                                             <td>
                                                 <div class="fw-semibold"><?php echo htmlspecialchars($sms['donor_name'] ?? 'Unknown'); ?></div>
-                                                <small class="text-muted"><?php echo htmlspecialchars($sms['phone_number']); ?></small>
+                                                <small class="text-muted"><?php echo htmlspecialchars($sms['phone_number'] ?? ''); ?></small>
                                             </td>
                                             <td class="d-none d-md-table-cell sms-message-cell">
                                                 <span title="<?php echo htmlspecialchars($sms['message_content'] ?? ''); ?>">
@@ -297,14 +334,14 @@ $total_pages = ceil($total_records / $per_page);
                                             </td>
                                             <td>
                                                 <span class="badge bg-<?php 
-                                                    echo match($sms['status']) {
+                                                    echo match($sms['status'] ?? '') {
                                                         'delivered' => 'success',
                                                         'sent' => 'info',
                                                         'failed' => 'danger',
                                                         default => 'secondary'
                                                     };
                                                 ?>">
-                                                    <?php echo ucfirst($sms['status']); ?>
+                                                    <?php echo ucfirst($sms['status'] ?? 'unknown'); ?>
                                                 </span>
                                             </td>
                                             <td class="d-none d-lg-table-cell">
@@ -313,8 +350,8 @@ $total_pages = ceil($total_records / $per_page);
                                                 </small>
                                             </td>
                                             <td class="d-none d-lg-table-cell">
-                                                <?php if ($sms['cost_pence']): ?>
-                                                    £<?php echo number_format($sms['cost_pence'] / 100, 2); ?>
+                                                <?php if (!empty($sms['cost_pence'])): ?>
+                                                    £<?php echo number_format((float)$sms['cost_pence'] / 100, 2); ?>
                                                 <?php else: ?>
                                                     <span class="text-muted">-</span>
                                                 <?php endif; ?>
@@ -357,6 +394,7 @@ $total_pages = ceil($total_records / $per_page);
                         </nav>
                     <?php endif; ?>
                 <?php endif; ?>
+                <?php endif; ?>
                 
             </div>
         </main>
@@ -367,4 +405,3 @@ $total_pages = ceil($total_records / $per_page);
 <script src="../../assets/admin.js"></script>
 </body>
 </html>
-
