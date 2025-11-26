@@ -197,21 +197,13 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
     <link rel="stylesheet" href="../assets/donor-management.css">
     <style>
         /* SMS Dashboard Specific Styles */
-        :root {
-            --sms-primary: #6366f1;
-            --sms-success: #10b981;
-            --sms-warning: #f59e0b;
-            --sms-danger: #ef4444;
-            --sms-info: #3b82f6;
-        }
-        
         .sms-header {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            background: linear-gradient(135deg, #0a6286 0%, #0ea5e9 100%);
             color: white;
             border-radius: 16px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 15px rgba(10, 98, 134, 0.3);
         }
         
         .sms-header h1 {
@@ -239,11 +231,11 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
         }
         
         .provider-badge.connected {
-            background: rgba(16, 185, 129, 0.3);
+            background: rgba(25, 135, 84, 0.3);
         }
         
         .provider-badge.disconnected {
-            background: rgba(239, 68, 68, 0.3);
+            background: rgba(220, 38, 38, 0.3);
         }
         
         /* Stat Cards */
@@ -293,6 +285,12 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
             align-items: center;
             gap: 0.25rem;
         }
+        
+        /* Use system colors */
+        .text-purple { color: #0a6286 !important; }
+        .text-indigo { color: #0a6286 !important; }
+        .bg-purple-light { background: #e0f2fe; color: #0a6286; }
+        .bg-indigo-light { background: #e0f2fe; color: #0a6286; }
         
         /* Quick Actions */
         .action-card {
@@ -497,20 +495,13 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
             }
         }
         
-        /* Color utilities */
-        .bg-purple-light { background: #ede9fe; color: #7c3aed; }
+        /* Color utilities - using system colors */
+        .bg-primary-light { background: #e0f2fe; color: #0a6286; }
         .bg-green-light { background: #d1fae5; color: #059669; }
         .bg-red-light { background: #fee2e2; color: #dc2626; }
         .bg-yellow-light { background: #fef3c7; color: #d97706; }
-        .bg-blue-light { background: #dbeafe; color: #2563eb; }
-        .bg-indigo-light { background: #e0e7ff; color: #4f46e5; }
+        .bg-blue-light { background: #dbeafe; color: #0a6286; }
         .bg-gray-light { background: #f1f5f9; color: #475569; }
-        
-        .text-purple { color: #7c3aed; }
-        .text-green { color: #059669; }
-        .text-red { color: #dc2626; }
-        .text-yellow { color: #d97706; }
-        .text-blue { color: #2563eb; }
     </style>
 </head>
 <body>
@@ -565,10 +556,10 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                     <!-- Today Sent -->
                     <div class="col-6 col-md-4 col-lg-2">
                         <div class="sms-stat-card">
-                            <div class="sms-stat-icon bg-purple-light">
+                            <div class="sms-stat-icon bg-primary-light">
                                 <i class="fas fa-paper-plane"></i>
                             </div>
-                            <div class="sms-stat-value text-purple"><?php echo number_format($stats['today_sent']); ?></div>
+                            <div class="sms-stat-value text-primary"><?php echo number_format($stats['today_sent']); ?></div>
                             <div class="sms-stat-label">Sent Today</div>
                         </div>
                     </div>
@@ -625,10 +616,10 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                     <!-- Month Stats -->
                     <div class="col-6 col-md-4 col-lg-2">
                         <div class="sms-stat-card">
-                            <div class="sms-stat-icon bg-indigo-light">
+                            <div class="sms-stat-icon bg-primary-light">
                                 <i class="fas fa-calendar-alt"></i>
                             </div>
-                            <div class="sms-stat-value text-purple"><?php echo number_format($stats['month_sent']); ?></div>
+                            <div class="sms-stat-value text-primary"><?php echo number_format($stats['month_sent']); ?></div>
                             <div class="sms-stat-label">This Month</div>
                             <div class="sms-stat-trend text-muted">
                                 <i class="fas fa-pound-sign"></i> <?php echo $month_cost_display; ?>
@@ -648,7 +639,7 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                             </div>
                             <div class="action-list">
                                 <a href="send.php" class="action-item">
-                                    <div class="action-icon bg-purple-light">
+                                    <div class="action-icon bg-primary-light">
                                         <i class="fas fa-paper-plane"></i>
                                     </div>
                                     <div class="action-content">
@@ -706,7 +697,7 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                                 </a>
                                 
                                 <a href="settings.php" class="action-item">
-                                    <div class="action-icon bg-indigo-light">
+                                    <div class="action-icon bg-primary-light">
                                         <i class="fas fa-cog"></i>
                                     </div>
                                     <div class="action-content">
