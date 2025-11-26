@@ -102,6 +102,10 @@ if ($user_role === 'registrar') {
     </div>
   </div>
 </aside>
+
+<!-- Mobile Sidebar Overlay (for registrars) -->
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
 <?php
     // Include FAB for registrars
     include_once __DIR__ . '/fab.php';
