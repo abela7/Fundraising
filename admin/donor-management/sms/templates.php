@@ -1,22 +1,60 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../../../shared/auth.php';
-require_once __DIR__ . '/../../../shared/csrf.php';
-require_once __DIR__ . '/../../../config/db.php';
-require_login();
-require_admin();
+
+// Enable error display for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
+try {
+    require_once __DIR__ . '/../../../shared/auth.php';
+} catch (Throwable $e) {
+    die('Error loading auth.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../shared/csrf.php';
+} catch (Throwable $e) {
+    die('Error loading csrf.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../config/db.php';
+} catch (Throwable $e) {
+    die('Error loading db.php: ' . $e->getMessage());
+}
+
+try {
+    require_login();
+    require_admin();
+} catch (Throwable $e) {
+    die('Auth error: ' . $e->getMessage());
+}
 
 $page_title = 'SMS Templates';
 $current_user = current_user();
-$db = db();
+
+try {
+    $db = db();
+} catch (Throwable $e) {
+    die('Database connection error: ' . $e->getMessage());
+}
 
 $templates = [];
 $error_message = null;
 $success_message = $_SESSION['success_message'] ?? null;
 unset($_SESSION['success_message']);
+$tables_exist = false;
+
+// Check if SMS tables exist
+try {
+    $check = $db->query("SHOW TABLES LIKE 'sms_templates'");
+    $tables_exist = $check && $check->num_rows > 0;
+} catch (Throwable $e) {
+    $error_message = 'Error checking tables: ' . $e->getMessage();
+}
 
 // Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist) {
     verify_csrf();
     
     $action = $_POST['action'] ?? '';
@@ -95,30 +133,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get templates
-try {
-    $result = $db->query("
-        SELECT t.*, u.name as created_by_name
-        FROM sms_templates t
-        LEFT JOIN users u ON t.created_by = u.id
-        ORDER BY t.category, t.name
-    ");
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $templates[] = $row;
+if ($tables_exist) {
+    try {
+        $result = $db->query("
+            SELECT t.*, u.name as created_by_name
+            FROM sms_templates t
+            LEFT JOIN users u ON t.created_by = u.id
+            ORDER BY t.category, t.name
+        ");
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $templates[] = $row;
+            }
         }
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
     }
-} catch (Exception $e) {
-    $error_message = $e->getMessage();
 }
 
 // Get template for editing
 $edit_template = null;
-if (isset($_GET['edit'])) {
+if (isset($_GET['edit']) && $tables_exist) {
     $edit_id = (int)$_GET['edit'];
     $stmt = $db->prepare("SELECT * FROM sms_templates WHERE id = ?");
-    $stmt->bind_param('i', $edit_id);
-    $stmt->execute();
-    $edit_template = $stmt->get_result()->fetch_assoc();
+    if ($stmt) {
+        $stmt->bind_param('i', $edit_id);
+        $stmt->execute();
+        $edit_template = $stmt->get_result()->fetch_assoc();
+    }
 }
 
 $show_form = isset($_GET['action']) && $_GET['action'] === 'new' || $edit_template;

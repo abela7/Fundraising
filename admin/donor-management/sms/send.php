@@ -1,28 +1,70 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../../../shared/auth.php';
-require_once __DIR__ . '/../../../shared/csrf.php';
-require_once __DIR__ . '/../../../config/db.php';
-require_login();
-require_admin();
+
+// Enable error display for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
+try {
+    require_once __DIR__ . '/../../../shared/auth.php';
+} catch (Throwable $e) {
+    die('Error loading auth.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../shared/csrf.php';
+} catch (Throwable $e) {
+    die('Error loading csrf.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../config/db.php';
+} catch (Throwable $e) {
+    die('Error loading db.php: ' . $e->getMessage());
+}
+
+try {
+    require_login();
+    require_admin();
+} catch (Throwable $e) {
+    die('Auth error: ' . $e->getMessage());
+}
 
 $page_title = 'Send SMS';
 $current_user = current_user();
-$db = db();
+
+try {
+    $db = db();
+} catch (Throwable $e) {
+    die('Database connection error: ' . $e->getMessage());
+}
 
 $templates = [];
 $donors = [];
 $error_message = null;
 $success_message = null;
+$tables_exist = false;
+
+// Check if SMS tables exist
+try {
+    $check = $db->query("SHOW TABLES LIKE 'sms_templates'");
+    $tables_exist = $check && $check->num_rows > 0;
+} catch (Throwable $e) {
+    // Ignore
+}
 
 // Get templates
-try {
-    $result = $db->query("SELECT id, template_key, name, message_en FROM sms_templates WHERE is_active = 1 ORDER BY name");
-    while ($row = $result->fetch_assoc()) {
-        $templates[] = $row;
+if ($tables_exist) {
+    try {
+        $result = $db->query("SELECT id, template_key, name, message_en FROM sms_templates WHERE is_active = 1 ORDER BY name");
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $templates[] = $row;
+            }
+        }
+    } catch (Exception $e) {
+        // Ignore
     }
-} catch (Exception $e) {
-    // Ignore
 }
 
 // Handle search for donors
@@ -50,11 +92,23 @@ if (isset($_GET['search_donor']) && !empty($_GET['search_donor'])) {
     }
 }
 
+// Check if sms_queue table exists
+$queue_table_exists = false;
+try {
+    $check = $db->query("SHOW TABLES LIKE 'sms_queue'");
+    $queue_table_exists = $check && $check->num_rows > 0;
+} catch (Throwable $e) {
+    // Ignore
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     
     try {
+        if (!$queue_table_exists) {
+            throw new Exception('SMS queue table not found. Please run the database setup script first.');
+        }
         $donor_id = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : null;
         $phone_number = trim($_POST['phone_number'] ?? '');
         $message = trim($_POST['message'] ?? '');

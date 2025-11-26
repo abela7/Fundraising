@@ -1,23 +1,61 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../../../shared/auth.php';
-require_once __DIR__ . '/../../../shared/csrf.php';
-require_once __DIR__ . '/../../../config/db.php';
-require_login();
-require_admin();
+
+// Enable error display for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
+try {
+    require_once __DIR__ . '/../../../shared/auth.php';
+} catch (Throwable $e) {
+    die('Error loading auth.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../shared/csrf.php';
+} catch (Throwable $e) {
+    die('Error loading csrf.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../config/db.php';
+} catch (Throwable $e) {
+    die('Error loading db.php: ' . $e->getMessage());
+}
+
+try {
+    require_login();
+    require_admin();
+} catch (Throwable $e) {
+    die('Auth error: ' . $e->getMessage());
+}
 
 $page_title = 'SMS Queue';
 $current_user = current_user();
-$db = db();
+
+try {
+    $db = db();
+} catch (Throwable $e) {
+    die('Database connection error: ' . $e->getMessage());
+}
 
 $queue_items = [];
 $stats = ['pending' => 0, 'processing' => 0, 'failed' => 0];
 $error_message = null;
 $success_message = $_SESSION['success_message'] ?? null;
 unset($_SESSION['success_message']);
+$tables_exist = false;
+
+// Check if SMS tables exist
+try {
+    $check = $db->query("SHOW TABLES LIKE 'sms_queue'");
+    $tables_exist = $check && $check->num_rows > 0;
+} catch (Throwable $e) {
+    $error_message = 'Error checking tables: ' . $e->getMessage();
+}
 
 // Handle actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist) {
     verify_csrf();
     $action = $_POST['action'] ?? '';
     
@@ -51,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-try {
+if ($tables_exist) try {
     // Get queue stats
     $stats_result = $db->query("
         SELECT status, COUNT(*) as count 

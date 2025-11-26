@@ -1,16 +1,49 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../../../shared/auth.php';
-require_once __DIR__ . '/../../../config/db.php';
-require_login();
-require_admin();
+
+// Enable error display for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
+try {
+    require_once __DIR__ . '/../../../shared/auth.php';
+} catch (Throwable $e) {
+    die('Error loading auth.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../config/db.php';
+} catch (Throwable $e) {
+    die('Error loading db.php: ' . $e->getMessage());
+}
+
+try {
+    require_login();
+    require_admin();
+} catch (Throwable $e) {
+    die('Auth error: ' . $e->getMessage());
+}
 
 $page_title = 'SMS History';
 $current_user = current_user();
-$db = db();
+
+try {
+    $db = db();
+} catch (Throwable $e) {
+    die('Database connection error: ' . $e->getMessage());
+}
 
 $sms_logs = [];
 $error_message = null;
+$tables_exist = false;
+
+// Check if SMS tables exist
+try {
+    $check = $db->query("SHOW TABLES LIKE 'sms_log'");
+    $tables_exist = $check && $check->num_rows > 0;
+} catch (Throwable $e) {
+    $error_message = 'Error checking tables: ' . $e->getMessage();
+}
 
 // Pagination
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -25,7 +58,12 @@ $filter_date_from = $_GET['date_from'] ?? '';
 $filter_date_to = $_GET['date_to'] ?? '';
 $filter_search = trim($_GET['search'] ?? '');
 
+if (!$tables_exist) {
+    $error_message = 'SMS tables not found. Please run the database setup script.';
+}
+
 try {
+    if (!$tables_exist) throw new Exception('Tables not set up');
     // Build query
     $where_clauses = [];
     $params = [];

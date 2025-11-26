@@ -1,9 +1,28 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../../../shared/auth.php';
-require_once __DIR__ . '/../../../config/db.php';
-require_login();
-require_admin();
+
+// Enable error display for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
+try {
+    require_once __DIR__ . '/../../../shared/auth.php';
+} catch (Throwable $e) {
+    die('Error loading auth.php: ' . $e->getMessage());
+}
+
+try {
+    require_once __DIR__ . '/../../../config/db.php';
+} catch (Throwable $e) {
+    die('Error loading db.php: ' . $e->getMessage());
+}
+
+try {
+    require_login();
+    require_admin();
+} catch (Throwable $e) {
+    die('Auth error: ' . $e->getMessage());
+}
 
 $page_title = 'SMS Dashboard';
 $current_user = current_user();
