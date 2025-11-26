@@ -353,283 +353,380 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                     </div>
                 </div>
 
-                <!-- Key Metrics -->
-                <div class="row g-3 mb-4">
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
-                            <div class="icon-circle bg-primary text-white"><i class="fas fa-chart-line"></i></div>
-                            <div class="ms-3">
-                                <div class="small fw-bold text-primary mb-1">Total Raised</div>
-                                <div class="h5 mb-0"><?php echo $currency.' '.number_format($metrics['grand_total'], 2); ?></div>
-                                <div class="small text-muted">Progress: <?php echo (int)$progress; ?>%</div>
-                            </div>
-                        </div></div>
-                    </div>
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
-                            <div class="icon-circle bg-success text-white"><i class="fas fa-pound-sign"></i></div>
-                            <div class="ms-3">
-                                <div class="small fw-bold text-success mb-1">Paid (approved)</div>
-                                <div class="h5 mb-0"><?php echo $currency.' '.number_format($metrics['paid_total'], 2); ?></div>
-                                <div class="small text-muted">Payments: <?php echo number_format($metrics['payments_count']); ?></div>
-                            </div>
-                        </div></div>
-                    </div>
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
-                            <div class="icon-circle bg-warning text-white"><i class="fas fa-hand-holding-usd"></i></div>
-                            <div class="ms-3">
-                                <div class="small fw-bold text-warning mb-1">Pledged (approved)</div>
-                                <div class="h5 mb-0"><?php echo $currency.' '.number_format($metrics['pledged_total'], 2); ?></div>
-                                <div class="small text-muted">Pledges: <?php echo number_format($metrics['pledges_count']); ?></div>
-                            </div>
-                        </div></div>
-                    </div>
-                    <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
-                            <div class="icon-circle bg-info text-white"><i class="fas fa-users"></i></div>
-                            <div class="ms-3">
-                                <div class="small fw-bold text-info mb-1">Donors (range)</div>
-                                <div class="h5 mb-0"><?php echo number_format($metrics['donor_count']); ?></div>
-                                <div class="small text-muted">Avg donation: <?php echo $currency.' '.number_format($metrics['avg_donation'],2); ?></div>
-                            </div>
-                        </div></div>
-                    </div>
-                </div>
-
-                <!-- Outstanding -->
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <div class="card border-0 shadow-sm h-100 outstanding-card"><div class="card-body">
-                            <h6 class="mb-2"><i class="fas fa-balance-scale me-2 text-primary"></i>Outstanding Balances</h6>
-                            <div class="d-flex justify-content-between"><span>Overall Outstanding</span><strong><?php echo $currency.' '.number_format($metrics['overall_outstanding'],2); ?></strong></div>
-                            <div class="d-flex justify-content-between text-muted"><span>Range Outstanding</span><span><?php echo $currency.' '.number_format($metrics['range_outstanding'],2); ?></span></div>
-                        </div></div>
-                    </div>
-                </div>
-
-                <!-- Pie Chart (ECharts) -->
-                <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0"><i class="fas fa-chart-pie me-2 text-primary"></i>Raised Breakdown</h6>
-                    </div>
-                    <div id="pieContainer" style="height: 320px;"></div>
-                </div></div>
-
-                <!-- Breakdowns -->
-                <div class="row g-3 mb-4">
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-receipt me-2 text-success"></i>Payments by Method</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <thead><tr><th>Method</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
-                                    <tbody>
-                                        <?php foreach ($breakdowns['payments_by_method'] as $r): ?>
-                                            <tr><td data-label="Method"><?php echo htmlspecialchars(ucfirst((string)$r['method'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div></div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-boxes-stacked me-2 text-warning"></i>Donations by Package</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <thead><tr><th>Type</th><th>Package</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
-                                    <tbody>
-                                        <?php foreach ($breakdowns['payments_by_package'] as $r): ?>
-                                            <tr><td data-label="Type">Payment</td><td data-label="Package"><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
-                                        <?php endforeach; ?>
-                                        <?php foreach ($breakdowns['pledges_by_package'] as $r): ?>
-                                            <tr><td data-label="Type">Pledge</td><td data-label="Package"><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div></div>
-                    </div>
-                </div>
-
-                <!-- Status Distribution -->
-                <div class="row g-3 mb-4">
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-list-check me-2 text-secondary"></i>Payments by Status</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <thead><tr><th>Status</th><th class="text-end">Count</th></tr></thead>
-                                    <tbody>
-                                        <?php foreach ($breakdowns['payments_by_status'] as $r): ?>
-                                            <tr><td data-label="Status"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td></tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div></div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-list-check me-2 text-secondary"></i>Pledges by Status</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <thead><tr><th>Status</th><th class="text-end">Count</th></tr></thead>
-                                    <tbody>
-                                        <?php foreach ($breakdowns['pledges_by_status'] as $r): ?>
-                                            <tr><td data-label="Status"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td></tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div></div>
-                    </div>
-                </div>
-
-                <!-- Top Tables -->
-                <div class="row g-3 mb-4">
-                    <div class="col-12">
-                        <div class="card border-0 shadow-sm"><div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                                <h6 class="mb-0"><i class="fas fa-crown me-2 text-primary"></i>Top Donors</h6>
-                                <a class="btn btn-sm btn-outline-primary" href="?export=top_donors_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>CSV</a>
-                            </div>
-                            <div class="table-responsive table-responsive-mobile">
-                                <table class="table table-sm align-middle top-donors-mobile">
-                                    <thead><tr><th>Donor</th><th>Phone</th><th>Email</th><th class="text-end">Pledged</th><th class="text-end">Paid</th><th class="text-end">Outstanding</th><th class="text-end">Last Seen</th></tr></thead>
-                                    <tbody>
-                                        <?php foreach ($top_donors as $r): $pledged=(float)($r['total_pledged']??0); $paid=(float)($r['total_paid']??0); $outstanding=max($pledged-$paid,0); ?>
-                                            <tr>
-                                                <td data-label="Donor"><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></td>
-                                                <td data-label="Phone"><?php echo htmlspecialchars((string)($r['donor_phone'] ?? '')); ?></td>
-                                                <td data-label="Email"><?php echo htmlspecialchars((string)($r['donor_email'] ?? '')); ?></td>
-                                                <td class="text-end" data-label="Pledged"><?php echo number_format($pledged,2); ?></td>
-                                                <td class="text-end" data-label="Paid"><?php echo number_format($paid,2); ?></td>
-                                                <td class="text-end" data-label="Outstanding"><?php echo number_format($outstanding,2); ?></td>
-                                                <td class="text-end" data-label="Last Seen"><?php echo htmlspecialchars((string)($r['last_seen_at'] ?? '')); ?></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div></div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-user-tie me-2 text-success"></i>Top Registrars by Payments</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <thead><tr><th>Registrar</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
-                                    <tbody>
-                                        <?php foreach ($top_registrars['payments'] as $r): ?>
-                                            <tr><td data-label="Registrar"><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div></div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-user-pen me-2 text-warning"></i>Top Registrars by Pledges</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <thead><tr><th>Registrar</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
-                                    <tbody>
-                                        <?php foreach ($top_registrars['pledges'] as $r): ?>
-                                            <tr><td data-label="Registrar"><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div></div>
-                    </div>
-                </div>
-
-                <!-- Non-Numerical Insights -->
-                <div class="row g-3 mb-4">
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-note-sticky me-2 text-secondary"></i>Recent Payment References</h6>
-                            <?php if (count($recent_notes['payments']) === 0): ?>
-                                <div class="text-muted">No notes in this range.</div>
-                            <?php else: ?>
-                            <ul class="list-group list-group-flush">
-                                <?php foreach ($recent_notes['payments'] as $r): ?>
-                                    <li class="list-group-item border-0 px-0">
-                                        <div class="d-flex justify-content-between">
-                                            <div>
-                                                <strong><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></strong>
-                                                <span class="text-muted">· <?php echo htmlspecialchars(ucfirst((string)$r['method'])); ?></span>
-                                                <div class="text-muted small">Ref: <?php echo htmlspecialchars((string)$r['reference']); ?></div>
+                <!-- Accordion Container -->
+                <div class="accordion accordion-flush" id="reportAccordion">
+                    
+                    <!-- Key Metrics - Always Expanded -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingMetrics">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMetrics" aria-expanded="true" aria-controls="collapseMetrics">
+                                <i class="fas fa-chart-line me-2 text-primary"></i><strong>Key Metrics</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseMetrics" class="accordion-collapse collapse show" aria-labelledby="headingMetrics" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="row g-3 p-3">
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
+                                            <div class="icon-circle bg-primary text-white"><i class="fas fa-chart-line"></i></div>
+                                            <div class="ms-3">
+                                                <div class="small fw-bold text-primary mb-1">Total Raised</div>
+                                                <div class="h5 mb-0"><?php echo $currency.' '.number_format($metrics['grand_total'], 2); ?></div>
+                                                <div class="small text-muted">Progress: <?php echo (int)$progress; ?>%</div>
                                             </div>
-                                            <div class="text-muted small"><?php echo htmlspecialchars((string)$r['received_at']); ?></div>
-                                        </div>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                            <?php endif; ?>
-                        </div></div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
-                            <h6 class="mb-3"><i class="fas fa-comments me-2 text-secondary"></i>Recent Pledge Notes</h6>
-                            <?php if (count($recent_notes['pledges']) === 0): ?>
-                                <div class="text-muted">No notes in this range.</div>
-                            <?php else: ?>
-                            <ul class="list-group list-group-flush">
-                                <?php foreach ($recent_notes['pledges'] as $r): ?>
-                                    <li class="list-group-item border-0 px-0">
-                                        <div class="d-flex justify-content-between">
-                                            <div>
-                                                <strong><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></strong>
-                                                <div class="text-muted small"><?php echo htmlspecialchars((string)$r['notes']); ?></div>
+                                        </div></div>
+                                    </div>
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
+                                            <div class="icon-circle bg-success text-white"><i class="fas fa-pound-sign"></i></div>
+                                            <div class="ms-3">
+                                                <div class="small fw-bold text-success mb-1">Paid (approved)</div>
+                                                <div class="h5 mb-0"><?php echo $currency.' '.number_format($metrics['paid_total'], 2); ?></div>
+                                                <div class="small text-muted">Payments: <?php echo number_format($metrics['payments_count']); ?></div>
                                             </div>
-                                            <div class="text-muted small"><?php echo htmlspecialchars((string)$r['created_at']); ?></div>
-                                        </div>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                            <?php endif; ?>
-                        </div></div>
+                                        </div></div>
+                                    </div>
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
+                                            <div class="icon-circle bg-warning text-white"><i class="fas fa-hand-holding-usd"></i></div>
+                                            <div class="ms-3">
+                                                <div class="small fw-bold text-warning mb-1">Pledged (approved)</div>
+                                                <div class="h5 mb-0"><?php echo $currency.' '.number_format($metrics['pledged_total'], 2); ?></div>
+                                                <div class="small text-muted">Pledges: <?php echo number_format($metrics['pledges_count']); ?></div>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
+                                            <div class="icon-circle bg-info text-white"><i class="fas fa-users"></i></div>
+                                            <div class="ms-3">
+                                                <div class="small fw-bold text-info mb-1">Donors (range)</div>
+                                                <div class="h5 mb-0"><?php echo number_format($metrics['donor_count']); ?></div>
+                                                <div class="small text-muted">Avg donation: <?php echo $currency.' '.number_format($metrics['avg_donation'],2); ?></div>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Data Quality -->
-                <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-                    <h6 class="mb-3"><i class="fas fa-shield-halved me-2 text-danger"></i>Data Quality</h6>
-                    <div class="row g-3 data-quality-cards">
-                        <div class="col-md-4">
-                            <div class="p-3 bg-light rounded">
-                                <div class="small text-muted">Payments with missing contact</div>
-                                <div class="h5 mb-2"><?php echo number_format($data_quality['missing_contact_payments']); ?></div>
-                                <button class="btn btn-sm btn-outline-danger" onclick="loadDQ('missing_contact_payments')"><i class="fas fa-list me-1"></i>View</button>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3 bg-light rounded">
-                                <div class="small text-muted">Pledges with missing contact</div>
-                                <div class="h5 mb-2"><?php echo number_format($data_quality['missing_contact_pledges']); ?></div>
-                                <button class="btn btn-sm btn-outline-danger" onclick="loadDQ('missing_contact_pledges')"><i class="fas fa-list me-1"></i>View</button>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3 bg-light rounded">
-                                <div class="small text-muted">Duplicate phone hotlist (≥3)</div>
-                                <?php if (count($data_quality['duplicate_phones'])===0): ?>
-                                    <div class="text-muted small">None</div>
-                                <?php else: ?>
-                                    <ul class="small mb-0">
-                                        <?php foreach ($data_quality['duplicate_phones'] as $r): ?>
-                                            <li><?php echo htmlspecialchars((string)$r['donor_phone']); ?> <span class="text-muted">(<?php echo (int)$r['c']; ?>)</span></li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
+                    <!-- Outstanding Balances -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingOutstanding">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOutstanding" aria-expanded="false" aria-controls="collapseOutstanding">
+                                <i class="fas fa-balance-scale me-2 text-primary"></i><strong>Outstanding Balances</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseOutstanding" class="accordion-collapse collapse" aria-labelledby="headingOutstanding" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="row g-3 p-3">
+                                    <div class="col-md-6">
+                                        <div class="card border-0 shadow-sm h-100 outstanding-card"><div class="card-body">
+                                            <h6 class="mb-2"><i class="fas fa-balance-scale me-2 text-primary"></i>Outstanding Balances</h6>
+                                            <div class="d-flex justify-content-between"><span>Overall Outstanding</span><strong><?php echo $currency.' '.number_format($metrics['overall_outstanding'],2); ?></strong></div>
+                                            <div class="d-flex justify-content-between text-muted"><span>Range Outstanding</span><span><?php echo $currency.' '.number_format($metrics['range_outstanding'],2); ?></span></div>
+                                        </div></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Raised Breakdown Chart -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingChart">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChart" aria-expanded="false" aria-controls="collapseChart">
+                                <i class="fas fa-chart-pie me-2 text-primary"></i><strong>Raised Breakdown Chart</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseChart" class="accordion-collapse collapse" aria-labelledby="headingChart" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-3">
+                                <div id="pieContainer" style="height: 320px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Breakdowns -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingBreakdowns">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBreakdowns" aria-expanded="false" aria-controls="collapseBreakdowns">
+                                <i class="fas fa-receipt me-2 text-success"></i><strong>Payment Breakdowns</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseBreakdowns" class="accordion-collapse collapse" aria-labelledby="headingBreakdowns" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="row g-3 p-3">
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-receipt me-2 text-success"></i>Payments by Method</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead><tr><th>Method</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
+                                                    <tbody>
+                                                        <?php foreach ($breakdowns['payments_by_method'] as $r): ?>
+                                                            <tr><td data-label="Method"><?php echo htmlspecialchars(ucfirst((string)$r['method'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-boxes-stacked me-2 text-warning"></i>Donations by Package</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead><tr><th>Type</th><th>Package</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
+                                                    <tbody>
+                                                        <?php foreach ($breakdowns['payments_by_package'] as $r): ?>
+                                                            <tr><td data-label="Type">Payment</td><td data-label="Package"><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                                        <?php endforeach; ?>
+                                                        <?php foreach ($breakdowns['pledges_by_package'] as $r): ?>
+                                                            <tr><td data-label="Type">Pledge</td><td data-label="Package"><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Distribution -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingStatus">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStatus" aria-expanded="false" aria-controls="collapseStatus">
+                                <i class="fas fa-list-check me-2 text-secondary"></i><strong>Status Distribution</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseStatus" class="accordion-collapse collapse" aria-labelledby="headingStatus" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="row g-3 p-3">
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-list-check me-2 text-secondary"></i>Payments by Status</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead><tr><th>Status</th><th class="text-end">Count</th></tr></thead>
+                                                    <tbody>
+                                                        <?php foreach ($breakdowns['payments_by_status'] as $r): ?>
+                                                            <tr><td data-label="Status"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td></tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-list-check me-2 text-secondary"></i>Pledges by Status</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead><tr><th>Status</th><th class="text-end">Count</th></tr></thead>
+                                                    <tbody>
+                                                        <?php foreach ($breakdowns['pledges_by_status'] as $r): ?>
+                                                            <tr><td data-label="Status"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td></tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Donors -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingTopDonors">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTopDonors" aria-expanded="false" aria-controls="collapseTopDonors">
+                                <i class="fas fa-crown me-2 text-primary"></i><strong>Top Donors</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseTopDonors" class="accordion-collapse collapse" aria-labelledby="headingTopDonors" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                        <h6 class="mb-0"><i class="fas fa-crown me-2 text-primary"></i>Top Donors</h6>
+                                        <a class="btn btn-sm btn-outline-primary" href="?export=top_donors_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>CSV</a>
+                                    </div>
+                                    <div class="table-responsive table-responsive-mobile">
+                                        <table class="table table-sm align-middle top-donors-mobile">
+                                            <thead><tr><th>Donor</th><th>Phone</th><th>Email</th><th class="text-end">Pledged</th><th class="text-end">Paid</th><th class="text-end">Outstanding</th><th class="text-end">Last Seen</th></tr></thead>
+                                            <tbody>
+                                                <?php foreach ($top_donors as $r): $pledged=(float)($r['total_pledged']??0); $paid=(float)($r['total_paid']??0); $outstanding=max($pledged-$paid,0); ?>
+                                                    <tr>
+                                                        <td data-label="Donor"><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></td>
+                                                        <td data-label="Phone"><?php echo htmlspecialchars((string)($r['donor_phone'] ?? '')); ?></td>
+                                                        <td data-label="Email"><?php echo htmlspecialchars((string)($r['donor_email'] ?? '')); ?></td>
+                                                        <td class="text-end" data-label="Pledged"><?php echo number_format($pledged,2); ?></td>
+                                                        <td class="text-end" data-label="Paid"><?php echo number_format($paid,2); ?></td>
+                                                        <td class="text-end" data-label="Outstanding"><?php echo number_format($outstanding,2); ?></td>
+                                                        <td class="text-end" data-label="Last Seen"><?php echo htmlspecialchars((string)($r['last_seen_at'] ?? '')); ?></td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Registrars -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingTopRegistrars">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTopRegistrars" aria-expanded="false" aria-controls="collapseTopRegistrars">
+                                <i class="fas fa-user-tie me-2 text-success"></i><strong>Top Registrars</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseTopRegistrars" class="accordion-collapse collapse" aria-labelledby="headingTopRegistrars" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="row g-3 p-3">
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-user-tie me-2 text-success"></i>Top Registrars by Payments</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead><tr><th>Registrar</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
+                                                    <tbody>
+                                                        <?php foreach ($top_registrars['payments'] as $r): ?>
+                                                            <tr><td data-label="Registrar"><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-user-pen me-2 text-warning"></i>Top Registrars by Pledges</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead><tr><th>Registrar</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
+                                                    <tbody>
+                                                        <?php foreach ($top_registrars['pledges'] as $r): ?>
+                                                            <tr><td data-label="Registrar"><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Notes -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingNotes">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNotes" aria-expanded="false" aria-controls="collapseNotes">
+                                <i class="fas fa-note-sticky me-2 text-secondary"></i><strong>Recent Notes & References</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseNotes" class="accordion-collapse collapse" aria-labelledby="headingNotes" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="row g-3 p-3">
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-note-sticky me-2 text-secondary"></i>Recent Payment References</h6>
+                                            <?php if (count($recent_notes['payments']) === 0): ?>
+                                                <div class="text-muted">No notes in this range.</div>
+                                            <?php else: ?>
+                                            <ul class="list-group list-group-flush">
+                                                <?php foreach ($recent_notes['payments'] as $r): ?>
+                                                    <li class="list-group-item border-0 px-0">
+                                                        <div class="d-flex justify-content-between">
+                                                            <div>
+                                                                <strong><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></strong>
+                                                                <span class="text-muted">· <?php echo htmlspecialchars(ucfirst((string)$r['method'])); ?></span>
+                                                                <div class="text-muted small">Ref: <?php echo htmlspecialchars((string)$r['reference']); ?></div>
+                                                            </div>
+                                                            <div class="text-muted small"><?php echo htmlspecialchars((string)$r['received_at']); ?></div>
+                                                        </div>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                            <?php endif; ?>
+                                        </div></div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-comments me-2 text-secondary"></i>Recent Pledge Notes</h6>
+                                            <?php if (count($recent_notes['pledges']) === 0): ?>
+                                                <div class="text-muted">No notes in this range.</div>
+                                            <?php else: ?>
+                                            <ul class="list-group list-group-flush">
+                                                <?php foreach ($recent_notes['pledges'] as $r): ?>
+                                                    <li class="list-group-item border-0 px-0">
+                                                        <div class="d-flex justify-content-between">
+                                                            <div>
+                                                                <strong><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></strong>
+                                                                <div class="text-muted small"><?php echo htmlspecialchars((string)$r['notes']); ?></div>
+                                                            </div>
+                                                            <div class="text-muted small"><?php echo htmlspecialchars((string)$r['created_at']); ?></div>
+                                                        </div>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                            <?php endif; ?>
+                                        </div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Quality -->
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingDataQuality">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDataQuality" aria-expanded="false" aria-controls="collapseDataQuality">
+                                <i class="fas fa-shield-halved me-2 text-danger"></i><strong>Data Quality</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseDataQuality" class="accordion-collapse collapse" aria-labelledby="headingDataQuality" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-3">
+                                <div class="row g-3 data-quality-cards">
+                                    <div class="col-md-4">
+                                        <div class="p-3 bg-light rounded">
+                                            <div class="small text-muted">Payments with missing contact</div>
+                                            <div class="h5 mb-2"><?php echo number_format($data_quality['missing_contact_payments']); ?></div>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="loadDQ('missing_contact_payments')"><i class="fas fa-list me-1"></i>View</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="p-3 bg-light rounded">
+                                            <div class="small text-muted">Pledges with missing contact</div>
+                                            <div class="h5 mb-2"><?php echo number_format($data_quality['missing_contact_pledges']); ?></div>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="loadDQ('missing_contact_pledges')"><i class="fas fa-list me-1"></i>View</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="p-3 bg-light rounded">
+                                            <div class="small text-muted">Duplicate phone hotlist (≥3)</div>
+                                            <?php if (count($data_quality['duplicate_phones'])===0): ?>
+                                                <div class="text-muted small">None</div>
+                                            <?php else: ?>
+                                                <ul class="small mb-0">
+                                                    <?php foreach ($data_quality['duplicate_phones'] as $r): ?>
+                                                        <li><?php echo htmlspecialchars((string)$r['donor_phone']); ?> <span class="text-muted">(<?php echo (int)$r['c']; ?>)</span></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
+                <!-- End Accordion Container -->
 
                 <!-- Data Quality Modal -->
                 <div class="modal fade" id="dqModal" tabindex="-1" aria-labelledby="dqModalLabel" aria-hidden="true">
@@ -673,73 +770,83 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
     const el = document.getElementById('pieContainer');
     if (!el || !window.echarts) return;
     const d = window.COMPREHENSIVE_DATA;
-    const chart = echarts.init(el);
-    const data = d.breakdowns.donations_by_package_aggregated;
+    let chart = null;
     
-    // Responsive chart options based on screen size
-    const isMobile = window.innerWidth <= 768;
-    const isSmallMobile = window.innerWidth <= 576;
-    
-    chart.setOption({
-      tooltip: { 
-        trigger: 'item', 
-        formatter: params => `${params.name}: ${d.currency} ` + Number(params.value).toLocaleString(undefined,{minimumFractionDigits:2}) + ` (${params.percent}%)`,
-        textStyle: { fontSize: isSmallMobile ? 12 : 14 }
-      },
-      legend: { 
-        orient: isMobile ? 'vertical' : 'horizontal', 
-        bottom: isMobile ? 10 : 0,
-        left: isMobile ? 'left' : 'center',
-        itemWidth: isSmallMobile ? 12 : 14,
-        itemHeight: isSmallMobile ? 12 : 14,
-        textStyle: { fontSize: isSmallMobile ? 11 : 12 }
-      },
-      series: [{
-        name: 'Donations by Package',
-        type: 'pie',
-        radius: isSmallMobile ? ['30%','60%'] : isMobile ? ['35%','65%'] : ['40%','70%'],
-        center: isMobile ? ['50%','40%'] : ['50%','45%'],
-        avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-        label: { 
-          show: !isSmallMobile,
-          formatter: '{b}: {d}%',
-          fontSize: isSmallMobile ? 10 : 12
+    function initChart() {
+      if (chart) {
+        chart.dispose();
+      }
+      chart = echarts.init(el);
+      const data = d.breakdowns.donations_by_package_aggregated;
+      
+      // Responsive chart options based on screen size
+      const isMobile = window.innerWidth <= 768;
+      const isSmallMobile = window.innerWidth <= 576;
+      
+      chart.setOption({
+        tooltip: { 
+          trigger: 'item', 
+          formatter: params => `${params.name}: ${d.currency} ` + Number(params.value).toLocaleString(undefined,{minimumFractionDigits:2}) + ` (${params.percent}%)`,
+          textStyle: { fontSize: isSmallMobile ? 12 : 14 }
         },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: isSmallMobile ? 11 : 13,
-            fontWeight: 'bold'
+        legend: { 
+          orient: isMobile ? 'vertical' : 'horizontal', 
+          bottom: isMobile ? 10 : 0,
+          left: isMobile ? 'left' : 'center',
+          itemWidth: isSmallMobile ? 12 : 14,
+          itemHeight: isSmallMobile ? 12 : 14,
+          textStyle: { fontSize: isSmallMobile ? 11 : 12 }
+        },
+        series: [{
+          name: 'Donations by Package',
+          type: 'pie',
+          radius: isSmallMobile ? ['30%','60%'] : isMobile ? ['35%','65%'] : ['40%','70%'],
+          center: isMobile ? ['50%','40%'] : ['50%','45%'],
+          avoidLabelOverlap: true,
+          itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+          label: { 
+            show: !isSmallMobile,
+            formatter: '{b}: {d}%',
+            fontSize: isSmallMobile ? 10 : 12
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: isSmallMobile ? 11 : 13,
+              fontWeight: 'bold'
+            }
+          },
+          data
+        }]
+      });
+    }
+    
+    // Initialize chart when accordion section is shown
+    const chartAccordion = document.getElementById('collapseChart');
+    if (chartAccordion) {
+      chartAccordion.addEventListener('shown.bs.collapse', function() {
+        setTimeout(() => {
+          if (!chart) {
+            initChart();
+          } else {
+            chart.resize();
           }
-        },
-        data
-      }]
-    });
+        }, 300);
+      });
+    }
+    
+    // Initialize chart if section is already open
+    if (chartAccordion && chartAccordion.classList.contains('show')) {
+      initChart();
+    }
     
     // Handle resize with debounce
     let resizeTimer;
     window.addEventListener('resize', () => {
+      if (!chart) return;
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         chart.resize();
-        // Update chart options on significant size change
-        const newIsMobile = window.innerWidth <= 768;
-        const newIsSmallMobile = window.innerWidth <= 576;
-        if (newIsMobile !== isMobile || newIsSmallMobile !== isSmallMobile) {
-          chart.setOption({
-            legend: { 
-              orient: newIsMobile ? 'vertical' : 'horizontal',
-              bottom: newIsMobile ? 10 : 0,
-              left: newIsMobile ? 'left' : 'center'
-            },
-            series: [{
-              radius: newIsSmallMobile ? ['30%','60%'] : newIsMobile ? ['35%','65%'] : ['40%','70%'],
-              center: newIsMobile ? ['50%','40%'] : ['50%','45%'],
-              label: { show: !newIsSmallMobile }
-            }]
-          });
-        }
       }, 250);
     });
   })();
