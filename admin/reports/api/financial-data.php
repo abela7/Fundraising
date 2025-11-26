@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once '../../../config/db.php';
 require_once '../../../shared/auth.php';
 
@@ -6,11 +8,8 @@ require_once '../../../shared/auth.php';
 header('Content-Type: application/json');
 
 // Auth check
-if (!is_logged_in() || !is_admin()) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_login();
+require_admin();
 
 try {
     $db = db();

@@ -122,9 +122,9 @@ if (!empty($params)) {
     }
     $stmt->close();
 } else {
-$res = $db->query($sql);
-while ($row = $res->fetch_assoc()) {
-    $payments[] = $row;
+    $res = $db->query($sql);
+    while ($row = $res->fetch_assoc()) {
+        $payments[] = $row;
     }
 }
 
@@ -432,7 +432,7 @@ function build_url($params) {
                 display: inline;
                 margin-top: 0;
                 margin-left: 0.25rem;
-        }
+            }
             .processing-info .info-time::before {
                 content: "•";
                 margin-right: 0.25rem;
@@ -703,7 +703,7 @@ function build_url($params) {
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h1>
                             <i class="fas fa-receipt me-2"></i><?php echo $page_title; ?>
-                    </h1>
+                        </h1>
                         <a href="record-pledge-payment.php" class="btn btn-light btn-sm">
                             <i class="fas fa-plus me-1"></i><span class="d-none d-sm-inline">Record Payment</span>
                         </a>
@@ -729,7 +729,7 @@ function build_url($params) {
                         <div class="stat-label"><i class="fas fa-list"></i> All</div>
                     </a>
                 </div>
-
+                
                 <!-- Search Bar -->
                 <div class="search-bar">
                     <form method="get" class="d-flex gap-2">
@@ -749,14 +749,14 @@ function build_url($params) {
                         <?php endif; ?>
                     </form>
                 </div>
-
+                
                 <!-- Results Info -->
                 <?php if ($total_records > 0): ?>
                     <div class="results-info">
                         <span class="count">
                             Showing <strong><?php echo min($offset + 1, $total_records); ?>-<?php echo min($offset + $per_page, $total_records); ?></strong> 
                             of <strong><?php echo $total_records; ?></strong> payments
-                            </span>
+                        </span>
                         <?php if (!empty($search)): ?>
                             <span class="badge bg-primary">
                                 Search: "<?php echo htmlspecialchars($search); ?>"
@@ -764,7 +764,7 @@ function build_url($params) {
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
-
+                
                 <!-- Payments List -->
                 <?php if (empty($payments)): ?>
                     <div class="empty-state">
@@ -776,7 +776,7 @@ function build_url($params) {
                             <?php else: ?>
                                 There are no <?php echo $filter === 'all' ? '' : $filter; ?> payments to display.
                             <?php endif; ?>
-                            </p>
+                        </p>
                     </div>
                 <?php else: ?>
                     <div class="payment-list">
@@ -786,26 +786,26 @@ function build_url($params) {
                                 <div class="card-header-row">
                                     <div class="d-flex align-items-start gap-3">
                                         <!-- Proof Thumbnail -->
-                                                <?php if ($p['payment_proof']): ?>
-                                                    <?php 
-                                                    $ext = strtolower(pathinfo($p['payment_proof'], PATHINFO_EXTENSION));
-                                                    $is_pdf = ($ext === 'pdf');
-                                                    ?>
-                                                    <?php if ($is_pdf): ?>
+                                        <?php if ($p['payment_proof']): ?>
+                                            <?php 
+                                            $ext = strtolower(pathinfo($p['payment_proof'], PATHINFO_EXTENSION));
+                                            $is_pdf = ($ext === 'pdf');
+                                            ?>
+                                            <?php if ($is_pdf): ?>
                                                 <a href="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" target="_blank" class="proof-placeholder" style="background: #fee2e2; color: #dc2626;">
                                                     <i class="fas fa-file-pdf"></i>
-                                                        </a>
-                                                    <?php else: ?>
-                                                        <img src="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" 
+                                                </a>
+                                            <?php else: ?>
+                                                <img src="../../<?php echo htmlspecialchars($p['payment_proof']); ?>" 
                                                      alt="Proof" 
                                                      class="proof-thumb"
-                                                             onclick="viewProof('../../<?php echo htmlspecialchars($p['payment_proof']); ?>')">
-                                                    <?php endif; ?>
-                                                <?php else: ?>
+                                                     onclick="viewProof('../../<?php echo htmlspecialchars($p['payment_proof']); ?>')">
+                                            <?php endif; ?>
+                                        <?php else: ?>
                                             <div class="proof-placeholder">
                                                 <i class="fas fa-receipt"></i>
-                                                    </div>
-                                                <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
                                         
                                         <div class="donor-info">
                                             <h5><?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown Donor'); ?></h5>
@@ -818,7 +818,7 @@ function build_url($params) {
                                     <div class="text-end">
                                         <div class="amount-badge">
                                             £<?php echo number_format((float)$p['amount'], 2); ?>
-                                                    </div>
+                                        </div>
                                         <?php if ($filter === 'all'): ?>
                                             <div class="mt-2">
                                                 <span class="status-badge-inline <?php echo $p['status']; ?>">
@@ -829,8 +829,8 @@ function build_url($params) {
                                                     <?php else: ?>
                                                         <i class="fas fa-ban"></i> Rejected
                                                     <?php endif; ?>
-                                                                </span>
-                                                            </div>
+                                                </span>
+                                            </div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -841,44 +841,44 @@ function build_url($params) {
                                         <div class="detail-item">
                                             <span class="label">Method</span>
                                             <span class="value">
-                                                                    <?php 
-                                                                    $method_icons = [
-                                                                        'cash' => 'money-bill-wave',
-                                                                        'bank_transfer' => 'university',
-                                                                        'card' => 'credit-card',
-                                                                        'cheque' => 'file-invoice-dollar',
-                                                                        'other' => 'hand-holding-usd'
-                                                                    ];
-                                                                    $icon = $method_icons[$p['payment_method']] ?? 'money-bill';
-                                                                    ?>
+                                                <?php 
+                                                $method_icons = [
+                                                    'cash' => 'money-bill-wave',
+                                                    'bank_transfer' => 'university',
+                                                    'card' => 'credit-card',
+                                                    'cheque' => 'file-invoice-dollar',
+                                                    'other' => 'hand-holding-usd'
+                                                ];
+                                                $icon = $method_icons[$p['payment_method']] ?? 'money-bill';
+                                                ?>
                                                 <i class="fas fa-<?php echo $icon; ?> text-info"></i>
-                                                                    <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
-                                                                </span>
-                                                            </div>
+                                                <?php echo ucfirst(str_replace('_', ' ', $p['payment_method'])); ?>
+                                            </span>
+                                        </div>
                                         <div class="detail-item">
                                             <span class="label">Date</span>
                                             <span class="value">
                                                 <i class="far fa-calendar text-secondary"></i>
-                                                                    <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
-                                                                </span>
-                                                            </div>
-                                                            <?php if ($p['reference_number']): ?>
+                                                <?php echo date('d M Y', strtotime($p['payment_date'])); ?>
+                                            </span>
+                                        </div>
+                                        <?php if ($p['reference_number']): ?>
                                         <div class="detail-item">
                                             <span class="label">Reference</span>
                                             <span class="value">
                                                 <i class="fas fa-hashtag text-muted"></i>
-                                                                    <?php echo htmlspecialchars($p['reference_number']); ?>
-                                                                </span>
-                                                            </div>
-                                                            <?php endif; ?>
+                                                <?php echo htmlspecialchars($p['reference_number']); ?>
+                                            </span>
+                                        </div>
+                                        <?php endif; ?>
                                         <div class="detail-item">
                                             <span class="label">Pledge</span>
                                             <span class="value">
                                                 <i class="fas fa-hand-holding-heart text-primary"></i>
                                                 £<?php echo number_format((float)($p['pledge_amount'] ?? 0), 2); ?>
                                             </span>
-                                                        </div>
-                                                    </div>
+                                        </div>
+                                    </div>
                                     
                                     <?php 
                                     // Show payment plan info
@@ -896,20 +896,20 @@ function build_url($params) {
                                         </div>
                                     <?php endif; ?>
                                     
-                                                    <?php if ($p['notes']): ?>
+                                    <?php if ($p['notes']): ?>
                                         <div class="notes-section">
                                             <i class="fas fa-sticky-note"></i>
                                             <?php echo htmlspecialchars($p['notes']); ?>
-                                                            </div>
+                                        </div>
                                     <?php endif; ?>
                                     
                                     <?php if ($p['status'] === 'voided' && $p['void_reason']): ?>
                                         <div class="void-reason">
                                             <i class="fas fa-exclamation-triangle me-1"></i>
                                             <strong>Rejection Reason:</strong> <?php echo htmlspecialchars($p['void_reason']); ?>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                                 
                                 <!-- Processing Info -->
                                 <div class="processing-info">
@@ -921,48 +921,48 @@ function build_url($params) {
                                             <span class="info-time"><?php echo date('d M Y, H:i', strtotime($p['created_at'])); ?></span>
                                         </div>
                                     </div>
-                                                        <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
+                                    <?php if ($p['status'] === 'confirmed' && $p['approved_by_name']): ?>
                                         <div class="info-row text-success">
                                             <i class="fas fa-check-circle"></i>
                                             <div class="info-content">
                                                 <span class="info-action">Approved by</span>
                                                 <span class="info-user"><?php echo htmlspecialchars($p['approved_by_name']); ?></span>
-                                                                <?php if ($p['approved_at']): ?>
+                                                <?php if ($p['approved_at']): ?>
                                                     <span class="info-time"><?php echo date('d M Y, H:i', strtotime($p['approved_at'])); ?></span>
-                                                                <?php endif; ?>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                                        <?php endif; ?>
-                                                        <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
+                                    <?php endif; ?>
+                                    <?php if ($p['status'] === 'voided' && $p['voided_by_name']): ?>
                                         <div class="info-row text-danger">
                                             <i class="fas fa-times-circle"></i>
                                             <div class="info-content">
                                                 <span class="info-action">Rejected by</span>
                                                 <span class="info-user"><?php echo htmlspecialchars($p['voided_by_name']); ?></span>
-                                                                <?php if ($p['voided_at']): ?>
+                                                <?php if ($p['voided_at']): ?>
                                                     <span class="info-time"><?php echo date('d M Y, H:i', strtotime($p['voided_at'])); ?></span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                    <?php endif; ?>
+                                                <?php endif; ?>
                                             </div>
-
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                
                                 <!-- Actions -->
                                 <div class="card-actions">
-                                                    <?php if ($p['status'] === 'pending'): ?>
+                                    <?php if ($p['status'] === 'pending'): ?>
                                         <button class="btn btn-approve" onclick="approvePayment(<?php echo $p['id']; ?>)">
                                             <i class="fas fa-check"></i>
                                             <span>Approve</span>
-                                                            </button>
+                                        </button>
                                         <button class="btn btn-reject" onclick="voidPayment(<?php echo $p['id']; ?>)">
                                             <i class="fas fa-times"></i>
                                             <span>Reject</span>
-                                                            </button>
-                                                    <?php elseif ($p['status'] === 'confirmed'): ?>
+                                        </button>
+                                    <?php elseif ($p['status'] === 'confirmed'): ?>
                                         <button class="btn btn-undo" onclick="undoPayment(<?php echo $p['id']; ?>)">
                                             <i class="fas fa-undo"></i>
                                             <span>Undo</span>
-                                                            </button>
+                                        </button>
                                         <a href="../donor-management/view-donor.php?id=<?php echo $p['donor_id']; ?>" class="btn btn-view">
                                             <i class="fas fa-user"></i>
                                             <span>View Donor</span>
@@ -988,8 +988,8 @@ function build_url($params) {
                                                 <i class="fas fa-image"></i>
                                                 <span>View Proof</span>
                                             </button>
-                                                        <?php endif; ?>
-                                                    <?php endif; ?>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
