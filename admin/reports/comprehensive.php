@@ -426,7 +426,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                     <thead><tr><th>Method</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($breakdowns['payments_by_method'] as $r): ?>
-                                            <tr><td><?php echo htmlspecialchars(ucfirst((string)$r['method'])); ?></td><td class="text-end"><?php echo number_format((int)$r['c']); ?></td><td class="text-end"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                            <tr><td data-label="Method"><?php echo htmlspecialchars(ucfirst((string)$r['method'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
@@ -441,10 +441,10 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                     <thead><tr><th>Type</th><th>Package</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($breakdowns['payments_by_package'] as $r): ?>
-                                            <tr><td>Payment</td><td><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end"><?php echo number_format((int)$r['c']); ?></td><td class="text-end"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                            <tr><td data-label="Type">Payment</td><td data-label="Package"><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
                                         <?php endforeach; ?>
                                         <?php foreach ($breakdowns['pledges_by_package'] as $r): ?>
-                                            <tr><td>Pledge</td><td><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end"><?php echo number_format((int)$r['c']); ?></td><td class="text-end"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                            <tr><td data-label="Type">Pledge</td><td data-label="Package"><?php echo htmlspecialchars((string)$r['label']); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
@@ -463,7 +463,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                     <thead><tr><th>Status</th><th class="text-end">Count</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($breakdowns['payments_by_status'] as $r): ?>
-                                            <tr><td><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end"><?php echo number_format((int)$r['c']); ?></td></tr>
+                                            <tr><td data-label="Status"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td></tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
@@ -478,7 +478,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                     <thead><tr><th>Status</th><th class="text-end">Count</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($breakdowns['pledges_by_status'] as $r): ?>
-                                            <tr><td><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end"><?php echo number_format((int)$r['c']); ?></td></tr>
+                                            <tr><td data-label="Status"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td></tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
@@ -495,7 +495,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                 <h6 class="mb-0"><i class="fas fa-crown me-2 text-primary"></i>Top Donors</h6>
                                 <a class="btn btn-sm btn-outline-primary" href="?export=top_donors_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>CSV</a>
                             </div>
-                            <div class="table-responsive">
+                            <div class="table-responsive table-responsive-mobile">
                                 <table class="table table-sm align-middle top-donors-mobile">
                                     <thead><tr><th>Donor</th><th>Phone</th><th>Email</th><th class="text-end">Pledged</th><th class="text-end">Paid</th><th class="text-end">Outstanding</th><th class="text-end">Last Seen</th></tr></thead>
                                     <tbody>
@@ -523,7 +523,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                     <thead><tr><th>Registrar</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($top_registrars['payments'] as $r): ?>
-                                            <tr><td><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end"><?php echo number_format((int)$r['c']); ?></td><td class="text-end"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                            <tr><td data-label="Registrar"><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
@@ -538,7 +538,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                     <thead><tr><th>Registrar</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($top_registrars['pledges'] as $r): ?>
-                                            <tr><td><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end"><?php echo number_format((int)$r['c']); ?></td><td class="text-end"><?php echo number_format((float)$r['t'],2); ?></td></tr>
+                                            <tr><td data-label="Registrar"><?php echo htmlspecialchars((string)($r['user_name'] ?? 'Unknown')); ?></td><td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td><td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'],2); ?></td></tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>

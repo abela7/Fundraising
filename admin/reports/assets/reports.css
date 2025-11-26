@@ -107,40 +107,57 @@
     color: #fff;
 }
 
-/* Comprehensive Report Mobile Enhancements */
+/* ============================================
+   COMPREHENSIVE REPORT - MOBILE FIRST STYLES
+   ============================================ */
 
 /* Date Range Buttons - Mobile Optimization */
 @media (max-width: 991px) {
     .date-range-buttons {
-        flex-wrap: wrap;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+    
+    .date-range-buttons .btn {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        min-width: calc(50% - 0.25rem) !important;
+        max-width: calc(50% - 0.25rem) !important;
+        font-size: 0.875rem !important;
+        padding: 0.5rem 0.5rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .date-range-buttons .btn i {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .date-range-buttons {
+        flex-direction: column !important;
         gap: 0.5rem !important;
     }
     
     .date-range-buttons .btn {
-        flex: 1 1 auto;
-        min-width: calc(50% - 0.25rem);
-        font-size: 0.875rem;
-        padding: 0.5rem 0.75rem;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 100% !important;
     }
     
     .date-range-buttons .btn i {
-        display: none;
+        display: inline-block !important;
+        margin-right: 0.5rem !important;
     }
 }
 
 @media (max-width: 576px) {
-    .date-range-buttons {
-        flex-direction: column;
-    }
-    
     .date-range-buttons .btn {
-        width: 100%;
-        min-width: 100%;
-    }
-    
-    .date-range-buttons .btn i {
-        display: inline-block;
-        margin-right: 0.5rem;
+        font-size: 0.8rem !important;
+        padding: 0.5rem 0.75rem !important;
     }
 }
 
@@ -215,81 +232,107 @@
     }
 }
 
-/* Table Responsiveness - Card Layout for Mobile */
+/* Table Responsiveness - Card Layout for Mobile - AGGRESSIVE */
 @media (max-width: 768px) {
+    /* ALL tables get mobile treatment */
+    .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        display: block !important;
+        width: 100% !important;
+    }
+    
     /* Hide table headers on mobile, show as cards */
     .table-responsive-mobile {
-        overflow-x: visible;
+        overflow-x: visible !important;
     }
     
-    .table-responsive-mobile table {
-        display: block;
-        width: 100%;
+    .table-responsive-mobile table,
+    .table-responsive table {
+        display: block !important;
+        width: 100% !important;
     }
     
-    .table-responsive-mobile thead {
-        display: none;
+    .table-responsive-mobile thead,
+    .table-responsive thead {
+        display: none !important;
     }
     
-    .table-responsive-mobile tbody {
-        display: block;
+    .table-responsive-mobile tbody,
+    .table-responsive tbody {
+        display: block !important;
     }
     
-    .table-responsive-mobile tr {
-        display: block;
-        margin-bottom: 1rem;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 1rem;
-        background: #fff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    .table-responsive-mobile tr,
+    .table-responsive tr {
+        display: block !important;
+        margin-bottom: 1rem !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 8px !important;
+        padding: 1rem !important;
+        background: #fff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        width: 100% !important;
     }
     
-    .table-responsive-mobile td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-        border: none;
-        text-align: right;
+    .table-responsive-mobile td,
+    .table-responsive td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 0.5rem 0 !important;
+        border: none !important;
+        text-align: right !important;
+        width: 100% !important;
     }
     
-    .table-responsive-mobile td::before {
-        content: attr(data-label);
-        font-weight: 600;
-        color: #6c757d;
-        text-align: left;
-        flex: 1;
+    .table-responsive-mobile td::before,
+    .table-responsive td::before {
+        content: attr(data-label) !important;
+        font-weight: 600 !important;
+        color: #6c757d !important;
+        text-align: left !important;
+        flex: 1 !important;
+        margin-right: 1rem !important;
     }
     
-    .table-responsive-mobile td:first-child {
-        padding-top: 0;
+    .table-responsive-mobile td:first-child,
+    .table-responsive td:first-child {
+        padding-top: 0 !important;
     }
     
-    .table-responsive-mobile td:last-child {
-        padding-bottom: 0;
+    .table-responsive-mobile td:last-child,
+    .table-responsive td:last-child {
+        padding-bottom: 0 !important;
     }
     
     /* Top Donors Table - Special Mobile Layout */
     .top-donors-mobile tr td {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #e9ecef;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        padding: 0.75rem 0 !important;
+        border-bottom: 1px solid #e9ecef !important;
     }
     
     .top-donors-mobile tr td:last-child {
-        border-bottom: none;
+        border-bottom: none !important;
     }
     
     .top-donors-mobile td::before {
-        margin-bottom: 0.25rem;
-        font-size: 0.875rem;
+        margin-bottom: 0.25rem !important;
+        font-size: 0.875rem !important;
     }
     
     .top-donors-mobile .text-end {
         text-align: left !important;
-        width: 100%;
+        width: 100% !important;
+    }
+    
+    /* Ensure all table cells have proper spacing */
+    .table-responsive td:not(:last-child) {
+        border-bottom: 1px solid #f0f0f0 !important;
+        margin-bottom: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
     }
 }
 
@@ -397,20 +440,38 @@
     }
 }
 
-/* Page Header - Mobile */
+/* Page Header - Mobile - AGGRESSIVE */
+@media (max-width: 991px) {
+    .d-flex.flex-wrap.gap-2.justify-content-between.align-items-center {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 1rem !important;
+    }
+    
+    .d-flex.flex-wrap.gap-2.justify-content-between.align-items-center > h4 {
+        margin-bottom: 0 !important;
+        width: 100% !important;
+        text-align: center;
+    }
+    
+    .d-flex.flex-wrap.gap-2.justify-content-between.align-items-center > div {
+        width: 100% !important;
+    }
+}
+
 @media (max-width: 768px) {
     .d-flex.flex-wrap.gap-2.justify-content-between {
-        flex-direction: column;
-        align-items: flex-start !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
     }
     
     .d-flex.flex-wrap.gap-2.justify-content-between > h4 {
-        margin-bottom: 1rem;
-        width: 100%;
+        margin-bottom: 1rem !important;
+        width: 100% !important;
     }
     
     .d-flex.flex-wrap.gap-2.justify-content-between > div {
-        width: 100%;
+        width: 100% !important;
     }
 }
 
@@ -444,6 +505,16 @@
 
 /* Better spacing on mobile */
 @media (max-width: 768px) {
+    /* Force proper container padding */
+    .container-fluid {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+    
+    .main-content {
+        padding: 1rem 0.75rem !important;
+    }
+    
     .mb-4 {
         margin-bottom: 1.5rem !important;
     }
@@ -453,7 +524,41 @@
     }
     
     .card {
-        margin-bottom: 1rem;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Force columns to stack */
+    .row.g-3 > [class*="col-"] {
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Ensure cards don't overflow */
+    .card-body {
+        overflow-x: hidden !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    
+    .main-content {
+        padding: 0.75rem 0.5rem !important;
+    }
+    
+    /* Smaller font sizes */
+    .h5 {
+        font-size: 1rem !important;
+    }
+    
+    .h6 {
+        font-size: 0.9rem !important;
+    }
+    
+    .small {
+        font-size: 0.8rem !important;
     }
 }
 

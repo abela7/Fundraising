@@ -337,9 +337,35 @@ function enhanceMobileExperience() {
     });
 }
 
+// Auto-add data-label attributes to table cells for mobile
+function addDataLabelsToTables() {
+    const tables = document.querySelectorAll('.table-responsive table, .table-responsive-mobile table');
+    tables.forEach(function(table) {
+        const headers = Array.from(table.querySelectorAll('thead th'));
+        if (headers.length === 0) return;
+        
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(function(row) {
+            const cells = row.querySelectorAll('td');
+            cells.forEach(function(cell, index) {
+                if (!cell.hasAttribute('data-label') && headers[index]) {
+                    const headerText = headers[index].textContent.trim();
+                    // Remove currency symbols and extra text for cleaner labels
+                    const cleanLabel = headerText.replace(/\([^)]*\)/g, '').trim();
+                    cell.setAttribute('data-label', cleanLabel || `Column ${index + 1}`);
+                }
+            });
+        });
+    });
+}
+
 // Initialize mobile enhancements
 document.addEventListener('DOMContentLoaded', function() {
     enhanceMobileExperience();
+    addDataLabelsToTables();
+    
+    // Also run after dynamic content loads (like modals)
+    setTimeout(addDataLabelsToTables, 500);
 });
 
 // Make functions globally available
