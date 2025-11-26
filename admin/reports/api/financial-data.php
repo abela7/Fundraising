@@ -96,6 +96,86 @@ if ($dateFrom !== null && $dateTo !== null) {
     $donorCount = (int)($db->query("SELECT COUNT(DISTINCT id) AS c FROM donors WHERE total_pledged > 0 OR total_paid > 0")->fetch_assoc()['c'] ?? 0);
 }
 
+// --- Top 10 Donors (by amount paid) ---
+$topDonors = [];
+$topDonorsSql = "
+    SELECT name, total_paid 
+    FROM donors 
+    WHERE total_paid > 0 
+    ORDER BY total_paid DESC 
+    LIMIT 10
+";
+$res = $db->query($topDonorsSql);
+if ($res) {
+    while ($row = $res->fetch_assoc()) {
+        $topDonors[] = [
+            'name' => $row['name'],
+            'amount' => (float)$row['total_paid']
+        ];
+    }
+}
+
+// --- Recent Transactions (Last 10) ---
+// Union of payments and pledge_payments
+$recentTransactions = [];
+$transactionsSql = "
+    SELECT 
+        p.id,
+        COALESCE(p.donor_name, 'Anonymous') as name,
+        p.amount,
+        p.method,
+        p.received_at as date,
+        'payment' as type
+    FROM payments p
+    WHERE p.status = 'approved'
+    UNION ALL
+    SELECT 
+        pp.id,
+        COALESCE(d.name, 'Unknown') as name,
+        pp.amount,
+        pp.payment_method as method,
+        pp.created_at as date,
+        'pledge_payment' as type
+    FROM pledge_payments pp
+    LEFT JOIN donors d ON pp.donor_id = d.id
+    WHERE pp.status = 'confirmed'
+    ORDER BY date DESC
+    LIMIT 10
+";
+$res = $db->query($transactionsSql);
+if ($res) {
+    while ($row = $res->fetch_assoc()) {
+        $recentTransactions[] = [
+            'name' => $row['name'],
+            'amount' => (float)$row['amount'],
+            'method' => ucfirst(str_replace('_', ' ', $row['method'])),
+            'date' => $row['date'],
+            'type' => $row['type'] === 'pledge_payment' ? 'Pledge Pay' : 'Donation'
+        ];
+    }
+}
+
+// --- Payment Plans Status ---
+$paymentPlans = [
+    'active' => 0,
+    'completed' => 0,
+    'paused' => 0,
+    'defaulted' => 0,
+    'cancelled' => 0
+];
+// Check if table exists first to avoid errors
+$check = $db->query("SHOW TABLES LIKE 'donor_payment_plans'");
+if ($check && $check->num_rows > 0) {
+    $res = $db->query("SELECT status, COUNT(*) as c FROM donor_payment_plans GROUP BY status");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            if (isset($paymentPlans[$row['status']])) {
+                $paymentPlans[$row['status']] = (int)$row['c'];
+            }
+        }
+    }
+}
+
 // Payment methods breakdown
 $methodsData = ['cash' => 0, 'bank_transfer' => 0, 'card' => 0, 'other' => 0];
 
@@ -290,6 +370,11 @@ $response = [
         'instantPayments' => $instantPayments,
         'pledgePayments' => $pledgePayments
     ],
+    'lists' => [
+        'topDonors' => $topDonors,
+        'recentTransactions' => $recentTransactions,
+        'paymentPlans' => $paymentPlans
+    ],
     'charts' => [
         'methods' => [
             'labels' => ['Cash', 'Bank Transfer', 'Card', 'Other'],
@@ -325,4 +410,3 @@ $response = [
 ];
 
 echo json_encode($response, JSON_NUMERIC_CHECK);
-

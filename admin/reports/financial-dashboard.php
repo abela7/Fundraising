@@ -107,9 +107,9 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Total Raised</span>
-                                <span class="kpi-value" id="kpiGrandTotal"><?php echo $currencySymbol . number_format($grandTotal, 2); ?></span>
+                                <span class="kpi-value" id="kpiGrandTotal"><?php echo $currencySymbol . number_format($grandTotal, 0); ?></span>
                                 <span class="kpi-sub">
-                                    <span class="text-success" id="kpiGoalProgress"><?php echo $goalProgress; ?>%</span> of <?php echo $currencySymbol . number_format($targetAmount, 0); ?> goal
+                                    <span class="text-success" id="kpiGoalProgress"><?php echo $goalProgress; ?>%</span> of goal
                                 </span>
                             </div>
                         </div>
@@ -121,7 +121,7 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Cash Collected</span>
-                                <span class="kpi-value" id="kpiTotalPaid"><?php echo $currencySymbol . number_format($totalPaid, 2); ?></span>
+                                <span class="kpi-value" id="kpiTotalPaid"><?php echo $currencySymbol . number_format($totalPaid, 0); ?></span>
                                 <span class="kpi-sub" id="kpiPaymentCount"><?php echo number_format($paymentTransactions); ?> payments</span>
                             </div>
                         </div>
@@ -133,7 +133,7 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Outstanding</span>
-                                <span class="kpi-value" id="kpiOutstanding"><?php echo $currencySymbol . number_format($outstandingPledged, 2); ?></span>
+                                <span class="kpi-value" id="kpiOutstanding"><?php echo $currencySymbol . number_format($outstandingPledged, 0); ?></span>
                                 <span class="kpi-sub">Awaiting payment</span>
                             </div>
                         </div>
@@ -171,12 +171,61 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Avg Payment</span>
-                                <span class="kpi-value" id="kpiAvgPayment"><?php echo $currencySymbol . number_format($avgPayment, 2); ?></span>
+                                <span class="kpi-value" id="kpiAvgPayment"><?php echo $currencySymbol . number_format($avgPayment, 0); ?></span>
                                 <span class="kpi-sub">Per transaction</span>
                             </div>
                         </div>
                     </div>
                     
+                    <!-- Detailed Lists & Charts Mix -->
+                    <div class="row g-3 mb-4">
+                        <!-- Top Donors List (Mobile Friendly) -->
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-transparent border-0">
+                                    <h6 class="mb-0 text-primary"><i class="fas fa-trophy me-2"></i>Top 10 Donors</h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush" id="topDonorsList">
+                                        <!-- Populated by JS -->
+                                        <div class="text-center p-4 text-muted">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Transactions (Mobile Friendly) -->
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 text-primary"><i class="fas fa-history me-2"></i>Recent Transactions</h6>
+                                    <a href="../payments/" class="btn btn-xs btn-link text-decoration-none">View All</a>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush" id="recentTransactionsList">
+                                        <!-- Populated by JS -->
+                                        <div class="text-center p-4 text-muted">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Plans Status -->
+                        <div class="col-lg-4 col-md-12">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-transparent border-0">
+                                    <h6 class="mb-0 text-primary"><i class="fas fa-calendar-check me-2"></i>Payment Plans</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row text-center g-3" id="paymentPlansStats">
+                                        <!-- Populated by JS -->
+                                        <div class="col-12 text-muted">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Charts Section -->
                     <div class="charts-grid">
                         
@@ -262,15 +311,15 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                     <div class="stats-summary">
                         <div class="stat-item">
                             <span class="stat-label">Instant Payments</span>
-                            <span class="stat-value" id="statInstant"><?php echo $currencySymbol . number_format($instantPayments, 2); ?></span>
+                            <span class="stat-value" id="statInstant"><?php echo $currencySymbol . number_format($instantPayments, 0); ?></span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Pledge Payments</span>
-                            <span class="stat-value" id="statPledgePay"><?php echo $currencySymbol . number_format($pledgePayments, 2); ?></span>
+                            <span class="stat-value" id="statPledgePay"><?php echo $currencySymbol . number_format($pledgePayments, 0); ?></span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Target Goal</span>
-                            <span class="stat-value"><?php echo $currencySymbol . number_format($targetAmount, 2); ?></span>
+                            <span class="stat-value"><?php echo $currencySymbol . number_format($targetAmount, 0); ?></span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Last Updated</span>
@@ -297,4 +346,3 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
     <script src="assets/financial-dashboard.js"></script>
 </body>
 </html>
-

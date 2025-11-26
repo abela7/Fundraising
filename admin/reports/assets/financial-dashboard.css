@@ -140,11 +140,10 @@
 }
 
 .kpi-value {
-    font-size: 0.95rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--fd-text-bright);
     line-height: 1.2;
-    word-break: break-word;
 }
 
 .kpi-sub {
@@ -375,7 +374,7 @@
     }
     
     .kpi-value {
-        font-size: 1.1rem;
+        font-size: 1.25rem;
     }
     
     .chart-body {
@@ -431,7 +430,7 @@
     }
     
     .kpi-value {
-        font-size: 1.25rem;
+        font-size: 1.5rem;
     }
     
     .kpi-sub {
@@ -469,7 +468,7 @@
     }
     
     .kpi-value {
-        font-size: 1.5rem;
+        font-size: 1.75rem;
     }
     
     .chart-body {
@@ -478,29 +477,6 @@
     
     .chart-body-pie {
         height: 260px;
-    }
-}
-
-/* ============================================
-   Stats Summary - Responsive
-   ============================================ */
-@media (max-width: 575px) {
-    .stats-summary {
-        flex-direction: column;
-    }
-    
-    .stat-item {
-        border-right: none;
-        border-bottom: 1px solid var(--fd-border);
-        padding: 12px 8px;
-    }
-    
-    .stat-item:last-child {
-        border-bottom: none;
-    }
-    
-    .stat-value {
-        font-size: 1rem;
     }
 }
 
