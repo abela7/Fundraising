@@ -138,6 +138,7 @@ $pledge_tracking = [
     'payments_by_status' => [],
     'recent_pledge_payments' => [],
     'top_pledge_payers' => [],
+    'monthly_payments' => [], // For chart
 ];
 
 // Initialize hasPledgePayments (will be updated if DB is available)
@@ -378,10 +379,38 @@ if ($db && $db_error_message === '') {
         $row = $db->query("SELECT COALESCE(SUM(balance), 0) t FROM donors WHERE balance > 0")->fetch_assoc();
         $pledge_tracking['total_remaining'] = (float)($row['t'] ?? 0);
 
-        // Collection rate
+        // Collection rate - ensure we're using the right calculation
+        // Collection rate = (Total Paid / Total Pledged) * 100
         if ($pledge_tracking['total_pledge_amount'] > 0) {
             $pledge_tracking['collection_rate'] = round(($pledge_tracking['total_paid_towards_pledges'] / $pledge_tracking['total_pledge_amount']) * 100, 1);
+        } else {
+            $pledge_tracking['collection_rate'] = 0.0;
         }
+
+        // Monthly pledge payments for chart (last 12 months)
+        $monthlyQuery = "
+            SELECT 
+                DATE_FORMAT(payment_date, '%Y-%m') as month,
+                DATE_FORMAT(payment_date, '%b %Y') as month_label,
+                COUNT(*) as payment_count,
+                COALESCE(SUM(amount), 0) as total_amount
+            FROM pledge_payments 
+            WHERE status = 'confirmed' 
+            AND payment_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+            GROUP BY month, month_label
+            ORDER BY month ASC
+        ";
+        $monthlyRes = $db->query($monthlyQuery);
+        $monthlyData = [];
+        while ($r = $monthlyRes->fetch_assoc()) {
+            $monthlyData[] = [
+                'month' => $r['month'],
+                'label' => $r['month_label'],
+                'count' => (int)$r['payment_count'],
+                'amount' => (float)$r['total_amount']
+            ];
+        }
+        $pledge_tracking['monthly_payments'] = $monthlyData;
 
         // Average payment amount
         if ($pledge_tracking['pledge_payments_count'] > 0) {
@@ -539,6 +568,282 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                             </div>
                         </div>
                     </div>
+
+                    <!-- Pledge Payment Tracking -->
+                    <?php if ($hasPledgePayments): ?>
+                    <div class="accordion-item border-0 shadow-sm mb-3">
+                        <h2 class="accordion-header" id="headingPledgeTracking">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePledgeTracking" aria-expanded="false" aria-controls="collapsePledgeTracking">
+                                <i class="fas fa-money-bill-transfer me-2 text-success"></i><strong>Pledge Payment Tracking</strong>
+                                <span class="badge bg-success ms-2"><?php echo number_format($pledge_tracking['pledge_payments_count']); ?> payments</span>
+                            </button>
+                        </h2>
+                        <div id="collapsePledgeTracking" class="accordion-collapse collapse" aria-labelledby="headingPledgeTracking" data-bs-parent="#reportAccordion">
+                            <div class="accordion-body p-0">
+                                <!-- Monthly Chart -->
+                                <div class="p-3">
+                                    <div class="card border-0 shadow-sm mb-3">
+                                        <div class="card-body">
+                                            <h6 class="mb-3"><i class="fas fa-chart-line me-2 text-success"></i>Monthly Pledge Payment Collection (Last 12 Months)</h6>
+                                            <div id="pledgeMonthlyChart" style="height: 350px;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Key Metrics Row -->
+                                <div class="row g-3 px-3 pb-3">
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="icon-circle bg-success text-white"><i class="fas fa-percentage"></i></div>
+                                                    <div class="ms-3">
+                                                        <div class="small text-muted">Collection Rate</div>
+                                                        <div class="h4 mb-0"><?php echo number_format($pledge_tracking['collection_rate'], 1); ?>%</div>
+                                                        <div class="progress mt-2" style="height: 6px;">
+                                                            <div class="progress-bar bg-success" style="width: <?php echo min(100, $pledge_tracking['collection_rate']); ?>%"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="icon-circle bg-primary text-white"><i class="fas fa-hand-holding-dollar"></i></div>
+                                                    <div class="ms-3">
+                                                        <div class="small text-muted">Total Pledged</div>
+                                                        <div class="h5 mb-0"><?php echo $currency . ' ' . number_format($pledge_tracking['total_pledge_amount'], 2); ?></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="icon-circle bg-success text-white"><i class="fas fa-check-circle"></i></div>
+                                                    <div class="ms-3">
+                                                        <div class="small text-muted">Collected</div>
+                                                        <div class="h5 mb-0"><?php echo $currency . ' ' . number_format($pledge_tracking['total_paid_towards_pledges'], 2); ?></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-3 col-md-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="icon-circle bg-warning text-white"><i class="fas fa-hourglass-half"></i></div>
+                                                    <div class="ms-3">
+                                                        <div class="small text-muted">Remaining</div>
+                                                        <div class="h5 mb-0"><?php echo $currency . ' ' . number_format($pledge_tracking['total_remaining'], 2); ?></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Donor Status Cards -->
+                                <div class="row g-3 px-3 pb-3">
+                                    <div class="col-12">
+                                        <h6 class="mb-3"><i class="fas fa-users me-2 text-primary"></i>Donor Payment Progress</h6>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="p-3 bg-light rounded text-center">
+                                            <div class="h4 mb-1 text-primary"><?php echo number_format($pledge_tracking['total_pledged_donors']); ?></div>
+                                            <div class="small text-muted">Total Pledged</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="p-3 bg-light rounded text-center">
+                                            <div class="h4 mb-1 text-info"><?php echo number_format($pledge_tracking['donors_not_started']); ?></div>
+                                            <div class="small text-muted">Not Started</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="p-3 bg-light rounded text-center">
+                                            <div class="h4 mb-1 text-warning"><?php echo number_format($pledge_tracking['donors_started_paying']); ?></div>
+                                            <div class="small text-muted">Paying</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="p-3 bg-light rounded text-center">
+                                            <div class="h4 mb-1 text-success"><?php echo number_format($pledge_tracking['donors_completed']); ?></div>
+                                            <div class="small text-muted">Completed</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Payment Breakdowns -->
+                                <div class="row g-3 px-3 pb-3">
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <h6 class="mb-3"><i class="fas fa-credit-card me-2 text-success"></i>Pledge Payments by Method</h6>
+                                                <?php if (empty($pledge_tracking['payments_by_method'])): ?>
+                                                    <div class="text-muted">No payments in this range.</div>
+                                                <?php else: ?>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm align-middle">
+                                                        <thead><tr><th>Method</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
+                                                        <tbody>
+                                                            <?php foreach ($pledge_tracking['payments_by_method'] as $r): ?>
+                                                                <tr>
+                                                                    <td data-label="Method"><?php echo htmlspecialchars(ucfirst((string)($r['payment_method'] ?? 'Unknown'))); ?></td>
+                                                                    <td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td>
+                                                                    <td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'], 2); ?></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <h6 class="mb-3"><i class="fas fa-tags me-2 text-secondary"></i>Pledge Payments by Status</h6>
+                                                <?php if (empty($pledge_tracking['payments_by_status'])): ?>
+                                                    <div class="text-muted">No payments in this range.</div>
+                                                <?php else: ?>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm align-middle">
+                                                        <thead><tr><th>Status</th><th class="text-end">Count</th><th class="text-end">Amount (<?php echo $currency; ?>)</th></tr></thead>
+                                                        <tbody>
+                                                            <?php foreach ($pledge_tracking['payments_by_status'] as $r): 
+                                                                $statusClass = 'secondary';
+                                                                if ($r['status'] === 'confirmed') $statusClass = 'success';
+                                                                elseif ($r['status'] === 'pending') $statusClass = 'warning';
+                                                                elseif ($r['status'] === 'voided') $statusClass = 'danger';
+                                                            ?>
+                                                                <tr>
+                                                                    <td data-label="Status"><span class="badge bg-<?php echo $statusClass; ?>"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></span></td>
+                                                                    <td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td>
+                                                                    <td class="text-end" data-label="Amount"><?php echo number_format((float)$r['t'], 2); ?></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Top Pledge Payers & Recent Payments -->
+                                <div class="row g-3 px-3 pb-3">
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <h6 class="mb-3"><i class="fas fa-trophy me-2 text-warning"></i>Top Pledge Payers</h6>
+                                                <?php if (empty($pledge_tracking['top_pledge_payers'])): ?>
+                                                    <div class="text-muted">No pledge payers yet.</div>
+                                                <?php else: ?>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm align-middle">
+                                                        <thead><tr><th>Donor</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Status</th></tr></thead>
+                                                        <tbody>
+                                                            <?php foreach ($pledge_tracking['top_pledge_payers'] as $r): 
+                                                                $pStatus = $r['payment_status'] ?? 'unknown';
+                                                                $pClass = 'secondary';
+                                                                if ($pStatus === 'completed') $pClass = 'success';
+                                                                elseif ($pStatus === 'paying') $pClass = 'info';
+                                                                elseif ($pStatus === 'not_started') $pClass = 'warning';
+                                                                elseif ($pStatus === 'defaulted') $pClass = 'danger';
+                                                            ?>
+                                                                <tr>
+                                                                    <td data-label="Donor">
+                                                                        <div class="fw-medium"><?php echo htmlspecialchars((string)($r['name'] ?? 'Anonymous')); ?></div>
+                                                                        <small class="text-muted"><?php echo htmlspecialchars((string)($r['phone'] ?? '')); ?></small>
+                                                                    </td>
+                                                                    <td class="text-end" data-label="Paid"><?php echo number_format((float)($r['total_paid'] ?? 0), 2); ?></td>
+                                                                    <td class="text-end" data-label="Balance"><?php echo number_format((float)($r['balance'] ?? 0), 2); ?></td>
+                                                                    <td data-label="Status"><span class="badge bg-<?php echo $pClass; ?>"><?php echo ucfirst(str_replace('_', ' ', $pStatus)); ?></span></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="card border-0 shadow-sm h-100">
+                                            <div class="card-body">
+                                                <h6 class="mb-3"><i class="fas fa-clock me-2 text-info"></i>Recent Pledge Payments</h6>
+                                                <?php if (empty($pledge_tracking['recent_pledge_payments'])): ?>
+                                                    <div class="text-muted">No recent payments in this range.</div>
+                                                <?php else: ?>
+                                                <ul class="list-group list-group-flush">
+                                                    <?php foreach ($pledge_tracking['recent_pledge_payments'] as $r): 
+                                                        $ppStatus = $r['status'] ?? 'unknown';
+                                                        $ppClass = 'secondary';
+                                                        if ($ppStatus === 'confirmed') $ppClass = 'success';
+                                                        elseif ($ppStatus === 'pending') $ppClass = 'warning';
+                                                        elseif ($ppStatus === 'voided') $ppClass = 'danger';
+                                                    ?>
+                                                        <li class="list-group-item border-0 px-0 py-2">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <strong><?php echo htmlspecialchars((string)($r['donor_name'] ?? 'Anonymous')); ?></strong>
+                                                                    <span class="badge bg-<?php echo $ppClass; ?> ms-2"><?php echo ucfirst($ppStatus); ?></span>
+                                                                    <div class="text-muted small">
+                                                                        <?php echo $currency . ' ' . number_format((float)($r['amount'] ?? 0), 2); ?> 
+                                                                        · <?php echo htmlspecialchars(ucfirst((string)($r['payment_method'] ?? ''))); ?>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="text-muted small text-end">
+                                                                    <?php echo htmlspecialchars((string)($r['payment_date'] ?? '')); ?>
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Stats Summary -->
+                                <div class="px-3 pb-3">
+                                    <div class="card border-0 shadow-sm bg-light">
+                                        <div class="card-body">
+                                            <div class="row text-center">
+                                                <div class="col-6 col-md-3 border-end">
+                                                    <div class="h5 mb-0 text-primary"><?php echo number_format($pledge_tracking['pledge_payments_count']); ?></div>
+                                                    <div class="small text-muted">Total Payments</div>
+                                                </div>
+                                                <div class="col-6 col-md-3 border-end">
+                                                    <div class="h5 mb-0 text-success"><?php echo $currency . ' ' . number_format($pledge_tracking['avg_payment_amount'], 2); ?></div>
+                                                    <div class="small text-muted">Avg Payment</div>
+                                                </div>
+                                                <div class="col-6 col-md-3 border-end">
+                                                    <div class="h5 mb-0 text-info"><?php echo number_format($pledge_tracking['donors_started_paying'] + $pledge_tracking['donors_completed']); ?></div>
+                                                    <div class="small text-muted">Active Payers</div>
+                                                </div>
+                                                <div class="col-6 col-md-3">
+                                                    <div class="h5 mb-0 text-danger"><?php echo number_format($pledge_tracking['donors_defaulted']); ?></div>
+                                                    <div class="small text-muted">Defaulted</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
                     <!-- Outstanding Balances -->
                     <div class="accordion-item border-0 shadow-sm mb-3">
@@ -854,272 +1159,6 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                         </div>
                     </div>
 
-                    <!-- Pledge Payment Tracking -->
-                    <?php if ($hasPledgePayments): ?>
-                    <div class="accordion-item border-0 shadow-sm mb-3">
-                        <h2 class="accordion-header" id="headingPledgeTracking">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePledgeTracking" aria-expanded="false" aria-controls="collapsePledgeTracking">
-                                <i class="fas fa-money-bill-transfer me-2 text-success"></i><strong>Pledge Payment Tracking</strong>
-                                <span class="badge bg-success ms-2"><?php echo number_format($pledge_tracking['pledge_payments_count']); ?> payments</span>
-                            </button>
-                        </h2>
-                        <div id="collapsePledgeTracking" class="accordion-collapse collapse" aria-labelledby="headingPledgeTracking" data-bs-parent="#reportAccordion">
-                            <div class="accordion-body p-0">
-                                <!-- Key Metrics Row -->
-                                <div class="row g-3 p-3">
-                                    <div class="col-xl-3 col-md-6">
-                                        <div class="card border-0 shadow-sm h-100 bg-gradient" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                                            <div class="card-body text-white">
-                                                <div class="d-flex align-items-center justify-content-between">
-                                                    <div>
-                                                        <div class="small opacity-75">Collection Rate</div>
-                                                        <div class="h3 mb-0"><?php echo number_format($pledge_tracking['collection_rate'], 1); ?>%</div>
-                                                    </div>
-                                                    <div class="icon-circle bg-white bg-opacity-25"><i class="fas fa-percentage"></i></div>
-                                                </div>
-                                                <div class="progress mt-2" style="height: 6px;">
-                                                    <div class="progress-bar bg-white" style="width: <?php echo min(100, $pledge_tracking['collection_rate']); ?>%"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-xl-3 col-md-6">
-                                        <div class="card border-0 shadow-sm h-100">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="icon-circle bg-primary text-white"><i class="fas fa-hand-holding-dollar"></i></div>
-                                                    <div class="ms-3">
-                                                        <div class="small text-muted">Total Pledged</div>
-                                                        <div class="h5 mb-0"><?php echo $currency . ' ' . number_format($pledge_tracking['total_pledge_amount'], 2); ?></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-xl-3 col-md-6">
-                                        <div class="card border-0 shadow-sm h-100">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="icon-circle bg-success text-white"><i class="fas fa-check-circle"></i></div>
-                                                    <div class="ms-3">
-                                                        <div class="small text-muted">Collected</div>
-                                                        <div class="h5 mb-0"><?php echo $currency . ' ' . number_format($pledge_tracking['total_paid_towards_pledges'], 2); ?></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-xl-3 col-md-6">
-                                        <div class="card border-0 shadow-sm h-100">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="icon-circle bg-warning text-white"><i class="fas fa-hourglass-half"></i></div>
-                                                    <div class="ms-3">
-                                                        <div class="small text-muted">Remaining</div>
-                                                        <div class="h5 mb-0"><?php echo $currency . ' ' . number_format($pledge_tracking['total_remaining'], 2); ?></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Donor Status Cards -->
-                                <div class="row g-3 px-3 pb-3">
-                                    <div class="col-12">
-                                        <h6 class="mb-3"><i class="fas fa-users me-2 text-primary"></i>Donor Payment Progress</h6>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="h4 mb-1 text-primary"><?php echo number_format($pledge_tracking['total_pledged_donors']); ?></div>
-                                            <div class="small text-muted">Total Pledged</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="h4 mb-1 text-info"><?php echo number_format($pledge_tracking['donors_not_started']); ?></div>
-                                            <div class="small text-muted">Not Started</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="h4 mb-1 text-warning"><?php echo number_format($pledge_tracking['donors_started_paying']); ?></div>
-                                            <div class="small text-muted">Paying</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="h4 mb-1 text-success"><?php echo number_format($pledge_tracking['donors_completed']); ?></div>
-                                            <div class="small text-muted">Completed</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Payment Breakdowns -->
-                                <div class="row g-3 px-3 pb-3">
-                                    <div class="col-lg-6">
-                                        <div class="card border-0 shadow-sm h-100">
-                                            <div class="card-body">
-                                                <h6 class="mb-3"><i class="fas fa-credit-card me-2 text-success"></i>Pledge Payments by Method</h6>
-                                                <?php if (empty($pledge_tracking['payments_by_method'])): ?>
-                                                    <div class="text-muted">No payments in this range.</div>
-                                                <?php else: ?>
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm align-middle">
-                                                        <thead><tr><th>Method</th><th class="text-end">Count</th><th class="text-end">Total (<?php echo $currency; ?>)</th></tr></thead>
-                                                        <tbody>
-                                                            <?php foreach ($pledge_tracking['payments_by_method'] as $r): ?>
-                                                                <tr>
-                                                                    <td data-label="Method"><?php echo htmlspecialchars(ucfirst((string)($r['payment_method'] ?? 'Unknown'))); ?></td>
-                                                                    <td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td>
-                                                                    <td class="text-end" data-label="Total"><?php echo number_format((float)$r['t'], 2); ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-6">
-                                        <div class="card border-0 shadow-sm h-100">
-                                            <div class="card-body">
-                                                <h6 class="mb-3"><i class="fas fa-tags me-2 text-secondary"></i>Pledge Payments by Status</h6>
-                                                <?php if (empty($pledge_tracking['payments_by_status'])): ?>
-                                                    <div class="text-muted">No payments in this range.</div>
-                                                <?php else: ?>
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm align-middle">
-                                                        <thead><tr><th>Status</th><th class="text-end">Count</th><th class="text-end">Amount (<?php echo $currency; ?>)</th></tr></thead>
-                                                        <tbody>
-                                                            <?php foreach ($pledge_tracking['payments_by_status'] as $r): 
-                                                                $statusClass = 'secondary';
-                                                                if ($r['status'] === 'confirmed') $statusClass = 'success';
-                                                                elseif ($r['status'] === 'pending') $statusClass = 'warning';
-                                                                elseif ($r['status'] === 'voided') $statusClass = 'danger';
-                                                            ?>
-                                                                <tr>
-                                                                    <td data-label="Status"><span class="badge bg-<?php echo $statusClass; ?>"><?php echo htmlspecialchars(ucfirst((string)$r['status'])); ?></span></td>
-                                                                    <td class="text-end" data-label="Count"><?php echo number_format((int)$r['c']); ?></td>
-                                                                    <td class="text-end" data-label="Amount"><?php echo number_format((float)$r['t'], 2); ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Top Pledge Payers & Recent Payments -->
-                                <div class="row g-3 px-3 pb-3">
-                                    <div class="col-lg-6">
-                                        <div class="card border-0 shadow-sm h-100">
-                                            <div class="card-body">
-                                                <h6 class="mb-3"><i class="fas fa-trophy me-2 text-warning"></i>Top Pledge Payers</h6>
-                                                <?php if (empty($pledge_tracking['top_pledge_payers'])): ?>
-                                                    <div class="text-muted">No pledge payers yet.</div>
-                                                <?php else: ?>
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm align-middle">
-                                                        <thead><tr><th>Donor</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Status</th></tr></thead>
-                                                        <tbody>
-                                                            <?php foreach ($pledge_tracking['top_pledge_payers'] as $r): 
-                                                                $pStatus = $r['payment_status'] ?? 'unknown';
-                                                                $pClass = 'secondary';
-                                                                if ($pStatus === 'completed') $pClass = 'success';
-                                                                elseif ($pStatus === 'paying') $pClass = 'info';
-                                                                elseif ($pStatus === 'not_started') $pClass = 'warning';
-                                                                elseif ($pStatus === 'defaulted') $pClass = 'danger';
-                                                            ?>
-                                                                <tr>
-                                                                    <td data-label="Donor">
-                                                                        <div class="fw-medium"><?php echo htmlspecialchars((string)($r['name'] ?? 'Anonymous')); ?></div>
-                                                                        <small class="text-muted"><?php echo htmlspecialchars((string)($r['phone'] ?? '')); ?></small>
-                                                                    </td>
-                                                                    <td class="text-end" data-label="Paid"><?php echo number_format((float)($r['total_paid'] ?? 0), 2); ?></td>
-                                                                    <td class="text-end" data-label="Balance"><?php echo number_format((float)($r['balance'] ?? 0), 2); ?></td>
-                                                                    <td data-label="Status"><span class="badge bg-<?php echo $pClass; ?>"><?php echo ucfirst(str_replace('_', ' ', $pStatus)); ?></span></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-6">
-                                        <div class="card border-0 shadow-sm h-100">
-                                            <div class="card-body">
-                                                <h6 class="mb-3"><i class="fas fa-clock me-2 text-info"></i>Recent Pledge Payments</h6>
-                                                <?php if (empty($pledge_tracking['recent_pledge_payments'])): ?>
-                                                    <div class="text-muted">No recent payments in this range.</div>
-                                                <?php else: ?>
-                                                <ul class="list-group list-group-flush">
-                                                    <?php foreach ($pledge_tracking['recent_pledge_payments'] as $r): 
-                                                        $ppStatus = $r['status'] ?? 'unknown';
-                                                        $ppClass = 'secondary';
-                                                        if ($ppStatus === 'confirmed') $ppClass = 'success';
-                                                        elseif ($ppStatus === 'pending') $ppClass = 'warning';
-                                                        elseif ($ppStatus === 'voided') $ppClass = 'danger';
-                                                    ?>
-                                                        <li class="list-group-item border-0 px-0 py-2">
-                                                            <div class="d-flex justify-content-between align-items-center">
-                                                                <div>
-                                                                    <strong><?php echo htmlspecialchars((string)($r['donor_name'] ?? 'Anonymous')); ?></strong>
-                                                                    <span class="badge bg-<?php echo $ppClass; ?> ms-2"><?php echo ucfirst($ppStatus); ?></span>
-                                                                    <div class="text-muted small">
-                                                                        <?php echo $currency . ' ' . number_format((float)($r['amount'] ?? 0), 2); ?> 
-                                                                        · <?php echo htmlspecialchars(ucfirst((string)($r['payment_method'] ?? ''))); ?>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="text-muted small text-end">
-                                                                    <?php echo htmlspecialchars((string)($r['payment_date'] ?? '')); ?>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                    <?php endforeach; ?>
-                                                </ul>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Quick Stats Summary -->
-                                <div class="px-3 pb-3">
-                                    <div class="card border-0 shadow-sm bg-light">
-                                        <div class="card-body">
-                                            <div class="row text-center">
-                                                <div class="col-6 col-md-3 border-end">
-                                                    <div class="h5 mb-0 text-primary"><?php echo number_format($pledge_tracking['pledge_payments_count']); ?></div>
-                                                    <div class="small text-muted">Total Payments</div>
-                                                </div>
-                                                <div class="col-6 col-md-3 border-end">
-                                                    <div class="h5 mb-0 text-success"><?php echo $currency . ' ' . number_format($pledge_tracking['avg_payment_amount'], 2); ?></div>
-                                                    <div class="small text-muted">Avg Payment</div>
-                                                </div>
-                                                <div class="col-6 col-md-3 border-end">
-                                                    <div class="h5 mb-0 text-info"><?php echo number_format($pledge_tracking['donors_started_paying'] + $pledge_tracking['donors_completed']); ?></div>
-                                                    <div class="small text-muted">Active Payers</div>
-                                                </div>
-                                                <div class="col-6 col-md-3">
-                                                    <div class="h5 mb-0 text-danger"><?php echo number_format($pledge_tracking['donors_defaulted']); ?></div>
-                                                    <div class="small text-muted">Defaulted</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-
                 </div>
                 <!-- End Accordion Container -->
 
@@ -1157,6 +1196,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
     'top_donors' => $top_donors,
     'top_registrars' => $top_registrars,
     'data_quality' => $data_quality,
+    'pledge_tracking' => $pledge_tracking,
     'range' => ['from' => $fromDate, 'to' => $toDate],
     'currency' => $currency,
   ]); ?>;
@@ -1242,6 +1282,141 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         chart.resize();
+      }, 250);
+    });
+  })();
+
+  // Monthly Pledge Payment Chart
+  (function(){
+    const el = document.getElementById('pledgeMonthlyChart');
+    if (!el || !window.echarts) return;
+    const d = window.COMPREHENSIVE_DATA;
+    let monthlyChart = null;
+    
+    function initMonthlyChart() {
+      if (monthlyChart) {
+        monthlyChart.dispose();
+      }
+      monthlyChart = echarts.init(el);
+      
+      const monthlyData = d.pledge_tracking?.monthly_payments || [];
+      if (monthlyData.length === 0) {
+        el.innerHTML = '<div class="text-center py-5 text-muted">No pledge payment data available for the last 12 months.</div>';
+        return;
+      }
+      
+      const months = monthlyData.map(m => m.label);
+      const amounts = monthlyData.map(m => m.amount);
+      const counts = monthlyData.map(m => m.count);
+      
+      const isMobile = window.innerWidth <= 768;
+      const isSmallMobile = window.innerWidth <= 576;
+      
+      monthlyChart.setOption({
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'shadow' },
+          formatter: function(params) {
+            let result = params[0].name + '<br/>';
+            params.forEach(function(item) {
+              result += item.marker + item.seriesName + ': ' + d.currency + ' ' + 
+                        Number(item.value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '<br/>';
+            });
+            return result;
+          },
+          textStyle: { fontSize: isSmallMobile ? 11 : 13 }
+        },
+        legend: {
+          data: ['Amount Collected'],
+          bottom: 0,
+          textStyle: { fontSize: isSmallMobile ? 11 : 12 }
+        },
+        grid: {
+          left: isSmallMobile ? '10%' : '3%',
+          right: isSmallMobile ? '10%' : '4%',
+          bottom: isSmallMobile ? '15%' : '10%',
+          top: '10%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: months,
+          axisLabel: {
+            rotate: isSmallMobile ? 45 : 0,
+            fontSize: isSmallMobile ? 10 : 12,
+            interval: 0
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: 'Amount (' + d.currency + ')',
+          nameLocation: 'middle',
+          nameGap: isSmallMobile ? 30 : 50,
+          nameTextStyle: { fontSize: isSmallMobile ? 11 : 12 },
+          axisLabel: {
+            formatter: function(value) {
+              return (value / 1000).toFixed(0) + 'k';
+            },
+            fontSize: isSmallMobile ? 10 : 11
+          }
+        },
+        series: [{
+          name: 'Amount Collected',
+          type: 'bar',
+          data: amounts,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#10b981' },
+              { offset: 1, color: '#059669' }
+            ]),
+            borderRadius: [4, 4, 0, 0]
+          },
+          emphasis: {
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#059669' },
+                { offset: 1, color: '#047857' }
+              ])
+            }
+          },
+          label: {
+            show: !isSmallMobile,
+            position: 'top',
+            formatter: function(params) {
+              return (params.value / 1000).toFixed(1) + 'k';
+            },
+            fontSize: isSmallMobile ? 9 : 10
+          }
+        }]
+      });
+    }
+    
+    // Initialize chart when accordion section is shown
+    const pledgeAccordion = document.getElementById('collapsePledgeTracking');
+    if (pledgeAccordion) {
+      pledgeAccordion.addEventListener('shown.bs.collapse', function() {
+        setTimeout(() => {
+          if (!monthlyChart) {
+            initMonthlyChart();
+          } else {
+            monthlyChart.resize();
+          }
+        }, 300);
+      });
+    }
+    
+    // Initialize chart if section is already open
+    if (pledgeAccordion && pledgeAccordion.classList.contains('show')) {
+      initMonthlyChart();
+    }
+    
+    // Handle resize with debounce
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      if (!monthlyChart) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        monthlyChart.resize();
       }, 250);
     });
   })();
