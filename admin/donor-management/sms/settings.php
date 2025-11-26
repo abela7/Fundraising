@@ -22,7 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
     try {
+        // Check if SMS tables exist
+        $providers_table_exists = $db->query("SHOW TABLES LIKE 'sms_providers'")->num_rows > 0;
+        $settings_table_exists = $db->query("SHOW TABLES LIKE 'sms_settings'")->num_rows > 0;
+        
         if ($action === 'save_provider') {
+            if (!$providers_table_exists) {
+                throw new Exception('SMS providers table does not exist. Please run the database setup script first.');
+            }
             $id = isset($_POST['provider_id']) ? (int)$_POST['provider_id'] : 0;
             $name = trim($_POST['name'] ?? '');
             $display_name = trim($_POST['display_name'] ?? '');
@@ -43,26 +50,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             if ($id > 0) {
-                // Update
+                // Update - 9 params: s,s,s,s,s,d,i,i,i
                 $stmt = $db->prepare("
                     UPDATE sms_providers 
                     SET name = ?, display_name = ?, api_key = ?, api_secret = ?, 
                         sender_id = ?, cost_per_sms_pence = ?, is_active = ?, is_default = ?, updated_at = NOW()
                     WHERE id = ?
                 ");
-                $stmt->bind_param('sssssdiiii', $name, $display_name, $api_key, $api_secret, 
+                if (!$stmt) {
+                    throw new Exception('Database error: ' . $db->error);
+                }
+                $stmt->bind_param('sssssdiii', $name, $display_name, $api_key, $api_secret, 
                     $sender_id, $cost_per_sms, $is_active, $is_default, $id);
             } else {
-                // Insert
+                // Insert - 8 params: s,s,s,s,s,d,i,i
                 $stmt = $db->prepare("
                     INSERT INTO sms_providers 
                     (name, display_name, api_key, api_secret, sender_id, cost_per_sms_pence, is_active, is_default, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ");
-                $stmt->bind_param('ssssssdii', $name, $display_name, $api_key, $api_secret, 
+                if (!$stmt) {
+                    throw new Exception('Database error: ' . $db->error);
+                }
+                $stmt->bind_param('sssssdii', $name, $display_name, $api_key, $api_secret, 
                     $sender_id, $cost_per_sms, $is_active, $is_default);
             }
-            $stmt->execute();
+            if (!$stmt->execute()) {
+                throw new Exception('Failed to save provider: ' . $stmt->error);
+            }
             
             $_SESSION['success_message'] = 'Provider saved successfully!';
             header('Location: settings.php');
@@ -70,18 +85,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if ($action === 'delete_provider') {
+            if (!$providers_table_exists) {
+                throw new Exception('SMS providers table does not exist.');
+            }
             $id = (int)$_POST['provider_id'];
             $stmt = $db->prepare("DELETE FROM sms_providers WHERE id = ?");
-            $stmt->bind_param('i', $id);
-            $stmt->execute();
+            if ($stmt) {
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+            }
             $_SESSION['success_message'] = 'Provider deleted.';
             header('Location: settings.php');
             exit;
         }
         
         if ($action === 'save_settings') {
+            if (!$settings_table_exists) {
+                throw new Exception('SMS settings table does not exist. Please run the database setup script first.');
+            }
+            
             $settings_to_save = [
-                'sms_daily_limit' => (int)($_POST['sms_daily_limit'] ?? 1000),
+                'sms_daily_limit' => (string)(int)($_POST['sms_daily_limit'] ?? 1000),
                 'sms_quiet_hours_start' => $_POST['sms_quiet_hours_start'] ?? '21:00',
                 'sms_quiet_hours_end' => $_POST['sms_quiet_hours_end'] ?? '09:00',
                 'sms_reminder_3day_enabled' => isset($_POST['sms_reminder_3day_enabled']) ? '1' : '0',
@@ -95,8 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     VALUES (?, ?, NOW())
                     ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()
                 ");
-                $stmt->bind_param('sss', $key, $value, $value);
-                $stmt->execute();
+                if ($stmt) {
+                    $stmt->bind_param('sss', $key, $value, $value);
+                    $stmt->execute();
+                }
             }
             
             $_SESSION['success_message'] = 'Settings saved!';
@@ -109,24 +135,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get providers
-try {
+// Check if SMS tables exist
+$providers_table_check = $db->query("SHOW TABLES LIKE 'sms_providers'");
+$providers_table_exists = $providers_table_check && $providers_table_check->num_rows > 0;
+
+$settings_table_check = $db->query("SHOW TABLES LIKE 'sms_settings'");
+$settings_table_exists = $settings_table_check && $settings_table_check->num_rows > 0;
+
+$tables_missing = !$providers_table_exists || !$settings_table_exists;
+
+// Get providers if table exists
+if ($providers_table_exists) {
     $result = $db->query("SELECT * FROM sms_providers ORDER BY is_default DESC, name");
-    while ($row = $result->fetch_assoc()) {
-        $providers[] = $row;
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $providers[] = $row;
+        }
     }
-} catch (Exception $e) {
-    // Table might not exist yet
 }
 
-// Get settings
-try {
+// Get settings if table exists
+if ($settings_table_exists) {
     $result = $db->query("SELECT setting_key, setting_value FROM sms_settings");
-    while ($row = $result->fetch_assoc()) {
-        $settings[$row['setting_key']] = $row['setting_value'];
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
     }
-} catch (Exception $e) {
-    // Table might not exist yet
 }
 
 // Defaults
@@ -184,6 +219,16 @@ if (isset($_GET['edit_provider'])) {
                         <i class="fas fa-cog text-primary me-2"></i>SMS Settings
                     </h1>
                 </div>
+                
+                <?php if ($tables_missing): ?>
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading"><i class="fas fa-database me-2"></i>Database Setup Required</h5>
+                        <p class="mb-2">The SMS database tables have not been created yet. Please run the setup script:</p>
+                        <code>database/sms_system_tables.sql</code>
+                        <hr>
+                        <p class="mb-0 small">Run this SQL file in phpMyAdmin to create the required tables.</p>
+                    </div>
+                <?php endif; ?>
                 
                 <?php if ($error_message): ?>
                     <div class="alert alert-danger">
