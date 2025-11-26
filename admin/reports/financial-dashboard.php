@@ -107,9 +107,9 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Total Raised</span>
-                                <span class="kpi-value" id="kpiGrandTotal"><?php echo $currencySymbol . number_format($grandTotal, 0); ?></span>
+                                <span class="kpi-value" id="kpiGrandTotal"><?php echo $currencySymbol . number_format($grandTotal, 2); ?></span>
                                 <span class="kpi-sub">
-                                    <span class="text-success" id="kpiGoalProgress"><?php echo $goalProgress; ?>%</span> of goal
+                                    <span class="text-success" id="kpiGoalProgress"><?php echo $goalProgress; ?>%</span> of <?php echo $currencySymbol . number_format($targetAmount, 0); ?> goal
                                 </span>
                             </div>
                         </div>
@@ -121,7 +121,7 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Cash Collected</span>
-                                <span class="kpi-value" id="kpiTotalPaid"><?php echo $currencySymbol . number_format($totalPaid, 0); ?></span>
+                                <span class="kpi-value" id="kpiTotalPaid"><?php echo $currencySymbol . number_format($totalPaid, 2); ?></span>
                                 <span class="kpi-sub" id="kpiPaymentCount"><?php echo number_format($paymentTransactions); ?> payments</span>
                             </div>
                         </div>
@@ -133,7 +133,7 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Outstanding</span>
-                                <span class="kpi-value" id="kpiOutstanding"><?php echo $currencySymbol . number_format($outstandingPledged, 0); ?></span>
+                                <span class="kpi-value" id="kpiOutstanding"><?php echo $currencySymbol . number_format($outstandingPledged, 2); ?></span>
                                 <span class="kpi-sub">Awaiting payment</span>
                             </div>
                         </div>
@@ -171,7 +171,7 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                             </div>
                             <div class="kpi-content">
                                 <span class="kpi-label">Avg Payment</span>
-                                <span class="kpi-value" id="kpiAvgPayment"><?php echo $currencySymbol . number_format($avgPayment, 0); ?></span>
+                                <span class="kpi-value" id="kpiAvgPayment"><?php echo $currencySymbol . number_format($avgPayment, 2); ?></span>
                                 <span class="kpi-sub">Per transaction</span>
                             </div>
                         </div>
@@ -262,15 +262,15 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                     <div class="stats-summary">
                         <div class="stat-item">
                             <span class="stat-label">Instant Payments</span>
-                            <span class="stat-value" id="statInstant"><?php echo $currencySymbol . number_format($instantPayments, 0); ?></span>
+                            <span class="stat-value" id="statInstant"><?php echo $currencySymbol . number_format($instantPayments, 2); ?></span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Pledge Payments</span>
-                            <span class="stat-value" id="statPledgePay"><?php echo $currencySymbol . number_format($pledgePayments, 0); ?></span>
+                            <span class="stat-value" id="statPledgePay"><?php echo $currencySymbol . number_format($pledgePayments, 2); ?></span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Target Goal</span>
-                            <span class="stat-value"><?php echo $currencySymbol . number_format($targetAmount, 0); ?></span>
+                            <span class="stat-value"><?php echo $currencySymbol . number_format($targetAmount, 2); ?></span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Last Updated</span>

@@ -34,15 +34,25 @@
     Chart.defaults.font.size = 11;
     
     /**
-     * Format currency
+     * Format currency - EXACT numbers, no abbreviations
      */
     function formatCurrency(value) {
+        return config.currency + new Intl.NumberFormat('en-GB', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value);
+    }
+    
+    /**
+     * Format currency for charts (shorter for axis labels)
+     */
+    function formatCurrencyShort(value) {
         if (value >= 1000000) {
             return config.currency + (value / 1000000).toFixed(1) + 'M';
         } else if (value >= 1000) {
-            return config.currency + (value / 1000).toFixed(1) + 'K';
+            return config.currency + Math.round(value / 1000) + 'K';
         }
-        return config.currency + value.toFixed(0);
+        return config.currency + Math.round(value);
     }
     
     /**
@@ -123,7 +133,7 @@
                         },
                         ticks: {
                             callback: function(value) {
-                                return formatCurrency(value);
+                                return formatCurrencyShort(value);
                             }
                         }
                     }
@@ -310,7 +320,7 @@
                         },
                         ticks: {
                             callback: function(value) {
-                                return formatCurrency(value);
+                                return formatCurrencyShort(value);
                             }
                         }
                     }
@@ -425,7 +435,7 @@
                         },
                         ticks: {
                             callback: function(value) {
-                                return formatCurrency(value);
+                                return formatCurrencyShort(value);
                             }
                         }
                     }
