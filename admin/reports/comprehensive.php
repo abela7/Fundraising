@@ -342,7 +342,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
 
                 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                     <h4 class="mb-0"><i class="fas fa-file-alt text-primary me-2"></i>Comprehensive Report</h4>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 date-range-buttons">
                         <a class="btn btn-outline-secondary" href="?date=today"><i class="fas fa-clock me-1"></i>Today</a>
                         <a class="btn btn-outline-secondary" href="?date=week"><i class="fas fa-calendar-week me-1"></i>This Week</a>
                         <a class="btn btn-outline-secondary" href="?date=month"><i class="fas fa-calendar me-1"></i>This Month</a>
@@ -400,7 +400,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                 <!-- Outstanding -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
-                        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                        <div class="card border-0 shadow-sm h-100 outstanding-card"><div class="card-body">
                             <h6 class="mb-2"><i class="fas fa-balance-scale me-2 text-primary"></i>Outstanding Balances</h6>
                             <div class="d-flex justify-content-between"><span>Overall Outstanding</span><strong><?php echo $currency.' '.number_format($metrics['overall_outstanding'],2); ?></strong></div>
                             <div class="d-flex justify-content-between text-muted"><span>Range Outstanding</span><span><?php echo $currency.' '.number_format($metrics['range_outstanding'],2); ?></span></div>
@@ -491,23 +491,23 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                 <div class="row g-3 mb-4">
                     <div class="col-12">
                         <div class="card border-0 shadow-sm"><div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                                 <h6 class="mb-0"><i class="fas fa-crown me-2 text-primary"></i>Top Donors</h6>
                                 <a class="btn btn-sm btn-outline-primary" href="?export=top_donors_csv&date=<?php echo urlencode($_GET['date'] ?? 'month'); ?>&from=<?php echo urlencode($_GET['from'] ?? ''); ?>&to=<?php echo urlencode($_GET['to'] ?? ''); ?>"><i class="fas fa-file-csv me-1"></i>CSV</a>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-sm align-middle">
+                                <table class="table table-sm align-middle top-donors-mobile">
                                     <thead><tr><th>Donor</th><th>Phone</th><th>Email</th><th class="text-end">Pledged</th><th class="text-end">Paid</th><th class="text-end">Outstanding</th><th class="text-end">Last Seen</th></tr></thead>
                                     <tbody>
                                         <?php foreach ($top_donors as $r): $pledged=(float)($r['total_pledged']??0); $paid=(float)($r['total_paid']??0); $outstanding=max($pledged-$paid,0); ?>
                                             <tr>
-                                                <td><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></td>
-                                                <td><?php echo htmlspecialchars((string)($r['donor_phone'] ?? '')); ?></td>
-                                                <td><?php echo htmlspecialchars((string)($r['donor_email'] ?? '')); ?></td>
-                                                <td class="text-end"><?php echo number_format($pledged,2); ?></td>
-                                                <td class="text-end"><?php echo number_format($paid,2); ?></td>
-                                                <td class="text-end"><?php echo number_format($outstanding,2); ?></td>
-                                                <td class="text-end"><?php echo htmlspecialchars((string)($r['last_seen_at'] ?? '')); ?></td>
+                                                <td data-label="Donor"><?php echo htmlspecialchars(($r['donor_name'] ?? '') !== '' ? (string)$r['donor_name'] : 'Anonymous'); ?></td>
+                                                <td data-label="Phone"><?php echo htmlspecialchars((string)($r['donor_phone'] ?? '')); ?></td>
+                                                <td data-label="Email"><?php echo htmlspecialchars((string)($r['donor_email'] ?? '')); ?></td>
+                                                <td class="text-end" data-label="Pledged"><?php echo number_format($pledged,2); ?></td>
+                                                <td class="text-end" data-label="Paid"><?php echo number_format($paid,2); ?></td>
+                                                <td class="text-end" data-label="Outstanding"><?php echo number_format($outstanding,2); ?></td>
+                                                <td class="text-end" data-label="Last Seen"><?php echo htmlspecialchars((string)($r['last_seen_at'] ?? '')); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -599,7 +599,7 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                 <!-- Data Quality -->
                 <div class="card border-0 shadow-sm mb-4"><div class="card-body">
                     <h6 class="mb-3"><i class="fas fa-shield-halved me-2 text-danger"></i>Data Quality</h6>
-                    <div class="row g-3">
+                    <div class="row g-3 data-quality-cards">
                         <div class="col-md-4">
                             <div class="p-3 bg-light rounded">
                                 <div class="small text-muted">Payments with missing contact</div>
@@ -632,12 +632,12 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                 </div>
 
                 <!-- Data Quality Modal -->
-                <div class="modal fade" id="dqModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
+                <div class="modal fade" id="dqModal" tabindex="-1" aria-labelledby="dqModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title"><i class="fas fa-triangle-exclamation me-2 text-danger"></i>Data Quality Details</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                <h5 class="modal-title" id="dqModalLabel"><i class="fas fa-triangle-exclamation me-2 text-danger"></i>Data Quality Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body" id="dqModalBody">
                                 <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
@@ -675,21 +675,73 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
     const d = window.COMPREHENSIVE_DATA;
     const chart = echarts.init(el);
     const data = d.breakdowns.donations_by_package_aggregated;
+    
+    // Responsive chart options based on screen size
+    const isMobile = window.innerWidth <= 768;
+    const isSmallMobile = window.innerWidth <= 576;
+    
     chart.setOption({
-      tooltip: { trigger: 'item', formatter: params => `${params.name}: ${d.currency} ` + Number(params.value).toLocaleString(undefined,{minimumFractionDigits:2}) + ` (${params.percent}%)` },
-      legend: { orient: 'horizontal', bottom: 0 },
+      tooltip: { 
+        trigger: 'item', 
+        formatter: params => `${params.name}: ${d.currency} ` + Number(params.value).toLocaleString(undefined,{minimumFractionDigits:2}) + ` (${params.percent}%)`,
+        textStyle: { fontSize: isSmallMobile ? 12 : 14 }
+      },
+      legend: { 
+        orient: isMobile ? 'vertical' : 'horizontal', 
+        bottom: isMobile ? 10 : 0,
+        left: isMobile ? 'left' : 'center',
+        itemWidth: isSmallMobile ? 12 : 14,
+        itemHeight: isSmallMobile ? 12 : 14,
+        textStyle: { fontSize: isSmallMobile ? 11 : 12 }
+      },
       series: [{
         name: 'Donations by Package',
         type: 'pie',
-        radius: ['40%','70%'],
-        center: ['50%','45%'],
+        radius: isSmallMobile ? ['30%','60%'] : isMobile ? ['35%','65%'] : ['40%','70%'],
+        center: isMobile ? ['50%','40%'] : ['50%','45%'],
         avoidLabelOverlap: true,
         itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-        label: { show: true, formatter: '{b}: {d}%' },
+        label: { 
+          show: !isSmallMobile,
+          formatter: '{b}: {d}%',
+          fontSize: isSmallMobile ? 10 : 12
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: isSmallMobile ? 11 : 13,
+            fontWeight: 'bold'
+          }
+        },
         data
       }]
     });
-    window.addEventListener('resize', () => chart.resize());
+    
+    // Handle resize with debounce
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        chart.resize();
+        // Update chart options on significant size change
+        const newIsMobile = window.innerWidth <= 768;
+        const newIsSmallMobile = window.innerWidth <= 576;
+        if (newIsMobile !== isMobile || newIsSmallMobile !== isSmallMobile) {
+          chart.setOption({
+            legend: { 
+              orient: newIsMobile ? 'vertical' : 'horizontal',
+              bottom: newIsMobile ? 10 : 0,
+              left: newIsMobile ? 'left' : 'center'
+            },
+            series: [{
+              radius: newIsSmallMobile ? ['30%','60%'] : newIsMobile ? ['35%','65%'] : ['40%','70%'],
+              center: newIsMobile ? ['50%','40%'] : ['50%','45%'],
+              label: { show: !newIsSmallMobile }
+            }]
+          });
+        }
+      }, 250);
+    });
   })();
 
   // Data Quality drilldown loader
@@ -780,38 +832,38 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
 
           let head = '';
           if(state.kind==='missing_contact_payments'){
-            head = '<th data-sort="id">ID</th><th data-sort="donor_name">Donor</th><th data-sort="amount">Amount</th><th data-sort="method">Method</th><th data-sort="status">Status</th><th data-sort="received_at">Received At</th><th></th>';
+            head = '<th data-sort="id">ID</th><th data-sort="donor_name">Donor</th><th data-sort="amount">Amount</th><th data-sort="method">Method</th><th data-sort="status">Status</th><th data-sort="received_at">Received At</th><th>Action</th>';
           } else {
-            head = '<th data-sort="id">ID</th><th data-sort="donor_name">Donor</th><th data-sort="amount">Amount</th><th data-sort="type">Type</th><th data-sort="status">Status</th><th data-sort="created_at">Created At</th><th></th>';
+            head = '<th data-sort="id">ID</th><th data-sort="donor_name">Donor</th><th data-sort="amount">Amount</th><th data-sort="type">Type</th><th data-sort="status">Status</th><th data-sort="created_at">Created At</th><th>Action</th>';
           }
 
           let rowsHtml = '';
           pageRows.forEach(r=>{
             if(state.kind==='missing_contact_payments'){
               rowsHtml += `<tr>
-                <td>${r.id}</td>
-                <td>${r.donor_name||'Anonymous'}</td>
-                <td>${formatAmount(r.amount)}</td>
-                <td>${r.method||''}</td>
-                <td>${badge(r.status)}</td>
-                <td>${r.received_at||''}</td>
-                <td><a class="btn btn-sm btn-outline-primary" target="_blank" href="../donations/payment.php?id=${r.id}">Open</a></td>
+                <td data-label="ID">${r.id}</td>
+                <td data-label="Donor">${r.donor_name||'Anonymous'}</td>
+                <td data-label="Amount">${formatAmount(r.amount)}</td>
+                <td data-label="Method">${r.method||''}</td>
+                <td data-label="Status">${badge(r.status)}</td>
+                <td data-label="Received At">${r.received_at||''}</td>
+                <td data-label="Action"><a class="btn btn-sm btn-outline-primary" target="_blank" href="../donations/payment.php?id=${r.id}">Open</a></td>
               </tr>`;
             } else {
               rowsHtml += `<tr>
-                <td>${r.id}</td>
-                <td>${r.donor_name||'Anonymous'}</td>
-                <td>${formatAmount(r.amount)}</td>
-                <td>${r.type||''}</td>
-                <td>${badge(r.status)}</td>
-                <td>${r.created_at||''}</td>
-                <td><a class="btn btn-sm btn-outline-primary" target="_blank" href="../donations/pledge.php?id=${r.id}">Open</a></td>
+                <td data-label="ID">${r.id}</td>
+                <td data-label="Donor">${r.donor_name||'Anonymous'}</td>
+                <td data-label="Amount">${formatAmount(r.amount)}</td>
+                <td data-label="Type">${r.type||''}</td>
+                <td data-label="Status">${badge(r.status)}</td>
+                <td data-label="Created At">${r.created_at||''}</td>
+                <td data-label="Action"><a class="btn btn-sm btn-outline-primary" target="_blank" href="../donations/pledge.php?id=${r.id}">Open</a></td>
               </tr>`;
             }
           });
 
           const table = `
-            <div class="table-responsive">
+            <div class="table-responsive table-responsive-mobile">
               <table class="table table-sm align-middle">
                 <thead><tr>${head}</tr></thead>
                 <tbody>${rowsHtml}</tbody>

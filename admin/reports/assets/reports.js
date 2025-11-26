@@ -255,6 +255,93 @@ window.addEventListener('error', function(event) {
     console.error('JavaScript error:', event.error);
 });
 
+// Mobile Responsiveness Enhancements
+function enhanceMobileExperience() {
+    // Handle window resize for charts
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            // Resize ECharts instances
+            if (window.echarts && typeof window.echarts !== 'undefined') {
+                const charts = document.querySelectorAll('[id*="Container"], [id*="Chart"]');
+                charts.forEach(function(container) {
+                    const chartInstance = echarts.getInstanceByDom(container);
+                    if (chartInstance) {
+                        chartInstance.resize();
+                    }
+                });
+            }
+        }, 250);
+    });
+    
+    // Improve touch targets on mobile
+    if (window.innerWidth <= 768) {
+        // Ensure buttons are large enough for touch
+        const buttons = document.querySelectorAll('.btn');
+        buttons.forEach(function(btn) {
+            if (btn.offsetHeight < 44) {
+                btn.style.minHeight = '44px';
+                btn.style.paddingTop = '0.5rem';
+                btn.style.paddingBottom = '0.5rem';
+            }
+        });
+    }
+    
+    // Enhance table scrolling on mobile
+    const tables = document.querySelectorAll('.table-responsive');
+    tables.forEach(function(table) {
+        // Add smooth scrolling
+        table.style.webkitOverflowScrolling = 'touch';
+        
+        // Add scroll indicators on mobile
+        if (window.innerWidth <= 768) {
+            let isScrolling = false;
+            table.addEventListener('scroll', function() {
+                if (!isScrolling) {
+                    isScrolling = true;
+                    table.style.boxShadow = 'inset -10px 0 10px -10px rgba(0,0,0,0.1)';
+                }
+                
+                // Check if scrolled to end
+                const maxScroll = table.scrollWidth - table.clientWidth;
+                if (table.scrollLeft >= maxScroll - 5) {
+                    table.style.boxShadow = 'none';
+                } else if (table.scrollLeft <= 5) {
+                    table.style.boxShadow = 'inset 10px 0 10px -10px rgba(0,0,0,0.1)';
+                } else {
+                    table.style.boxShadow = 'inset 10px 0 10px -10px rgba(0,0,0,0.1), inset -10px 0 10px -10px rgba(0,0,0,0.1)';
+                }
+                
+                setTimeout(function() {
+                    isScrolling = false;
+                }, 150);
+            });
+        }
+    });
+    
+    // Improve modal experience on mobile
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(function(modal) {
+        modal.addEventListener('shown.bs.modal', function() {
+            if (window.innerWidth <= 768) {
+                // Ensure modal body is scrollable
+                const modalBody = modal.querySelector('.modal-body');
+                if (modalBody) {
+                    const maxHeight = window.innerHeight - 200;
+                    modalBody.style.maxHeight = maxHeight + 'px';
+                    modalBody.style.overflowY = 'auto';
+                }
+            }
+        });
+    });
+}
+
+// Initialize mobile enhancements
+document.addEventListener('DOMContentLoaded', function() {
+    enhanceMobileExperience();
+});
+
 // Make functions globally available
 window.showCustomDateModal = showCustomDateModal;
 window.generateCustomReport = generateCustomReport;

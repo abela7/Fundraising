@@ -107,7 +107,44 @@
     color: #fff;
 }
 
-/* Responsive Design */
+/* Comprehensive Report Mobile Enhancements */
+
+/* Date Range Buttons - Mobile Optimization */
+@media (max-width: 991px) {
+    .date-range-buttons {
+        flex-wrap: wrap;
+        gap: 0.5rem !important;
+    }
+    
+    .date-range-buttons .btn {
+        flex: 1 1 auto;
+        min-width: calc(50% - 0.25rem);
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .date-range-buttons .btn i {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .date-range-buttons {
+        flex-direction: column;
+    }
+    
+    .date-range-buttons .btn {
+        width: 100%;
+        min-width: 100%;
+    }
+    
+    .date-range-buttons .btn i {
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+}
+
+/* Key Metrics Cards - Mobile Stack */
 @media (max-width: 768px) {
     .icon-circle {
         width: 40px;
@@ -127,12 +164,29 @@
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
     }
+    
+    /* Metrics cards stack better */
+    .row.g-3 > .col-xl-3 {
+        margin-bottom: 1rem;
+    }
+    
+    /* Metric card content adjustments */
+    .card-body.d-flex.align-items-center {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.25rem;
+    }
+    
+    .card-body.d-flex.align-items-center .ms-3 {
+        margin-left: 0 !important;
+        margin-top: 0.75rem;
+    }
 }
 
 @media (max-width: 576px) {
     .container-fluid {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
     }
     
     .row.g-3 {
@@ -145,15 +199,286 @@
         padding-right: 0.5rem;
     }
     
-    .col-6 .btn {
-        font-size: 0.8rem;
-        padding: 0.4rem 0.3rem;
-    }
-    
     .icon-circle {
         width: 35px;
         height: 35px;
         font-size: 0.9rem;
+    }
+    
+    /* Smaller headings on mobile */
+    h4 {
+        font-size: 1.25rem;
+    }
+    
+    h6 {
+        font-size: 0.95rem;
+    }
+}
+
+/* Table Responsiveness - Card Layout for Mobile */
+@media (max-width: 768px) {
+    /* Hide table headers on mobile, show as cards */
+    .table-responsive-mobile {
+        overflow-x: visible;
+    }
+    
+    .table-responsive-mobile table {
+        display: block;
+        width: 100%;
+    }
+    
+    .table-responsive-mobile thead {
+        display: none;
+    }
+    
+    .table-responsive-mobile tbody {
+        display: block;
+    }
+    
+    .table-responsive-mobile tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .table-responsive-mobile td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border: none;
+        text-align: right;
+    }
+    
+    .table-responsive-mobile td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #6c757d;
+        text-align: left;
+        flex: 1;
+    }
+    
+    .table-responsive-mobile td:first-child {
+        padding-top: 0;
+    }
+    
+    .table-responsive-mobile td:last-child {
+        padding-bottom: 0;
+    }
+    
+    /* Top Donors Table - Special Mobile Layout */
+    .top-donors-mobile tr td {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .top-donors-mobile tr td:last-child {
+        border-bottom: none;
+    }
+    
+    .top-donors-mobile td::before {
+        margin-bottom: 0.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .top-donors-mobile .text-end {
+        text-align: left !important;
+        width: 100%;
+    }
+}
+
+/* Chart Responsiveness */
+@media (max-width: 768px) {
+    #pieContainer {
+        height: 280px !important;
+    }
+    
+    /* Adjust chart legend for mobile */
+    .echarts-legend {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    #pieContainer {
+        height: 250px !important;
+    }
+}
+
+/* Modal Mobile Optimization */
+@media (max-width: 768px) {
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-content {
+        border-radius: 8px;
+    }
+    
+    .modal-header {
+        padding: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .modal-title {
+        font-size: 1rem;
+        flex: 1 1 100%;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+    }
+    
+    .modal-footer {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .modal-footer .btn {
+        flex: 1 1 auto;
+        margin: 0.25rem;
+    }
+}
+
+/* Data Quality Cards - Mobile Stack */
+@media (max-width: 768px) {
+    .data-quality-cards .col-md-4 {
+        margin-bottom: 1rem;
+    }
+    
+    .data-quality-cards .p-3 {
+        padding: 1rem !important;
+    }
+}
+
+/* Recent Notes - Mobile Optimization */
+@media (max-width: 768px) {
+    .list-group-item .d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .list-group-item .d-flex > div:last-child {
+        margin-top: 0.5rem;
+        width: 100%;
+        text-align: left !important;
+    }
+}
+
+/* Outstanding Balances - Mobile */
+@media (max-width: 576px) {
+    .outstanding-card .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .outstanding-card .d-flex.justify-content-between > span,
+    .outstanding-card .d-flex.justify-content-between > strong {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+    }
+}
+
+/* Print Button - Mobile */
+@media (max-width: 576px) {
+    .btn[onclick*="print"] {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+}
+
+/* Page Header - Mobile */
+@media (max-width: 768px) {
+    .d-flex.flex-wrap.gap-2.justify-content-between {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .d-flex.flex-wrap.gap-2.justify-content-between > h4 {
+        margin-bottom: 1rem;
+        width: 100%;
+    }
+    
+    .d-flex.flex-wrap.gap-2.justify-content-between > div {
+        width: 100%;
+    }
+}
+
+/* Table Search and Controls - Mobile */
+@media (max-width: 576px) {
+    .d-flex.align-items-center.justify-content-between {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.75rem;
+    }
+    
+    .d-flex.align-items-center.gap-2 {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .d-flex.align-items-center.gap-2 input,
+    .d-flex.align-items-center.gap-2 select {
+        width: 100%;
+    }
+    
+    .btn-group.btn-group-sm {
+        width: 100%;
+        display: flex;
+    }
+    
+    .btn-group.btn-group-sm .btn {
+        flex: 1;
+    }
+}
+
+/* Better spacing on mobile */
+@media (max-width: 768px) {
+    .mb-4 {
+        margin-bottom: 1.5rem !important;
+    }
+    
+    .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Ensure tables scroll smoothly on mobile */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+    .btn {
+        min-height: 44px;
+        padding: 0.5rem 1rem;
+    }
+    
+    .btn-sm {
+        min-height: 38px;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    a.btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 }
 
