@@ -177,55 +177,6 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
                         </div>
                     </div>
                     
-                    <!-- Detailed Lists & Charts Mix -->
-                    <div class="row g-3 mb-4">
-                        <!-- Top Donors List (Mobile Friendly) -->
-                        <div class="col-lg-4 col-md-6">
-                            <div class="card border-0 shadow-sm h-100">
-                                <div class="card-header bg-transparent border-0">
-                                    <h6 class="mb-0 text-primary"><i class="fas fa-trophy me-2"></i>Top 10 Donors</h6>
-                                </div>
-                                <div class="card-body p-0">
-                                    <div class="list-group list-group-flush" id="topDonorsList">
-                                        <!-- Populated by JS -->
-                                        <div class="text-center p-4 text-muted">Loading...</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Recent Transactions (Mobile Friendly) -->
-                        <div class="col-lg-4 col-md-6">
-                            <div class="card border-0 shadow-sm h-100">
-                                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 text-primary"><i class="fas fa-history me-2"></i>Recent Transactions</h6>
-                                    <a href="../payments/" class="btn btn-xs btn-link text-decoration-none">View All</a>
-                                </div>
-                                <div class="card-body p-0">
-                                    <div class="list-group list-group-flush" id="recentTransactionsList">
-                                        <!-- Populated by JS -->
-                                        <div class="text-center p-4 text-muted">Loading...</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Payment Plans Status -->
-                        <div class="col-lg-4 col-md-12">
-                            <div class="card border-0 shadow-sm h-100">
-                                <div class="card-header bg-transparent border-0">
-                                    <h6 class="mb-0 text-primary"><i class="fas fa-calendar-check me-2"></i>Payment Plans</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row text-center g-3" id="paymentPlansStats">
-                                        <!-- Populated by JS -->
-                                        <div class="col-12 text-muted">Loading...</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Charts Section -->
                     <div class="charts-grid">
                         
@@ -346,3 +297,4 @@ $avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
     <script src="assets/financial-dashboard.js"></script>
 </body>
 </html>
+

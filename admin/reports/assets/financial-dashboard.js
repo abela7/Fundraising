@@ -34,23 +34,13 @@
     Chart.defaults.font.size = 11;
     
     /**
-     * Format currency - EXACT numbers as requested
+     * Format currency
      */
     function formatCurrency(value) {
-        return config.currency + new Intl.NumberFormat('en-GB', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(value);
-    }
-    
-    /**
-     * Format currency for charts (shorter for axis labels, but still clear)
-     */
-    function formatCurrencyShort(value) {
         if (value >= 1000000) {
             return config.currency + (value / 1000000).toFixed(1) + 'M';
         } else if (value >= 1000) {
-            return config.currency + (value / 1000).toFixed(0) + 'K';
+            return config.currency + (value / 1000).toFixed(1) + 'K';
         }
         return config.currency + value.toFixed(0);
     }
@@ -60,105 +50,6 @@
      */
     function formatNumber(value) {
         return new Intl.NumberFormat('en-GB').format(value);
-    }
-
-    /**
-     * Update Top Donors List
-     */
-    function updateTopDonors(donors) {
-        const container = document.getElementById('topDonorsList');
-        if (!container) return;
-
-        if (!donors || donors.length === 0) {
-            container.innerHTML = '<div class="text-center p-4 text-muted">No donor data available</div>';
-            return;
-        }
-
-        container.innerHTML = donors.map((d, i) => `
-            <div class="list-group-item bg-transparent border-bottom border-secondary d-flex align-items-center px-3 py-2">
-                <div class="flex-shrink-0 me-3">
-                    <span class="badge rounded-pill ${i < 3 ? 'bg-warning text-dark' : 'bg-secondary text-white'}" style="width: 24px;">${i + 1}</span>
-                </div>
-                <div class="flex-grow-1 overflow-hidden">
-                    <h6 class="mb-0 text-truncate text-light" style="font-size: 0.9rem;">${d.name}</h6>
-                </div>
-                <div class="flex-shrink-0 ms-2 text-end">
-                    <span class="fw-bold text-success">${formatCurrency(d.amount)}</span>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    /**
-     * Update Recent Transactions List
-     */
-    function updateRecentTransactions(transactions) {
-        const container = document.getElementById('recentTransactionsList');
-        if (!container) return;
-
-        if (!transactions || transactions.length === 0) {
-            container.innerHTML = '<div class="text-center p-4 text-muted">No recent transactions</div>';
-            return;
-        }
-
-        container.innerHTML = transactions.map(t => {
-            const date = new Date(t.date);
-            const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-            const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-            
-            let iconClass = 'fa-money-bill-wave';
-            let colorClass = 'text-success';
-            
-            if (t.type === 'Pledge Pay') {
-                iconClass = 'fa-hand-holding-usd';
-                colorClass = 'text-info';
-            }
-            
-            return `
-            <div class="list-group-item bg-transparent border-bottom border-secondary px-3 py-2">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <div class="d-flex align-items-center">
-                        <i class="fas ${iconClass} ${colorClass} me-2 small"></i>
-                        <span class="fw-bold text-light" style="font-size: 0.9rem;">${t.name}</span>
-                    </div>
-                    <span class="fw-bold text-success">${formatCurrency(t.amount)}</span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center small text-muted">
-                    <span>${t.method}</span>
-                    <span>${dateStr} ${timeStr}</span>
-                </div>
-            </div>
-            `;
-        }).join('');
-    }
-
-    /**
-     * Update Payment Plans Stats
-     */
-    function updatePaymentPlans(plans) {
-        const container = document.getElementById('paymentPlansStats');
-        if (!container) return;
-
-        if (!plans) return;
-
-        const total = (plans.active || 0) + (plans.completed || 0) + (plans.paused || 0) + (plans.defaulted || 0) + (plans.cancelled || 0);
-
-        const items = [
-            { label: 'Active', value: plans.active, color: 'success', icon: 'fa-play' },
-            { label: 'Completed', value: plans.completed, color: 'primary', icon: 'fa-check' },
-            { label: 'Overdue/Default', value: (plans.defaulted || 0), color: 'danger', icon: 'fa-exclamation-circle' },
-            { label: 'Paused', value: plans.paused, color: 'warning', icon: 'fa-pause' }
-        ];
-
-        container.innerHTML = items.map(item => `
-            <div class="col-6 col-sm-3">
-                <div class="p-2 rounded border border-secondary bg-dark-subtle h-100">
-                    <div class="text-${item.color} mb-1"><i class="fas ${item.icon}"></i></div>
-                    <div class="h5 mb-0 text-light">${formatNumber(item.value || 0)}</div>
-                    <div class="small text-muted">${item.label}</div>
-                </div>
-            </div>
-        `).join('');
     }
     
     /**
@@ -232,7 +123,7 @@
                         },
                         ticks: {
                             callback: function(value) {
-                                return formatCurrencyShort(value);
+                                return formatCurrency(value);
                             }
                         }
                     }
@@ -419,7 +310,7 @@
                         },
                         ticks: {
                             callback: function(value) {
-                                return formatCurrencyShort(value);
+                                return formatCurrency(value);
                             }
                         }
                     }
@@ -534,7 +425,7 @@
                         },
                         ticks: {
                             callback: function(value) {
-                                return formatCurrencyShort(value);
+                                return formatCurrency(value);
                             }
                         }
                     }
@@ -621,7 +512,7 @@
             refreshBtn.querySelector('i').classList.add('spin');
         }
         
-        document.querySelectorAll('.chart-card, .card').forEach(card => {
+        document.querySelectorAll('.chart-card').forEach(card => {
             card.classList.add('loading');
         });
         
@@ -633,17 +524,12 @@
             refreshBtn.querySelector('i').classList.remove('spin');
         }
         
-        document.querySelectorAll('.chart-card, .card').forEach(card => {
+        document.querySelectorAll('.chart-card').forEach(card => {
             card.classList.remove('loading');
         });
         
         if (data && data.success) {
             updateKPIs(data.kpis);
-            if (data.lists) {
-                updateTopDonors(data.lists.topDonors);
-                updateRecentTransactions(data.lists.recentTransactions);
-                updatePaymentPlans(data.lists.paymentPlans);
-            }
             initTrendChart(data.charts.trend);
             initMethodsChart(data.charts.methods);
             initSourceChart(data.charts.sources);
@@ -683,3 +569,4 @@
     }
     
 })();
+
