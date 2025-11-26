@@ -264,20 +264,19 @@ try {
         </span>
         <span class="nav-label">Record Payment</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'reports' ? './' : '../reports/'; ?>" 
-         class="nav-link <?php echo ($current_dir === 'reports' && $current_page === 'index') ? 'active' : ''; ?>">
-        <span class="nav-icon">
-          <i class="fas fa-chart-bar"></i>
-        </span>
-        <span class="nav-label">Reports</span>
-      </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'reports' ? 'financial-dashboard.php' : '../reports/financial-dashboard.php'; ?>" 
          class="nav-link <?php echo ($current_dir === 'reports' && $current_page === 'financial-dashboard') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-chart-line"></i>
         </span>
         <span class="nav-label">Financial Dashboard</span>
-        <span class="badge bg-success ms-auto">New</span>
+      </a>
+      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'reports' ? './' : '../reports/'; ?>" 
+         class="nav-link <?php echo ($current_dir === 'reports' && $current_page === 'index') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-chart-bar"></i>
+        </span>
+        <span class="nav-label">Reports</span>
       </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'projector' ? './' : '../projector/'; ?>" 
          class="nav-link <?php echo $current_dir === 'projector' ? 'active' : ''; ?>">

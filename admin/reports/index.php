@@ -505,6 +505,30 @@ if (isset($_GET['report'])) {
                         </div>
                     </div>
                     
+                    <!-- Financial Dashboard Banner -->
+                    <div class="mb-4">
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);">
+                            <div class="card-body p-4">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h4 class="text-white mb-2">
+                                            <i class="fas fa-chart-line me-2" style="color: #3fb950;"></i>
+                                            Financial Dashboard
+                                        </h4>
+                                        <p class="text-white-50 mb-3 mb-md-0">
+                                            Real-time financial analytics with interactive charts. Mobile-optimized for on-the-go access.
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-md-end">
+                                        <a href="financial-dashboard.php" class="btn btn-success btn-lg">
+                                            <i class="fas fa-arrow-right me-2"></i>Open Dashboard
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Available Reports -->
                     <div class="mb-4">
                         <h5 class="mb-3">

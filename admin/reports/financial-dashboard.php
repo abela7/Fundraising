@@ -1,15 +1,8 @@
 <?php
 /**
- * Financial Dashboard - Comprehensive Visual Analytics
- * 
- * 100% database-driven financial reporting with interactive charts.
- * Mobile-first responsive design.
- * 
- * @author Fundraising System
+ * Financial Dashboard - Real-time Financial Analytics
+ * Mobile-first, fully responsive, 100% database-driven
  */
-
-declare(strict_types=1);
-
 require_once '../../config/db.php';
 require_once '../../shared/auth.php';
 require_once '../../shared/FinancialCalculator.php';
@@ -20,23 +13,44 @@ require_admin();
 $current_user = current_user();
 $db = db();
 
-// Get settings for currency
+// Get settings
 $settings = $db->query("SELECT target_amount, currency_code FROM settings WHERE id=1")->fetch_assoc() 
     ?: ['target_amount' => 0, 'currency_code' => 'GBP'];
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
 $currencySymbol = $currency === 'GBP' ? '£' : $currency;
+$targetAmount = (float)($settings['target_amount'] ?? 0);
+
+// Get financial totals using centralized calculator
+$calculator = new FinancialCalculator();
+$totals = $calculator->getTotals();
+
+$totalPaid = $totals['total_paid'];
+$outstandingPledged = $totals['outstanding_pledged'];
+$grandTotal = $totals['grand_total'];
+$instantPayments = $totals['instant_payments'];
+$pledgePayments = $totals['pledge_payments'];
+
+// Collection rate
+$collectionRate = $grandTotal > 0 ? round(($totalPaid / $grandTotal) * 100, 1) : 0;
+
+// Goal progress
+$goalProgress = $targetAmount > 0 ? round(($grandTotal / $targetAmount) * 100, 1) : 0;
+
+// Total donors (unique)
+$donorCount = $db->query("SELECT COUNT(DISTINCT id) AS c FROM donors WHERE total_pledged > 0 OR total_paid > 0")->fetch_assoc()['c'] ?? 0;
+
+// Total payment transactions
+$paymentTransactions = $totals['total_payment_count'];
+
+// Average payment amount
+$avgPayment = $paymentTransactions > 0 ? $totalPaid / $paymentTransactions : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#2563eb">
-    <title>Financial Dashboard - Fundraising System</title>
-    
-    <!-- Preconnect for performance -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <title>Financial Dashboard - Fundraising</title>
     
     <!-- CSS Dependencies -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -49,307 +63,219 @@ $currencySymbol = $currency === 'GBP' ? '£' : $currency;
     
     <!-- Favicon -->
     <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="admin-wrapper">
         <?php include '../includes/sidebar.php'; ?>
         <div class="admin-content">
             <?php include '../includes/topbar.php'; ?>
-            
-            <main class="financial-dashboard">
-                <div class="fd-container">
+            <main class="main-content">
+                <div class="container-fluid px-2 px-md-4">
                     
-                    <!-- Header -->
-                    <header class="fd-header">
-                        <h1 class="fd-title">
-                            <span class="fd-title-icon">
-                                <i class="fas fa-chart-line"></i>
-                            </span>
-                            Financial Dashboard
-                        </h1>
-                        <p class="fd-subtitle">Real-time financial analytics and insights</p>
-                        <p class="fd-updated">Last updated: <span id="last-updated">Loading...</span></p>
-                    </header>
-                    
-                    <!-- Controls Bar -->
-                    <div class="fd-controls">
-                        <div class="fd-date-filters">
-                            <button class="fd-filter-btn active" data-range="all">All Time</button>
-                            <button class="fd-filter-btn" data-range="today">Today</button>
-                            <button class="fd-filter-btn" data-range="week">This Week</button>
-                            <button class="fd-filter-btn" data-range="month">This Month</button>
-                            <button class="fd-filter-btn" data-range="quarter">Quarter</button>
-                            <button class="fd-filter-btn" data-range="year">This Year</button>
-                        </div>
-                        <div class="fd-custom-dates">
-                            <input type="date" class="fd-date-input" id="date-from" placeholder="From">
-                            <input type="date" class="fd-date-input" id="date-to" placeholder="To">
-                            <button class="fd-btn fd-btn-primary" id="btn-apply-dates">
-                                <i class="fas fa-filter"></i> Apply
-                            </button>
-                        </div>
-                        <div class="fd-action-buttons">
-                            <button class="fd-btn fd-btn-outline" id="btn-refresh">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
-                            <button class="fd-btn fd-btn-outline active" id="btn-auto-refresh">
-                                <i class="fas fa-sync-alt fa-spin"></i> Auto
-                            </button>
-                            <a href="index.php?report=financial&format=csv" class="fd-btn fd-btn-success" data-export="csv">
-                                <i class="fas fa-download"></i> Export
-                            </a>
+                    <!-- Page Header -->
+                    <div class="dashboard-header">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h1 class="h4 mb-1">
+                                    <i class="fas fa-chart-line me-2"></i>Financial Dashboard
+                                </h1>
+                                <p class="text-muted mb-0 small">Real-time financial analytics</p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshAllData()" id="refreshBtn">
+                                    <i class="fas fa-sync-alt"></i>
+                                    <span class="d-none d-sm-inline ms-1">Refresh</span>
+                                </button>
+                                <select class="form-select form-select-sm" id="dateRange" style="width: auto;">
+                                    <option value="all">All Time</option>
+                                    <option value="today">Today</option>
+                                    <option value="week">This Week</option>
+                                    <option value="month" selected>This Month</option>
+                                    <option value="quarter">This Quarter</option>
+                                    <option value="year">This Year</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- KPI Cards -->
-                    <div class="fd-kpi-grid">
-                        <div class="fd-kpi-card kpi-paid" id="kpi-paid">
-                            <div class="fd-kpi-icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="fd-kpi-label">Total Paid</div>
-                            <div class="fd-kpi-value">
-                                <div class="fd-skeleton fd-skeleton-value"></div>
-                            </div>
-                            <div class="fd-kpi-sub">Loading...</div>
-                        </div>
-                        
-                        <div class="fd-kpi-card kpi-pledged" id="kpi-pledged">
-                            <div class="fd-kpi-icon">
-                                <i class="fas fa-hand-holding-heart"></i>
-                            </div>
-                            <div class="fd-kpi-label">Total Pledged</div>
-                            <div class="fd-kpi-value">
-                                <div class="fd-skeleton fd-skeleton-value"></div>
-                            </div>
-                            <div class="fd-kpi-sub">Loading...</div>
-                        </div>
-                        
-                        <div class="fd-kpi-card kpi-outstanding" id="kpi-outstanding">
-                            <div class="fd-kpi-icon">
-                                <i class="fas fa-hourglass-half"></i>
-                            </div>
-                            <div class="fd-kpi-label">Outstanding</div>
-                            <div class="fd-kpi-value">
-                                <div class="fd-skeleton fd-skeleton-value"></div>
-                            </div>
-                            <div class="fd-kpi-sub">Loading...</div>
-                        </div>
-                        
-                        <div class="fd-kpi-card kpi-total" id="kpi-total">
-                            <div class="fd-kpi-icon">
+                    <!-- Main KPI Cards - Mobile First Grid -->
+                    <div class="kpi-grid">
+                        <!-- Grand Total -->
+                        <div class="kpi-card kpi-primary">
+                            <div class="kpi-icon">
                                 <i class="fas fa-coins"></i>
                             </div>
-                            <div class="fd-kpi-label">Grand Total</div>
-                            <div class="fd-kpi-value">
-                                <div class="fd-skeleton fd-skeleton-value"></div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Total Raised</span>
+                                <span class="kpi-value" id="kpiGrandTotal"><?php echo $currencySymbol . number_format($grandTotal, 0); ?></span>
+                                <span class="kpi-sub">
+                                    <span class="text-success" id="kpiGoalProgress"><?php echo $goalProgress; ?>%</span> of goal
+                                </span>
                             </div>
-                            <div class="fd-kpi-sub">Loading...</div>
                         </div>
                         
-                        <div class="fd-kpi-card kpi-donors" id="kpi-donors">
-                            <div class="fd-kpi-icon">
-                                <i class="fas fa-users"></i>
+                        <!-- Total Paid -->
+                        <div class="kpi-card kpi-success">
+                            <div class="kpi-icon">
+                                <i class="fas fa-check-circle"></i>
                             </div>
-                            <div class="fd-kpi-label">Total Donors</div>
-                            <div class="fd-kpi-value">
-                                <div class="fd-skeleton fd-skeleton-value"></div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Cash Collected</span>
+                                <span class="kpi-value" id="kpiTotalPaid"><?php echo $currencySymbol . number_format($totalPaid, 0); ?></span>
+                                <span class="kpi-sub" id="kpiPaymentCount"><?php echo number_format($paymentTransactions); ?> payments</span>
                             </div>
-                            <div class="fd-kpi-sub">Loading...</div>
                         </div>
                         
-                        <div class="fd-kpi-card kpi-rate" id="kpi-rate">
-                            <div class="fd-kpi-icon">
+                        <!-- Outstanding -->
+                        <div class="kpi-card kpi-warning">
+                            <div class="kpi-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Outstanding</span>
+                                <span class="kpi-value" id="kpiOutstanding"><?php echo $currencySymbol . number_format($outstandingPledged, 0); ?></span>
+                                <span class="kpi-sub">Awaiting payment</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Collection Rate -->
+                        <div class="kpi-card kpi-info">
+                            <div class="kpi-icon">
                                 <i class="fas fa-percentage"></i>
                             </div>
-                            <div class="fd-kpi-label">Collection Rate</div>
-                            <div class="fd-kpi-value">
-                                <div class="fd-skeleton fd-skeleton-value"></div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Collection Rate</span>
+                                <span class="kpi-value" id="kpiCollectionRate"><?php echo $collectionRate; ?>%</span>
+                                <div class="kpi-progress">
+                                    <div class="kpi-progress-bar" id="kpiCollectionBar" style="width: <?php echo min($collectionRate, 100); ?>%"></div>
+                                </div>
                             </div>
-                            <div class="fd-kpi-sub">Loading...</div>
+                        </div>
+                        
+                        <!-- Donors -->
+                        <div class="kpi-card kpi-secondary">
+                            <div class="kpi-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Total Donors</span>
+                                <span class="kpi-value" id="kpiDonorCount"><?php echo number_format($donorCount); ?></span>
+                                <span class="kpi-sub">Contributors</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Average Payment -->
+                        <div class="kpi-card kpi-accent">
+                            <div class="kpi-icon">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <span class="kpi-label">Avg Payment</span>
+                                <span class="kpi-value" id="kpiAvgPayment"><?php echo $currencySymbol . number_format($avgPayment, 0); ?></span>
+                                <span class="kpi-sub">Per transaction</span>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Progress Bar -->
-                    <div class="fd-progress-section">
-                        <div class="fd-progress-header">
-                            <span class="fd-progress-title">
-                                <i class="fas fa-bullseye me-2"></i>Campaign Progress
-                            </span>
-                            <span class="fd-progress-value">0%</span>
+                    <!-- Charts Section -->
+                    <div class="charts-grid">
+                        
+                        <!-- Payment Trend Chart -->
+                        <div class="chart-card chart-card-wide">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-chart-area me-2"></i>Payment Trend
+                                </h3>
+                                <div class="chart-legend" id="trendLegend"></div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="paymentTrendChart"></canvas>
+                            </div>
                         </div>
-                        <div class="fd-progress-bar">
-                            <div class="fd-progress-fill" style="width: 0%"></div>
+                        
+                        <!-- Payment Methods Pie Chart -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-wallet me-2"></i>Payment Methods
+                                </h3>
+                            </div>
+                            <div class="chart-body chart-body-pie">
+                                <canvas id="paymentMethodsChart"></canvas>
+                            </div>
+                            <div class="chart-footer" id="methodsLegend"></div>
                         </div>
-                        <div class="fd-progress-labels">
-                            <span id="progress-current"><?php echo $currencySymbol; ?>0</span>
-                            <span id="progress-target">Target: <?php echo $currencySymbol . number_format((float)$settings['target_amount'], 0); ?></span>
+                        
+                        <!-- Income Sources -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-layer-group me-2"></i>Income Sources
+                                </h3>
+                            </div>
+                            <div class="chart-body chart-body-pie">
+                                <canvas id="incomeSourceChart"></canvas>
+                            </div>
+                            <div class="chart-footer" id="sourceLegend"></div>
                         </div>
+                        
+                        <!-- Monthly Comparison -->
+                        <div class="chart-card chart-card-wide">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-chart-bar me-2"></i>Monthly Collections
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="monthlyChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Pledges vs Payments -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-balance-scale me-2"></i>Pledges vs Collected
+                                </h3>
+                            </div>
+                            <div class="chart-body chart-body-pie">
+                                <canvas id="pledgeVsPaymentChart"></canvas>
+                            </div>
+                            <div class="chart-footer" id="pledgePaymentLegend"></div>
+                        </div>
+                        
+                        <!-- Weekly Pattern -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-calendar-week me-2"></i>Weekly Pattern
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="weeklyPatternChart"></canvas>
+                            </div>
+                        </div>
+                        
                     </div>
                     
-                    <!-- Charts Grid -->
-                    <div class="fd-charts-grid">
-                        
-                        <!-- Monthly Trends -->
-                        <div class="fd-chart-card fd-chart-full">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-chart-line"></i>
-                                    Monthly Trends
-                                </h3>
-                                <div class="fd-chart-actions">
-                                    <button class="fd-chart-action" title="Fullscreen">
-                                        <i class="fas fa-expand"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-monthly-trends" class="fd-chart-canvas"></canvas>
-                            </div>
+                    <!-- Quick Stats Summary -->
+                    <div class="stats-summary">
+                        <div class="stat-item">
+                            <span class="stat-label">Instant Payments</span>
+                            <span class="stat-value" id="statInstant"><?php echo $currencySymbol . number_format($instantPayments, 0); ?></span>
                         </div>
-                        
-                        <!-- Daily Trends -->
-                        <div class="fd-chart-card fd-chart-full">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-chart-bar"></i>
-                                    Last 30 Days
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-daily-trends" class="fd-chart-canvas"></canvas>
-                            </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Pledge Payments</span>
+                            <span class="stat-value" id="statPledgePay"><?php echo $currencySymbol . number_format($pledgePayments, 0); ?></span>
                         </div>
-                        
-                        <!-- Payment Methods -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-credit-card"></i>
-                                    Payment Methods
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-payment-methods" class="fd-chart-canvas"></canvas>
-                            </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Target Goal</span>
+                            <span class="stat-value"><?php echo $currencySymbol . number_format($targetAmount, 0); ?></span>
                         </div>
-                        
-                        <!-- Package Distribution -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-box"></i>
-                                    Donation Packages
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-packages" class="fd-chart-canvas"></canvas>
-                            </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Last Updated</span>
+                            <span class="stat-value" id="lastUpdated"><?php echo date('H:i'); ?></span>
                         </div>
-                        
-                        <!-- Pledge Status -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-file-invoice"></i>
-                                    Pledge Status
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-pledge-status" class="fd-chart-canvas"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- Donor Payment Status -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-user-check"></i>
-                                    Donor Status
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-donor-status" class="fd-chart-canvas"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- Grid Allocation -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-th"></i>
-                                    Floor Grid Status
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-grid-status" class="fd-chart-canvas"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- Payment Plans -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-calendar-alt"></i>
-                                    Payment Plans
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body">
-                                <canvas id="chart-payment-plans" class="fd-chart-canvas"></canvas>
-                            </div>
-                        </div>
-                        
-                        <!-- Top Donors Table -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-trophy"></i>
-                                    Top 10 Donors
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body" id="table-top-donors">
-                                <div class="fd-loading">
-                                    <div class="fd-spinner"></div>
-                                    <div class="fd-loading-text">Loading donors...</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Recent Transactions -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-clock"></i>
-                                    Recent Transactions
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body" id="table-recent">
-                                <div class="fd-loading">
-                                    <div class="fd-spinner"></div>
-                                    <div class="fd-loading-text">Loading transactions...</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Church Distribution -->
-                        <div class="fd-chart-card">
-                            <div class="fd-chart-header">
-                                <h3 class="fd-chart-title">
-                                    <i class="fas fa-church"></i>
-                                    By Church
-                                </h3>
-                            </div>
-                            <div class="fd-chart-body" id="table-churches">
-                                <div class="fd-loading">
-                                    <div class="fd-spinner"></div>
-                                    <div class="fd-loading-text">Loading churches...</div>
-                                </div>
-                            </div>
-                        </div>
-                        
                     </div>
                     
                 </div>
@@ -359,7 +285,15 @@ $currencySymbol = $currency === 'GBP' ? '£' : $currency;
     
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="../assets/admin.js"></script>
+    <script>
+        // Pass PHP data to JavaScript
+        window.dashboardConfig = {
+            currency: '<?php echo $currencySymbol; ?>',
+            apiUrl: 'api/financial-data.php'
+        };
+    </script>
     <script src="assets/financial-dashboard.js"></script>
 </body>
 </html>
