@@ -25,7 +25,7 @@ if (isset($_GET['cron_key']) && $_GET['cron_key'] !== $valid_cron_key) {
 }
 
 require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../services/VoodooSMSService.php';
+require_once __DIR__ . '/../services/SMSServiceFactory.php';
 
 // Configuration
 $BATCH_SIZE = 20;       // Process max 20 messages per run
@@ -57,8 +57,8 @@ try {
         exit(1);
     }
     
-    // Initialize SMS service
-    $sms = VoodooSMSService::fromDatabase($db);
+    // Initialize SMS service (uses default provider)
+    $sms = SMSServiceFactory::getDefaultService($db);
     if (!$sms) {
         cron_log("ERROR: No active SMS provider configured");
         exit(1);

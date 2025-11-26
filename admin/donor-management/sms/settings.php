@@ -119,20 +119,20 @@ if ($db) {
             $check_result = $db->query("SHOW TABLES LIKE 'sms_settings'");
             $settings_table_exists = $check_result && $check_result->num_rows > 0;
             
-            // Test VoodooSMS connection
+            // Test connection for any provider
             if ($action === 'test_connection') {
-                require_once __DIR__ . '/../../../services/VoodooSMSService.php';
+                require_once __DIR__ . '/../../../services/SMSServiceFactory.php';
                 
+                $provider_name = trim($_POST['name'] ?? '');
                 $api_key = trim($_POST['api_key'] ?? '');
                 $api_secret = trim($_POST['api_secret'] ?? '');
                 $sender_id = trim($_POST['sender_id'] ?? 'ATEOTC');
                 
                 if (empty($api_key) || empty($api_secret)) {
-                    throw new Exception('Username and Password are required to test connection.');
+                    throw new Exception('API credentials are required to test connection.');
                 }
                 
-                $sms = new VoodooSMSService($api_key, $api_secret, $sender_id);
-                $result = $sms->testConnection();
+                $result = SMSServiceFactory::testConnection($provider_name, $api_key, $api_secret, $sender_id);
                 
                 if ($result['success']) {
                     $_SESSION['success_message'] = '✅ ' . $result['message'];
@@ -550,9 +550,9 @@ $settings = array_merge([
 
 <!-- Provider Modal -->
 <div class="modal fade" id="providerModal" tabindex="-1" aria-labelledby="providerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <form method="POST">
+            <form method="POST" id="providerForm">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="save_provider">
                 <input type="hidden" name="provider_id" value="<?php echo htmlspecialchars((string)($edit_provider['id'] ?? '')); ?>">
@@ -564,38 +564,69 @@ $settings = array_merge([
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
-                        <input type="hidden" name="name" value="voodoosms">
-                        <div class="d-flex align-items-center gap-2 p-3 bg-light rounded">
-                            <img src="https://www.voodoosms.com/img/voodoo-logo.svg" alt="VoodooSMS" height="24" onerror="this.style.display='none'">
-                            <span class="fw-semibold">VoodooSMS (VOODOO)</span>
-                            <span class="badge bg-success ms-auto">UK Provider</span>
+                    <!-- Provider Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Choose Provider <span class="text-danger">*</span></label>
+                        <div class="row g-3">
+                            <!-- VoodooSMS Option -->
+                            <div class="col-md-6">
+                                <div class="provider-option border rounded p-3 h-100 <?php echo ($edit_provider['name'] ?? '') === 'voodoosms' ? 'border-primary bg-primary-subtle' : ''; ?>" 
+                                     data-provider="voodoosms" onclick="selectProvider('voodoosms')">
+                                    <input type="radio" name="name" value="voodoosms" class="d-none" 
+                                           <?php echo ($edit_provider['name'] ?? 'voodoosms') === 'voodoosms' ? 'checked' : ''; ?>>
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <i class="fas fa-magic text-primary fs-4"></i>
+                                        <strong>VoodooSMS</strong>
+                                        <span class="badge bg-success ms-auto">UK</span>
+                                    </div>
+                                    <p class="text-muted small mb-0">Direct network routes, reliable delivery.</p>
+                                    <small class="text-muted">~3.5p per SMS</small>
+                                </div>
+                            </div>
+                            
+                            <!-- The SMS Works Option -->
+                            <div class="col-md-6">
+                                <div class="provider-option border rounded p-3 h-100 <?php echo ($edit_provider['name'] ?? '') === 'thesmsworks' ? 'border-primary bg-primary-subtle' : ''; ?>" 
+                                     data-provider="thesmsworks" onclick="selectProvider('thesmsworks')">
+                                    <input type="radio" name="name" value="thesmsworks" class="d-none"
+                                           <?php echo ($edit_provider['name'] ?? '') === 'thesmsworks' ? 'checked' : ''; ?>>
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <i class="fas fa-paper-plane text-info fs-4"></i>
+                                        <strong>The SMS Works</strong>
+                                        <span class="badge bg-success ms-auto">UK</span>
+                                    </div>
+                                    <p class="text-muted small mb-0">Pay-per-delivery. Failed UK messages refunded.</p>
+                                    <small class="text-muted">~2.9p per SMS</small>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-text">UK-based SMS provider with direct network routes. <a href="https://www.voodoosms.com" target="_blank">Learn more</a></div>
                     </div>
+                    
+                    <hr class="my-3">
                     
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Display Name <span class="text-danger">*</span></label>
                         <input type="text" name="display_name" class="form-control" required
-                               placeholder="e.g., Twilio Production"
+                               placeholder="e.g., Primary SMS Provider"
                                value="<?php echo htmlspecialchars($edit_provider['display_name'] ?? ''); ?>">
+                        <div class="form-text">A friendly name to identify this provider configuration.</div>
                     </div>
                     
+                    <!-- API Credentials (labels update based on provider) -->
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">VoodooSMS Username <span class="text-danger">*</span></label>
-                        <input type="text" name="api_key" class="form-control" required
-                               placeholder="Your VoodooSMS API username"
+                        <label class="form-label fw-semibold" id="api_key_label">Username / Customer ID <span class="text-danger">*</span></label>
+                        <input type="text" name="api_key" id="api_key" class="form-control" required
+                               placeholder=""
                                value="<?php echo htmlspecialchars($edit_provider['api_key'] ?? ''); ?>">
-                        <div class="form-text">Found in: Send SMS → API SMS → HTTP API</div>
+                        <div class="form-text" id="api_key_help">Your API username or customer ID</div>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">VoodooSMS Password <span class="text-danger">*</span></label>
-                        <input type="password" name="api_secret" class="form-control" required
-                               placeholder="Your VoodooSMS API password"
+                        <label class="form-label fw-semibold" id="api_secret_label">Password / API Key <span class="text-danger">*</span></label>
+                        <input type="password" name="api_secret" id="api_secret" class="form-control" required
+                               placeholder=""
                                value="<?php echo htmlspecialchars($edit_provider['api_secret'] ?? ''); ?>">
-                        <div class="form-text">The password you set when creating the API client</div>
+                        <div class="form-text" id="api_secret_help">Your API password or secret key</div>
                     </div>
                     
                     <div class="mb-3">
@@ -609,20 +640,26 @@ $settings = array_merge([
                     
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Cost per SMS (pence)</label>
-                        <input type="number" name="cost_per_sms" class="form-control" step="0.1"
-                               value="<?php echo htmlspecialchars((string)($edit_provider['cost_per_sms_pence'] ?? '3.0')); ?>">
+                        <input type="number" name="cost_per_sms" id="cost_per_sms" class="form-control" step="0.1"
+                               value="<?php echo htmlspecialchars((string)($edit_provider['cost_per_sms_pence'] ?? '3.5')); ?>">
+                        <div class="form-text">Used for cost tracking and reporting.</div>
                     </div>
                     
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" name="is_active" id="providerActive"
-                               <?php echo !empty($edit_provider['is_active']) ? 'checked' : ''; ?>>
-                        <label class="form-check-label" for="providerActive">Provider is active</label>
-                    </div>
-                    
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="is_default" id="providerDefault"
-                               <?php echo !empty($edit_provider['is_default']) ? 'checked' : ''; ?>>
-                        <label class="form-check-label" for="providerDefault">Set as default provider</label>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="providerActive"
+                                       <?php echo !empty($edit_provider['is_active']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="providerActive">Provider is active</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_default" id="providerDefault"
+                                       <?php echo !empty($edit_provider['is_default']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="providerDefault">Set as default</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -643,18 +680,106 @@ $settings = array_merge([
     </div>
 </div>
 
+<style>
+.provider-option {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.provider-option:hover {
+    border-color: var(--bs-primary) !important;
+    background-color: var(--bs-light);
+}
+.provider-option.selected {
+    border-color: var(--bs-primary) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/admin.js"></script>
-<?php if ($edit_provider): ?>
 <script>
+function selectProvider(provider) {
+    // Update radio buttons
+    document.querySelectorAll('input[name="name"]').forEach(function(radio) {
+        radio.checked = (radio.value === provider);
+    });
+    
+    // Update visual selection
+    document.querySelectorAll('.provider-option').forEach(function(el) {
+        if (el.dataset.provider === provider) {
+            el.classList.add('selected', 'border-primary', 'bg-primary-subtle');
+        } else {
+            el.classList.remove('selected', 'border-primary', 'bg-primary-subtle');
+        }
+    });
+    
+    // Update field labels and placeholders based on provider
+    var apiKeyLabel = document.getElementById('api_key_label');
+    var apiKeyHelp = document.getElementById('api_key_help');
+    var apiKeyInput = document.getElementById('api_key');
+    var apiSecretLabel = document.getElementById('api_secret_label');
+    var apiSecretHelp = document.getElementById('api_secret_help');
+    var apiSecretInput = document.getElementById('api_secret');
+    
+    if (provider === 'voodoosms') {
+        apiKeyLabel.innerHTML = 'VoodooSMS Username <span class="text-danger">*</span>';
+        apiKeyInput.placeholder = 'Your VoodooSMS API username';
+        apiKeyHelp.textContent = 'Found in: Send SMS → API SMS → HTTP API';
+        
+        apiSecretLabel.innerHTML = 'VoodooSMS Password <span class="text-danger">*</span>';
+        apiSecretInput.placeholder = 'Your VoodooSMS API password';
+        apiSecretHelp.textContent = 'The password you set when creating the API client';
+    } else if (provider === 'thesmsworks') {
+        apiKeyLabel.innerHTML = 'Customer ID <span class="text-danger">*</span>';
+        apiKeyInput.placeholder = 'Your SMS Works Customer ID';
+        apiKeyHelp.textContent = 'Found in your SMS Works account dashboard';
+        
+        apiSecretLabel.innerHTML = 'API Key (Secret) <span class="text-danger">*</span>';
+        apiSecretInput.placeholder = 'Your SMS Works API Key';
+        apiSecretHelp.textContent = 'Generate this in your SMS Works developer settings';
+    }
+    
+    // Update default cost if not editing existing provider
+    var costField = document.getElementById('cost_per_sms');
+    var isEditing = document.querySelector('input[name="provider_id"]').value !== '';
+    if (costField && !isEditing) {
+        if (provider === 'voodoosms') {
+            costField.value = '3.5';
+        } else if (provider === 'thesmsworks') {
+            costField.value = '2.9';
+        }
+    }
+}
+
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Set initial provider based on radio selection
+    var selectedRadio = document.querySelector('input[name="name"]:checked');
+    if (selectedRadio) {
+        selectProvider(selectedRadio.value);
+    } else {
+        selectProvider('voodoosms'); // Default
+    }
+    
+    <?php if ($edit_provider): ?>
+    // Open modal for editing
     var modalEl = document.getElementById('providerModal');
     if (modalEl) {
         var modal = new bootstrap.Modal(modalEl);
         modal.show();
     }
+    <?php endif; ?>
+});
+
+// Ensure a provider is selected before submit
+document.getElementById('providerForm').addEventListener('submit', function(e) {
+    var selectedProvider = document.querySelector('input[name="name"]:checked');
+    if (!selectedProvider) {
+        e.preventDefault();
+        alert('Please select a provider.');
+        return false;
+    }
 });
 </script>
-<?php endif; ?>
 </body>
 </html>

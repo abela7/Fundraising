@@ -159,13 +159,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $success_message = 'SMS scheduled for ' . date('M j, g:i A', strtotime($scheduled_for));
         } else {
-            // Send immediately via VoodooSMS
-            require_once __DIR__ . '/../../../services/VoodooSMSService.php';
+            // Send immediately via default SMS provider
+            require_once __DIR__ . '/../../../services/SMSServiceFactory.php';
             
-            $sms = VoodooSMSService::fromDatabase($db);
+            $sms = SMSServiceFactory::getDefaultService($db);
             
             if (!$sms) {
-                throw new Exception('No SMS provider configured. Please add VoodooSMS credentials in Settings.');
+                throw new Exception('No SMS provider configured. Please add provider credentials in Settings.');
             }
             
             $result = $sms->send($phone_number, $message, [
