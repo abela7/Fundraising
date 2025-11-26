@@ -149,7 +149,7 @@ try {
       <div class="nav-section-title">
         <span>Main</span>
       </div>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'dashboard' ? './' : '../dashboard/'; ?>" 
+      <a href="<?php echo url_for('admin/dashboard/'); ?>" 
          class="nav-link <?php echo $current_dir === 'dashboard' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-tachometer-alt"></i>
@@ -163,49 +163,49 @@ try {
       <div class="nav-section-title">
         <span>Management</span>
       </div>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'approvals' ? './' : '../approvals/'; ?>" 
+      <a href="<?php echo url_for('admin/approvals/'); ?>" 
          class="nav-link <?php echo $current_dir === 'approvals' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-check-circle"></i>
         </span>
         <span class="nav-label">Approvals</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'pledges' ? './' : '../pledges/'; ?>" 
+      <a href="<?php echo url_for('admin/pledges/'); ?>" 
          class="nav-link <?php echo $current_dir === 'pledges' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-hand-holding-usd"></i>
         </span>
         <span class="nav-label">Pledges</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'members' ? './' : '../members/'; ?>" 
+      <a href="<?php echo url_for('admin/members/'); ?>" 
          class="nav-link <?php echo $current_dir === 'members' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-users"></i>
         </span>
         <span class="nav-label">Members</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'donor-management' ? './' : '../donor-management/'; ?>" 
-         class="nav-link <?php echo $current_dir === 'donor-management' ? 'active' : ''; ?>">
+      <a href="<?php echo url_for('admin/donor-management/'); ?>" 
+         class="nav-link <?php echo $current_dir === 'donor-management' || strpos($_SERVER['PHP_SELF'], '/donor-management/') !== false ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-users-cog"></i>
         </span>
         <span class="nav-label">Donor Management</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'church-management' ? './' : '../church-management/'; ?>" 
+      <a href="<?php echo url_for('admin/church-management/'); ?>" 
          class="nav-link <?php echo $current_dir === 'church-management' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-church"></i>
         </span>
         <span class="nav-label">Church Management</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'user-status' ? './' : '../user-status/'; ?>" 
+      <a href="<?php echo url_for('admin/user-status/'); ?>" 
          class="nav-link <?php echo $current_dir === 'user-status' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-user-check"></i>
         </span>
         <span class="nav-label">User Login Status</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'registrar-applications' ? './' : '../registrar-applications/'; ?>" 
+      <a href="<?php echo url_for('admin/registrar-applications/'); ?>" 
          class="nav-link <?php echo $current_dir === 'registrar-applications' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-user-plus"></i>
@@ -215,21 +215,21 @@ try {
           <span class="badge bg-danger ms-auto"><?php echo $pending_applications_count; ?></span>
         <?php endif; ?>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'payments' ? './' : '../payments/'; ?>" 
+      <a href="<?php echo url_for('admin/payments/'); ?>" 
          class="nav-link <?php echo ($current_dir === 'payments' && $current_page !== 'cash') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-credit-card"></i>
         </span>
         <span class="nav-label">Payments</span>
       </a>
-      <a href="<?php echo ($current_dir === 'payments' ? 'cash.php' : '../payments/cash.php'); ?>" 
+      <a href="<?php echo url_for('admin/payments/cash.php'); ?>" 
          class="nav-link <?php echo ($current_dir === 'payments' && $current_page === 'cash') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-money-bill-wave"></i>
         </span>
         <span class="nav-label">Cash Payments</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'donations' ? './' : '../donations/'; ?>" 
+      <a href="<?php echo url_for('admin/donations/'); ?>" 
          class="nav-link <?php echo $current_dir === 'donations' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-donate"></i>
@@ -243,7 +243,7 @@ try {
       <div class="nav-section-title">
         <span>Operations</span>
       </div>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'call-center' ? './' : '../call-center/'; ?>" 
+      <a href="<?php echo url_for('admin/call-center/'); ?>" 
          class="nav-link <?php echo $current_dir === 'call-center' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-headset"></i>
@@ -257,28 +257,28 @@ try {
         </span>
         <span class="nav-label">Record Payment</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'reports' ? './' : '../reports/'; ?>" 
+      <a href="<?php echo url_for('admin/reports/'); ?>" 
          class="nav-link <?php echo $current_dir === 'reports' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-chart-bar"></i>
         </span>
         <span class="nav-label">Reports</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'projector' ? './' : '../projector/'; ?>" 
+      <a href="<?php echo url_for('admin/projector/'); ?>" 
          class="nav-link <?php echo $current_dir === 'projector' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-tv"></i>
         </span>
         <span class="nav-label">Projector Control</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'grid-allocation' ? './' : '../grid-allocation/'; ?>" 
+      <a href="<?php echo url_for('admin/grid-allocation/'); ?>" 
          class="nav-link <?php echo $current_dir === 'grid-allocation' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-th"></i>
         </span>
         <span class="nav-label">Grid Allocation</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'audit' ? './' : '../audit/'; ?>" 
+      <a href="<?php echo url_for('admin/audit/'); ?>" 
          class="nav-link <?php echo $current_dir === 'audit' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-history"></i>
@@ -292,14 +292,14 @@ try {
       <div class="nav-section-title">
         <span>System</span>
       </div>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'tools' ? './' : '../tools/'; ?>" 
+      <a href="<?php echo url_for('admin/tools/'); ?>" 
          class="nav-link <?php echo $current_dir === 'tools' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-wrench"></i>
         </span>
         <span class="nav-label">Developer Tools</span>
       </a>
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'settings' ? './' : '../settings/'; ?>" 
+      <a href="<?php echo url_for('admin/settings/'); ?>" 
          class="nav-link <?php echo $current_dir === 'settings' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-cog"></i>
@@ -307,14 +307,14 @@ try {
         <span class="nav-label">Settings</span>
       </a>
       
-      <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'profile' ? './' : '../profile/'; ?>" 
+      <a href="<?php echo url_for('admin/profile/'); ?>" 
          class="nav-link <?php echo $current_dir === 'profile' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-user-circle"></i>
         </span>
         <span class="nav-label">Profile</span>
       </a>
-      <a href="../logout.php" class="nav-link">
+      <a href="<?php echo url_for('admin/logout.php'); ?>" class="nav-link">
         <span class="nav-icon">
           <i class="fas fa-sign-out-alt"></i>
         </span>
