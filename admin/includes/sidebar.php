@@ -78,6 +78,14 @@ if ($user_role === 'registrar') {
       <div class="nav-section-title">
         <span>Tools</span>
       </div>
+      <a href="<?php echo url_for('admin/reports/registrar-dashboard.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'reports' && $current_page === 'registrar-dashboard') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-chart-line"></i>
+        </span>
+        <span class="nav-label">Live Reports</span>
+        <span class="badge bg-success ms-auto" style="font-size: 0.6rem;">LIVE</span>
+      </a>
       <a href="<?php echo url_for('admin/donor-management/payments.php'); ?>" 
          class="nav-link <?php echo ($current_dir === 'donor-management' && $current_page === 'payments') ? 'active' : ''; ?>">
         <span class="nav-icon">
@@ -258,11 +266,19 @@ try {
         <span class="nav-label">Record Payment</span>
       </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'reports' ? './' : '../reports/'; ?>" 
-         class="nav-link <?php echo $current_dir === 'reports' ? 'active' : ''; ?>">
+         class="nav-link <?php echo ($current_dir === 'reports' && $current_page === 'index') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-chart-bar"></i>
         </span>
         <span class="nav-label">Reports</span>
+      </a>
+      <a href="<?php echo url_for('admin/reports/registrar-dashboard.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'reports' && $current_page === 'registrar-dashboard') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-chart-line"></i>
+        </span>
+        <span class="nav-label">Live Dashboard</span>
+        <span class="badge bg-success ms-auto" style="font-size: 0.6rem;">LIVE</span>
       </a>
       <a href="<?php echo dirname($_SERVER['PHP_SELF']) === 'projector' ? './' : '../projector/'; ?>" 
          class="nav-link <?php echo $current_dir === 'projector' ? 'active' : ''; ?>">
