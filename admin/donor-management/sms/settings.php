@@ -1,21 +1,76 @@
 <?php
 declare(strict_types=1);
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', '0'); // Don't display, we'll handle them
-ini_set('log_errors', '1');
+// ============================================================
+// DEBUG MODE - Enable to see all errors on page
+// ============================================================
+$DEBUG_MODE = true;
 
-require_once __DIR__ . '/../../../shared/auth.php';
-require_once __DIR__ . '/../../../shared/csrf.php';
-require_once __DIR__ . '/../../../config/db.php';
-require_login();
-require_admin();
+if ($DEBUG_MODE) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+}
+
+// Custom error handler to capture errors
+$php_errors = [];
+set_error_handler(function($errno, $errstr, $errfile, $errline) use (&$php_errors) {
+    $php_errors[] = [
+        'type' => $errno,
+        'message' => $errstr,
+        'file' => $errfile,
+        'line' => $errline
+    ];
+    return false; // Let PHP handle it too
+});
+
+// Capture fatal errors
+register_shutdown_function(function() use (&$php_errors, $DEBUG_MODE) {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        if ($DEBUG_MODE) {
+            echo '<div style="background:#ff0000;color:white;padding:20px;margin:20px;font-family:monospace;">';
+            echo '<h2>FATAL ERROR</h2>';
+            echo '<p><strong>Message:</strong> ' . htmlspecialchars($error['message']) . '</p>';
+            echo '<p><strong>File:</strong> ' . htmlspecialchars($error['file']) . '</p>';
+            echo '<p><strong>Line:</strong> ' . $error['line'] . '</p>';
+            echo '</div>';
+        }
+    }
+});
+
+try {
+    require_once __DIR__ . '/../../../shared/auth.php';
+} catch (Throwable $e) {
+    die('<div style="background:#ff0000;color:white;padding:20px;">Error loading auth.php: ' . htmlspecialchars($e->getMessage()) . '</div>');
+}
+
+try {
+    require_once __DIR__ . '/../../../shared/csrf.php';
+} catch (Throwable $e) {
+    die('<div style="background:#ff0000;color:white;padding:20px;">Error loading csrf.php: ' . htmlspecialchars($e->getMessage()) . '</div>');
+}
+
+try {
+    require_once __DIR__ . '/../../../config/db.php';
+} catch (Throwable $e) {
+    die('<div style="background:#ff0000;color:white;padding:20px;">Error loading db.php: ' . htmlspecialchars($e->getMessage()) . '</div>');
+}
+
+try {
+    require_login();
+} catch (Throwable $e) {
+    die('<div style="background:#ff0000;color:white;padding:20px;">Error in require_login(): ' . htmlspecialchars($e->getMessage()) . '</div>');
+}
+
+try {
+    require_admin();
+} catch (Throwable $e) {
+    die('<div style="background:#ff0000;color:white;padding:20px;">Error in require_admin(): ' . htmlspecialchars($e->getMessage()) . '</div>');
+}
 
 $page_title = 'SMS Settings';
-$current_user = current_user();
-
-// Initialize variables
+$current_user = null;
 $providers = [];
 $settings = [];
 $error_message = null;
@@ -25,14 +80,21 @@ $tables_missing = true;
 $providers_table_exists = false;
 $settings_table_exists = false;
 $edit_provider = null;
+$db = null;
+
+try {
+    $current_user = current_user();
+} catch (Throwable $e) {
+    $error_message = 'Error getting current user: ' . $e->getMessage();
+}
 
 // Try to get database connection
 try {
     $db = db();
     if (!$db) {
-        throw new Exception('Database connection failed');
+        throw new Exception('Database connection returned null');
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     $error_message = 'Database connection error: ' . $e->getMessage();
     $db = null;
 }
@@ -41,7 +103,12 @@ try {
 if ($db) {
     // Handle form submissions
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        verify_csrf();
+        try {
+            verify_csrf();
+        } catch (Throwable $e) {
+            $error_message = 'CSRF verification failed: ' . $e->getMessage();
+        }
+        
         $action = $_POST['action'] ?? '';
         
         try {
@@ -85,7 +152,7 @@ if ($db) {
                         WHERE id = ?
                     ");
                     if (!$stmt) {
-                        throw new Exception('Database error: ' . $db->error);
+                        throw new Exception('Database prepare error: ' . $db->error);
                     }
                     $stmt->bind_param('sssssdiii', $name, $display_name, $api_key, $api_secret, 
                         $sender_id, $cost_per_sms, $is_active, $is_default, $id);
@@ -97,7 +164,7 @@ if ($db) {
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                     ");
                     if (!$stmt) {
-                        throw new Exception('Database error: ' . $db->error);
+                        throw new Exception('Database prepare error: ' . $db->error);
                     }
                     $stmt->bind_param('sssssdii', $name, $display_name, $api_key, $api_secret, 
                         $sender_id, $cost_per_sms, $is_active, $is_default);
@@ -158,7 +225,7 @@ if ($db) {
                 exit;
             }
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $error_message = $e->getMessage();
         }
     }
@@ -192,7 +259,7 @@ if ($db) {
                 }
             }
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         $error_message = 'Error loading data: ' . $e->getMessage();
     }
     
@@ -232,13 +299,51 @@ $settings = array_merge([
 </head>
 <body>
 <div class="admin-wrapper">
-    <?php include '../../includes/sidebar.php'; ?>
+    <?php 
+    try {
+        include '../../includes/sidebar.php'; 
+    } catch (Throwable $e) {
+        echo '<div class="alert alert-danger m-3">Error loading sidebar: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
+    ?>
     
     <div class="admin-content">
-        <?php include '../../includes/topbar.php'; ?>
+        <?php 
+        try {
+            include '../../includes/topbar.php'; 
+        } catch (Throwable $e) {
+            echo '<div class="alert alert-danger m-3">Error loading topbar: ' . htmlspecialchars($e->getMessage()) . '</div>';
+        }
+        ?>
         
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
+                
+                <?php if ($DEBUG_MODE && !empty($php_errors)): ?>
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-bug me-2"></i>PHP Errors Detected</h5>
+                        <?php foreach ($php_errors as $err): ?>
+                            <div class="mb-2 p-2 bg-dark text-white rounded" style="font-family: monospace; font-size: 0.85rem;">
+                                <strong>Type:</strong> <?php echo $err['type']; ?><br>
+                                <strong>Message:</strong> <?php echo htmlspecialchars($err['message']); ?><br>
+                                <strong>File:</strong> <?php echo htmlspecialchars($err['file']); ?><br>
+                                <strong>Line:</strong> <?php echo $err['line']; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if ($DEBUG_MODE): ?>
+                    <div class="alert alert-info alert-dismissible fade show">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Debug Mode ON</strong> - 
+                        DB: <?php echo $db ? 'Connected' : 'NOT Connected'; ?> | 
+                        Providers Table: <?php echo $providers_table_exists ? 'Exists' : 'Missing'; ?> | 
+                        Settings Table: <?php echo $settings_table_exists ? 'Exists' : 'Missing'; ?> |
+                        Providers Count: <?php echo count($providers); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
                 
                 <!-- Header -->
                 <div class="mb-4">
