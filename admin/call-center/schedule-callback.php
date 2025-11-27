@@ -318,7 +318,8 @@ date_default_timezone_set('Europe/London');
                 $db->commit();
                 
                 // Redirect to success page (SMS option will be on that page)
-                header('Location: callback-scheduled.php?appointment_id=' . $appointment_id . '&donor_id=' . $donor_id);
+                // Pass the status so we can use the correct SMS template
+                header('Location: callback-scheduled.php?appointment_id=' . $appointment_id . '&donor_id=' . $donor_id . '&status=' . urlencode($status));
                 exit;
                 
             } catch (Throwable $e) {

@@ -51,6 +51,17 @@ try {
     $sms_status = $_GET['sms'] ?? null;
     $sms_error = isset($_GET['sms_error']) ? urldecode($_GET['sms_error']) : null;
     
+    // Get the call status to determine which template to use
+    $call_status = $_GET['status'] ?? 'not_picked_up';
+    
+    // Map status to template key
+    $template_map = [
+        'not_picked_up' => 'missed_call',
+        'busy' => 'line_busy',
+        'busy_cant_talk' => 'callback_requested'
+    ];
+    $template_key = $template_map[$call_status] ?? 'missed_call';
+    
     // Check if SMS is available
     $sms_available = false;
     $sms_template = null;
@@ -58,7 +69,7 @@ try {
         $sms_helper = new SMSHelper($db);
         $sms_available = $sms_helper->isReady();
         if ($sms_available) {
-            $sms_template = $sms_helper->getTemplate('missed_call');
+            $sms_template = $sms_helper->getTemplate($template_key);
         }
     } catch (Throwable $e) {
         // SMS not available
@@ -82,7 +93,7 @@ try {
                 
                 // forceImmediate = true → Send NOW, don't queue even during quiet hours
                 $result = $sms_helper->sendFromTemplate(
-                    'missed_call',
+                    $template_key,  // Use the correct template based on status
                     $donor_id,
                     [
                         'name' => $firstName,
@@ -106,8 +117,8 @@ try {
             $sms_error = $e->getMessage();
         }
         
-        // Redirect to prevent form resubmission
-        $redirect = "callback-scheduled.php?appointment_id=$appointment_id&donor_id=$donor_id&sms=$sms_status";
+        // Redirect to prevent form resubmission (preserve status)
+        $redirect = "callback-scheduled.php?appointment_id=$appointment_id&donor_id=$donor_id&status=" . urlencode($call_status) . "&sms=$sms_status";
         if ($sms_error) {
             $redirect .= '&sms_error=' . urlencode($sms_error);
         }
@@ -327,12 +338,22 @@ $page_title = 'Callback Scheduled';
                     </div>
                 </div>
                 
+                <?php 
+                // Status messages based on call type
+                $status_messages = [
+                    'not_picked_up' => 'The donor has been notified about the missed call.',
+                    'busy' => 'The donor has been notified that their line was busy.',
+                    'busy_cant_talk' => 'The donor has been notified about the callback.'
+                ];
+                $sms_success_msg = $status_messages[$call_status] ?? 'The donor has been notified.';
+                ?>
+                
                 <?php if ($sms_status === 'sent'): ?>
                 <div class="alert alert-success d-flex align-items-center mb-3">
                     <i class="fas fa-check-circle me-3 fa-lg"></i>
                     <div>
                         <strong>SMS Sent Successfully!</strong><br>
-                        <small class="text-muted">The donor has been notified about the callback.</small>
+                        <small class="text-muted"><?php echo htmlspecialchars($sms_success_msg); ?></small>
                     </div>
                 </div>
                 <?php elseif ($sms_status === 'failed'): ?>
@@ -354,11 +375,20 @@ $page_title = 'Callback Scheduled';
                     [$firstName, $callbackDate, $callbackTime],
                     $sms_template['message_en']
                 );
+                
+                // Button text based on status
+                $button_labels = [
+                    'not_picked_up' => 'Send "Missed Call" SMS',
+                    'busy' => 'Send "Line Busy" SMS',
+                    'busy_cant_talk' => 'Send Callback SMS'
+                ];
+                $button_label = $button_labels[$call_status] ?? 'Send SMS Now';
                 ?>
                 <div class="sms-option-card mb-3">
                     <div class="sms-option-header">
                         <i class="fas fa-sms me-2"></i>
                         <strong>Send SMS Notification?</strong>
+                        <span class="badge bg-secondary ms-2"><?php echo htmlspecialchars($sms_template['name'] ?? $template_key); ?></span>
                     </div>
                     <div class="sms-preview">
                         <?php echo htmlspecialchars($previewMessage); ?>
@@ -371,9 +401,17 @@ $page_title = 'Callback Scheduled';
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="send_sms" value="1">
                         <button type="submit" class="btn btn-info w-100">
-                            <i class="fas fa-paper-plane me-2"></i>Send SMS Now
+                            <i class="fas fa-paper-plane me-2"></i><?php echo htmlspecialchars($button_label); ?>
                         </button>
                     </form>
+                </div>
+                <?php elseif ($sms_available && !$sms_template && !$sms_status): ?>
+                <!-- Template Missing Warning -->
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>SMS Template Not Found!</strong><br>
+                    <small>Please create a template with key <code><?php echo htmlspecialchars($template_key); ?></code> in 
+                    <a href="../donor-management/sms/templates.php?action=new" target="_blank">SMS Templates</a></small>
                 </div>
                 <?php endif; ?>
                 
