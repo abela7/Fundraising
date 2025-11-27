@@ -142,23 +142,23 @@ try {
     
     // Format frequency
     $frequency_display = 'One-time';
-    $frequency_short = '';
+    $frequency_sms = 'once';
     if ($summary->plan_frequency_unit) {
         $unit = $summary->plan_frequency_unit;
         $num = (int)($summary->plan_frequency_number ?? 1);
         
         if ($unit === 'day') {
             $frequency_display = $num === 1 ? 'Daily' : "Every {$num} days";
-            $frequency_short = $num === 1 ? '/day' : "/{$num}days";
+            $frequency_sms = $num === 1 ? 'daily' : "every {$num} days";
         } elseif ($unit === 'week') {
             $frequency_display = $num === 1 ? 'Weekly' : "Every {$num} weeks";
-            $frequency_short = $num === 1 ? '/wk' : "/{$num}wks";
+            $frequency_sms = $num === 1 ? 'weekly' : "every {$num} weeks";
         } elseif ($unit === 'month') {
             $frequency_display = $num === 1 ? 'Monthly' : "Every {$num} months";
-            $frequency_short = $num === 1 ? '/mo' : "/{$num}mo";
+            $frequency_sms = $num === 1 ? 'monthly' : "every {$num} months";
         } elseif ($unit === 'year') {
             $frequency_display = $num === 1 ? 'Annually' : "Every {$num} years";
-            $frequency_short = $num === 1 ? '/yr' : "/{$num}yrs";
+            $frequency_sms = $num === 1 ? 'annually' : "every {$num} years";
         }
     }
     
@@ -223,7 +223,7 @@ try {
                     [
                         'name' => $firstName,
                         'amount' => $amount,
-                        'frequency' => $frequency_short,
+                        'frequency' => $frequency_sms,
                         'total_payments' => $summary->total_payments,
                         'start_date' => $startDate,
                         'payment_method' => $paymentMethodText,
@@ -653,7 +653,7 @@ $page_title = 'Payment Plan Summary';
                 
                 $previewMessage = str_replace(
                     ['{name}', '{amount}', '{frequency}', '{total_payments}', '{start_date}', '{payment_method}', '{portal_link}'],
-                    [$firstName, $amount, $frequency_short, $summary->total_payments, $startDate, $paymentMethodText, 'https://bit.ly/4p0J1gf'],
+                    [$firstName, $amount, $frequency_sms, $summary->total_payments, $startDate, $paymentMethodText, 'https://bit.ly/4p0J1gf'],
                     $sms_template['message_en']
                 );
                 // Remove unused variables
