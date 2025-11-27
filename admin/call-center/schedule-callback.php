@@ -822,18 +822,42 @@ $page_title = 'Schedule Callback';
                     // Check if SMS is available
                     $sms_available = false;
                     $sms_template = null;
+                    $sms_debug_error = null;
                     try {
                         $sms_helper = new SMSHelper($db);
                         $sms_available = $sms_helper->isReady();
+                        $sms_debug_error = implode(', ', $sms_helper->getErrors());
                         
                         // Check for missed_call template
                         if ($sms_available) {
                             $sms_template = $sms_helper->getTemplate('missed_call');
                         }
                     } catch (Throwable $e) {
-                        // SMS not available
+                        $sms_debug_error = $e->getMessage();
                     }
                     ?>
+                    
+                    <?php if (!$sms_available): ?>
+                    <!-- SMS Not Available - Debug Info -->
+                    <div class="form-section" style="background: #fef3c7; border: 1px solid #f59e0b;">
+                        <div class="form-section-title" style="color: #92400e;">
+                            <div>
+                                <i class="fas fa-exclamation-triangle me-2"></i>SMS Not Available
+                            </div>
+                        </div>
+                        <p class="mb-2 text-muted small">
+                            <?php if ($sms_debug_error): ?>
+                                <strong>Reason:</strong> <?php echo htmlspecialchars($sms_debug_error); ?>
+                            <?php else: ?>
+                                SMS provider not configured or tables missing.
+                            <?php endif; ?>
+                        </p>
+                        <a href="../donor-management/sms/settings.php" class="btn btn-sm btn-warning">
+                            <i class="fas fa-cog me-1"></i>Configure SMS
+                        </a>
+                    </div>
+                    <?php endif; ?>
+                    
                     <?php if ($sms_available): ?>
                     <div class="form-section" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #0ea5e9;">
                         <div class="form-section-title" style="color: #0284c7;">
