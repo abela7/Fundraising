@@ -196,20 +196,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $stmt->execute();
                 $payment_id = $db->insert_id;
                 
-                // Update donor status to 'paying' when payment is submitted
-                // Only update if donor has a pledge and balance > 0
-                $update_status = $db->prepare("
-                    UPDATE donors 
-                    SET payment_status = CASE
-                        WHEN total_pledged > 0 AND balance > 0.01 THEN 'paying'
-                        ELSE payment_status
-                    END,
-                    updated_at = NOW()
-                    WHERE id = ? AND (total_pledged > 0 AND balance > 0.01)
-                ");
-                $update_status->bind_param('i', $donor['id']);
-                $update_status->execute();
-                $update_status->close();
+                // NOTE: Donor status is NOT updated here because payment is still 'pending'
+                // Status changes to 'paying' when admin APPROVES the payment
+                // See: admin/donations/approve-pledge-payment.php -> FinancialCalculator::recalculateDonorTotalsAfterApprove()
                 
                 // Audit Log
                 $audit = json_encode([
