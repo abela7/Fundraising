@@ -1001,15 +1001,20 @@ $page_title = 'Live Call';
                                                 <!-- Config Section -->
                                                 <div class="config-section">
                                                     <div class="mb-3">
-                                                        <label class="form-label small fw-bold text-muted">Start Date</label>
+                                                        <label class="form-label small fw-bold text-muted">
+                                                            <i class="fas fa-calendar-day me-1 text-primary"></i>First Payment Date
+                                                        </label>
                                                         <input type="date" class="form-control form-control-sm" name="start_date" id="startDate" 
                                                                value="<?php echo date('Y-m-d'); ?>" min="<?php echo date('Y-m-d'); ?>" onchange="calculatePreview()">
+                                                        <small class="text-muted">When should the first installment be due?</small>
                                                     </div>
                                                     
                                                     <!-- Custom Plan Options (Visible only for custom) -->
                                                     <div id="customPlanOptions" style="display: none;">
                                                         <div class="mb-3">
-                                                            <label class="form-label small fw-bold text-muted">Repeat Every</label>
+                                                            <label class="form-label small fw-bold text-muted">
+                                                                <i class="fas fa-redo me-1 text-info"></i>Repeat Every
+                                                            </label>
                                                             <div class="input-group input-group-sm">
                                                                 <input type="number" class="form-control" name="custom_frequency_number" id="customFreqNumber" value="1" min="1" onchange="calculatePreview()">
                                                                 <select class="form-select" name="custom_frequency_unit" id="customFreqUnit" onchange="calculatePreview()">
@@ -1022,7 +1027,9 @@ $page_title = 'Live Call';
                                                         </div>
                                                         
                                                         <div class="mb-3">
-                                                            <label class="form-label small fw-bold text-muted">Number of Payments</label>
+                                                            <label class="form-label small fw-bold text-muted">
+                                                                <i class="fas fa-hashtag me-1 text-success"></i>Number of Payments
+                                                            </label>
                                                             <div class="input-group input-group-sm">
                                                                 <button type="button" class="btn btn-outline-secondary" onclick="adjustPayments(-1)">-</button>
                                                                 <input type="number" class="form-control text-center" name="custom_payments" id="customPayments" 
@@ -1032,22 +1039,25 @@ $page_title = 'Live Call';
                                                         </div>
                                                         
                                                         <div class="mb-3">
-                                                            <label class="form-label small fw-bold text-muted">Payment Day</label>
+                                                            <label class="form-label small fw-bold text-muted">
+                                                                <i class="fas fa-calendar-alt me-1 text-warning"></i>Recurring Payment Day
+                                                            </label>
                                                             <input type="number" class="form-control form-control-sm" name="custom_payment_day" id="customPaymentDay" 
-                                                                   value="1" min="1" max="28" placeholder="Day of Month" onchange="calculatePreview()">
+                                                                   value="1" min="1" max="28" placeholder="Day of Month (1-28)" onchange="calculatePreview()">
+                                                            <small class="text-muted">Day of month for subsequent payments</small>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 
                                                 <!-- Preview Section -->
                                                 <div class="preview-section">
-                                                    <div class="summary-row">
-                                                        <label>Installments</label>
-                                                        <span id="previewCount">-</span>
+                                                    <div class="summary-row" style="background: #e0f2fe; margin: -1rem -1rem 0.75rem -1rem; padding: 0.75rem 1rem; border-radius: 8px 8px 0 0;">
+                                                        <label><i class="fas fa-calendar-check me-1 text-primary"></i><strong>1st Installment</strong></label>
+                                                        <span class="text-primary fw-bold" id="previewFirstDate">-</span>
                                                     </div>
                                                     <div class="summary-row">
-                                                        <label>First Payment</label>
-                                                        <span id="previewFirstDate">-</span>
+                                                        <label>Total Installments</label>
+                                                        <span id="previewCount">-</span>
                                                     </div>
                                                     <div class="summary-row">
                                                         <label>Last Payment</label>
@@ -1105,6 +1115,13 @@ $page_title = 'Live Call';
                                         <i class="fas fa-check-circle text-success me-2"></i>
                                         Payment Plan Summary
                                     </div>
+                                    
+                                    <!-- First Payment Highlight -->
+                                    <div class="text-center mb-3 p-3" style="background: linear-gradient(135deg, #0a6286 0%, #0d7fa6 100%); border-radius: 10px; color: white;">
+                                        <small class="d-block mb-1 opacity-75">FIRST PAYMENT DUE</small>
+                                        <div class="fs-4 fw-bold" id="confStart">-</div>
+                                    </div>
+                                    
                                     <div class="confirmation-grid">
                                         <div class="conf-item">
                                             <label>Total Amount</label>
@@ -1123,12 +1140,12 @@ $page_title = 'Live Call';
                                             <div id="confCount">-</div>
                                         </div>
                                         <div class="conf-item">
-                                            <label>Start Date</label>
-                                            <div id="confStart">-</div>
+                                            <label>Last Payment</label>
+                                            <div id="confEnd">-</div>
                                         </div>
                                         <div class="conf-item">
-                                            <label>End Date</label>
-                                            <div id="confEnd">-</div>
+                                            <label>Payment Day</label>
+                                            <div id="confPaymentDay">-</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1718,6 +1735,8 @@ $page_title = 'Live Call';
         
         if (id === 'custom') {
             customOptions.style.display = 'block';
+            // Auto-set the recurring payment day from the start date
+            syncPaymentDayFromStartDate();
             // Initial calc for custom
             calculatePreview();
         } else {
@@ -1733,6 +1752,33 @@ $page_title = 'Live Call';
             summaryBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
+    
+    // Auto-sync recurring payment day from start date
+    function syncPaymentDayFromStartDate() {
+        const startDateInput = document.getElementById('startDate');
+        const paymentDayInput = document.getElementById('customPaymentDay');
+        
+        if (startDateInput && startDateInput.value && paymentDayInput) {
+            const startDate = new Date(startDateInput.value);
+            let day = startDate.getDate();
+            // Cap at 28 to avoid month-end issues
+            if (day > 28) day = 28;
+            paymentDayInput.value = day;
+        }
+    }
+    
+    // Listen for start date changes to sync payment day
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateInput = document.getElementById('startDate');
+        if (startDateInput) {
+            startDateInput.addEventListener('change', function() {
+                // Only sync if custom plan is selected
+                if (document.getElementById('selectedPlanId').value === 'custom') {
+                    syncPaymentDayFromStartDate();
+                }
+            });
+        }
+    });
     
     function adjustPayments(delta) {
         const input = document.getElementById('customPayments');
@@ -1821,6 +1867,12 @@ $page_title = 'Live Call';
         document.getElementById('confCount').textContent = planDetails.count;
         document.getElementById('confStart').textContent = planDetails.start;
         document.getElementById('confEnd').textContent = planDetails.end;
+        
+        // Get payment day
+        const paymentDayInput = document.getElementById('customPaymentDay');
+        const paymentDay = paymentDayInput ? paymentDayInput.value : '';
+        const paymentDayText = paymentDay ? 'Day ' + paymentDay + ' of each month' : 'Same as start date';
+        document.getElementById('confPaymentDay').textContent = paymentDayText;
         
         // Update text
         document.getElementById('confTextAmount').textContent = '£' + planDetails.amount.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
