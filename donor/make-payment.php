@@ -196,6 +196,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $stmt->execute();
                 $payment_id = $db->insert_id;
                 
+                // Update donor status to 'paying' when payment is submitted
+                // Only update if donor has a pledge and balance > 0
+                $update_status = $db->prepare("
+                    UPDATE donors 
+                    SET payment_status = CASE
+                        WHEN total_pledged > 0 AND balance > 0.01 THEN 'paying'
+                        ELSE payment_status
+                    END,
+                    updated_at = NOW()
+                    WHERE id = ? AND (total_pledged > 0 AND balance > 0.01)
+                ");
+                $update_status->bind_param('i', $donor['id']);
+                $update_status->execute();
+                $update_status->close();
+                
                 // Audit Log
                 $audit = json_encode([
                     'payment_id' => $payment_id, 'amount' => $payment_amount, 'method' => $payment_method,
