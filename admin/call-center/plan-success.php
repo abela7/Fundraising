@@ -2,7 +2,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../services/SMSHelper.php';
 require_login();
 
 // Set timezone
@@ -140,19 +142,118 @@ try {
     
     // Format frequency
     $frequency_display = 'One-time';
+    $frequency_short = '';
     if ($summary->plan_frequency_unit) {
         $unit = $summary->plan_frequency_unit;
         $num = (int)($summary->plan_frequency_number ?? 1);
         
         if ($unit === 'day') {
             $frequency_display = $num === 1 ? 'Daily' : "Every {$num} days";
+            $frequency_short = $num === 1 ? '/day' : "/{$num}days";
         } elseif ($unit === 'week') {
             $frequency_display = $num === 1 ? 'Weekly' : "Every {$num} weeks";
+            $frequency_short = $num === 1 ? '/wk' : "/{$num}wks";
         } elseif ($unit === 'month') {
             $frequency_display = $num === 1 ? 'Monthly' : "Every {$num} months";
+            $frequency_short = $num === 1 ? '/mo' : "/{$num}mo";
         } elseif ($unit === 'year') {
             $frequency_display = $num === 1 ? 'Annually' : "Every {$num} years";
+            $frequency_short = $num === 1 ? '/yr' : "/{$num}yrs";
         }
+    }
+    
+    // Get representative name if cash payment
+    $representative_name = null;
+    if ($summary->payment_method === 'cash') {
+        // Check if donor has a representative
+        $rep_query = $db->query("
+            SELECT u.name 
+            FROM donors d 
+            JOIN users u ON d.representative_id = u.id 
+            WHERE d.id = {$donor_id}
+        ");
+        if ($rep_query && $rep_row = $rep_query->fetch_assoc()) {
+            $representative_name = $rep_row['name'];
+        }
+    }
+    
+    // SMS System
+    $sms_status = $_GET['sms'] ?? null;
+    $sms_error = isset($_GET['sms_error']) ? urldecode($_GET['sms_error']) : null;
+    
+    // Check if SMS is available
+    $sms_available = false;
+    $sms_template = null;
+    try {
+        $sms_helper = new SMSHelper($db);
+        $sms_available = $sms_helper->isReady();
+        if ($sms_available) {
+            $sms_template = $sms_helper->getTemplate('payment_plan_created');
+        }
+    } catch (Throwable $e) {
+        // SMS not available
+    }
+    
+    // Helper function to get first name
+    function getFirstName(string $fullName): string {
+        $parts = explode(' ', trim($fullName));
+        return $parts[0] ?? $fullName;
+    }
+    
+    // Handle SMS send request
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_sms'])) {
+        verify_csrf();
+        
+        try {
+            if ($sms_available && $sms_template) {
+                $firstName = getFirstName($summary->donor_name);
+                $amount = '£' . number_format((float)$summary->plan_monthly_amount, 0);
+                $startDate = date('M j', strtotime($summary->plan_start_date));
+                
+                // Build payment method text
+                $paymentMethodText = ucfirst(str_replace('_', ' ', $summary->payment_method ?? 'bank transfer'));
+                if ($summary->payment_method === 'cash' && $representative_name) {
+                    $repFirstName = getFirstName($representative_name);
+                    $paymentMethodText = "Cash (Rep: {$repFirstName})";
+                }
+                
+                $result = $sms_helper->sendFromTemplate(
+                    'payment_plan_created',
+                    $donor_id,
+                    [
+                        'name' => $firstName,
+                        'amount' => $amount,
+                        'frequency' => $frequency_short,
+                        'total_payments' => $summary->total_payments,
+                        'start_date' => $startDate,
+                        'payment_method' => $paymentMethodText,
+                        'representative' => $representative_name ? getFirstName($representative_name) : '',
+                        'portal_link' => 'https://bit.ly/4p0J1gf'
+                    ],
+                    'call_center',
+                    false,  // queue = false
+                    true    // forceImmediate = true
+                );
+                
+                if ($result['success']) {
+                    $sms_status = 'sent';
+                } else {
+                    $sms_status = 'failed';
+                    $sms_error = $result['error'] ?? 'Unknown error';
+                }
+            }
+        } catch (Throwable $e) {
+            $sms_status = 'failed';
+            $sms_error = $e->getMessage();
+        }
+        
+        // Redirect to prevent form resubmission
+        $redirect = "plan-success.php?plan_id=$plan_id&donor_id=$donor_id&sms=$sms_status";
+        if ($sms_error) {
+            $redirect .= '&sms_error=' . urlencode($sms_error);
+        }
+        header("Location: $redirect");
+        exit;
     }
     
 } catch (Exception $e) {
@@ -298,6 +399,38 @@ $page_title = 'Payment Plan Summary';
         .action-buttons .btn {
             flex: 1;
             min-width: 150px;
+        }
+        
+        .sms-option-card {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 2px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        
+        .sms-option-header {
+            color: #0284c7;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .sms-preview {
+            background: white;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.9375rem;
+            color: #334155;
+            line-height: 1.6;
+        }
+        
+        .sms-meta {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.75rem;
+            font-size: 0.8125rem;
+            color: #64748b;
+            flex-wrap: wrap;
         }
         
         @media (max-width: 768px) {
@@ -486,6 +619,80 @@ $page_title = 'Payment Plan Summary';
                         <?php endif; ?>
                     </div>
                 </div>
+                
+                <!-- SMS Notification Section -->
+                <?php if ($sms_status === 'sent'): ?>
+                <div class="alert alert-success d-flex align-items-center mb-4">
+                    <i class="fas fa-check-circle me-3 fa-lg"></i>
+                    <div>
+                        <strong>SMS Confirmation Sent!</strong><br>
+                        <small class="text-muted">The donor has received their payment plan summary.</small>
+                    </div>
+                </div>
+                <?php elseif ($sms_status === 'failed'): ?>
+                <div class="alert alert-warning d-flex align-items-center mb-4">
+                    <i class="fas fa-exclamation-triangle me-3 fa-lg"></i>
+                    <div>
+                        <strong>SMS Failed to Send</strong><br>
+                        <small><?php echo htmlspecialchars($sms_error ?? 'Unknown error'); ?></small>
+                    </div>
+                </div>
+                <?php elseif ($sms_available && $sms_template && !$sms_status): ?>
+                <!-- SMS Option Card -->
+                <?php
+                $firstName = getFirstName($summary->donor_name);
+                $amount = '£' . number_format((float)$summary->plan_monthly_amount, 0);
+                $startDate = date('M j', strtotime($summary->plan_start_date));
+                
+                // Build payment method text for preview
+                $paymentMethodText = ucfirst(str_replace('_', ' ', $summary->payment_method ?? 'bank transfer'));
+                if ($summary->payment_method === 'cash' && $representative_name) {
+                    $repFirstName = getFirstName($representative_name);
+                    $paymentMethodText = "Cash (Rep: {$repFirstName})";
+                }
+                
+                $previewMessage = str_replace(
+                    ['{name}', '{amount}', '{frequency}', '{total_payments}', '{start_date}', '{payment_method}', '{portal_link}'],
+                    [$firstName, $amount, $frequency_short, $summary->total_payments, $startDate, $paymentMethodText, 'https://bit.ly/4p0J1gf'],
+                    $sms_template['message_en']
+                );
+                // Remove unused variables
+                $previewMessage = preg_replace('/\{[a-z_]+\}/', '', $previewMessage);
+                $previewMessage = trim($previewMessage);
+                ?>
+                <div class="sms-option-card mb-4">
+                    <div class="sms-option-header">
+                        <i class="fas fa-sms me-2"></i>
+                        <strong>Send Confirmation SMS?</strong>
+                        <span class="badge bg-success ms-2">Recommended</span>
+                    </div>
+                    <div class="sms-preview">
+                        <?php echo htmlspecialchars($previewMessage); ?>
+                    </div>
+                    <div class="sms-meta">
+                        <span><i class="fas fa-ruler me-1"></i><?php echo strlen($previewMessage); ?> chars</span>
+                        <span><i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($summary->donor_phone); ?></span>
+                        <?php if (strlen($previewMessage) > 160): ?>
+                        <span class="text-warning"><i class="fas fa-layer-group me-1"></i><?php echo ceil(strlen($previewMessage) / 153); ?> segments</span>
+                        <?php endif; ?>
+                    </div>
+                    <form method="POST" class="mt-3">
+                        <?php echo csrf_input(); ?>
+                        <input type="hidden" name="send_sms" value="1">
+                        <button type="submit" class="btn btn-info w-100">
+                            <i class="fas fa-paper-plane me-2"></i>Send Plan Confirmation SMS
+                        </button>
+                    </form>
+                </div>
+                <?php elseif ($sms_available && !$sms_template && !$sms_status): ?>
+                <!-- Template Missing Warning -->
+                <div class="alert alert-warning mb-4">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>SMS Template Not Found!</strong><br>
+                    <small>Please create a template with key <code>payment_plan_created</code> in 
+                    <a href="../donor-management/sms/templates.php?action=new" target="_blank">SMS Templates</a></small>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
