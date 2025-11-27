@@ -51,11 +51,23 @@ try {
     $stmt->close();
     
     if (!$schedule) {
-        // No schedule for this day - use 24-hour availability
+        // No schedule for this day - use default calling hours (7am - 9pm)
         $schedule = (object)[
-            'start_time' => '00:00:00',
-            'end_time' => '23:59:59'
+            'start_time' => '07:00:00',
+            'end_time' => '21:00:00'
         ];
+    } else {
+        // Enforce calling hours limits even if agent has different schedule
+        // Never earlier than 7am, never later than 9pm
+        $min_start = '07:00:00';
+        $max_end = '21:00:00';
+        
+        if ($schedule->start_time < $min_start) {
+            $schedule->start_time = $min_start;
+        }
+        if ($schedule->end_time > $max_end) {
+            $schedule->end_time = $max_end;
+        }
     }
     
     // Get slot duration from config

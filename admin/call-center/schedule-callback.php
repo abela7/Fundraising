@@ -744,12 +744,12 @@ $page_title = 'Schedule Callback';
                                id="appointment_date" 
                                name="appointment_date" 
                                min="<?php echo date('Y-m-d'); ?>" 
-                               max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>"
+                               max="<?php echo date('Y-m-d', strtotime('+2 years')); ?>"
                                required
                                style="position: absolute; opacity: 0; pointer-events: none;">
                         
                         <small class="text-muted d-block mt-2">
-                            <i class="fas fa-info-circle me-1"></i>Select a date within the next 30 days
+                            <i class="fas fa-info-circle me-1"></i>Select any future date
                         </small>
                     </div>
                     
@@ -859,8 +859,9 @@ $page_title = 'Schedule Callback';
     const minDate = new Date();
     minDate.setHours(0, 0, 0, 0);
     
+    // Allow scheduling up to 2 years in the future
     const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 30);
+    maxDate.setFullYear(maxDate.getFullYear() + 2);
     maxDate.setHours(0, 0, 0, 0);
     
     // Render calendar
