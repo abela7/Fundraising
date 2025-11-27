@@ -45,6 +45,10 @@ try {
         exit;
     }
     
+    // Check SMS status
+    $sms_status = $_GET['sms'] ?? null;
+    $sms_error = isset($_GET['sms_error']) ? urldecode($_GET['sms_error']) : null;
+    
 } catch (Exception $e) {
     error_log("Callback Scheduled Error: " . $e->getMessage());
     header('Location: ../donor-management/donors.php?error=1');
@@ -222,9 +226,27 @@ $page_title = 'Callback Scheduled';
                     </div>
                     <div class="success-title">Appointment Booked!</div>
                     <div class="success-desc">
-                        A 30-minute callback slot has been reserved for this donor.
+                        A <?php echo (int)$appointment->slot_duration_minutes; ?>-minute callback slot has been reserved for this donor.
                     </div>
                 </div>
+                
+                <?php if ($sms_status === 'sent'): ?>
+                <div class="alert alert-success d-flex align-items-center mb-3">
+                    <i class="fas fa-check-circle me-3 fa-lg"></i>
+                    <div>
+                        <strong>SMS Sent Successfully!</strong><br>
+                        <small class="text-muted">The donor has been notified about the missed call.</small>
+                    </div>
+                </div>
+                <?php elseif ($sms_status === 'failed'): ?>
+                <div class="alert alert-warning d-flex align-items-center mb-3">
+                    <i class="fas fa-exclamation-triangle me-3 fa-lg"></i>
+                    <div>
+                        <strong>SMS Failed to Send</strong><br>
+                        <small><?php echo htmlspecialchars($sms_error ?? 'Unknown error'); ?></small>
+                    </div>
+                </div>
+                <?php endif; ?>
                 
                 <div class="appointment-details">
                     <div class="appointment-details-title">
@@ -257,8 +279,11 @@ $page_title = 'Callback Scheduled';
                 </div>
                 
                 <div class="action-buttons">
-                    <a href="../donor-management/donors.php" class="btn btn-primary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    <a href="index.php" class="btn btn-primary">
+                        <i class="fas fa-phone me-2"></i>Continue Calling
+                    </a>
+                    <a href="../donor-management/donors.php" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>Donor List
                     </a>
                 </div>
             </div>

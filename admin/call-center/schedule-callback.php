@@ -8,6 +8,7 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../services/SMSHelper.php';
 
 // Debug helper function
 function debug_log($message) {
@@ -317,8 +318,44 @@ date_default_timezone_set('Europe/London');
                 // Commit transaction
                 $db->commit();
                 
+                // Handle SMS sending if requested
+                $send_sms = isset($_POST['send_sms']) && $_POST['send_sms'] === 'on';
+                $sms_sent = false;
+                $sms_error = null;
+                
+                if ($send_sms) {
+                    try {
+                        $sms_helper = new SMSHelper($db);
+                        if ($sms_helper->isReady()) {
+                            $result = $sms_helper->sendFromTemplate(
+                                'missed_call',
+                                $donor_id,
+                                [
+                                    'callback_date' => date('l, M j', strtotime($appointment_date)),
+                                    'callback_time' => date('g:i A', strtotime($appointment_time)),
+                                    'agent_name' => $user_name
+                                ],
+                                'call_center'
+                            );
+                            $sms_sent = $result['success'] ?? false;
+                            if (!$sms_sent) {
+                                $sms_error = $result['error'] ?? 'Unknown error';
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        $sms_error = $e->getMessage();
+                    }
+                }
+                
                 // Redirect to success page
-                header('Location: callback-scheduled.php?appointment_id=' . $appointment_id . '&donor_id=' . $donor_id);
+                $redirect_url = 'callback-scheduled.php?appointment_id=' . $appointment_id . '&donor_id=' . $donor_id;
+                if ($send_sms) {
+                    $redirect_url .= '&sms=' . ($sms_sent ? 'sent' : 'failed');
+                    if ($sms_error) {
+                        $redirect_url .= '&sms_error=' . urlencode($sms_error);
+                    }
+                }
+                header('Location: ' . $redirect_url);
                 exit;
                 
             } catch (Throwable $e) {
@@ -779,6 +816,74 @@ $page_title = 'Schedule Callback';
                                   rows="3" 
                                   placeholder="Add any notes about this callback..."></textarea>
                     </div>
+                    
+                    <!-- SMS Notification Option -->
+                    <?php 
+                    // Check if SMS is available
+                    $sms_available = false;
+                    $sms_template = null;
+                    try {
+                        $sms_helper = new SMSHelper($db);
+                        $sms_available = $sms_helper->isReady();
+                        
+                        // Check for missed_call template
+                        if ($sms_available) {
+                            $sms_template = $sms_helper->getTemplate('missed_call');
+                        }
+                    } catch (Throwable $e) {
+                        // SMS not available
+                    }
+                    ?>
+                    <?php if ($sms_available): ?>
+                    <div class="form-section" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #0ea5e9;">
+                        <div class="form-section-title" style="color: #0284c7;">
+                            <div>
+                                <i class="fas fa-sms me-2"></i>Send SMS Notification
+                            </div>
+                            <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;">Optional</small>
+                        </div>
+                        
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="send_sms" id="send_sms" 
+                                   style="width: 2.5em; height: 1.25em;" 
+                                   <?php echo ($status === 'not_picked_up' || $status === 'busy') ? 'checked' : ''; ?>>
+                            <label class="form-check-label fw-semibold" for="send_sms">
+                                Send SMS to donor about missed call
+                            </label>
+                        </div>
+                        
+                        <?php if ($sms_template): ?>
+                        <div id="sms-preview" class="bg-white rounded p-3 border" style="font-size: 0.875rem;">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-comment-dots text-primary me-2"></i>
+                                <strong>Message Preview:</strong>
+                            </div>
+                            <div class="text-muted" style="white-space: pre-wrap;">
+                                <?php 
+                                $preview_msg = $sms_template['message_en'];
+                                $preview_msg = str_replace('{name}', $donor->name ?? 'Donor', $preview_msg);
+                                $preview_msg = str_replace('{callback_date}', '[Selected Date]', $preview_msg);
+                                $preview_msg = str_replace('{callback_time}', '[Selected Time]', $preview_msg);
+                                echo htmlspecialchars($preview_msg); 
+                                ?>
+                            </div>
+                            <div class="mt-2 text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <?php echo strlen($sms_template['message_en']); ?> characters · 
+                                <a href="../donor-management/sms/templates.php?edit=<?php echo $sms_template['id']; ?>" 
+                                   target="_blank" class="text-decoration-none">Edit template</a>
+                            </div>
+                        </div>
+                        <?php else: ?>
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Template not found!</strong> Please create a template with key 
+                            <code>missed_call</code> in 
+                            <a href="../donor-management/sms/templates.php?action=new" target="_blank">SMS Templates</a>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
                     
                     <div class="action-buttons">
                         <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?><?php echo $session_id > 0 ? '&session_id=' . $session_id : ''; ?>" 

@@ -463,8 +463,10 @@ class VoodooSMSService
             ");
             
             if ($stmt) {
+                // Types: i=donor_id, s=phone, i=template_id, s=message, s=language, 
+                //        i=provider_id, s=message_id, s=status, s=error, i=segments, d=cost, s=source
                 $stmt->bind_param(
-                    'isissississs',
+                    'isissiissids',
                     $donorId,
                     $phoneNumber,
                     $templateId,
