@@ -2,7 +2,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../services/SMSHelper.php';
 require_login();
 
 // Set timezone to London
@@ -45,9 +47,70 @@ try {
         exit;
     }
     
-    // Check SMS status
+    // Check SMS status from GET (after redirect) or handle POST
     $sms_status = $_GET['sms'] ?? null;
     $sms_error = isset($_GET['sms_error']) ? urldecode($_GET['sms_error']) : null;
+    
+    // Check if SMS is available
+    $sms_available = false;
+    $sms_template = null;
+    try {
+        $sms_helper = new SMSHelper($db);
+        $sms_available = $sms_helper->isReady();
+        if ($sms_available) {
+            $sms_template = $sms_helper->getTemplate('missed_call');
+        }
+    } catch (Throwable $e) {
+        // SMS not available
+    }
+    
+    // Helper function to get first name
+    function getFirstName(string $fullName): string {
+        $parts = explode(' ', trim($fullName));
+        return $parts[0] ?? $fullName;
+    }
+    
+    // Handle SMS send request
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_sms'])) {
+        verify_csrf();
+        
+        try {
+            if ($sms_available && $sms_template) {
+                $firstName = getFirstName($appointment->donor_name);
+                $callbackDate = date('D, M j', strtotime($appointment->appointment_date));
+                $callbackTime = date('g:i A', strtotime($appointment->appointment_time));
+                
+                $result = $sms_helper->sendFromTemplate(
+                    'missed_call',
+                    $donor_id,
+                    [
+                        'name' => $firstName,
+                        'callback_date' => $callbackDate,
+                        'callback_time' => $callbackTime
+                    ],
+                    'call_center'
+                );
+                
+                if ($result['success']) {
+                    $sms_status = 'sent';
+                } else {
+                    $sms_status = 'failed';
+                    $sms_error = $result['error'] ?? 'Unknown error';
+                }
+            }
+        } catch (Throwable $e) {
+            $sms_status = 'failed';
+            $sms_error = $e->getMessage();
+        }
+        
+        // Redirect to prevent form resubmission
+        $redirect = "callback-scheduled.php?appointment_id=$appointment_id&donor_id=$donor_id&sms=$sms_status";
+        if ($sms_error) {
+            $redirect .= '&sms_error=' . urlencode($sms_error);
+        }
+        header("Location: $redirect");
+        exit;
+    }
     
 } catch (Exception $e) {
     error_log("Callback Scheduled Error: " . $e->getMessage());
@@ -182,6 +245,37 @@ $page_title = 'Callback Scheduled';
             font-weight: 600;
         }
         
+        .sms-option-card {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        
+        .sms-option-header {
+            color: #0284c7;
+            font-size: 0.9375rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .sms-preview {
+            background: white;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            color: #334155;
+            line-height: 1.5;
+        }
+        
+        .sms-meta {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        
         @media (max-width: 767px) {
             .callback-scheduled-page {
                 padding: 0.5rem;
@@ -235,7 +329,7 @@ $page_title = 'Callback Scheduled';
                     <i class="fas fa-check-circle me-3 fa-lg"></i>
                     <div>
                         <strong>SMS Sent Successfully!</strong><br>
-                        <small class="text-muted">The donor has been notified about the missed call.</small>
+                        <small class="text-muted">The donor has been notified about the callback.</small>
                     </div>
                 </div>
                 <?php elseif ($sms_status === 'failed'): ?>
@@ -245,6 +339,38 @@ $page_title = 'Callback Scheduled';
                         <strong>SMS Failed to Send</strong><br>
                         <small><?php echo htmlspecialchars($sms_error ?? 'Unknown error'); ?></small>
                     </div>
+                </div>
+                <?php elseif ($sms_available && $sms_template && !$sms_status): ?>
+                <!-- SMS Option Card -->
+                <?php
+                $firstName = getFirstName($appointment->donor_name);
+                $callbackDate = date('D, M j', strtotime($appointment->appointment_date));
+                $callbackTime = date('g:i A', strtotime($appointment->appointment_time));
+                $previewMessage = str_replace(
+                    ['{name}', '{callback_date}', '{callback_time}'],
+                    [$firstName, $callbackDate, $callbackTime],
+                    $sms_template['message_en']
+                );
+                ?>
+                <div class="sms-option-card mb-3">
+                    <div class="sms-option-header">
+                        <i class="fas fa-sms me-2"></i>
+                        <strong>Send SMS Notification?</strong>
+                    </div>
+                    <div class="sms-preview">
+                        <?php echo htmlspecialchars($previewMessage); ?>
+                    </div>
+                    <div class="sms-meta">
+                        <span><i class="fas fa-ruler me-1"></i><?php echo strlen($previewMessage); ?> chars</span>
+                        <span><i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($appointment->donor_phone); ?></span>
+                    </div>
+                    <form method="POST" class="mt-3">
+                        <?php echo csrf_input(); ?>
+                        <input type="hidden" name="send_sms" value="1">
+                        <button type="submit" class="btn btn-info w-100">
+                            <i class="fas fa-paper-plane me-2"></i>Send SMS Now
+                        </button>
+                    </form>
                 </div>
                 <?php endif; ?>
                 
