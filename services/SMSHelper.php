@@ -117,6 +117,7 @@ class SMSHelper
      * @param array $variables Variables to replace in template
      * @param string $sourceType Source of the SMS (e.g., 'call_center', 'cron_reminder')
      * @param bool $queue If true, queue for later processing; if false, send immediately
+     * @param bool $forceImmediate If true, bypass quiet hours and send NOW (for urgent/manual sends)
      * @return array Result with 'success', 'message', 'error'
      */
     public function sendFromTemplate(
@@ -124,7 +125,8 @@ class SMSHelper
         int $donorId, 
         array $variables = [], 
         string $sourceType = 'system',
-        bool $queue = false
+        bool $queue = false,
+        bool $forceImmediate = false
     ): array {
         // Get template
         $template = $this->getTemplate($templateKey);
@@ -159,7 +161,7 @@ class SMSHelper
         if ($queue) {
             return $this->queueSMS($donorId, $donor['phone'], $message, $template['id'], $sourceType);
         } else {
-            return $this->sendSMS($donorId, $donor['phone'], $message, $template['id'], $sourceType);
+            return $this->sendSMSNow($donorId, $donor['phone'], $message, $template['id'], $sourceType, $forceImmediate);
         }
     }
     
@@ -263,21 +265,24 @@ class SMSHelper
     }
     
     /**
-     * Send SMS immediately
+     * Send SMS immediately (with optional quiet hours bypass)
+     * 
+     * @param bool $forceImmediate If true, send even during quiet hours (for manual/urgent sends)
      */
-    private function sendSMS(
+    private function sendSMSNow(
         ?int $donorId,
         string $phoneNumber,
         string $message,
         ?int $templateId,
-        string $sourceType
+        string $sourceType,
+        bool $forceImmediate = false
     ): array {
         if (!$this->isReady()) {
             return $this->error('SMS system not ready. ' . implode('; ', $this->errors));
         }
         
-        // Check quiet hours
-        if ($this->isQuietHours()) {
+        // Check quiet hours - but skip if forceImmediate is true
+        if (!$forceImmediate && $this->isQuietHours()) {
             // Queue instead of sending
             return $this->queueSMS($donorId, $phoneNumber, $message, $templateId, $sourceType, 5, null);
         }
@@ -292,7 +297,7 @@ class SMSHelper
             return $this->error('Phone number is blacklisted');
         }
         
-        // Send via provider
+        // Send via provider - DIRECT send, no queue!
         $result = $this->provider->send($phoneNumber, $message, [
             'donor_id' => $donorId,
             'template_id' => $templateId,

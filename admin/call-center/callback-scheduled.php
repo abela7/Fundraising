@@ -80,6 +80,7 @@ try {
                 $callbackDate = date('D, M j', strtotime($appointment->appointment_date));
                 $callbackTime = date('g:i A', strtotime($appointment->appointment_time));
                 
+                // forceImmediate = true → Send NOW, don't queue even during quiet hours
                 $result = $sms_helper->sendFromTemplate(
                     'missed_call',
                     $donor_id,
@@ -88,7 +89,9 @@ try {
                         'callback_date' => $callbackDate,
                         'callback_time' => $callbackTime
                     ],
-                    'call_center'
+                    'call_center',
+                    false,  // queue = false
+                    true    // forceImmediate = true (bypass quiet hours!)
                 );
                 
                 if ($result['success']) {
