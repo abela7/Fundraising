@@ -1868,11 +1868,26 @@ $page_title = 'Live Call';
         document.getElementById('confStart').textContent = planDetails.start;
         document.getElementById('confEnd').textContent = planDetails.end;
         
-        // Get payment day
-        const paymentDayInput = document.getElementById('customPaymentDay');
-        const paymentDay = paymentDayInput ? paymentDayInput.value : '';
-        const paymentDayText = paymentDay ? 'Day ' + paymentDay + ' of each month' : 'Same as start date';
-        document.getElementById('confPaymentDay').textContent = paymentDayText;
+        // Get payment day - only show for custom plans
+        const selectedPlanId = document.getElementById('selectedPlanId').value;
+        const confPaymentDayEl = document.getElementById('confPaymentDay');
+        
+        if (selectedPlanId === 'custom') {
+            // Custom plan: show the configured payment day
+            const paymentDayInput = document.getElementById('customPaymentDay');
+            const paymentDay = paymentDayInput ? paymentDayInput.value : '';
+            confPaymentDayEl.textContent = paymentDay ? 'Day ' + paymentDay + ' of each month' : 'Same as start date';
+        } else {
+            // Standard plan: extract day from start date
+            const startDateInput = document.getElementById('startDate');
+            if (startDateInput && startDateInput.value) {
+                const startDate = new Date(startDateInput.value);
+                const day = startDate.getDate();
+                confPaymentDayEl.textContent = 'Day ' + day + ' (from start date)';
+            } else {
+                confPaymentDayEl.textContent = 'Monthly';
+            }
+        }
         
         // Update text
         document.getElementById('confTextAmount').textContent = '£' + planDetails.amount.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
