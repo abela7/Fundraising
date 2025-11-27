@@ -31,7 +31,14 @@ try {
 }
 
 $page_title = 'SMS Templates';
-$current_user = current_user();
+$current_user = null;
+$db = null;
+
+try {
+    $current_user = current_user();
+} catch (Throwable $e) {
+    die('Error getting current user: ' . $e->getMessage());
+}
 
 try {
     $db = db();
@@ -47,93 +54,126 @@ $tables_exist = false;
 
 // Check if SMS tables exist
 try {
-    $check = $db->query("SHOW TABLES LIKE 'sms_templates'");
-    $tables_exist = $check && $check->num_rows > 0;
+    if ($db) {
+        $check = $db->query("SHOW TABLES LIKE 'sms_templates'");
+        $tables_exist = $check && $check->num_rows > 0;
+    }
 } catch (Throwable $e) {
     $error_message = 'Error checking tables: ' . $e->getMessage();
+    $tables_exist = false;
 }
 
 // Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist) {
-    verify_csrf();
-    
-    $action = $_POST['action'] ?? '';
-    
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
     try {
-        if ($action === 'create' || $action === 'update') {
-            $template_key = trim($_POST['template_key'] ?? '');
-            $name = trim($_POST['name'] ?? '');
-            $description = trim($_POST['description'] ?? '');
-            $category = $_POST['category'] ?? 'general';
-            $message_en = trim($_POST['message_en'] ?? '');
-            $message_am = trim($_POST['message_am'] ?? '');
-            $message_ti = trim($_POST['message_ti'] ?? '');
-            $variables = trim($_POST['variables'] ?? '');
-            $priority = $_POST['priority'] ?? 'normal';
-            $is_active = isset($_POST['is_active']) ? 1 : 0;
-            
-            // Validation
-            if (empty($template_key) || empty($name) || empty($message_en)) {
-                throw new Exception('Template key, name, and English message are required.');
+        verify_csrf();
+    } catch (Throwable $e) {
+        $error_message = 'CSRF verification failed: ' . $e->getMessage();
+    }
+    
+    if (!$error_message) {
+        $action = $_POST['action'] ?? '';
+        
+        try {
+            if ($action === 'create' || $action === 'update') {
+                $template_key = trim($_POST['template_key'] ?? '');
+                $name = trim($_POST['name'] ?? '');
+                $description = trim($_POST['description'] ?? '');
+                $category = $_POST['category'] ?? 'general';
+                $message_en = trim($_POST['message_en'] ?? '');
+                $message_am = trim($_POST['message_am'] ?? '');
+                $message_ti = trim($_POST['message_ti'] ?? '');
+                $variables = trim($_POST['variables'] ?? '');
+                $priority = $_POST['priority'] ?? 'normal';
+                $is_active = isset($_POST['is_active']) ? 1 : 0;
+                
+                // Validation
+                if (empty($template_key) || empty($name) || empty($message_en)) {
+                    throw new Exception('Template key, name, and English message are required.');
+                }
+                
+                // Sanitize template key
+                $template_key = preg_replace('/[^a-z0-9_]/', '', strtolower($template_key));
+                
+                if ($action === 'create') {
+                    $stmt = $db->prepare("
+                        INSERT INTO sms_templates 
+                        (template_key, name, description, category, message_en, message_am, message_ti, 
+                         variables, priority, is_active, created_by, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    ");
+                    if (!$stmt) {
+                        throw new Exception('Database error: ' . $db->error);
+                    }
+                    $stmt->bind_param('sssssssssii', 
+                        $template_key, $name, $description, $category, 
+                        $message_en, $message_am, $message_ti,
+                        $variables, $priority, $is_active, $current_user['id']
+                    );
+                    if (!$stmt->execute()) {
+                        throw new Exception('Failed to create template: ' . $stmt->error);
+                    }
+                    $stmt->close();
+                    $success_message = 'Template created successfully!';
+                } else {
+                    $template_id = (int)($_POST['template_id'] ?? 0);
+                    if ($template_id <= 0) {
+                        throw new Exception('Invalid template ID');
+                    }
+                    $stmt = $db->prepare("
+                        UPDATE sms_templates 
+                        SET template_key = ?, name = ?, description = ?, category = ?,
+                            message_en = ?, message_am = ?, message_ti = ?,
+                            variables = ?, priority = ?, is_active = ?, updated_at = NOW()
+                        WHERE id = ?
+                    ");
+                    if (!$stmt) {
+                        throw new Exception('Database error: ' . $db->error);
+                    }
+                    $stmt->bind_param('ssssssssiii', 
+                        $template_key, $name, $description, $category, 
+                        $message_en, $message_am, $message_ti,
+                        $variables, $priority, $is_active, $template_id
+                    );
+                    if (!$stmt->execute()) {
+                        throw new Exception('Failed to update template: ' . $stmt->error);
+                    }
+                    $stmt->close();
+                    $success_message = 'Template updated successfully!';
+                }
+                
+                $_SESSION['success_message'] = $success_message;
+                header('Location: templates.php');
+                exit;
             }
             
-            // Sanitize template key
-            $template_key = preg_replace('/[^a-z0-9_]/', '', strtolower($template_key));
-            
-            if ($action === 'create') {
-                $stmt = $db->prepare("
-                    INSERT INTO sms_templates 
-                    (template_key, name, description, category, message_en, message_am, message_ti, 
-                     variables, priority, is_active, created_by, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                ");
-                $stmt->bind_param('sssssssssii', 
-                    $template_key, $name, $description, $category, 
-                    $message_en, $message_am, $message_ti,
-                    $variables, $priority, $is_active, $current_user['id']
-                );
-                $stmt->execute();
-                $success_message = 'Template created successfully!';
-            } else {
-                $template_id = (int)$_POST['template_id'];
-                $stmt = $db->prepare("
-                    UPDATE sms_templates 
-                    SET template_key = ?, name = ?, description = ?, category = ?,
-                        message_en = ?, message_am = ?, message_ti = ?,
-                        variables = ?, priority = ?, is_active = ?, updated_at = NOW()
-                    WHERE id = ?
-                ");
-                $stmt->bind_param('ssssssssiii', 
-                    $template_key, $name, $description, $category, 
-                    $message_en, $message_am, $message_ti,
-                    $variables, $priority, $is_active, $template_id
-                );
-                $stmt->execute();
-                $success_message = 'Template updated successfully!';
+            if ($action === 'delete') {
+                $template_id = (int)($_POST['template_id'] ?? 0);
+                if ($template_id <= 0) {
+                    throw new Exception('Invalid template ID');
+                }
+                $stmt = $db->prepare("DELETE FROM sms_templates WHERE id = ?");
+                if (!$stmt) {
+                    throw new Exception('Database error: ' . $db->error);
+                }
+                $stmt->bind_param('i', $template_id);
+                if (!$stmt->execute()) {
+                    throw new Exception('Failed to delete template: ' . $stmt->error);
+                }
+                $stmt->close();
+                $_SESSION['success_message'] = 'Template deleted successfully!';
+                header('Location: templates.php');
+                exit;
             }
             
-            $_SESSION['success_message'] = $success_message;
-            header('Location: templates.php');
-            exit;
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
         }
-        
-        if ($action === 'delete') {
-            $template_id = (int)$_POST['template_id'];
-            $stmt = $db->prepare("DELETE FROM sms_templates WHERE id = ?");
-            $stmt->bind_param('i', $template_id);
-            $stmt->execute();
-            $_SESSION['success_message'] = 'Template deleted successfully!';
-            header('Location: templates.php');
-            exit;
-        }
-        
-    } catch (Exception $e) {
-        $error_message = $e->getMessage();
     }
 }
 
 // Get templates
-if ($tables_exist) {
+if ($tables_exist && $db) {
     try {
         $result = $db->query("
             SELECT t.*, u.name as created_by_name
@@ -147,19 +187,27 @@ if ($tables_exist) {
             }
         }
     } catch (Exception $e) {
-        $error_message = $e->getMessage();
+        $error_message = 'Error loading templates: ' . $e->getMessage();
     }
 }
 
 // Get template for editing
 $edit_template = null;
-if (isset($_GET['edit']) && $tables_exist) {
-    $edit_id = (int)$_GET['edit'];
-    $stmt = $db->prepare("SELECT * FROM sms_templates WHERE id = ?");
-    if ($stmt) {
-        $stmt->bind_param('i', $edit_id);
-        $stmt->execute();
-        $edit_template = $stmt->get_result()->fetch_assoc();
+if (isset($_GET['edit']) && $tables_exist && $db) {
+    try {
+        $edit_id = (int)$_GET['edit'];
+        if ($edit_id > 0) {
+            $stmt = $db->prepare("SELECT * FROM sms_templates WHERE id = ?");
+            if ($stmt) {
+                $stmt->bind_param('i', $edit_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $edit_template = $result ? $result->fetch_assoc() : null;
+                $stmt->close();
+            }
+        }
+    } catch (Exception $e) {
+        $error_message = 'Error loading template: ' . $e->getMessage();
     }
 }
 
@@ -237,10 +285,22 @@ $categories = [
 </head>
 <body>
 <div class="admin-wrapper">
-    <?php include '../../includes/sidebar.php'; ?>
+    <?php 
+    try {
+        include '../../includes/sidebar.php'; 
+    } catch (Throwable $e) {
+        error_log('Error loading sidebar: ' . $e->getMessage());
+    }
+    ?>
     
     <div class="admin-content">
-        <?php include '../../includes/topbar.php'; ?>
+        <?php 
+        try {
+            include '../../includes/topbar.php'; 
+        } catch (Throwable $e) {
+            error_log('Error loading topbar: ' . $e->getMessage());
+        }
+        ?>
         
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
@@ -270,6 +330,14 @@ $categories = [
                         <?php endif; ?>
                     </div>
                 </div>
+                
+                <?php if (!$tables_exist): ?>
+                    <div class="alert alert-warning alert-dismissible fade show">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>SMS Templates table not found!</strong> Please run the database setup script to create the required tables.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
                 
                 <?php if ($error_message): ?>
                     <div class="alert alert-danger alert-dismissible fade show">
@@ -347,9 +415,18 @@ $categories = [
                                     
                                     <div class="col-12">
                                         <label class="form-label fw-semibold">English Message <span class="text-danger">*</span></label>
-                                        <textarea name="message_en" class="form-control" rows="3" required
-                                                  placeholder="Hi {name}, your payment of £{amount} is due on {due_date}..."><?php echo htmlspecialchars($edit_template['message_en'] ?? ''); ?></textarea>
-                                        <div class="form-text">Use {variable} for dynamic content. Max 160 chars per segment.</div>
+                                        <textarea name="message_en" id="message_en" class="form-control" rows="3" required
+                                                  placeholder="Hi {name}, your payment of £{amount} is due on {due_date}..."
+                                                  oninput="updateCharCount()"><?php echo htmlspecialchars($edit_template['message_en'] ?? ''); ?></textarea>
+                                        <div class="form-text d-flex justify-content-between align-items-center">
+                                            <span>Use {variable} for dynamic content. Max 160 chars per segment.</span>
+                                            <span id="char-count" class="badge <?php 
+                                                $msgLen = strlen($edit_template['message_en'] ?? ''); 
+                                                echo $msgLen > 160 ? 'bg-danger' : ($msgLen > 140 ? 'bg-warning' : 'bg-success'); 
+                                            ?>">
+                                                <span id="char-count-num"><?php echo $msgLen; ?></span> / 160
+                                            </span>
+                                        </div>
                                     </div>
                                     
                                     <div class="col-md-6">
@@ -453,14 +530,20 @@ $categories = [
                                     
                                     <div class="d-flex justify-content-between align-items-center mt-3">
                                         <small class="text-muted">
-                                            Used <?php echo number_format($template['usage_count'] ?? 0); ?> times
+                                            <?php if (isset($template['usage_count'])): ?>
+                                                Used <?php echo number_format((int)$template['usage_count']); ?> times
+                                            <?php else: ?>
+                                                <span class="text-muted">No usage data</span>
+                                            <?php endif; ?>
                                         </small>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="?edit=<?php echo $template['id']; ?>" class="btn btn-outline-primary">
+                                            <a href="?edit=<?php echo (int)$template['id']; ?>" class="btn btn-outline-primary" title="Edit Template">
                                                 <i class="fas fa-edit"></i>
+                                                <span class="d-none d-md-inline ms-1">Edit</span>
                                             </a>
                                             <button type="button" class="btn btn-outline-danger" 
-                                                    onclick="confirmDelete(<?php echo $template['id']; ?>, '<?php echo htmlspecialchars($template['name']); ?>')">
+                                                    onclick="confirmDelete(<?php echo (int)$template['id']; ?>, '<?php echo htmlspecialchars(addslashes($template['name'] ?? 'Unknown')); ?>')"
+                                                    title="Delete Template">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
@@ -510,6 +593,32 @@ function confirmDelete(id, name) {
     document.getElementById('deleteTemplateName').textContent = name;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+function updateCharCount() {
+    const textarea = document.getElementById('message_en');
+    const countEl = document.getElementById('char-count-num');
+    const badgeEl = document.getElementById('char-count');
+    
+    if (textarea && countEl && badgeEl) {
+        const length = textarea.value.length;
+        countEl.textContent = length;
+        
+        // Update badge color
+        badgeEl.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+        if (length > 160) {
+            badgeEl.classList.add('bg-danger');
+        } else if (length > 140) {
+            badgeEl.classList.add('bg-warning');
+        } else {
+            badgeEl.classList.add('bg-success');
+        }
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateCharCount();
+});
 </script>
 </body>
 </html>
