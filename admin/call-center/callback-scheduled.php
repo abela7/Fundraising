@@ -58,7 +58,8 @@ try {
     $template_map = [
         'not_picked_up' => 'missed_call',
         'busy' => 'line_busy',
-        'busy_cant_talk' => 'callback_requested'
+        'busy_cant_talk' => 'callback_requested',
+        'not_ready_to_pay' => 'follow_up_reminder'
     ];
     $template_key = $template_map[$call_status] ?? 'missed_call';
     
@@ -343,7 +344,8 @@ $page_title = 'Callback Scheduled';
                 $status_messages = [
                     'not_picked_up' => 'The donor has been notified about the missed call.',
                     'busy' => 'The donor has been notified that their line was busy.',
-                    'busy_cant_talk' => 'The donor has been notified about the callback.'
+                    'busy_cant_talk' => 'The donor has been notified about the callback.',
+                    'not_ready_to_pay' => 'The donor has been notified about the follow-up.'
                 ];
                 $sms_success_msg = $status_messages[$call_status] ?? 'The donor has been notified.';
                 ?>
@@ -380,7 +382,8 @@ $page_title = 'Callback Scheduled';
                 $button_labels = [
                     'not_picked_up' => 'Send "Missed Call" SMS',
                     'busy' => 'Send "Line Busy" SMS',
-                    'busy_cant_talk' => 'Send Callback SMS'
+                    'busy_cant_talk' => 'Send Callback SMS',
+                    'not_ready_to_pay' => 'Send Follow-up SMS'
                 ];
                 $button_label = $button_labels[$call_status] ?? 'Send SMS Now';
                 ?>

@@ -208,9 +208,13 @@ class FinancialCalculator {
                         WHEN d.total_pledged > 0 AND (
                             COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
                             COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-                        ) > 0
+                        ) > 0 AND d.payment_status NOT IN ('overdue', 'defaulted')
                         THEN 'paying'
-                        ELSE payment_status
+                        WHEN d.total_pledged > 0 AND d.payment_status = 'no_pledge'
+                        THEN 'not_started'
+                        WHEN d.total_pledged = 0 AND d.payment_status NOT IN ('overdue', 'defaulted')
+                        THEN 'no_pledge'
+                        ELSE d.payment_status
                     END
                 WHERE d.id = ?
             ");
@@ -227,7 +231,7 @@ class FinancialCalculator {
     
     /**
      * Recalculate and update donor totals after UNDOING a payment
-     * Uses original undo logic: reverts to 'pending' if balance > 0
+     * Preserves 'overdue' and 'defaulted' statuses
      * 
      * @param int $donorId Donor ID to update
      * @return bool Success status
@@ -237,7 +241,7 @@ class FinancialCalculator {
         
         try {
             // Update total_paid (balance is GENERATED and will auto-update)
-            // After undo, if there's still balance remaining, set status to 'not_started' or keep 'paying'
+            // Preserve overdue/defaulted statuses - only change status for clear transitions
             $stmt = $this->db->prepare("
                 UPDATE donors d
                 SET 
@@ -254,11 +258,13 @@ class FinancialCalculator {
                         WHEN d.total_pledged > 0 AND (
                             COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
                             COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
-                        ) > 0
+                        ) > 0 AND d.payment_status NOT IN ('overdue', 'defaulted')
                         THEN 'paying'
-                        WHEN d.total_pledged > 0 
+                        WHEN d.total_pledged > 0 AND d.payment_status IN ('paying', 'completed', 'no_pledge')
                         THEN 'not_started'
-                        ELSE 'no_pledge'
+                        WHEN d.total_pledged = 0 AND d.payment_status NOT IN ('overdue', 'defaulted')
+                        THEN 'no_pledge'
+                        ELSE d.payment_status
                     END
                 WHERE d.id = ?
             ");
