@@ -2779,33 +2779,221 @@ async function sendVoiceMessage() {
     if (voiceBtn) voiceBtn.classList.remove('recording');
     if (recordingUI) recordingUI.classList.remove('active');
     
+    // Show converting message
+    const timerEl = document.getElementById('recordingTimer');
+    if (timerEl) timerEl.textContent = 'Converting...';
+    
     // Wait a bit for the last chunk
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 200));
     
-    // Get file extension from mime type
-    const mimeToExt = {
-        'audio/ogg;codecs=opus': 'ogg',
-        'audio/ogg': 'ogg',
-        'audio/mp4': 'm4a',
-        'audio/mpeg': 'mp3',
-        'audio/webm;codecs=opus': 'webm',
-        'audio/webm': 'webm'
+    try {
+        // Convert WebM to MP3 using Web Audio API
+        const audioBlob = new Blob(audioChunks, { type: recordingMimeType });
+        audioChunks = [];
+        
+        // Check if we need conversion (WebM needs to be converted)
+        if (recordingMimeType.includes('webm')) {
+            const mp3Blob = await convertWebMToMP3(audioBlob);
+            const audioFile = new File([mp3Blob], `voice_${Date.now()}.mp3`, { type: 'audio/mpeg' });
+            selectedFile = audioFile;
+        } else {
+            // Already in a compatible format (OGG, MP4, etc.)
+            const extension = recordingMimeType.includes('ogg') ? 'ogg' : 
+                             recordingMimeType.includes('mp4') ? 'm4a' : 'mp3';
+            const baseMimeType = recordingMimeType.split(';')[0];
+            const audioFile = new File([audioBlob], `voice_${Date.now()}.${extension}`, { type: baseMimeType });
+            selectedFile = audioFile;
+        }
+        
+        // Send via media API
+        await sendMediaMessage();
+    } catch (err) {
+        console.error('Voice conversion error:', err);
+        alert('Failed to process voice recording: ' + err.message + '\n\nPlease try recording again or upload an audio file instead.');
+    }
+}
+
+// Convert WebM audio to MP3 using Web Audio API
+async function convertWebMToMP3(webmBlob) {
+    return new Promise((resolve, reject) => {
+        // Check if Web Audio API is available
+        if (!window.AudioContext && !window.webkitAudioContext) {
+            reject(new Error('Web Audio API not supported in this browser'));
+            return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = async function(e) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Decode WebM audio
+                let audioBuffer;
+                try {
+                    audioBuffer = await audioContext.decodeAudioData(e.target.result);
+                } catch (decodeErr) {
+                    reject(new Error('Failed to decode WebM audio. Your browser may not support WebM decoding.'));
+                    return;
+                }
+                
+                // Convert to WAV first
+                const wav = audioBufferToWav(audioBuffer);
+                const wavBlob = new Blob([wav], { type: 'audio/wav' });
+                
+                // Convert WAV to MP3 using lamejs
+                const mp3Blob = await convertWavToMP3(wavBlob, audioBuffer.sampleRate);
+                resolve(mp3Blob);
+            } catch (err) {
+                reject(new Error('Audio conversion failed: ' + err.message));
+            }
+        };
+        
+        reader.onerror = () => reject(new Error('Failed to read audio file'));
+        reader.readAsArrayBuffer(webmBlob);
+    });
+}
+
+// Convert AudioBuffer to WAV
+function audioBufferToWav(buffer) {
+    const length = buffer.length;
+    const numberOfChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+    const view = new DataView(arrayBuffer);
+    const channels = [];
+    let offset = 0;
+    let pos = 0;
+    
+    // WAV header
+    const setUint16 = (data) => {
+        view.setUint16(pos, data, true);
+        pos += 2;
     };
-    const extension = mimeToExt[recordingMimeType] || 'ogg';
-    const baseMimeType = recordingMimeType.split(';')[0]; // Remove codec info
+    const setUint32 = (data) => {
+        view.setUint32(pos, data, true);
+        pos += 4;
+    };
     
-    console.log('Creating voice file with type:', baseMimeType, 'extension:', extension);
+    // RIFF identifier
+    setUint32(0x46464952); // "RIFF"
+    setUint32(36 + length * numberOfChannels * 2); // file length - 8
+    setUint32(0x45564157); // "WAVE"
     
-    // Create audio blob with the correct mime type
-    const audioBlob = new Blob(audioChunks, { type: baseMimeType });
-    audioChunks = [];
+    // fmt chunk
+    setUint32(0x20746d66); // "fmt "
+    setUint32(16); // chunk size
+    setUint16(1); // audio format (1 = PCM)
+    setUint16(numberOfChannels);
+    setUint32(sampleRate);
+    setUint32(sampleRate * numberOfChannels * 2); // byte rate
+    setUint16(numberOfChannels * 2); // block align
+    setUint16(16); // bits per sample
     
-    // Create file from blob
-    const audioFile = new File([audioBlob], `voice_${Date.now()}.${extension}`, { type: baseMimeType });
+    // data chunk
+    setUint32(0x61746164); // "data"
+    setUint32(length * numberOfChannels * 2);
     
-    // Send via media API
-    selectedFile = audioFile;
-    await sendMediaMessage();
+    // Convert float samples to 16-bit PCM
+    for (let i = 0; i < numberOfChannels; i++) {
+        channels.push(buffer.getChannelData(i));
+    }
+    
+    while (pos < arrayBuffer.byteLength) {
+        for (let i = 0; i < numberOfChannels; i++) {
+            let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+            sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(pos, sample, true);
+            pos += 2;
+        }
+        offset++;
+    }
+    
+    return arrayBuffer;
+}
+
+// Convert WAV to MP3 using lamejs (lightweight MP3 encoder)
+async function convertWavToMP3(wavBlob, sampleRate) {
+    // Load lamejs library dynamically
+    if (!window.lamejs && !window.Lame) {
+        await loadLameJS();
+    }
+    
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const wavData = new Int16Array(e.target.result);
+                
+                // Handle different library exports
+                const Lame = window.lamejs || window.Lame;
+                if (!Lame || !Lame.Mp3Encoder) {
+                    throw new Error('MP3 encoder not available');
+                }
+                
+                const mp3encoder = new Lame.Mp3Encoder(1, sampleRate, 128); // mono, sampleRate, 128kbps
+                const sampleBlockSize = 1152;
+                const mp3Data = [];
+                
+                for (let i = 0; i < wavData.length; i += sampleBlockSize) {
+                    const sampleChunk = wavData.subarray(i, i + sampleBlockSize);
+                    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(mp3buf);
+                    }
+                }
+                
+                const mp3buf = mp3encoder.flush();
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+                
+                const mp3Blob = new Blob(mp3Data, { type: 'audio/mpeg' });
+                resolve(mp3Blob);
+            } catch (err) {
+                reject(new Error('MP3 encoding failed: ' + err.message));
+            }
+        };
+        reader.onerror = () => reject(new Error('Failed to read WAV file'));
+        reader.readAsArrayBuffer(wavBlob);
+    });
+}
+
+// Load lamejs library from CDN
+function loadLameJS() {
+    return new Promise((resolve, reject) => {
+        if (window.lamejs || window.Lame) {
+            resolve();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        // Try multiple CDN sources
+        script.src = 'https://unpkg.com/lamejs@1.2.1/lame.min.js';
+        script.onload = () => {
+            // Check if library loaded correctly
+            if (window.lamejs || window.Lame) {
+                resolve();
+            } else {
+                reject(new Error('MP3 encoder library loaded but not available'));
+            }
+        };
+        script.onerror = () => {
+            // Try alternative CDN
+            const script2 = document.createElement('script');
+            script2.src = 'https://cdn.jsdelivr.net/gh/zhuker/lamejs@master/js/lame.min.js';
+            script2.onload = () => {
+                if (window.lamejs || window.Lame) {
+                    resolve();
+                } else {
+                    reject(new Error('MP3 encoder library not available'));
+                }
+            };
+            script2.onerror = () => reject(new Error('Failed to load MP3 encoder library'));
+            document.head.appendChild(script2);
+        };
+        document.head.appendChild(script);
+    });
 }
 
 function updateRecordingTimer() {
