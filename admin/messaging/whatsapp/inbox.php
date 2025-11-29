@@ -1553,12 +1553,286 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Auto-refresh for new messages (every 15 seconds)
+// ============================================
+// REAL-TIME MESSAGING - Auto-poll for updates
+// ============================================
+
 <?php if ($selected_id): ?>
-setInterval(() => {
-    // Could implement AJAX refresh here for real-time updates
-}, 15000);
+// Track the last message ID we've seen
+let lastMessageId = <?php 
+    $lastMsg = end($messages);
+    echo $lastMsg ? (int)$lastMsg['id'] : 0;
+?>;
+let lastDate = '<?php echo $lastMsg ? date('Y-m-d', strtotime($lastMsg['created_at'])) : ''; ?>';
+let isPolling = true;
+let pollInterval = 3000; // 3 seconds
+
+// Poll for new messages
+async function pollNewMessages() {
+    if (!isPolling) return;
+    
+    try {
+        const response = await fetch(`api/get-new-messages.php?conversation_id=<?php echo $selected_id; ?>&last_message_id=${lastMessageId}`);
+        const data = await response.json();
+        
+        if (data.success && data.messages && data.messages.length > 0) {
+            // Add new messages to the chat
+            data.messages.forEach(msg => {
+                addMessageToChat(msg);
+            });
+            
+            // Update last message ID
+            lastMessageId = data.last_message_id;
+            
+            // Play notification sound for incoming messages
+            const hasIncoming = data.messages.some(m => m.direction === 'incoming');
+            if (hasIncoming) {
+                playNotificationSound();
+            }
+        }
+    } catch (err) {
+        console.error('Poll error:', err);
+    }
+    
+    // Schedule next poll
+    setTimeout(pollNewMessages, pollInterval);
+}
+
+// Add a message to the chat UI
+function addMessageToChat(msg) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    // Check if we need a date divider
+    const msgDate = msg.date;
+    if (msgDate !== lastDate) {
+        lastDate = msgDate;
+        const divider = document.createElement('div');
+        divider.className = 'date-divider';
+        divider.innerHTML = `<span>${escapeHtml(msgDate)}</span>`;
+        chatMessages.appendChild(divider);
+    }
+    
+    // Create message element
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${msg.direction === 'incoming' ? 'incoming' : 'outgoing'}`;
+    msgDiv.dataset.messageId = msg.id;
+    
+    let content = '<div class="message-content">';
+    
+    // Sender name for outgoing messages
+    if (msg.direction === 'outgoing' && msg.sender_name) {
+        content += `<div class="message-sender">${escapeHtml(msg.sender_name)}</div>`;
+    }
+    
+    // Message body based on type
+    if (msg.type === 'image' && msg.media_url) {
+        content += `<div class="message-media"><img src="${escapeHtml(msg.media_url)}" alt="Image" onclick="window.open(this.src, '_blank')"></div>`;
+        if (msg.media_caption) {
+            content += `<div class="message-text">${escapeHtml(msg.media_caption)}</div>`;
+        }
+    } else if (msg.type === 'document' && msg.media_url) {
+        content += `<div class="message-media document">
+            <i class="fas fa-file-alt fa-2x text-secondary"></i>
+            <div>
+                <div>${escapeHtml(msg.media_filename || 'Document')}</div>
+                <a href="${escapeHtml(msg.media_url)}" target="_blank" class="small">Download</a>
+            </div>
+        </div>`;
+    } else if ((msg.type === 'voice' || msg.type === 'audio') && msg.media_url) {
+        content += `<div class="message-media"><audio controls src="${escapeHtml(msg.media_url)}" style="width: 250px;"></audio></div>`;
+    } else if (msg.type === 'location' && msg.latitude && msg.longitude) {
+        content += `<div class="message-media">
+            <a href="https://maps.google.com/?q=${msg.latitude},${msg.longitude}" target="_blank">
+                <i class="fas fa-map-marker-alt fa-2x text-danger"></i>
+                📍 ${escapeHtml(msg.location_name || 'Location')}
+            </a>
+        </div>`;
+    } else {
+        content += `<div class="message-text">${escapeHtml(msg.body || '').replace(/\n/g, '<br>')}</div>`;
+    }
+    
+    // Meta info (time and status)
+    content += `<div class="message-meta">
+        <span>${msg.time}</span>
+        ${msg.direction === 'outgoing' ? getStatusIcon(msg.status) : ''}
+    </div>`;
+    
+    content += '</div>';
+    msgDiv.innerHTML = content;
+    
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function getStatusIcon(status) {
+    switch(status) {
+        case 'read':
+            return '<span class="message-status"><i class="fas fa-check-double" style="color: #53bdeb;"></i></span>';
+        case 'delivered':
+            return '<span class="message-status"><i class="fas fa-check-double" style="color: #667781;"></i></span>';
+        case 'sent':
+            return '<span class="message-status"><i class="fas fa-check" style="color: #667781;"></i></span>';
+        case 'failed':
+            return '<span class="message-status"><i class="fas fa-exclamation-circle text-danger"></i></span>';
+        default:
+            return '<span class="message-status"><i class="fas fa-clock" style="color: #667781;"></i></span>';
+    }
+}
+
+// Play notification sound
+function playNotificationSound() {
+    try {
+        // Create a simple beep using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.1;
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.15);
+    } catch (e) {
+        // Ignore audio errors
+    }
+}
+
+// Start polling
+setTimeout(pollNewMessages, pollInterval);
 <?php endif; ?>
+
+// ============================================
+// SIDEBAR REAL-TIME UPDATES
+// ============================================
+
+let sidebarPollInterval = 5000; // 5 seconds for sidebar
+
+async function pollConversations() {
+    try {
+        const filter = '<?php echo htmlspecialchars($filter); ?>';
+        const search = '<?php echo htmlspecialchars($search); ?>';
+        
+        const response = await fetch(`api/get-conversations.php?filter=${filter}&search=${encodeURIComponent(search)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update stats badges
+            updateStatsBadges(data.stats);
+            
+            // Update conversation list
+            updateConversationList(data.conversations);
+        }
+    } catch (err) {
+        console.error('Sidebar poll error:', err);
+    }
+    
+    setTimeout(pollConversations, sidebarPollInterval);
+}
+
+function updateStatsBadges(stats) {
+    // Update filter badges
+    document.querySelectorAll('.inbox-filter').forEach(filter => {
+        const href = filter.getAttribute('href') || '';
+        if (href.includes('filter=all')) {
+            const badge = filter.querySelector('.badge');
+            if (badge) badge.textContent = stats.total;
+        } else if (href.includes('filter=unread')) {
+            const badge = filter.querySelector('.badge');
+            if (badge) badge.textContent = stats.unread;
+        } else if (href.includes('filter=unknown')) {
+            const badge = filter.querySelector('.badge');
+            if (badge) badge.textContent = stats.unknown;
+        }
+    });
+}
+
+function updateConversationList(conversations) {
+    const list = document.querySelector('.conversation-list');
+    if (!list) return;
+    
+    const selectedId = <?php echo $selected_id ?: 'null'; ?>;
+    const filter = '<?php echo htmlspecialchars($filter); ?>';
+    
+    // Only update if we have conversations
+    if (conversations.length === 0) return;
+    
+    // Update existing items or add new ones
+    conversations.forEach((conv, index) => {
+        let item = list.querySelector(`a[href*="id=${conv.id}"]`);
+        
+        if (item) {
+            // Update existing conversation
+            const unreadBadge = item.querySelector('.conv-unread-badge');
+            const previewEl = item.querySelector('.conv-preview');
+            const timeEl = item.querySelector('.conv-time');
+            
+            // Update unread badge
+            if (conv.unread_count > 0) {
+                item.classList.add('unread');
+                if (unreadBadge) {
+                    unreadBadge.textContent = conv.unread_count;
+                    unreadBadge.style.display = 'flex';
+                } else {
+                    // Add badge if missing
+                    const preview = item.querySelector('.conv-preview');
+                    if (preview) {
+                        const badge = document.createElement('span');
+                        badge.className = 'conv-unread-badge';
+                        badge.textContent = conv.unread_count;
+                        preview.appendChild(badge);
+                    }
+                }
+            } else {
+                item.classList.remove('unread');
+                if (unreadBadge) unreadBadge.style.display = 'none';
+            }
+            
+            // Update preview
+            if (previewEl) {
+                let previewHtml = '';
+                if (conv.last_message_direction === 'outgoing') {
+                    previewHtml += '<i class="fas fa-check-double text-primary" style="font-size: 0.7rem;"></i> ';
+                }
+                previewHtml += escapeHtml(conv.last_message_preview);
+                // Keep the badge if exists
+                const existingBadge = previewEl.querySelector('.conv-unread-badge');
+                previewEl.innerHTML = previewHtml;
+                if (existingBadge && conv.unread_count > 0) {
+                    previewEl.appendChild(existingBadge);
+                }
+            }
+            
+            // Update time
+            if (timeEl) {
+                timeEl.textContent = conv.last_message_at;
+                timeEl.classList.toggle('unread', conv.unread_count > 0);
+            }
+        }
+    });
+    
+    // Reorder if needed (move items with new messages to top)
+    // This is optional - might cause UI jumping
+}
+
+// Start sidebar polling
+setTimeout(pollConversations, sidebarPollInterval);
+
+// Pause polling when tab is not visible
+document.addEventListener('visibilitychange', function() {
+    if (typeof isPolling !== 'undefined') {
+        isPolling = !document.hidden;
+    }
+    if (!document.hidden) {
+        // Resume polling immediately when tab becomes visible
+        if (typeof pollNewMessages === 'function') pollNewMessages();
+        pollConversations();
+    }
+});
 </script>
 </body>
 </html>
