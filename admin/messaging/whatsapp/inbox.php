@@ -169,11 +169,15 @@ $selected_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $selected_conversation = null;
 $messages = [];
 
+// Store donor template data for variable replacement
+$donor_template_data = [];
+
 if ($selected_id && $tables_exist) {
     try {
-        // Get conversation details
+        // Get conversation details with more donor info
         $stmt = $db->prepare("
-            SELECT wc.*, d.name as donor_name, d.phone as donor_phone, d.balance as donor_balance, d.id as donor_id
+            SELECT wc.*, d.name as donor_name, d.phone as donor_phone, d.balance as donor_balance, 
+                   d.id as donor_id, d.pledge_amount, d.frequency
             FROM whatsapp_conversations wc
             LEFT JOIN donors d ON wc.donor_id = d.id
             WHERE wc.id = ?
@@ -213,6 +217,54 @@ if ($selected_id && $tables_exist) {
             // Mark as read
             $db->query("UPDATE whatsapp_conversations SET unread_count = 0 WHERE id = " . (int)$selected_id);
             $debug_info[] = "Loaded conversation with " . count($messages) . " messages";
+            
+            // Prepare donor data for template variable replacement
+            $donor_name = $selected_conversation['donor_name'] ?? $selected_conversation['contact_name'] ?? 'Donor';
+            $first_name = explode(' ', trim($donor_name))[0];
+            
+            // Get latest payment plan if exists
+            $payment_plan = null;
+            if ($selected_conversation['donor_id']) {
+                $plan_stmt = $db->prepare("
+                    SELECT pp.*, pm.name as payment_method_name
+                    FROM payment_plans pp
+                    LEFT JOIN payment_methods pm ON pp.payment_method_id = pm.id
+                    WHERE pp.donor_id = ?
+                    ORDER BY pp.created_at DESC
+                    LIMIT 1
+                ");
+                if ($plan_stmt) {
+                    $plan_stmt->bind_param('i', $selected_conversation['donor_id']);
+                    $plan_stmt->execute();
+                    $plan_result = $plan_stmt->get_result();
+                    $payment_plan = $plan_result ? $plan_result->fetch_assoc() : null;
+                }
+            }
+            
+            // Build template data
+            $frequency_labels = [
+                'weekly' => 'weekly',
+                'monthly' => 'monthly',
+                'quarterly' => 'quarterly',
+                'annually' => 'annually',
+                'one_time' => 'one-time'
+            ];
+            
+            $donor_template_data = [
+                'name' => $donor_name,
+                'first_name' => $first_name,
+                'phone' => $selected_conversation['donor_phone'] ?? $selected_conversation['phone_number'] ?? '',
+                'balance' => '£' . number_format((float)($selected_conversation['donor_balance'] ?? 0), 2),
+                'pledge_amount' => '£' . number_format((float)($selected_conversation['pledge_amount'] ?? 0), 2),
+                'amount' => $payment_plan ? '£' . number_format((float)($payment_plan['amount'] ?? 0), 2) : '£0.00',
+                'frequency' => $payment_plan ? ($frequency_labels[$payment_plan['frequency']] ?? $payment_plan['frequency']) : 'monthly',
+                'start_date' => $payment_plan && $payment_plan['start_date'] ? date('j M Y', strtotime($payment_plan['start_date'])) : date('j M Y'),
+                'payment_method' => $payment_plan['payment_method_name'] ?? 'Not set',
+                'portal_link' => 'https://bit.ly/4p0J1gf',
+                'church_name' => 'Liverpool Abune Teklehaymanot Church',
+                'callback_date' => date('l, j M'),
+                'callback_time' => date('g:i A'),
+            ];
         }
     } catch (Throwable $e) {
         $error_message = "Error loading conversation: " . $e->getMessage();
@@ -2792,6 +2844,12 @@ let selectedFile = null;
 // Voice recording disabled - use attachment button to upload audio files
 
 // ============================================
+// DONOR DATA FOR TEMPLATE VARIABLES
+// ============================================
+
+const donorTemplateData = <?php echo json_encode($donor_template_data); ?>;
+
+// ============================================
 // TEMPLATES MENU
 // ============================================
 
@@ -2911,6 +2969,23 @@ function displayTemplates(grouped) {
     });
 }
 
+// Process template and replace variables with donor data
+function processTemplateVariables(content) {
+    if (!donorTemplateData || Object.keys(donorTemplateData).length === 0) {
+        return content;
+    }
+    
+    let processed = content;
+    
+    // Replace all variables in format {variable_name}
+    for (const [key, value] of Object.entries(donorTemplateData)) {
+        const regex = new RegExp(`\\{${key}\\}`, 'gi');
+        processed = processed.replace(regex, value || '');
+    }
+    
+    return processed;
+}
+
 // Select template and fill message input
 function selectTemplate(templateId) {
     const messageInput = document.getElementById('messageInput');
@@ -2924,8 +2999,11 @@ function selectTemplate(templateId) {
     }
     
     if (messageInput) {
-        // Fill the input with template content
-        messageInput.value = template.content;
+        // Process template and replace variables with donor data
+        const processedContent = processTemplateVariables(template.content);
+        
+        // Fill the input with processed content
+        messageInput.value = processedContent;
         messageInput.focus();
         
         // Move cursor to end
