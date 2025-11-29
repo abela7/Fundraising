@@ -357,6 +357,50 @@ if ($table_exists) {
                         </form>
                     </div>
                     
+                    <!-- Webhook Configuration - IMPORTANT -->
+                    <div class="settings-card" style="border: 2px solid #00a884;">
+                        <h3 class="settings-card-title" style="color:#00a884;">
+                            <i class="fas fa-link"></i> Webhook Configuration (Required for Replies!)
+                        </h3>
+                        
+                        <p class="mb-3">To receive incoming messages from donors, you MUST configure the webhook URL in your UltraMsg dashboard:</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Your Webhook URL:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="webhook_url" readonly
+                                       value="<?php echo 'https://' . ($_SERVER['HTTP_HOST'] ?? 'yoursite.com') . '/webhooks/ultramsg.php'; ?>">
+                                <button type="button" class="btn btn-outline-secondary" onclick="copyWebhookUrl()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mb-3">
+                            <strong>Steps to configure:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Go to <a href="https://user.ultramsg.com/instance" target="_blank" class="text-decoration-underline">UltraMsg Dashboard</a></li>
+                                <li>Select your instance</li>
+                                <li>Go to <strong>Settings → Webhooks</strong></li>
+                                <li>Paste the webhook URL above</li>
+                                <li>Enable ALL webhook types:
+                                    <ul>
+                                        <li>✓ Received</li>
+                                        <li>✓ Created</li>
+                                        <li>✓ ACK</li>
+                                        <li>✓ Download Media</li>
+                                        <li>✓ Reactions</li>
+                                    </ul>
+                                </li>
+                                <li>Click <strong>Save</strong></li>
+                            </ol>
+                        </div>
+                        
+                        <a href="../../../webhooks/test.php" target="_blank" class="btn btn-outline-success">
+                            <i class="fas fa-vial me-1"></i> Test Webhook Status
+                        </a>
+                    </div>
+                    
                     <!-- Send Test Message -->
                     <?php if ($provider): ?>
                     <div class="settings-card">
@@ -489,6 +533,25 @@ function togglePassword(fieldId) {
         icon.classList.remove('fa-eye-slash');
         icon.classList.add('fa-eye');
     }
+}
+
+function copyWebhookUrl() {
+    const webhookUrl = document.getElementById('webhook_url');
+    webhookUrl.select();
+    document.execCommand('copy');
+    
+    // Show feedback
+    const btn = webhookUrl.nextElementSibling;
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    btn.classList.add('btn-success');
+    btn.classList.remove('btn-outline-secondary');
+    
+    setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-secondary');
+    }, 2000);
 }
 </script>
 </body>

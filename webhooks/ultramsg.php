@@ -32,6 +32,16 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/../logs/webhook_errors.log');
 
+// Log raw request for debugging
+$rawInput = file_get_contents('php://input');
+$logFile = __DIR__ . '/../logs/webhook_debug.log';
+$logEntry = date('Y-m-d H:i:s') . " | Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
+$logEntry .= "GET: " . json_encode($_GET) . "\n";
+$logEntry .= "POST: " . json_encode($_POST) . "\n";
+$logEntry .= "RAW: " . $rawInput . "\n";
+$logEntry .= str_repeat('-', 80) . "\n";
+@file_put_contents($logFile, $logEntry, FILE_APPEND);
+
 require_once __DIR__ . '/../config/db.php';
 
 /**
@@ -223,29 +233,42 @@ try {
         exit;
     }
     
-    // Get raw payload
-    $rawPayload = file_get_contents('php://input');
+    // Collect data from all possible sources
+    $payload = [];
     
-    // Also check GET parameters (UltraMsg can send via GET)
-    if (empty($rawPayload) && !empty($_GET)) {
+    // Source 1: Raw JSON body
+    $rawPayload = $rawInput ?? file_get_contents('php://input');
+    if (!empty($rawPayload)) {
+        $decoded = json_decode($rawPayload, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $payload = $decoded;
+        }
+    }
+    
+    // Source 2: GET parameters (UltraMsg often sends via GET)
+    if (empty($payload) && !empty($_GET)) {
+        $payload = $_GET;
         $rawPayload = json_encode($_GET);
     }
     
-    // Also check POST parameters
-    if (empty($rawPayload) && !empty($_POST)) {
+    // Source 3: POST form data
+    if (empty($payload) && !empty($_POST)) {
+        $payload = $_POST;
         $rawPayload = json_encode($_POST);
     }
     
-    if (empty($rawPayload)) {
+    // Source 4: URL-encoded body
+    if (empty($payload) && !empty($rawPayload)) {
+        parse_str($rawPayload, $parsed);
+        if (!empty($parsed)) {
+            $payload = $parsed;
+        }
+    }
+    
+    if (empty($payload)) {
         logWebhook($db, 'ping', '{}', true);
         echo json_encode(['status' => 'ok', 'message' => 'Webhook is active']);
         exit;
-    }
-    
-    // Parse JSON payload
-    $payload = json_decode($rawPayload, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        parse_str($rawPayload, $payload);
     }
     
     // Determine event type

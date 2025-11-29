@@ -911,6 +911,14 @@ if ($selected_id && $tables_exist) {
                     <li><?php echo htmlspecialchars($info); ?></li>
                     <?php endforeach; ?>
                 </ul>
+                <div class="mt-2">
+                    <a href="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" class="btn btn-sm btn-primary me-2">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </a>
+                    <a href="../../../webhooks/test.php" class="btn btn-sm btn-outline-light" target="_blank">
+                        <i class="fas fa-vial me-1"></i>Test Webhook
+                    </a>
+                </div>
             </div>
             <?php endif; ?>
             
@@ -1137,6 +1145,7 @@ if ($selected_id && $tables_exist) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../assets/admin.js"></script>
 <script>
 // Scroll to bottom of messages
 const chatMessages = document.getElementById('chatMessages');
