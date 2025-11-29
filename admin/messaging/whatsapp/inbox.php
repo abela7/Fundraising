@@ -1,8 +1,24 @@
 <?php
 declare(strict_types=1);
 
+// Enable full error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
+ini_set('log_errors', '1');
+
+// Fatal error handler
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        echo "<div style='background:#dc3545;color:white;padding:20px;margin:20px;border-radius:8px;font-family:Arial;'>";
+        echo "<h3>⚠️ Fatal Error</h3>";
+        echo "<p><strong>Message:</strong> " . htmlspecialchars($error['message']) . "</p>";
+        echo "<p><strong>File:</strong> " . htmlspecialchars($error['file']) . " on line " . $error['line'] . "</p>";
+        echo "</div>";
+    }
+});
+
+$debug_info = [];
 
 try {
     require_once __DIR__ . '/../../../shared/auth.php';
@@ -10,21 +26,37 @@ try {
     require_once __DIR__ . '/../../../config/db.php';
     require_login();
 } catch (Throwable $e) {
-    die("Error: " . $e->getMessage());
+    die("<div style='background:#dc3545;color:white;padding:20px;margin:20px;border-radius:8px;'>
+        <h3>Include Error</h3>
+        <p>" . htmlspecialchars($e->getMessage()) . "</p>
+        <p>File: " . htmlspecialchars($e->getFile()) . " Line: " . $e->getLine() . "</p>
+    </div>");
 }
 
 $page_title = 'WhatsApp Inbox';
-$db = db();
+
+try {
+    $db = db();
+} catch (Throwable $e) {
+    die("<div style='background:#dc3545;color:white;padding:20px;margin:20px;border-radius:8px;'>
+        <h3>Database Error</h3>
+        <p>" . htmlspecialchars($e->getMessage()) . "</p>
+    </div>");
+}
+
 $current_user = current_user();
 $is_admin = ($current_user['role'] ?? '') === 'admin';
 
 // Check if tables exist
 $tables_exist = false;
+$error_message = null;
+
 try {
     $check = $db->query("SHOW TABLES LIKE 'whatsapp_conversations'");
     $tables_exist = $check && $check->num_rows > 0;
+    $debug_info[] = "Tables exist: " . ($tables_exist ? 'Yes' : 'No');
 } catch (Throwable $e) {
-    // Tables don't exist
+    $debug_info[] = "Table check error: " . $e->getMessage();
 }
 
 // Get filter from URL
@@ -41,18 +73,22 @@ if ($tables_exist) {
         $stats_query = $db->query("
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN unread_count > 0 THEN 1 ELSE 0 END) as unread,
-                SUM(CASE WHEN is_unknown = 1 THEN 1 ELSE 0 END) as unknown
+                COALESCE(SUM(CASE WHEN unread_count > 0 THEN 1 ELSE 0 END), 0) as unread,
+                COALESCE(SUM(CASE WHEN is_unknown = 1 THEN 1 ELSE 0 END), 0) as unknown
             FROM whatsapp_conversations
             WHERE status = 'active'
         ");
-        if ($stats_query && $row = $stats_query->fetch_assoc()) {
-            $stats = [
-                'total' => (int)$row['total'],
-                'unread' => (int)$row['unread'],
-                'unknown' => (int)$row['unknown']
-            ];
+        if ($stats_query) {
+            $row = $stats_query->fetch_assoc();
+            if ($row) {
+                $stats = [
+                    'total' => (int)($row['total'] ?? 0),
+                    'unread' => (int)($row['unread'] ?? 0),
+                    'unknown' => (int)($row['unknown'] ?? 0)
+                ];
+            }
         }
+        $debug_info[] = "Stats loaded: total={$stats['total']}, unread={$stats['unread']}";
         
         // Build WHERE clause
         $where = ["wc.status = 'active'"];
@@ -118,9 +154,12 @@ if ($tables_exist) {
             while ($row = $result->fetch_assoc()) {
                 $conversations[] = $row;
             }
+            $debug_info[] = "Loaded " . count($conversations) . " conversations";
         }
         
     } catch (Throwable $e) {
+        $error_message = "Error loading conversations: " . $e->getMessage();
+        $debug_info[] = $error_message;
         error_log("WhatsApp Inbox Error: " . $e->getMessage());
     }
 }
@@ -131,36 +170,54 @@ $selected_conversation = null;
 $messages = [];
 
 if ($selected_id && $tables_exist) {
-    // Get conversation details
-    $stmt = $db->prepare("
-        SELECT wc.*, d.name as donor_name, d.phone as donor_phone, d.balance as donor_balance, d.id as donor_id
-        FROM whatsapp_conversations wc
-        LEFT JOIN donors d ON wc.donor_id = d.id
-        WHERE wc.id = ?
-    ");
-    $stmt->bind_param('i', $selected_id);
-    $stmt->execute();
-    $selected_conversation = $stmt->get_result()->fetch_assoc();
-    
-    if ($selected_conversation) {
-        // Get messages
-        $msg_stmt = $db->prepare("
-            SELECT wm.*, u.name as sender_name
-            FROM whatsapp_messages wm
-            LEFT JOIN users u ON wm.sender_id = u.id
-            WHERE wm.conversation_id = ?
-            ORDER BY wm.created_at ASC
-            LIMIT 200
+    try {
+        // Get conversation details
+        $stmt = $db->prepare("
+            SELECT wc.*, d.name as donor_name, d.phone as donor_phone, d.balance as donor_balance, d.id as donor_id
+            FROM whatsapp_conversations wc
+            LEFT JOIN donors d ON wc.donor_id = d.id
+            WHERE wc.id = ?
         ");
-        $msg_stmt->bind_param('i', $selected_id);
-        $msg_stmt->execute();
-        $msg_result = $msg_stmt->get_result();
-        while ($msg = $msg_result->fetch_assoc()) {
-            $messages[] = $msg;
+        
+        if (!$stmt) {
+            throw new Exception("Failed to prepare conversation query: " . $db->error);
         }
         
-        // Mark as read
-        $db->query("UPDATE whatsapp_conversations SET unread_count = 0 WHERE id = $selected_id");
+        $stmt->bind_param('i', $selected_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $selected_conversation = $result ? $result->fetch_assoc() : null;
+        
+        if ($selected_conversation) {
+            // Get messages
+            $msg_stmt = $db->prepare("
+                SELECT wm.*, u.name as sender_name
+                FROM whatsapp_messages wm
+                LEFT JOIN users u ON wm.sender_id = u.id
+                WHERE wm.conversation_id = ?
+                ORDER BY wm.created_at ASC
+                LIMIT 200
+            ");
+            
+            if ($msg_stmt) {
+                $msg_stmt->bind_param('i', $selected_id);
+                $msg_stmt->execute();
+                $msg_result = $msg_stmt->get_result();
+                if ($msg_result) {
+                    while ($msg = $msg_result->fetch_assoc()) {
+                        $messages[] = $msg;
+                    }
+                }
+            }
+            
+            // Mark as read
+            $db->query("UPDATE whatsapp_conversations SET unread_count = 0 WHERE id = " . (int)$selected_id);
+            $debug_info[] = "Loaded conversation with " . count($messages) . " messages";
+        }
+    } catch (Throwable $e) {
+        $error_message = "Error loading conversation: " . $e->getMessage();
+        $debug_info[] = $error_message;
+        error_log("WhatsApp Conversation Error: " . $e->getMessage());
     }
 }
 ?>
@@ -845,6 +902,25 @@ if ($selected_id && $tables_exist) {
         <?php try { include '../../includes/topbar.php'; } catch (Throwable $e) {} ?>
         
         <main class="main-content p-3">
+            <!-- Debug Info (remove in production) -->
+            <?php if (!empty($debug_info)): ?>
+            <div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:8px;padding:1rem;margin-bottom:1rem;color:#93c5fd;font-size:0.8125rem;">
+                <strong><i class="fas fa-bug me-1"></i> Debug Info:</strong>
+                <ul class="mb-0 mt-2" style="padding-left:1.25rem;">
+                    <?php foreach ($debug_info as $info): ?>
+                    <li><?php echo htmlspecialchars($info); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Error Message -->
+            <?php if (!empty($error_message)): ?>
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+            </div>
+            <?php endif; ?>
+            
             <?php if (!$tables_exist): ?>
             <div class="setup-warning">
                 <h5><i class="fas fa-database me-2"></i>Database Setup Required</h5>
@@ -895,6 +971,9 @@ if ($selected_id && $tables_exist) {
                             <i class="fab fa-whatsapp"></i>
                             <h3>No Conversations Yet</h3>
                             <p>When donors message you on WhatsApp, they'll appear here.</p>
+                            <a href="new-chat.php" class="btn btn-sm mt-3" style="background:var(--wa-teal);color:white;">
+                                <i class="fas fa-plus me-1"></i>Start New Chat
+                            </a>
                         </div>
                         <?php else: ?>
                             <?php foreach ($conversations as $conv): ?>
