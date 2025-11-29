@@ -775,6 +775,7 @@ if ($selected_id && $tables_exist) {
             flex-shrink: 0;
             padding: 0;
             aspect-ratio: 1;
+            box-sizing: border-box;
         }
         
         .chat-input-btn:hover {
@@ -884,6 +885,15 @@ if ($selected_id && $tables_exist) {
                 display: flex;
             }
             
+            .chat-area {
+                overflow: hidden;
+            }
+            
+            .chat-input {
+                position: relative;
+                z-index: 10;
+            }
+            
             .inbox-header {
                 padding: 0.5rem 0.75rem;
                 min-height: 56px;
@@ -980,14 +990,17 @@ if ($selected_id && $tables_exist) {
             }
             
             .chat-input {
-                padding: 0.5rem;
+                padding: 0.5rem 0.75rem;
                 gap: 0.5rem;
+                overflow: visible;
             }
             
             .chat-input-field {
                 padding: 0.4rem 0.75rem;
                 font-size: 0.875rem;
                 min-height: 38px;
+                flex: 1;
+                min-width: 0;
             }
             
             .chat-input-btn {
@@ -998,6 +1011,16 @@ if ($selected_id && $tables_exist) {
                 max-width: 40px;
                 max-height: 40px;
                 font-size: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .chat-input-btn.attachment {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                min-height: 40px;
+                max-width: 40px;
+                max-height: 40px;
             }
             
             /* Back button for mobile */
@@ -1057,6 +1080,36 @@ if ($selected_id && $tables_exist) {
             
             .message-sender {
                 font-size: 0.625rem;
+            }
+            
+            .chat-input {
+                padding: 0.5rem 0.625rem;
+                gap: 0.375rem;
+            }
+            
+            .chat-input-field {
+                padding: 0.375rem 0.625rem;
+                font-size: 0.8125rem;
+                min-height: 36px;
+            }
+            
+            .chat-input-btn {
+                width: 38px;
+                height: 38px;
+                min-width: 38px;
+                min-height: 38px;
+                max-width: 38px;
+                max-height: 38px;
+                font-size: 0.9375rem;
+            }
+            
+            .chat-input-btn.attachment {
+                width: 38px;
+                height: 38px;
+                min-width: 38px;
+                min-height: 38px;
+                max-width: 38px;
+                max-height: 38px;
             }
         }
         
