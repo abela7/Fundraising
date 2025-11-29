@@ -518,14 +518,28 @@ if ($selected_id && $tables_exist) {
             margin-right: 0.875rem;
         }
         
+        .chat-header-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .chat-header-link:hover .chat-header-name {
+            color: var(--wa-teal);
+        }
+        
         .chat-header-info {
             flex: 1;
+            min-width: 0;
         }
         
         .chat-header-name {
             font-weight: 400;
             font-size: 1rem;
             color: var(--wa-text);
+            transition: color 0.2s;
         }
         
         .chat-header-status {
@@ -1116,6 +1130,11 @@ if ($selected_id && $tables_exist) {
             font-size: 0.875rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
+        
+        /* Hide FAB on this page - it covers the send button on mobile */
+        .fab-container {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -1238,16 +1257,21 @@ if ($selected_id && $tables_exist) {
                         <button type="button" class="mobile-back-btn" onclick="goBackToList()">
                             <i class="fas fa-arrow-left"></i>
                         </button>
+                        <?php if ($selected_conversation['donor_id']): ?>
+                        <a href="../../donor-management/view-donor.php?id=<?php echo $selected_conversation['donor_id']; ?>" 
+                           class="chat-header-link" target="_blank">
+                            <div class="chat-header-avatar"><?php echo $chatInitials; ?></div>
+                            <div class="chat-header-info">
+                                <div class="chat-header-name"><?php echo htmlspecialchars($chatName); ?></div>
+                                <div class="chat-header-status"><?php echo $chatStatus; ?></div>
+                            </div>
+                        </a>
+                        <?php else: ?>
                         <div class="chat-header-avatar"><?php echo $chatInitials; ?></div>
                         <div class="chat-header-info">
                             <div class="chat-header-name"><?php echo htmlspecialchars($chatName); ?></div>
                             <div class="chat-header-status"><?php echo $chatStatus; ?></div>
                         </div>
-                        <?php if ($selected_conversation['donor_id']): ?>
-                        <a href="../../donor-management/view-donor.php?id=<?php echo $selected_conversation['donor_id']; ?>" 
-                           class="btn btn-sm btn-outline-primary" target="_blank">
-                            <i class="fas fa-user me-1"></i>View Donor
-                        </a>
                         <?php endif; ?>
                     </div>
                     
