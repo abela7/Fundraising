@@ -236,19 +236,19 @@ if ($selected_id && $tables_exist) {
             --wa-green: #25D366;
             --wa-teal: #00a884;
             --wa-dark: #111b21;
-            --wa-darker: #0b141a;
+            --wa-darker: #f0f2f5;
             --wa-light: #d9fdd3;
-            --wa-chat-bg: #0b141a;
-            --wa-bubble-out: #005c4b;
-            --wa-bubble-in: #202c33;
-            --wa-sidebar-bg: #111b21;
-            --wa-header-bg: #202c33;
-            --wa-border: #2a3942;
-            --wa-text: #e9edef;
-            --wa-text-secondary: #8696a0;
-            --wa-hover: #2a3942;
-            --wa-input-bg: #2a3942;
-            --wa-search-bg: #202c33;
+            --wa-chat-bg: #efeae2;
+            --wa-bubble-out: #d9fdd3;
+            --wa-bubble-in: #ffffff;
+            --wa-sidebar-bg: #ffffff;
+            --wa-header-bg: #f0f2f5;
+            --wa-border: #e9edef;
+            --wa-text: #111b21;
+            --wa-text-secondary: #667781;
+            --wa-hover: #f5f6f6;
+            --wa-input-bg: #ffffff;
+            --wa-search-bg: #f0f2f5;
         }
         
         .inbox-container {
@@ -257,7 +257,7 @@ if ($selected_id && $tables_exist) {
             background: var(--wa-darker);
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
         /* Sidebar - Conversation List */
@@ -278,6 +278,7 @@ if ($selected_id && $tables_exist) {
             align-items: center;
             justify-content: space-between;
             min-height: 60px;
+            border-bottom: 1px solid var(--wa-border);
         }
         
         .inbox-header h1 {
@@ -299,7 +300,7 @@ if ($selected_id && $tables_exist) {
         
         .inbox-header .btn:hover {
             background: var(--wa-hover);
-            color: var(--wa-text);
+            color: var(--wa-teal);
         }
         
         .inbox-search {
@@ -310,12 +311,12 @@ if ($selected_id && $tables_exist) {
         .inbox-search input {
             width: 100%;
             padding: 0.5rem 1rem 0.5rem 2.5rem;
-            border: none;
+            border: 1px solid var(--wa-border);
             border-radius: 8px;
             background: var(--wa-search-bg);
             font-size: 0.875rem;
             color: var(--wa-text);
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%238696a0' viewBox='0 0 24 24' width='18' height='18'%3E%3Cpath d='M15.9 14.3H15l-.3-.3c1-1.1 1.6-2.7 1.6-4.3 0-3.7-3-6.7-6.7-6.7S3 6 3 9.7s3 6.7 6.7 6.7c1.6 0 3.2-.6 4.3-1.6l.3.3v.8l5.1 5.1 1.5-1.5-5-5.2zm-6.2 0c-2.6 0-4.6-2.1-4.6-4.6s2.1-4.6 4.6-4.6 4.6 2.1 4.6 4.6-2 4.6-4.6 4.6z'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23667781' viewBox='0 0 24 24' width='18' height='18'%3E%3Cpath d='M15.9 14.3H15l-.3-.3c1-1.1 1.6-2.7 1.6-4.3 0-3.7-3-6.7-6.7-6.7S3 6 3 9.7s3 6.7 6.7 6.7c1.6 0 3.2-.6 4.3-1.6l.3.3v.8l5.1 5.1 1.5-1.5-5-5.2zm-6.2 0c-2.6 0-4.6-2.1-4.6-4.6s2.1-4.6 4.6-4.6 4.6 2.1 4.6 4.6-2 4.6-4.6 4.6z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: 0.75rem center;
         }
@@ -359,7 +360,7 @@ if ($selected_id && $tables_exist) {
         
         .inbox-filter.active {
             background: var(--wa-teal);
-            color: var(--wa-dark);
+            color: white;
         }
         
         .inbox-filter .badge {
@@ -469,7 +470,7 @@ if ($selected_id && $tables_exist) {
         
         .conv-unread-badge {
             background: var(--wa-teal);
-            color: var(--wa-dark);
+            color: white;
             font-size: 0.75rem;
             min-width: 20px;
             height: 20px;
@@ -489,7 +490,7 @@ if ($selected_id && $tables_exist) {
             display: flex;
             flex-direction: column;
             background: var(--wa-chat-bg);
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 303 172'%3E%3Cpath fill='%230d1418' d='M0 0h303v172H0z'/%3E%3Cpath fill='%23182229' d='M157 34l17-6-12-14-7 2-5 13 7 5zM35 72l-12-5-4 11 10 8 6-14zm212 43l8-8-6-10-11 5 9 13zm-170 8l-5-10-14 4 7 12 12-6zm95-89l10 5 7-12-14-3-3 10zM78 118l-8 8 6 10 11-5-9-13z'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 303 172'%3E%3Cpath fill='%23efeae2' d='M0 0h303v172H0z'/%3E%3Cpath fill='%23d9d4cc' opacity='0.4' d='M157 34l17-6-12-14-7 2-5 13 7 5zM35 72l-12-5-4 11 10 8 6-14zm212 43l8-8-6-10-11 5 9 13zm-170 8l-5-10-14 4 7 12 12-6zm95-89l10 5 7-12-14-3-3 10zM78 118l-8 8 6 10 11-5-9-13z'/%3E%3C/svg%3E");
             background-size: 412.5px auto;
         }
         
@@ -574,6 +575,7 @@ if ($selected_id && $tables_exist) {
             align-self: flex-start;
             border-top-left-radius: 0;
             color: var(--wa-text);
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
         }
         
         .message.incoming::before {
@@ -593,6 +595,7 @@ if ($selected_id && $tables_exist) {
             align-self: flex-end;
             border-top-right-radius: 0;
             color: var(--wa-text);
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
         }
         
         .message.outgoing::before {
@@ -621,7 +624,7 @@ if ($selected_id && $tables_exist) {
             gap: 0.25rem;
             margin-top: -0.875rem;
             font-size: 0.6875rem;
-            color: rgba(255,255,255,0.6);
+            color: var(--wa-text-secondary);
             float: right;
             position: relative;
             padding-left: 0.5rem;
@@ -667,7 +670,7 @@ if ($selected_id && $tables_exist) {
             align-items: center;
             gap: 0.75rem;
             padding: 0.75rem;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0,0,0,0.05);
             border-radius: 8px;
         }
         
@@ -678,7 +681,6 @@ if ($selected_id && $tables_exist) {
         .message-media audio {
             width: 280px;
             height: 36px;
-            filter: invert(1);
         }
         
         .date-divider {
@@ -707,13 +709,17 @@ if ($selected_id && $tables_exist) {
         .chat-input-field {
             flex: 1;
             padding: 0.5rem 1rem;
-            border: none;
+            border: 1px solid var(--wa-border);
             border-radius: 8px;
             font-size: 0.9375rem;
             outline: none;
             background: var(--wa-input-bg);
             color: var(--wa-text);
             min-height: 42px;
+        }
+        
+        .chat-input-field:focus {
+            border-color: var(--wa-teal);
         }
         
         .chat-input-field::placeholder {
@@ -740,18 +746,19 @@ if ($selected_id && $tables_exist) {
         }
         
         .chat-input-btn:disabled {
-            background: var(--wa-border);
+            background: #dfe5e7;
             cursor: not-allowed;
-            transform: none;
+            color: var(--wa-text-secondary);
         }
         
         .chat-input-btn.attachment {
             background: transparent;
             color: var(--wa-text-secondary);
+            transform: none;
         }
         
         .chat-input-btn.attachment:hover {
-            color: var(--wa-text);
+            color: var(--wa-teal);
         }
         
         /* Empty State */

@@ -148,30 +148,31 @@ function normalizePhone(string $phone): string
         :root {
             --wa-teal: #00a884;
             --wa-dark: #111b21;
-            --wa-text: #e9edef;
+            --wa-text: #111b21;
         }
         .new-chat-card {
-            background: var(--wa-dark);
+            background: #ffffff;
             border-radius: 12px;
             padding: 2rem;
             max-width: 600px;
             margin: 2rem auto;
             color: var(--wa-text);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .new-chat-card .form-control,
         .new-chat-card .form-select {
-            background: #202c33;
-            border: 1px solid #2a3942;
+            background: #ffffff;
+            border: 1px solid #e9edef;
             color: var(--wa-text);
         }
         .new-chat-card .form-control:focus {
-            background: #2a3942;
+            background: #ffffff;
             border-color: var(--wa-teal);
             color: var(--wa-text);
             box-shadow: none;
         }
         .new-chat-card .form-label {
-            color: #8696a0;
+            color: #667781;
         }
         .btn-wa {
             background: var(--wa-teal);
@@ -184,11 +185,11 @@ function normalizePhone(string $phone): string
         }
         .donor-result {
             padding: 0.75rem 1rem;
-            border-bottom: 1px solid #2a3942;
+            border-bottom: 1px solid #e9edef;
             cursor: pointer;
         }
         .donor-result:hover {
-            background: #2a3942;
+            background: #f5f6f6;
         }
     </style>
 </head>
@@ -219,7 +220,7 @@ function normalizePhone(string $phone): string
                         <label class="form-label">Search Donor</label>
                         <input type="text" id="donorSearch" class="form-control" 
                                placeholder="Type donor name or phone..." autocomplete="off">
-                        <div id="donorResults" style="background:#202c33;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;"></div>
+                        <div id="donorResults" style="background:#ffffff;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;border:1px solid #e9edef;border-top:none;"></div>
                     </div>
                     
                     <input type="hidden" name="donor_id" id="donorId">
