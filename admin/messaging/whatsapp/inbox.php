@@ -578,11 +578,11 @@ if ($selected_id && $tables_exist) {
         
         .message {
             max-width: 65%;
-            padding: 0.375rem 0.5rem 0.25rem 0.625rem;
-            border-radius: 7.5px;
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
             position: relative;
-            margin-bottom: 0.125rem;
-            box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+            margin-bottom: 0.375rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
         
         .message.incoming {
@@ -625,33 +625,47 @@ if ($selected_id && $tables_exist) {
             border-color: var(--wa-bubble-out) transparent transparent transparent;
         }
         
+        .message-content {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message-sender {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--wa-teal);
+            margin-bottom: 0.125rem;
+        }
+        
+        .message.incoming .message-sender {
+            color: #6b7280;
+        }
+        
         .message-text {
-            font-size: 0.875rem;
-            line-height: 1.35;
+            font-size: 0.9375rem;
+            line-height: 1.4;
             word-wrap: break-word;
-            margin-right: 3rem;
+            margin-bottom: 0.25rem;
         }
         
         .message-meta {
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            gap: 0.25rem;
-            margin-top: -0.875rem;
+            gap: 0.375rem;
             font-size: 0.6875rem;
             color: var(--wa-text-secondary);
-            float: right;
-            position: relative;
-            padding-left: 0.5rem;
+            margin-top: 0.125rem;
         }
         
         .message.incoming .message-meta {
-            color: var(--wa-text-secondary);
+            color: #9ca3af;
         }
         
         .message-status {
-            color: #53bdeb;
-            font-size: 1rem;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
         }
         
         .message-status .fa-check {
@@ -940,8 +954,11 @@ if ($selected_id && $tables_exist) {
             }
             
             .message-text {
-                font-size: 0.8125rem;
-                margin-right: 2.5rem;
+                font-size: 0.875rem;
+            }
+            
+            .message-sender {
+                font-size: 0.6875rem;
             }
             
             .message-meta {
@@ -1024,9 +1041,8 @@ if ($selected_id && $tables_exist) {
                 font-size: 0.8125rem;
             }
             
-            .chat-header .btn-outline-primary {
-                font-size: 0.75rem;
-                padding: 0.25rem 0.5rem;
+            .message-sender {
+                font-size: 0.625rem;
             }
         }
         
@@ -1109,14 +1125,6 @@ if ($selected_id && $tables_exist) {
         @keyframes typing {
             0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
             40% { transform: scale(1); opacity: 1; }
-        }
-        
-        /* Sender name for group feel */
-        .message-sender {
-            font-size: 0.8125rem;
-            color: var(--wa-teal);
-            font-weight: 500;
-            margin-bottom: 0.125rem;
         }
         
         /* Reaction bubble */
@@ -1288,57 +1296,60 @@ if ($selected_id && $tables_exist) {
                         <?php endif; ?>
                         
                         <div class="message <?php echo $msg['direction'] === 'incoming' ? 'incoming' : 'outgoing'; ?>">
-                            <?php if ($msg['message_type'] === 'image' && $msg['media_url']): ?>
-                            <div class="message-media">
-                                <img src="<?php echo htmlspecialchars($msg['media_url']); ?>" alt="Image" 
-                                     onclick="window.open(this.src, '_blank')">
-                            </div>
-                            <?php if ($msg['media_caption']): ?>
-                            <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
-                            <?php endif; ?>
-                            <?php elseif ($msg['message_type'] === 'document' && $msg['media_url']): ?>
-                            <div class="message-media document">
-                                <i class="fas fa-file-alt fa-2x text-secondary"></i>
-                                <div>
-                                    <div><?php echo htmlspecialchars($msg['media_filename'] ?: 'Document'); ?></div>
-                                    <a href="<?php echo htmlspecialchars($msg['media_url']); ?>" target="_blank" class="small">Download</a>
-                                </div>
-                            </div>
-                            <?php elseif ($msg['message_type'] === 'voice' || $msg['message_type'] === 'audio'): ?>
-                            <div class="message-media">
-                                <audio controls src="<?php echo htmlspecialchars($msg['media_url']); ?>" style="width: 250px;"></audio>
-                            </div>
-                            <?php elseif ($msg['message_type'] === 'location'): ?>
-                            <div class="message-media">
-                                <a href="https://maps.google.com/?q=<?php echo $msg['latitude']; ?>,<?php echo $msg['longitude']; ?>" target="_blank">
-                                    <i class="fas fa-map-marker-alt fa-2x text-danger"></i>
-                                    📍 <?php echo htmlspecialchars($msg['location_name'] ?: 'Location'); ?>
-                                </a>
-                            </div>
-                            <?php else: ?>
-                            <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['body'] ?? '')); ?></div>
-                            <?php endif; ?>
-                            
-                            <div class="message-meta">
+                            <div class="message-content">
                                 <?php if ($msg['direction'] === 'outgoing' && $msg['sender_name']): ?>
-                                <span class="me-1"><?php echo htmlspecialchars($msg['sender_name']); ?> •</span>
+                                <div class="message-sender"><?php echo htmlspecialchars($msg['sender_name']); ?></div>
                                 <?php endif; ?>
-                                <span><?php echo date('g:i A', strtotime($msg['created_at'])); ?></span>
-                                <?php if ($msg['direction'] === 'outgoing'): ?>
-                                <span class="message-status">
-                                    <?php if ($msg['status'] === 'read'): ?>
-                                    <i class="fas fa-check-double"></i>
-                                    <?php elseif ($msg['status'] === 'delivered'): ?>
-                                    <i class="fas fa-check-double" style="color: #667781;"></i>
-                                    <?php elseif ($msg['status'] === 'sent'): ?>
-                                    <i class="fas fa-check" style="color: #667781;"></i>
-                                    <?php elseif ($msg['status'] === 'failed'): ?>
-                                    <i class="fas fa-exclamation-circle text-danger"></i>
-                                    <?php else: ?>
-                                    <i class="fas fa-clock" style="color: #667781;"></i>
+                                
+                                <?php if ($msg['message_type'] === 'image' && $msg['media_url']): ?>
+                                <div class="message-media">
+                                    <img src="<?php echo htmlspecialchars($msg['media_url']); ?>" alt="Image" 
+                                         onclick="window.open(this.src, '_blank')">
+                                </div>
+                                <?php if ($msg['media_caption']): ?>
+                                <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
+                                <?php endif; ?>
+                                <?php elseif ($msg['message_type'] === 'document' && $msg['media_url']): ?>
+                                <div class="message-media document">
+                                    <i class="fas fa-file-alt fa-2x text-secondary"></i>
+                                    <div>
+                                        <div><?php echo htmlspecialchars($msg['media_filename'] ?: 'Document'); ?></div>
+                                        <a href="<?php echo htmlspecialchars($msg['media_url']); ?>" target="_blank" class="small">Download</a>
+                                    </div>
+                                </div>
+                                <?php elseif ($msg['message_type'] === 'voice' || $msg['message_type'] === 'audio'): ?>
+                                <div class="message-media">
+                                    <audio controls src="<?php echo htmlspecialchars($msg['media_url']); ?>" style="width: 250px;"></audio>
+                                </div>
+                                <?php elseif ($msg['message_type'] === 'location'): ?>
+                                <div class="message-media">
+                                    <a href="https://maps.google.com/?q=<?php echo $msg['latitude']; ?>,<?php echo $msg['longitude']; ?>" target="_blank">
+                                        <i class="fas fa-map-marker-alt fa-2x text-danger"></i>
+                                        📍 <?php echo htmlspecialchars($msg['location_name'] ?: 'Location'); ?>
+                                    </a>
+                                </div>
+                                <?php else: ?>
+                                <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['body'] ?? '')); ?></div>
+                                <?php endif; ?>
+                                
+                                <div class="message-meta">
+                                    <span><?php echo date('g:i A', strtotime($msg['created_at'])); ?></span>
+                                    <?php if ($msg['direction'] === 'outgoing'): ?>
+                                    <span class="message-status">
+                                        <?php if ($msg['status'] === 'read'): ?>
+                                        <i class="fas fa-check-double"></i>
+                                        <?php elseif ($msg['status'] === 'delivered'): ?>
+                                        <i class="fas fa-check-double" style="color: #667781;"></i>
+                                        <?php elseif ($msg['status'] === 'sent'): ?>
+                                        <i class="fas fa-check" style="color: #667781;"></i>
+                                        <?php elseif ($msg['status'] === 'failed'): ?>
+                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        <?php else: ?>
+                                        <i class="fas fa-clock" style="color: #667781;"></i>
+                                        <?php endif; ?>
+                                    </span>
                                     <?php endif; ?>
-                                </span>
-                                <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -1410,10 +1421,13 @@ if (sendForm) {
                 const msgDiv = document.createElement('div');
                 msgDiv.className = 'message outgoing';
                 msgDiv.innerHTML = `
-                    <div class="message-text">${escapeHtml(message)}</div>
-                    <div class="message-meta">
-                        <span>${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}</span>
-                        <span class="message-status"><i class="fas fa-check" style="color: #667781;"></i></span>
+                    <div class="message-content">
+                        <div class="message-sender"><?php echo htmlspecialchars($current_user['name'] ?? 'You'); ?></div>
+                        <div class="message-text">${escapeHtml(message)}</div>
+                        <div class="message-meta">
+                            <span>${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}</span>
+                            <span class="message-status"><i class="fas fa-check" style="color: #667781;"></i></span>
+                        </div>
                     </div>
                 `;
                 chatMessages.appendChild(msgDiv);
