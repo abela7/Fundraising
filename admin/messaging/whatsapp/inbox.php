@@ -258,6 +258,7 @@ if ($selected_id && $tables_exist) {
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
         }
         
         /* Sidebar - Conversation List */
@@ -793,20 +794,48 @@ if ($selected_id && $tables_exist) {
             max-width: 400px;
         }
         
-        /* Responsive */
+        /* ========================================
+           MOBILE RESPONSIVE STYLES
+           ======================================== */
+        
+        /* Tablet */
         @media (max-width: 992px) {
             .chat-messages {
                 padding: 1rem 1.5rem;
             }
+            
+            .inbox-sidebar {
+                width: 320px;
+                min-width: 280px;
+            }
         }
         
+        /* Mobile - Main breakpoint */
         @media (max-width: 768px) {
+            .inbox-container {
+                height: calc(100vh - 80px);
+                border-radius: 0;
+            }
+            
             .inbox-sidebar {
                 width: 100%;
+                min-width: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 10;
             }
             
             .chat-area {
                 display: none;
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 20;
             }
             
             .inbox-container.has-selection .inbox-sidebar {
@@ -817,18 +846,199 @@ if ($selected_id && $tables_exist) {
                 display: flex;
             }
             
+            .inbox-header {
+                padding: 0.5rem 0.75rem;
+                min-height: 56px;
+            }
+            
+            .inbox-header h1 {
+                font-size: 1.125rem;
+            }
+            
+            .inbox-search {
+                padding: 0.5rem;
+            }
+            
+            .inbox-filters {
+                padding: 0.5rem;
+                gap: 0.375rem;
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+            
+            .inbox-filter {
+                flex: 0 0 auto;
+                padding: 0.3rem 0.625rem;
+                font-size: 0.75rem;
+            }
+            
+            .conversation-item {
+                padding: 0.625rem 0.75rem;
+            }
+            
+            .conv-avatar {
+                width: 45px;
+                height: 45px;
+                font-size: 1.125rem;
+                margin-right: 0.75rem;
+            }
+            
+            .conv-name {
+                font-size: 0.9375rem;
+            }
+            
+            .conv-preview {
+                font-size: 0.8125rem;
+            }
+            
+            .conv-time {
+                font-size: 0.6875rem;
+            }
+            
+            /* Chat area mobile */
+            .chat-header {
+                padding: 0.5rem 0.75rem;
+                min-height: 56px;
+            }
+            
+            .chat-header-avatar {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
+                margin-right: 0.625rem;
+            }
+            
+            .chat-header-name {
+                font-size: 0.9375rem;
+            }
+            
+            .chat-header-status {
+                font-size: 0.75rem;
+            }
+            
             .chat-messages {
-                padding: 1rem;
+                padding: 0.75rem;
             }
             
             .message {
                 max-width: 85%;
+                padding: 0.375rem 0.5rem 0.25rem 0.5rem;
             }
+            
+            .message-text {
+                font-size: 0.8125rem;
+                margin-right: 2.5rem;
+            }
+            
+            .message-meta {
+                font-size: 0.625rem;
+            }
+            
+            .message-media {
+                max-width: 250px;
+            }
+            
+            .chat-input {
+                padding: 0.5rem;
+                gap: 0.5rem;
+            }
+            
+            .chat-input-field {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.875rem;
+                min-height: 38px;
+            }
+            
+            .chat-input-btn {
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
+            }
+            
+            /* Back button for mobile */
+            .mobile-back-btn {
+                display: flex !important;
+            }
+            
+            /* Empty state mobile */
+            .empty-state i {
+                font-size: 3.5rem;
+            }
+            
+            .empty-state h3 {
+                font-size: 1.25rem;
+            }
+            
+            .empty-state p {
+                font-size: 0.875rem;
+            }
+            
+            /* Date divider mobile */
+            .date-divider span {
+                font-size: 0.6875rem;
+                padding: 0.25rem 0.625rem;
+            }
+        }
+        
+        /* Small mobile */
+        @media (max-width: 480px) {
+            .inbox-container {
+                height: calc(100vh - 60px);
+            }
+            
+            .inbox-header h1 {
+                font-size: 1rem;
+            }
+            
+            .inbox-filter {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.6875rem;
+            }
+            
+            .conv-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                margin-right: 0.625rem;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .message-text {
+                font-size: 0.8125rem;
+            }
+            
+            .chat-header .btn-outline-primary {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
+        
+        /* Mobile back button - hidden on desktop */
+        .mobile-back-btn {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--wa-text-secondary);
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
+        
+        .mobile-back-btn:hover {
+            background: var(--wa-hover);
+            color: var(--wa-teal);
         }
         
         /* Setup Warning */
         .setup-warning {
-            background: linear-gradient(135deg, #1a2e35, #0d1f26);
+            background: #f8f9fa;
             border: 1px solid var(--wa-teal);
             border-radius: 12px;
             padding: 1.5rem;
@@ -841,10 +1051,17 @@ if ($selected_id && $tables_exist) {
         }
         
         .setup-warning code {
-            background: var(--wa-input-bg);
+            background: var(--wa-search-bg);
             padding: 0.25rem 0.5rem;
             border-radius: 4px;
             color: var(--wa-teal);
+        }
+        
+        @media (max-width: 768px) {
+            .setup-warning {
+                padding: 1rem;
+                font-size: 0.875rem;
+            }
         }
         
         /* Typing indicator */
@@ -908,27 +1125,7 @@ if ($selected_id && $tables_exist) {
     <div class="admin-content">
         <?php try { include '../../includes/topbar.php'; } catch (Throwable $e) {} ?>
         
-        <main class="main-content p-3">
-            <!-- Debug Info (remove in production) -->
-            <?php if (!empty($debug_info)): ?>
-            <div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:8px;padding:1rem;margin-bottom:1rem;color:#93c5fd;font-size:0.8125rem;">
-                <strong><i class="fas fa-bug me-1"></i> Debug Info:</strong>
-                <ul class="mb-0 mt-2" style="padding-left:1.25rem;">
-                    <?php foreach ($debug_info as $info): ?>
-                    <li><?php echo htmlspecialchars($info); ?></li>
-                    <?php endforeach; ?>
-                </ul>
-                <div class="mt-2">
-                    <a href="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" class="btn btn-sm btn-primary me-2">
-                        <i class="fas fa-sync-alt me-1"></i>Refresh
-                    </a>
-                    <a href="../../../webhooks/test.php" class="btn btn-sm btn-outline-light" target="_blank">
-                        <i class="fas fa-vial me-1"></i>Test Webhook
-                    </a>
-                </div>
-            </div>
-            <?php endif; ?>
-            
+        <main class="main-content p-2 p-md-3">
             <!-- Error Message -->
             <?php if (!empty($error_message)): ?>
             <div class="alert alert-danger">
@@ -1001,7 +1198,8 @@ if ($selected_id && $tables_exist) {
                             $lastTime = $conv['last_message_at'] ? date('M j, g:i A', strtotime($conv['last_message_at'])) : '';
                             ?>
                             <a href="?id=<?php echo $conv['id']; ?>&filter=<?php echo $filter; ?>" 
-                               class="conversation-item <?php echo $isActive ? 'active' : ''; ?> <?php echo $isUnread ? 'unread' : ''; ?>">
+                               class="conversation-item <?php echo $isActive ? 'active' : ''; ?> <?php echo $isUnread ? 'unread' : ''; ?>"
+                               onclick="if(window.innerWidth <= 768) document.querySelector('.inbox-container').classList.add('has-selection')">
                                 <div class="conv-avatar <?php echo $isUnknown ? 'unknown' : ''; ?>">
                                     <?php echo $initials; ?>
                                 </div>
@@ -1037,9 +1235,9 @@ if ($selected_id && $tables_exist) {
                         : 'Unknown Contact';
                     ?>
                     <div class="chat-header">
-                        <a href="?filter=<?php echo $filter; ?>" class="btn btn-sm btn-light me-2 d-md-none">
+                        <button type="button" class="mobile-back-btn" onclick="goBackToList()">
                             <i class="fas fa-arrow-left"></i>
-                        </a>
+                        </button>
                         <div class="chat-header-avatar"><?php echo $chatInitials; ?></div>
                         <div class="chat-header-info">
                             <div class="chat-header-name"><?php echo htmlspecialchars($chatName); ?></div>
@@ -1216,11 +1414,45 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Auto-refresh for new messages (every 10 seconds)
+// Mobile navigation
+function goBackToList() {
+    const container = document.querySelector('.inbox-container');
+    if (container) {
+        container.classList.remove('has-selection');
+    }
+    // Update URL without the id parameter
+    const url = new URL(window.location);
+    url.searchParams.delete('id');
+    window.history.pushState({}, '', url);
+}
+
+// Handle mobile view - add has-selection class if conversation is selected
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($selected_id): ?>
+    const container = document.querySelector('.inbox-container');
+    if (container && window.innerWidth <= 768) {
+        container.classList.add('has-selection');
+    }
+    <?php endif; ?>
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        const container = document.querySelector('.inbox-container');
+        if (container) {
+            if (window.innerWidth > 768) {
+                container.classList.remove('has-selection');
+            } else if (<?php echo $selected_id ? 'true' : 'false'; ?>) {
+                container.classList.add('has-selection');
+            }
+        }
+    });
+});
+
+// Auto-refresh for new messages (every 15 seconds)
 <?php if ($selected_id): ?>
 setInterval(() => {
-    // Could implement AJAX refresh here
-}, 10000);
+    // Could implement AJAX refresh here for real-time updates
+}, 15000);
 <?php endif; ?>
 </script>
 </body>

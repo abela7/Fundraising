@@ -1,13 +1,13 @@
-<!-- Floating Action Button (FAB) Menu - Positioned on LEFT -->
+<!-- Floating Action Button (FAB) Menu -->
 <style>
     .fab-container {
         position: fixed;
         bottom: 20px;
-        left: 20px;
+        right: 20px;
         z-index: 9999;
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: flex-end;
         gap: 12px;
         pointer-events: none; /* Don't block clicks when closed */
     }
@@ -54,7 +54,7 @@
         display: flex;
         flex-direction: column-reverse;
         gap: 12px;
-        align-items: flex-start;
+        align-items: flex-end;
         pointer-events: none;
         opacity: 0;
         transform: translateY(20px);
@@ -73,8 +73,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        flex-direction: row-reverse;
-        justify-content: flex-start;
+        justify-content: flex-end;
         transform: translateY(10px);
         opacity: 0;
         transition: all 0.3s ease;
@@ -86,7 +85,7 @@
     }
 
     .fab-item:hover {
-        transform: translateX(5px) translateY(0);
+        transform: translateX(-5px) translateY(0);
     }
 
     .fab-btn {
@@ -121,7 +120,7 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         pointer-events: none;
         opacity: 0;
-        transform: translateX(-10px);
+        transform: translateX(10px);
         transition: all 0.2s;
     }
 
@@ -157,7 +156,7 @@
     @media (max-width: 576px) {
         .fab-container {
             bottom: 15px;
-            left: 15px;
+            right: 15px;
             gap: 10px;
         }
         .fab-main {

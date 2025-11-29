@@ -191,6 +191,25 @@ function normalizePhone(string $phone): string
         .donor-result:hover {
             background: #f5f6f6;
         }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .new-chat-card {
+                margin: 1rem;
+                padding: 1.25rem;
+            }
+            .new-chat-card h2 {
+                font-size: 1.25rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .new-chat-card {
+                margin: 0.5rem;
+                padding: 1rem;
+                border-radius: 8px;
+            }
+        }
     </style>
 </head>
 <body>
