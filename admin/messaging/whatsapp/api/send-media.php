@@ -118,15 +118,18 @@ $allowedTypes = [
     'video' => ['video/mp4', 'video/mpeg', 'video/webm', 'video/quicktime']
 ];
 
-// Determine media type from mime if not specified
-if (strpos($fileMimeType, 'image/') === 0) {
-    $mediaType = 'image';
-} elseif (strpos($fileMimeType, 'audio/') === 0) {
-    $mediaType = 'audio';
-} elseif (strpos($fileMimeType, 'video/') === 0) {
-    $mediaType = 'video';
-} else {
-    $mediaType = 'document';
+// Determine media type from mime if not already set to 'voice'
+// Preserve 'voice' type when explicitly set (for voice recordings)
+if ($mediaType !== 'voice') {
+    if (strpos($fileMimeType, 'image/') === 0) {
+        $mediaType = 'image';
+    } elseif (strpos($fileMimeType, 'audio/') === 0) {
+        $mediaType = 'audio';
+    } elseif (strpos($fileMimeType, 'video/') === 0) {
+        $mediaType = 'video';
+    } else {
+        $mediaType = 'document';
+    }
 }
 
 // Validate mime type
@@ -173,7 +176,17 @@ try {
     if (!$result['success']) {
         // Clean up uploaded file on failure
         @unlink($localPath);
-        throw new Exception($result['error'] ?? 'Failed to send media');
+        
+        // Handle error - could be string or array
+        $errorMsg = 'Failed to send media';
+        if (isset($result['error'])) {
+            if (is_array($result['error'])) {
+                $errorMsg = json_encode($result['error']);
+            } else {
+                $errorMsg = (string)$result['error'];
+            }
+        }
+        throw new Exception($errorMsg);
     }
     
     // Get or create conversation
@@ -217,7 +230,8 @@ try {
     // Update conversation
     $preview = $mediaType === 'image' ? '📷 Photo' : 
                ($mediaType === 'video' ? '🎥 Video' : 
-               ($mediaType === 'audio' ? '🎵 Audio' : '📎 Document'));
+               ($mediaType === 'voice' ? '🎤 Voice message' :
+               ($mediaType === 'audio' ? '🎵 Audio' : '📎 Document')));
     if ($caption) {
         $preview .= ': ' . mb_substr($caption, 0, 50);
     }

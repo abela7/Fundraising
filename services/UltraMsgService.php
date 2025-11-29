@@ -626,10 +626,17 @@ class UltraMsgService
             ];
         }
         
-        // Error response
+        // Error response - ensure error is always a string
+        $errorMsg = 'Unknown error';
+        if (isset($data['error'])) {
+            $errorMsg = is_array($data['error']) ? json_encode($data['error']) : (string)$data['error'];
+        } elseif (isset($data['message'])) {
+            $errorMsg = is_array($data['message']) ? json_encode($data['message']) : (string)$data['message'];
+        }
+        
         return [
             'success' => false,
-            'error' => $data['error'] ?? $data['message'] ?? 'Unknown error',
+            'error' => $errorMsg,
             'error_code' => $data['error_code'] ?? 'UNKNOWN',
             'message_id' => $messageId,
             'raw_response' => $data

@@ -2573,7 +2573,10 @@ async function sendMediaMessage() {
         let mediaType = 'document';
         if (selectedFile.type.startsWith('image/')) mediaType = 'image';
         else if (selectedFile.type.startsWith('video/')) mediaType = 'video';
-        else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
+        else if (selectedFile.type.startsWith('audio/')) {
+            // Check if this is a voice recording (filename starts with 'voice_')
+            mediaType = selectedFile.name.startsWith('voice_') ? 'voice' : 'audio';
+        }
         formData.append('media_type', mediaType);
         
         const response = await fetch('api/send-media.php', {
