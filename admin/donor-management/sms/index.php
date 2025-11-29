@@ -720,8 +720,19 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                                         <i class="fas fa-cog"></i>
                                     </div>
                                     <div class="action-content">
-                                        <p class="action-name">Settings</p>
-                                        <p class="action-desc">Provider & configuration</p>
+                                        <p class="action-name">SMS Settings</p>
+                                        <p class="action-desc">VoodooSMS configuration</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </a>
+                                
+                                <a href="whatsapp-settings.php" class="action-item" style="background: linear-gradient(135deg, rgba(37, 211, 102, 0.1), rgba(18, 140, 126, 0.1)); border-radius: 8px;">
+                                    <div class="action-icon" style="background: #25D366; color: white;">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </div>
+                                    <div class="action-content">
+                                        <p class="action-name">WhatsApp Settings</p>
+                                        <p class="action-desc">UltraMsg configuration</p>
                                     </div>
                                     <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
