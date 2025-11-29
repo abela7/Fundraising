@@ -810,27 +810,43 @@ if ($selected_id && $tables_exist) {
             justify-content: center;
             color: var(--wa-text-secondary);
             text-align: center;
-            padding: 2rem;
+            padding: 2rem 1rem;
             background: var(--wa-chat-bg);
         }
         
         .empty-state i {
-            font-size: 5rem;
+            font-size: 4rem;
             color: var(--wa-teal);
-            opacity: 0.3;
-            margin-bottom: 1.5rem;
+            opacity: 0.4;
+            margin-bottom: 1rem;
         }
         
         .empty-state h3 {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             color: var(--wa-text);
-            margin-bottom: 0.75rem;
-            font-weight: 300;
+            margin-bottom: 0.5rem;
+            font-weight: 400;
         }
         
         .empty-state p {
-            font-size: 0.9375rem;
-            max-width: 400px;
+            font-size: 0.875rem;
+            max-width: 350px;
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
+        
+        .empty-state .btn {
+            padding: 0.5rem 1.25rem;
+            font-size: 0.875rem;
+            border-radius: 20px;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 168, 132, 0.2);
+        }
+        
+        .empty-state .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 168, 132, 0.3);
         }
         
         /* ========================================
@@ -1029,16 +1045,29 @@ if ($selected_id && $tables_exist) {
             }
             
             /* Empty state mobile */
+            .empty-state {
+                padding: 1.5rem 1rem;
+            }
+            
             .empty-state i {
-                font-size: 3.5rem;
+                font-size: 3rem;
+                margin-bottom: 0.875rem;
             }
             
             .empty-state h3 {
-                font-size: 1.25rem;
+                font-size: 1.125rem;
+                margin-bottom: 0.375rem;
             }
             
             .empty-state p {
-                font-size: 0.875rem;
+                font-size: 0.8125rem;
+                margin-bottom: 1rem;
+                max-width: 280px;
+            }
+            
+            .empty-state .btn {
+                padding: 0.4375rem 1rem;
+                font-size: 0.8125rem;
             }
             
             /* Date divider mobile */
@@ -1110,6 +1139,30 @@ if ($selected_id && $tables_exist) {
                 min-height: 38px;
                 max-width: 38px;
                 max-height: 38px;
+            }
+            
+            /* Empty state small mobile */
+            .empty-state {
+                padding: 1.25rem 0.75rem;
+            }
+            
+            .empty-state i {
+                font-size: 2.5rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            .empty-state h3 {
+                font-size: 1rem;
+            }
+            
+            .empty-state p {
+                font-size: 0.75rem;
+                max-width: 250px;
+            }
+            
+            .empty-state .btn {
+                padding: 0.375rem 0.875rem;
+                font-size: 0.75rem;
             }
         }
         
@@ -1273,11 +1326,11 @@ if ($selected_id && $tables_exist) {
                     
                     <div class="conversation-list">
                         <?php if (empty($conversations)): ?>
-                        <div class="empty-state py-5">
+                        <div class="empty-state">
                             <i class="fab fa-whatsapp"></i>
                             <h3>No Conversations Yet</h3>
                             <p>When donors message you on WhatsApp, they'll appear here.</p>
-                            <a href="new-chat.php" class="btn btn-sm mt-3" style="background:var(--wa-teal);color:white;">
+                            <a href="new-chat.php" class="btn" style="background:var(--wa-teal);color:white;border:none;">
                                 <i class="fas fa-plus me-1"></i>Start New Chat
                             </a>
                         </div>
