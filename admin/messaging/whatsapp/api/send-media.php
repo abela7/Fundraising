@@ -118,18 +118,16 @@ $allowedTypes = [
     'video' => ['video/mp4', 'video/mpeg', 'video/webm', 'video/quicktime']
 ];
 
-// Determine media type from mime if not already set to 'voice'
-// Preserve 'voice' type when explicitly set (for voice recordings)
-if ($mediaType !== 'voice') {
-    if (strpos($fileMimeType, 'image/') === 0) {
-        $mediaType = 'image';
-    } elseif (strpos($fileMimeType, 'audio/') === 0) {
-        $mediaType = 'audio';
-    } elseif (strpos($fileMimeType, 'video/') === 0) {
-        $mediaType = 'video';
-    } else {
-        $mediaType = 'document';
-    }
+// Determine media type from mime
+// Always use 'audio' for audio files (voice endpoint has stricter format requirements)
+if (strpos($fileMimeType, 'image/') === 0) {
+    $mediaType = 'image';
+} elseif (strpos($fileMimeType, 'audio/') === 0) {
+    $mediaType = 'audio'; // Use audio endpoint for all audio (more format-flexible)
+} elseif (strpos($fileMimeType, 'video/') === 0) {
+    $mediaType = 'video';
+} else {
+    $mediaType = 'document';
 }
 
 // Validate mime type
@@ -227,11 +225,11 @@ try {
     $stmt->execute();
     $dbMessageId = (int)$db->insert_id;
     
-    // Update conversation
+    // Update conversation - check filename to determine if it's a voice recording
+    $isVoiceRecording = strpos($fileName, 'voice_') === 0;
     $preview = $mediaType === 'image' ? '📷 Photo' : 
                ($mediaType === 'video' ? '🎥 Video' : 
-               ($mediaType === 'voice' ? '🎤 Voice message' :
-               ($mediaType === 'audio' ? '🎵 Audio' : '📎 Document')));
+               ($mediaType === 'audio' ? ($isVoiceRecording ? '🎤 Voice message' : '🎵 Audio') : '📎 Document'));
     if ($caption) {
         $preview .= ': ' . mb_substr($caption, 0, 50);
     }

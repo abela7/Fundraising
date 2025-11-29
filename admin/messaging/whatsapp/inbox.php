@@ -2570,13 +2570,11 @@ async function sendMediaMessage() {
         formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
         
         // Determine media type
+        // Always use 'audio' for audio files (UltraMsg voice endpoint is more restrictive)
         let mediaType = 'document';
         if (selectedFile.type.startsWith('image/')) mediaType = 'image';
         else if (selectedFile.type.startsWith('video/')) mediaType = 'video';
-        else if (selectedFile.type.startsWith('audio/')) {
-            // Check if this is a voice recording (filename starts with 'voice_')
-            mediaType = selectedFile.name.startsWith('voice_') ? 'voice' : 'audio';
-        }
+        else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
         formData.append('media_type', mediaType);
         
         const response = await fetch('api/send-media.php', {
