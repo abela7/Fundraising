@@ -2888,8 +2888,9 @@ function displayTemplates(grouped) {
                 ? template.content.substring(0, 80) + '...' 
                 : template.content;
             
+            // Use data attribute to store template ID safely
             html += `
-                <div class="template-item" onclick="selectTemplate(${template.id}, ${JSON.stringify(template.content)})">
+                <div class="template-item" data-template-id="${template.id}">
                     <div class="template-name">${escapeHtml(template.name)}</div>
                     <div class="template-preview">${escapeHtml(preview)}</div>
                 </div>
@@ -2900,16 +2901,31 @@ function displayTemplates(grouped) {
     }
     
     content.innerHTML = html;
+    
+    // Add click handlers after rendering
+    content.querySelectorAll('.template-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const templateId = parseInt(this.dataset.templateId, 10);
+            selectTemplate(templateId);
+        });
+    });
 }
 
 // Select template and fill message input
-function selectTemplate(templateId, templateContent) {
+function selectTemplate(templateId) {
     const messageInput = document.getElementById('messageInput');
     const templatesMenu = document.getElementById('templatesMenu');
     
+    // Find template content from stored data
+    const template = templatesData.find(t => t.id === templateId);
+    if (!template) {
+        console.error('Template not found:', templateId);
+        return;
+    }
+    
     if (messageInput) {
         // Fill the input with template content
-        messageInput.value = templateContent;
+        messageInput.value = template.content;
         messageInput.focus();
         
         // Move cursor to end
