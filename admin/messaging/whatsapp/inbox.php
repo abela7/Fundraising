@@ -1947,28 +1947,11 @@ if ($selected_id && $tables_exist) {
                         <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
                                autocomplete="off" id="messageInput">
                         
-                        <!-- Voice Recording Button (hidden when typing) -->
-                        <button type="button" class="chat-input-btn voice" id="voiceBtn" onclick="toggleVoiceRecording()">
-                            <i class="fas fa-microphone"></i>
-                        </button>
-                        
-                        <!-- Send Button (hidden when not typing) -->
-                        <button type="submit" class="chat-input-btn" id="sendBtn" style="display: none;">
+                        <!-- Send Button -->
+                        <button type="submit" class="chat-input-btn" id="sendBtn">
                             <i class="fas fa-paper-plane"></i>
                         </button>
                         
-                        <!-- Voice Recording UI -->
-                        <div class="voice-recording-ui" id="voiceRecordingUI">
-                            <div class="recording-indicator">
-                                <div class="recording-dot"></div>
-                                <span class="recording-timer" id="recordingTimer">0:00</span>
-                            </div>
-                            <div class="recording-waveform" id="waveform"></div>
-                            <button type="button" class="recording-cancel" onclick="cancelRecording()">Cancel</button>
-                            <button type="button" class="recording-send" onclick="sendVoiceMessage()">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
                     </form>
                     
                     <?php else: ?>
@@ -2053,10 +2036,6 @@ if (sendForm) {
                 
                 messageInput.value = '';
                 
-                // Reset button state
-                const voiceBtn = document.getElementById('voiceBtn');
-                if (voiceBtn) voiceBtn.style.display = 'flex';
-                if (sendBtn) sendBtn.style.display = 'none';
             } else {
                 alert('Failed to send: ' + (result.error || 'Unknown error'));
             }
@@ -2399,26 +2378,9 @@ document.addEventListener('visibilitychange', function() {
 // ============================================
 
 let selectedFile = null;
-let mediaRecorder = null;
-let audioChunks = [];
-let recordingStartTime = null;
-let recordingTimerInterval = null;
 
-// Toggle voice/send button based on input
-if (messageInput) {
-    messageInput.addEventListener('input', function() {
-        const hasText = this.value.trim().length > 0;
-        const hasMedia = selectedFile !== null;
-        const shouldShowSend = hasText || hasMedia;
-        const voiceBtn = document.getElementById('voiceBtn');
-        const sendBtn = document.getElementById('sendBtn');
-        
-        if (voiceBtn && sendBtn) {
-            voiceBtn.style.display = shouldShowSend ? 'none' : 'flex';
-            sendBtn.style.display = shouldShowSend ? 'flex' : 'none';
-        }
-    });
-}
+// Input listener (for future use if needed)
+// Voice recording disabled - use attachment button to upload audio files
 
 // Toggle attachment menu
 function toggleAttachmentMenu() {
@@ -2516,30 +2478,16 @@ function showMediaPreview(file) {
     }
     
     preview.classList.add('active');
-    
-    // Update send button to show
-    const voiceBtn = document.getElementById('voiceBtn');
-    const sendBtn = document.getElementById('sendBtn');
-    if (voiceBtn) voiceBtn.style.display = 'none';
-    if (sendBtn) sendBtn.style.display = 'flex';
 }
 
 // Clear media preview
 function clearMediaPreview() {
     const preview = document.getElementById('mediaPreview');
     const fileInput = document.getElementById('fileInput');
-    const voiceBtn = document.getElementById('voiceBtn');
-    const sendBtn = document.getElementById('sendBtn');
-    const messageInput = document.getElementById('messageInput');
     
     selectedFile = null;
     if (preview) preview.classList.remove('active');
     if (fileInput) fileInput.value = '';
-    
-    // Restore button state
-    const hasText = messageInput && messageInput.value.trim().length > 0;
-    if (voiceBtn) voiceBtn.style.display = hasText ? 'none' : 'flex';
-    if (sendBtn) sendBtn.style.display = hasText ? 'flex' : 'none';
 }
 
 // Format file size
@@ -2662,363 +2610,8 @@ function addMediaMessageToChat(result, caption, file) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// ============================================
-// VOICE RECORDING
-// ============================================
-
-function toggleVoiceRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        stopRecording();
-    } else {
-        startRecording();
-    }
-}
-
-// Get best supported audio format for WhatsApp
-function getSupportedMimeType() {
-    // Order of preference - OGG is best for WhatsApp
-    const types = [
-        'audio/ogg;codecs=opus',
-        'audio/ogg',
-        'audio/mp4',
-        'audio/mpeg',
-        'audio/webm;codecs=opus',
-        'audio/webm'
-    ];
-    
-    for (const type of types) {
-        if (MediaRecorder.isTypeSupported(type)) {
-            return type;
-        }
-    }
-    return 'audio/webm'; // fallback
-}
-
-let recordingMimeType = 'audio/ogg';
-
-async function startRecording() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        // Use the best supported format
-        recordingMimeType = getSupportedMimeType();
-        console.log('Recording with mime type:', recordingMimeType);
-        
-        const options = { mimeType: recordingMimeType };
-        
-        try {
-            mediaRecorder = new MediaRecorder(stream, options);
-        } catch (e) {
-            // Fallback to default if the mime type fails
-            console.warn('Failed to use', recordingMimeType, '- using default');
-            mediaRecorder = new MediaRecorder(stream);
-            recordingMimeType = 'audio/webm';
-        }
-        
-        audioChunks = [];
-        
-        mediaRecorder.ondataavailable = (e) => {
-            audioChunks.push(e.data);
-        };
-        
-        mediaRecorder.onstop = () => {
-            stream.getTracks().forEach(track => track.stop());
-        };
-        
-        mediaRecorder.start();
-        recordingStartTime = Date.now();
-        
-        // Show recording UI
-        const voiceBtn = document.getElementById('voiceBtn');
-        const recordingUI = document.getElementById('voiceRecordingUI');
-        if (voiceBtn) voiceBtn.classList.add('recording');
-        if (recordingUI) recordingUI.classList.add('active');
-        
-        // Start timer
-        updateRecordingTimer();
-        recordingTimerInterval = setInterval(updateRecordingTimer, 1000);
-        
-        // Create waveform animation
-        createWaveformAnimation();
-        
-    } catch (err) {
-        alert('Unable to access microphone. Please ensure you have granted permission.');
-        console.error('Microphone error:', err);
-    }
-}
-
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-    }
-    
-    clearInterval(recordingTimerInterval);
-    
-    const voiceBtn = document.getElementById('voiceBtn');
-    const recordingUI = document.getElementById('voiceRecordingUI');
-    if (voiceBtn) voiceBtn.classList.remove('recording');
-    if (recordingUI) recordingUI.classList.remove('active');
-}
-
-function cancelRecording() {
-    stopRecording();
-    audioChunks = [];
-}
-
-async function sendVoiceMessage() {
-    if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
-    
-    // Stop recording
-    mediaRecorder.stop();
-    clearInterval(recordingTimerInterval);
-    
-    const voiceBtn = document.getElementById('voiceBtn');
-    const recordingUI = document.getElementById('voiceRecordingUI');
-    if (voiceBtn) voiceBtn.classList.remove('recording');
-    if (recordingUI) recordingUI.classList.remove('active');
-    
-    // Show converting message
-    const timerEl = document.getElementById('recordingTimer');
-    if (timerEl) timerEl.textContent = 'Converting...';
-    
-    // Wait a bit for the last chunk
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    try {
-        // Convert WebM to MP3 using Web Audio API
-        const audioBlob = new Blob(audioChunks, { type: recordingMimeType });
-        audioChunks = [];
-        
-        // Check if we need conversion (WebM needs to be converted)
-        if (recordingMimeType.includes('webm')) {
-            const mp3Blob = await convertWebMToMP3(audioBlob);
-            const audioFile = new File([mp3Blob], `voice_${Date.now()}.mp3`, { type: 'audio/mpeg' });
-            selectedFile = audioFile;
-        } else {
-            // Already in a compatible format (OGG, MP4, etc.)
-            const extension = recordingMimeType.includes('ogg') ? 'ogg' : 
-                             recordingMimeType.includes('mp4') ? 'm4a' : 'mp3';
-            const baseMimeType = recordingMimeType.split(';')[0];
-            const audioFile = new File([audioBlob], `voice_${Date.now()}.${extension}`, { type: baseMimeType });
-            selectedFile = audioFile;
-        }
-        
-        // Send via media API
-        await sendMediaMessage();
-    } catch (err) {
-        console.error('Voice conversion error:', err);
-        alert('Failed to process voice recording: ' + err.message + '\n\nPlease try recording again or upload an audio file instead.');
-    }
-}
-
-// Convert WebM audio to MP3 using Web Audio API
-async function convertWebMToMP3(webmBlob) {
-    return new Promise((resolve, reject) => {
-        // Check if Web Audio API is available
-        if (!window.AudioContext && !window.webkitAudioContext) {
-            reject(new Error('Web Audio API not supported in this browser'));
-            return;
-        }
-        
-        const reader = new FileReader();
-        
-        reader.onload = async function(e) {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Decode WebM audio
-                let audioBuffer;
-                try {
-                    audioBuffer = await audioContext.decodeAudioData(e.target.result);
-                } catch (decodeErr) {
-                    reject(new Error('Failed to decode WebM audio. Your browser may not support WebM decoding.'));
-                    return;
-                }
-                
-                // Convert to WAV first
-                const wav = audioBufferToWav(audioBuffer);
-                const wavBlob = new Blob([wav], { type: 'audio/wav' });
-                
-                // Convert WAV to MP3 using lamejs
-                const mp3Blob = await convertWavToMP3(wavBlob, audioBuffer.sampleRate);
-                resolve(mp3Blob);
-            } catch (err) {
-                reject(new Error('Audio conversion failed: ' + err.message));
-            }
-        };
-        
-        reader.onerror = () => reject(new Error('Failed to read audio file'));
-        reader.readAsArrayBuffer(webmBlob);
-    });
-}
-
-// Convert AudioBuffer to WAV
-function audioBufferToWav(buffer) {
-    const length = buffer.length;
-    const numberOfChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
-    const view = new DataView(arrayBuffer);
-    const channels = [];
-    let offset = 0;
-    let pos = 0;
-    
-    // WAV header
-    const setUint16 = (data) => {
-        view.setUint16(pos, data, true);
-        pos += 2;
-    };
-    const setUint32 = (data) => {
-        view.setUint32(pos, data, true);
-        pos += 4;
-    };
-    
-    // RIFF identifier
-    setUint32(0x46464952); // "RIFF"
-    setUint32(36 + length * numberOfChannels * 2); // file length - 8
-    setUint32(0x45564157); // "WAVE"
-    
-    // fmt chunk
-    setUint32(0x20746d66); // "fmt "
-    setUint32(16); // chunk size
-    setUint16(1); // audio format (1 = PCM)
-    setUint16(numberOfChannels);
-    setUint32(sampleRate);
-    setUint32(sampleRate * numberOfChannels * 2); // byte rate
-    setUint16(numberOfChannels * 2); // block align
-    setUint16(16); // bits per sample
-    
-    // data chunk
-    setUint32(0x61746164); // "data"
-    setUint32(length * numberOfChannels * 2);
-    
-    // Convert float samples to 16-bit PCM
-    for (let i = 0; i < numberOfChannels; i++) {
-        channels.push(buffer.getChannelData(i));
-    }
-    
-    while (pos < arrayBuffer.byteLength) {
-        for (let i = 0; i < numberOfChannels; i++) {
-            let sample = Math.max(-1, Math.min(1, channels[i][offset]));
-            sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-            view.setInt16(pos, sample, true);
-            pos += 2;
-        }
-        offset++;
-    }
-    
-    return arrayBuffer;
-}
-
-// Convert WAV to MP3 using lamejs (lightweight MP3 encoder)
-async function convertWavToMP3(wavBlob, sampleRate) {
-    // Load lamejs library dynamically
-    if (!window.lamejs && !window.Lame) {
-        await loadLameJS();
-    }
-    
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const wavData = new Int16Array(e.target.result);
-                
-                // Handle different library exports
-                const Lame = window.lamejs || window.Lame;
-                if (!Lame || !Lame.Mp3Encoder) {
-                    throw new Error('MP3 encoder not available');
-                }
-                
-                const mp3encoder = new Lame.Mp3Encoder(1, sampleRate, 128); // mono, sampleRate, 128kbps
-                const sampleBlockSize = 1152;
-                const mp3Data = [];
-                
-                for (let i = 0; i < wavData.length; i += sampleBlockSize) {
-                    const sampleChunk = wavData.subarray(i, i + sampleBlockSize);
-                    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
-                    if (mp3buf.length > 0) {
-                        mp3Data.push(mp3buf);
-                    }
-                }
-                
-                const mp3buf = mp3encoder.flush();
-                if (mp3buf.length > 0) {
-                    mp3Data.push(mp3buf);
-                }
-                
-                const mp3Blob = new Blob(mp3Data, { type: 'audio/mpeg' });
-                resolve(mp3Blob);
-            } catch (err) {
-                reject(new Error('MP3 encoding failed: ' + err.message));
-            }
-        };
-        reader.onerror = () => reject(new Error('Failed to read WAV file'));
-        reader.readAsArrayBuffer(wavBlob);
-    });
-}
-
-// Load lamejs library from CDN
-function loadLameJS() {
-    return new Promise((resolve, reject) => {
-        if (window.lamejs || window.Lame) {
-            resolve();
-            return;
-        }
-        
-        const script = document.createElement('script');
-        // Try multiple CDN sources
-        script.src = 'https://unpkg.com/lamejs@1.2.1/lame.min.js';
-        script.onload = () => {
-            // Check if library loaded correctly
-            if (window.lamejs || window.Lame) {
-                resolve();
-            } else {
-                reject(new Error('MP3 encoder library loaded but not available'));
-            }
-        };
-        script.onerror = () => {
-            // Try alternative CDN
-            const script2 = document.createElement('script');
-            script2.src = 'https://cdn.jsdelivr.net/gh/zhuker/lamejs@master/js/lame.min.js';
-            script2.onload = () => {
-                if (window.lamejs || window.Lame) {
-                    resolve();
-                } else {
-                    reject(new Error('MP3 encoder library not available'));
-                }
-            };
-            script2.onerror = () => reject(new Error('Failed to load MP3 encoder library'));
-            document.head.appendChild(script2);
-        };
-        document.head.appendChild(script);
-    });
-}
-
-function updateRecordingTimer() {
-    const timer = document.getElementById('recordingTimer');
-    if (!timer || !recordingStartTime) return;
-    
-    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-    timer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function createWaveformAnimation() {
-    const waveform = document.getElementById('waveform');
-    if (!waveform) return;
-    
-    waveform.innerHTML = '';
-    const bars = 20;
-    
-    for (let i = 0; i < bars; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'waveform-bar';
-        bar.style.animationDelay = `${i * 0.05}s`;
-        bar.style.height = `${Math.random() * 20 + 5}px`;
-        waveform.appendChild(bar);
-    }
-}
+// Voice recording disabled - use attachment button to upload audio files instead
+// Browser voice recording has compatibility issues with WhatsApp audio formats
 </script>
 </body>
 </html>

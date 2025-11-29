@@ -217,7 +217,7 @@ try {
     ");
     
     $body = $caption ?: null;
-    $stmt->bind_param('issssssssi', 
+    $stmt->bind_param('isssssssssi', 
         $conversationId, $messageId, $mediaType, $body, 
         $publicUrl, $fileMimeType, $fileName, $caption, $relativePath, 
         $status, $senderId
