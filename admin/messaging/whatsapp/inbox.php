@@ -758,6 +758,8 @@ if ($selected_id && $tables_exist) {
         .chat-input-btn {
             width: 42px;
             height: 42px;
+            min-width: 42px;
+            min-height: 42px;
             border: none;
             border-radius: 50%;
             background: var(--wa-teal);
@@ -768,16 +770,27 @@ if ($selected_id && $tables_exist) {
             justify-content: center;
             transition: all 0.2s;
             font-size: 1.125rem;
+            padding: 0;
+            flex-shrink: 0;
+            box-sizing: border-box;
         }
         
         .chat-input-btn:hover {
             transform: scale(1.05);
+            background: #00917a;
         }
         
         .chat-input-btn:disabled {
             background: #dfe5e7;
             cursor: not-allowed;
             color: var(--wa-text-secondary);
+            transform: none;
+        }
+        
+        .chat-input-btn i {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .chat-input-btn.attachment {
@@ -983,6 +996,8 @@ if ($selected_id && $tables_exist) {
             .chat-input-btn {
                 width: 38px;
                 height: 38px;
+                min-width: 38px;
+                min-height: 38px;
                 font-size: 1rem;
             }
             
@@ -1267,7 +1282,7 @@ if ($selected_id && $tables_exist) {
                         </button>
                         <?php if ($selected_conversation['donor_id']): ?>
                         <a href="../../donor-management/view-donor.php?id=<?php echo $selected_conversation['donor_id']; ?>" 
-                           class="chat-header-link" target="_blank">
+                           class="chat-header-link">
                             <div class="chat-header-avatar"><?php echo $chatInitials; ?></div>
                             <div class="chat-header-info">
                                 <div class="chat-header-name"><?php echo htmlspecialchars($chatName); ?></div>
