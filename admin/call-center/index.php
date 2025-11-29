@@ -539,6 +539,17 @@ $talk_time_formatted = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                                     <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
                                 
+                                <a href="../messaging/whatsapp/inbox.php" class="action-item">
+                                    <div class="action-icon" style="background: #d9fdd3; color: #25D366;">
+                                        <i class="fab fa-whatsapp"></i>
+                                        </div>
+                                    <div class="action-content">
+                                        <p class="action-name">WhatsApp Inbox</p>
+                                        <p class="action-desc">Chat with donors</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </a>
+                                
                                 <?php if ($user_role === 'admin'): ?>
                                 <a href="assign-donors.php" class="action-item">
                                     <div class="action-icon bg-success-light">

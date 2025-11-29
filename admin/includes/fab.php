@@ -142,6 +142,7 @@
     .bg-orange { background: #fd7e14; }
     .bg-teal   { background: #20c997; }
     .bg-cyan   { background: #0dcaf0; }
+    .bg-whatsapp { background: #25D366; }
     
     /* Animation Delays */
     .fab-item:nth-child(1) { transition-delay: 0.05s; }
@@ -151,6 +152,7 @@
     .fab-item:nth-child(5) { transition-delay: 0.25s; }
     .fab-item:nth-child(6) { transition-delay: 0.3s; }
     .fab-item:nth-child(7) { transition-delay: 0.35s; }
+    .fab-item:nth-child(8) { transition-delay: 0.4s; }
 
     /* Mobile adjustments */
     @media (max-width: 576px) {
@@ -179,6 +181,14 @@
 
 <div class="fab-container" id="fabContainer">
     <ul class="fab-options">
+        <!-- 8. WhatsApp Inbox -->
+        <li class="fab-item">
+            <span class="fab-label">WhatsApp Inbox</span>
+            <a href="<?php echo url_for('admin/messaging/whatsapp/inbox.php'); ?>" class="fab-btn bg-whatsapp">
+                <i class="fab fa-whatsapp"></i>
+            </a>
+        </li>
+        
         <!-- 7. Donor Management -->
         <li class="fab-item">
             <span class="fab-label">Donor Management</span>
