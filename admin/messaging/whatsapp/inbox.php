@@ -1129,6 +1129,153 @@ if ($selected_id && $tables_exist) {
             background: transparent;
         }
         
+        .chat-input-btn.templates {
+            background: transparent;
+            color: var(--wa-text-secondary);
+            transform: none;
+        }
+        
+        .chat-input-btn.templates:hover {
+            color: var(--wa-teal);
+            background: transparent;
+        }
+        
+        /* Templates Menu */
+        .templates-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0.5rem;
+            right: 0.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 100;
+            margin-bottom: 0.5rem;
+            max-height: 400px;
+            overflow: hidden;
+            flex-direction: column;
+        }
+        
+        .templates-menu.active {
+            display: flex;
+        }
+        
+        .templates-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e9edef;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        
+        .templates-header h5 {
+            margin: 0;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--wa-text);
+        }
+        
+        .templates-close {
+            background: none;
+            border: none;
+            color: var(--wa-text-secondary);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .templates-close:hover {
+            background: #f0f2f5;
+            color: var(--wa-text);
+        }
+        
+        .templates-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+        
+        .templates-loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--wa-text-secondary);
+        }
+        
+        .templates-category {
+            margin-bottom: 1rem;
+        }
+        
+        .templates-category-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--wa-text-secondary);
+            text-transform: uppercase;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .template-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            margin-bottom: 0.25rem;
+        }
+        
+        .template-item:hover {
+            background: #f0f2f5;
+            border-color: var(--wa-teal);
+        }
+        
+        .template-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--wa-text);
+            margin-bottom: 0.25rem;
+        }
+        
+        .template-preview {
+            font-size: 0.8125rem;
+            color: var(--wa-text-secondary);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .templates-empty {
+            text-align: center;
+            padding: 2rem;
+            color: var(--wa-text-secondary);
+        }
+        
+        .templates-empty i {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.5;
+        }
+        
+        /* Mobile templates menu */
+        @media (max-width: 768px) {
+            .templates-menu {
+                left: 0;
+                right: 0;
+                max-height: 60vh;
+                border-radius: 12px 12px 0 0;
+            }
+        }
+        
         .chat-input-btn.voice {
             background: transparent;
             color: var(--wa-text-secondary);
@@ -2170,10 +2317,30 @@ if ($selected_id && $tables_exist) {
                         <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
                                autocomplete="off" id="messageInput">
                         
-                        <!-- Send Button -->
-                        <button type="submit" class="chat-input-btn" id="sendBtn">
+                        <!-- Templates Button (shown when input is empty) -->
+                        <button type="button" class="chat-input-btn templates" id="templatesBtn" onclick="toggleTemplatesMenu()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        
+                        <!-- Send Button (shown when typing) -->
+                        <button type="submit" class="chat-input-btn" id="sendBtn" style="display: none;">
                             <i class="fas fa-paper-plane"></i>
                         </button>
+                        
+                        <!-- Templates Menu -->
+                        <div class="templates-menu" id="templatesMenu">
+                            <div class="templates-header">
+                                <h5><i class="fas fa-file-alt me-2"></i>Message Templates</h5>
+                                <button type="button" class="templates-close" onclick="toggleTemplatesMenu()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="templates-content" id="templatesContent">
+                                <div class="templates-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading templates...
+                                </div>
+                            </div>
+                        </div>
                         
                     </form>
                     
@@ -2603,8 +2770,157 @@ document.addEventListener('visibilitychange', function() {
 
 let selectedFile = null;
 
-// Input listener (for future use if needed)
-// Voice recording disabled - use attachment button to upload audio files
+// ============================================
+// TEMPLATES MENU
+// ============================================
+
+let templatesLoaded = false;
+let templatesData = [];
+
+// Toggle templates menu
+function toggleTemplatesMenu() {
+    const menu = document.getElementById('templatesMenu');
+    if (!menu) return;
+    
+    const isActive = menu.classList.contains('active');
+    
+    if (isActive) {
+        menu.classList.remove('active');
+    } else {
+        menu.classList.add('active');
+        // Close attachment menu if open
+        const attachMenu = document.getElementById('attachmentMenu');
+        if (attachMenu) attachMenu.classList.remove('active');
+        
+        // Load templates if not loaded yet
+        if (!templatesLoaded) {
+            loadTemplates();
+        }
+    }
+}
+
+// Close templates menu when clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('templatesMenu');
+    const templatesBtn = document.getElementById('templatesBtn');
+    if (menu && !menu.contains(e.target) && e.target !== templatesBtn && !templatesBtn.contains(e.target)) {
+        menu.classList.remove('active');
+    }
+});
+
+// Load templates from API
+async function loadTemplates() {
+    const content = document.getElementById('templatesContent');
+    if (!content) return;
+    
+    try {
+        const response = await fetch('api/get-templates.php');
+        const result = await response.json();
+        
+        if (result.success && result.templates) {
+            templatesData = result.templates;
+            templatesLoaded = true;
+            displayTemplates(result.grouped || {});
+        } else {
+            content.innerHTML = `
+                <div class="templates-empty">
+                    <i class="fas fa-file-alt"></i>
+                    <p>No templates available</p>
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error('Failed to load templates:', err);
+        content.innerHTML = `
+            <div class="templates-empty">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load templates</p>
+            </div>
+        `;
+    }
+}
+
+// Display templates grouped by category
+function displayTemplates(grouped) {
+    const content = document.getElementById('templatesContent');
+    if (!content) return;
+    
+    if (Object.keys(grouped).length === 0) {
+        content.innerHTML = `
+            <div class="templates-empty">
+                <i class="fas fa-file-alt"></i>
+                <p>No templates available</p>
+                <small>Create templates in <a href="../../donor-management/sms/templates.php" target="_blank">SMS Templates</a></small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    for (const [category, templates] of Object.entries(grouped)) {
+        html += `<div class="templates-category">`;
+        html += `<div class="templates-category-title">${escapeHtml(category)}</div>`;
+        
+        templates.forEach(template => {
+            const preview = template.content.length > 80 
+                ? template.content.substring(0, 80) + '...' 
+                : template.content;
+            
+            html += `
+                <div class="template-item" onclick="selectTemplate(${template.id}, ${JSON.stringify(template.content)})">
+                    <div class="template-name">${escapeHtml(template.name)}</div>
+                    <div class="template-preview">${escapeHtml(preview)}</div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    }
+    
+    content.innerHTML = html;
+}
+
+// Select template and fill message input
+function selectTemplate(templateId, templateContent) {
+    const messageInput = document.getElementById('messageInput');
+    const templatesMenu = document.getElementById('templatesMenu');
+    
+    if (messageInput) {
+        // Fill the input with template content
+        messageInput.value = templateContent;
+        messageInput.focus();
+        
+        // Move cursor to end
+        messageInput.setSelectionRange(messageInput.value.length, messageInput.value.length);
+        
+        // Trigger input event to update button visibility
+        messageInput.dispatchEvent(new Event('input'));
+    }
+    
+    // Close templates menu
+    if (templatesMenu) {
+        templatesMenu.classList.remove('active');
+    }
+}
+
+// Toggle templates/send button based on input
+const messageInput = document.getElementById('messageInput');
+if (messageInput) {
+    messageInput.addEventListener('input', function() {
+        const hasText = this.value.trim().length > 0;
+        const hasMedia = selectedFile !== null;
+        const shouldShowSend = hasText || hasMedia;
+        
+        const templatesBtn = document.getElementById('templatesBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        if (templatesBtn && sendBtn) {
+            templatesBtn.style.display = shouldShowSend ? 'none' : 'flex';
+            sendBtn.style.display = shouldShowSend ? 'flex' : 'none';
+        }
+    });
+}
 
 // Toggle attachment menu
 function toggleAttachmentMenu() {
@@ -2702,16 +3018,30 @@ function showMediaPreview(file) {
     }
     
     preview.classList.add('active');
+    
+    // Update button visibility (show send button when media is selected)
+    const templatesBtn = document.getElementById('templatesBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    if (templatesBtn) templatesBtn.style.display = 'none';
+    if (sendBtn) sendBtn.style.display = 'flex';
 }
 
 // Clear media preview
 function clearMediaPreview() {
     const preview = document.getElementById('mediaPreview');
     const fileInput = document.getElementById('fileInput');
+    const messageInput = document.getElementById('messageInput');
     
     selectedFile = null;
     if (preview) preview.classList.remove('active');
     if (fileInput) fileInput.value = '';
+    
+    // Restore button state based on text input
+    const hasText = messageInput && messageInput.value.trim().length > 0;
+    const templatesBtn = document.getElementById('templatesBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    if (templatesBtn) templatesBtn.style.display = hasText ? 'none' : 'flex';
+    if (sendBtn) sendBtn.style.display = hasText ? 'flex' : 'none';
 }
 
 // Format file size
