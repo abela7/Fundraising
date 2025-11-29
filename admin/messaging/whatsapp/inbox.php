@@ -2408,12 +2408,14 @@ let recordingTimerInterval = null;
 if (messageInput) {
     messageInput.addEventListener('input', function() {
         const hasText = this.value.trim().length > 0;
+        const hasMedia = selectedFile !== null;
+        const shouldShowSend = hasText || hasMedia;
         const voiceBtn = document.getElementById('voiceBtn');
         const sendBtn = document.getElementById('sendBtn');
         
         if (voiceBtn && sendBtn) {
-            voiceBtn.style.display = hasText ? 'none' : 'flex';
-            sendBtn.style.display = hasText ? 'flex' : 'none';
+            voiceBtn.style.display = shouldShowSend ? 'none' : 'flex';
+            sendBtn.style.display = shouldShowSend ? 'flex' : 'none';
         }
     });
 }
