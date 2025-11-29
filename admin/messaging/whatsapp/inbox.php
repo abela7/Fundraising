@@ -1821,6 +1821,15 @@ if ($selected_id && $tables_exist) {
                 max-height: 40px;
             }
             
+            .chat-input-btn.templates {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                min-height: 40px;
+                max-width: 40px;
+                max-height: 40px;
+            }
+            
             /* Back button for mobile */
             .mobile-back-btn {
                 display: flex !important;
@@ -1915,6 +1924,15 @@ if ($selected_id && $tables_exist) {
             }
             
             .chat-input-btn.attachment {
+                width: 38px;
+                height: 38px;
+                min-width: 38px;
+                min-height: 38px;
+                max-width: 38px;
+                max-height: 38px;
+            }
+            
+            .chat-input-btn.templates {
                 width: 38px;
                 height: 38px;
                 min-width: 38px;
@@ -2292,6 +2310,21 @@ if ($selected_id && $tables_exist) {
                         <!-- Hidden file input -->
                         <input type="file" id="fileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" style="display: none;">
                         
+                        <!-- Templates Menu -->
+                        <div class="templates-menu" id="templatesMenu">
+                            <div class="templates-header">
+                                <h5><i class="fas fa-file-alt me-2"></i>Message Templates</h5>
+                                <button type="button" class="templates-close" onclick="toggleTemplatesMenu()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="templates-content" id="templatesContent">
+                                <div class="templates-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading templates...
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Attachment Menu -->
                         <div class="attachment-menu" id="attachmentMenu">
                             <button type="button" class="attachment-option" onclick="selectFileType('image')">
@@ -2308,6 +2341,11 @@ if ($selected_id && $tables_exist) {
                             </button>
                         </div>
                         
+                        <!-- Templates Button -->
+                        <button type="button" class="chat-input-btn templates" id="templatesBtn" onclick="toggleTemplatesMenu()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        
                         <!-- Attachment Button -->
                         <button type="button" class="chat-input-btn attachment" id="attachBtn" onclick="toggleAttachmentMenu()">
                             <i class="fas fa-paperclip"></i>
@@ -2317,30 +2355,10 @@ if ($selected_id && $tables_exist) {
                         <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
                                autocomplete="off" id="messageInput">
                         
-                        <!-- Templates Button (shown when input is empty) -->
-                        <button type="button" class="chat-input-btn templates" id="templatesBtn" onclick="toggleTemplatesMenu()">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        
-                        <!-- Send Button (shown when typing) -->
-                        <button type="submit" class="chat-input-btn" id="sendBtn" style="display: none;">
+                        <!-- Send Button -->
+                        <button type="submit" class="chat-input-btn" id="sendBtn">
                             <i class="fas fa-paper-plane"></i>
                         </button>
-                        
-                        <!-- Templates Menu -->
-                        <div class="templates-menu" id="templatesMenu">
-                            <div class="templates-header">
-                                <h5><i class="fas fa-file-alt me-2"></i>Message Templates</h5>
-                                <button type="button" class="templates-close" onclick="toggleTemplatesMenu()">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <div class="templates-content" id="templatesContent">
-                                <div class="templates-loading">
-                                    <i class="fas fa-spinner fa-spin"></i> Loading templates...
-                                </div>
-                            </div>
-                        </div>
                         
                     </form>
                     
@@ -2770,6 +2788,9 @@ document.addEventListener('visibilitychange', function() {
 
 let selectedFile = null;
 
+// Input listener (for future use if needed)
+// Voice recording disabled - use attachment button to upload audio files
+
 // ============================================
 // TEMPLATES MENU
 // ============================================
@@ -2803,7 +2824,7 @@ function toggleTemplatesMenu() {
 document.addEventListener('click', function(e) {
     const menu = document.getElementById('templatesMenu');
     const templatesBtn = document.getElementById('templatesBtn');
-    if (menu && !menu.contains(e.target) && e.target !== templatesBtn && !templatesBtn.contains(e.target)) {
+    if (menu && templatesBtn && !menu.contains(e.target) && e.target !== templatesBtn && !templatesBtn.contains(e.target)) {
         menu.classList.remove('active');
     }
 });
@@ -2893,9 +2914,6 @@ function selectTemplate(templateId, templateContent) {
         
         // Move cursor to end
         messageInput.setSelectionRange(messageInput.value.length, messageInput.value.length);
-        
-        // Trigger input event to update button visibility
-        messageInput.dispatchEvent(new Event('input'));
     }
     
     // Close templates menu
@@ -2904,29 +2922,18 @@ function selectTemplate(templateId, templateContent) {
     }
 }
 
-// Toggle templates/send button based on input
-const messageInput = document.getElementById('messageInput');
-if (messageInput) {
-    messageInput.addEventListener('input', function() {
-        const hasText = this.value.trim().length > 0;
-        const hasMedia = selectedFile !== null;
-        const shouldShowSend = hasText || hasMedia;
-        
-        const templatesBtn = document.getElementById('templatesBtn');
-        const sendBtn = document.getElementById('sendBtn');
-        
-        if (templatesBtn && sendBtn) {
-            templatesBtn.style.display = shouldShowSend ? 'none' : 'flex';
-            sendBtn.style.display = shouldShowSend ? 'flex' : 'none';
-        }
-    });
-}
-
 // Toggle attachment menu
 function toggleAttachmentMenu() {
     const menu = document.getElementById('attachmentMenu');
     if (menu) {
+        const isActive = menu.classList.contains('active');
         menu.classList.toggle('active');
+        
+        // Close templates menu if opening attachment menu
+        if (!isActive) {
+            const templatesMenu = document.getElementById('templatesMenu');
+            if (templatesMenu) templatesMenu.classList.remove('active');
+        }
     }
 }
 
@@ -3018,30 +3025,16 @@ function showMediaPreview(file) {
     }
     
     preview.classList.add('active');
-    
-    // Update button visibility (show send button when media is selected)
-    const templatesBtn = document.getElementById('templatesBtn');
-    const sendBtn = document.getElementById('sendBtn');
-    if (templatesBtn) templatesBtn.style.display = 'none';
-    if (sendBtn) sendBtn.style.display = 'flex';
 }
 
 // Clear media preview
 function clearMediaPreview() {
     const preview = document.getElementById('mediaPreview');
     const fileInput = document.getElementById('fileInput');
-    const messageInput = document.getElementById('messageInput');
     
     selectedFile = null;
     if (preview) preview.classList.remove('active');
     if (fileInput) fileInput.value = '';
-    
-    // Restore button state based on text input
-    const hasText = messageInput && messageInput.value.trim().length > 0;
-    const templatesBtn = document.getElementById('templatesBtn');
-    const sendBtn = document.getElementById('sendBtn');
-    if (templatesBtn) templatesBtn.style.display = hasText ? 'none' : 'flex';
-    if (sendBtn) sendBtn.style.display = hasText ? 'flex' : 'none';
 }
 
 // Format file size

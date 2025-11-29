@@ -27,14 +27,15 @@ try {
     if (!$check || $check->num_rows === 0) {
         echo json_encode([
             'success' => true,
-            'templates' => []
+            'templates' => [],
+            'grouped' => []
         ]);
         exit;
     }
     
     // Get all active templates
     $result = $db->query("
-        SELECT id, template_key, name, category, content, description
+        SELECT id, template_key, name, category, message_en, message_am, message_ti, description
         FROM sms_templates 
         WHERE is_active = 1 
         ORDER BY category, name
@@ -48,7 +49,7 @@ try {
                 'key' => $row['template_key'],
                 'name' => $row['name'],
                 'category' => $row['category'] ?: 'General',
-                'content' => $row['content'],
+                'content' => $row['message_en'], // Use English message
                 'description' => $row['description'] ?: ''
             ];
         }
