@@ -158,6 +158,54 @@ try {
         throw new Exception('Failed to save uploaded file');
     }
     
+    // Convert WebM audio to MP3 for WhatsApp compatibility
+    if (($mediaType === 'voice' || $mediaType === 'audio') && $extension === 'webm') {
+        $convertedPath = $uploadDir . '/' . uniqid('wa_') . '_' . time() . '.mp3';
+        $convertedRelativePath = 'uploads/whatsapp/' . date('Y/m') . '/' . basename($convertedPath);
+        
+        // Try FFmpeg conversion
+        $ffmpegPaths = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'];
+        $ffmpegFound = false;
+        
+        foreach ($ffmpegPaths as $ffmpegPath) {
+            $checkCmd = escapeshellcmd($ffmpegPath) . ' -version 2>&1';
+            $output = shell_exec($checkCmd);
+            if ($output && strpos($output, 'ffmpeg version') !== false) {
+                $ffmpegFound = $ffmpegPath;
+                break;
+            }
+        }
+        
+        if ($ffmpegFound) {
+            // Convert WebM to MP3
+            $cmd = escapeshellcmd($ffmpegFound) . ' -i ' . escapeshellarg($localPath) . 
+                   ' -vn -ar 44100 -ac 1 -b:a 128k ' . escapeshellarg($convertedPath) . ' 2>&1';
+            
+            $output = shell_exec($cmd);
+            
+            if (file_exists($convertedPath) && filesize($convertedPath) > 0) {
+                // Conversion successful - use the converted file
+                @unlink($localPath);
+                $localPath = $convertedPath;
+                $relativePath = $convertedRelativePath;
+                $extension = 'mp3';
+                $fileMimeType = 'audio/mpeg';
+                $fileName = pathinfo($fileName, PATHINFO_FILENAME) . '.mp3';
+                error_log("Voice converted to MP3 successfully");
+            } else {
+                error_log("FFmpeg conversion failed: " . $output);
+                @unlink($localPath);
+                @unlink($convertedPath);
+                throw new Exception('Audio conversion failed. Please try uploading an MP3 or OGG file instead.');
+            }
+        } else {
+            error_log("FFmpeg not found on server - voice messages may not work");
+            // Clean up and return error for voice messages
+            @unlink($localPath);
+            throw new Exception('Voice recording requires FFmpeg on the server. Please contact your hosting provider to install FFmpeg, or send voice messages as audio files from your device.');
+        }
+    }
+    
     // Generate public URL for the file
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'];
