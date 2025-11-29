@@ -2676,11 +2676,47 @@ function toggleVoiceRecording() {
     }
 }
 
+// Get best supported audio format for WhatsApp
+function getSupportedMimeType() {
+    // Order of preference - OGG is best for WhatsApp
+    const types = [
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+        'audio/mp4',
+        'audio/mpeg',
+        'audio/webm;codecs=opus',
+        'audio/webm'
+    ];
+    
+    for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) {
+            return type;
+        }
+    }
+    return 'audio/webm'; // fallback
+}
+
+let recordingMimeType = 'audio/ogg';
+
 async function startRecording() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        mediaRecorder = new MediaRecorder(stream);
+        // Use the best supported format
+        recordingMimeType = getSupportedMimeType();
+        console.log('Recording with mime type:', recordingMimeType);
+        
+        const options = { mimeType: recordingMimeType };
+        
+        try {
+            mediaRecorder = new MediaRecorder(stream, options);
+        } catch (e) {
+            // Fallback to default if the mime type fails
+            console.warn('Failed to use', recordingMimeType, '- using default');
+            mediaRecorder = new MediaRecorder(stream);
+            recordingMimeType = 'audio/webm';
+        }
+        
         audioChunks = [];
         
         mediaRecorder.ondataavailable = (e) => {
@@ -2746,12 +2782,26 @@ async function sendVoiceMessage() {
     // Wait a bit for the last chunk
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Create audio blob
-    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    // Get file extension from mime type
+    const mimeToExt = {
+        'audio/ogg;codecs=opus': 'ogg',
+        'audio/ogg': 'ogg',
+        'audio/mp4': 'm4a',
+        'audio/mpeg': 'mp3',
+        'audio/webm;codecs=opus': 'webm',
+        'audio/webm': 'webm'
+    };
+    const extension = mimeToExt[recordingMimeType] || 'ogg';
+    const baseMimeType = recordingMimeType.split(';')[0]; // Remove codec info
+    
+    console.log('Creating voice file with type:', baseMimeType, 'extension:', extension);
+    
+    // Create audio blob with the correct mime type
+    const audioBlob = new Blob(audioChunks, { type: baseMimeType });
     audioChunks = [];
     
     // Create file from blob
-    const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
+    const audioFile = new File([audioBlob], `voice_${Date.now()}.${extension}`, { type: baseMimeType });
     
     // Send via media API
     selectedFile = audioFile;
