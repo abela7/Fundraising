@@ -7,6 +7,28 @@
 
 declare(strict_types=1);
 
+// Ensure we always output JSON even on fatal errors
+ob_start();
+
+// Set error handling to capture all errors
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        ob_end_clean();
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Fatal error: ' . $error['message'],
+            'debug' => $error['file'] . ':' . $error['line']
+        ]);
+    }
+});
+
 header('Content-Type: application/json');
 
 try {
@@ -16,6 +38,7 @@ try {
     require_once __DIR__ . '/../../../../services/UltraMsgService.php';
     require_login();
 } catch (Throwable $e) {
+    ob_end_clean();
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
     exit;
@@ -172,9 +195,9 @@ try {
     }
     
     // Save message to database
-    $messageId = $result['message_id'] ?? null;
+    $messageId = isset($result['message_id']) ? (string)$result['message_id'] : null;
     $status = 'sent';
-    $senderId = $current_user['id'];
+    $senderId = (int)$current_user['id'];
     
     $stmt = $db->prepare("
         INSERT INTO whatsapp_messages 
@@ -207,6 +230,9 @@ try {
     $stmt->bind_param('si', $preview, $conversationId);
     $stmt->execute();
     
+    // Clear any buffered output before sending JSON
+    ob_end_clean();
+    
     echo json_encode([
         'success' => true,
         'message_id' => $dbMessageId,
@@ -218,6 +244,7 @@ try {
     ]);
     
 } catch (Exception $e) {
+    ob_end_clean();
     error_log("WhatsApp Media Send Error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

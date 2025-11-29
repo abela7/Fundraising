@@ -2581,7 +2581,19 @@ async function sendMediaMessage() {
             body: formData
         });
         
-        const result = await response.json();
+        // Check if response is ok and has content
+        const responseText = await response.text();
+        if (!responseText) {
+            throw new Error('Server returned empty response. Please try again.');
+        }
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (parseErr) {
+            console.error('Invalid JSON response:', responseText);
+            throw new Error('Server error: ' + responseText.substring(0, 100));
+        }
         
         if (result.success) {
             // Track message ID
