@@ -1484,9 +1484,19 @@ if (sendForm) {
             const result = await response.json();
             
             if (result.success) {
+                // Track this message ID to prevent duplicate from polling
+                if (result.message_id) {
+                    locallyAddedMessages.add(result.message_id);
+                    // Update lastMessageId so polling skips this message
+                    lastMessageId = Math.max(lastMessageId, result.message_id);
+                }
+                
                 // Add message to UI
                 const msgDiv = document.createElement('div');
                 msgDiv.className = 'message outgoing';
+                if (result.message_id) {
+                    msgDiv.dataset.messageId = result.message_id;
+                }
                 msgDiv.innerHTML = `
                     <div class="message-content">
                         <div class="message-sender"><?php echo htmlspecialchars($current_user['name'] ?? 'You'); ?></div>
@@ -1566,6 +1576,7 @@ let lastMessageId = <?php
 let lastDate = '<?php echo $lastMsg ? date('Y-m-d', strtotime($lastMsg['created_at'])) : ''; ?>';
 let isPolling = true;
 let pollInterval = 3000; // 3 seconds
+let locallyAddedMessages = new Set(); // Track messages added locally to avoid duplicates
 
 // Poll for new messages
 async function pollNewMessages() {
@@ -1602,6 +1613,10 @@ async function pollNewMessages() {
 function addMessageToChat(msg) {
     const chatMessages = document.getElementById('chatMessages');
     if (!chatMessages) return;
+    
+    // Skip if message already exists in DOM or was locally added
+    if (document.querySelector(`[data-message-id="${msg.id}"]`)) return;
+    if (locallyAddedMessages.has(msg.id)) return;
     
     // Check if we need a date divider
     const msgDate = msg.date;
@@ -1680,23 +1695,17 @@ function getStatusIcon(status) {
     }
 }
 
-// Play notification sound
+// Notification sound - using actual audio file
+const notificationSound = new Audio('../../call-center/assets/mixkit-software-interface-start-2574.wav');
+notificationSound.volume = 0.5;
+
 function playNotificationSound() {
     try {
-        // Create a simple beep using Web Audio API
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        gainNode.gain.value = 0.1;
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.15);
+        // Reset and play
+        notificationSound.currentTime = 0;
+        notificationSound.play().catch(e => {
+            // Ignore autoplay errors - browser requires user interaction first
+        });
     } catch (e) {
         // Ignore audio errors
     }
