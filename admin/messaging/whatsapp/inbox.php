@@ -756,10 +756,12 @@ if ($selected_id && $tables_exist) {
         }
         
         .chat-input-btn {
-            width: 42px;
-            height: 42px;
-            min-width: 42px;
-            min-height: 42px;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            max-width: 44px;
+            max-height: 44px;
             border: none;
             border-radius: 50%;
             background: var(--wa-teal);
@@ -770,9 +772,9 @@ if ($selected_id && $tables_exist) {
             justify-content: center;
             transition: all 0.2s;
             font-size: 1.125rem;
-            padding: 0;
             flex-shrink: 0;
-            box-sizing: border-box;
+            padding: 0;
+            aspect-ratio: 1;
         }
         
         .chat-input-btn:hover {
@@ -787,12 +789,6 @@ if ($selected_id && $tables_exist) {
             transform: none;
         }
         
-        .chat-input-btn i {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
         .chat-input-btn.attachment {
             background: transparent;
             color: var(--wa-text-secondary);
@@ -801,6 +797,7 @@ if ($selected_id && $tables_exist) {
         
         .chat-input-btn.attachment:hover {
             color: var(--wa-teal);
+            background: transparent;
         }
         
         /* Empty State */
@@ -994,10 +991,12 @@ if ($selected_id && $tables_exist) {
             }
             
             .chat-input-btn {
-                width: 38px;
-                height: 38px;
-                min-width: 38px;
-                min-height: 38px;
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                min-height: 40px;
+                max-width: 40px;
+                max-height: 40px;
                 font-size: 1rem;
             }
             
