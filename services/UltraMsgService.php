@@ -465,7 +465,8 @@ class UltraMsgService
             return [
                 'success' => false,
                 'error' => 'Failed to connect to UltraMsg API',
-                'error_code' => 'CONNECTION_FAILED'
+                'error_code' => 'CONNECTION_FAILED',
+                'message_id' => null
             ];
         }
         
@@ -474,26 +475,34 @@ class UltraMsgService
         if (json_last_error() !== JSON_ERROR_NONE) {
             return [
                 'success' => false,
-                'error' => 'Invalid API response',
-                'error_code' => 'INVALID_RESPONSE'
+                'error' => 'Invalid API response: ' . substr($response, 0, 100),
+                'error_code' => 'INVALID_RESPONSE',
+                'message_id' => null
             ];
         }
         
-        // Check for sent status
-        if (isset($data['sent']) && $data['sent'] === 'true' || $data['sent'] === true) {
-            return [
-                'success' => true,
-                'message_id' => $data['id'] ?? null,
-                'error' => null
-            ];
+        // Log raw response for debugging
+        error_log("UltraMsg API Response: " . json_encode($data));
+        
+        // Check for sent status (can be string 'true' or boolean true)
+        $isSent = false;
+        if (isset($data['sent'])) {
+            $isSent = ($data['sent'] === 'true' || $data['sent'] === true);
         }
         
-        // Check for message ID (alternative success indicator)
-        if (isset($data['id']) && !isset($data['error'])) {
+        // Get message ID - convert to string if integer
+        $messageId = null;
+        if (isset($data['id'])) {
+            $messageId = (string)$data['id'];
+        }
+        
+        // Success conditions
+        if ($isSent || ($messageId && !isset($data['error']))) {
             return [
                 'success' => true,
-                'message_id' => $data['id'],
-                'error' => null
+                'message_id' => $messageId,
+                'error' => null,
+                'raw_response' => $data
             ];
         }
         
@@ -501,21 +510,32 @@ class UltraMsgService
         return [
             'success' => false,
             'error' => $data['error'] ?? $data['message'] ?? 'Unknown error',
-            'error_code' => $data['error_code'] ?? 'UNKNOWN'
+            'error_code' => $data['error_code'] ?? 'UNKNOWN',
+            'message_id' => $messageId,
+            'raw_response' => $data
         ];
     }
     
     /**
      * Log WhatsApp message to database
+     * 
+     * @param string $phoneNumber Recipient phone number
+     * @param string $message Message content
+     * @param string $status Message status
+     * @param mixed $messageId Message ID from API (can be int or string)
+     * @param string|null $error Error message if any
+     * @param array $options Additional options
      */
     private function logWhatsApp(
         string $phoneNumber,
         string $message,
         string $status,
-        ?string $messageId,
+        $messageId,
         ?string $error,
         array $options
     ): void {
+        // Convert message ID to string
+        $messageId = $messageId !== null ? (string)$messageId : null;
         try {
             // Check if whatsapp_log table exists
             $check = $this->db->query("SHOW TABLES LIKE 'whatsapp_log'");
@@ -619,6 +639,156 @@ class UltraMsgService
         } catch (Exception $e) {
             error_log("UltraMsg: Failed to update provider stats - " . $e->getMessage());
         }
+    }
+    
+    /**
+     * Get message statistics
+     * 
+     * @return array ['success' => bool, 'stats' => array]
+     */
+    public function getStatistics(): array
+    {
+        $params = [
+            'token' => $this->token
+        ];
+        
+        $response = $this->makeRequest('messages/statistics', $params, 'GET');
+        
+        if ($response === false) {
+            return [
+                'success' => false,
+                'stats' => null,
+                'error' => 'Failed to connect to UltraMsg API'
+            ];
+        }
+        
+        $data = json_decode($response, true);
+        
+        if (isset($data['statistics']) || isset($data['sent']) || isset($data['received'])) {
+            return [
+                'success' => true,
+                'stats' => $data,
+                'error' => null
+            ];
+        }
+        
+        return [
+            'success' => false,
+            'stats' => $data,
+            'error' => $data['error'] ?? 'Unknown response format'
+        ];
+    }
+    
+    /**
+     * Get sent messages with delivery status
+     * 
+     * @param int $page Page number (for pagination)
+     * @param int $limit Messages per page
+     * @return array ['success' => bool, 'messages' => array]
+     */
+    public function getMessages(int $page = 1, int $limit = 100): array
+    {
+        $params = [
+            'token' => $this->token,
+            'page' => $page,
+            'limit' => $limit
+        ];
+        
+        $response = $this->makeRequest('messages', $params, 'GET');
+        
+        if ($response === false) {
+            return [
+                'success' => false,
+                'messages' => [],
+                'error' => 'Failed to connect to UltraMsg API'
+            ];
+        }
+        
+        $data = json_decode($response, true);
+        
+        if (isset($data['messages']) || is_array($data)) {
+            return [
+                'success' => true,
+                'messages' => $data['messages'] ?? $data,
+                'error' => null
+            ];
+        }
+        
+        return [
+            'success' => false,
+            'messages' => [],
+            'error' => $data['error'] ?? 'Unknown response format'
+        ];
+    }
+    
+    /**
+     * Get instance info including connected phone number
+     * 
+     * @return array ['success' => bool, 'info' => array]
+     */
+    public function getInstanceInfo(): array
+    {
+        $params = [
+            'token' => $this->token
+        ];
+        
+        $response = $this->makeRequest('instance/me', $params, 'GET');
+        
+        if ($response === false) {
+            return [
+                'success' => false,
+                'info' => null,
+                'error' => 'Failed to connect to UltraMsg API'
+            ];
+        }
+        
+        $data = json_decode($response, true);
+        
+        if (isset($data['id']) || isset($data['me'])) {
+            return [
+                'success' => true,
+                'info' => $data,
+                'phone' => $data['me']['id'] ?? $data['id'] ?? null,
+                'name' => $data['me']['name'] ?? $data['name'] ?? null,
+                'error' => null
+            ];
+        }
+        
+        return [
+            'success' => false,
+            'info' => $data,
+            'error' => $data['error'] ?? 'Unknown response format'
+        ];
+    }
+    
+    /**
+     * Get account settings
+     * 
+     * @return array Account settings
+     */
+    public function getSettings(): array
+    {
+        $params = [
+            'token' => $this->token
+        ];
+        
+        $response = $this->makeRequest('instance/settings', $params, 'GET');
+        
+        if ($response === false) {
+            return [
+                'success' => false,
+                'settings' => null,
+                'error' => 'Failed to connect'
+            ];
+        }
+        
+        $data = json_decode($response, true);
+        
+        return [
+            'success' => !isset($data['error']),
+            'settings' => $data,
+            'error' => $data['error'] ?? null
+        ];
     }
     
     /**

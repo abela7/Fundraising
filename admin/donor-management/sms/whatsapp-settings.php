@@ -123,9 +123,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $table_exists) {
                     $result = $service->send($test_phone, $test_message, ['log' => true]);
                     
                     if ($result['success']) {
-                        $success_message = "Test message sent successfully! Message ID: " . ($result['message_id'] ?? 'N/A');
+                        $success_message = "✅ Test message sent successfully!\n";
+                        $success_message .= "Message ID: " . ($result['message_id'] ?? 'N/A') . "\n";
+                        $success_message .= "Phone: " . ($result['phone_number'] ?? $test_phone) . "\n";
+                        $success_message .= "Duration: " . ($result['duration_ms'] ?? 0) . "ms";
+                        
+                        // Update provider stats
+                        $db->query("UPDATE whatsapp_providers SET last_success_at = NOW(), messages_sent = messages_sent + 1, failure_count = 0 WHERE provider_name = 'ultramsg'");
                     } else {
                         $error_message = "Failed to send test message: " . ($result['error'] ?? 'Unknown error');
+                        if (isset($result['raw_response'])) {
+                            $debug_info[] = "API Response: " . json_encode($result['raw_response']);
+                        }
                     }
                 }
             }
@@ -274,7 +283,8 @@ if ($table_exists) {
             <!-- Alerts -->
             <?php if ($success_message): ?>
             <div class="alert alert-success alert-dismissible fade show">
-                <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success_message); ?>
+                <i class="fas fa-check-circle me-2"></i>
+                <span style="white-space: pre-line;"><?php echo htmlspecialchars($success_message); ?></span>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             <?php endif; ?>
@@ -387,20 +397,45 @@ if ($table_exists) {
                         </h3>
                         
                         <?php if ($provider && $provider['is_active']): ?>
-                            <?php if ($provider['last_success_at']): ?>
+                            <?php 
+                            // Try to get live status
+                            $live_status = null;
+                            $instance_info = null;
+                            try {
+                                $service = new UltraMsgService($provider['instance_id'], $provider['api_token']);
+                                $live_status = $service->getStatus();
+                                $instance_info = $service->getInstanceInfo();
+                            } catch (Throwable $e) {
+                                // Ignore errors
+                            }
+                            ?>
+                            
+                            <?php if ($live_status && $live_status['success'] && $live_status['status'] === 'authenticated'): ?>
+                            <div class="status-badge status-connected mb-3">
+                                <i class="fas fa-check-circle"></i> Authenticated
+                            </div>
+                            <?php if ($instance_info && isset($instance_info['phone'])): ?>
+                            <p class="mb-1"><strong>Connected Phone:</strong></p>
+                            <p class="text-muted mb-3"><?php echo htmlspecialchars($instance_info['phone']); ?></p>
+                            <?php endif; ?>
+                            <?php elseif ($provider['last_success_at']): ?>
                             <div class="status-badge status-connected mb-3">
                                 <i class="fas fa-check-circle"></i> Connected
                             </div>
-                            <p class="mb-1"><strong>Last Success:</strong></p>
-                            <p class="text-muted"><?php echo date('M j, Y g:i A', strtotime($provider['last_success_at'])); ?></p>
-                            <p class="mb-1"><strong>Messages Sent:</strong></p>
-                            <p class="text-muted"><?php echo number_format((int)$provider['messages_sent']); ?></p>
                             <?php else: ?>
                             <div class="status-badge status-disconnected mb-3">
                                 <i class="fas fa-clock"></i> Pending First Message
                             </div>
-                            <p class="text-muted">Configure settings and send a test message to verify connection.</p>
+                            <p class="text-muted mb-3">Send a test message to verify connection.</p>
                             <?php endif; ?>
+                            
+                            <?php if ($provider['last_success_at']): ?>
+                            <p class="mb-1"><strong>Last Success:</strong></p>
+                            <p class="text-muted mb-2"><?php echo date('M j, Y g:i A', strtotime($provider['last_success_at'])); ?></p>
+                            <?php endif; ?>
+                            
+                            <p class="mb-1"><strong>Messages Sent:</strong></p>
+                            <p class="text-muted mb-0"><?php echo number_format((int)$provider['messages_sent']); ?></p>
                         <?php else: ?>
                             <div class="status-badge status-disconnected mb-3">
                                 <i class="fas fa-times-circle"></i> Not Configured
