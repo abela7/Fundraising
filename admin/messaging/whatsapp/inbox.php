@@ -847,6 +847,11 @@ if ($selected_id && $tables_exist) {
             display: flex;
             flex-direction: column;
             align-items: center;
+            pointer-events: none; /* Allow clicks to pass through to backdrop */
+        }
+        
+        .gallery-container > * {
+            pointer-events: auto; /* But make children clickable */
         }
         
         .gallery-image-wrapper {
@@ -931,11 +936,17 @@ if ($selected_id && $tables_exist) {
             font-size: 1.25rem;
             transition: all 0.2s;
             backdrop-filter: blur(10px);
+            z-index: 10001;
+            pointer-events: auto;
         }
         
         .gallery-close:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: scale(1.1);
+        }
+        
+        .gallery-close:active {
+            transform: scale(0.95);
         }
         
         .gallery-counter {
@@ -2881,12 +2892,21 @@ function showGallery() {
 }
 
 // Hide gallery modal
-function closeGallery() {
+function closeGallery(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
     const modal = document.getElementById('imageGalleryModal');
     if (modal) {
         modal.classList.remove('active');
     }
     document.body.style.overflow = ''; // Restore scrolling
+    
+    // Reset gallery state
+    currentGalleryIndex = 0;
+    galleryImages = [];
 }
 
 // Update gallery image display
@@ -2976,11 +2996,36 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Close on backdrop click
+// Close button event listener - multiple event types for reliability
+document.addEventListener('DOMContentLoaded', function() {
+    const closeBtn = document.getElementById('galleryCloseBtn');
+    if (closeBtn) {
+        const handleClose = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeGallery(e);
+            return false;
+        };
+        
+        // Add multiple event listeners for maximum compatibility
+        closeBtn.addEventListener('click', handleClose, true); // Use capture phase
+        closeBtn.addEventListener('mousedown', handleClose, true);
+        closeBtn.addEventListener('touchstart', handleClose, true);
+    }
+});
+
+// Close on backdrop click (but not on content)
 document.addEventListener('click', function(e) {
     const modal = document.getElementById('imageGalleryModal');
-    if (modal && e.target === modal) {
-        closeGallery();
+    const container = document.querySelector('.gallery-container');
+    
+    if (modal && modal.classList.contains('active')) {
+        // Close if clicking directly on the modal backdrop (not on container or its children)
+        if (e.target === modal) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeGallery(e);
+        }
     }
 });
 </script>
@@ -2988,7 +3033,7 @@ document.addEventListener('click', function(e) {
 <!-- Image Gallery Modal -->
 <div class="image-gallery-modal" id="imageGalleryModal">
     <div class="gallery-container">
-        <button class="gallery-close" onclick="closeGallery()" aria-label="Close gallery">
+        <button class="gallery-close" id="galleryCloseBtn" aria-label="Close gallery" type="button">
             <i class="fas fa-times"></i>
         </button>
         
