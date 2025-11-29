@@ -820,6 +820,215 @@ if ($selected_id && $tables_exist) {
             color: var(--wa-teal);
         }
         
+        /* Image Gallery Modal */
+        .image-gallery-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .image-gallery-modal.active {
+            display: flex;
+        }
+        
+        .gallery-container {
+            position: relative;
+            width: 100%;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .gallery-image-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            max-height: calc(90vh - 120px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        
+        .gallery-image {
+            max-width: 100%;
+            max-height: calc(90vh - 120px);
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .gallery-caption {
+            color: white;
+            text-align: center;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .gallery-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+        
+        .gallery-nav:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-50%) scale(1.1);
+        }
+        
+        .gallery-nav.prev {
+            left: 1rem;
+        }
+        
+        .gallery-nav.next {
+            right: 1rem;
+        }
+        
+        .gallery-nav:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .gallery-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+        
+        .gallery-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+        
+        .gallery-counter {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .gallery-thumbnails {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            max-width: 100%;
+            padding: 0.5rem;
+            overflow-x: auto;
+        }
+        
+        .gallery-thumbnail {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            opacity: 0.6;
+        }
+        
+        .gallery-thumbnail:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        
+        .gallery-thumbnail.active {
+            border-color: var(--wa-teal);
+            opacity: 1;
+        }
+        
+        /* Mobile gallery adjustments */
+        @media (max-width: 768px) {
+            .gallery-container {
+                max-width: 100vw;
+                max-height: 100vh;
+                padding: 0;
+            }
+            
+            .gallery-image-wrapper {
+                max-height: calc(100vh - 200px);
+            }
+            
+            .gallery-image {
+                max-height: calc(100vh - 200px);
+            }
+            
+            .gallery-nav {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            
+            .gallery-nav.prev {
+                left: 0.5rem;
+            }
+            
+            .gallery-nav.next {
+                right: 0.5rem;
+            }
+            
+            .gallery-close {
+                top: 0.5rem;
+                right: 0.5rem;
+                width: 36px;
+                height: 36px;
+            }
+            
+            .gallery-thumbnails {
+                gap: 0.25rem;
+            }
+            
+            .gallery-thumbnail {
+                width: 50px;
+                height: 50px;
+            }
+        }
+        
         .date-divider {
             text-align: center;
             margin: 0.75rem 0;
@@ -1837,9 +2046,12 @@ if ($selected_id && $tables_exist) {
                                 <?php endif; ?>
                                 
                                 <?php if ($msg['message_type'] === 'image' && $msg['media_url']): ?>
+                                <?php 
+                                $captionJs = $msg['media_caption'] ? json_encode($msg['media_caption'], JSON_HEX_APOS | JSON_HEX_QUOT) : "''";
+                                ?>
                                 <div class="message-media">
                                     <img src="<?php echo htmlspecialchars($msg['media_url']); ?>" alt="Image" 
-                                         onclick="window.open(this.src, '_blank')">
+                                         onclick="openGallery(this.src, <?php echo $captionJs; ?>)">
                                 </div>
                                 <?php if ($msg['media_caption']): ?>
                                 <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
@@ -2167,7 +2379,8 @@ function addMessageToChat(msg) {
     
     // Message body based on type
     if (msg.type === 'image' && msg.media_url) {
-        content += `<div class="message-media"><img src="${escapeHtml(msg.media_url)}" alt="Image" onclick="window.open(this.src, '_blank')"></div>`;
+        const captionJs = msg.media_caption ? JSON.stringify(msg.media_caption) : "''";
+        content += `<div class="message-media"><img src="${escapeHtml(msg.media_url)}" alt="Image" onclick="openGallery(this.src, ${captionJs})"></div>`;
         if (msg.media_caption) {
             content += `<div class="message-text">${escapeHtml(msg.media_caption)}</div>`;
         }
@@ -2579,7 +2792,8 @@ function addMediaMessageToChat(result, caption, file) {
     
     let mediaHtml = '';
     if (file.type.startsWith('image/')) {
-        mediaHtml = `<div class="message-media"><img src="${escapeHtml(result.media_url)}" alt="Image" onclick="window.open(this.src, '_blank')"></div>`;
+        const captionJs = caption ? JSON.stringify(caption) : "''";
+        mediaHtml = `<div class="message-media"><img src="${escapeHtml(result.media_url)}" alt="Image" onclick="openGallery(this.src, ${captionJs})"></div>`;
     } else if (file.type.startsWith('video/')) {
         mediaHtml = `<div class="message-media"><video controls src="${escapeHtml(result.media_url)}" style="max-width: 300px;"></video></div>`;
     } else if (file.type.startsWith('audio/')) {
@@ -2612,7 +2826,191 @@ function addMediaMessageToChat(result, caption, file) {
 
 // Voice recording disabled - use attachment button to upload audio files instead
 // Browser voice recording has compatibility issues with WhatsApp audio formats
+
+// ============================================
+// IMAGE GALLERY
+// ============================================
+
+let galleryImages = [];
+let currentGalleryIndex = 0;
+
+// Collect all images from conversation
+function collectGalleryImages() {
+    galleryImages = [];
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    const images = chatMessages.querySelectorAll('.message-media img');
+    images.forEach((img, index) => {
+        const messageDiv = img.closest('.message');
+        const captionEl = messageDiv?.querySelector('.message-text');
+        const caption = captionEl ? captionEl.textContent.trim() : '';
+        
+        galleryImages.push({
+            src: img.src,
+            alt: img.alt || 'Image',
+            caption: caption,
+            index: index
+        });
+    });
+}
+
+// Open gallery with specific image
+function openGallery(imageSrc, caption = '') {
+    collectGalleryImages();
+    
+    // Find the index of the clicked image
+    currentGalleryIndex = galleryImages.findIndex(img => img.src === imageSrc);
+    if (currentGalleryIndex === -1) {
+        // If not found, add it
+        galleryImages = [{ src: imageSrc, alt: 'Image', caption: caption, index: 0 }];
+        currentGalleryIndex = 0;
+    }
+    
+    showGallery();
+}
+
+// Show gallery modal
+function showGallery() {
+    const modal = document.getElementById('imageGalleryModal');
+    if (!modal || galleryImages.length === 0) return;
+    
+    modal.classList.add('active');
+    updateGalleryImage();
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+}
+
+// Hide gallery modal
+function closeGallery() {
+    const modal = document.getElementById('imageGalleryModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    document.body.style.overflow = ''; // Restore scrolling
+}
+
+// Update gallery image display
+function updateGalleryImage() {
+    if (galleryImages.length === 0) return;
+    
+    const currentImage = galleryImages[currentGalleryIndex];
+    const imgEl = document.getElementById('galleryImage');
+    const captionEl = document.getElementById('galleryCaption');
+    const counterEl = document.getElementById('galleryCounter');
+    const prevBtn = document.getElementById('galleryPrev');
+    const nextBtn = document.getElementById('galleryNext');
+    const thumbnailsEl = document.getElementById('galleryThumbnails');
+    
+    if (imgEl) {
+        imgEl.src = currentImage.src;
+        imgEl.alt = currentImage.alt;
+    }
+    
+    if (captionEl) {
+        captionEl.textContent = currentImage.caption || '';
+        captionEl.style.display = currentImage.caption ? 'block' : 'none';
+    }
+    
+    if (counterEl && galleryImages.length > 1) {
+        counterEl.textContent = `${currentGalleryIndex + 1} / ${galleryImages.length}`;
+        counterEl.style.display = 'block';
+    } else if (counterEl) {
+        counterEl.style.display = 'none';
+    }
+    
+    if (prevBtn) {
+        prevBtn.disabled = currentGalleryIndex === 0;
+        prevBtn.style.display = galleryImages.length > 1 ? 'flex' : 'none';
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = currentGalleryIndex === galleryImages.length - 1;
+        nextBtn.style.display = galleryImages.length > 1 ? 'flex' : 'none';
+    }
+    
+    // Update thumbnails
+    if (thumbnailsEl && galleryImages.length > 1) {
+        thumbnailsEl.innerHTML = '';
+        galleryImages.forEach((img, index) => {
+            const thumb = document.createElement('img');
+            thumb.src = img.src;
+            thumb.className = 'gallery-thumbnail' + (index === currentGalleryIndex ? ' active' : '');
+            thumb.onclick = () => {
+                currentGalleryIndex = index;
+                updateGalleryImage();
+            };
+            thumbnailsEl.appendChild(thumb);
+        });
+        thumbnailsEl.style.display = 'flex';
+    } else if (thumbnailsEl) {
+        thumbnailsEl.style.display = 'none';
+    }
+}
+
+// Navigate gallery
+function galleryPrev() {
+    if (currentGalleryIndex > 0) {
+        currentGalleryIndex--;
+        updateGalleryImage();
+    }
+}
+
+function galleryNext() {
+    if (currentGalleryIndex < galleryImages.length - 1) {
+        currentGalleryIndex++;
+        updateGalleryImage();
+    }
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('imageGalleryModal');
+    if (!modal || !modal.classList.contains('active')) return;
+    
+    if (e.key === 'Escape') {
+        closeGallery();
+    } else if (e.key === 'ArrowLeft') {
+        galleryPrev();
+    } else if (e.key === 'ArrowRight') {
+        galleryNext();
+    }
+});
+
+// Close on backdrop click
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('imageGalleryModal');
+    if (modal && e.target === modal) {
+        closeGallery();
+    }
+});
 </script>
+
+<!-- Image Gallery Modal -->
+<div class="image-gallery-modal" id="imageGalleryModal">
+    <div class="gallery-container">
+        <button class="gallery-close" onclick="closeGallery()" aria-label="Close gallery">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="gallery-image-wrapper">
+            <img id="galleryImage" class="gallery-image" src="" alt="">
+            
+            <button class="gallery-nav prev" id="galleryPrev" onclick="galleryPrev()" aria-label="Previous image">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="gallery-nav next" id="galleryNext" onclick="galleryNext()" aria-label="Next image">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            
+            <div class="gallery-counter" id="galleryCounter" style="display: none;"></div>
+        </div>
+        
+        <div class="gallery-caption" id="galleryCaption" style="display: none;"></div>
+        
+        <div class="gallery-thumbnails" id="galleryThumbnails" style="display: none;"></div>
+    </div>
+</div>
+
 </body>
 </html>
 
