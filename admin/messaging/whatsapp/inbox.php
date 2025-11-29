@@ -680,36 +680,144 @@ if ($selected_id && $tables_exist) {
             max-width: 330px;
             border-radius: 8px;
             overflow: hidden;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.375rem;
         }
         
         .message-media img {
             width: 100%;
             display: block;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: all 0.2s;
+            border-radius: 8px;
         }
         
         .message-media img:hover {
             opacity: 0.9;
+            transform: scale(1.02);
+        }
+        
+        .message-media video {
+            width: 100%;
+            max-width: 300px;
+            display: block;
+            border-radius: 8px;
         }
         
         .message-media.document {
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.75rem;
-            background: rgba(0,0,0,0.05);
+            padding: 0.875rem;
+            background: rgba(0,0,0,0.04);
             border-radius: 8px;
+            min-width: 200px;
+        }
+        
+        .message-media.document i {
+            font-size: 1.5rem;
+            color: #667781;
+        }
+        
+        .message-media.document i.fa-file-pdf { color: #dc3545; }
+        .message-media.document i.fa-file-word { color: #0d6efd; }
+        .message-media.document i.fa-file-excel { color: #198754; }
+        
+        .message-media.document div {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .message-media.document div > div:first-child {
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--wa-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .message-media.document a {
             color: var(--wa-teal);
+            font-size: 0.8125rem;
+        }
+        
+        .message-media.document a:hover {
+            text-decoration: underline;
         }
         
         .message-media audio {
             width: 280px;
-            height: 36px;
+            height: 40px;
+            border-radius: 20px;
+        }
+        
+        /* Voice message styling */
+        .message-media.voice {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            background: transparent;
+        }
+        
+        .message-media.voice .voice-play-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--wa-teal);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .message-media.voice .voice-play-btn:hover {
+            background: #00917a;
+        }
+        
+        .message-media.voice .voice-waveform {
+            flex: 1;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        
+        .message-media.voice .voice-waveform .bar {
+            width: 3px;
+            background: var(--wa-teal);
+            border-radius: 2px;
+        }
+        
+        .message-media.voice .voice-duration {
+            font-size: 0.75rem;
+            color: var(--wa-text-secondary);
+            min-width: 35px;
+        }
+        
+        /* Location styling */
+        .message-media.location {
+            padding: 0.75rem;
+            background: rgba(0,0,0,0.04);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .message-media.location a {
+            color: var(--wa-text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .message-media.location a:hover {
+            color: var(--wa-teal);
         }
         
         .date-divider {
@@ -799,6 +907,260 @@ if ($selected_id && $tables_exist) {
         .chat-input-btn.attachment:hover {
             color: var(--wa-teal);
             background: transparent;
+        }
+        
+        .chat-input-btn.voice {
+            background: transparent;
+            color: var(--wa-text-secondary);
+            transform: none;
+        }
+        
+        .chat-input-btn.voice:hover {
+            color: var(--wa-teal);
+            background: transparent;
+        }
+        
+        .chat-input-btn.voice.recording {
+            color: #dc3545;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Attachment Menu */
+        .attachment-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 0.5rem;
+            display: none;
+            z-index: 100;
+            margin-bottom: 0.5rem;
+        }
+        
+        .attachment-menu.active {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .attachment-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+            color: var(--wa-text);
+            min-width: 60px;
+        }
+        
+        .attachment-option:hover {
+            background: #f0f2f5;
+        }
+        
+        .attachment-option i {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem;
+            color: white;
+        }
+        
+        .attachment-option span {
+            font-size: 0.7rem;
+            color: var(--wa-text-secondary);
+        }
+        
+        .attachment-option .photo-icon { background: #7f66ff; }
+        .attachment-option .document-icon { background: #5157ae; }
+        .attachment-option .camera-icon { background: #ec407a; }
+        
+        /* Media Preview */
+        .media-preview {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: var(--wa-header-bg);
+            border-top: 1px solid #e9edef;
+            padding: 1rem;
+            display: none;
+        }
+        
+        .media-preview.active {
+            display: block;
+        }
+        
+        .media-preview-inner {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .media-preview-thumb {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .media-preview-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .media-preview-thumb i {
+            font-size: 2rem;
+            color: var(--wa-text-secondary);
+        }
+        
+        .media-preview-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .media-preview-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--wa-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .media-preview-size {
+            font-size: 0.75rem;
+            color: var(--wa-text-secondary);
+        }
+        
+        .media-preview-caption {
+            margin-top: 0.5rem;
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e9edef;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            outline: none;
+        }
+        
+        .media-preview-caption:focus {
+            border-color: var(--wa-teal);
+        }
+        
+        .media-preview-close {
+            background: none;
+            border: none;
+            color: var(--wa-text-secondary);
+            padding: 0.25rem;
+            cursor: pointer;
+            font-size: 1.25rem;
+        }
+        
+        .media-preview-close:hover {
+            color: #dc3545;
+        }
+        
+        /* Voice Recording UI */
+        .voice-recording-ui {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            background: var(--wa-header-bg);
+            display: none;
+            align-items: center;
+            padding: 0.625rem 1rem;
+            gap: 1rem;
+        }
+        
+        .voice-recording-ui.active {
+            display: flex;
+        }
+        
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background: #dc3545;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+        
+        .recording-timer {
+            font-family: monospace;
+            font-size: 1rem;
+        }
+        
+        .recording-waveform {
+            flex: 1;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        
+        .waveform-bar {
+            width: 3px;
+            background: var(--wa-teal);
+            border-radius: 2px;
+            animation: waveform 0.5s ease-in-out infinite;
+        }
+        
+        @keyframes waveform {
+            0%, 100% { height: 5px; }
+            50% { height: 20px; }
+        }
+        
+        .recording-cancel {
+            padding: 0.5rem 1rem;
+            background: none;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        
+        .recording-cancel:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .recording-send {
+            width: 44px;
+            height: 44px;
+            background: var(--wa-teal);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
         }
         
         /* Empty State */
@@ -1003,6 +1365,59 @@ if ($selected_id && $tables_exist) {
             
             .message-media {
                 max-width: 250px;
+            }
+            
+            .message-media audio {
+                width: 200px;
+            }
+            
+            /* Media preview mobile */
+            .media-preview-inner {
+                flex-wrap: wrap;
+            }
+            
+            .media-preview-thumb {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .media-preview-info {
+                width: 100%;
+                order: 3;
+                margin-top: 0.5rem;
+            }
+            
+            /* Attachment menu mobile */
+            .attachment-menu {
+                left: 0;
+                right: 0;
+                justify-content: center;
+            }
+            
+            .attachment-option {
+                padding: 0.5rem;
+                min-width: 50px;
+            }
+            
+            .attachment-option i {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+            }
+            
+            /* Voice recording mobile */
+            .voice-recording-ui {
+                padding: 0.5rem;
+            }
+            
+            .recording-cancel {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.8rem;
+            }
+            
+            .recording-send {
+                width: 38px;
+                height: 38px;
             }
             
             .chat-input {
@@ -1429,6 +1844,13 @@ if ($selected_id && $tables_exist) {
                                 <?php if ($msg['media_caption']): ?>
                                 <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
                                 <?php endif; ?>
+                                <?php elseif ($msg['message_type'] === 'video' && $msg['media_url']): ?>
+                                <div class="message-media">
+                                    <video controls src="<?php echo htmlspecialchars($msg['media_url']); ?>"></video>
+                                </div>
+                                <?php if ($msg['media_caption']): ?>
+                                <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
+                                <?php endif; ?>
                                 <?php elseif ($msg['message_type'] === 'document' && $msg['media_url']): ?>
                                 <div class="message-media document">
                                     <i class="fas fa-file-alt fa-2x text-secondary"></i>
@@ -1475,18 +1897,78 @@ if ($selected_id && $tables_exist) {
                         <?php endforeach; ?>
                     </div>
                     
-                    <form class="chat-input" id="sendForm" method="POST" action="api/send-message.php">
+                    <!-- Media Preview -->
+                    <div class="media-preview" id="mediaPreview">
+                        <div class="media-preview-inner">
+                            <div class="media-preview-thumb" id="mediaThumb">
+                                <i class="fas fa-file"></i>
+                            </div>
+                            <div class="media-preview-info">
+                                <div class="media-preview-name" id="mediaName">filename.jpg</div>
+                                <div class="media-preview-size" id="mediaSize">2.5 MB</div>
+                                <input type="text" class="media-preview-caption" id="mediaCaption" placeholder="Add a caption...">
+                            </div>
+                            <button type="button" class="media-preview-close" onclick="clearMediaPreview()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <form class="chat-input" id="sendForm" method="POST" action="api/send-message.php" style="position: relative;">
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="conversation_id" value="<?php echo $selected_id; ?>">
                         <input type="hidden" name="phone" value="<?php echo htmlspecialchars($selected_conversation['phone_number']); ?>">
-                        <button type="button" class="chat-input-btn attachment" onclick="alert('📎 Media upload coming soon!')">
+                        
+                        <!-- Hidden file input -->
+                        <input type="file" id="fileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" style="display: none;">
+                        
+                        <!-- Attachment Menu -->
+                        <div class="attachment-menu" id="attachmentMenu">
+                            <button type="button" class="attachment-option" onclick="selectFileType('image')">
+                                <i class="fas fa-image photo-icon"></i>
+                                <span>Photos</span>
+                            </button>
+                            <button type="button" class="attachment-option" onclick="selectFileType('document')">
+                                <i class="fas fa-file-alt document-icon"></i>
+                                <span>Document</span>
+                            </button>
+                            <button type="button" class="attachment-option" onclick="selectFileType('camera')">
+                                <i class="fas fa-camera camera-icon"></i>
+                                <span>Camera</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Attachment Button -->
+                        <button type="button" class="chat-input-btn attachment" id="attachBtn" onclick="toggleAttachmentMenu()">
                             <i class="fas fa-paperclip"></i>
                         </button>
+                        
+                        <!-- Text Input -->
                         <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
-                               required autocomplete="off" id="messageInput">
-                        <button type="submit" class="chat-input-btn" id="sendBtn">
+                               autocomplete="off" id="messageInput">
+                        
+                        <!-- Voice Recording Button (hidden when typing) -->
+                        <button type="button" class="chat-input-btn voice" id="voiceBtn" onclick="toggleVoiceRecording()">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        
+                        <!-- Send Button (hidden when not typing) -->
+                        <button type="submit" class="chat-input-btn" id="sendBtn" style="display: none;">
                             <i class="fas fa-paper-plane"></i>
                         </button>
+                        
+                        <!-- Voice Recording UI -->
+                        <div class="voice-recording-ui" id="voiceRecordingUI">
+                            <div class="recording-indicator">
+                                <div class="recording-dot"></div>
+                                <span class="recording-timer" id="recordingTimer">0:00</span>
+                            </div>
+                            <div class="recording-waveform" id="waveform"></div>
+                            <button type="button" class="recording-cancel" onclick="cancelRecording()">Cancel</button>
+                            <button type="button" class="recording-send" onclick="sendVoiceMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
                     </form>
                     
                     <?php else: ?>
@@ -1521,6 +2003,12 @@ const sendBtn = document.getElementById('sendBtn');
 if (sendForm) {
     sendForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+        
+        // Check if there's a selected file for media
+        if (selectedFile) {
+            await sendMediaMessage();
+            return;
+        }
         
         const message = messageInput.value.trim();
         if (!message) return;
@@ -1564,6 +2052,11 @@ if (sendForm) {
                 chatMessages.scrollTop = chatMessages.scrollHeight;
                 
                 messageInput.value = '';
+                
+                // Reset button state
+                const voiceBtn = document.getElementById('voiceBtn');
+                if (voiceBtn) voiceBtn.style.display = 'flex';
+                if (sendBtn) sendBtn.style.display = 'none';
             } else {
                 alert('Failed to send: ' + (result.error || 'Unknown error'));
             }
@@ -1696,6 +2189,11 @@ function addMessageToChat(msg) {
     // Message body based on type
     if (msg.type === 'image' && msg.media_url) {
         content += `<div class="message-media"><img src="${escapeHtml(msg.media_url)}" alt="Image" onclick="window.open(this.src, '_blank')"></div>`;
+        if (msg.media_caption) {
+            content += `<div class="message-text">${escapeHtml(msg.media_caption)}</div>`;
+        }
+    } else if (msg.type === 'video' && msg.media_url) {
+        content += `<div class="message-media"><video controls src="${escapeHtml(msg.media_url)}"></video></div>`;
         if (msg.media_caption) {
             content += `<div class="message-text">${escapeHtml(msg.media_caption)}</div>`;
         }
@@ -1895,6 +2393,379 @@ document.addEventListener('visibilitychange', function() {
         pollConversations();
     }
 });
+
+// ============================================
+// MEDIA ATTACHMENT HANDLING
+// ============================================
+
+let selectedFile = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingStartTime = null;
+let recordingTimerInterval = null;
+
+// Toggle voice/send button based on input
+if (messageInput) {
+    messageInput.addEventListener('input', function() {
+        const hasText = this.value.trim().length > 0;
+        const voiceBtn = document.getElementById('voiceBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        if (voiceBtn && sendBtn) {
+            voiceBtn.style.display = hasText ? 'none' : 'flex';
+            sendBtn.style.display = hasText ? 'flex' : 'none';
+        }
+    });
+}
+
+// Toggle attachment menu
+function toggleAttachmentMenu() {
+    const menu = document.getElementById('attachmentMenu');
+    if (menu) {
+        menu.classList.toggle('active');
+    }
+}
+
+// Close attachment menu when clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('attachmentMenu');
+    const attachBtn = document.getElementById('attachBtn');
+    if (menu && attachBtn && !menu.contains(e.target) && e.target !== attachBtn && !attachBtn.contains(e.target)) {
+        menu.classList.remove('active');
+    }
+});
+
+// Select file type and trigger file input
+function selectFileType(type) {
+    const fileInput = document.getElementById('fileInput');
+    if (!fileInput) return;
+    
+    // Set accept attribute based on type
+    switch(type) {
+        case 'image':
+            fileInput.accept = 'image/*';
+            break;
+        case 'document':
+            fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip';
+            break;
+        case 'camera':
+            fileInput.accept = 'image/*';
+            fileInput.capture = 'environment';
+            break;
+    }
+    
+    fileInput.click();
+    toggleAttachmentMenu();
+}
+
+// Handle file selection
+const fileInput = document.getElementById('fileInput');
+if (fileInput) {
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validate file size (16MB max)
+        if (file.size > 16 * 1024 * 1024) {
+            alert('File too large. Maximum size is 16MB.');
+            this.value = '';
+            return;
+        }
+        
+        selectedFile = file;
+        showMediaPreview(file);
+    });
+}
+
+// Show media preview
+function showMediaPreview(file) {
+    const preview = document.getElementById('mediaPreview');
+    const thumb = document.getElementById('mediaThumb');
+    const name = document.getElementById('mediaName');
+    const size = document.getElementById('mediaSize');
+    const captionInput = document.getElementById('mediaCaption');
+    
+    if (!preview) return;
+    
+    // Set file info
+    name.textContent = file.name;
+    size.textContent = formatFileSize(file.size);
+    captionInput.value = '';
+    
+    // Set thumbnail
+    thumb.innerHTML = '';
+    if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.onload = () => URL.revokeObjectURL(img.src);
+        thumb.appendChild(img);
+    } else if (file.type.startsWith('video/')) {
+        thumb.innerHTML = '<i class="fas fa-video"></i>';
+    } else if (file.type.startsWith('audio/')) {
+        thumb.innerHTML = '<i class="fas fa-music"></i>';
+    } else if (file.type === 'application/pdf') {
+        thumb.innerHTML = '<i class="fas fa-file-pdf text-danger"></i>';
+    } else if (file.type.includes('word')) {
+        thumb.innerHTML = '<i class="fas fa-file-word text-primary"></i>';
+    } else if (file.type.includes('excel') || file.type.includes('spreadsheet')) {
+        thumb.innerHTML = '<i class="fas fa-file-excel text-success"></i>';
+    } else {
+        thumb.innerHTML = '<i class="fas fa-file"></i>';
+    }
+    
+    preview.classList.add('active');
+    
+    // Update send button to show
+    const voiceBtn = document.getElementById('voiceBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    if (voiceBtn) voiceBtn.style.display = 'none';
+    if (sendBtn) sendBtn.style.display = 'flex';
+}
+
+// Clear media preview
+function clearMediaPreview() {
+    const preview = document.getElementById('mediaPreview');
+    const fileInput = document.getElementById('fileInput');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const messageInput = document.getElementById('messageInput');
+    
+    selectedFile = null;
+    if (preview) preview.classList.remove('active');
+    if (fileInput) fileInput.value = '';
+    
+    // Restore button state
+    const hasText = messageInput && messageInput.value.trim().length > 0;
+    if (voiceBtn) voiceBtn.style.display = hasText ? 'none' : 'flex';
+    if (sendBtn) sendBtn.style.display = hasText ? 'flex' : 'none';
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Send media message
+async function sendMediaMessage() {
+    if (!selectedFile) return;
+    
+    const sendBtn = document.getElementById('sendBtn');
+    const captionInput = document.getElementById('mediaCaption');
+    const caption = captionInput ? captionInput.value.trim() : '';
+    
+    if (sendBtn) sendBtn.disabled = true;
+    
+    try {
+        const formData = new FormData();
+        formData.append('media', selectedFile);
+        formData.append('conversation_id', document.querySelector('input[name="conversation_id"]').value);
+        formData.append('phone', document.querySelector('input[name="phone"]').value);
+        formData.append('caption', caption);
+        formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+        
+        // Determine media type
+        let mediaType = 'document';
+        if (selectedFile.type.startsWith('image/')) mediaType = 'image';
+        else if (selectedFile.type.startsWith('video/')) mediaType = 'video';
+        else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
+        formData.append('media_type', mediaType);
+        
+        const response = await fetch('api/send-media.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Track message ID
+            if (result.message_id) {
+                locallyAddedMessages.add(result.message_id);
+                lastMessageId = Math.max(lastMessageId, result.message_id);
+            }
+            
+            // Add to chat UI
+            addMediaMessageToChat(result, caption, selectedFile);
+            
+            // Clear preview
+            clearMediaPreview();
+        } else {
+            alert('Failed to send media: ' + (result.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Error sending media: ' + err.message);
+    } finally {
+        if (sendBtn) sendBtn.disabled = false;
+    }
+}
+
+// Add media message to chat
+function addMediaMessageToChat(result, caption, file) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'message outgoing';
+    if (result.message_id) {
+        msgDiv.dataset.messageId = result.message_id;
+    }
+    
+    let mediaHtml = '';
+    if (file.type.startsWith('image/')) {
+        mediaHtml = `<div class="message-media"><img src="${escapeHtml(result.media_url)}" alt="Image" onclick="window.open(this.src, '_blank')"></div>`;
+    } else if (file.type.startsWith('video/')) {
+        mediaHtml = `<div class="message-media"><video controls src="${escapeHtml(result.media_url)}" style="max-width: 300px;"></video></div>`;
+    } else if (file.type.startsWith('audio/')) {
+        mediaHtml = `<div class="message-media"><audio controls src="${escapeHtml(result.media_url)}" style="width: 250px;"></audio></div>`;
+    } else {
+        mediaHtml = `<div class="message-media document">
+            <i class="fas fa-file-alt fa-2x text-secondary"></i>
+            <div>
+                <div>${escapeHtml(result.filename)}</div>
+                <a href="${escapeHtml(result.media_url)}" target="_blank" class="small">Download</a>
+            </div>
+        </div>`;
+    }
+    
+    msgDiv.innerHTML = `
+        <div class="message-content">
+            <div class="message-sender"><?php echo htmlspecialchars($current_user['name'] ?? 'You'); ?></div>
+            ${mediaHtml}
+            ${caption ? `<div class="message-text">${escapeHtml(caption)}</div>` : ''}
+            <div class="message-meta">
+                <span>${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}</span>
+                <span class="message-status"><i class="fas fa-check" style="color: #667781;"></i></span>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// ============================================
+// VOICE RECORDING
+// ============================================
+
+function toggleVoiceRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+}
+
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (e) => {
+            audioChunks.push(e.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(track => track.stop());
+        };
+        
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+        
+        // Show recording UI
+        const voiceBtn = document.getElementById('voiceBtn');
+        const recordingUI = document.getElementById('voiceRecordingUI');
+        if (voiceBtn) voiceBtn.classList.add('recording');
+        if (recordingUI) recordingUI.classList.add('active');
+        
+        // Start timer
+        updateRecordingTimer();
+        recordingTimerInterval = setInterval(updateRecordingTimer, 1000);
+        
+        // Create waveform animation
+        createWaveformAnimation();
+        
+    } catch (err) {
+        alert('Unable to access microphone. Please ensure you have granted permission.');
+        console.error('Microphone error:', err);
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    }
+    
+    clearInterval(recordingTimerInterval);
+    
+    const voiceBtn = document.getElementById('voiceBtn');
+    const recordingUI = document.getElementById('voiceRecordingUI');
+    if (voiceBtn) voiceBtn.classList.remove('recording');
+    if (recordingUI) recordingUI.classList.remove('active');
+}
+
+function cancelRecording() {
+    stopRecording();
+    audioChunks = [];
+}
+
+async function sendVoiceMessage() {
+    if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+    
+    // Stop recording
+    mediaRecorder.stop();
+    clearInterval(recordingTimerInterval);
+    
+    const voiceBtn = document.getElementById('voiceBtn');
+    const recordingUI = document.getElementById('voiceRecordingUI');
+    if (voiceBtn) voiceBtn.classList.remove('recording');
+    if (recordingUI) recordingUI.classList.remove('active');
+    
+    // Wait a bit for the last chunk
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Create audio blob
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    audioChunks = [];
+    
+    // Create file from blob
+    const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
+    
+    // Send via media API
+    selectedFile = audioFile;
+    await sendMediaMessage();
+}
+
+function updateRecordingTimer() {
+    const timer = document.getElementById('recordingTimer');
+    if (!timer || !recordingStartTime) return;
+    
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    timer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function createWaveformAnimation() {
+    const waveform = document.getElementById('waveform');
+    if (!waveform) return;
+    
+    waveform.innerHTML = '';
+    const bars = 20;
+    
+    for (let i = 0; i < bars; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'waveform-bar';
+        bar.style.animationDelay = `${i * 0.05}s`;
+        bar.style.height = `${Math.random() * 20 + 5}px`;
+        waveform.appendChild(bar);
+    }
+}
 </script>
 </body>
 </html>

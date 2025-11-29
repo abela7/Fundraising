@@ -215,6 +215,126 @@ class UltraMsgService
     }
     
     /**
+     * Send WhatsApp audio/voice message
+     * 
+     * @param string $phoneNumber Recipient phone number
+     * @param string $audioUrl URL to the audio file
+     * @param array $options Additional options
+     * @return array Result
+     */
+    public function sendAudio(string $phoneNumber, string $audioUrl, array $options = []): array
+    {
+        $phoneNumber = $this->normalizePhoneNumber($phoneNumber);
+        
+        if (!$phoneNumber) {
+            return [
+                'success' => false,
+                'error' => 'Invalid phone number format',
+                'error_code' => 'INVALID_PHONE'
+            ];
+        }
+        
+        $params = [
+            'token' => $this->token,
+            'to' => $phoneNumber,
+            'audio' => $audioUrl
+        ];
+        
+        $response = $this->makeRequest('messages/audio', $params);
+        return $this->parseResponse($response);
+    }
+    
+    /**
+     * Send WhatsApp video message
+     * 
+     * @param string $phoneNumber Recipient phone number
+     * @param string $videoUrl URL to the video file
+     * @param string $caption Optional caption
+     * @param array $options Additional options
+     * @return array Result
+     */
+    public function sendVideo(string $phoneNumber, string $videoUrl, string $caption = '', array $options = []): array
+    {
+        $phoneNumber = $this->normalizePhoneNumber($phoneNumber);
+        
+        if (!$phoneNumber) {
+            return [
+                'success' => false,
+                'error' => 'Invalid phone number format',
+                'error_code' => 'INVALID_PHONE'
+            ];
+        }
+        
+        $params = [
+            'token' => $this->token,
+            'to' => $phoneNumber,
+            'video' => $videoUrl,
+            'caption' => $caption
+        ];
+        
+        $response = $this->makeRequest('messages/video', $params);
+        return $this->parseResponse($response);
+    }
+    
+    /**
+     * Send WhatsApp voice note (PTT - Push to Talk)
+     * 
+     * @param string $phoneNumber Recipient phone number
+     * @param string $audioUrl URL to the audio file (will be sent as voice note)
+     * @param array $options Additional options
+     * @return array Result
+     */
+    public function sendVoice(string $phoneNumber, string $audioUrl, array $options = []): array
+    {
+        $phoneNumber = $this->normalizePhoneNumber($phoneNumber);
+        
+        if (!$phoneNumber) {
+            return [
+                'success' => false,
+                'error' => 'Invalid phone number format',
+                'error_code' => 'INVALID_PHONE'
+            ];
+        }
+        
+        $params = [
+            'token' => $this->token,
+            'to' => $phoneNumber,
+            'audio' => $audioUrl
+        ];
+        
+        // Use voice endpoint for PTT messages
+        $response = $this->makeRequest('messages/voice', $params);
+        return $this->parseResponse($response);
+    }
+    
+    /**
+     * Send any type of media message
+     * 
+     * @param string $phoneNumber Recipient phone number
+     * @param string $mediaUrl URL to the media file
+     * @param string $type Media type: image, document, audio, video, voice
+     * @param string $caption Optional caption
+     * @param string $filename Optional filename (for documents)
+     * @return array Result
+     */
+    public function sendMedia(string $phoneNumber, string $mediaUrl, string $type = 'image', string $caption = '', string $filename = ''): array
+    {
+        switch ($type) {
+            case 'image':
+                return $this->sendImage($phoneNumber, $mediaUrl, $caption);
+            case 'video':
+                return $this->sendVideo($phoneNumber, $mediaUrl, $caption);
+            case 'audio':
+                return $this->sendAudio($phoneNumber, $mediaUrl);
+            case 'voice':
+                return $this->sendVoice($phoneNumber, $mediaUrl);
+            case 'document':
+            default:
+                return $this->sendDocument($phoneNumber, $mediaUrl, $filename, $caption);
+        }
+    }
+    
+    /**
      * Get instance status
      * 
      * @return array ['success' => bool, 'status' => string, 'error' => string]
