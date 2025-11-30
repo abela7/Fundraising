@@ -282,6 +282,8 @@ if ($selected_id && $tables_exist) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../assets/admin.css">
+    <!-- Lamejs for MP3 encoding -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <style>
         :root {
             --wa-green: #25D366;
@@ -1348,6 +1350,52 @@ if ($selected_id && $tables_exist) {
             50% { opacity: 0.5; }
         }
         
+        /* Voice Recording Indicator */
+        .voice-recording-indicator {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            background: #fee2e2;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            gap: 0.75rem;
+            z-index: 10;
+        }
+        
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background: #dc3545;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+        
+        .recording-time {
+            font-size: 0.9375rem;
+            font-weight: 500;
+            color: #dc3545;
+            flex: 1;
+        }
+        
+        .recording-cancel {
+            background: transparent;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .recording-cancel:hover {
+            background: rgba(220, 53, 69, 0.1);
+        }
+        
         /* Attachment Menu */
         .attachment-menu {
             position: absolute;
@@ -1872,13 +1920,18 @@ if ($selected_id && $tables_exist) {
                 max-height: 40px;
             }
             
-            .chat-input-btn.templates {
+            .chat-input-btn.templates,
+            .chat-input-btn.voice {
                 width: 40px;
                 height: 40px;
                 min-width: 40px;
                 min-height: 40px;
                 max-width: 40px;
                 max-height: 40px;
+            }
+            
+            .voice-recording-indicator {
+                padding: 0 0.75rem;
             }
             
             /* Back button for mobile */
@@ -1983,13 +2036,23 @@ if ($selected_id && $tables_exist) {
                 max-height: 38px;
             }
             
-            .chat-input-btn.templates {
+            .chat-input-btn.templates,
+            .chat-input-btn.voice {
                 width: 38px;
                 height: 38px;
                 min-width: 38px;
                 min-height: 38px;
                 max-width: 38px;
                 max-height: 38px;
+            }
+            
+            .voice-recording-indicator {
+                padding: 0 0.5rem;
+                gap: 0.5rem;
+            }
+            
+            .recording-time {
+                font-size: 0.875rem;
             }
             
             /* Empty state small mobile */
@@ -2410,6 +2473,20 @@ if ($selected_id && $tables_exist) {
                         <button type="submit" class="chat-input-btn" id="sendBtn">
                             <i class="fas fa-paper-plane"></i>
                         </button>
+                        
+                        <!-- Voice Button -->
+                        <button type="button" class="chat-input-btn voice" id="voiceBtn" onclick="toggleVoiceRecording()">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        
+                        <!-- Voice Recording Indicator -->
+                        <div class="voice-recording-indicator" id="voiceRecordingIndicator" style="display: none;">
+                            <div class="recording-dot"></div>
+                            <span class="recording-time" id="recordingTime">0:00</span>
+                            <button type="button" class="recording-cancel" onclick="cancelVoiceRecording()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                         
                     </form>
                     
@@ -3251,8 +3328,287 @@ function addMediaMessageToChat(result, caption, file) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Voice recording disabled - use attachment button to upload audio files instead
-// Browser voice recording has compatibility issues with WhatsApp audio formats
+// ============================================
+// VOICE RECORDING WITH MP3 CONVERSION
+// ============================================
+
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingStartTime = null;
+let recordingTimer = null;
+let audioContext = null;
+
+// Check if voice recording is supported
+function isVoiceRecordingSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.lamejs);
+}
+
+// Toggle voice recording
+async function toggleVoiceRecording() {
+    if (!isVoiceRecordingSupported()) {
+        alert('Voice recording is not supported in your browser.');
+        return;
+    }
+    
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        // Stop recording
+        stopVoiceRecording();
+    } else {
+        // Start recording
+        await startVoiceRecording();
+    }
+}
+
+// Start voice recording
+async function startVoiceRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                channelCount: 1,
+                sampleRate: 44100
+            } 
+        });
+        
+        audioChunks = [];
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+        
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg'
+        });
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Convert to MP3 and send
+            await convertAndSendVoice();
+        };
+        
+        mediaRecorder.start(100); // Collect data every 100ms
+        recordingStartTime = Date.now();
+        
+        // Update UI
+        document.getElementById('voiceBtn').classList.add('recording');
+        document.getElementById('voiceRecordingIndicator').style.display = 'flex';
+        
+        // Hide other input elements
+        document.getElementById('messageInput').style.display = 'none';
+        document.getElementById('templatesBtn').style.display = 'none';
+        document.getElementById('attachBtn').style.display = 'none';
+        document.getElementById('sendBtn').style.display = 'none';
+        
+        // Start timer
+        updateRecordingTime();
+        recordingTimer = setInterval(updateRecordingTime, 1000);
+        
+    } catch (err) {
+        console.error('Failed to start recording:', err);
+        alert('Could not access microphone. Please check permissions.');
+    }
+}
+
+// Stop voice recording
+function stopVoiceRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    }
+    
+    // Clear timer
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+    
+    // Reset UI
+    resetRecordingUI();
+}
+
+// Cancel voice recording
+function cancelVoiceRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        // Remove the onstop handler to prevent sending
+        mediaRecorder.onstop = () => {
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        };
+        mediaRecorder.stop();
+    }
+    
+    audioChunks = [];
+    
+    // Clear timer
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+    
+    // Reset UI
+    resetRecordingUI();
+}
+
+// Reset recording UI
+function resetRecordingUI() {
+    document.getElementById('voiceBtn').classList.remove('recording');
+    document.getElementById('voiceRecordingIndicator').style.display = 'none';
+    document.getElementById('messageInput').style.display = '';
+    document.getElementById('templatesBtn').style.display = '';
+    document.getElementById('attachBtn').style.display = '';
+    document.getElementById('sendBtn').style.display = '';
+    document.getElementById('recordingTime').textContent = '0:00';
+}
+
+// Update recording time display
+function updateRecordingTime() {
+    if (!recordingStartTime) return;
+    
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    document.getElementById('recordingTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Convert recorded audio to MP3 and send
+async function convertAndSendVoice() {
+    try {
+        // Show loading state
+        const voiceBtn = document.getElementById('voiceBtn');
+        voiceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        voiceBtn.disabled = true;
+        
+        // Create blob from chunks
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        
+        // Decode audio data
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Convert to MP3
+        const mp3Blob = await encodeMP3(audioBuffer);
+        
+        // Create file and send
+        const fileName = `voice_${Date.now()}.mp3`;
+        const mp3File = new File([mp3Blob], fileName, { type: 'audio/mp3' });
+        
+        // Send via sendMediaMessage
+        await sendVoiceMessage(mp3File);
+        
+    } catch (err) {
+        console.error('Failed to convert/send voice:', err);
+        alert('Failed to send voice message: ' + err.message);
+    } finally {
+        // Reset button
+        const voiceBtn = document.getElementById('voiceBtn');
+        voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        voiceBtn.disabled = false;
+        audioChunks = [];
+    }
+}
+
+// Encode audio buffer to MP3 using lamejs
+function encodeMP3(audioBuffer) {
+    return new Promise((resolve, reject) => {
+        try {
+            const channels = audioBuffer.numberOfChannels;
+            const sampleRate = audioBuffer.sampleRate;
+            const samples = audioBuffer.getChannelData(0);
+            
+            // Convert float32 samples to int16
+            const sampleCount = samples.length;
+            const int16Samples = new Int16Array(sampleCount);
+            
+            for (let i = 0; i < sampleCount; i++) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                int16Samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            
+            // Create MP3 encoder
+            const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+            const mp3Data = [];
+            
+            // Encode in chunks
+            const blockSize = 1152;
+            for (let i = 0; i < int16Samples.length; i += blockSize) {
+                const chunk = int16Samples.subarray(i, i + blockSize);
+                const mp3buf = mp3encoder.encodeBuffer(chunk);
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+            }
+            
+            // Flush encoder
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) {
+                mp3Data.push(mp3buf);
+            }
+            
+            // Create blob
+            const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+            resolve(blob);
+            
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+// Send voice message
+async function sendVoiceMessage(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('conversation_id', <?php echo $selected_id ?: 0; ?>);
+    formData.append('phone', '<?php echo htmlspecialchars($selected_conversation['phone_number'] ?? ''); ?>');
+    formData.append('mediaType', 'audio');
+    formData.append('csrf_token', '<?php echo csrf_token(); ?>');
+    
+    const response = await fetch('api/send-media.php', {
+        method: 'POST',
+        body: formData
+    });
+    
+    const text = await response.text();
+    let result;
+    try {
+        result = JSON.parse(text);
+    } catch (e) {
+        throw new Error('Server error: ' + text.substring(0, 200));
+    }
+    
+    if (result.success) {
+        // Add message to chat
+        const chatMessages = document.querySelector('.chat-messages');
+        if (chatMessages) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            
+            const messageHtml = `
+                <div class="message outgoing" data-message-id="${result.message_id || 'temp_' + Date.now()}">
+                    <div class="message-sender"><?php echo htmlspecialchars($current_user['name'] ?? 'You'); ?></div>
+                    <div class="message-content">
+                        <div class="message-media audio">
+                            <audio controls src="${result.media_url || URL.createObjectURL(file)}">
+                                Your browser does not support audio.
+                            </audio>
+                        </div>
+                    </div>
+                    <div class="message-footer">
+                        <span class="message-time">${timeStr}</span>
+                        <span class="message-status"><i class="fas fa-check"></i></span>
+                    </div>
+                </div>
+            `;
+            
+            chatMessages.insertAdjacentHTML('beforeend', messageHtml);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    } else {
+        throw new Error(result.error || 'Failed to send voice message');
+    }
+}
 
 // ============================================
 // IMAGE GALLERY
