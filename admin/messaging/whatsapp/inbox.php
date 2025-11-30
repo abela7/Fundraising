@@ -2108,10 +2108,24 @@ if ($selected_id && $tables_exist) {
             bottom: 100%;
             left: 0;
             right: 0;
-            background: var(--wa-header-bg);
+            background: white;
             border-top: 1px solid #e9edef;
             padding: 1rem;
             display: none;
+            z-index: 100;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+            animation: slideUp 0.2s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .media-preview.active {
@@ -2120,30 +2134,32 @@ if ($selected_id && $tables_exist) {
         
         .media-preview-inner {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             gap: 1rem;
         }
         
         .media-preview-thumb {
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
             object-fit: cover;
-            background: #f0f2f5;
+            background: linear-gradient(135deg, #f0f2f5 0%, #e4e6e9 100%);
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
         .media-preview-thumb img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 8px;
         }
         
         .media-preview-thumb i {
-            font-size: 2rem;
+            font-size: 1.75rem;
             color: var(--wa-text-secondary);
         }
         
@@ -2154,43 +2170,58 @@ if ($selected_id && $tables_exist) {
         
         .media-preview-name {
             font-weight: 600;
-            font-size: 0.875rem;
+            font-size: 0.9375rem;
             color: var(--wa-text);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            margin-bottom: 0.25rem;
         }
         
         .media-preview-size {
-            font-size: 0.75rem;
+            font-size: 0.8125rem;
             color: var(--wa-text-secondary);
+            margin-bottom: 0.5rem;
         }
         
         .media-preview-caption {
-            margin-top: 0.5rem;
             width: 100%;
             padding: 0.5rem 0.75rem;
             border: 1px solid #e9edef;
-            border-radius: 8px;
+            border-radius: 20px;
             font-size: 0.875rem;
             outline: none;
+            background: #f0f2f5;
         }
         
         .media-preview-caption:focus {
             border-color: var(--wa-teal);
+            background: white;
+        }
+        
+        .media-preview-caption::placeholder {
+            color: var(--wa-text-secondary);
         }
         
         .media-preview-close {
-            background: none;
+            width: 36px;
+            height: 36px;
+            background: #fee2e2;
             border: none;
-            color: var(--wa-text-secondary);
-            padding: 0.25rem;
+            border-radius: 50%;
+            color: #dc3545;
             cursor: pointer;
-            font-size: 1.25rem;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
         }
         
         .media-preview-close:hover {
-            color: #dc3545;
+            background: #dc3545;
+            color: white;
         }
         
         /* Voice Recording UI */
@@ -3081,24 +3112,26 @@ if ($selected_id && $tables_exist) {
                         <?php endforeach; ?>
                     </div>
                     
-                    <!-- Media Preview -->
-                    <div class="media-preview" id="mediaPreview">
-                        <div class="media-preview-inner">
-                            <div class="media-preview-thumb" id="mediaThumb">
-                                <i class="fas fa-file"></i>
+                    <!-- Input Area Wrapper -->
+                    <div class="chat-input-wrapper" style="position: relative;">
+                        <!-- Media Preview -->
+                        <div class="media-preview" id="mediaPreview">
+                            <div class="media-preview-inner">
+                                <div class="media-preview-thumb" id="mediaThumb">
+                                    <i class="fas fa-file"></i>
+                                </div>
+                                <div class="media-preview-info">
+                                    <div class="media-preview-name" id="mediaName">filename.jpg</div>
+                                    <div class="media-preview-size" id="mediaSize">2.5 MB</div>
+                                    <input type="text" class="media-preview-caption" id="mediaCaption" placeholder="Add a caption...">
+                                </div>
+                                <button type="button" class="media-preview-close" onclick="clearMediaPreview()">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
-                            <div class="media-preview-info">
-                                <div class="media-preview-name" id="mediaName">filename.jpg</div>
-                                <div class="media-preview-size" id="mediaSize">2.5 MB</div>
-                                <input type="text" class="media-preview-caption" id="mediaCaption" placeholder="Add a caption...">
-                            </div>
-                            <button type="button" class="media-preview-close" onclick="clearMediaPreview()">
-                                <i class="fas fa-times"></i>
-                            </button>
                         </div>
-                    </div>
                     
-                    <form class="chat-input" id="sendForm" method="POST" action="api/send-message.php" style="position: relative;">
+                        <form class="chat-input" id="sendForm" method="POST" action="api/send-message.php">
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="conversation_id" value="<?php echo $selected_id; ?>">
                         <input type="hidden" name="phone" value="<?php echo htmlspecialchars($selected_conversation['phone_number']); ?>">
@@ -3173,7 +3206,8 @@ if ($selected_id && $tables_exist) {
                             </button>
                         </div>
                         
-                    </form>
+                        </form>
+                    </div><!-- End chat-input-wrapper -->
                     
                     <?php else: ?>
                     <div class="empty-state">
