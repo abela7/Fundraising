@@ -1728,7 +1728,7 @@ if ($selected_id && $tables_exist) {
             background: var(--wa-header-bg);
             padding: 0.75rem 1rem;
             display: flex;
-            align-items: center;
+            align-items: flex-end;
             gap: 0.5rem;
         }
         
@@ -1741,13 +1741,16 @@ if ($selected_id && $tables_exist) {
             outline: none;
             background: white;
             color: var(--wa-text);
+            height: 42px;
             min-height: 42px;
-            max-height: 120px;
+            max-height: 150px;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
             resize: none;
-            overflow-y: auto;
+            overflow-y: hidden;
             line-height: 1.4;
             font-family: inherit;
+            display: flex;
+            align-items: center;
         }
         
         .chat-input-field:focus {
@@ -3643,12 +3646,24 @@ let selectedFile = null;
 // Auto-expand textarea as user types
 const messageInput = document.getElementById('messageInput');
 if (messageInput) {
-    messageInput.addEventListener('input', function() {
-        // Reset height to auto to get the correct scrollHeight
-        this.style.height = 'auto';
-        // Set height to scrollHeight (with max limit handled by CSS)
-        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    });
+    function autoExpandTextarea() {
+        const maxHeight = 150;
+        // Reset to minimum height first
+        messageInput.style.height = '42px';
+        messageInput.style.overflowY = 'hidden';
+        
+        // Calculate needed height
+        const scrollHeight = messageInput.scrollHeight;
+        
+        if (scrollHeight > maxHeight) {
+            messageInput.style.height = maxHeight + 'px';
+            messageInput.style.overflowY = 'auto';
+        } else if (scrollHeight > 42) {
+            messageInput.style.height = scrollHeight + 'px';
+        }
+    }
+    
+    messageInput.addEventListener('input', autoExpandTextarea);
     
     // Handle Enter key - send on Enter, new line on Shift+Enter
     messageInput.addEventListener('keydown', function(e) {
@@ -3660,6 +3675,17 @@ if (messageInput) {
             }
         }
     });
+    
+    // Reset height after sending
+    const sendForm = document.getElementById('sendForm');
+    if (sendForm) {
+        sendForm.addEventListener('submit', function() {
+            setTimeout(() => {
+                messageInput.style.height = '42px';
+                messageInput.style.overflowY = 'hidden';
+            }, 100);
+        });
+    }
 }
 
 // ============================================
