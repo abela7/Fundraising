@@ -396,6 +396,183 @@ if ($selected_id && $tables_exist) {
             border-bottom: 1px solid var(--wa-border);
         }
         
+        /* Bulk Actions */
+        .bulk-mode-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: var(--wa-search-bg);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--wa-text-secondary);
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .bulk-mode-btn:hover {
+            background: var(--wa-teal);
+            color: white;
+        }
+        
+        .bulk-mode-btn.active {
+            background: var(--wa-teal);
+            color: white;
+        }
+        
+        .conv-checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #d1d5db;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+            margin-right: 0.5rem;
+        }
+        
+        .bulk-mode .conv-checkbox {
+            display: flex;
+        }
+        
+        .bulk-mode .conv-avatar {
+            display: none;
+        }
+        
+        .conv-checkbox.checked {
+            background: var(--wa-teal);
+            border-color: var(--wa-teal);
+        }
+        
+        .conv-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        
+        /* Bulk Action Bar */
+        .bulk-action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid var(--wa-border);
+            padding: 1rem;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+            animation: slideUpBar 0.3s ease;
+        }
+        
+        @keyframes slideUpBar {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .bulk-action-bar.active {
+            display: block;
+        }
+        
+        .bulk-action-content {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .bulk-action-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        
+        .bulk-action-count {
+            font-weight: 600;
+            color: var(--wa-text);
+        }
+        
+        .bulk-action-close {
+            background: none;
+            border: none;
+            color: var(--wa-text-secondary);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1.25rem;
+        }
+        
+        .bulk-action-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .bulk-action-btn {
+            flex: 1;
+            padding: 0.875rem 1rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .bulk-action-btn.read {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        
+        .bulk-action-btn.read:hover {
+            background: #bae6fd;
+        }
+        
+        .bulk-action-btn.delete {
+            background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.25);
+        }
+        
+        .bulk-action-btn.delete:hover {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .bulk-action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Select All Row */
+        .select-all-row {
+            display: none;
+            padding: 0.75rem 1rem;
+            background: #f0f9ff;
+            border-bottom: 1px solid var(--wa-border);
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .bulk-mode .select-all-row {
+            display: flex;
+        }
+        
+        .select-all-label {
+            font-size: 0.875rem;
+            color: var(--wa-text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
         .inbox-filter {
             flex: 1;
             padding: 0.375rem 0.75rem;
@@ -2710,6 +2887,15 @@ if ($selected_id && $tables_exist) {
                             Mine
                         </a>
                         <?php endif; ?>
+                        <button type="button" class="bulk-mode-btn" id="bulkModeBtn" onclick="toggleBulkMode()" title="Select multiple">
+                            <i class="fas fa-check-double"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Select All Row -->
+                    <div class="select-all-row">
+                        <div class="conv-checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"></div>
+                        <label class="select-all-label" onclick="toggleSelectAll()">Select All</label>
                     </div>
                     
                     <div class="conversation-list">
@@ -2735,7 +2921,8 @@ if ($selected_id && $tables_exist) {
                             <a href="?id=<?php echo $conv['id']; ?>&filter=<?php echo $filter; ?>" 
                                class="conversation-item <?php echo $isActive ? 'active' : ''; ?> <?php echo $isUnread ? 'unread' : ''; ?>"
                                data-conversation-id="<?php echo $conv['id']; ?>"
-                               onclick="if(window.innerWidth <= 768) document.querySelector('.inbox-container').classList.add('has-selection')">
+                               onclick="return handleConversationClick(event, this)">
+                                <div class="conv-checkbox" data-id="<?php echo $conv['id']; ?>" onclick="event.preventDefault(); event.stopPropagation(); toggleConversationSelect(this);"></div>
                                 <div class="conv-avatar <?php echo $isUnknown ? 'unknown' : ''; ?>">
                                     <?php echo $initials; ?>
                                 </div>
@@ -4583,8 +4770,229 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeMessageDetail();
         closeDeleteModal();
+        exitBulkMode();
     }
 });
+
+// ============================================
+// BULK ACTIONS
+// ============================================
+
+let bulkModeActive = false;
+let selectedConversations = new Set();
+
+function toggleBulkMode() {
+    bulkModeActive = !bulkModeActive;
+    const sidebar = document.querySelector('.inbox-sidebar');
+    const btn = document.getElementById('bulkModeBtn');
+    
+    if (bulkModeActive) {
+        sidebar.classList.add('bulk-mode');
+        btn.classList.add('active');
+    } else {
+        exitBulkMode();
+    }
+}
+
+function exitBulkMode() {
+    bulkModeActive = false;
+    selectedConversations.clear();
+    
+    const sidebar = document.querySelector('.inbox-sidebar');
+    const btn = document.getElementById('bulkModeBtn');
+    const bar = document.getElementById('bulkActionBar');
+    const selectAll = document.getElementById('selectAllCheckbox');
+    
+    if (sidebar) sidebar.classList.remove('bulk-mode');
+    if (btn) btn.classList.remove('active');
+    if (bar) bar.classList.remove('active');
+    if (selectAll) selectAll.classList.remove('checked');
+    
+    // Uncheck all
+    document.querySelectorAll('.conv-checkbox.checked').forEach(cb => {
+        cb.classList.remove('checked');
+    });
+    
+    updateBulkActionBar();
+}
+
+function handleConversationClick(event, element) {
+    if (bulkModeActive) {
+        event.preventDefault();
+        const checkbox = element.querySelector('.conv-checkbox');
+        if (checkbox) {
+            toggleConversationSelect(checkbox);
+        }
+        return false;
+    }
+    
+    // Normal click - navigate (mobile handling)
+    if (window.innerWidth <= 768) {
+        document.querySelector('.inbox-container')?.classList.add('has-selection');
+    }
+    return true;
+}
+
+function toggleConversationSelect(checkbox) {
+    const id = checkbox.dataset.id;
+    
+    if (checkbox.classList.contains('checked')) {
+        checkbox.classList.remove('checked');
+        selectedConversations.delete(id);
+    } else {
+        checkbox.classList.add('checked');
+        selectedConversations.add(id);
+    }
+    
+    updateBulkActionBar();
+    updateSelectAllState();
+}
+
+function toggleSelectAll() {
+    const selectAllCb = document.getElementById('selectAllCheckbox');
+    const allCheckboxes = document.querySelectorAll('.conversation-item .conv-checkbox');
+    
+    if (selectAllCb.classList.contains('checked')) {
+        // Deselect all
+        selectAllCb.classList.remove('checked');
+        allCheckboxes.forEach(cb => {
+            cb.classList.remove('checked');
+            selectedConversations.delete(cb.dataset.id);
+        });
+    } else {
+        // Select all
+        selectAllCb.classList.add('checked');
+        allCheckboxes.forEach(cb => {
+            cb.classList.add('checked');
+            selectedConversations.add(cb.dataset.id);
+        });
+    }
+    
+    updateBulkActionBar();
+}
+
+function updateSelectAllState() {
+    const selectAllCb = document.getElementById('selectAllCheckbox');
+    const allCheckboxes = document.querySelectorAll('.conversation-item .conv-checkbox');
+    const checkedCount = document.querySelectorAll('.conversation-item .conv-checkbox.checked').length;
+    
+    if (checkedCount === allCheckboxes.length && allCheckboxes.length > 0) {
+        selectAllCb.classList.add('checked');
+    } else {
+        selectAllCb.classList.remove('checked');
+    }
+}
+
+function updateBulkActionBar() {
+    const bar = document.getElementById('bulkActionBar');
+    const count = document.getElementById('selectedCount');
+    
+    count.textContent = selectedConversations.size;
+    
+    if (selectedConversations.size > 0) {
+        bar.classList.add('active');
+    } else {
+        bar.classList.remove('active');
+    }
+}
+
+async function bulkMarkAsRead() {
+    if (selectedConversations.size === 0) return;
+    
+    const btn = document.querySelector('.bulk-action-btn.read');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Marking...</span>';
+    
+    try {
+        const formData = new FormData();
+        formData.append('csrf_token', '<?php echo csrf_token(); ?>');
+        formData.append('conversation_ids', JSON.stringify([...selectedConversations]));
+        
+        const response = await fetch('api/bulk-mark-read.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update UI
+            selectedConversations.forEach(id => {
+                const item = document.querySelector(`.conversation-item[data-conversation-id="${id}"]`);
+                if (item) {
+                    item.classList.remove('unread');
+                }
+            });
+            
+            exitBulkMode();
+        } else {
+            alert('Failed: ' + (result.error || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error('Bulk mark read error:', err);
+        alert('Failed to mark as read');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-double"></i> <span>Mark Read</span>';
+    }
+}
+
+async function bulkDelete() {
+    if (selectedConversations.size === 0) return;
+    
+    const count = selectedConversations.size;
+    if (!confirm(`Delete ${count} conversation${count > 1 ? 's' : ''}? This cannot be undone.`)) {
+        return;
+    }
+    
+    const btn = document.querySelector('.bulk-action-btn.delete');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Deleting...</span>';
+    
+    try {
+        const formData = new FormData();
+        formData.append('csrf_token', '<?php echo csrf_token(); ?>');
+        formData.append('conversation_ids', JSON.stringify([...selectedConversations]));
+        
+        const response = await fetch('api/bulk-delete.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Remove from DOM
+            selectedConversations.forEach(id => {
+                const item = document.querySelector(`.conversation-item[data-conversation-id="${id}"]`);
+                if (item) {
+                    item.style.transition = 'all 0.3s';
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateX(-100%)';
+                    setTimeout(() => item.remove(), 300);
+                }
+            });
+            
+            exitBulkMode();
+            
+            // Reload if current conversation was deleted
+            const currentId = new URLSearchParams(window.location.search).get('id');
+            if (currentId && selectedConversations.has(currentId)) {
+                setTimeout(() => {
+                    window.location.href = 'inbox.php';
+                }, 400);
+            }
+        } else {
+            alert('Failed: ' + (result.error || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error('Bulk delete error:', err);
+        alert('Failed to delete');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash-alt"></i> <span>Delete</span>';
+    }
+}
 </script>
 
 <!-- Image Gallery Modal -->
@@ -4610,6 +5018,28 @@ document.addEventListener('keydown', (e) => {
         <div class="gallery-caption" id="galleryCaption" style="display: none;"></div>
         
         <div class="gallery-thumbnails" id="galleryThumbnails" style="display: none;"></div>
+    </div>
+</div>
+
+<!-- Bulk Action Bar -->
+<div class="bulk-action-bar" id="bulkActionBar">
+    <div class="bulk-action-content">
+        <div class="bulk-action-header">
+            <span class="bulk-action-count"><span id="selectedCount">0</span> selected</span>
+            <button type="button" class="bulk-action-close" onclick="exitBulkMode()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="bulk-action-buttons">
+            <button type="button" class="bulk-action-btn read" onclick="bulkMarkAsRead()">
+                <i class="fas fa-check-double"></i>
+                <span>Mark Read</span>
+            </button>
+            <button type="button" class="bulk-action-btn delete" onclick="bulkDelete()">
+                <i class="fas fa-trash-alt"></i>
+                <span>Delete</span>
+            </button>
+        </div>
     </div>
 </div>
 
