@@ -1375,25 +1375,53 @@ if ($selected_id && $tables_exist) {
         }
         
         .recording-time {
-            font-size: 0.9375rem;
-            font-weight: 500;
+            font-size: 1rem;
+            font-weight: 600;
             color: #dc3545;
             flex: 1;
+            text-align: center;
         }
         
         .recording-cancel {
-            background: transparent;
+            background: rgba(220, 53, 69, 0.1);
             border: none;
             color: #dc3545;
             cursor: pointer;
-            padding: 0.5rem;
+            width: 40px;
+            height: 40px;
             font-size: 1rem;
             border-radius: 50%;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
         
         .recording-cancel:hover {
-            background: rgba(220, 53, 69, 0.1);
+            background: rgba(220, 53, 69, 0.2);
+        }
+        
+        .recording-send {
+            background: var(--wa-teal);
+            border: none;
+            color: white;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            font-size: 1.125rem;
+            border-radius: 50%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+        
+        .recording-send:hover {
+            background: #00917a;
+            transform: scale(1.05);
         }
         
         /* Attachment Menu */
@@ -2055,6 +2083,13 @@ if ($selected_id && $tables_exist) {
                 font-size: 0.875rem;
             }
             
+            .recording-cancel,
+            .recording-send {
+                width: 36px;
+                height: 36px;
+                font-size: 0.9375rem;
+            }
+            
             /* Empty state small mobile */
             .empty-state {
                 padding: 1.25rem 0.75rem;
@@ -2481,10 +2516,13 @@ if ($selected_id && $tables_exist) {
                         
                         <!-- Voice Recording Indicator -->
                         <div class="voice-recording-indicator" id="voiceRecordingIndicator" style="display: none;">
+                            <button type="button" class="recording-cancel" onclick="cancelVoiceRecording()" title="Cancel">
+                                <i class="fas fa-trash"></i>
+                            </button>
                             <div class="recording-dot"></div>
                             <span class="recording-time" id="recordingTime">0:00</span>
-                            <button type="button" class="recording-cancel" onclick="cancelVoiceRecording()">
-                                <i class="fas fa-times"></i>
+                            <button type="button" class="recording-send" onclick="stopVoiceRecording()" title="Send">
+                                <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
                         
