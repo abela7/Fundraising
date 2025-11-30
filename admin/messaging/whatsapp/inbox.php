@@ -1728,7 +1728,7 @@ if ($selected_id && $tables_exist) {
             background: var(--wa-header-bg);
             padding: 0.75rem 1rem;
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             gap: 0.5rem;
         }
         
@@ -1741,16 +1741,8 @@ if ($selected_id && $tables_exist) {
             outline: none;
             background: white;
             color: var(--wa-text);
-            height: 42px;
             min-height: 42px;
-            max-height: 150px;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-            resize: none;
-            overflow-y: hidden;
-            line-height: 1.4;
-            font-family: inherit;
-            display: flex;
-            align-items: center;
         }
         
         .chat-input-field:focus {
@@ -3189,8 +3181,8 @@ if ($selected_id && $tables_exist) {
                         </button>
                         
                         <!-- Text Input -->
-                        <textarea name="message" class="chat-input-field" placeholder="Type a message" 
-                               autocomplete="off" id="messageInput" rows="1"></textarea>
+                        <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
+                               autocomplete="off" id="messageInput">
                         
                         <!-- Send Button -->
                         <button type="submit" class="chat-input-btn" id="sendBtn">
@@ -3643,50 +3635,8 @@ document.addEventListener('visibilitychange', function() {
 
 let selectedFile = null;
 
-// Auto-expand textarea as user types
-const messageInput = document.getElementById('messageInput');
-if (messageInput) {
-    function autoExpandTextarea() {
-        const maxHeight = 150;
-        // Reset to minimum height first
-        messageInput.style.height = '42px';
-        messageInput.style.overflowY = 'hidden';
-        
-        // Calculate needed height
-        const scrollHeight = messageInput.scrollHeight;
-        
-        if (scrollHeight > maxHeight) {
-            messageInput.style.height = maxHeight + 'px';
-            messageInput.style.overflowY = 'auto';
-        } else if (scrollHeight > 42) {
-            messageInput.style.height = scrollHeight + 'px';
-        }
-    }
-    
-    messageInput.addEventListener('input', autoExpandTextarea);
-    
-    // Handle Enter key - send on Enter, new line on Shift+Enter
-    messageInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            const form = document.getElementById('sendForm');
-            if (form && this.value.trim()) {
-                form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-            }
-        }
-    });
-    
-    // Reset height after sending
-    const sendForm = document.getElementById('sendForm');
-    if (sendForm) {
-        sendForm.addEventListener('submit', function() {
-            setTimeout(() => {
-                messageInput.style.height = '42px';
-                messageInput.style.overflowY = 'hidden';
-            }, 100);
-        });
-    }
-}
+// Input listener (for future use if needed)
+// Voice recording disabled - use attachment button to upload audio files
 
 // ============================================
 // DONOR DATA FOR TEMPLATE VARIABLES
