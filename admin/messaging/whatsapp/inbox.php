@@ -1726,12 +1726,13 @@ if ($selected_id && $tables_exist) {
         /* Input Area - WhatsApp Style */
         .chat-input {
             background: var(--wa-header-bg);
-            padding: 0.5rem;
+            padding: 0.5rem 0.625rem;
             display: flex;
             align-items: flex-end;
             gap: 0.5rem;
         }
         
+        /* Input wrapper - rounded container like WhatsApp */
         .chat-input-wrapper {
             flex: 1;
             display: flex;
@@ -1743,6 +1744,7 @@ if ($selected_id && $tables_exist) {
             box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
         }
         
+        /* Icon buttons inside the input wrapper */
         .input-icon-btn {
             width: 40px;
             height: 40px;
@@ -1767,6 +1769,7 @@ if ($selected_id && $tables_exist) {
             background: rgba(0, 0, 0, 0.05);
         }
         
+        /* Text input field */
         .chat-input-field {
             flex: 1;
             padding: 0.5rem 0.25rem;
@@ -1785,6 +1788,7 @@ if ($selected_id && $tables_exist) {
             color: var(--wa-text-secondary);
         }
         
+        /* Main action button (send/voice) - green circle */
         .chat-action-btn {
             width: 48px;
             height: 48px;
@@ -2541,13 +2545,13 @@ if ($selected_id && $tables_exist) {
             }
             
             .chat-input {
-                padding: 0.375rem;
+                padding: 0.375rem 0.5rem;
                 gap: 0.375rem;
             }
             
             .chat-input-wrapper {
                 min-height: 44px;
-                padding: 0.125rem 0.375rem;
+                padding: 0.125rem 0.25rem;
             }
             
             .input-icon-btn {
@@ -2645,7 +2649,7 @@ if ($selected_id && $tables_exist) {
             }
             
             .chat-input {
-                padding: 0.25rem;
+                padding: 0.25rem 0.375rem;
                 gap: 0.25rem;
             }
             
@@ -3113,7 +3117,7 @@ if ($selected_id && $tables_exist) {
                         <div class="chat-input-wrapper">
                             <!-- Templates/Plus Button -->
                             <button type="button" class="input-icon-btn" id="templatesBtn" onclick="toggleTemplatesMenu()" title="Templates">
-                                <i class="fas fa-plus"></i>
+                                <i class="fas fa-face-smile"></i>
                             </button>
                             
                             <!-- Text Input -->
@@ -3125,17 +3129,17 @@ if ($selected_id && $tables_exist) {
                                 <i class="fas fa-paperclip"></i>
                             </button>
                             
-                            <!-- Camera/Voice Button -->
+                            <!-- Camera Button -->
                             <button type="button" class="input-icon-btn" id="cameraBtn" onclick="selectFileType('camera')" title="Camera">
                                 <i class="fas fa-camera"></i>
                             </button>
                         </div>
                         
                         <!-- Main Action Button (Send or Voice) -->
-                        <button type="submit" class="chat-action-btn" id="sendBtn" title="Send">
+                        <button type="submit" class="chat-action-btn" id="sendBtn" title="Send" style="display: none;">
                             <i class="fas fa-paper-plane"></i>
                         </button>
-                        <button type="button" class="chat-action-btn" id="voiceBtn" onclick="toggleVoiceRecording()" title="Voice message" style="display: none;">
+                        <button type="button" class="chat-action-btn" id="voiceBtn" onclick="toggleVoiceRecording()" title="Voice message">
                             <i class="fas fa-microphone"></i>
                         </button>
                         
