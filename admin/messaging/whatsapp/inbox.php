@@ -4401,11 +4401,15 @@ function closeMessageDetail() {
 function deleteCurrentMessage() {
     if (!currentMessageId || !currentMessageElement) return;
     
+    // Store references before closing modal
+    const msgId = currentMessageId;
+    const msgElement = currentMessageElement.closest('.message-wrapper') || currentMessageElement;
+    
     closeMessageDetail();
     
     // Open delete confirmation
     setTimeout(() => {
-        openDeleteModal('message', currentMessageId, currentMessageElement.closest('.message-wrapper'));
+        openDeleteModal('message', msgId, msgElement);
     }, 200);
 }
 
