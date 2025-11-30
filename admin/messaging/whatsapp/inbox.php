@@ -1748,6 +1748,26 @@ if ($selected_id && $tables_exist) {
             overflow-y: hidden;
             line-height: 1.4;
             font-family: inherit;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        }
+        
+        /* Webkit (Chrome, Safari) thin scrollbar */
+        .chat-input-field::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .chat-input-field::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .chat-input-field::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        
+        .chat-input-field::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
         }
         
         .chat-input-field:focus {
