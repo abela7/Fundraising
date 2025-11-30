@@ -225,19 +225,23 @@ if ($selected_id && $tables_exist) {
             // Get latest payment plan if exists
             $payment_plan = null;
             if ($selected_conversation['donor_id']) {
-                $plan_stmt = $db->prepare("
-                    SELECT pp.*, pm.name as payment_method_name
-                    FROM payment_plans pp
-                    LEFT JOIN payment_methods pm ON pp.payment_method_id = pm.id
-                    WHERE pp.donor_id = ?
-                    ORDER BY pp.created_at DESC
-                    LIMIT 1
-                ");
-                if ($plan_stmt) {
-                    $plan_stmt->bind_param('i', $selected_conversation['donor_id']);
-                    $plan_stmt->execute();
-                    $plan_result = $plan_stmt->get_result();
-                    $payment_plan = $plan_result ? $plan_result->fetch_assoc() : null;
+                // Check if payment_plans table exists
+                $tableCheck = $db->query("SHOW TABLES LIKE 'payment_plans'");
+                if ($tableCheck && $tableCheck->num_rows > 0) {
+                    $plan_stmt = $db->prepare("
+                        SELECT pp.*, pm.name as payment_method_name
+                        FROM payment_plans pp
+                        LEFT JOIN payment_methods pm ON pp.payment_method_id = pm.id
+                        WHERE pp.donor_id = ?
+                        ORDER BY pp.created_at DESC
+                        LIMIT 1
+                    ");
+                    if ($plan_stmt) {
+                        $plan_stmt->bind_param('i', $selected_conversation['donor_id']);
+                        $plan_stmt->execute();
+                        $plan_result = $plan_stmt->get_result();
+                        $payment_plan = $plan_result ? $plan_result->fetch_assoc() : null;
+                    }
                 }
             }
             
