@@ -174,10 +174,10 @@ $donor_template_data = [];
 
 if ($selected_id && $tables_exist) {
     try {
-        // Get conversation details with more donor info
+        // Get conversation details with donor info
         $stmt = $db->prepare("
             SELECT wc.*, d.name as donor_name, d.phone as donor_phone, d.balance as donor_balance, 
-                   d.id as donor_id, d.pledge_amount, d.frequency
+                   d.id as donor_id
             FROM whatsapp_conversations wc
             LEFT JOIN donors d ON wc.donor_id = d.id
             WHERE wc.id = ?
@@ -255,7 +255,6 @@ if ($selected_id && $tables_exist) {
                 'first_name' => $first_name,
                 'phone' => $selected_conversation['donor_phone'] ?? $selected_conversation['phone_number'] ?? '',
                 'balance' => '£' . number_format((float)($selected_conversation['donor_balance'] ?? 0), 2),
-                'pledge_amount' => '£' . number_format((float)($selected_conversation['pledge_amount'] ?? 0), 2),
                 'amount' => $payment_plan ? '£' . number_format((float)($payment_plan['amount'] ?? 0), 2) : '£0.00',
                 'frequency' => $payment_plan ? ($frequency_labels[$payment_plan['frequency']] ?? $payment_plan['frequency']) : 'monthly',
                 'start_date' => $payment_plan && $payment_plan['start_date'] ? date('j M Y', strtotime($payment_plan['start_date'])) : date('j M Y'),
