@@ -1723,77 +1723,43 @@ if ($selected_id && $tables_exist) {
             box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
         }
         
-        /* Input Area - WhatsApp Style */
+        /* Input Area */
         .chat-input {
             background: var(--wa-header-bg);
-            padding: 0.5rem 0.625rem;
+            padding: 0.75rem 1rem;
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             gap: 0.5rem;
         }
         
-        /* Input wrapper - rounded container like WhatsApp */
-        .chat-input-wrapper {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            background: white;
-            border-radius: 24px;
-            padding: 0.25rem 0.5rem;
-            min-height: 48px;
-            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
-        }
-        
-        /* Icon buttons inside the input wrapper */
-        .input-icon-btn {
-            width: 40px;
-            height: 40px;
-            border: none;
-            background: transparent;
-            color: var(--wa-text-secondary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-            transition: color 0.2s;
-            border-radius: 50%;
-        }
-        
-        .input-icon-btn:hover {
-            color: var(--wa-teal);
-        }
-        
-        .input-icon-btn:active {
-            background: rgba(0, 0, 0, 0.05);
-        }
-        
-        /* Text input field */
         .chat-input-field {
             flex: 1;
-            padding: 0.5rem 0.25rem;
+            padding: 0.625rem 1rem;
             border: none;
+            border-radius: 21px;
             font-size: 1rem;
             outline: none;
-            background: transparent;
+            background: white;
             color: var(--wa-text);
-            min-height: 24px;
-            max-height: 120px;
-            resize: none;
-            line-height: 1.4;
+            min-height: 42px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+        
+        .chat-input-field:focus {
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
         }
         
         .chat-input-field::placeholder {
             color: var(--wa-text-secondary);
         }
         
-        /* Main action button (send/voice) - green circle */
-        .chat-action-btn {
-            width: 48px;
-            height: 48px;
-            min-width: 48px;
-            min-height: 48px;
+        .chat-input-btn {
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            min-height: 42px;
+            max-width: 42px;
+            max-height: 42px;
             border: none;
             border-radius: 50%;
             background: var(--wa-teal);
@@ -1803,24 +1769,42 @@ if ($selected_id && $tables_exist) {
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
-            font-size: 1.25rem;
+            font-size: 1.125rem;
             flex-shrink: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        .chat-action-btn:hover {
+        .chat-input-btn:hover {
             transform: scale(1.05);
             background: #00917a;
         }
         
-        .chat-action-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .chat-action-btn:disabled {
+        .chat-input-btn:disabled {
             background: #dfe5e7;
             cursor: not-allowed;
             color: var(--wa-text-secondary);
             transform: none;
+        }
+        
+        .chat-input-btn.attachment,
+        .chat-input-btn.templates {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            min-height: 36px;
+            max-width: 36px;
+            max-height: 36px;
+            background: transparent;
+            color: var(--wa-text-secondary);
+            transform: none;
+            font-size: 1.125rem;
+        }
+        
+        .chat-input-btn.attachment:hover,
+        .chat-input-btn.templates:hover {
+            color: var(--wa-teal);
+            background: rgba(0, 168, 132, 0.08);
         }
         
         /* Templates Menu */
@@ -1960,6 +1944,12 @@ if ($selected_id && $tables_exist) {
         }
         
         .chat-input-btn.voice {
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            min-height: 42px;
+            max-width: 42px;
+            max-height: 42px;
             background: transparent;
             color: var(--wa-text-secondary);
             transform: none;
@@ -1967,7 +1957,7 @@ if ($selected_id && $tables_exist) {
         
         .chat-input-btn.voice:hover {
             color: var(--wa-teal);
-            background: transparent;
+            background: rgba(0, 168, 132, 0.08);
         }
         
         .chat-input-btn.voice.recording {
@@ -2545,31 +2535,48 @@ if ($selected_id && $tables_exist) {
             }
             
             .chat-input {
-                padding: 0.375rem 0.5rem;
+                padding: 0.5rem 0.625rem;
                 gap: 0.375rem;
             }
             
-            .chat-input-wrapper {
-                min-height: 44px;
-                padding: 0.125rem 0.25rem;
-            }
-            
-            .input-icon-btn {
-                width: 36px;
-                height: 36px;
-                font-size: 1.125rem;
-            }
-            
             .chat-input-field {
+                padding: 0.5rem 0.875rem;
+                font-size: 0.9375rem;
+                min-height: 40px;
+                border-radius: 20px;
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .chat-input-btn {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                min-height: 40px;
+                max-width: 40px;
+                max-height: 40px;
+                font-size: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .chat-input-btn.attachment,
+            .chat-input-btn.templates {
+                width: 32px;
+                height: 32px;
+                min-width: 32px;
+                min-height: 32px;
+                max-width: 32px;
+                max-height: 32px;
                 font-size: 1rem;
             }
             
-            .chat-action-btn {
-                width: 44px;
-                height: 44px;
-                min-width: 44px;
-                min-height: 44px;
-                font-size: 1.125rem;
+            .chat-input-btn.voice {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                min-height: 40px;
+                max-width: 40px;
+                max-height: 40px;
             }
             
             .voice-recording-indicator {
@@ -2649,32 +2656,45 @@ if ($selected_id && $tables_exist) {
             }
             
             .chat-input {
-                padding: 0.25rem 0.375rem;
+                padding: 0.5rem;
                 gap: 0.25rem;
             }
             
-            .chat-input-wrapper {
-                min-height: 40px;
-                padding: 0.125rem 0.25rem;
-            }
-            
-            .input-icon-btn {
-                width: 32px;
-                height: 32px;
-                font-size: 1rem;
-            }
-            
             .chat-input-field {
+                padding: 0.5rem 0.75rem;
                 font-size: 0.9375rem;
-                padding: 0.375rem 0.125rem;
+                min-height: 38px;
+                border-radius: 19px;
             }
             
-            .chat-action-btn {
-                width: 40px;
-                height: 40px;
-                min-width: 40px;
-                min-height: 40px;
+            .chat-input-btn {
+                width: 38px;
+                height: 38px;
+                min-width: 38px;
+                min-height: 38px;
+                max-width: 38px;
+                max-height: 38px;
                 font-size: 1rem;
+            }
+            
+            .chat-input-btn.attachment,
+            .chat-input-btn.templates {
+                width: 30px;
+                height: 30px;
+                min-width: 30px;
+                min-height: 30px;
+                max-width: 30px;
+                max-height: 30px;
+                font-size: 0.9375rem;
+            }
+            
+            .chat-input-btn.voice {
+                width: 38px;
+                height: 38px;
+                min-width: 38px;
+                min-height: 38px;
+                max-width: 38px;
+                max-height: 38px;
             }
             
             .voice-recording-indicator {
@@ -3078,7 +3098,7 @@ if ($selected_id && $tables_exist) {
                         </div>
                     </div>
                     
-                    <form class="chat-input" id="sendForm" method="POST" action="api/send-message.php">
+                    <form class="chat-input" id="sendForm" method="POST" action="api/send-message.php" style="position: relative;">
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="conversation_id" value="<?php echo $selected_id; ?>">
                         <input type="hidden" name="phone" value="<?php echo htmlspecialchars($selected_conversation['phone_number']); ?>">
@@ -3086,7 +3106,7 @@ if ($selected_id && $tables_exist) {
                         <!-- Hidden file input -->
                         <input type="file" id="fileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" style="display: none;">
                         
-                        <!-- Templates Menu (positioned above input) -->
+                        <!-- Templates Menu -->
                         <div class="templates-menu" id="templatesMenu">
                             <div class="templates-header">
                                 <h5><i class="fas fa-file-alt me-2"></i>Message Templates</h5>
@@ -3111,39 +3131,37 @@ if ($selected_id && $tables_exist) {
                                 <i class="fas fa-file-alt document-icon"></i>
                                 <span>Document</span>
                             </button>
-                        </div>
-                        
-                        <!-- WhatsApp-style Input Wrapper -->
-                        <div class="chat-input-wrapper">
-                            <!-- Templates/Plus Button -->
-                            <button type="button" class="input-icon-btn" id="templatesBtn" onclick="toggleTemplatesMenu()" title="Templates">
-                                <i class="fas fa-face-smile"></i>
-                            </button>
-                            
-                            <!-- Text Input -->
-                            <input type="text" name="message" class="chat-input-field" placeholder="Message" 
-                                   autocomplete="off" id="messageInput">
-                            
-                            <!-- Attachment Button -->
-                            <button type="button" class="input-icon-btn" id="attachBtn" onclick="toggleAttachmentMenu()" title="Attach">
-                                <i class="fas fa-paperclip"></i>
-                            </button>
-                            
-                            <!-- Camera Button -->
-                            <button type="button" class="input-icon-btn" id="cameraBtn" onclick="selectFileType('camera')" title="Camera">
-                                <i class="fas fa-camera"></i>
+                            <button type="button" class="attachment-option" onclick="selectFileType('camera')">
+                                <i class="fas fa-camera camera-icon"></i>
+                                <span>Camera</span>
                             </button>
                         </div>
                         
-                        <!-- Main Action Button (Send or Voice) -->
-                        <button type="submit" class="chat-action-btn" id="sendBtn" title="Send" style="display: none;">
+                        <!-- Templates Button -->
+                        <button type="button" class="chat-input-btn templates" id="templatesBtn" onclick="toggleTemplatesMenu()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        
+                        <!-- Attachment Button -->
+                        <button type="button" class="chat-input-btn attachment" id="attachBtn" onclick="toggleAttachmentMenu()">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        
+                        <!-- Text Input -->
+                        <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
+                               autocomplete="off" id="messageInput">
+                        
+                        <!-- Send Button -->
+                        <button type="submit" class="chat-input-btn" id="sendBtn">
                             <i class="fas fa-paper-plane"></i>
                         </button>
-                        <button type="button" class="chat-action-btn" id="voiceBtn" onclick="toggleVoiceRecording()" title="Voice message">
+                        
+                        <!-- Voice Button -->
+                        <button type="button" class="chat-input-btn voice" id="voiceBtn" onclick="toggleVoiceRecording()">
                             <i class="fas fa-microphone"></i>
                         </button>
                         
-                        <!-- Voice Recording Indicator (replaces input wrapper when recording) -->
+                        <!-- Voice Recording Indicator -->
                         <div class="voice-recording-indicator" id="voiceRecordingIndicator" style="display: none;">
                             <button type="button" class="recording-cancel" onclick="cancelVoiceRecording()" title="Cancel">
                                 <i class="fas fa-trash"></i>
@@ -3583,30 +3601,8 @@ document.addEventListener('visibilitychange', function() {
 
 let selectedFile = null;
 
-// Toggle send/voice button based on input content
-const msgInput = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendBtn');
-const voiceBtn = document.getElementById('voiceBtn');
-
-function updateActionButton() {
-    const hasContent = (msgInput && msgInput.value.trim().length > 0) || selectedFile !== null;
-    
-    if (sendBtn && voiceBtn) {
-        if (hasContent) {
-            sendBtn.style.display = 'flex';
-            voiceBtn.style.display = 'none';
-        } else {
-            sendBtn.style.display = 'none';
-            voiceBtn.style.display = 'flex';
-        }
-    }
-}
-
-if (msgInput) {
-    msgInput.addEventListener('input', updateActionButton);
-    // Initialize on page load
-    updateActionButton();
-}
+// Input listener (for future use if needed)
+// Voice recording disabled - use attachment button to upload audio files
 
 // ============================================
 // DONOR DATA FOR TEMPLATE VARIABLES
@@ -3884,7 +3880,6 @@ function showMediaPreview(file) {
     }
     
     preview.classList.add('active');
-    updateActionButton();
 }
 
 // Clear media preview
@@ -3895,7 +3890,6 @@ function clearMediaPreview() {
     selectedFile = null;
     if (preview) preview.classList.remove('active');
     if (fileInput) fileInput.value = '';
-    updateActionButton();
 }
 
 // Format file size
