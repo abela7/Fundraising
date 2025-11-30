@@ -3806,13 +3806,19 @@ function selectFileType(type) {
     const fileInput = document.getElementById('fileInput');
     if (!fileInput) return;
     
+    // Close attachment menu first
+    const menu = document.getElementById('attachmentMenu');
+    if (menu) menu.classList.remove('active');
+    
     // Set accept attribute based on type
     switch(type) {
         case 'image':
             fileInput.accept = 'image/*';
+            fileInput.removeAttribute('capture');
             break;
         case 'document':
             fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip';
+            fileInput.removeAttribute('capture');
             break;
         case 'camera':
             fileInput.accept = 'image/*';
@@ -3820,8 +3826,10 @@ function selectFileType(type) {
             break;
     }
     
-    fileInput.click();
-    toggleAttachmentMenu();
+    // Small delay to ensure menu is closed before file dialog opens
+    setTimeout(() => {
+        fileInput.click();
+    }, 100);
 }
 
 // Handle file selection
