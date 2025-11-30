@@ -441,60 +441,6 @@ if ($selected_id && $tables_exist) {
             border-radius: 3px;
         }
         
-        /* Swipe container for delete */
-        .swipe-container {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .swipe-content {
-            position: relative;
-            z-index: 2;
-            background: white;
-            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-        
-        .swipe-delete-btn {
-            position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            width: 90px;
-            background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.25rem;
-            font-size: 1.25rem;
-            z-index: 1;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-            font-weight: 500;
-        }
-        
-        .swipe-delete-btn span {
-            font-size: 0.6875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .swipe-delete-btn:hover {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        }
-        
-        .swipe-delete-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .swipe-delete-btn i {
-            pointer-events: none;
-            font-size: 1.125rem;
-        }
-        
-        /* Conversation item with swipe support */
         .conversation-item {
             display: flex;
             align-items: center;
@@ -931,91 +877,266 @@ if ($selected_id && $tables_exist) {
             color: var(--wa-teal);
         }
         
-        /* Message swipe to delete */
+        /* Message wrapper - clickable for details */
         .message-wrapper {
             position: relative;
             display: flex;
             width: 100%;
-            padding: 0 3rem;
         }
         
         .message-wrapper.incoming {
             justify-content: flex-start;
-            padding-left: 0;
-            padding-right: 3rem;
         }
         
         .message-wrapper.outgoing {
             justify-content: flex-end;
-            padding-left: 3rem;
-            padding-right: 0;
         }
         
-        .message-delete-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%) scale(0.8);
+        .message-wrapper .message {
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        
+        .message-wrapper .message:active {
+            transform: scale(0.98);
+        }
+        
+        /* Message Detail Modal */
+        .message-detail-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 10000;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        .message-detail-modal.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .message-detail-content {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: slideUpMobile 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .message-detail-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #e9edef;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        
+        .message-detail-header h5 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--wa-text);
+        }
+        
+        .message-detail-close {
             width: 32px;
             height: 32px;
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
             border: none;
+            background: #f0f2f5;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.8125rem;
-            opacity: 0;
-            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            z-index: 5;
+            color: var(--wa-text-secondary);
+            transition: all 0.2s;
         }
         
-        .message-wrapper.incoming .message-delete-btn {
-            right: 0;
+        .message-detail-close:hover {
+            background: #e4e6e9;
+            color: var(--wa-text);
         }
         
-        .message-wrapper.outgoing .message-delete-btn {
-            left: 0;
+        .message-detail-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem;
         }
         
-        .message-wrapper:hover .message-delete-btn,
-        .message-wrapper.show-delete .message-delete-btn {
-            opacity: 1;
-            transform: translateY(-50%) scale(1);
+        .message-detail-preview {
+            background: #f0f2f5;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
         }
         
-        .message-delete-btn:hover {
-            background: #dc3545;
+        .message-detail-preview.outgoing {
+            background: var(--wa-bubble-out);
+        }
+        
+        .message-detail-text {
+            font-size: 0.9375rem;
+            line-height: 1.5;
+            color: var(--wa-text);
+            word-break: break-word;
+        }
+        
+        .message-detail-media {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .message-detail-media img,
+        .message-detail-media video {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        
+        .message-detail-media audio {
+            width: 100%;
+        }
+        
+        .message-detail-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .message-detail-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .message-detail-icon {
+            width: 36px;
+            height: 36px;
+            background: #f0f2f5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--wa-text-secondary);
+            flex-shrink: 0;
+        }
+        
+        .message-detail-row-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .message-detail-label {
+            font-size: 0.75rem;
+            color: var(--wa-text-secondary);
+            margin-bottom: 0.125rem;
+        }
+        
+        .message-detail-value {
+            font-size: 0.875rem;
+            color: var(--wa-text);
+            word-break: break-word;
+        }
+        
+        .message-detail-footer {
+            padding: 1rem 1.25rem 1.5rem;
+            border-top: 1px solid #e9edef;
+            flex-shrink: 0;
+        }
+        
+        .message-detail-delete {
+            width: 100%;
+            padding: 0.875rem;
+            background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
             color: white;
-            transform: translateY(-50%) scale(1.15);
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            border: none;
+            border-radius: 12px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.25);
         }
         
-        .message-delete-btn:active {
-            transform: translateY(-50%) scale(0.95);
+        .message-detail-delete:hover {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(220, 53, 69, 0.35);
         }
         
-        /* Mobile: Long press to show delete */
-        @media (max-width: 768px) {
-            .message-wrapper {
-                padding: 0 2.5rem;
+        .message-detail-delete:active {
+            transform: translateY(0);
+        }
+        
+        .message-detail-delete:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Status badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-badge.sent {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        
+        .status-badge.delivered {
+            background: #d1fae5;
+            color: #047857;
+        }
+        
+        .status-badge.read {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .status-badge.failed {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        /* Desktop adjustments */
+        @media (min-width: 769px) {
+            .message-detail-modal {
+                align-items: center;
+                padding: 1rem;
             }
             
-            .message-wrapper.incoming {
-                padding-left: 0;
-                padding-right: 2.5rem;
-            }
-            
-            .message-wrapper.outgoing {
-                padding-left: 2.5rem;
-                padding-right: 0;
-            }
-            
-            .message-delete-btn {
-                width: 28px;
-                height: 28px;
-                font-size: 0.75rem;
+            .message-detail-content {
+                border-radius: 20px;
+                max-height: 600px;
             }
         }
         
@@ -2683,11 +2804,19 @@ if ($selected_id && $tables_exist) {
                         <div class="date-divider"><span><?php echo $displayDate; ?></span></div>
                         <?php endif; ?>
                         
-                        <div class="message-wrapper <?php echo $msg['direction']; ?>" data-message-id="<?php echo $msg['id']; ?>">
-                            <button type="button" class="message-delete-btn" onclick="deleteMessage(<?php echo $msg['id']; ?>, this)" title="Delete message">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            <div class="message <?php echo $msg['direction'] === 'incoming' ? 'incoming' : 'outgoing'; ?>" data-message-id="<?php echo $msg['id']; ?>">
+                        <div class="message-wrapper <?php echo $msg['direction']; ?>">
+                            <div class="message <?php echo $msg['direction'] === 'incoming' ? 'incoming' : 'outgoing'; ?>" 
+                                 data-message-id="<?php echo $msg['id']; ?>"
+                                 data-direction="<?php echo $msg['direction']; ?>"
+                                 data-type="<?php echo htmlspecialchars($msg['message_type'] ?? 'text'); ?>"
+                                 data-status="<?php echo htmlspecialchars($msg['status'] ?? 'sent'); ?>"
+                                 data-time="<?php echo date('g:i A', strtotime($msg['created_at'])); ?>"
+                                 data-date="<?php echo date('M j, Y', strtotime($msg['created_at'])); ?>"
+                                 data-sender="<?php echo htmlspecialchars($msg['sender_name'] ?? ''); ?>"
+                                 data-body="<?php echo htmlspecialchars($msg['body'] ?? ''); ?>"
+                                 data-media-url="<?php echo htmlspecialchars($msg['media_url'] ?? ''); ?>"
+                                 data-media-type="<?php echo htmlspecialchars($msg['message_type'] ?? ''); ?>"
+                                 onclick="openMessageDetail(this)">
                                 <div class="message-content">
                                     <?php if ($msg['direction'] === 'outgoing' && $msg['sender_name']): ?>
                                     <div class="message-sender"><?php echo htmlspecialchars($msg['sender_name']); ?></div>
@@ -4164,6 +4293,123 @@ document.addEventListener('click', function(e) {
 });
 
 // ============================================
+// MESSAGE DETAIL MODAL
+// ============================================
+
+let currentMessageElement = null;
+let currentMessageId = null;
+
+function openMessageDetail(element) {
+    currentMessageElement = element;
+    currentMessageId = element.dataset.messageId;
+    
+    const modal = document.getElementById('messageDetailModal');
+    const preview = document.getElementById('messageDetailPreview');
+    const text = document.getElementById('messageDetailText');
+    const media = document.getElementById('messageDetailMedia');
+    const time = document.getElementById('messageDetailTime');
+    const sender = document.getElementById('messageDetailSender');
+    const senderRow = document.getElementById('messageDetailSenderRow');
+    const status = document.getElementById('messageDetailStatus');
+    const typeRow = document.getElementById('messageDetailTypeRow');
+    const typeIcon = document.getElementById('messageDetailTypeIcon');
+    const typeValue = document.getElementById('messageDetailType');
+    
+    // Set preview style
+    preview.className = 'message-detail-preview';
+    if (element.dataset.direction === 'outgoing') {
+        preview.classList.add('outgoing');
+    }
+    
+    // Set message content
+    const body = element.dataset.body || '';
+    const mediaUrl = element.dataset.mediaUrl || '';
+    const mediaType = element.dataset.mediaType || 'text';
+    
+    // Handle media
+    if (mediaUrl && mediaType !== 'text') {
+        media.style.display = 'block';
+        if (mediaType === 'image') {
+            media.innerHTML = `<img src="${mediaUrl}" alt="Image">`;
+            typeIcon.className = 'fas fa-image';
+            typeValue.textContent = 'Image';
+        } else if (mediaType === 'video') {
+            media.innerHTML = `<video controls src="${mediaUrl}"></video>`;
+            typeIcon.className = 'fas fa-video';
+            typeValue.textContent = 'Video';
+        } else if (mediaType === 'audio' || mediaType === 'voice') {
+            media.innerHTML = `<audio controls src="${mediaUrl}" style="width:100%"></audio>`;
+            typeIcon.className = 'fas fa-microphone';
+            typeValue.textContent = 'Voice Message';
+        } else if (mediaType === 'document') {
+            media.innerHTML = `<a href="${mediaUrl}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-download me-1"></i>Download Document</a>`;
+            typeIcon.className = 'fas fa-file-alt';
+            typeValue.textContent = 'Document';
+        }
+        typeRow.style.display = 'flex';
+    } else {
+        media.style.display = 'none';
+        media.innerHTML = '';
+        typeRow.style.display = 'none';
+    }
+    
+    // Set text
+    text.textContent = body || (mediaType !== 'text' ? '' : 'No content');
+    text.style.display = body ? 'block' : 'none';
+    
+    // Set time
+    time.textContent = `${element.dataset.time} · ${element.dataset.date}`;
+    
+    // Set sender
+    const senderName = element.dataset.sender;
+    if (senderName && element.dataset.direction === 'outgoing') {
+        sender.textContent = senderName;
+        senderRow.style.display = 'flex';
+    } else if (element.dataset.direction === 'incoming') {
+        sender.textContent = 'Donor';
+        senderRow.style.display = 'flex';
+    } else {
+        senderRow.style.display = 'none';
+    }
+    
+    // Set status
+    const msgStatus = element.dataset.status || 'sent';
+    status.className = 'status-badge ' + msgStatus;
+    
+    const statusLabels = {
+        'pending': '<i class="fas fa-clock"></i> Pending',
+        'sent': '<i class="fas fa-check"></i> Sent',
+        'delivered': '<i class="fas fa-check-double"></i> Delivered',
+        'read': '<i class="fas fa-check-double"></i> Read',
+        'failed': '<i class="fas fa-times"></i> Failed'
+    };
+    status.innerHTML = statusLabels[msgStatus] || statusLabels['sent'];
+    
+    // Show modal
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMessageDetail() {
+    const modal = document.getElementById('messageDetailModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    currentMessageElement = null;
+    currentMessageId = null;
+}
+
+function deleteCurrentMessage() {
+    if (!currentMessageId || !currentMessageElement) return;
+    
+    closeMessageDetail();
+    
+    // Open delete confirmation
+    setTimeout(() => {
+        openDeleteModal('message', currentMessageId, currentMessageElement.closest('.message-wrapper'));
+    }, 200);
+}
+
+// ============================================
 // DELETE FUNCTIONALITY
 // ============================================
 
@@ -4308,162 +4554,12 @@ function deleteConversation(conversationId) {
     openDeleteModal('conversation', conversationId, null);
 }
 
-// ============================================
-// SWIPE TO DELETE (Touch devices)
-// ============================================
-
-let touchStartX = 0;
-let touchStartY = 0;
-let currentSwipeElement = null;
-let isSwiping = false;
-
-// Initialize swipe on conversation items
-function initConversationSwipe() {
-    document.querySelectorAll('.conversation-item').forEach(item => {
-        if (item.dataset.swipeInit) return;
-        item.dataset.swipeInit = 'true';
-        
-        item.addEventListener('touchstart', handleTouchStart, { passive: true });
-        item.addEventListener('touchmove', handleTouchMove, { passive: false });
-        item.addEventListener('touchend', handleTouchEnd, { passive: true });
-    });
-}
-
-// Initialize swipe on messages
-function initMessageSwipe() {
-    document.querySelectorAll('.message-wrapper').forEach(wrapper => {
-        if (wrapper.dataset.swipeInit) return;
-        wrapper.dataset.swipeInit = 'true';
-        
-        wrapper.addEventListener('touchstart', handleMessageTouchStart, { passive: true });
-        wrapper.addEventListener('touchmove', handleMessageTouchMove, { passive: false });
-        wrapper.addEventListener('touchend', handleMessageTouchEnd, { passive: true });
-    });
-}
-
-function handleTouchStart(e) {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    currentSwipeElement = e.currentTarget;
-    isSwiping = false;
-}
-
-function handleTouchMove(e) {
-    if (!currentSwipeElement) return;
-    
-    const touchX = e.touches[0].clientX;
-    const touchY = e.touches[0].clientY;
-    const diffX = touchStartX - touchX;
-    const diffY = Math.abs(touchStartY - touchY);
-    
-    // If vertical scroll, don't handle swipe
-    if (diffY > Math.abs(diffX) && !isSwiping) {
-        return;
+// Keyboard shortcut to close modals
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeMessageDetail();
+        closeDeleteModal();
     }
-    
-    // Only swipe left
-    if (diffX > 10) {
-        isSwiping = true;
-        e.preventDefault();
-        const translateX = Math.min(Math.max(-diffX, -80), 0);
-        currentSwipeElement.style.transform = `translateX(${translateX}px)`;
-    }
-}
-
-function handleTouchEnd(e) {
-    if (!currentSwipeElement || !isSwiping) {
-        currentSwipeElement = null;
-        return;
-    }
-    
-    const translateX = parseFloat(currentSwipeElement.style.transform.replace('translateX(', '').replace('px)', '')) || 0;
-    
-    if (translateX < -40) {
-        // Show delete button
-        currentSwipeElement.style.transform = 'translateX(-90px)';
-        currentSwipeElement.classList.add('swiped');
-        
-        // Add delete button if not exists
-        if (!currentSwipeElement.parentElement.querySelector('.swipe-delete-btn')) {
-            const convId = currentSwipeElement.dataset.conversationId;
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'swipe-delete-btn';
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i><span>Delete</span>';
-            deleteBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                deleteConversation(convId);
-            };
-            currentSwipeElement.parentElement.style.position = 'relative';
-            currentSwipeElement.parentElement.appendChild(deleteBtn);
-        }
-    } else {
-        // Reset
-        currentSwipeElement.style.transform = '';
-        currentSwipeElement.classList.remove('swiped');
-    }
-    
-    currentSwipeElement = null;
-    isSwiping = false;
-}
-
-// Message swipe handlers
-function handleMessageTouchStart(e) {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    currentSwipeElement = e.currentTarget;
-    isSwiping = false;
-}
-
-function handleMessageTouchMove(e) {
-    if (!currentSwipeElement) return;
-    
-    const touchX = e.touches[0].clientX;
-    const touchY = e.touches[0].clientY;
-    const diffX = touchStartX - touchX;
-    const diffY = Math.abs(touchStartY - touchY);
-    
-    if (diffY > Math.abs(diffX) && !isSwiping) {
-        return;
-    }
-    
-    if (Math.abs(diffX) > 10) {
-        isSwiping = true;
-        e.preventDefault();
-        currentSwipeElement.classList.add('show-delete');
-    }
-}
-
-function handleMessageTouchEnd(e) {
-    if (!currentSwipeElement) return;
-    
-    if (isSwiping) {
-        // Keep delete button visible for a moment
-        setTimeout(() => {
-            if (currentSwipeElement) {
-                currentSwipeElement.classList.remove('show-delete');
-            }
-        }, 3000);
-    }
-    
-    currentSwipeElement = null;
-    isSwiping = false;
-}
-
-// Reset swiped conversations when clicking elsewhere
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.conversation-item') && !e.target.closest('.swipe-delete-btn')) {
-        document.querySelectorAll('.conversation-item.swiped').forEach(item => {
-            item.style.transform = '';
-            item.classList.remove('swiped');
-        });
-    }
-});
-
-// Initialize swipe handlers
-document.addEventListener('DOMContentLoaded', () => {
-    initConversationSwipe();
-    initMessageSwipe();
 });
 </script>
 
@@ -4490,6 +4586,76 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="gallery-caption" id="galleryCaption" style="display: none;"></div>
         
         <div class="gallery-thumbnails" id="galleryThumbnails" style="display: none;"></div>
+    </div>
+</div>
+
+<!-- Message Detail Modal -->
+<div class="message-detail-modal" id="messageDetailModal" onclick="if(event.target === this) closeMessageDetail()">
+    <div class="message-detail-content">
+        <div class="message-detail-header">
+            <h5>Message Details</h5>
+            <button type="button" class="message-detail-close" onclick="closeMessageDetail()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="message-detail-body">
+            <!-- Message Preview -->
+            <div class="message-detail-preview" id="messageDetailPreview">
+                <div class="message-detail-media" id="messageDetailMedia" style="display: none;"></div>
+                <div class="message-detail-text" id="messageDetailText"></div>
+            </div>
+            
+            <!-- Message Info -->
+            <div class="message-detail-info">
+                <div class="message-detail-row">
+                    <div class="message-detail-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="message-detail-row-content">
+                        <div class="message-detail-label">Sent</div>
+                        <div class="message-detail-value" id="messageDetailTime"></div>
+                    </div>
+                </div>
+                
+                <div class="message-detail-row" id="messageDetailSenderRow" style="display: none;">
+                    <div class="message-detail-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="message-detail-row-content">
+                        <div class="message-detail-label">Sent by</div>
+                        <div class="message-detail-value" id="messageDetailSender"></div>
+                    </div>
+                </div>
+                
+                <div class="message-detail-row">
+                    <div class="message-detail-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="message-detail-row-content">
+                        <div class="message-detail-label">Status</div>
+                        <div class="message-detail-value">
+                            <span class="status-badge" id="messageDetailStatus"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="message-detail-row" id="messageDetailTypeRow">
+                    <div class="message-detail-icon">
+                        <i class="fas fa-file" id="messageDetailTypeIcon"></i>
+                    </div>
+                    <div class="message-detail-row-content">
+                        <div class="message-detail-label">Type</div>
+                        <div class="message-detail-value" id="messageDetailType"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="message-detail-footer">
+            <button type="button" class="message-detail-delete" id="messageDetailDelete" onclick="deleteCurrentMessage()">
+                <i class="fas fa-trash-alt"></i>
+                <span>Delete Message</span>
+            </button>
+        </div>
     </div>
 </div>
 
