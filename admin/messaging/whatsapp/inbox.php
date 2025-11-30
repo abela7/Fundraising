@@ -1742,7 +1742,12 @@ if ($selected_id && $tables_exist) {
             background: white;
             color: var(--wa-text);
             min-height: 42px;
+            max-height: 120px;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+            resize: none;
+            overflow-y: auto;
+            line-height: 1.4;
+            font-family: inherit;
         }
         
         .chat-input-field:focus {
@@ -3181,8 +3186,8 @@ if ($selected_id && $tables_exist) {
                         </button>
                         
                         <!-- Text Input -->
-                        <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
-                               autocomplete="off" id="messageInput">
+                        <textarea name="message" class="chat-input-field" placeholder="Type a message" 
+                               autocomplete="off" id="messageInput" rows="1"></textarea>
                         
                         <!-- Send Button -->
                         <button type="submit" class="chat-input-btn" id="sendBtn">
@@ -3635,8 +3640,27 @@ document.addEventListener('visibilitychange', function() {
 
 let selectedFile = null;
 
-// Input listener (for future use if needed)
-// Voice recording disabled - use attachment button to upload audio files
+// Auto-expand textarea as user types
+const messageInput = document.getElementById('messageInput');
+if (messageInput) {
+    messageInput.addEventListener('input', function() {
+        // Reset height to auto to get the correct scrollHeight
+        this.style.height = 'auto';
+        // Set height to scrollHeight (with max limit handled by CSS)
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    
+    // Handle Enter key - send on Enter, new line on Shift+Enter
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const form = document.getElementById('sendForm');
+            if (form && this.value.trim()) {
+                form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            }
+        }
+    });
+}
 
 // ============================================
 // DONOR DATA FOR TEMPLATE VARIABLES
