@@ -7,6 +7,28 @@
 
 declare(strict_types=1);
 
+// Capture all errors
+ob_start();
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        ob_end_clean();
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Server error: ' . $error['message']
+        ]);
+    }
+});
+
 header('Content-Type: application/json');
 
 try {
@@ -15,12 +37,14 @@ try {
     require_once __DIR__ . '/../../../../config/db.php';
     require_login();
 } catch (Throwable $e) {
+    ob_end_clean();
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized: ' . $e->getMessage()]);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ob_end_clean();
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
     exit;
@@ -29,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     verify_csrf();
 } catch (Throwable $e) {
+    ob_end_clean();
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
     exit;
@@ -41,6 +66,7 @@ $current_user = current_user();
 $messageId = isset($_POST['message_id']) ? (int)$_POST['message_id'] : 0;
 
 if ($messageId <= 0) {
+    ob_end_clean();
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid message ID']);
     exit;
@@ -59,6 +85,7 @@ try {
     $stmt->close();
     
     if (!$message) {
+        ob_end_clean();
         http_response_code(404);
         echo json_encode(['success' => false, 'error' => 'Message not found']);
         exit;
@@ -140,14 +167,17 @@ try {
     // Log the deletion
     error_log("WhatsApp message $messageId deleted by user {$current_user['id']}");
     
+    ob_end_clean();
     echo json_encode([
         'success' => true,
         'message' => 'Message deleted successfully',
         'files_deleted' => $filesDeleted
     ]);
+    exit;
     
 } catch (Throwable $e) {
     error_log("Delete message error: " . $e->getMessage());
+    ob_end_clean();
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Failed to delete message: ' . $e->getMessage()]);
 }

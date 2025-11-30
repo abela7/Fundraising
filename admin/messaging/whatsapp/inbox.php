@@ -4399,11 +4399,21 @@ function closeMessageDetail() {
 }
 
 function deleteCurrentMessage() {
-    if (!currentMessageId || !currentMessageElement) return;
+    if (!currentMessageId) {
+        alert('No message selected');
+        return;
+    }
     
     // Store references before closing modal
     const msgId = currentMessageId;
-    const msgElement = currentMessageElement.closest('.message-wrapper') || currentMessageElement;
+    let msgElement = null;
+    
+    if (currentMessageElement) {
+        msgElement = currentMessageElement.closest('.message-wrapper');
+        if (!msgElement) {
+            msgElement = currentMessageElement;
+        }
+    }
     
     closeMessageDetail();
     
@@ -4498,22 +4508,32 @@ async function confirmDelete() {
             btnText.textContent = 'Deleted!';
             btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
             
-            if (deleteType === 'message' && deleteElement) {
-                // Remove message from DOM with smooth animation
-                setTimeout(() => {
-                    deleteElement.style.transition = 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                    deleteElement.style.opacity = '0';
-                    deleteElement.style.transform = 'scale(0.8)';
-                    deleteElement.style.maxHeight = '0';
-                    deleteElement.style.marginBottom = '0';
-                    deleteElement.style.padding = '0';
-                    
+            if (deleteType === 'message') {
+                if (deleteElement) {
+                    // Remove message from DOM with smooth animation
                     setTimeout(() => {
-                        deleteElement.remove();
-                    }, 400);
-                    
-                    closeDeleteModal();
-                }, 500);
+                        deleteElement.style.transition = 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                        deleteElement.style.opacity = '0';
+                        deleteElement.style.transform = 'scale(0.8)';
+                        deleteElement.style.maxHeight = '0';
+                        deleteElement.style.marginBottom = '0';
+                        deleteElement.style.padding = '0';
+                        
+                        setTimeout(() => {
+                            if (deleteElement && deleteElement.parentNode) {
+                                deleteElement.remove();
+                            }
+                        }, 400);
+                        
+                        closeDeleteModal();
+                    }, 500);
+                } else {
+                    // No element reference, just reload the page
+                    setTimeout(() => {
+                        closeDeleteModal();
+                        window.location.reload();
+                    }, 500);
+                }
             } else if (deleteType === 'conversation') {
                 // Redirect to inbox after brief delay
                 setTimeout(() => {
