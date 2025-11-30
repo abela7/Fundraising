@@ -3559,10 +3559,10 @@ function encodeMP3(audioBuffer) {
 // Send voice message
 async function sendVoiceMessage(file) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('media', file);
     formData.append('conversation_id', <?php echo $selected_id ?: 0; ?>);
     formData.append('phone', '<?php echo htmlspecialchars($selected_conversation['phone_number'] ?? ''); ?>');
-    formData.append('mediaType', 'audio');
+    formData.append('media_type', 'audio');
     formData.append('csrf_token', '<?php echo csrf_token(); ?>');
     
     const response = await fetch('api/send-media.php', {
