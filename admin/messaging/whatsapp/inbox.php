@@ -1742,7 +1742,12 @@ if ($selected_id && $tables_exist) {
             background: white;
             color: var(--wa-text);
             min-height: 42px;
+            max-height: 120px;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+            resize: none;
+            overflow-y: hidden;
+            line-height: 1.4;
+            font-family: inherit;
         }
         
         .chat-input-field:focus {
@@ -2574,6 +2579,7 @@ if ($selected_id && $tables_exist) {
                 padding: 0.5rem 0.875rem;
                 font-size: 0.9375rem;
                 min-height: 40px;
+                max-height: 100px;
                 border-radius: 20px;
                 flex: 1;
                 min-width: 0;
@@ -2695,6 +2701,7 @@ if ($selected_id && $tables_exist) {
                 padding: 0.5rem 0.75rem;
                 font-size: 0.9375rem;
                 min-height: 38px;
+                max-height: 80px;
                 border-radius: 19px;
             }
             
@@ -3180,9 +3187,9 @@ if ($selected_id && $tables_exist) {
                             <i class="fas fa-paperclip"></i>
                         </button>
                         
-                        <!-- Text Input -->
-                        <input type="text" name="message" class="chat-input-field" placeholder="Type a message" 
-                               autocomplete="off" id="messageInput">
+                        <!-- Text Input (Auto-expanding) -->
+                        <textarea name="message" class="chat-input-field" placeholder="Type a message" 
+                               autocomplete="off" id="messageInput" rows="1"></textarea>
                         
                         <!-- Send Button -->
                         <button type="submit" class="chat-input-btn" id="sendBtn">
@@ -3237,6 +3244,37 @@ if (chatMessages) {
 const sendForm = document.getElementById('sendForm');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
+
+// Auto-expand textarea as user types
+if (messageInput) {
+    function autoResize() {
+        // Reset height to calculate new height
+        messageInput.style.height = 'auto';
+        
+        // Get content height
+        const newHeight = Math.min(messageInput.scrollHeight, 120);
+        messageInput.style.height = newHeight + 'px';
+        
+        // Show scrollbar if at max height
+        messageInput.style.overflowY = messageInput.scrollHeight > 120 ? 'auto' : 'hidden';
+    }
+    
+    // Auto-resize on input
+    messageInput.addEventListener('input', autoResize);
+    
+    // Enter to send, Shift+Enter for new line
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (sendForm && (this.value.trim() || selectedFile)) {
+                sendForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            }
+        }
+    });
+    
+    // Initialize
+    autoResize();
+}
 
 if (sendForm) {
     sendForm.addEventListener('submit', async function(e) {
