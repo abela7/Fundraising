@@ -447,7 +447,7 @@ if ($selected_id && $tables_exist) {
             position: relative;
             z-index: 2;
             background: white;
-            transition: transform 0.2s ease-out;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         
         .swipe-delete-btn {
@@ -455,26 +455,42 @@ if ($selected_id && $tables_exist) {
             right: 0;
             top: 0;
             bottom: 0;
-            width: 80px;
-            background: #dc3545;
+            width: 90px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
             color: white;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 0.25rem;
             font-size: 1.25rem;
             z-index: 1;
             cursor: pointer;
             transition: all 0.2s;
+            border: none;
+            font-weight: 500;
+        }
+        
+        .swipe-delete-btn span {
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .swipe-delete-btn:hover {
-            background: #c82333;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .swipe-delete-btn:active {
+            transform: scale(0.95);
         }
         
         .swipe-delete-btn i {
             pointer-events: none;
+            font-size: 1.125rem;
         }
         
+        /* Conversation item with swipe support */
         .conversation-item {
             display: flex;
             align-items: center;
@@ -916,56 +932,90 @@ if ($selected_id && $tables_exist) {
             position: relative;
             display: flex;
             width: 100%;
+            padding: 0 3rem;
         }
         
         .message-wrapper.incoming {
             justify-content: flex-start;
+            padding-left: 0;
+            padding-right: 3rem;
         }
         
         .message-wrapper.outgoing {
             justify-content: flex-end;
+            padding-left: 3rem;
+            padding-right: 0;
         }
         
         .message-delete-btn {
             position: absolute;
             top: 50%;
-            transform: translateY(-50%);
-            width: 36px;
-            height: 36px;
-            background: #dc3545;
-            color: white;
+            transform: translateY(-50%) scale(0.8);
+            width: 32px;
+            height: 32px;
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
             border: none;
             border-radius: 50%;
             cursor: pointer;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             z-index: 5;
         }
         
         .message-wrapper.incoming .message-delete-btn {
-            right: -45px;
+            right: 0;
         }
         
         .message-wrapper.outgoing .message-delete-btn {
-            left: -45px;
+            left: 0;
         }
         
         .message-wrapper:hover .message-delete-btn,
         .message-wrapper.show-delete .message-delete-btn {
-            display: flex;
             opacity: 1;
+            transform: translateY(-50%) scale(1);
         }
         
         .message-delete-btn:hover {
-            background: #c82333;
-            transform: translateY(-50%) scale(1.1);
+            background: #dc3545;
+            color: white;
+            transform: translateY(-50%) scale(1.15);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
         }
         
-        /* Delete Confirmation Modal */
+        .message-delete-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+        
+        /* Mobile: Long press to show delete */
+        @media (max-width: 768px) {
+            .message-wrapper {
+                padding: 0 2.5rem;
+            }
+            
+            .message-wrapper.incoming {
+                padding-left: 0;
+                padding-right: 2.5rem;
+            }
+            
+            .message-wrapper.outgoing {
+                padding-left: 2.5rem;
+                padding-right: 0;
+            }
+            
+            .message-delete-btn {
+                width: 28px;
+                height: 28px;
+                font-size: 0.75rem;
+            }
+        }
+        
+        /* Delete Confirmation Modal - Professional Design */
         .delete-modal {
             display: none;
             position: fixed;
@@ -973,90 +1023,168 @@ if ($selected_id && $tables_exist) {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             z-index: 10000;
             align-items: center;
             justify-content: center;
             padding: 1rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
         }
         
         .delete-modal.active {
             display: flex;
+            opacity: 1;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
         
         .delete-modal-content {
             background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            max-width: 400px;
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 340px;
             width: 100%;
             text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
         .delete-modal-icon {
-            width: 60px;
-            height: 60px;
-            background: #fee2e2;
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
             color: #dc3545;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
-            margin: 0 auto 1rem;
+            font-size: 1.75rem;
+            margin: 0 auto 1.25rem;
+            box-shadow: 0 8px 16px rgba(220, 53, 69, 0.15);
         }
         
         .delete-modal-title {
-            font-size: 1.125rem;
-            font-weight: 600;
+            font-size: 1.25rem;
+            font-weight: 700;
             color: var(--wa-text);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.625rem;
         }
         
         .delete-modal-text {
             color: var(--wa-text-secondary);
             font-size: 0.9375rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.75rem;
+            line-height: 1.5;
         }
         
         .delete-modal-actions {
             display: flex;
             gap: 0.75rem;
-            justify-content: center;
+            flex-direction: column;
         }
         
         .delete-modal-btn {
-            padding: 0.625rem 1.5rem;
-            border-radius: 8px;
-            font-size: 0.9375rem;
-            font-weight: 500;
+            padding: 0.875rem 1.5rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
             border: none;
-            transition: all 0.2s;
-        }
-        
-        .delete-modal-btn.cancel {
-            background: #f0f2f5;
-            color: var(--wa-text);
-        }
-        
-        .delete-modal-btn.cancel:hover {
-            background: #e4e6e9;
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
         
         .delete-modal-btn.delete {
-            background: #dc3545;
+            background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            order: 1;
         }
         
         .delete-modal-btn.delete:hover {
-            background: #c82333;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+        }
+        
+        .delete-modal-btn.delete:active {
+            transform: translateY(0);
+        }
+        
+        .delete-modal-btn.cancel {
+            background: transparent;
+            color: var(--wa-text-secondary);
+            order: 2;
+        }
+        
+        .delete-modal-btn.cancel:hover {
+            background: #f0f2f5;
+            color: var(--wa-text);
         }
         
         .delete-modal-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        /* Mobile modal adjustments */
+        @media (max-width: 480px) {
+            .delete-modal {
+                padding: 0;
+                align-items: flex-end;
+            }
+            
+            .delete-modal-content {
+                max-width: 100%;
+                border-radius: 24px 24px 0 0;
+                padding: 1.5rem 1.5rem 2rem;
+                animation: slideUpMobile 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+            
+            @keyframes slideUpMobile {
+                from { 
+                    transform: translateY(100%);
+                }
+                to { 
+                    transform: translateY(0);
+                }
+            }
+            
+            .delete-modal-icon {
+                width: 64px;
+                height: 64px;
+                font-size: 1.5rem;
+            }
+            
+            .delete-modal-title {
+                font-size: 1.125rem;
+            }
+            
+            .delete-modal-btn {
+                padding: 1rem 1.5rem;
+            }
         }
         
         /* Image Gallery Modal */
@@ -4048,22 +4176,31 @@ function openDeleteModal(type, id, element) {
     const modal = document.getElementById('deleteModal');
     const title = document.getElementById('deleteModalTitle');
     const text = document.getElementById('deleteModalText');
+    const btnText = document.getElementById('deleteModalBtnText');
+    const btnIcon = document.getElementById('deleteModalIcon');
+    
+    // Reset button state
+    btnText.textContent = 'Delete';
+    btnIcon.className = 'fas fa-trash-alt';
+    document.getElementById('deleteModalConfirm').disabled = false;
     
     if (type === 'message') {
         title.textContent = 'Delete Message?';
-        text.textContent = 'This message will be permanently deleted.';
+        text.textContent = 'This message will be permanently deleted and cannot be recovered.';
     } else if (type === 'conversation') {
         title.textContent = 'Delete Conversation?';
-        text.textContent = 'All messages in this conversation will be permanently deleted.';
+        text.textContent = 'All messages, photos, and files in this conversation will be permanently deleted.';
     }
     
     modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 // Close delete modal
 function closeDeleteModal() {
     const modal = document.getElementById('deleteModal');
     modal.classList.remove('active');
+    document.body.style.overflow = '';
     deleteType = null;
     deleteId = null;
     deleteElement = null;
@@ -4075,9 +4212,11 @@ async function confirmDelete() {
     
     const btn = document.getElementById('deleteModalConfirm');
     const btnText = document.getElementById('deleteModalBtnText');
+    const btnIcon = document.getElementById('deleteModalIcon');
     
     btn.disabled = true;
-    btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    btnIcon.className = 'fas fa-spinner fa-spin';
+    btnText.textContent = 'Deleting...';
     
     try {
         const formData = new FormData();
@@ -4100,28 +4239,58 @@ async function confirmDelete() {
         const result = await response.json();
         
         if (result.success) {
+            // Show success state briefly
+            btnIcon.className = 'fas fa-check';
+            btnText.textContent = 'Deleted!';
+            btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            
             if (deleteType === 'message' && deleteElement) {
-                // Remove message from DOM with animation
-                deleteElement.style.transition = 'all 0.3s';
-                deleteElement.style.opacity = '0';
-                deleteElement.style.transform = 'translateX(-100%)';
+                // Remove message from DOM with smooth animation
                 setTimeout(() => {
-                    deleteElement.remove();
-                }, 300);
+                    deleteElement.style.transition = 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    deleteElement.style.opacity = '0';
+                    deleteElement.style.transform = 'scale(0.8)';
+                    deleteElement.style.maxHeight = '0';
+                    deleteElement.style.marginBottom = '0';
+                    deleteElement.style.padding = '0';
+                    
+                    setTimeout(() => {
+                        deleteElement.remove();
+                    }, 400);
+                    
+                    closeDeleteModal();
+                }, 500);
             } else if (deleteType === 'conversation') {
-                // Redirect to inbox
-                window.location.href = 'inbox.php';
+                // Redirect to inbox after brief delay
+                setTimeout(() => {
+                    window.location.href = 'inbox.php';
+                }, 500);
             }
-            closeDeleteModal();
         } else {
-            alert('Failed to delete: ' + (result.error || 'Unknown error'));
+            // Show error state
+            btnIcon.className = 'fas fa-exclamation-triangle';
+            btnText.textContent = 'Failed';
+            btn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+            
+            setTimeout(() => {
+                btn.disabled = false;
+                btnIcon.className = 'fas fa-trash-alt';
+                btnText.textContent = 'Try Again';
+                btn.style.background = '';
+            }, 2000);
         }
     } catch (err) {
         console.error('Delete error:', err);
-        alert('Failed to delete. Please try again.');
-    } finally {
-        btn.disabled = false;
-        btnText.textContent = 'Delete';
+        
+        // Show error state
+        btnIcon.className = 'fas fa-exclamation-triangle';
+        btnText.textContent = 'Error';
+        
+        setTimeout(() => {
+            btn.disabled = false;
+            btnIcon.className = 'fas fa-trash-alt';
+            btnText.textContent = 'Try Again';
+        }, 2000);
     }
 }
 
@@ -4207,19 +4376,21 @@ function handleTouchEnd(e) {
     
     if (translateX < -40) {
         // Show delete button
-        currentSwipeElement.style.transform = 'translateX(-80px)';
+        currentSwipeElement.style.transform = 'translateX(-90px)';
         currentSwipeElement.classList.add('swiped');
         
         // Add delete button if not exists
-        if (!currentSwipeElement.querySelector('.swipe-delete-btn')) {
+        if (!currentSwipeElement.parentElement.querySelector('.swipe-delete-btn')) {
             const convId = currentSwipeElement.dataset.conversationId;
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'swipe-delete-btn';
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i><span>Delete</span>';
             deleteBtn.onclick = (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 deleteConversation(convId);
             };
+            currentSwipeElement.parentElement.style.position = 'relative';
             currentSwipeElement.parentElement.appendChild(deleteBtn);
         }
     } else {
@@ -4319,7 +4490,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div class="delete-modal" id="deleteModal">
+<div class="delete-modal" id="deleteModal" onclick="if(event.target === this) closeDeleteModal()">
     <div class="delete-modal-content">
         <div class="delete-modal-icon">
             <i class="fas fa-trash-alt"></i>
@@ -4327,10 +4498,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="delete-modal-title" id="deleteModalTitle">Delete Message?</div>
         <div class="delete-modal-text" id="deleteModalText">This action cannot be undone.</div>
         <div class="delete-modal-actions">
-            <button type="button" class="delete-modal-btn cancel" onclick="closeDeleteModal()">Cancel</button>
             <button type="button" class="delete-modal-btn delete" id="deleteModalConfirm" onclick="confirmDelete()">
+                <i class="fas fa-trash-alt" id="deleteModalIcon"></i>
                 <span id="deleteModalBtnText">Delete</span>
             </button>
+            <button type="button" class="delete-modal-btn cancel" onclick="closeDeleteModal()">Cancel</button>
         </div>
     </div>
 </div>
