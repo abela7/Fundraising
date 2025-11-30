@@ -437,12 +437,50 @@ if ($selected_id && $tables_exist) {
             border-radius: 3px;
         }
         
+        /* Swipe container for delete */
+        .swipe-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .swipe-content {
+            position: relative;
+            z-index: 2;
+            background: white;
+            transition: transform 0.2s ease-out;
+        }
+        
+        .swipe-delete-btn {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 80px;
+            background: #dc3545;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            z-index: 1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .swipe-delete-btn:hover {
+            background: #c82333;
+        }
+        
+        .swipe-delete-btn i {
+            pointer-events: none;
+        }
+        
         .conversation-item {
             display: flex;
             align-items: center;
             padding: 0.75rem 1rem;
             cursor: pointer;
-            transition: background 0.15s;
+            transition: background 0.15s, transform 0.2s ease-out;
             text-decoration: none;
             color: var(--wa-text);
             border-bottom: 1px solid var(--wa-border);
@@ -871,6 +909,154 @@ if ($selected_id && $tables_exist) {
         
         .message-media.location a:hover {
             color: var(--wa-teal);
+        }
+        
+        /* Message swipe to delete */
+        .message-wrapper {
+            position: relative;
+            display: flex;
+            width: 100%;
+        }
+        
+        .message-wrapper.incoming {
+            justify-content: flex-start;
+        }
+        
+        .message-wrapper.outgoing {
+            justify-content: flex-end;
+        }
+        
+        .message-delete-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 5;
+        }
+        
+        .message-wrapper.incoming .message-delete-btn {
+            right: -45px;
+        }
+        
+        .message-wrapper.outgoing .message-delete-btn {
+            left: -45px;
+        }
+        
+        .message-wrapper:hover .message-delete-btn,
+        .message-wrapper.show-delete .message-delete-btn {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .message-delete-btn:hover {
+            background: #c82333;
+            transform: translateY(-50%) scale(1.1);
+        }
+        
+        /* Delete Confirmation Modal */
+        .delete-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .delete-modal.active {
+            display: flex;
+        }
+        
+        .delete-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .delete-modal-icon {
+            width: 60px;
+            height: 60px;
+            background: #fee2e2;
+            color: #dc3545;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 1rem;
+        }
+        
+        .delete-modal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--wa-text);
+            margin-bottom: 0.5rem;
+        }
+        
+        .delete-modal-text {
+            color: var(--wa-text-secondary);
+            font-size: 0.9375rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .delete-modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+        
+        .delete-modal-btn {
+            padding: 0.625rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .delete-modal-btn.cancel {
+            background: #f0f2f5;
+            color: var(--wa-text);
+        }
+        
+        .delete-modal-btn.cancel:hover {
+            background: #e4e6e9;
+        }
+        
+        .delete-modal-btn.delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .delete-modal-btn.delete:hover {
+            background: #c82333;
+        }
+        
+        .delete-modal-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         
         /* Image Gallery Modal */
@@ -2295,6 +2481,7 @@ if ($selected_id && $tables_exist) {
                             ?>
                             <a href="?id=<?php echo $conv['id']; ?>&filter=<?php echo $filter; ?>" 
                                class="conversation-item <?php echo $isActive ? 'active' : ''; ?> <?php echo $isUnread ? 'unread' : ''; ?>"
+                               data-conversation-id="<?php echo $conv['id']; ?>"
                                onclick="if(window.innerWidth <= 768) document.querySelector('.inbox-container').classList.add('has-selection')">
                                 <div class="conv-avatar <?php echo $isUnknown ? 'unknown' : ''; ?>">
                                     <?php echo $initials; ?>
@@ -2364,70 +2551,75 @@ if ($selected_id && $tables_exist) {
                         <div class="date-divider"><span><?php echo $displayDate; ?></span></div>
                         <?php endif; ?>
                         
-                        <div class="message <?php echo $msg['direction'] === 'incoming' ? 'incoming' : 'outgoing'; ?>">
-                            <div class="message-content">
-                                <?php if ($msg['direction'] === 'outgoing' && $msg['sender_name']): ?>
-                                <div class="message-sender"><?php echo htmlspecialchars($msg['sender_name']); ?></div>
-                                <?php endif; ?>
-                                
-                                <?php if ($msg['message_type'] === 'image' && $msg['media_url']): ?>
-                                <?php 
-                                $captionJs = $msg['media_caption'] ? json_encode($msg['media_caption'], JSON_HEX_APOS | JSON_HEX_QUOT) : "''";
-                                ?>
-                                <div class="message-media">
-                                    <img src="<?php echo htmlspecialchars($msg['media_url']); ?>" alt="Image" 
-                                         onclick="openGallery(this.src, <?php echo $captionJs; ?>)">
-                                </div>
-                                <?php if ($msg['media_caption']): ?>
-                                <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
-                                <?php endif; ?>
-                                <?php elseif ($msg['message_type'] === 'video' && $msg['media_url']): ?>
-                                <div class="message-media">
-                                    <video controls src="<?php echo htmlspecialchars($msg['media_url']); ?>"></video>
-                                </div>
-                                <?php if ($msg['media_caption']): ?>
-                                <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
-                                <?php endif; ?>
-                                <?php elseif ($msg['message_type'] === 'document' && $msg['media_url']): ?>
-                                <div class="message-media document">
-                                    <i class="fas fa-file-alt fa-2x text-secondary"></i>
-                                    <div>
-                                        <div><?php echo htmlspecialchars($msg['media_filename'] ?: 'Document'); ?></div>
-                                        <a href="<?php echo htmlspecialchars($msg['media_url']); ?>" target="_blank" class="small">Download</a>
-                                    </div>
-                                </div>
-                                <?php elseif ($msg['message_type'] === 'voice' || $msg['message_type'] === 'audio'): ?>
-                                <div class="message-media">
-                                    <audio controls src="<?php echo htmlspecialchars($msg['media_url']); ?>" style="width: 250px;"></audio>
-                                </div>
-                                <?php elseif ($msg['message_type'] === 'location'): ?>
-                                <div class="message-media">
-                                    <a href="https://maps.google.com/?q=<?php echo $msg['latitude']; ?>,<?php echo $msg['longitude']; ?>" target="_blank">
-                                        <i class="fas fa-map-marker-alt fa-2x text-danger"></i>
-                                        📍 <?php echo htmlspecialchars($msg['location_name'] ?: 'Location'); ?>
-                                    </a>
-                                </div>
-                                <?php else: ?>
-                                <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['body'] ?? '')); ?></div>
-                                <?php endif; ?>
-                                
-                                <div class="message-meta">
-                                    <span><?php echo date('g:i A', strtotime($msg['created_at'])); ?></span>
-                                    <?php if ($msg['direction'] === 'outgoing'): ?>
-                                    <span class="message-status">
-                                        <?php if ($msg['status'] === 'read'): ?>
-                                        <i class="fas fa-check-double"></i>
-                                        <?php elseif ($msg['status'] === 'delivered'): ?>
-                                        <i class="fas fa-check-double" style="color: #667781;"></i>
-                                        <?php elseif ($msg['status'] === 'sent'): ?>
-                                        <i class="fas fa-check" style="color: #667781;"></i>
-                                        <?php elseif ($msg['status'] === 'failed'): ?>
-                                        <i class="fas fa-exclamation-circle text-danger"></i>
-                                        <?php else: ?>
-                                        <i class="fas fa-clock" style="color: #667781;"></i>
-                                        <?php endif; ?>
-                                    </span>
+                        <div class="message-wrapper <?php echo $msg['direction']; ?>" data-message-id="<?php echo $msg['id']; ?>">
+                            <button type="button" class="message-delete-btn" onclick="deleteMessage(<?php echo $msg['id']; ?>, this)" title="Delete message">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <div class="message <?php echo $msg['direction'] === 'incoming' ? 'incoming' : 'outgoing'; ?>" data-message-id="<?php echo $msg['id']; ?>">
+                                <div class="message-content">
+                                    <?php if ($msg['direction'] === 'outgoing' && $msg['sender_name']): ?>
+                                    <div class="message-sender"><?php echo htmlspecialchars($msg['sender_name']); ?></div>
                                     <?php endif; ?>
+                                    
+                                    <?php if ($msg['message_type'] === 'image' && $msg['media_url']): ?>
+                                    <?php 
+                                    $captionJs = $msg['media_caption'] ? json_encode($msg['media_caption'], JSON_HEX_APOS | JSON_HEX_QUOT) : "''";
+                                    ?>
+                                    <div class="message-media">
+                                        <img src="<?php echo htmlspecialchars($msg['media_url']); ?>" alt="Image" 
+                                             onclick="openGallery(this.src, <?php echo $captionJs; ?>)">
+                                    </div>
+                                    <?php if ($msg['media_caption']): ?>
+                                    <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
+                                    <?php endif; ?>
+                                    <?php elseif ($msg['message_type'] === 'video' && $msg['media_url']): ?>
+                                    <div class="message-media">
+                                        <video controls src="<?php echo htmlspecialchars($msg['media_url']); ?>"></video>
+                                    </div>
+                                    <?php if ($msg['media_caption']): ?>
+                                    <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['media_caption'])); ?></div>
+                                    <?php endif; ?>
+                                    <?php elseif ($msg['message_type'] === 'document' && $msg['media_url']): ?>
+                                    <div class="message-media document">
+                                        <i class="fas fa-file-alt fa-2x text-secondary"></i>
+                                        <div>
+                                            <div><?php echo htmlspecialchars($msg['media_filename'] ?: 'Document'); ?></div>
+                                            <a href="<?php echo htmlspecialchars($msg['media_url']); ?>" target="_blank" class="small">Download</a>
+                                        </div>
+                                    </div>
+                                    <?php elseif ($msg['message_type'] === 'voice' || $msg['message_type'] === 'audio'): ?>
+                                    <div class="message-media">
+                                        <audio controls src="<?php echo htmlspecialchars($msg['media_url']); ?>" style="width: 250px;"></audio>
+                                    </div>
+                                    <?php elseif ($msg['message_type'] === 'location'): ?>
+                                    <div class="message-media">
+                                        <a href="https://maps.google.com/?q=<?php echo $msg['latitude']; ?>,<?php echo $msg['longitude']; ?>" target="_blank">
+                                            <i class="fas fa-map-marker-alt fa-2x text-danger"></i>
+                                            📍 <?php echo htmlspecialchars($msg['location_name'] ?: 'Location'); ?>
+                                        </a>
+                                    </div>
+                                    <?php else: ?>
+                                    <div class="message-text"><?php echo nl2br(htmlspecialchars($msg['body'] ?? '')); ?></div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="message-meta">
+                                        <span><?php echo date('g:i A', strtotime($msg['created_at'])); ?></span>
+                                        <?php if ($msg['direction'] === 'outgoing'): ?>
+                                        <span class="message-status">
+                                            <?php if ($msg['status'] === 'read'): ?>
+                                            <i class="fas fa-check-double"></i>
+                                            <?php elseif ($msg['status'] === 'delivered'): ?>
+                                            <i class="fas fa-check-double" style="color: #667781;"></i>
+                                            <?php elseif ($msg['status'] === 'sent'): ?>
+                                            <i class="fas fa-check" style="color: #667781;"></i>
+                                            <?php elseif ($msg['status'] === 'failed'): ?>
+                                            <i class="fas fa-exclamation-circle text-danger"></i>
+                                            <?php else: ?>
+                                            <i class="fas fa-clock" style="color: #667781;"></i>
+                                            <?php endif; ?>
+                                        </span>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3838,6 +4030,266 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+
+// ============================================
+// DELETE FUNCTIONALITY
+// ============================================
+
+let deleteType = null; // 'message' or 'conversation'
+let deleteId = null;
+let deleteElement = null;
+
+// Open delete modal
+function openDeleteModal(type, id, element) {
+    deleteType = type;
+    deleteId = id;
+    deleteElement = element;
+    
+    const modal = document.getElementById('deleteModal');
+    const title = document.getElementById('deleteModalTitle');
+    const text = document.getElementById('deleteModalText');
+    
+    if (type === 'message') {
+        title.textContent = 'Delete Message?';
+        text.textContent = 'This message will be permanently deleted.';
+    } else if (type === 'conversation') {
+        title.textContent = 'Delete Conversation?';
+        text.textContent = 'All messages in this conversation will be permanently deleted.';
+    }
+    
+    modal.classList.add('active');
+}
+
+// Close delete modal
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    modal.classList.remove('active');
+    deleteType = null;
+    deleteId = null;
+    deleteElement = null;
+}
+
+// Confirm delete
+async function confirmDelete() {
+    if (!deleteType || !deleteId) return;
+    
+    const btn = document.getElementById('deleteModalConfirm');
+    const btnText = document.getElementById('deleteModalBtnText');
+    
+    btn.disabled = true;
+    btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('csrf_token', '<?php echo csrf_token(); ?>');
+        
+        let endpoint;
+        if (deleteType === 'message') {
+            endpoint = 'api/delete-message.php';
+            formData.append('message_id', deleteId);
+        } else {
+            endpoint = 'api/delete-conversation.php';
+            formData.append('conversation_id', deleteId);
+        }
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (deleteType === 'message' && deleteElement) {
+                // Remove message from DOM with animation
+                deleteElement.style.transition = 'all 0.3s';
+                deleteElement.style.opacity = '0';
+                deleteElement.style.transform = 'translateX(-100%)';
+                setTimeout(() => {
+                    deleteElement.remove();
+                }, 300);
+            } else if (deleteType === 'conversation') {
+                // Redirect to inbox
+                window.location.href = 'inbox.php';
+            }
+            closeDeleteModal();
+        } else {
+            alert('Failed to delete: ' + (result.error || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error('Delete error:', err);
+        alert('Failed to delete. Please try again.');
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Delete';
+    }
+}
+
+// Delete message by ID
+function deleteMessage(messageId, element) {
+    openDeleteModal('message', messageId, element.closest('.message-wrapper') || element.closest('.message'));
+}
+
+// Delete conversation
+function deleteConversation(conversationId) {
+    openDeleteModal('conversation', conversationId, null);
+}
+
+// ============================================
+// SWIPE TO DELETE (Touch devices)
+// ============================================
+
+let touchStartX = 0;
+let touchStartY = 0;
+let currentSwipeElement = null;
+let isSwiping = false;
+
+// Initialize swipe on conversation items
+function initConversationSwipe() {
+    document.querySelectorAll('.conversation-item').forEach(item => {
+        if (item.dataset.swipeInit) return;
+        item.dataset.swipeInit = 'true';
+        
+        item.addEventListener('touchstart', handleTouchStart, { passive: true });
+        item.addEventListener('touchmove', handleTouchMove, { passive: false });
+        item.addEventListener('touchend', handleTouchEnd, { passive: true });
+    });
+}
+
+// Initialize swipe on messages
+function initMessageSwipe() {
+    document.querySelectorAll('.message-wrapper').forEach(wrapper => {
+        if (wrapper.dataset.swipeInit) return;
+        wrapper.dataset.swipeInit = 'true';
+        
+        wrapper.addEventListener('touchstart', handleMessageTouchStart, { passive: true });
+        wrapper.addEventListener('touchmove', handleMessageTouchMove, { passive: false });
+        wrapper.addEventListener('touchend', handleMessageTouchEnd, { passive: true });
+    });
+}
+
+function handleTouchStart(e) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    currentSwipeElement = e.currentTarget;
+    isSwiping = false;
+}
+
+function handleTouchMove(e) {
+    if (!currentSwipeElement) return;
+    
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    const diffX = touchStartX - touchX;
+    const diffY = Math.abs(touchStartY - touchY);
+    
+    // If vertical scroll, don't handle swipe
+    if (diffY > Math.abs(diffX) && !isSwiping) {
+        return;
+    }
+    
+    // Only swipe left
+    if (diffX > 10) {
+        isSwiping = true;
+        e.preventDefault();
+        const translateX = Math.min(Math.max(-diffX, -80), 0);
+        currentSwipeElement.style.transform = `translateX(${translateX}px)`;
+    }
+}
+
+function handleTouchEnd(e) {
+    if (!currentSwipeElement || !isSwiping) {
+        currentSwipeElement = null;
+        return;
+    }
+    
+    const translateX = parseFloat(currentSwipeElement.style.transform.replace('translateX(', '').replace('px)', '')) || 0;
+    
+    if (translateX < -40) {
+        // Show delete button
+        currentSwipeElement.style.transform = 'translateX(-80px)';
+        currentSwipeElement.classList.add('swiped');
+        
+        // Add delete button if not exists
+        if (!currentSwipeElement.querySelector('.swipe-delete-btn')) {
+            const convId = currentSwipeElement.dataset.conversationId;
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'swipe-delete-btn';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteConversation(convId);
+            };
+            currentSwipeElement.parentElement.appendChild(deleteBtn);
+        }
+    } else {
+        // Reset
+        currentSwipeElement.style.transform = '';
+        currentSwipeElement.classList.remove('swiped');
+    }
+    
+    currentSwipeElement = null;
+    isSwiping = false;
+}
+
+// Message swipe handlers
+function handleMessageTouchStart(e) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    currentSwipeElement = e.currentTarget;
+    isSwiping = false;
+}
+
+function handleMessageTouchMove(e) {
+    if (!currentSwipeElement) return;
+    
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    const diffX = touchStartX - touchX;
+    const diffY = Math.abs(touchStartY - touchY);
+    
+    if (diffY > Math.abs(diffX) && !isSwiping) {
+        return;
+    }
+    
+    if (Math.abs(diffX) > 10) {
+        isSwiping = true;
+        e.preventDefault();
+        currentSwipeElement.classList.add('show-delete');
+    }
+}
+
+function handleMessageTouchEnd(e) {
+    if (!currentSwipeElement) return;
+    
+    if (isSwiping) {
+        // Keep delete button visible for a moment
+        setTimeout(() => {
+            if (currentSwipeElement) {
+                currentSwipeElement.classList.remove('show-delete');
+            }
+        }, 3000);
+    }
+    
+    currentSwipeElement = null;
+    isSwiping = false;
+}
+
+// Reset swiped conversations when clicking elsewhere
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.conversation-item') && !e.target.closest('.swipe-delete-btn')) {
+        document.querySelectorAll('.conversation-item.swiped').forEach(item => {
+            item.style.transform = '';
+            item.classList.remove('swiped');
+        });
+    }
+});
+
+// Initialize swipe handlers
+document.addEventListener('DOMContentLoaded', () => {
+    initConversationSwipe();
+    initMessageSwipe();
+});
 </script>
 
 <!-- Image Gallery Modal -->
@@ -3863,6 +4315,23 @@ document.addEventListener('click', function(e) {
         <div class="gallery-caption" id="galleryCaption" style="display: none;"></div>
         
         <div class="gallery-thumbnails" id="galleryThumbnails" style="display: none;"></div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="delete-modal" id="deleteModal">
+    <div class="delete-modal-content">
+        <div class="delete-modal-icon">
+            <i class="fas fa-trash-alt"></i>
+        </div>
+        <div class="delete-modal-title" id="deleteModalTitle">Delete Message?</div>
+        <div class="delete-modal-text" id="deleteModalText">This action cannot be undone.</div>
+        <div class="delete-modal-actions">
+            <button type="button" class="delete-modal-btn cancel" onclick="closeDeleteModal()">Cancel</button>
+            <button type="button" class="delete-modal-btn delete" id="deleteModalConfirm" onclick="confirmDelete()">
+                <span id="deleteModalBtnText">Delete</span>
+            </button>
+        </div>
     </div>
 </div>
 
