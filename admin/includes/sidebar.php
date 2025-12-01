@@ -58,6 +58,13 @@ if ($user_role === 'registrar') {
         </span>
         <span class="nav-label">Call History</span>
       </a>
+      <a href="<?php echo url_for('admin/call-center/inbound-callbacks.php'); ?>" 
+         class="nav-link <?php echo $current_page === 'inbound-callbacks' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-phone-volume"></i>
+        </span>
+        <span class="nav-label">Inbound Callbacks</span>
+      </a>
       <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" 
          class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'record-pledge-payment') ? 'active' : ''; ?>">
         <span class="nav-icon">
