@@ -59,7 +59,7 @@ try {
         }
     }
     
-    // Get donor and pledge information (including fields for Step 2)
+    // Get donor and pledge information (including fields for Step 2 and widget)
     $donor_query = "
         SELECT d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
                d.preferred_language, d.church_id, d.preferred_payment_method,
@@ -69,7 +69,8 @@ try {
                p.id as pledge_id,
                p.notes as pledge_notes,
                c.name as church_name,
-               cr.name as representative_name,
+                cr.name as representative_name,
+                cr.phone as representative_phone,
                COALESCE(
                     (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
                     (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
@@ -1362,7 +1363,12 @@ $page_title = 'Live Call';
             </form>
         </div>
     </div>
-</div>
+<?php
+    // Prepare labels for widget
+    $widget_lang_code = $donor->preferred_language ?? 'en';
+    $widget_lang_labels = ['en' => 'English', 'am' => 'Amharic (አማርኛ)', 'ti' => 'Tigrinya (ትግርኛ)'];
+    $widget_lang_label = $widget_lang_labels[$widget_lang_code] ?? 'English';
+?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
@@ -1377,10 +1383,20 @@ $page_title = 'Live Call';
             donorId: <?php echo $donor_id; ?>,
             donorName: '<?php echo addslashes($donor->name); ?>',
             donorPhone: '<?php echo addslashes($donor->phone); ?>',
-            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
+            donorEmail: '<?php echo addslashes($donor->email ?? ''); ?>',
+            donorCity: '<?php echo addslashes($donor->city ?? ''); ?>',
+            baptismName: '<?php echo addslashes($donor->baptism_name ?? ''); ?>',
+            balance: <?php echo (float)$donor->balance; ?>,
+            pledgeAmount: <?php echo (float)$donor->pledge_amount; ?>,
             pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
             registrar: '<?php echo addslashes($donor->registrar_name); ?>',
-            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
+            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>',
+            preferredLanguage: '<?php echo addslashes($widget_lang_code); ?>',
+            preferredLanguageLabel: '<?php echo addslashes($widget_lang_label); ?>',
+            preferredPaymentMethod: '<?php echo addslashes($donor->preferred_payment_method ?? ''); ?>',
+            referenceNumber: '<?php echo addslashes($reference_number); ?>',
+            representative: '<?php echo addslashes($donor->representative_name ?? ''); ?>',
+            representativePhone: '<?php echo addslashes($donor->representative_phone ?? ''); ?>'
         });
         
         // Ensure timer is running (it should auto-resume from localStorage, but force start if stopped)

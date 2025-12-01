@@ -127,9 +127,9 @@
 /* Info Panel (Mini CRM) - Positioned above footer */
 .call-widget-container .donor-info-panel {
     background: white;
-    width: 300px;
+    width: 320px;
     max-width: calc(100vw - 40px);
-    border-radius: 12px;
+    border-radius: 16px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
     border: 1px solid #e2e8f0;
     overflow: hidden;
@@ -139,6 +139,7 @@
     bottom: 100%;
     margin-bottom: 10px;
     right: 20px;
+    background-clip: padding-box;
 }
 
 .donor-info-panel.active {
@@ -168,6 +169,48 @@
     font-weight: 600;
     font-size: 0.95rem;
     margin: 0;
+}
+
+/* Tabs */
+.panel-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto;
+}
+
+.panel-tab {
+    border: none;
+    border-radius: 999px;
+    background: #e5e7eb;
+    color: #0f172a;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.panel-tab i {
+    font-size: 0.75rem;
+}
+
+.panel-tab.active {
+    background: #0a6286;
+    color: #fff;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
 }
 
 .btn-close-panel {

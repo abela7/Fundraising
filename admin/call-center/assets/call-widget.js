@@ -14,7 +14,17 @@ const CallWidget = {
         pledgeAmount: 0,
         pledgeDate: '',
         registrar: 'Unknown',
-        church: 'Unknown'
+        church: 'Unknown',
+        donorEmail: '',
+        donorCity: '',
+        baptismName: '',
+        balance: 0,
+        preferredLanguage: 'en',
+        preferredLanguageLabel: 'English',
+        preferredPaymentMethod: '',
+        referenceNumber: '',
+        representative: '',
+        representativePhone: ''
     },
 
     state: {
@@ -183,6 +193,7 @@ const CallWidget = {
         
         // Safe formatting
         let formattedAmount = '0.00';
+        let formattedBalance = '0.00';
         try {
             formattedAmount = Number(this.config.pledgeAmount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         } catch (e) {
@@ -190,36 +201,134 @@ const CallWidget = {
             formattedAmount = '0.00';
         }
 
+        try {
+            formattedBalance = Number(this.config.balance || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+        } catch (e) {
+            console.warn('Error formatting balance', e);
+            formattedBalance = '0.00';
+        }
+
         container.innerHTML = `
             <div class="donor-info-panel" id="donorInfoPanel">
                 <div class="panel-header">
-                    <h3 class="panel-title"><i class="fas fa-user me-2"></i>Donor Details</h3>
+                    <h3 class="panel-title">
+                        <i class="fas fa-user me-2"></i>Donor Profile
+                    </h3>
                     <button class="btn-close-panel" id="btnCloseInfo"><i class="fas fa-times"></i></button>
                 </div>
+                <div class="panel-tabs" id="donorInfoTabs">
+                    <button class="panel-tab active" data-tab="overview">
+                        <i class="fas fa-id-card"></i><span>Overview</span>
+                    </button>
+                    <button class="panel-tab" data-tab="contact">
+                        <i class="fas fa-address-book"></i><span>Contact</span>
+                    </button>
+                    <button class="panel-tab" data-tab="pledge">
+                        <i class="fas fa-hand-holding-heart"></i><span>Pledge</span>
+                    </button>
+                    <button class="panel-tab" data-tab="notes">
+                        <i class="fas fa-sticky-note"></i><span>Notes</span>
+                    </button>
+                </div>
                 <div class="panel-body">
-                    <div class="info-group">
-                        <div class="info-label-sm">Name</div>
-                        <div class="info-value-sm highlight">${this.config.donorName}</div>
+                    <!-- Overview Tab -->
+                    <div class="tab-content active" data-tab="overview">
+                        <div class="info-group">
+                            <div class="info-label-sm">Name</div>
+                            <div class="info-value-sm highlight">${this.config.donorName}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Phone</div>
+                            <div class="info-value-sm">
+                                <a href="tel:${this.config.donorPhone}" style="color:inherit;text-decoration:none;">
+                                    ${this.config.donorPhone || 'N/A'}
+                                </a>
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">City</div>
+                            <div class="info-value-sm">${this.config.donorCity || 'Unknown'}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Church / Location</div>
+                            <div class="info-value-sm">${this.config.church || 'Unknown'}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Registrar</div>
+                            <div class="info-value-sm">${this.config.registrar || 'Unknown'}</div>
+                        </div>
                     </div>
-                    <div class="info-group">
-                        <div class="info-label-sm">Phone</div>
-                        <div class="info-value-sm"><a href="tel:${this.config.donorPhone}" style="color:inherit;text-decoration:none;">${this.config.donorPhone}</a></div>
+
+                    <!-- Contact Tab -->
+                    <div class="tab-content" data-tab="contact">
+                        <div class="info-group">
+                            <div class="info-label-sm">Phone</div>
+                            <div class="info-value-sm">
+                                <a href="tel:${this.config.donorPhone}" style="color:inherit;text-decoration:none;">
+                                    ${this.config.donorPhone || 'N/A'}
+                                </a>
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Email</div>
+                            <div class="info-value-sm">
+                                ${this.config.donorEmail 
+                                    ? `<a href="mailto:${this.config.donorEmail}" style="color:inherit;text-decoration:none;">${this.config.donorEmail}</a>` 
+                                    : 'Not provided'}
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Preferred Language</div>
+                            <div class="info-value-sm">${this.config.preferredLanguageLabel}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Preferred Payment Method</div>
+                            <div class="info-value-sm">${this.config.preferredPaymentMethod || 'Not set'}</div>
+                        </div>
                     </div>
-                    <div class="info-group">
-                        <div class="info-label-sm">Pledge Amount</div>
-                        <div class="info-value-sm text-danger">£${formattedAmount}</div>
+
+                    <!-- Pledge Tab -->
+                    <div class="tab-content" data-tab="pledge">
+                        <div class="info-group">
+                            <div class="info-label-sm">Pledge Amount</div>
+                            <div class="info-value-sm text-danger">£${formattedAmount}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Remaining Balance</div>
+                            <div class="info-value-sm">£${formattedBalance}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Pledge Date</div>
+                            <div class="info-value-sm">${this.config.pledgeDate || 'Unknown'}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Representative</div>
+                            <div class="info-value-sm">
+                                ${this.config.representative || 'Not assigned'}
+                                ${this.config.representativePhone 
+                                    ? `<br><small>${this.config.representativePhone}</small>` 
+                                    : ''}
+                            </div>
+                        </div>
                     </div>
-                    <div class="info-group">
-                        <div class="info-label-sm">Pledge Date</div>
-                        <div class="info-value-sm">${this.config.pledgeDate}</div>
-                    </div>
-                    <div class="info-group">
-                        <div class="info-label-sm">Registrar</div>
-                        <div class="info-value-sm">${this.config.registrar}</div>
-                    </div>
-                    <div class="info-group">
-                        <div class="info-label-sm">Church / Location</div>
-                        <div class="info-value-sm">${this.config.church}</div>
+
+                    <!-- Notes / Reference Tab -->
+                    <div class="tab-content" data-tab="notes">
+                        <div class="info-group">
+                            <div class="info-label-sm">Baptism Name</div>
+                            <div class="info-value-sm">${this.config.baptismName || 'Not recorded'}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Reference Number</div>
+                            <div class="info-value-sm">${this.config.referenceNumber || 'Not set'}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Internal IDs</div>
+                            <div class="info-value-sm">
+                                Session: ${this.config.sessionId || '-'}<br>
+                                Donor ID: ${this.config.donorId || '-'}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -278,6 +387,29 @@ const CallWidget = {
                 if (this.elements.panel) {
                     this.elements.panel.classList.remove('active');
                 }
+            });
+        }
+
+        // Tab switching inside donor info panel
+        if (this.elements.panel) {
+            const tabs = this.elements.panel.querySelectorAll('.panel-tab');
+            const contents = this.elements.panel.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.getAttribute('data-tab');
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    contents.forEach(c => {
+                        if (c.getAttribute('data-tab') === target) {
+                            c.classList.add('active');
+                        } else {
+                            c.classList.remove('active');
+                        }
+                    });
+                });
             });
         }
         
