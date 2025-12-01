@@ -763,13 +763,12 @@ function initiateTwilioCallDirect() {
             currentSessionId = data.session_id;
             showToast('✅ Call Started!', 'success', 'Your phone is ringing now...');
             
-            // Start polling for call status
+            // Start polling for call status (for notifications only)
             startCallStatusPolling(data.session_id);
             
-            // Redirect to conversation page immediately
+            // Redirect to call-status.php immediately
             setTimeout(() => {
-                window.location.href = 'conversation.php?session_id=' + data.session_id + 
-                                     '&donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>';
+                window.location.href = 'call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&session_id=' + data.session_id;
             }, 1500);
         } else {
             throw new Error(data.error || 'Failed to initiate call');
@@ -822,8 +821,7 @@ function initiateTwilioCall() {
             startCallStatusPolling(data.session_id);
             
             setTimeout(() => {
-                window.location.href = 'conversation.php?session_id=' + data.session_id + 
-                                     '&donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>';
+                window.location.href = 'call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&session_id=' + data.session_id;
             }, 1500);
         } else {
             throw new Error(data.error || 'Failed to initiate call');
@@ -871,12 +869,14 @@ function handleCallStatusUpdate(data) {
     const status = data.status;
     const twilioStatus = data.twilio_status;
     
+    // ONLY show toast notifications - NO automatic actions
     if (twilioStatus === 'ringing') {
-        showToast('📱 Ringing...', 'info', 'Your phone is ringing');
+        showToast('📱 Your Phone Ringing', 'info', 'Answer your phone to continue');
     } else if (twilioStatus === 'in-progress' || twilioStatus === 'answered') {
-        showToast('✅ Connected!', 'success', 'You answered - connecting to donor...');
+        showToast('✅ You Picked Up!', 'success', 'Connecting to donor now...');
     } else if (twilioStatus === 'completed') {
-        showToast('📞 Call Connected', 'success', 'Donor is on the line!');
+        showToast('📞 Donor Answered!', 'success', 'Click "Picked Up" to start conversation');
+        // Stop polling - call is connected
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }

@@ -15,6 +15,7 @@ try {
     // Get donor_id and queue_id from POST (form submission) or GET (direct access)
     $donor_id = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : (isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0);
     $queue_id = isset($_POST['queue_id']) ? (int)$_POST['queue_id'] : (isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0);
+    $session_id = isset($_GET['session_id']) ? (int)$_GET['session_id'] : 0;
     
     if (!$donor_id) {
         header('Location: ../donor-management/donors.php');
@@ -35,14 +36,24 @@ try {
         exit;
     }
     
-    // Record call start time (will be passed to next step)
-    // We DON'T create a session record yet - only when an outcome is selected
-    $now = new DateTime('now', new DateTimeZone('Europe/London'));
-    $now->setTimezone(new DateTimeZone('UTC'));
-    $call_started_at = $now->format('Y-m-d H:i:s');
-    
-    // Session ID is 0 initially
-    $session_id = 0;
+    // Get call start time
+    if ($session_id > 0) {
+        // Twilio call - get start time from session
+        $session_query = "SELECT call_started_at FROM call_center_sessions WHERE id = ?";
+        $stmt = $db->prepare($session_query);
+        $stmt->bind_param('i', $session_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $session_data = $result->fetch_assoc();
+        $stmt->close();
+        
+        $call_started_at = $session_data['call_started_at'] ?? date('Y-m-d H:i:s');
+    } else {
+        // Manual call - record current time
+        $now = new DateTime('now', new DateTimeZone('Europe/London'));
+        $now->setTimezone(new DateTimeZone('UTC'));
+        $call_started_at = $now->format('Y-m-d H:i:s');
+    }
     
 } catch (Exception $e) {
     error_log("Call Status Error: " . $e->getMessage());
@@ -250,6 +261,9 @@ $page_title = 'Call Status';
                 <div class="option-grid">
                     <?php 
                     $common_params = "donor_id={$donor_id}&queue_id={$queue_id}&call_started_at=" . urlencode($call_started_at);
+                    if ($session_id > 0) {
+                        $common_params .= "&session_id={$session_id}";
+                    }
                     ?>
                     <a href="availability-check.php?<?php echo $common_params; ?>&status=picked_up" 
                        class="option-card success">
@@ -301,6 +315,105 @@ $page_title = 'Call Status';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+// Twilio Call Status Polling (if session_id exists)
+const sessionId = <?php echo $session_id; ?>;
+let callStatusInterval = null;
+
+if (sessionId > 0) {
+    // Start polling for Twilio call status
+    let lastStatus = '';
+    
+    callStatusInterval = setInterval(() => {
+        fetch('api/get-call-status.php?session_id=' + sessionId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.twilio_status !== lastStatus) {
+                    lastStatus = data.twilio_status;
+                    handleCallStatusUpdate(data);
+                }
+            })
+            .catch(error => console.error('Status polling error:', error));
+    }, 2000); // Poll every 2 seconds
+}
+
+function handleCallStatusUpdate(data) {
+    const twilioStatus = data.twilio_status;
+    
+    // ONLY show toast notifications - NO automatic actions
+    if (twilioStatus === 'ringing') {
+        showToast('📱 Your Phone Ringing', 'info', 'Answer your phone to continue');
+    } else if (twilioStatus === 'in-progress' || twilioStatus === 'answered') {
+        showToast('✅ You Picked Up!', 'success', 'Connecting to donor now...');
+    } else if (twilioStatus === 'completed') {
+        showToast('📞 Donor Answered!', 'success', 'Click "Picked Up" when ready to start conversation');
+        // Stop polling - call is connected
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer') {
+        showToast('❌ Call Failed', 'error', 'Could not connect the call');
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    }
+}
+
+// Mobile-friendly Toast Notifications
+function showToast(title, type, message) {
+    // Remove existing toast container if any
+    const existingContainer = document.getElementById('toastContainer');
+    if (existingContainer) {
+        existingContainer.remove();
+    }
+    
+    // Create toast container
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    
+    const bgClass = type === 'error' ? 'bg-danger' : 
+                    type === 'success' ? 'bg-success' : 'bg-info';
+    
+    const icon = type === 'error' ? '❌' : 
+                 type === 'success' ? '✅' : '📞';
+    
+    container.innerHTML = `
+        <div class="toast show ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header ${bgClass} text-white border-0">
+                <span class="me-2" style="font-size: 1.25rem;">${icon}</span>
+                <strong class="me-auto">${title}</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" style="font-size: 0.95rem;">
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Auto-remove after 5 seconds (unless it's an error)
+    if (type !== 'error') {
+        setTimeout(() => {
+            container.remove();
+        }, 5000);
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (callStatusInterval) {
+        clearInterval(callStatusInterval);
+    }
+});
+
+// Show initial toast if this is a Twilio call
+if (sessionId > 0) {
+    showToast('📞 Call in Progress', 'info', 'Listen for your phone ringing...');
+}
+</script>
 </body>
 </html>
 
