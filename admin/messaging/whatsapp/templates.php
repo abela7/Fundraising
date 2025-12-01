@@ -5,6 +5,11 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
+// Debug: Test if file even starts loading
+if (isset($_GET['test'])) {
+    die('DEBUG: File is loading correctly. PHP is working.');
+}
+
 try {
     require_once __DIR__ . '/../../../shared/auth.php';
 } catch (Throwable $e) {
@@ -124,10 +129,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
                     if (!$stmt) {
                         throw new Exception('Database error: ' . $db->error);
                     }
-                    $stmt->bind_param('sssssssssiss', 
+                    $user_id = (int)($current_user['id'] ?? 0);
+                    $stmt->bind_param('sssssssssisi', 
                         $template_key, $name, $description, $category, 
                         $message_en, $message_am, $message_ti,
-                        $variables, $priority, $is_active, $platform, $current_user['id']
+                        $variables, $priority, $is_active, $platform, $user_id
                     );
                     if (!$stmt->execute()) {
                         throw new Exception('Failed to create template: ' . $stmt->error);
