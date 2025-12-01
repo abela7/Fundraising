@@ -59,263 +59,42 @@ try {
         }
     }
     
-    // Get donor information using same approach as view-donor.php (d.* gets all columns)
+    // Get donor and pledge information (including fields for Step 2)
     $donor_query = "
-        SELECT 
-            d.*,
-            u.name as registrar_name,
-            c.name as church_name,
-            c.city as church_city,
-            cr.name as representative_name,
-            cr.phone as representative_phone
+        SELECT d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
+               d.preferred_language, d.church_id, d.preferred_payment_method,
+               d.representative_id,
+               COALESCE(p.amount, 0) as pledge_amount, 
+               p.created_at as pledge_date,
+               p.id as pledge_id,
+               p.notes as pledge_notes,
+               c.name as church_name,
+               cr.name as representative_name,
+               COALESCE(
+                    (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
+                    (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
+                    'Unknown'
+                ) as registrar_name
         FROM donors d
-        LEFT JOIN users u ON d.registered_by_user_id = u.id
+        LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
         LEFT JOIN churches c ON d.church_id = c.id
         LEFT JOIN church_representatives cr ON d.representative_id = cr.id
-        WHERE d.id = ?
+        WHERE d.id = ? 
+        ORDER BY p.created_at DESC 
+        LIMIT 1
     ";
     
     $stmt = $db->prepare($donor_query);
     $stmt->bind_param('i', $donor_id);
     $stmt->execute();
     $result = $stmt->get_result();
-    $donor = $result->fetch_assoc(); // Use fetch_assoc() like view-donor.php
+    $donor = $result->fetch_object();
     $stmt->close();
     
     if (!$donor) {
         header('Location: ../donor-management/donors.php');
         exit;
     }
-    
-    // Financial values from donors table (same as view-donor.php)
-    $donor_total_pledged = (float)($donor['total_pledged'] ?? 0);
-    $donor_total_paid = (float)($donor['total_paid'] ?? 0);
-    $donor_balance = (float)($donor['balance'] ?? 0);
-
-    /**
-     * SAFETY NET:
-     * In some older data sets, the donors.total_pledged / total_paid / balance
-     * fields were never back-filled, so they stay 0. However, the true values
-     * exist in pledges, payments and pledge_payments.
-     *
-     * If everything is 0 here but the donor actually has financial history,
-     * the widget would incorrectly show £0.00 for everything.
-     *
-     * To avoid that, we add a fallback: when all three are 0, we recompute
-     * per-donor totals directly from the source tables using the same rules
-     * as the central FinancialCalculator:
-     *  - pledges.status = 'approved'
-     *  - payments.status = 'approved'
-     *  - pledge_payments.status = 'confirmed'
-     */
-    if ($donor_total_pledged === 0.0 && $donor_total_paid === 0.0 && $donor_balance === 0.0) {
-        // Check if there is any pledge / payment activity at all
-        $fallback_sql = "
-            SELECT
-                COALESCE((
-                    SELECT SUM(amount) 
-                    FROM pledges 
-                    WHERE donor_id = ? AND status = 'approved'
-                ), 0) AS fallback_total_pledged,
-                COALESCE((
-                    SELECT SUM(amount) 
-                    FROM payments 
-                    WHERE donor_id = ? AND status = 'approved'
-                ), 0) +
-                COALESCE((
-                    SELECT SUM(amount) 
-                    FROM pledge_payments 
-                    WHERE donor_id = ? AND status = 'confirmed'
-                ), 0) AS fallback_total_paid
-        ";
-
-        if ($stmt = $db->prepare($fallback_sql)) {
-            $stmt->bind_param('iii', $donor_id, $donor_id, $donor_id);
-            $stmt->execute();
-            $fallback_result = $stmt->get_result();
-            if ($fallback_row = $fallback_result->fetch_assoc()) {
-                $fallback_pledged = (float)$fallback_row['fallback_total_pledged'];
-                $fallback_paid = (float)$fallback_row['fallback_total_paid'];
-
-                // Only override if there is real data (at least some pledge or payment)
-                if ($fallback_pledged > 0 || $fallback_paid > 0) {
-                    $donor_total_pledged = $fallback_pledged;
-                    $donor_total_paid = $fallback_paid;
-                    $donor_balance = max(0.0, $donor_total_pledged - $donor_total_paid);
-                }
-            }
-            $stmt->close();
-        }
-    }
-    
-    // Get pledge info (same as view-donor.php)
-    $pledge_data = null;
-    $pledge_query = "
-        SELECT p.*, u.name as pledge_registrar_name 
-        FROM pledges p 
-        LEFT JOIN users u ON p.created_by_user_id = u.id
-        WHERE p.donor_id = ? 
-        ORDER BY p.created_at DESC
-        LIMIT 1
-    ";
-    $stmt = $db->prepare($pledge_query);
-    if ($stmt) {
-        $stmt->bind_param('i', $donor_id);
-        $stmt->execute();
-        $pledge_result = $stmt->get_result();
-        $pledge_data = $pledge_result->fetch_assoc(); // Use fetch_assoc() like view-donor.php
-        $stmt->close();
-    }
-    
-    // Get call history for this donor
-    $previous_call_count = 0;
-    $last_call_date = null;
-    $last_call_outcome = null;
-    $last_call_agent = null;
-    
-    $call_history_query = "
-        SELECT 
-            COUNT(*) as call_count,
-            (SELECT call_started_at FROM call_center_sessions WHERE donor_id = ? AND id != ? ORDER BY call_started_at DESC LIMIT 1) as last_date,
-            (SELECT outcome FROM call_center_sessions WHERE donor_id = ? AND id != ? ORDER BY call_started_at DESC LIMIT 1) as last_outcome,
-            (SELECT u.name FROM call_center_sessions cs JOIN users u ON cs.agent_id = u.id WHERE cs.donor_id = ? AND cs.id != ? ORDER BY cs.call_started_at DESC LIMIT 1) as last_agent
-        FROM call_center_sessions 
-        WHERE donor_id = ? AND id != ?
-    ";
-    $stmt = $db->prepare($call_history_query);
-    if ($stmt) {
-        $stmt->bind_param('iiiiiiii', $donor_id, $session_id, $donor_id, $session_id, $donor_id, $session_id, $donor_id, $session_id);
-        $stmt->execute();
-        $call_history = $stmt->get_result()->fetch_object();
-        $stmt->close();
-        if ($call_history) {
-            $previous_call_count = (int)$call_history->call_count;
-            $last_call_date = $call_history->last_date;
-            $last_call_outcome = $call_history->last_outcome;
-            $last_call_agent = $call_history->last_agent;
-        }
-    }
-    
-    // Get payment history - EXACT same method as view-donor.php
-    $payments = [];
-    
-    // Check if pledge_payments table exists
-    $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
-    
-    // Check payments table columns first to handle schema variations
-    $payment_columns = [];
-    $col_query = $db->query("SHOW COLUMNS FROM payments");
-    while ($col = $col_query->fetch_assoc()) {
-        $payment_columns[] = $col['Field'];
-    }
-    
-    $approver_col = in_array('approved_by_user_id', $payment_columns) ? 'approved_by_user_id' : 
-                   (in_array('received_by_user_id', $payment_columns) ? 'received_by_user_id' : 'id');
-    
-    $date_col = in_array('payment_date', $payment_columns) ? 'payment_date' : 
-               (in_array('received_at', $payment_columns) ? 'received_at' : 'created_at');
-    
-    $method_col = in_array('payment_method', $payment_columns) ? 'payment_method' : 'method';
-    $ref_col = in_array('transaction_ref', $payment_columns) ? 'transaction_ref' : 'reference';
-    
-    if ($has_pledge_payments) {
-        // UNION query to get both instant payments and pledge payments
-        $payment_query = "
-            SELECT 
-                pay.id,
-                pay.{$date_col} as payment_date,
-                pay.amount,
-                pay.{$method_col} as payment_method,
-                pay.{$ref_col} as reference,
-                pay.status,
-                u.name as approver_name,
-                'instant' as payment_type,
-                NULL as pledge_id,
-                pay.{$date_col} as sort_date
-            FROM payments pay
-            LEFT JOIN users u ON pay.{$approver_col} = u.id
-            WHERE pay.donor_phone = ?
-            
-            UNION ALL
-            
-            SELECT 
-                pp.id,
-                pp.payment_date,
-                pp.amount,
-                pp.payment_method,
-                pp.reference_number as reference,
-                pp.status,
-                approver.name as approver_name,
-                'pledge' as payment_type,
-                pp.pledge_id,
-                pp.payment_date as sort_date
-            FROM pledge_payments pp
-            LEFT JOIN users approver ON pp.approved_by_user_id = approver.id
-            WHERE pp.donor_id = ?
-            
-            ORDER BY sort_date DESC
-        ";
-        $stmt = $db->prepare($payment_query);
-        $stmt->bind_param('si', $donor['phone'], $donor_id);
-        $stmt->execute();
-        $payment_result = $stmt->get_result();
-        while ($pay = $payment_result->fetch_assoc()) {
-            // Normalize keys for display
-            $pay['display_date'] = $pay['payment_date'];
-            $pay['display_method'] = $pay['payment_method'];
-            $pay['display_ref'] = $pay['reference'];
-            $payments[] = $pay;
-        }
-        $stmt->close();
-    } else {
-        // Fallback: Only instant payments
-        $payment_query = "
-            SELECT pay.*, u.name as approver_name 
-            FROM payments pay
-            LEFT JOIN users u ON pay.{$approver_col} = u.id
-            WHERE pay.donor_phone = ? 
-            ORDER BY pay.{$date_col} DESC
-        ";
-        $stmt = $db->prepare($payment_query);
-        $stmt->bind_param('s', $donor['phone']);
-        $stmt->execute();
-        $payment_result = $stmt->get_result();
-        while ($pay = $payment_result->fetch_assoc()) {
-            // Normalize keys for display
-            $pay['display_date'] = $pay[$date_col];
-            $pay['display_method'] = $pay[$method_col];
-            $pay['display_ref'] = $pay[$ref_col];
-            $pay['payment_type'] = 'instant';
-            $payments[] = $pay;
-        }
-        $stmt->close();
-    }
-    
-    // Get payment plans - EXACT same method as view-donor.php
-    $plans = [];
-    $plan_query = "
-        SELECT pp.*, t.name as template_name 
-        FROM donor_payment_plans pp
-        LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
-        WHERE pp.donor_id = ? 
-        ORDER BY pp.created_at DESC
-    ";
-    // Only run if donor_payment_plans exists
-    if ($db->query("SHOW TABLES LIKE 'donor_payment_plans'")->num_rows > 0) {
-        $stmt = $db->prepare($plan_query);
-        if ($stmt) {
-            $stmt->bind_param('i', $donor_id);
-            $stmt->execute();
-            $plan_result = $stmt->get_result();
-            while ($plan = $plan_result->fetch_assoc()) {
-                $plans[] = $plan;
-            }
-            $stmt->close();
-        }
-    }
-    
-    // Get active payment plan (for backward compatibility)
-    $payment_plan = !empty($plans) ? $plans[0] : null;
     
     // Get churches list for dropdown
     $churches = [];
@@ -329,7 +108,7 @@ try {
     // Get representatives for donor's current church (will be updated from Step 2 if changed)
     // Use donor's existing church_id, or it will be set in Step 2
     $representatives = [];
-    $current_church_id = $donor['church_id'] ?? null;
+    $current_church_id = $donor->church_id ?? null;
     
     if ($current_church_id) {
         $rep_query = $db->prepare("
@@ -349,8 +128,8 @@ try {
     
     // Extract reference number from pledge notes (digits only)
     $reference_number = '';
-    if ($pledge_data && !empty($pledge_data->notes)) {
-        $reference_number = preg_replace('/\D+/', '', $pledge_data->notes);
+    if (!empty($donor->pledge_notes)) {
+        $reference_number = preg_replace('/\D+/', '', $donor->pledge_notes);
     }
     
     // Get payment plan templates
@@ -892,7 +671,7 @@ $page_title = 'Live Call';
                     <input type="hidden" name="session_id" value="<?php echo $session_id; ?>">
                     <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
                     <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
-                    <input type="hidden" name="pledge_id" value="<?php echo $pledge_data ? $pledge_data['id'] : ''; ?>">
+                    <input type="hidden" name="pledge_id" value="<?php echo $donor->pledge_id; ?>">
                     <input type="hidden" name="plan_template_id" id="selectedPlanId">
                     <input type="hidden" name="plan_duration" id="selectedDuration">
                     
@@ -911,23 +690,23 @@ $page_title = 'Live Call';
                                     <input class="form-check-input" type="checkbox" id="verifyAmount">
                                     <div class="verification-text">
                                         <div class="verification-question">
-                                            "Did you pledge £<?php echo number_format($donor_balance, 2); ?>?"
+                                            "Did you pledge £<?php echo number_format((float)$donor->balance, 2); ?>?"
                                         </div>
                                         <div class="verification-detail">
-                                            Original Pledge: £<?php echo $pledge_data ? number_format((float)$pledge_data->amount, 2) : '0.00'; ?>
-                                            <?php if ($pledge_data && $pledge_data->created_at): ?>
-                                                on <?php echo date('M j, Y', strtotime($pledge_data->created_at)); ?>
+                                            Original Pledge: £<?php echo number_format((float)$donor->pledge_amount, 2); ?>
+                                            <?php if ($donor->pledge_date): ?>
+                                                on <?php echo date('M j, Y', strtotime($donor->pledge_date)); ?>
                                             <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <?php if (!empty($donor['church_name']) || !empty($donor['city'])): ?>
+                                <?php if ($donor->church_name || $donor->city): ?>
                                 <div class="verification-item">
                                     <input class="form-check-input" type="checkbox" id="verifyLocation">
                                     <div class="verification-text">
                                         <div class="verification-question">
-                                            "Is your church <?php echo htmlspecialchars($donor['church_name'] ?? 'Unknown'); ?> in <?php echo htmlspecialchars($donor['city'] ?? 'Unknown'); ?>?"
+                                            "Is your church <?php echo htmlspecialchars($donor->church_name ?? 'Unknown'); ?> in <?php echo htmlspecialchars($donor->city ?? 'Unknown'); ?>?"
                                         </div>
                                     </div>
                                 </div>
@@ -955,7 +734,7 @@ $page_title = 'Live Call';
                                 </div>
                                 <p class="text-muted mb-0">
                                     <?php 
-                                    $hasExistingData = !empty($donor['baptism_name']) || !empty($donor['city']) || !empty($donor['email']) || !empty($donor['church_id']);
+                                    $hasExistingData = !empty($donor->baptism_name) || !empty($donor->city) || !empty($donor->email) || !empty($donor->church_id);
                                     if ($hasExistingData): 
                                     ?>
                                         Review and update donor information if needed.
@@ -977,22 +756,22 @@ $page_title = 'Live Call';
                                     <div class="col-md-6">
                                         <label for="baptism_name" class="form-label">
                                             <i class="fas fa-water me-2 text-primary"></i>Baptism Name
-                                            <?php if (!empty($donor['baptism_name'])): ?>
+                                            <?php if (!empty($donor->baptism_name)): ?>
                                                 <span class="badge bg-success ms-2" id="badge-baptism-name">
                                                     <i class="fas fa-check me-1"></i>Existing
                                                 </span>
                                             <?php endif; ?>
                                         </label>
                                         <input type="text" 
-                                               class="form-control <?php echo !empty($donor['baptism_name']) ? 'border-success' : ''; ?>" 
+                                               class="form-control <?php echo !empty($donor->baptism_name) ? 'border-success' : ''; ?>" 
                                                id="baptism_name" 
                                                name="baptism_name" 
                                                placeholder="Enter baptism name"
-                                               value="<?php echo htmlspecialchars($donor['baptism_name'] ?? ''); ?>"
+                                               value="<?php echo htmlspecialchars($donor->baptism_name ?? ''); ?>"
                                                onchange="updateFieldBadge('baptism_name', this.value)">
                                         <small class="text-muted">
-                                            <?php if (!empty($donor['baptism_name'])): ?>
-                                                Current: <strong><?php echo htmlspecialchars($donor['baptism_name']); ?></strong> - Update if changed
+                                            <?php if (!empty($donor->baptism_name)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->baptism_name); ?></strong> - Update if changed
                                             <?php else: ?>
                                                 The donor's baptism name
                                             <?php endif; ?>
@@ -1003,22 +782,22 @@ $page_title = 'Live Call';
                                     <div class="col-md-6">
                                         <label for="city" class="form-label">
                                             <i class="fas fa-map-marker-alt me-2 text-primary"></i>City
-                                            <?php if (!empty($donor['city'])): ?>
+                                            <?php if (!empty($donor->city)): ?>
                                                 <span class="badge bg-success ms-2" id="badge-city">
                                                     <i class="fas fa-check me-1"></i>Existing
                                                 </span>
                                             <?php endif; ?>
                                         </label>
                                         <input type="text" 
-                                               class="form-control <?php echo !empty($donor['city']) ? 'border-success' : ''; ?>" 
+                                               class="form-control <?php echo !empty($donor->city) ? 'border-success' : ''; ?>" 
                                                id="city" 
                                                name="city" 
                                                placeholder="Enter city"
-                                               value="<?php echo htmlspecialchars($donor['city'] ?? ''); ?>"
+                                               value="<?php echo htmlspecialchars($donor->city ?? ''); ?>"
                                                onchange="updateFieldBadge('city', this.value)">
                                         <small class="text-muted">
-                                            <?php if (!empty($donor['city'])): ?>
-                                                Current: <strong><?php echo htmlspecialchars($donor['city']); ?></strong> - Update if changed
+                                            <?php if (!empty($donor->city)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->city); ?></strong> - Update if changed
                                             <?php else: ?>
                                                 Where the donor lives
                                             <?php endif; ?>
@@ -1029,20 +808,20 @@ $page_title = 'Live Call';
                                     <div class="col-md-6">
                                         <label for="church_id" class="form-label">
                                             <i class="fas fa-church me-2 text-primary"></i>Which Church Attending Regularly
-                                            <?php if (!empty($donor['church_id'])): ?>
+                                            <?php if (!empty($donor->church_id)): ?>
                                                 <span class="badge bg-success ms-2" id="badge-church">
                                                     <i class="fas fa-check me-1"></i>Existing
                                                 </span>
                                             <?php endif; ?>
                                         </label>
-                                        <select class="form-select <?php echo !empty($donor['church_id']) ? 'border-success' : ''; ?>" 
+                                        <select class="form-select <?php echo !empty($donor->church_id) ? 'border-success' : ''; ?>" 
                                                 id="church_id" 
                                                 name="church_id"
                                                 onchange="updateFieldBadge('church', this.value)">
                                             <option value="">-- Select Church --</option>
                                             <?php foreach ($churches as $church): ?>
                                                 <option value="<?php echo $church['id']; ?>" 
-                                                        <?php echo (isset($donor['church_id']) && $donor['church_id'] == $church['id']) ? 'selected' : ''; ?>>
+                                                        <?php echo (isset($donor->church_id) && $donor->church_id == $church['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($church['name']); ?> 
                                                     <?php if ($church['city']): ?>
                                                         (<?php echo htmlspecialchars($church['city']); ?>)
@@ -1051,8 +830,8 @@ $page_title = 'Live Call';
                                             <?php endforeach; ?>
                                         </select>
                                         <small class="text-muted">
-                                            <?php if (!empty($donor['church_id']) && !empty($donor['church_name'])): ?>
-                                                Current: <strong><?php echo htmlspecialchars($donor['church_name']); ?></strong> - Update if changed
+                                            <?php if (!empty($donor->church_id) && !empty($donor->church_name)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->church_name); ?></strong> - Update if changed
                                             <?php else: ?>
                                                 Church the donor attends regularly
                                             <?php endif; ?>
@@ -1063,22 +842,22 @@ $page_title = 'Live Call';
                                     <div class="col-md-6">
                                         <label for="email" class="form-label">
                                             <i class="fas fa-envelope me-2 text-primary"></i>Email Address
-                                            <?php if (!empty($donor['email'])): ?>
+                                            <?php if (!empty($donor->email)): ?>
                                                 <span class="badge bg-success ms-2" id="badge-email">
                                                     <i class="fas fa-check me-1"></i>Existing
                                                 </span>
                                             <?php endif; ?>
                                         </label>
                                         <input type="email" 
-                                               class="form-control <?php echo !empty($donor['email']) ? 'border-success' : ''; ?>" 
+                                               class="form-control <?php echo !empty($donor->email) ? 'border-success' : ''; ?>" 
                                                id="email" 
                                                name="email" 
                                                placeholder="donor@example.com"
-                                               value="<?php echo htmlspecialchars($donor['email'] ?? ''); ?>"
+                                               value="<?php echo htmlspecialchars($donor->email ?? ''); ?>"
                                                onchange="updateFieldBadge('email', this.value)">
                                         <small class="text-muted">
-                                            <?php if (!empty($donor['email'])): ?>
-                                                Current: <strong><?php echo htmlspecialchars($donor['email']); ?></strong> - Update if changed
+                                            <?php if (!empty($donor->email)): ?>
+                                                Current: <strong><?php echo htmlspecialchars($donor->email); ?></strong> - Update if changed
                                             <?php else: ?>
                                                 Email for communication
                                             <?php endif; ?>
@@ -1089,30 +868,30 @@ $page_title = 'Live Call';
                                     <div class="col-md-6">
                                         <label for="preferred_language" class="form-label">
                                             <i class="fas fa-language me-2 text-primary"></i>Preferred Language
-                                            <?php if (!empty($donor['preferred_language']) && $donor['preferred_language'] !== 'en'): ?>
+                                            <?php if (!empty($donor->preferred_language) && $donor->preferred_language !== 'en'): ?>
                                                 <span class="badge bg-success ms-2" id="badge-language">
                                                     <i class="fas fa-check me-1"></i>Existing
                                                 </span>
                                             <?php endif; ?>
                                         </label>
-                                        <select class="form-select <?php echo (!empty($donor['preferred_language']) && $donor['preferred_language'] !== 'en') ? 'border-success' : ''; ?>" 
+                                        <select class="form-select <?php echo (!empty($donor->preferred_language) && $donor->preferred_language !== 'en') ? 'border-success' : ''; ?>" 
                                                 id="preferred_language" 
                                                 name="preferred_language"
                                                 onchange="updateFieldBadge('language', this.value)">
-                                            <option value="en" <?php echo (!isset($donor['preferred_language']) || $donor['preferred_language'] === 'en') ? 'selected' : ''; ?>>
+                                            <option value="en" <?php echo (!isset($donor->preferred_language) || $donor->preferred_language === 'en') ? 'selected' : ''; ?>>
                                                 English
                                             </option>
-                                            <option value="am" <?php echo (isset($donor['preferred_language']) && $donor['preferred_language'] === 'am') ? 'selected' : ''; ?>>
+                                            <option value="am" <?php echo (isset($donor->preferred_language) && $donor->preferred_language === 'am') ? 'selected' : ''; ?>>
                                                 Amharic (አማርኛ)
                                             </option>
-                                            <option value="ti" <?php echo (isset($donor['preferred_language']) && $donor['preferred_language'] === 'ti') ? 'selected' : ''; ?>>
+                                            <option value="ti" <?php echo (isset($donor->preferred_language) && $donor->preferred_language === 'ti') ? 'selected' : ''; ?>>
                                                 Tigrinya (ትግርኛ)
                                             </option>
                                         </select>
                                         <small class="text-muted">
                                             <?php 
                                             $langLabels = ['en' => 'English', 'am' => 'Amharic', 'ti' => 'Tigrinya'];
-                                            $currentLang = $donor['preferred_language'] ?? 'en';
+                                            $currentLang = $donor->preferred_language ?? 'en';
                                             if ($currentLang !== 'en'): 
                                             ?>
                                                 Current: <strong><?php echo $langLabels[$currentLang]; ?></strong> - Update if changed
@@ -1296,7 +1075,7 @@ $page_title = 'Live Call';
                                                     </div>
                                                     <div class="summary-row" style="margin-bottom: 0;">
                                                         <label>Total Pledge</label>
-                                                        <span>£<?php echo number_format($donor_balance, 2); ?></span>
+                                                        <span>£<?php echo number_format((float)$donor->balance, 2); ?></span>
                                                     </div>
                                                 </div>
                                                 
@@ -1352,7 +1131,7 @@ $page_title = 'Live Call';
                                     <div class="confirmation-grid">
                                         <div class="conf-item">
                                             <label>Total Amount</label>
-                                            <div id="confTotal">£<?php echo number_format($donor_balance, 2); ?></div>
+                                            <div id="confTotal">£<?php echo number_format((float)$donor->balance, 2); ?></div>
                                         </div>
                                         <div class="conf-item">
                                             <label>Frequency</label>
@@ -1454,7 +1233,7 @@ $page_title = 'Live Call';
                                         <p class="mb-2">When making a transfer, please use one of the following as your reference:</p>
                                         <div class="reference-options">
                                             <div class="mb-2">
-                                                <strong>Option 1:</strong> Your full name: <strong><?php echo htmlspecialchars($donor['name']); ?></strong>
+                                                <strong>Option 1:</strong> Your full name: <strong><?php echo htmlspecialchars($donor->name); ?></strong>
                                             </div>
                                             <?php if (!empty($reference_number)): ?>
                                             <div class="mb-2">
@@ -1505,7 +1284,7 @@ $page_title = 'Live Call';
                                             <?php if (!empty($representatives)): ?>
                                                 <?php foreach ($representatives as $rep): ?>
                                                     <option value="<?php echo $rep['id']; ?>" 
-                                                            <?php echo ($donor['representative_id'] ?? '') == $rep['id'] ? 'selected' : ''; ?>>
+                                                            <?php echo ($donor->representative_id ?? '') == $rep['id'] ? 'selected' : ''; ?>>
                                                         <?php echo htmlspecialchars($rep['name']); ?>
                                                         <?php if ($rep['is_primary']): ?>
                                                             <span class="badge bg-primary">Primary</span>
@@ -1596,47 +1375,12 @@ $page_title = 'Live Call';
         CallWidget.init({
             sessionId: <?php echo $session_id; ?>,
             donorId: <?php echo $donor_id; ?>,
-            donorName: '<?php echo addslashes($donor['name']); ?>',
-            donorPhone: '<?php echo addslashes($donor['phone']); ?>',
-            donorEmail: '<?php echo addslashes($donor['email'] ?? ''); ?>',
-            donorCity: '<?php echo addslashes($donor['city'] ?? ''); ?>',
-            baptismName: '<?php echo addslashes($donor['baptism_name'] ?? ''); ?>',
-            donorType: '<?php echo $donor['donor_type'] ?? 'pledge'; ?>',
-            totalPledged: <?php echo $donor_total_pledged; ?>,
-            totalPaid: <?php echo $donor_total_paid; ?>,
-            balance: <?php echo $donor_balance; ?>,
-            paymentStatus: '<?php echo $donor['payment_status'] ?? 'no_pledge'; ?>',
-            preferredLanguage: '<?php echo $donor['preferred_language'] ?? 'en'; ?>',
-            preferredPaymentMethod: '<?php echo $donor['preferred_payment_method'] ?? 'bank_transfer'; ?>',
-            source: '<?php echo $donor['source'] ?? 'public_form'; ?>',
-            donorCreatedAt: '<?php echo !empty($donor['created_at']) ? date('M j, Y', strtotime($donor['created_at'])) : ''; ?>',
-            adminNotes: <?php echo json_encode($donor['admin_notes'] ?? ''); ?>,
-            flaggedForFollowup: <?php echo ($donor['flagged_for_followup'] ?? 0) ? 'true' : 'false'; ?>,
-            followupPriority: '<?php echo $donor['followup_priority'] ?? 'medium'; ?>',
-            pledgeAmount: <?php echo $pledge_data ? (float)$pledge_data['amount'] : 0; ?>,
-            pledgeDate: '<?php echo $pledge_data && !empty($pledge_data['created_at']) ? date('M j, Y', strtotime($pledge_data['created_at'])) : ''; ?>',
-            pledgeNotes: <?php echo json_encode($pledge_data['notes'] ?? ''); ?>,
-            registrar: '<?php echo addslashes($donor['registrar_name'] ?? ($pledge_data['pledge_registrar_name'] ?? 'Unknown')); ?>',
-            church: '<?php echo addslashes($donor['church_name'] ?? 'Unknown'); ?>',
-            churchCity: '<?php echo addslashes($donor['church_city'] ?? ''); ?>',
-            representative: '<?php echo addslashes($donor['representative_name'] ?? ''); ?>',
-            representativePhone: '<?php echo addslashes($donor['representative_phone'] ?? ''); ?>',
-            previousCallCount: <?php echo $previous_call_count; ?>,
-            lastCallDate: '<?php echo $last_call_date ? date('M j, Y g:i A', strtotime($last_call_date)) : ''; ?>',
-            lastCallOutcome: '<?php echo addslashes($last_call_outcome ?? ''); ?>',
-            lastCallAgent: '<?php echo addslashes($last_call_agent ?? ''); ?>',
-            payments: <?php echo json_encode($payments); ?>,
-            paymentPlan: <?php echo json_encode($payment_plan); ?>,
-            plans: <?php echo json_encode($plans); ?>
-        });
-        
-        // Debug: Log financial data
-        console.log('Financial Data:', {
-            totalPledged: <?php echo $donor_total_pledged; ?>,
-            totalPaid: <?php echo $donor_total_paid; ?>,
-            balance: <?php echo $donor_balance; ?>,
-            paymentsCount: <?php echo count($payments); ?>,
-            plansCount: <?php echo count($plans); ?>
+            donorName: '<?php echo addslashes($donor->name); ?>',
+            donorPhone: '<?php echo addslashes($donor->phone); ?>',
+            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
+            pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
+            registrar: '<?php echo addslashes($donor->registrar_name); ?>',
+            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
         });
         
         // Ensure timer is running (it should auto-resume from localStorage, but force start if stopped)
@@ -1738,7 +1482,7 @@ $page_title = 'Live Call';
             return step2Church.value;
         }
         // Fallback to existing church_id from database
-        return <?php echo $donor['church_id'] ?? 0; ?>;
+        return <?php echo $donor->church_id ?? 0; ?>;
     }
     
     // Update church display based on Step 2 form value
@@ -1970,7 +1714,7 @@ $page_title = 'Live Call';
     }
     
     // Step 3 Plan Logic
-    const donorBalance = <?php echo $donor_balance; ?>;
+    const donorBalance = <?php echo (float)$donor->balance; ?>;
     let selectedDuration = 0;
     let planDetails = {
         amount: 0,
