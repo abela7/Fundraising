@@ -220,7 +220,7 @@ try {
         'session_id' => $sessionId,
         'call_sid' => $callSid,
         'donor_name' => $donor['name'],
-        'redirect_url' => '../../call-center/conversation.php?session_id=' . $sessionId . '&donor_id=' . $donorId . '&queue_id=' . $queueId
+        'redirect_url' => '../conversation.php?session_id=' . $sessionId . '&donor_id=' . $donorId . '&queue_id=' . $queueId
     ]);
     
 } catch (Exception $e) {

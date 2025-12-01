@@ -10,6 +10,17 @@ try {
     $user_id = (int)$_SESSION['user']['id'];
     $user_name = $_SESSION['user']['name'] ?? 'Agent';
     
+    // Get user's phone number for Twilio
+    $user_phone_query = "SELECT phone, phone_number, email FROM users WHERE id = ?";
+    $stmt = $db->prepare($user_phone_query);
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $user_result = $stmt->get_result();
+    $user_data = $user_result->fetch_assoc();
+    $stmt->close();
+    
+    $user_phone = $user_data['phone_number'] ?? $user_data['phone'] ?? '';
+    
     // Get donor_id and queue_id from URL
     $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
     $queue_id = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
@@ -466,6 +477,9 @@ $page_title = 'Call: ' . $donor->name;
         <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
+            <!-- Hidden CSRF token for AJAX calls -->
+            <?php require_once __DIR__ . '/../../shared/csrf.php'; echo csrf_input(); ?>
+            
             <div class="call-prep-page">
                 <?php if ($is_first_call): ?>
                     <div class="first-call-badge">
@@ -569,10 +583,17 @@ $page_title = 'Call: ' . $donor->name;
                 
                 <div class="action-buttons">
                     <!-- Twilio Click-to-Call Button -->
+                    <?php if (!empty($user_phone)): ?>
+                    <button type="button" class="btn btn-primary btn-lg" id="twilioCallBtn" onclick="initiateTwilioCallDirect()">
+                        <i class="fas fa-phone-volume me-2"></i>Call via Twilio
+                        <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Your phone (<?php echo htmlspecialchars($user_phone); ?>) will ring first</small>
+                    </button>
+                    <?php else: ?>
                     <button type="button" class="btn btn-primary btn-lg" onclick="showTwilioCallModal()">
                         <i class="fas fa-phone-volume me-2"></i>Call via Twilio
-                        <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Your phone will ring first</small>
+                        <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Enter your phone number</small>
                     </button>
+                    <?php endif; ?>
                     
                     <div class="text-center my-2">
                         <span class="badge bg-light text-muted">OR</span>
@@ -712,7 +733,57 @@ $page_title = 'Call: ' . $donor->name;
 <script>
 // Twilio Click-to-Call Functions
 let twilioModal = null;
+let callStatusInterval = null;
+let currentSessionId = null;
 
+// Direct call function (no modal) - uses logged-in user's phone
+function initiateTwilioCallDirect() {
+    const btn = document.getElementById('twilioCallBtn');
+    const originalHTML = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initiating Call...';
+    
+    showToast('📞 Initiating call...', 'info', 'Your phone will ring shortly');
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('donor_id', <?php echo $donor_id; ?>);
+    formData.append('queue_id', <?php echo $queue_id; ?>);
+    formData.append('agent_phone', '<?php echo htmlspecialchars($user_phone); ?>');
+    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+    
+    fetch('api/twilio-initiate-call.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentSessionId = data.session_id;
+            showToast('✅ Call Started!', 'success', 'Your phone is ringing now...');
+            
+            // Start polling for call status
+            startCallStatusPolling(data.session_id);
+            
+            // Redirect to conversation page immediately
+            setTimeout(() => {
+                window.location.href = 'conversation.php?session_id=' + data.session_id + 
+                                     '&donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>';
+            }, 1500);
+        } else {
+            throw new Error(data.error || 'Failed to initiate call');
+        }
+    })
+    .catch(error => {
+        console.error('Twilio call error:', error);
+        showToast('❌ Call Failed', 'error', error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    });
+}
+
+// Modal-based call (fallback for users without phone number)
 function showTwilioCallModal() {
     if (!twilioModal) {
         twilioModal = new bootstrap.Modal(document.getElementById('twilioCallModal'));
@@ -726,20 +797,17 @@ function initiateTwilioCall() {
     const statusDiv = document.getElementById('twilioCallStatus');
     const submitBtn = event.target;
     
-    // Validate
     if (!agentPhone) {
         showTwilioStatus('error', 'Please enter your phone number');
         return;
     }
     
-    // Show loading
     const originalHTML = submitBtn.innerHTML;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initiating Call...';
     
     showTwilioStatus('info', '📞 Calling your phone...');
     
-    // Send AJAX request
     const formData = new FormData(form);
     
     fetch('api/twilio-initiate-call.php', {
@@ -749,12 +817,14 @@ function initiateTwilioCall() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            currentSessionId = data.session_id;
             showTwilioStatus('success', '✅ ' + data.message);
+            startCallStatusPolling(data.session_id);
             
-            // Wait 2 seconds then redirect to conversation page
             setTimeout(() => {
-                window.location.href = data.redirect_url;
-            }, 2000);
+                window.location.href = 'conversation.php?session_id=' + data.session_id + 
+                                     '&donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>';
+            }, 1500);
         } else {
             throw new Error(data.error || 'Failed to initiate call');
         }
@@ -775,6 +845,98 @@ function showTwilioStatus(type, message) {
     statusDiv.innerHTML = `<div class="alert ${alertClass} mb-0">${message}</div>`;
     statusDiv.style.display = 'block';
 }
+
+// Call Status Polling
+function startCallStatusPolling(sessionId) {
+    if (callStatusInterval) {
+        clearInterval(callStatusInterval);
+    }
+    
+    let lastStatus = '';
+    
+    callStatusInterval = setInterval(() => {
+        fetch('api/get-call-status.php?session_id=' + sessionId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.status !== lastStatus) {
+                    lastStatus = data.status;
+                    handleCallStatusUpdate(data);
+                }
+            })
+            .catch(error => console.error('Status polling error:', error));
+    }, 2000); // Poll every 2 seconds
+}
+
+function handleCallStatusUpdate(data) {
+    const status = data.status;
+    const twilioStatus = data.twilio_status;
+    
+    if (twilioStatus === 'ringing') {
+        showToast('📱 Ringing...', 'info', 'Your phone is ringing');
+    } else if (twilioStatus === 'in-progress' || twilioStatus === 'answered') {
+        showToast('✅ Connected!', 'success', 'You answered - connecting to donor...');
+    } else if (twilioStatus === 'completed') {
+        showToast('📞 Call Connected', 'success', 'Donor is on the line!');
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer') {
+        showToast('❌ Call Failed', 'error', 'Could not connect the call');
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    }
+}
+
+// Mobile-friendly Toast Notifications
+function showToast(title, type, message) {
+    // Remove existing toast container if any
+    const existingContainer = document.getElementById('toastContainer');
+    if (existingContainer) {
+        existingContainer.remove();
+    }
+    
+    // Create toast container
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    
+    const bgClass = type === 'error' ? 'bg-danger' : 
+                    type === 'success' ? 'bg-success' : 'bg-info';
+    
+    const icon = type === 'error' ? '❌' : 
+                 type === 'success' ? '✅' : '📞';
+    
+    container.innerHTML = `
+        <div class="toast show ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header ${bgClass} text-white border-0">
+                <span class="me-2" style="font-size: 1.25rem;">${icon}</span>
+                <strong class="me-auto">${title}</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" style="font-size: 0.95rem;">
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Auto-remove after 5 seconds (unless it's an error)
+    if (type !== 'error') {
+        setTimeout(() => {
+            container.remove();
+        }, 5000);
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (callStatusInterval) {
+        clearInterval(callStatusInterval);
+    }
+});
 </script>
 </body>
 </html>
