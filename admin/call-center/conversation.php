@@ -27,7 +27,7 @@ try {
         try {
             // Try to create session (queue_id might be nullable)
             $q_param = $queue_id > 0 ? $queue_id : null;
-            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, start_time, status, conversation_stage) VALUES (?, ?, ?, NOW(), 'in_progress', 'contact_made')");
+            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, call_started_at, conversation_stage) VALUES (?, ?, ?, NOW(), 'contact_made')");
             $stmt->bind_param('iii', $user_id, $donor_id, $q_param);
             $stmt->execute();
             $session_id = $db->insert_id;
@@ -36,7 +36,7 @@ try {
             // If NULL fails, try 0
             error_log("Failed to create session with NULL queue_id: " . $e->getMessage());
             $q_param = 0;
-            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, start_time, status, conversation_stage) VALUES (?, ?, ?, NOW(), 'in_progress', 'contact_made')");
+            $stmt = $db->prepare("INSERT INTO call_center_sessions (agent_id, donor_id, queue_id, call_started_at, conversation_stage) VALUES (?, ?, ?, NOW(), 'contact_made')");
             $stmt->bind_param('iii', $user_id, $donor_id, $q_param);
             $stmt->execute();
             $session_id = $db->insert_id;

@@ -79,9 +79,9 @@ try {
             $updateFields['call_ended_at'] = 'NOW()';
         }
         
-        // If call is answered, update status
+        // If call is answered, update conversation stage
         if ($callStatus === 'in-progress' || $callStatus === 'answered') {
-            $updateFields['status'] = 'connected';
+            $updateFields['conversation_stage'] = 'contact_made';
             if (empty($updateFields['call_started_at'])) {
                 $updateFields['call_started_at'] = 'NOW()';
             }

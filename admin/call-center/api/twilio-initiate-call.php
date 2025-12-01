@@ -168,8 +168,8 @@ try {
         // Update session as failed
         $stmt = $db->prepare("
             UPDATE call_center_sessions 
-            SET status = 'failed', 
-                outcome = 'twilio_error',
+            SET conversation_stage = 'attempt_failed', 
+                outcome = 'call_failed_technical',
                 notes = ?
             WHERE id = ?
         ");
@@ -187,7 +187,7 @@ try {
         UPDATE call_center_sessions 
         SET twilio_call_sid = ?,
             twilio_status = 'queued',
-            status = 'in_progress'
+            conversation_stage = 'contact_made'
         WHERE id = ?
     ");
     $stmt->bind_param('si', $callSid, $sessionId);
