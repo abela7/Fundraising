@@ -2923,9 +2923,14 @@ if ($selected_id && $tables_exist) {
                 <div class="inbox-sidebar">
                     <div class="inbox-header">
                         <h1><i class="fab fa-whatsapp me-2"></i>WhatsApp</h1>
-                        <a href="../../donor-management/sms/whatsapp-settings.php" class="btn btn-sm btn-light">
-                            <i class="fas fa-cog"></i>
-                        </a>
+                        <div class="d-flex gap-1">
+                            <a href="templates.php" class="btn btn-sm btn-light" title="Templates">
+                                <i class="fas fa-file-alt"></i>
+                            </a>
+                            <a href="../../donor-management/sms/whatsapp-settings.php" class="btn btn-sm btn-light" title="Settings">
+                                <i class="fas fa-cog"></i>
+                            </a>
+                        </div>
                     </div>
                     
                     <div class="inbox-search">
@@ -3758,6 +3763,7 @@ async function loadTemplates() {
                 <div class="templates-empty">
                     <i class="fas fa-file-alt"></i>
                     <p>No templates available</p>
+                    <small><a href="templates.php" target="_blank">Create WhatsApp Templates</a></small>
                 </div>
             `;
         }
@@ -3782,7 +3788,7 @@ function displayTemplates(grouped) {
             <div class="templates-empty">
                 <i class="fas fa-file-alt"></i>
                 <p>No templates available</p>
-                <small>Create templates in <a href="../../donor-management/sms/templates.php" target="_blank">SMS Templates</a></small>
+                <small><a href="templates.php" target="_blank">Create WhatsApp Templates</a></small>
             </div>
         `;
         return;

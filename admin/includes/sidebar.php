@@ -257,6 +257,13 @@ try {
         </span>
         <span class="nav-label">WhatsApp Inbox</span>
       </a>
+      <a href="<?php echo url_for('admin/messaging/whatsapp/templates.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'messaging' && $current_page === 'templates') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-file-alt" style="color: #25D366;"></i>
+        </span>
+        <span class="nav-label">WhatsApp Templates</span>
+      </a>
       <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" 
          class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'record-pledge-payment') ? 'active' : ''; ?>">
         <span class="nav-icon">

@@ -2,7 +2,7 @@
 /**
  * API: Get WhatsApp Message Templates
  * 
- * Returns all active SMS templates that can be used for WhatsApp messages
+ * Returns active templates for WhatsApp (platform = 'whatsapp' or 'both')
  */
 
 declare(strict_types=1);
@@ -33,13 +33,30 @@ try {
         exit;
     }
     
-    // Get all active templates
-    $result = $db->query("
-        SELECT id, template_key, name, category, message_en, message_am, message_ti, description
-        FROM sms_templates 
-        WHERE is_active = 1 
-        ORDER BY category, name
-    ");
+    // Check if platform column exists
+    $hasplatform = false;
+    $columns = $db->query("SHOW COLUMNS FROM sms_templates LIKE 'platform'");
+    if ($columns && $columns->num_rows > 0) {
+        $hasplatform = true;
+    }
+    
+    // Get WhatsApp templates (platform = 'whatsapp' or 'both')
+    if ($hasplatform) {
+        $result = $db->query("
+            SELECT id, template_key, name, category, message_en, message_am, message_ti, description, platform
+            FROM sms_templates 
+            WHERE is_active = 1 AND platform IN ('whatsapp', 'both')
+            ORDER BY category, name
+        ");
+    } else {
+        // Fallback if platform column doesn't exist
+        $result = $db->query("
+            SELECT id, template_key, name, category, message_en, message_am, message_ti, description
+            FROM sms_templates 
+            WHERE is_active = 1 
+            ORDER BY category, name
+        ");
+    }
     
     $templates = [];
     if ($result) {
@@ -49,8 +66,9 @@ try {
                 'key' => $row['template_key'],
                 'name' => $row['name'],
                 'category' => $row['category'] ?: 'General',
-                'content' => $row['message_en'], // Use English message
-                'description' => $row['description'] ?: ''
+                'content' => $row['message_en'],
+                'description' => $row['description'] ?: '',
+                'platform' => $row['platform'] ?? 'sms'
             ];
         }
     }
@@ -68,7 +86,8 @@ try {
     echo json_encode([
         'success' => true,
         'templates' => $templates,
-        'grouped' => $grouped
+        'grouped' => $grouped,
+        'count' => count($templates)
     ]);
     
 } catch (Throwable $e) {
