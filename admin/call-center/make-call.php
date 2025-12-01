@@ -582,36 +582,35 @@ $page_title = 'Call: ' . $donor->name;
                 </div>
                 
                 <div class="action-buttons">
-                    <!-- Voice Click-to-Call Button -->
+                    <!-- Call Now Button -->
                     <?php if (!empty($user_phone)): ?>
-                    <button type="button" class="btn btn-primary btn-lg" id="twilioCallBtn" onclick="initiateTwilioCallDirect()">
-                        <i class="fas fa-phone-volume me-2"></i>Call via Voice
+                    <button type="button" class="btn btn-success btn-lg w-100" id="twilioCallBtn" onclick="initiateTwilioCallDirect()">
+                        <i class="fas fa-phone me-2"></i>Call Now
                         <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Your phone (<?php echo htmlspecialchars($user_phone); ?>) will ring first</small>
                     </button>
                     <?php else: ?>
-                    <button type="button" class="btn btn-primary btn-lg" onclick="showTwilioCallModal()">
-                        <i class="fas fa-phone-volume me-2"></i>Call via Voice
+                    <button type="button" class="btn btn-success btn-lg w-100" onclick="showTwilioCallModal()">
+                        <i class="fas fa-phone me-2"></i>Call Now
                         <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Enter your phone number</small>
                     </button>
                     <?php endif; ?>
                     
-                    <div class="text-center my-2">
-                        <span class="badge bg-light text-muted">OR</span>
-                    </div>
+                    <!-- Manual Call Button (small, outline) -->
+                    <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
+                       class="btn btn-outline-success btn-sm w-100 mt-2">
+                        <i class="fas fa-phone-alt me-1"></i>Manual Call (Track Timer)
+                    </a>
                     
+                    <!-- Back to List Button -->
                     <?php if($queue_id > 0): ?>
-                    <a href="index.php" class="btn btn-outline-secondary">
+                    <a href="index.php" class="btn btn-outline-secondary w-100 mt-2">
                         <i class="fas fa-arrow-left me-2"></i>Back to Queue
                     </a>
                     <?php else: ?>
-                    <a href="../donor-management/donors.php" class="btn btn-outline-secondary">
+                    <a href="../donor-management/donors.php" class="btn btn-outline-secondary w-100 mt-2">
                         <i class="fas fa-arrow-left me-2"></i>Back to List
                     </a>
                     <?php endif; ?>
-                    <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
-                       class="btn btn-outline-success btn-lg">
-                        <i class="fas fa-phone-alt me-2"></i>Manual Call (Track Timer)
-                    </a>
                 </div>
             </div>
         </main>
