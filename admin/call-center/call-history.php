@@ -271,11 +271,6 @@ $page_title = 'Call History';
                                                     <span class="outcome-badge outcome-<?php echo $outcome_class; ?>">
                                                         <?php echo $outcome_label; ?>
                                                     </span>
-                                                    <?php if ($call->call_source === 'twilio'): ?>
-                                                        <span class="badge bg-primary" title="Twilio Call">
-                                                            <i class="fas fa-phone-volume"></i> Twilio
-                                                        </span>
-                                                    <?php endif; ?>
                                                 </div>
                                                 <?php if (!empty($call->twilio_error_code)): ?>
                                                     <?php 
