@@ -40,6 +40,8 @@ try {
     $to = $_POST['To'] ?? '';
     $duration = isset($_POST['CallDuration']) ? (int)$_POST['CallDuration'] : null;
     $direction = $_POST['Direction'] ?? '';
+    $errorCode = $_POST['ErrorCode'] ?? null;
+    $errorMessage = $_POST['ErrorMessage'] ?? null;
     
     // Log the webhook to database
     try {
@@ -85,6 +87,18 @@ try {
             if (empty($updateFields['call_started_at'])) {
                 $updateFields['call_started_at'] = 'NOW()';
             }
+        }
+        
+        // Capture error codes and messages if call failed
+        if ($callStatus === 'failed' || $callStatus === 'busy' || $callStatus === 'no-answer' || $callStatus === 'canceled') {
+            if ($errorCode !== null) {
+                $updateFields['twilio_error_code'] = $errorCode;
+            }
+            if ($errorMessage !== null) {
+                $updateFields['twilio_error_message'] = $errorMessage;
+            }
+            // Also update conversation stage to reflect failure
+            $updateFields['conversation_stage'] = 'attempt_failed';
         }
         
         // Build SQL

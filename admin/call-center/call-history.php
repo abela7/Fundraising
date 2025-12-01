@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../services/TwilioErrorCodes.php';
 require_login();
 
 $db = db();
@@ -84,7 +85,11 @@ $history_query = "
         COALESCE(d.name, 'Unknown Donor') as donor_name,
         d.phone as donor_phone,
         d.balance as donor_balance,
-        COALESCE(u.name, 'Unknown Agent') as agent_name
+        COALESCE(u.name, 'Unknown Agent') as agent_name,
+        s.twilio_error_code,
+        s.twilio_error_message,
+        s.call_source,
+        s.twilio_status
     FROM call_center_sessions s
     LEFT JOIN donors d ON s.donor_id = d.id
     LEFT JOIN users u ON s.agent_id = u.id
@@ -262,9 +267,28 @@ $page_title = 'Call History';
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="outcome-badge outcome-<?php echo $outcome_class; ?>">
-                                                    <?php echo $outcome_label; ?>
-                                                </span>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="outcome-badge outcome-<?php echo $outcome_class; ?>">
+                                                        <?php echo $outcome_label; ?>
+                                                    </span>
+                                                    <?php if ($call->call_source === 'twilio'): ?>
+                                                        <span class="badge bg-primary" title="Twilio Call">
+                                                            <i class="fas fa-phone-volume"></i> Twilio
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if (!empty($call->twilio_error_code)): ?>
+                                                    <?php 
+                                                        $errorInfo = TwilioErrorCodes::getErrorInfo($call->twilio_error_code);
+                                                    ?>
+                                                    <div class="mt-1">
+                                                        <small class="text-danger">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                            <strong><?php echo htmlspecialchars($errorInfo['category']); ?>:</strong>
+                                                            <?php echo htmlspecialchars($errorInfo['message']); ?>
+                                                        </small>
+                                                    </div>
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <?php echo $formatted_duration; ?>

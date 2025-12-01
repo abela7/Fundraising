@@ -351,8 +351,21 @@ function handleCallStatusUpdate(data) {
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }
-    } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer') {
-        showToast('Call Failed', 'error', 'Could not connect the call');
+    } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer' || twilioStatus === 'canceled') {
+        // Fetch detailed error info
+        fetch('api/get-call-status.php?session_id=' + sessionId)
+            .then(response => response.json())
+            .then(errorData => {
+                let errorMsg = 'Could not connect the call';
+                if (errorData.success && errorData.twilio_error_message) {
+                    errorMsg = errorData.twilio_error_message;
+                }
+                showToast('Call Failed', 'error', errorMsg);
+            })
+            .catch(() => {
+                showToast('Call Failed', 'error', 'Could not connect the call');
+            });
+        
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }

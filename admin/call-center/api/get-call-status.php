@@ -34,6 +34,8 @@ try {
             twilio_call_sid,
             twilio_status,
             twilio_duration,
+            twilio_error_code,
+            twilio_error_message,
             call_started_at,
             call_ended_at,
             duration_seconds
@@ -61,6 +63,8 @@ try {
         'twilio_call_sid' => $session['twilio_call_sid'],
         'twilio_status' => $session['twilio_status'],
         'twilio_duration' => $session['twilio_duration'],
+        'twilio_error_code' => $session['twilio_error_code'],
+        'twilio_error_message' => $session['twilio_error_message'],
         'call_started_at' => $session['call_started_at'],
         'call_ended_at' => $session['call_ended_at'],
         'duration_seconds' => $session['duration_seconds']
