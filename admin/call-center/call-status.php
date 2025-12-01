@@ -342,17 +342,17 @@ function handleCallStatusUpdate(data) {
     
     // ONLY show toast notifications - NO automatic actions
     if (twilioStatus === 'ringing') {
-        showToast('📱 Your Phone Ringing', 'info', 'Answer your phone to continue');
+        showToast('Your Phone Ringing', 'info', 'Answer your phone to continue');
     } else if (twilioStatus === 'in-progress' || twilioStatus === 'answered') {
-        showToast('✅ You Picked Up!', 'success', 'Connecting to donor now...');
+        showToast('You Picked Up', 'success', 'Connecting to donor now');
     } else if (twilioStatus === 'completed') {
-        showToast('📞 Donor Answered!', 'success', 'Click "Picked Up" when ready to start conversation');
+        showToast('Donor Answered', 'success', 'Click "Picked Up" when ready to start conversation');
         // Stop polling - call is connected
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }
     } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer') {
-        showToast('❌ Call Failed', 'error', 'Could not connect the call');
+        showToast('Call Failed', 'error', 'Could not connect the call');
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }
@@ -376,13 +376,13 @@ function showToast(title, type, message) {
     const bgClass = type === 'error' ? 'bg-danger' : 
                     type === 'success' ? 'bg-success' : 'bg-info';
     
-    const icon = type === 'error' ? '❌' : 
-                 type === 'success' ? '✅' : '📞';
+    const iconClass = type === 'error' ? 'fa-times-circle' : 
+                      type === 'success' ? 'fa-check-circle' : 'fa-phone';
     
     container.innerHTML = `
         <div class="toast show ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header ${bgClass} text-white border-0">
-                <span class="me-2" style="font-size: 1.25rem;">${icon}</span>
+                <i class="fas ${iconClass} me-2"></i>
                 <strong class="me-auto">${title}</strong>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
@@ -411,7 +411,7 @@ window.addEventListener('beforeunload', () => {
 
 // Show initial toast if this is a Twilio call
 if (sessionId > 0) {
-    showToast('📞 Call in Progress', 'info', 'Listen for your phone ringing...');
+    showToast('Call in Progress', 'info', 'Listen for your phone ringing');
 }
 </script>
 </body>

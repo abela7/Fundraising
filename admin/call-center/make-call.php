@@ -744,7 +744,7 @@ function initiateTwilioCallDirect() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initiating Call...';
     
-    showToast('📞 Initiating call...', 'info', 'Your phone will ring shortly');
+    showToast('Initiating Call', 'info', 'Your phone will ring shortly');
     
     // Prepare form data
     const formData = new FormData();
@@ -761,7 +761,7 @@ function initiateTwilioCallDirect() {
     .then(data => {
         if (data.success) {
             currentSessionId = data.session_id;
-            showToast('✅ Call Started!', 'success', 'Your phone is ringing now...');
+            showToast('Call Started', 'success', 'Your phone is ringing now');
             
             // Start polling for call status (for notifications only)
             startCallStatusPolling(data.session_id);
@@ -776,7 +776,7 @@ function initiateTwilioCallDirect() {
     })
     .catch(error => {
         console.error('Twilio call error:', error);
-        showToast('❌ Call Failed', 'error', error.message);
+        showToast('Call Failed', 'error', error.message);
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     });
@@ -805,7 +805,7 @@ function initiateTwilioCall() {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initiating Call...';
     
-    showTwilioStatus('info', '📞 Calling your phone...');
+    showTwilioStatus('info', 'Calling your phone...');
     
     const formData = new FormData(form);
     
@@ -817,7 +817,7 @@ function initiateTwilioCall() {
     .then(data => {
         if (data.success) {
             currentSessionId = data.session_id;
-            showTwilioStatus('success', '✅ ' + data.message);
+            showTwilioStatus('success', data.message);
             startCallStatusPolling(data.session_id);
             
             setTimeout(() => {
@@ -829,7 +829,7 @@ function initiateTwilioCall() {
     })
     .catch(error => {
         console.error('Twilio call error:', error);
-        showTwilioStatus('error', '❌ ' + error.message);
+        showTwilioStatus('error', error.message);
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalHTML;
     });
@@ -871,17 +871,17 @@ function handleCallStatusUpdate(data) {
     
     // ONLY show toast notifications - NO automatic actions
     if (twilioStatus === 'ringing') {
-        showToast('📱 Your Phone Ringing', 'info', 'Answer your phone to continue');
+        showToast('Your Phone Ringing', 'info', 'Answer your phone to continue');
     } else if (twilioStatus === 'in-progress' || twilioStatus === 'answered') {
-        showToast('✅ You Picked Up!', 'success', 'Connecting to donor now...');
+        showToast('You Picked Up', 'success', 'Connecting to donor now');
     } else if (twilioStatus === 'completed') {
-        showToast('📞 Donor Answered!', 'success', 'Click "Picked Up" to start conversation');
+        showToast('Donor Answered', 'success', 'Click "Picked Up" to start conversation');
         // Stop polling - call is connected
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }
     } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer') {
-        showToast('❌ Call Failed', 'error', 'Could not connect the call');
+        showToast('Call Failed', 'error', 'Could not connect the call');
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }
@@ -905,13 +905,13 @@ function showToast(title, type, message) {
     const bgClass = type === 'error' ? 'bg-danger' : 
                     type === 'success' ? 'bg-success' : 'bg-info';
     
-    const icon = type === 'error' ? '❌' : 
-                 type === 'success' ? '✅' : '📞';
+    const iconClass = type === 'error' ? 'fa-times-circle' : 
+                      type === 'success' ? 'fa-check-circle' : 'fa-phone';
     
     container.innerHTML = `
         <div class="toast show ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header ${bgClass} text-white border-0">
-                <span class="me-2" style="font-size: 1.25rem;">${icon}</span>
+                <i class="fas ${iconClass} me-2"></i>
                 <strong class="me-auto">${title}</strong>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
