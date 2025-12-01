@@ -28,7 +28,7 @@ try {
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
-    $voice = 'Polly.Amy';
+    $voice = 'Polly.Brian';
     
     if ($digits === '1') {
         // Confirm payment - create pledge_payment record
@@ -45,25 +45,49 @@ try {
             }
             
             echo '<Say voice="' . $voice . '" language="en-GB">';
-            echo 'Thank you! Your payment of ' . speakMoney($amount) . ' has been registered.';
+            echo 'Thank you!';
             echo '</Say>';
             echo '<Pause length="1"/>';
+            echo '<Say voice="' . $voice . '" language="en-GB">';
+            echo 'Your payment of ' . speakMoney($amount) . ' has been registered.';
+            echo '</Say>';
+            echo '<Pause length="2"/>';
             
             echo '<Say voice="' . $voice . '" language="en-GB">';
-            echo 'Please transfer this amount to our bank account. ';
-            echo 'Sort code: 30 96 26. Account number: 87 41 06 20. ';
+            echo 'Please transfer this amount to our bank account.';
+            echo '</Say>';
+            echo '<Pause length="1"/>';
+            echo '<Say voice="' . $voice . '" language="en-GB">';
+            echo 'Sort code: 30, 96, 26.';
+            echo '</Say>';
+            echo '<Pause length="1"/>';
+            echo '<Say voice="' . $voice . '" language="en-GB">';
+            echo 'Account number: 87, 41, 06, 20.';
+            echo '</Say>';
+            echo '<Pause length="1"/>';
+            echo '<Say voice="' . $voice . '" language="en-GB">';
             echo 'Please use your name as the payment reference.';
             echo '</Say>';
-            echo '<Pause length="1"/>';
+            echo '<Pause length="2"/>';
             
             echo '<Say voice="' . $voice . '" language="en-GB">';
-            echo 'We have also sent these details to your WhatsApp. ';
-            echo 'Once we confirm your payment, you will receive a WhatsApp notification. ';
+            echo 'We have also sent these details to your WhatsApp.';
+            echo '</Say>';
+            echo '<Pause length="1"/>';
+            echo '<Say voice="' . $voice . '" language="en-GB">';
+            echo 'Once we confirm your payment, you will receive a WhatsApp notification.';
+            echo '</Say>';
+            echo '<Pause length="2"/>';
+            echo '<Say voice="' . $voice . '" language="en-GB">';
             echo 'Thank you for your generous support. May God bless you abundantly. Goodbye!';
             echo '</Say>';
         } else {
             echo '<Say voice="' . $voice . '" language="en-GB">';
-            echo 'We encountered an error processing your request. Please try again later, or contact us directly.';
+            echo 'We encountered an error processing your request.';
+            echo '</Say>';
+            echo '<Pause length="1"/>';
+            echo '<Say voice="' . $voice . '" language="en-GB">';
+            echo 'Please try again later, or contact us directly.';
             echo '</Say>';
         }
         

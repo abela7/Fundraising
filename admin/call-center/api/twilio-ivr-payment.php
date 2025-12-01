@@ -31,7 +31,7 @@ try {
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
-    $voice = 'Polly.Amy';
+    $voice = 'Polly.Brian';
     
     // Validate amount
     if ($amount <= 0) {
@@ -45,9 +45,14 @@ try {
         echo '<Say voice="' . $voice . '" language="en-GB">';
         echo 'The amount you entered, ' . speakMoney($amount) . ', is more than your outstanding balance of ' . speakMoney($balance) . '.';
         echo '</Say>';
-        echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-payment-confirm.php?caller=' . urlencode($callerNumber) . '&amp;donor_id=' . $donorId . '&amp;amount=' . $amount . '" method="POST" timeout="10">';
+        echo '<Pause length="1"/>';
+        echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-payment-confirm.php?caller=' . urlencode($callerNumber) . '&amp;donor_id=' . $donorId . '&amp;amount=' . $amount . '" method="POST" timeout="15">';
         echo '<Say voice="' . $voice . '" language="en-GB">';
-        echo 'Press 1 to proceed with ' . speakMoney($amount) . ', or press 2 to enter a different amount.';
+        echo 'Press 1 to proceed with ' . speakMoney($amount) . '.';
+        echo '</Say>';
+        echo '<Pause length="1"/>';
+        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo 'Or press 2 to enter a different amount.';
         echo '</Say>';
         echo '</Gather>';
         echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
@@ -56,10 +61,17 @@ try {
     }
     
     // Confirm the amount
-    echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-payment-confirm.php?caller=' . urlencode($callerNumber) . '&amp;donor_id=' . $donorId . '&amp;amount=' . $amount . '" method="POST" timeout="10">';
+    echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-payment-confirm.php?caller=' . urlencode($callerNumber) . '&amp;donor_id=' . $donorId . '&amp;amount=' . $amount . '" method="POST" timeout="15">';
     echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'You entered ' . speakMoney($amount) . '. ';
-    echo 'Press 1 to confirm this payment, or press 2 to enter a different amount.';
+    echo 'You entered ' . speakMoney($amount) . '.';
+    echo '</Say>';
+    echo '<Pause length="1"/>';
+    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo 'Press 1 to confirm this payment.';
+    echo '</Say>';
+    echo '<Pause length="1"/>';
+    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo 'Or press 2 to enter a different amount.';
     echo '</Say>';
     echo '</Gather>';
     

@@ -40,35 +40,52 @@ try {
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
-    // Use Polly.Amy (standard, not Neural) - more compatible
-    $voice = 'Polly.Amy';
+    // Use Polly.Brian - British male voice, warm and fatherly
+    $voice = 'Polly.Brian';
     
-    // Welcome message - simple and clear
+    // Welcome message - slow and relaxed with pauses
     echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Welcome to Liverpool Abune Teklehaymanot, Ethiopian Orthodox Tewahedo Church.';
+    echo 'Welcome to Liverpool Abune Teklehaymanot.';
     echo '</Say>';
     echo '<Pause length="1"/>';
+    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo 'Ethiopian Orthodox Tewahedo Church.';
+    echo '</Say>';
+    echo '<Pause length="2"/>';
     
     // Personalize if donor found
     if ($donor) {
         echo '<Say voice="' . $voice . '" language="en-GB">';
-        echo 'Hello ' . htmlspecialchars($donor['name']) . '. Thank you for calling.';
+        echo 'Hello ' . htmlspecialchars($donor['name']) . '.';
         echo '</Say>';
         echo '<Pause length="1"/>';
+        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo 'Thank you for calling us today.';
+        echo '</Say>';
+        echo '<Pause length="2"/>';
     }
     
-    // Menu with Gather
-    echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-menu.php?caller=' . urlencode($callerNumber) . '" method="POST" timeout="10">';
+    // Menu with Gather - slow and clear
+    echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-menu.php?caller=' . urlencode($callerNumber) . '" method="POST" timeout="15">';
     echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Please choose from the following options. ';
-    echo 'To make a payment, press 1. ';
-    echo 'To check your outstanding balance, press 2. ';
+    echo 'Please choose from the following options.';
+    echo '</Say>';
+    echo '<Pause length="1"/>';
+    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo 'To make a payment, press 1.';
+    echo '</Say>';
+    echo '<Pause length="1"/>';
+    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo 'To check your outstanding balance, press 2.';
+    echo '</Say>';
+    echo '<Pause length="1"/>';
+    echo '<Say voice="' . $voice . '" language="en-GB">';
     echo 'To speak with a church member, press 3.';
     echo '</Say>';
     echo '</Gather>';
     
     // If no input
-    echo '<Say voice="' . $voice . '" language="en-GB">We did not receive any input. Please call back and try again. Goodbye.</Say>';
+    echo '<Say voice="' . $voice . '" language="en-GB">We did not receive any input. Please call back and try again. God bless you. Goodbye.</Say>';
     echo '<Hangup/>';
     
     echo '</Response>';
