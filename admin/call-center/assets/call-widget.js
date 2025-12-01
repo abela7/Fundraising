@@ -527,9 +527,25 @@ const CallWidget = {
     },
     
     renderFinancialTab() {
+        // Debug logging
+        console.log('Financial Tab - Raw values:', {
+            totalPledged: this.config.totalPledged,
+            totalPaid: this.config.totalPaid,
+            balance: this.config.balance,
+            typePledged: typeof this.config.totalPledged,
+            typePaid: typeof this.config.totalPaid,
+            typeBalance: typeof this.config.balance
+        });
+        
         const formattedPledged = Number(this.config.totalPledged || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const formattedPaid = Number(this.config.totalPaid || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const formattedBalance = Number(this.config.balance || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+        
+        console.log('Financial Tab - Formatted values:', {
+            formattedPledged,
+            formattedPaid,
+            formattedBalance
+        });
         const paymentMethod = (this.config.preferredPaymentMethod || 'bank_transfer').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         const source = (this.config.source || 'public_form').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         const progressPct = this.config.totalPledged > 0 ? ((this.config.totalPaid / this.config.totalPledged) * 100).toFixed(0) : 0;
@@ -599,12 +615,16 @@ const CallWidget = {
         
         const paymentsHtml = this.config.payments.slice(0, 10).map(payment => {
             const amount = Number(payment.amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
-            const date = payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB', {
+            // Use display_date if available, otherwise fallback to payment_date or other date fields
+            const dateStr = payment.display_date || payment.payment_date || payment.received_at || payment.created_at || '';
+            const date = dateStr ? new Date(dateStr).toLocaleDateString('en-GB', {
                 day: 'numeric',
                 month: 'short',
                 year: 'numeric'
             }) : '—';
-            const method = (payment.payment_method || '—').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            // Use display_method if available, otherwise fallback to payment_method
+            const methodStr = payment.display_method || payment.payment_method || payment.method || '—';
+            const method = methodStr.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             const statusColor = payment.status === 'approved' ? 'success' : payment.status === 'pending' ? 'warning' : 'secondary';
             
             return `
@@ -638,7 +658,10 @@ const CallWidget = {
     },
     
     renderPlanTab() {
-        if (!this.config.paymentPlan) {
+        // Use plans array if available, otherwise fallback to paymentPlan
+        const plans = this.config.plans || (this.config.paymentPlan ? [this.config.paymentPlan] : []);
+        
+        if (!plans || plans.length === 0) {
             return `
                 <div class="tab-content-inner">
                     <div class="empty-state">
@@ -649,7 +672,8 @@ const CallWidget = {
             `;
         }
         
-        const plan = this.config.paymentPlan;
+        // Show the most recent/active plan
+        const plan = plans[0];
         const totalAmount = Number(plan.total_amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const monthlyAmount = Number(plan.monthly_amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const paidAmount = Number(plan.paid_amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
