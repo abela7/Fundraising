@@ -63,18 +63,84 @@ try {
     }
     
     // Create call center session
-    $qParam = $queueId > 0 ? $queueId : null;
-    $stmt = $db->prepare("
-        INSERT INTO call_center_sessions 
-        (agent_id, donor_id, queue_id, call_started_at, status, conversation_stage, call_source, agent_phone_number, donor_phone_number)
-        VALUES (?, ?, ?, NOW(), 'initiating', 'pending', 'twilio', ?, ?)
-    ");
+    // Check which columns exist in call_center_sessions
+    $columns_check = $db->query("SHOW COLUMNS FROM call_center_sessions");
+    $available_columns = [];
+    while ($col = $columns_check->fetch_assoc()) {
+        $available_columns[] = $col['Field'];
+    }
     
+    // Build INSERT query based on available columns
+    $insert_columns = ['agent_id', 'donor_id'];
+    $insert_values = ['?', '?'];
+    $param_types = 'ii';
+    $param_values = [$userId, $donorId];
+    
+    // Add queue_id if column exists
+    if (in_array('queue_id', $available_columns) && $queueId > 0) {
+        $insert_columns[] = 'queue_id';
+        $insert_values[] = '?';
+        $param_types .= 'i';
+        $param_values[] = $queueId;
+    }
+    
+    // Add call_started_at if column exists
+    if (in_array('call_started_at', $available_columns)) {
+        $insert_columns[] = 'call_started_at';
+        $insert_values[] = 'NOW()';
+    }
+    
+    // Add status if column exists
+    if (in_array('status', $available_columns)) {
+        $insert_columns[] = 'status';
+        $insert_values[] = '?';
+        $param_types .= 's';
+        $param_values[] = 'initiating';
+    }
+    
+    // Add conversation_stage if column exists
+    if (in_array('conversation_stage', $available_columns)) {
+        $insert_columns[] = 'conversation_stage';
+        $insert_values[] = '?';
+        $param_types .= 's';
+        $param_values[] = 'pending';
+    }
+    
+    // Add call_source if column exists
+    if (in_array('call_source', $available_columns)) {
+        $insert_columns[] = 'call_source';
+        $insert_values[] = '?';
+        $param_types .= 's';
+        $param_values[] = 'twilio';
+    }
+    
+    // Add agent_phone_number if column exists
+    if (in_array('agent_phone_number', $available_columns)) {
+        $insert_columns[] = 'agent_phone_number';
+        $insert_values[] = '?';
+        $param_types .= 's';
+        $param_values[] = $agentPhone;
+    }
+    
+    // Add donor_phone_number if column exists
+    if (in_array('donor_phone_number', $available_columns)) {
+        $insert_columns[] = 'donor_phone_number';
+        $insert_values[] = '?';
+        $param_types .= 's';
+        $param_values[] = $donor['phone'];
+    }
+    
+    // Build and execute query
+    $sql = "INSERT INTO call_center_sessions (" . implode(', ', $insert_columns) . ") VALUES (" . implode(', ', $insert_values) . ")";
+    
+    $stmt = $db->prepare($sql);
     if (!$stmt) {
         throw new Exception('Failed to prepare session insert: ' . $db->error);
     }
     
-    $stmt->bind_param('iiiss', $userId, $donorId, $qParam, $agentPhone, $donor['phone']);
+    if (count($param_values) > 0) {
+        $stmt->bind_param($param_types, ...$param_values);
+    }
     
     if (!$stmt->execute()) {
         throw new Exception('Failed to create session: ' . $stmt->error);
@@ -128,18 +194,21 @@ try {
     $stmt->execute();
     $stmt->close();
     
-    // Update queue if applicable
+    // Update queue if applicable and table exists
     if ($queueId > 0) {
-        $stmt = $db->prepare("
-            UPDATE call_center_queues 
-            SET attempts_count = attempts_count + 1,
-                last_attempt_at = NOW(),
-                status = 'in_progress'
-            WHERE id = ?
-        ");
-        $stmt->bind_param('i', $queueId);
-        $stmt->execute();
-        $stmt->close();
+        $queue_table_check = $db->query("SHOW TABLES LIKE 'call_center_queues'");
+        if ($queue_table_check && $queue_table_check->num_rows > 0) {
+            $stmt = $db->prepare("
+                UPDATE call_center_queues 
+                SET attempts_count = attempts_count + 1,
+                    last_attempt_at = NOW(),
+                    status = 'in_progress'
+                WHERE id = ?
+            ");
+            $stmt->bind_param('i', $queueId);
+            $stmt->execute();
+            $stmt->close();
+        }
     }
     
     // Clear output buffer
