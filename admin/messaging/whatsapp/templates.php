@@ -53,31 +53,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist) {
             
             $template_key = preg_replace('/[^a-z0-9_]/', '', strtolower($template_key));
             
+            // Convert comma-separated variables to JSON format
+            if (!empty($variables)) {
+                // Check if already JSON
+                $decoded = json_decode($variables);
+                if ($decoded === null) {
+                    // Convert comma-separated to JSON array
+                    $varArray = array_map('trim', explode(',', $variables));
+                    $varArray = array_filter($varArray); // Remove empty
+                    $variables = json_encode(array_values($varArray));
+                }
+            } else {
+                $variables = '["name"]'; // Default variable as JSON
+            }
+            
             if ($action === 'create') {
+                $priority = 'normal';
+                $message_am = $message_en; // Use English as placeholder for other languages
+                $message_ti = $message_en;
+                
                 $stmt = $db->prepare("
                     INSERT INTO sms_templates 
-                    (template_key, name, description, category, message_en, variables, is_active, platform, created_by, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'whatsapp', ?, NOW(), NOW())
+                    (template_key, name, description, category, message_en, message_am, message_ti, 
+                     variables, priority, is_active, platform, created_by, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'whatsapp', ?, NOW(), NOW())
                 ");
-                $stmt->bind_param('ssssssii', 
+                if (!$stmt) {
+                    throw new Exception('Prepare failed: ' . $db->error);
+                }
+                $stmt->bind_param('sssssssssii', 
                     $template_key, $name, $description, $category, 
-                    $message_en, $variables, $is_active, $current_user['id']
+                    $message_en, $message_am, $message_ti,
+                    $variables, $priority, $is_active, $current_user['id']
                 );
-                $stmt->execute();
+                if (!$stmt->execute()) {
+                    throw new Exception('Execute failed: ' . $stmt->error);
+                }
                 $success_message = 'WhatsApp template created successfully!';
             } else {
                 $template_id = (int)$_POST['template_id'];
                 $stmt = $db->prepare("
                     UPDATE sms_templates 
                     SET template_key = ?, name = ?, description = ?, category = ?, 
-                        message_en = ?, variables = ?, is_active = ?, updated_at = NOW()
+                        message_en = ?, message_am = ?, message_ti = ?,
+                        variables = ?, is_active = ?, updated_at = NOW()
                     WHERE id = ? AND platform IN ('whatsapp', 'both')
                 ");
-                $stmt->bind_param('sssssiii', 
+                if (!$stmt) {
+                    throw new Exception('Prepare failed: ' . $db->error);
+                }
+                $stmt->bind_param('ssssssssii', 
                     $template_key, $name, $description, $category, 
-                    $message_en, $variables, $is_active, $template_id
+                    $message_en, $message_en, $message_en,
+                    $variables, $is_active, $template_id
                 );
-                $stmt->execute();
+                if (!$stmt->execute()) {
+                    throw new Exception('Execute failed: ' . $stmt->error);
+                }
                 $success_message = 'Template updated successfully!';
             }
             
@@ -358,9 +390,20 @@ $categories = [
                                 
                                 <div class="col-md-6">
                                     <label class="form-label">Variables (comma separated)</label>
+                                    <?php 
+                                    $editVars = '';
+                                    if (!empty($edit_template['variables'])) {
+                                        $decoded = json_decode($edit_template['variables'], true);
+                                        if (is_array($decoded)) {
+                                            $editVars = implode(', ', $decoded);
+                                        } else {
+                                            $editVars = $edit_template['variables'];
+                                        }
+                                    }
+                                    ?>
                                     <input type="text" name="variables" class="form-control"
                                            placeholder="e.g., name, amount, date"
-                                           value="<?php echo htmlspecialchars($edit_template['variables'] ?? ''); ?>">
+                                           value="<?php echo htmlspecialchars($editVars); ?>">
                                     <small class="text-muted">Use {variable_name} in your message</small>
                                 </div>
                                 
@@ -439,8 +482,11 @@ $categories = [
                             
                             <?php if (!empty($template['variables'])): ?>
                             <div class="mb-3">
-                                <?php foreach (explode(',', $template['variables']) as $var): ?>
-                                <span class="variable-tag">{<?php echo trim($var); ?>}</span>
+                                <?php 
+                                $vars = json_decode($template['variables'], true) ?? [];
+                                foreach ($vars as $var): 
+                                ?>
+                                <span class="variable-tag">{<?php echo htmlspecialchars(trim($var)); ?>}</span>
                                 <?php endforeach; ?>
                             </div>
                             <?php endif; ?>
