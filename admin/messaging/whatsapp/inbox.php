@@ -2923,8 +2923,8 @@ if ($selected_id && $tables_exist) {
                 <div class="inbox-sidebar">
                     <div class="inbox-header">
                         <h1><i class="fab fa-whatsapp me-2"></i>WhatsApp</h1>
-                        <a href="../../donor-management/sms/whatsapp-settings.php" class="btn btn-sm btn-light">
-                            <i class="fas fa-cog"></i>
+                        <a href="templates.php" class="btn btn-sm btn-light" title="WhatsApp Templates">
+                            <i class="fas fa-file-alt"></i>
                         </a>
                     </div>
                     
@@ -3758,6 +3758,7 @@ async function loadTemplates() {
                 <div class="templates-empty">
                     <i class="fas fa-file-alt"></i>
                     <p>No templates available</p>
+                    <small>Create templates in <a href="templates.php" target="_blank">WhatsApp Templates</a></small>
                 </div>
             `;
         }
@@ -3782,7 +3783,7 @@ function displayTemplates(grouped) {
             <div class="templates-empty">
                 <i class="fas fa-file-alt"></i>
                 <p>No templates available</p>
-                <small>Create templates in <a href="../../donor-management/sms/templates.php" target="_blank">SMS Templates</a></small>
+                <small>Create templates in <a href="templates.php" target="_blank">WhatsApp Templates</a></small>
             </div>
         `;
         return;
