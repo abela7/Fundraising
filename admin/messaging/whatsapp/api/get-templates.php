@@ -33,12 +33,11 @@ try {
         exit;
     }
     
-    // Get all active WhatsApp templates (platform = 'whatsapp' or 'both')
+    // Get all active templates
     $result = $db->query("
         SELECT id, template_key, name, category, message_en, message_am, message_ti, description
         FROM sms_templates 
         WHERE is_active = 1 
-        AND (platform = 'whatsapp' OR platform = 'both')
         ORDER BY category, name
     ");
     
