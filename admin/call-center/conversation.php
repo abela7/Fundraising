@@ -61,9 +61,9 @@ try {
     
     // Get comprehensive donor information for widget modal
     $donor_query = "
-        SELECT d.id, d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
+        SELECT d.id, d.name, d.phone, d.city, d.baptism_name, d.email, 
                d.preferred_language, d.church_id, d.preferred_payment_method,
-               d.representative_id, d.donor_type, d.total_pledged, d.total_paid,
+               d.representative_id, d.donor_type,
                d.payment_status, d.source, d.created_at as donor_created_at,
                d.admin_notes, d.flagged_for_followup, d.followup_priority,
                COALESCE(p.amount, 0) as pledge_amount, 
@@ -82,7 +82,9 @@ try {
                (SELECT COUNT(*) FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id) as previous_call_count,
                (SELECT call_started_at FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id ORDER BY call_started_at DESC LIMIT 1) as last_call_date,
                (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id ORDER BY call_started_at DESC LIMIT 1) as last_call_outcome,
-               (SELECT u.name FROM call_center_sessions cs JOIN users u ON cs.agent_id = u.id WHERE cs.donor_id = d.id AND cs.id != $session_id ORDER BY cs.call_started_at DESC LIMIT 1) as last_call_agent
+               (SELECT u.name FROM call_center_sessions cs JOIN users u ON cs.agent_id = u.id WHERE cs.donor_id = d.id AND cs.id != $session_id ORDER BY cs.call_started_at DESC LIMIT 1) as last_call_agent,
+               COALESCE((SELECT SUM(amount) FROM pledges WHERE donor_id = d.id AND status = 'approved'), 0) as calc_total_pledged,
+               COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'completed'), 0) as calc_total_paid
         FROM donors d
         LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
         LEFT JOIN churches c ON d.church_id = c.id
@@ -98,6 +100,11 @@ try {
     $result = $stmt->get_result();
     $donor = $result->fetch_object();
     $stmt->close();
+    
+    // Calculate financial values from source tables
+    $donor_total_pledged = (float)($donor->calc_total_pledged ?? 0);
+    $donor_total_paid = (float)($donor->calc_total_paid ?? 0);
+    $donor_balance = $donor_total_pledged - $donor_total_paid;
     
     if (!$donor) {
         header('Location: ../donor-management/donors.php');
@@ -737,7 +744,7 @@ $page_title = 'Live Call';
                                     <input class="form-check-input" type="checkbox" id="verifyAmount">
                                     <div class="verification-text">
                                         <div class="verification-question">
-                                            "Did you pledge £<?php echo number_format((float)$donor->balance, 2); ?>?"
+                                            "Did you pledge £<?php echo number_format($donor_balance, 2); ?>?"
                                         </div>
                                         <div class="verification-detail">
                                             Original Pledge: £<?php echo number_format((float)$donor->pledge_amount, 2); ?>
@@ -1122,7 +1129,7 @@ $page_title = 'Live Call';
                                                     </div>
                                                     <div class="summary-row" style="margin-bottom: 0;">
                                                         <label>Total Pledge</label>
-                                                        <span>£<?php echo number_format((float)$donor->balance, 2); ?></span>
+                                                        <span>£<?php echo number_format($donor_balance, 2); ?></span>
                                                     </div>
                                                 </div>
                                                 
@@ -1178,7 +1185,7 @@ $page_title = 'Live Call';
                                     <div class="confirmation-grid">
                                         <div class="conf-item">
                                             <label>Total Amount</label>
-                                            <div id="confTotal">£<?php echo number_format((float)$donor->balance, 2); ?></div>
+                                            <div id="confTotal">£<?php echo number_format($donor_balance, 2); ?></div>
                                         </div>
                                         <div class="conf-item">
                                             <label>Frequency</label>
@@ -1428,9 +1435,9 @@ $page_title = 'Live Call';
             donorCity: '<?php echo addslashes($donor->city ?? ''); ?>',
             baptismName: '<?php echo addslashes($donor->baptism_name ?? ''); ?>',
             donorType: '<?php echo $donor->donor_type ?? 'pledge'; ?>',
-            totalPledged: <?php echo $donor->total_pledged ?? 0; ?>,
-            totalPaid: <?php echo $donor->total_paid ?? 0; ?>,
-            balance: <?php echo $donor->balance ?? 0; ?>,
+            totalPledged: <?php echo $donor_total_pledged; ?>,
+            totalPaid: <?php echo $donor_total_paid; ?>,
+            balance: <?php echo $donor_balance; ?>,
             paymentStatus: '<?php echo $donor->payment_status ?? 'no_pledge'; ?>',
             preferredLanguage: '<?php echo $donor->preferred_language ?? 'en'; ?>',
             preferredPaymentMethod: '<?php echo $donor->preferred_payment_method ?? 'bank_transfer'; ?>',
@@ -1786,7 +1793,7 @@ $page_title = 'Live Call';
     }
     
     // Step 3 Plan Logic
-    const donorBalance = <?php echo (float)$donor->balance; ?>;
+    const donorBalance = <?php echo $donor_balance; ?>;
     let selectedDuration = 0;
     let planDetails = {
         amount: 0,
