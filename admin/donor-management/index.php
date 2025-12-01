@@ -213,16 +213,16 @@ $db = db();
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
-                        <a href="twilio/settings.php" class="text-decoration-none">
+                        <a href="twilio/" class="text-decoration-none">
                             <div class="feature-card card h-100 border-0 shadow-sm">
                                 <div class="card-body p-4">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="feature-icon bg-success-subtle text-success me-2">
-                                            <i class="fas fa-phone-alt"></i>
+                                            <i class="fas fa-phone-volume"></i>
                                         </div>
-                                        <h6 class="mb-0">Twilio Call Settings</h6>
+                                        <h6 class="mb-0">Twilio Call Dashboard</h6>
                                     </div>
-                                    <p class="card-text text-muted small">Click-to-call with automatic recording.</p>
+                                    <p class="card-text text-muted small">Click-to-call, settings, error reports & analytics.</p>
                                     <span class="badge bg-success badge-sm">Active</span>
                                 </div>
                             </div>

@@ -58,13 +58,6 @@ if ($user_role === 'registrar') {
         </span>
         <span class="nav-label">Call History</span>
       </a>
-      <a href="<?php echo url_for('admin/call-center/twilio-error-report.php'); ?>" 
-         class="nav-link <?php echo $current_page === 'twilio-error-report' ? 'active' : ''; ?>">
-        <span class="nav-icon">
-          <i class="fas fa-exclamation-triangle"></i>
-        </span>
-        <span class="nav-label">Twilio Errors</span>
-      </a>
       <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" 
          class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'record-pledge-payment') ? 'active' : ''; ?>">
         <span class="nav-icon">
