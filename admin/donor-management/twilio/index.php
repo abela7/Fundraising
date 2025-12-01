@@ -30,11 +30,13 @@ $date_from = date('Y-m-01') . ' 00:00:00';
 $date_to = date('Y-m-d') . ' 23:59:59';
 
 // Get call statistics
+// Successful = completed with duration > 0 (actual conversation happened)
+// Failed = has error code OR completed with 0 duration
 $stats_query = "
     SELECT 
         COUNT(*) as total_calls,
-        COUNT(CASE WHEN twilio_status = 'completed' THEN 1 END) as successful_calls,
-        COUNT(CASE WHEN twilio_error_code IS NOT NULL THEN 1 END) as failed_calls,
+        COUNT(CASE WHEN twilio_status = 'completed' AND COALESCE(twilio_duration, 0) > 0 AND twilio_error_code IS NULL THEN 1 END) as successful_calls,
+        COUNT(CASE WHEN twilio_error_code IS NOT NULL OR (twilio_status IN ('busy', 'no-answer', 'failed', 'canceled')) THEN 1 END) as failed_calls,
         COUNT(DISTINCT donor_id) as unique_donors,
         SUM(COALESCE(twilio_duration, 0)) as total_duration,
         COUNT(DISTINCT twilio_error_code) as error_types

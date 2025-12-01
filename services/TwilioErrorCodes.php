@@ -160,6 +160,28 @@ class TwilioErrorCodes
                 'message' => 'Temporarily unavailable',
                 'action' => 'Phone may be off or out of coverage'
             ],
+            
+            // Twilio CallStatus values (not numeric codes)
+            'busy' => [
+                'category' => 'Busy/Rejected',
+                'message' => 'Donor\'s line was busy or they rejected the call',
+                'action' => 'Schedule callback for later'
+            ],
+            'no-answer' => [
+                'category' => 'No Answer',
+                'message' => 'Donor did not answer the phone',
+                'action' => 'Schedule callback at a different time'
+            ],
+            'failed' => [
+                'category' => 'Call Failed',
+                'message' => 'The call could not be connected',
+                'action' => 'Check phone number and try again'
+            ],
+            'canceled' => [
+                'category' => 'Canceled',
+                'message' => 'Call was canceled before connecting',
+                'action' => 'Try calling again'
+            ],
         ];
         
         if (isset($errorMap[$errorCode])) {

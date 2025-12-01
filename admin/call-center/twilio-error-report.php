@@ -24,8 +24,10 @@ $success_rate = 0;
 $failure_rate = 0;
 
 // Get error statistics
+// Include both error codes AND failed statuses (busy, no-answer, etc.)
 $error_stats_query = "
     SELECT 
+        COALESCE(twilio_error_code, twilio_status) as error_key,
         twilio_error_code,
         twilio_error_message,
         twilio_status,
@@ -35,9 +37,9 @@ $error_stats_query = "
         MAX(call_started_at) as last_occurrence
     FROM call_center_sessions
     WHERE call_source = 'twilio'
-        AND twilio_error_code IS NOT NULL
+        AND (twilio_error_code IS NOT NULL OR twilio_status IN ('busy', 'no-answer', 'failed', 'canceled'))
         AND call_started_at BETWEEN ? AND ?
-    GROUP BY twilio_error_code, twilio_error_message, twilio_status
+    GROUP BY error_key, twilio_error_code, twilio_error_message, twilio_status
     ORDER BY error_count DESC
 ";
 
@@ -55,6 +57,7 @@ $error_stats = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $stmt->close();
 
 // Get failed calls with details
+// Include both error codes AND failed statuses
 $failed_calls_query = "
     SELECT 
         s.id,
@@ -71,7 +74,7 @@ $failed_calls_query = "
     LEFT JOIN donors d ON s.donor_id = d.id
     LEFT JOIN users u ON s.agent_id = u.id
     WHERE s.call_source = 'twilio'
-        AND s.twilio_error_code IS NOT NULL
+        AND (s.twilio_error_code IS NOT NULL OR s.twilio_status IN ('busy', 'no-answer', 'failed', 'canceled'))
         AND s.call_started_at BETWEEN ? AND ?
     ORDER BY s.call_started_at DESC
     LIMIT 100
@@ -88,11 +91,13 @@ $failed_calls = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $stmt->close();
 
 // Calculate summary stats
+// Successful = completed with duration > 0 and no error code
+// Failed = has error code OR status is busy/no-answer/failed/canceled
 $total_twilio_calls_query = "
     SELECT 
         COUNT(*) as total_calls,
-        COUNT(CASE WHEN twilio_error_code IS NOT NULL THEN 1 END) as failed_calls,
-        COUNT(CASE WHEN twilio_status = 'completed' THEN 1 END) as successful_calls
+        COUNT(CASE WHEN twilio_error_code IS NOT NULL OR twilio_status IN ('busy', 'no-answer', 'failed', 'canceled') THEN 1 END) as failed_calls,
+        COUNT(CASE WHEN twilio_status = 'completed' AND COALESCE(twilio_duration, 0) > 0 AND twilio_error_code IS NULL THEN 1 END) as successful_calls
     FROM call_center_sessions
     WHERE call_source = 'twilio'
         AND call_started_at BETWEEN ? AND ?
@@ -309,7 +314,8 @@ $page_title = 'Twilio Error Report';
                         <?php else: ?>
                             <?php foreach ($error_stats as $error): ?>
                                 <?php 
-                                    $errorCode = $error['twilio_error_code'];
+                                    // Use error code if available, otherwise use the status
+                                    $errorCode = $error['twilio_error_code'] ?? $error['twilio_status'];
                                     $errorInfo = TwilioErrorCodes::getErrorInfo($errorCode);
                                     $action = TwilioErrorCodes::getRecommendedAction($errorCode);
                                     $isRetryable = TwilioErrorCodes::isRetryable($errorCode);
@@ -323,7 +329,10 @@ $page_title = 'Twilio Error Report';
                                     }
                                     
                                     $actionClass = 'action-' . $action;
-                                    $actionLabel = ucfirst($action);
+                                    $actionLabel = ucfirst(str_replace('_', ' ', $action));
+                                    
+                                    // Display code
+                                    $displayCode = $error['twilio_error_code'] ?: strtoupper($error['twilio_status'] ?? 'UNKNOWN');
                                 ?>
                                 <div class="<?php echo $cardClass; ?>">
                                     <div class="row align-items-center">
@@ -333,7 +342,7 @@ $page_title = 'Twilio Error Report';
                                         </div>
                                         <div class="col-md-8">
                                             <div class="d-flex align-items-center gap-2 mb-2">
-                                                <span class="error-code"><?php echo htmlspecialchars($errorCode); ?></span>
+                                                <span class="error-code"><?php echo htmlspecialchars($displayCode); ?></span>
                                                 <strong class="text-dark"><?php echo htmlspecialchars($errorInfo['category']); ?></strong>
                                             </div>
                                             <div class="mb-2">
@@ -395,9 +404,12 @@ $page_title = 'Twilio Error Report';
                                     <tbody>
                                         <?php foreach ($failed_calls as $call): ?>
                                             <?php 
-                                                $errorInfo = TwilioErrorCodes::getErrorInfo($call['twilio_error_code']);
-                                                $action = TwilioErrorCodes::getRecommendedAction($call['twilio_error_code']);
+                                                // Use error code if available, otherwise use status
+                                                $errorKey = $call['twilio_error_code'] ?? $call['twilio_status'];
+                                                $errorInfo = TwilioErrorCodes::getErrorInfo($errorKey);
+                                                $action = TwilioErrorCodes::getRecommendedAction($errorKey);
                                                 $actionClass = 'action-' . $action;
+                                                $displayCode = $call['twilio_error_code'] ?: strtoupper($call['twilio_status'] ?? 'UNKNOWN');
                                             ?>
                                             <tr>
                                                 <td class="small">
@@ -405,13 +417,13 @@ $page_title = 'Twilio Error Report';
                                                     <span class="text-muted"><?php echo date('g:i A', strtotime($call['call_started_at'])); ?></span>
                                                 </td>
                                                 <td>
-                                                    <div><?php echo htmlspecialchars($call['donor_name']); ?></div>
-                                                    <small class="text-muted"><?php echo htmlspecialchars($call['donor_phone']); ?></small>
+                                                    <div><?php echo htmlspecialchars($call['donor_name'] ?? 'Unknown'); ?></div>
+                                                    <small class="text-muted"><?php echo htmlspecialchars($call['donor_phone'] ?? ''); ?></small>
                                                 </td>
-                                                <td class="small"><?php echo htmlspecialchars($call['agent_name']); ?></td>
+                                                <td class="small"><?php echo htmlspecialchars($call['agent_name'] ?? 'Unknown'); ?></td>
                                                 <td>
                                                     <div class="small">
-                                                        <span class="error-code"><?php echo htmlspecialchars($call['twilio_error_code']); ?></span>
+                                                        <span class="error-code"><?php echo htmlspecialchars($displayCode); ?></span>
                                                     </div>
                                                     <div class="small text-muted mt-1">
                                                         <?php echo htmlspecialchars($errorInfo['category']); ?>
@@ -419,7 +431,7 @@ $page_title = 'Twilio Error Report';
                                                 </td>
                                                 <td>
                                                     <span class="action-badge <?php echo $actionClass; ?> small">
-                                                        <?php echo ucfirst($action); ?>
+                                                        <?php echo ucfirst(str_replace('_', ' ', $action)); ?>
                                                     </span>
                                                 </td>
                                                 <td>

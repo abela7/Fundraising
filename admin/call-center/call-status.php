@@ -339,19 +339,49 @@ if (sessionId > 0) {
 
 function handleCallStatusUpdate(data) {
     const twilioStatus = data.twilio_status;
+    const duration = data.twilio_duration || 0;
+    const errorCode = data.twilio_error_code || null;
+    
+    console.log('Status update:', twilioStatus, 'Duration:', duration, 'Error:', errorCode);
     
     // ONLY show toast notifications - NO automatic actions
     if (twilioStatus === 'ringing') {
         showToast('Your Phone Ringing', 'info', 'Answer your phone to continue');
     } else if (twilioStatus === 'in-progress' || twilioStatus === 'answered') {
-        showToast('You Picked Up', 'success', 'Connecting to donor now');
-    } else if (twilioStatus === 'completed') {
-        showToast('Donor Answered', 'success', 'Click "Picked Up" when ready to start conversation');
-        // Stop polling - call is connected
+        // Agent picked up, now connecting to donor
+        showToast('You Picked Up', 'info', 'Now calling the donor...');
+    } else if (twilioStatus === 'completed' && duration > 0 && !errorCode) {
+        // Donor actually answered and talked (has duration, no error)
+        showToast('Call Connected', 'success', 'Click "Picked Up" when ready to start conversation');
+        // Stop polling - call was successful
         if (callStatusInterval) {
             clearInterval(callStatusInterval);
         }
-    } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer' || twilioStatus === 'canceled') {
+    } else if (twilioStatus === 'busy') {
+        // Donor was busy or rejected
+        showToast('Donor Busy/Rejected', 'warning', 'The donor\'s line was busy or they rejected the call');
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    } else if (twilioStatus === 'no-answer') {
+        // Donor didn't answer
+        showToast('No Answer', 'warning', 'The donor did not answer the call');
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    } else if (twilioStatus === 'canceled') {
+        // Call was canceled
+        showToast('Call Canceled', 'warning', 'The call was canceled before connecting');
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    } else if (twilioStatus === 'completed' && (duration === 0 || errorCode)) {
+        // Completed but with no duration or error = donor didn't actually talk
+        showToast('Donor Did Not Answer', 'warning', 'Call ended without connecting to donor');
+        if (callStatusInterval) {
+            clearInterval(callStatusInterval);
+        }
+    } else if (twilioStatus === 'failed') {
         // Fetch detailed error info
         fetch('api/get-call-status.php?session_id=' + sessionId)
             .then(response => response.json())

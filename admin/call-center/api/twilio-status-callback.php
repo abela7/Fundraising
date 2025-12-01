@@ -43,6 +43,19 @@ try {
     $errorCode = $_POST['ErrorCode'] ?? null;
     $errorMessage = $_POST['ErrorMessage'] ?? null;
     
+    // IMPORTANT: For <Dial> operations, Twilio sends these additional fields
+    // DialCallStatus tells us what happened with the DONOR leg specifically
+    $dialCallStatus = $_POST['DialCallStatus'] ?? null;
+    $dialCallDuration = isset($_POST['DialCallDuration']) ? (int)$_POST['DialCallDuration'] : null;
+    $dialCallSid = $_POST['DialCallSid'] ?? null;
+    
+    // Use dial-specific status if available (more accurate for donor outcome)
+    if ($dialCallStatus !== null) {
+        $donorStatus = $dialCallStatus;
+    } else {
+        $donorStatus = $callStatus;
+    }
+    
     // Log the webhook to database
     try {
         $check = $db->query("SHOW TABLES LIKE 'twilio_webhook_logs'");
@@ -68,37 +81,91 @@ try {
     // Update call_center_sessions based on status
     if (!empty($callSid)) {
         // Update session with Twilio data
+        // Store the DONOR-SPECIFIC status (dialCallStatus) for accurate reporting
+        $statusToStore = $dialCallStatus ?? $callStatus;
+        
         $updateFields = [
             'call_source' => 'twilio',
             'twilio_call_sid' => $callSid,
-            'twilio_status' => $callStatus
+            'twilio_status' => $statusToStore
         ];
         
-        // If call is completed, update duration
-        if ($callStatus === 'completed' && $duration !== null && $duration > 0) {
-            $updateFields['twilio_duration'] = $duration;
-            $updateFields['duration_seconds'] = $duration;
+        // If we have dial duration, use that (more accurate for donor call)
+        $actualDuration = $dialCallDuration ?? $duration;
+        
+        // Determine if donor actually answered or not
+        $donorAnswered = false;
+        $donorFailed = false;
+        
+        // Check dial status first (most accurate for donor outcome)
+        if ($dialCallStatus !== null) {
+            if ($dialCallStatus === 'completed' && $dialCallDuration > 0) {
+                // Donor answered and talked
+                $donorAnswered = true;
+            } elseif ($dialCallStatus === 'busy') {
+                $donorFailed = true;
+                $errorCode = $errorCode ?? '486';
+                $errorMessage = $errorMessage ?? 'Donor line was busy or call was rejected';
+            } elseif ($dialCallStatus === 'no-answer') {
+                $donorFailed = true;
+                $errorCode = $errorCode ?? '480';
+                $errorMessage = $errorMessage ?? 'Donor did not answer the call';
+            } elseif ($dialCallStatus === 'failed') {
+                $donorFailed = true;
+                $errorCode = $errorCode ?? '31005';
+                $errorMessage = $errorMessage ?? 'Call to donor failed';
+            } elseif ($dialCallStatus === 'canceled') {
+                $donorFailed = true;
+                $errorCode = $errorCode ?? '487';
+                $errorMessage = $errorMessage ?? 'Call was canceled before donor answered';
+            } elseif ($dialCallStatus === 'completed' && ($dialCallDuration === null || $dialCallDuration === 0)) {
+                // Completed but no duration = donor rejected or voicemail without talk
+                $donorFailed = true;
+                $errorCode = $errorCode ?? '603';
+                $errorMessage = $errorMessage ?? 'Donor declined or did not engage with the call';
+            }
+        }
+        
+        // If call is completed with duration, update duration
+        if ($donorAnswered && $actualDuration !== null && $actualDuration > 0) {
+            $updateFields['twilio_duration'] = $actualDuration;
+            $updateFields['duration_seconds'] = $actualDuration;
             $updateFields['call_ended_at'] = 'NOW()';
-        }
-        
-        // If call is answered, update conversation stage
-        if ($callStatus === 'in-progress' || $callStatus === 'answered') {
             $updateFields['conversation_stage'] = 'contact_made';
-            if (empty($updateFields['call_started_at'])) {
-                $updateFields['call_started_at'] = 'NOW()';
-            }
         }
         
-        // Capture error codes and messages if call failed
-        if ($callStatus === 'failed' || $callStatus === 'busy' || $callStatus === 'no-answer' || $callStatus === 'canceled') {
-            if ($errorCode !== null) {
-                $updateFields['twilio_error_code'] = $errorCode;
-            }
-            if ($errorMessage !== null) {
-                $updateFields['twilio_error_message'] = $errorMessage;
-            }
-            // Also update conversation stage to reflect failure
+        // If call to donor failed (busy, no-answer, rejected)
+        if ($donorFailed) {
+            $updateFields['twilio_error_code'] = $errorCode;
+            $updateFields['twilio_error_message'] = $errorMessage;
             $updateFields['conversation_stage'] = 'attempt_failed';
+            $updateFields['call_ended_at'] = 'NOW()';
+            $updateFields['outcome'] = match($dialCallStatus) {
+                'busy' => 'busy_signal',
+                'no-answer' => 'no_answer',
+                'canceled' => 'call_dropped_before_talk',
+                'failed' => 'call_failed_technical',
+                default => 'no_answer'
+            };
+        }
+        
+        // Agent leg statuses (not dial-specific)
+        if ($dialCallStatus === null) {
+            // If call is answered by agent, update conversation stage
+            if ($callStatus === 'in-progress' || $callStatus === 'answered') {
+                $updateFields['conversation_stage'] = 'pending'; // Agent answered, waiting for donor
+            }
+            
+            // Handle parent call failures (before connecting to donor)
+            if ($callStatus === 'failed' || $callStatus === 'busy' || $callStatus === 'no-answer' || $callStatus === 'canceled') {
+                if ($errorCode !== null) {
+                    $updateFields['twilio_error_code'] = $errorCode;
+                }
+                if ($errorMessage !== null) {
+                    $updateFields['twilio_error_message'] = $errorMessage;
+                }
+                $updateFields['conversation_stage'] = 'attempt_failed';
+            }
         }
         
         // Build SQL
