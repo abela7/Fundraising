@@ -358,10 +358,11 @@ if ($db) {
     <div class="admin-wrapper">
         <?php include __DIR__ . '/../../includes/sidebar.php'; ?>
         
-        <main class="admin-main">
-            <?php include __DIR__ . '/../../includes/header.php'; ?>
+        <div class="admin-content">
+            <?php include __DIR__ . '/../../includes/topbar.php'; ?>
             
-            <div class="admin-content p-3 p-md-4">
+            <main class="main-content">
+                <div class="container-fluid p-3 p-md-4">
                 <!-- Header -->
                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
                     <div>
@@ -615,8 +616,9 @@ if ($db) {
                 <?php endif; ?>
                 
                 <?php endif; ?>
-            </div>
-        </main>
+                </div>
+            </main>
+        </div>
     </div>
     
     <?php include __DIR__ . '/../../includes/fab.php'; ?>
