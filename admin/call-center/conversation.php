@@ -59,17 +59,21 @@ try {
         }
     }
     
-    // Get donor and pledge information (including fields for Step 2)
+    // Get comprehensive donor information for widget modal
     $donor_query = "
-        SELECT d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
+        SELECT d.id, d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
                d.preferred_language, d.church_id, d.preferred_payment_method,
-               d.representative_id,
+               d.representative_id, d.donor_type, d.total_pledged, d.total_paid,
+               d.payment_status, d.source, d.created_at as donor_created_at,
+               d.admin_notes, d.flagged_for_followup, d.followup_priority,
                COALESCE(p.amount, 0) as pledge_amount, 
                p.created_at as pledge_date,
                p.id as pledge_id,
                p.notes as pledge_notes,
                c.name as church_name,
+               c.city as church_city,
                cr.name as representative_name,
+               cr.phone as representative_phone,
                COALESCE(
                     (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
                     (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
@@ -94,6 +98,45 @@ try {
     if (!$donor) {
         header('Location: ../donor-management/donors.php');
         exit;
+    }
+    
+    // Get payment history for widget
+    $payments = [];
+    $payment_query = "
+        SELECT id, amount, payment_date, payment_method, status, notes, created_at
+        FROM payments 
+        WHERE donor_id = ? 
+        ORDER BY payment_date DESC, created_at DESC 
+        LIMIT 20
+    ";
+    $stmt = $db->prepare($payment_query);
+    if ($stmt) {
+        $stmt->bind_param('i', $donor_id);
+        $stmt->execute();
+        $payment_result = $stmt->get_result();
+        while ($payment = $payment_result->fetch_assoc()) {
+            $payments[] = $payment;
+        }
+        $stmt->close();
+    }
+    
+    // Get active payment plan for widget
+    $payment_plan = null;
+    $plan_query = "
+        SELECT pp.*, pt.name as template_name
+        FROM donor_payment_plans pp
+        LEFT JOIN payment_plan_templates pt ON pp.template_id = pt.id
+        WHERE pp.donor_id = ? AND pp.status = 'active'
+        ORDER BY pp.created_at DESC
+        LIMIT 1
+    ";
+    $stmt = $db->prepare($plan_query);
+    if ($stmt) {
+        $stmt->bind_param('i', $donor_id);
+        $stmt->execute();
+        $plan_result = $stmt->get_result();
+        $payment_plan = $plan_result->fetch_assoc();
+        $stmt->close();
     }
     
     // Get churches list for dropdown
@@ -181,6 +224,11 @@ $page_title = 'Live Call';
             margin: 0 auto;
             padding-top: 20px;
             padding-bottom: 120px; /* Space for fixed footer timer */
+        }
+        
+        /* Hide FAB menu on conversation page */
+        .fab-container {
+            display: none !important;
         }
         
         /* Steps Wizard */
@@ -1372,10 +1420,31 @@ $page_title = 'Live Call';
             donorId: <?php echo $donor_id; ?>,
             donorName: '<?php echo addslashes($donor->name); ?>',
             donorPhone: '<?php echo addslashes($donor->phone); ?>',
+            donorEmail: '<?php echo addslashes($donor->email ?? ''); ?>',
+            donorCity: '<?php echo addslashes($donor->city ?? ''); ?>',
+            baptismName: '<?php echo addslashes($donor->baptism_name ?? ''); ?>',
+            donorType: '<?php echo $donor->donor_type ?? 'pledge'; ?>',
+            totalPledged: <?php echo $donor->total_pledged ?? 0; ?>,
+            totalPaid: <?php echo $donor->total_paid ?? 0; ?>,
+            balance: <?php echo $donor->balance ?? 0; ?>,
+            paymentStatus: '<?php echo $donor->payment_status ?? 'no_pledge'; ?>',
+            preferredLanguage: '<?php echo $donor->preferred_language ?? 'en'; ?>',
+            preferredPaymentMethod: '<?php echo $donor->preferred_payment_method ?? 'bank_transfer'; ?>',
+            source: '<?php echo $donor->source ?? 'public_form'; ?>',
+            donorCreatedAt: '<?php echo $donor->donor_created_at ? date('M j, Y', strtotime($donor->donor_created_at)) : ''; ?>',
+            adminNotes: <?php echo json_encode($donor->admin_notes ?? ''); ?>,
+            flaggedForFollowup: <?php echo $donor->flagged_for_followup ?? 0 ? 'true' : 'false'; ?>,
+            followupPriority: '<?php echo $donor->followup_priority ?? 'medium'; ?>',
             pledgeAmount: <?php echo $donor->pledge_amount; ?>,
             pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
+            pledgeNotes: <?php echo json_encode($donor->pledge_notes ?? ''); ?>,
             registrar: '<?php echo addslashes($donor->registrar_name); ?>',
-            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
+            church: '<?php echo addslashes($donor->church_name ?? 'Unknown'); ?>',
+            churchCity: '<?php echo addslashes($donor->church_city ?? ''); ?>',
+            representative: '<?php echo addslashes($donor->representative_name ?? ''); ?>',
+            representativePhone: '<?php echo addslashes($donor->representative_phone ?? ''); ?>',
+            payments: <?php echo json_encode($payments); ?>,
+            paymentPlan: <?php echo json_encode($payment_plan); ?>
         });
         
         // Ensure timer is running (it should auto-resume from localStorage, but force start if stopped)
