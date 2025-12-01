@@ -237,22 +237,22 @@ const CallWidget = {
                         <!-- Tab Navigation -->
                         <div class="modal-tabs-nav" id="tabNav">
                             <button class="tab-nav-btn active" data-tab="overview">
-                                <i class="fas fa-home"></i> Overview
+                                <i class="fas fa-home"></i> <span>Overview</span>
                             </button>
                             <button class="tab-nav-btn" data-tab="contact">
-                                <i class="fas fa-address-card"></i> Contact
+                                <i class="fas fa-address-card"></i> <span>Contact</span>
                             </button>
                             <button class="tab-nav-btn" data-tab="financial">
-                                <i class="fas fa-pound-sign"></i> Financial
+                                <i class="fas fa-pound-sign"></i> <span>Financial</span>
                             </button>
                             <button class="tab-nav-btn" data-tab="payments">
-                                <i class="fas fa-receipt"></i> Payments
+                                <i class="fas fa-receipt"></i> <span>Payments</span>
                             </button>
                             <button class="tab-nav-btn" data-tab="plan">
-                                <i class="fas fa-calendar-alt"></i> Plan
+                                <i class="fas fa-calendar-alt"></i> <span>Plan</span>
                             </button>
                             <button class="tab-nav-btn" data-tab="notes">
-                                <i class="fas fa-sticky-note"></i> Notes
+                                <i class="fas fa-sticky-note"></i> <span>Notes</span>
                             </button>
                         </div>
                         
@@ -786,27 +786,79 @@ const CallWidget = {
             });
         }
 
+        // Open/close modal
         if (this.elements.btnInfo) {
             this.elements.btnInfo.addEventListener('click', () => {
-                if (this.elements.panel) {
-                    this.elements.panel.classList.toggle('active');
+                if (this.elements.modal) {
+                    this.elements.modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
                 }
             });
         }
 
-        const closeBtn = document.getElementById('btnCloseInfo');
+        const closeBtn = document.getElementById('btnCloseModal');
+        const backdrop = document.getElementById('modalBackdrop');
+        
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
-                if (this.elements.panel) {
-                    this.elements.panel.classList.remove('active');
-                }
+                this.closeModal();
             });
         }
+        
+        if (backdrop) {
+            backdrop.addEventListener('click', () => {
+                this.closeModal();
+            });
+        }
+        
+        // Tab navigation buttons
+        if (this.elements.tabNav) {
+            const tabButtons = this.elements.tabNav.querySelectorAll('.tab-nav-btn');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabName = btn.getAttribute('data-tab');
+                    this.showTab(tabName);
+                });
+            });
+        }
+        
+        // Arrow navigation
+        if (this.elements.prevBtn) {
+            this.elements.prevBtn.addEventListener('click', () => {
+                this.switchTab('prev');
+            });
+        }
+        
+        if (this.elements.nextBtn) {
+            this.elements.nextBtn.addEventListener('click', () => {
+                this.switchTab('next');
+            });
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (this.elements.modal && this.elements.modal.classList.contains('active')) {
+                if (e.key === 'Escape') {
+                    this.closeModal();
+                } else if (e.key === 'ArrowLeft') {
+                    this.switchTab('prev');
+                } else if (e.key === 'ArrowRight') {
+                    this.switchTab('next');
+                }
+            }
+        });
         
         if (this.elements.btnReset) {
             this.elements.btnReset.addEventListener('click', () => {
                 this.reset();
             });
+        }
+    },
+    
+    closeModal() {
+        if (this.elements.modal) {
+            this.elements.modal.classList.remove('active');
+            document.body.style.overflow = '';
         }
     },
     
