@@ -31,18 +31,24 @@ try {
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
+    $voice = 'Polly.Amy-Neural';
+    
     // Validate amount
     if ($amount <= 0) {
-        echo '<Say voice="alice" language="en-GB">Invalid amount entered. Please try again.</Say>';
+        echo '<Say voice="' . $voice . '">Invalid amount entered. Please try again.</Say>';
         echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
         echo '</Response>';
         exit;
     }
     
     if ($amount > $balance && $balance > 0) {
-        echo '<Say voice="alice" language="en-GB">The amount you entered, ' . speakMoney($amount) . ', is more than your outstanding balance of ' . speakMoney($balance) . '.</Say>';
+        echo '<Say voice="' . $voice . '"><speak>';
+        echo 'The amount you entered, <say-as interpret-as="currency">GBP' . $amount . '</say-as>, <break time="200ms"/> is more than your outstanding balance of <say-as interpret-as="currency">GBP' . $balance . '</say-as>.';
+        echo '</speak></Say>';
         echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-payment-confirm.php?caller=' . urlencode($callerNumber) . '&donor_id=' . $donorId . '&amount=' . $amount . '" method="POST" timeout="10">';
-        echo '<Say voice="alice" language="en-GB">Press 1 to proceed with ' . speakMoney($amount) . ', or press 2 to enter a different amount.</Say>';
+        echo '<Say voice="' . $voice . '"><speak><prosody rate="95%">';
+        echo 'Press <say-as interpret-as="number">1</say-as> to proceed with <say-as interpret-as="currency">GBP' . $amount . '</say-as>, <break time="300ms"/> or press <say-as interpret-as="number">2</say-as> to enter a different amount.';
+        echo '</prosody></speak></Say>';
         echo '</Gather>';
         echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
         echo '</Response>';
@@ -51,11 +57,13 @@ try {
     
     // Confirm the amount
     echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-payment-confirm.php?caller=' . urlencode($callerNumber) . '&donor_id=' . $donorId . '&amount=' . $amount . '" method="POST" timeout="10">';
-    echo '<Say voice="alice" language="en-GB">You entered ' . speakMoney($amount) . '.</Say>';
-    echo '<Say voice="alice" language="en-GB">Press 1 to confirm this payment, or press 2 to enter a different amount.</Say>';
+    echo '<Say voice="' . $voice . '"><speak>';
+    echo 'You entered <emphasis level="moderate"><say-as interpret-as="currency">GBP' . $amount . '</say-as></emphasis>. <break time="400ms"/>';
+    echo 'Press <say-as interpret-as="number">1</say-as> to confirm this payment, <break time="300ms"/> or press <say-as interpret-as="number">2</say-as> to enter a different amount.';
+    echo '</speak></Say>';
     echo '</Gather>';
     
-    echo '<Say voice="alice" language="en-GB">We did not receive any input. Goodbye.</Say>';
+    echo '<Say voice="' . $voice . '">We didn\'t receive any input. Please try again later. Goodbye.</Say>';
     echo '<Hangup/>';
     
     echo '</Response>';

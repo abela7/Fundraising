@@ -73,9 +73,10 @@ try {
  */
 function handlePaymentOption($db, ?array $donor, string $callerNumber, string $baseUrl): void
 {
+    $voice = 'Polly.Amy-Neural';
+    
     if (!$donor) {
-        echo '<Say voice="alice" language="en-GB">We could not find your account with this phone number.</Say>';
-        echo '<Say voice="alice" language="en-GB">Please contact us directly for assistance.</Say>';
+        echo '<Say voice="' . $voice . '"><speak>We couldn\'t find your account with this phone number. <break time="300ms"/> Please contact us directly for assistance.</speak></Say>';
         handleContactChurch();
         return;
     }
@@ -89,26 +90,33 @@ function handlePaymentOption($db, ?array $donor, string $callerNumber, string $b
         $balance = number_format((float)$donor['total_pledged'] - (float)$donor['total_paid'], 2);
     }
     
-    echo '<Say voice="alice" language="en-GB">' . htmlspecialchars($donor['name']) . ', thank you for choosing to make a payment.</Say>';
+    echo '<Say voice="' . $voice . '"><speak>' . htmlspecialchars($donor['name']) . ', <break time="200ms"/> thank you for choosing to make a payment.</speak></Say>';
     echo '<Pause length="1"/>';
     
     if ((float)str_replace(',', '', $balance) > 0) {
-        echo '<Say voice="alice" language="en-GB">Your total pledge is ' . speakMoney($totalPledged) . '.</Say>';
-        echo '<Say voice="alice" language="en-GB">You have paid ' . speakMoney($totalPaid) . ' so far.</Say>';
-        echo '<Say voice="alice" language="en-GB">Your outstanding balance is ' . speakMoney($balance) . '.</Say>';
+        echo '<Say voice="' . $voice . '"><speak><prosody rate="95%">';
+        echo 'Your total pledge amount is <say-as interpret-as="currency">GBP' . str_replace(',', '', $totalPledged) . '</say-as>. <break time="400ms"/>';
+        echo 'So far, you have paid <say-as interpret-as="currency">GBP' . str_replace(',', '', $totalPaid) . '</say-as>. <break time="400ms"/>';
+        echo 'Your outstanding balance is <emphasis level="moderate"><say-as interpret-as="currency">GBP' . str_replace(',', '', $balance) . '</say-as></emphasis>.';
+        echo '</prosody></speak></Say>';
         echo '<Pause length="1"/>';
         
         // Ask for payment amount
         echo '<Gather numDigits="5" action="' . $baseUrl . 'twilio-ivr-payment.php?caller=' . urlencode($callerNumber) . '&donor_id=' . $donor['id'] . '&balance=' . urlencode($balance) . '" method="POST" timeout="15" finishOnKey="#">';
-        echo '<Say voice="alice" language="en-GB">Please enter the amount you wish to pay in pounds using your keypad, followed by the hash key.</Say>';
-        echo '<Say voice="alice" language="en-GB">For example, to pay 50 pounds, press 5 0 then hash.</Say>';
+        echo '<Say voice="' . $voice . '"><speak><prosody rate="90%">';
+        echo 'Please enter the amount you would like to pay, <break time="200ms"/> in pounds, <break time="200ms"/> using your keypad. <break time="300ms"/>';
+        echo 'Then press the hash key when you\'re done. <break time="500ms"/>';
+        echo 'For example, <break time="200ms"/> to pay fifty pounds, <break time="200ms"/> press five, zero, <break time="200ms"/> then hash.';
+        echo '</prosody></speak></Say>';
         echo '</Gather>';
         
-        echo '<Say voice="alice" language="en-GB">We did not receive any input.</Say>';
+        echo '<Say voice="' . $voice . '">We didn\'t receive any input. Please try again.</Say>';
         echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
     } else {
-        echo '<Say voice="alice" language="en-GB">Great news! You have no outstanding balance. Your pledge has been fully paid.</Say>';
-        echo '<Say voice="alice" language="en-GB">Thank you for your generous support. God bless you.</Say>';
+        echo '<Say voice="' . $voice . '"><speak>';
+        echo 'Great news! <break time="300ms"/> You have no outstanding balance. <break time="300ms"/> Your pledge has been fully paid. <break time="500ms"/>';
+        echo 'Thank you so much for your generous support. <break time="300ms"/> May God bless you abundantly.';
+        echo '</speak></Say>';
         echo '<Hangup/>';
     }
 }
@@ -118,9 +126,10 @@ function handlePaymentOption($db, ?array $donor, string $callerNumber, string $b
  */
 function handleBalanceCheck($db, ?array $donor): void
 {
+    $voice = 'Polly.Amy-Neural';
+    
     if (!$donor) {
-        echo '<Say voice="alice" language="en-GB">We could not find your account with this phone number.</Say>';
-        echo '<Say voice="alice" language="en-GB">Please contact us directly for assistance.</Say>';
+        echo '<Say voice="' . $voice . '"><speak>We couldn\'t find your account with this phone number. <break time="300ms"/> Please contact us directly for assistance.</speak></Say>';
         handleContactChurch();
         return;
     }
@@ -134,23 +143,35 @@ function handleBalanceCheck($db, ?array $donor): void
         $balance = (float)$donor['total_pledged'] - (float)$donor['total_paid'];
     }
     
-    echo '<Say voice="alice" language="en-GB">Hello ' . htmlspecialchars($donor['name']) . '. Here is your account summary.</Say>';
+    echo '<Say voice="' . $voice . '"><speak>';
+    echo 'Hello ' . htmlspecialchars($donor['name']) . '. <break time="300ms"/> Here is your account summary.';
+    echo '</speak></Say>';
     echo '<Pause length="1"/>';
-    echo '<Say voice="alice" language="en-GB">Your total pledge amount is ' . speakMoney($totalPledged) . '.</Say>';
-    echo '<Say voice="alice" language="en-GB">You have paid ' . speakMoney($totalPaid) . '.</Say>';
+    
+    echo '<Say voice="' . $voice . '"><speak><prosody rate="95%">';
+    echo 'Your total pledge amount is <say-as interpret-as="currency">GBP' . str_replace(',', '', $totalPledged) . '</say-as>. <break time="400ms"/>';
+    echo 'You have paid <say-as interpret-as="currency">GBP' . str_replace(',', '', $totalPaid) . '</say-as>. <break time="400ms"/>';
     
     if ($balance > 0) {
-        echo '<Say voice="alice" language="en-GB">Your outstanding balance is ' . speakMoney(number_format($balance, 2)) . '.</Say>';
+        echo 'Your outstanding balance is <emphasis level="moderate"><say-as interpret-as="currency">GBP' . number_format($balance, 2) . '</say-as></emphasis>. <break time="600ms"/>';
+        echo '</prosody></speak></Say>';
         echo '<Pause length="1"/>';
-        echo '<Say voice="alice" language="en-GB">To make a payment, you can call us back and press 1, or transfer to our bank account.</Say>';
-        echo '<Say voice="alice" language="en-GB">Our bank details are: Sort code 3 0 9 6 2 6. Account number 8 7 4 1 0 6 2 0.</Say>';
-        echo '<Say voice="alice" language="en-GB">Please use your name as the payment reference.</Say>';
+        echo '<Say voice="' . $voice . '"><speak><prosody rate="90%">';
+        echo 'To make a payment, <break time="200ms"/> you can call us back and press one, <break time="300ms"/> or transfer directly to our bank account. <break time="500ms"/>';
+        echo 'Our bank details are: <break time="300ms"/> Sort code, <say-as interpret-as="digits">309626</say-as>. <break time="400ms"/>';
+        echo 'Account number, <say-as interpret-as="digits">87410620</say-as>. <break time="400ms"/>';
+        echo 'Please use your name as the payment reference.';
+        echo '</prosody></speak></Say>';
     } else {
-        echo '<Say voice="alice" language="en-GB">Congratulations! You have fully paid your pledge. Thank you for your generous support.</Say>';
+        echo '</prosody></speak></Say>';
+        echo '<Say voice="' . $voice . '"><speak>';
+        echo '<emphasis level="strong">Congratulations!</emphasis> <break time="300ms"/> You have fully paid your pledge. <break time="300ms"/>';
+        echo 'Thank you so much for your generous support.';
+        echo '</speak></Say>';
     }
     
     echo '<Pause length="1"/>';
-    echo '<Say voice="alice" language="en-GB">Thank you for calling. God bless you. Goodbye.</Say>';
+    echo '<Say voice="' . $voice . '"><speak>Thank you for calling. <break time="200ms"/> May God bless you. <break time="200ms"/> Goodbye.</speak></Say>';
     echo '<Hangup/>';
 }
 
@@ -159,12 +180,14 @@ function handleBalanceCheck($db, ?array $donor): void
  */
 function handleContactChurch(): void
 {
+    $voice = 'Polly.Amy-Neural';
     $churchPhone = '07360436171';
     
-    echo '<Say voice="alice" language="en-GB">To speak with a church member, please call ' . speakPhoneNumber($churchPhone) . '.</Say>';
-    echo '<Pause length="1"/>';
-    echo '<Say voice="alice" language="en-GB">That number again is ' . speakPhoneNumber($churchPhone) . '.</Say>';
-    echo '<Say voice="alice" language="en-GB">Thank you for calling. God bless you. Goodbye.</Say>';
+    echo '<Say voice="' . $voice . '"><speak><prosody rate="90%">';
+    echo 'To speak with a church member, <break time="300ms"/> please call <say-as interpret-as="telephone">' . $churchPhone . '</say-as>. <break time="600ms"/>';
+    echo 'I\'ll repeat that number: <break time="300ms"/> <say-as interpret-as="telephone">' . $churchPhone . '</say-as>. <break time="500ms"/>';
+    echo 'Thank you for calling. <break time="200ms"/> May God bless you. <break time="200ms"/> Goodbye.';
+    echo '</prosody></speak></Say>';
     echo '<Hangup/>';
 }
 

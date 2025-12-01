@@ -28,6 +28,8 @@ try {
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
+    $voice = 'Polly.Amy-Neural';
+    
     if ($digits === '1') {
         // Confirm payment - create pledge_payment record
         $result = createPendingPayment($db, $donorId, $amount, $callerNumber, $callSid);
@@ -42,28 +44,38 @@ try {
                 sendWhatsAppConfirmation($db, $donor, $amount, $result['reference']);
             }
             
-            echo '<Say voice="alice" language="en-GB">Thank you. Your payment of ' . speakMoney($amount) . ' has been registered.</Say>';
+            echo '<Say voice="' . $voice . '"><speak>';
+            echo '<emphasis level="moderate">Thank you!</emphasis> <break time="300ms"/> Your payment of <say-as interpret-as="currency">GBP' . $amount . '</say-as> has been registered.';
+            echo '</speak></Say>';
             echo '<Pause length="1"/>';
-            echo '<Say voice="alice" language="en-GB">Please transfer this amount to our bank account.</Say>';
-            echo '<Say voice="alice" language="en-GB">Sort code: 3 0 9 6 2 6. Account number: 8 7 4 1 0 6 2 0.</Say>';
-            echo '<Say voice="alice" language="en-GB">Please use your name or reference number ' . speakReference($result['reference']) . ' as the payment reference.</Say>';
+            
+            echo '<Say voice="' . $voice . '"><speak><prosody rate="90%">';
+            echo 'Please transfer this amount to our bank account. <break time="500ms"/>';
+            echo 'Sort code: <say-as interpret-as="digits">309626</say-as>. <break time="400ms"/>';
+            echo 'Account number: <say-as interpret-as="digits">87410620</say-as>. <break time="500ms"/>';
+            echo 'Please use your name as the payment reference.';
+            echo '</prosody></speak></Say>';
             echo '<Pause length="1"/>';
-            echo '<Say voice="alice" language="en-GB">We have also sent these details to your WhatsApp.</Say>';
-            echo '<Say voice="alice" language="en-GB">Once we confirm your payment, you will receive a WhatsApp notification.</Say>';
-            echo '<Pause length="1"/>';
-            echo '<Say voice="alice" language="en-GB">Thank you for your generous support. May God bless you abundantly. Goodbye.</Say>';
+            
+            echo '<Say voice="' . $voice . '"><speak>';
+            echo 'We have also sent these details to your WhatsApp. <break time="400ms"/>';
+            echo 'Once we confirm your payment, <break time="200ms"/> you will receive a WhatsApp notification. <break time="500ms"/>';
+            echo 'Thank you for your generous support. <break time="300ms"/> May God bless you abundantly. <break time="300ms"/> Goodbye!';
+            echo '</speak></Say>';
         } else {
-            echo '<Say voice="alice" language="en-GB">We encountered an error processing your request. Please try again later or contact us directly.</Say>';
+            echo '<Say voice="' . $voice . '"><speak>';
+            echo 'We encountered an error processing your request. <break time="300ms"/> Please try again later, <break time="200ms"/> or contact us directly.';
+            echo '</speak></Say>';
         }
         
         echo '<Hangup/>';
         
     } elseif ($digits === '2') {
         // Re-enter amount
-        echo '<Redirect>' . $baseUrl . 'twilio-ivr-menu.php?caller=' . urlencode($callerNumber) . '&Digits=1</Redirect>';
+        echo '<Redirect>' . $baseUrl . 'twilio-ivr-menu.php?caller=' . urlencode($callerNumber) . '&amp;Digits=1</Redirect>';
         
     } else {
-        echo '<Say voice="alice" language="en-GB">Invalid option.</Say>';
+        echo '<Say voice="' . $voice . '">Invalid option. Please try again.</Say>';
         echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
     }
     
