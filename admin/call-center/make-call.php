@@ -568,6 +568,16 @@ $page_title = 'Call: ' . $donor->name;
                 </div>
                 
                 <div class="action-buttons">
+                    <!-- Twilio Click-to-Call Button -->
+                    <button type="button" class="btn btn-primary btn-lg" onclick="showTwilioCallModal()">
+                        <i class="fas fa-phone-volume me-2"></i>Call via Twilio
+                        <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Your phone will ring first</small>
+                    </button>
+                    
+                    <div class="text-center my-2">
+                        <span class="badge bg-light text-muted">OR</span>
+                    </div>
+                    
                     <?php if($queue_id > 0): ?>
                     <a href="index.php" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Queue
@@ -578,8 +588,8 @@ $page_title = 'Call: ' . $donor->name;
                     </a>
                     <?php endif; ?>
                     <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>" 
-                       class="btn btn-success btn-lg">
-                        <i class="fas fa-phone-alt me-2"></i>Start Call
+                       class="btn btn-outline-success btn-lg">
+                        <i class="fas fa-phone-alt me-2"></i>Manual Call (Track Timer)
                     </a>
                 </div>
             </div>
@@ -637,7 +647,134 @@ $page_title = 'Call: ' . $donor->name;
     </div>
 </div>
 
+<!-- Twilio Call Modal -->
+<div class="modal fade" id="twilioCallModal" tabindex="-1" aria-labelledby="twilioCallModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="twilioCallModalLabel">
+                    <i class="fas fa-phone-volume me-2"></i>Call via Twilio
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>How it works:</strong>
+                    <ol class="mb-0 mt-2" style="font-size: 0.875rem;">
+                        <li>Enter your phone number below</li>
+                        <li>Click "Start Call" - your phone will ring</li>
+                        <li>Answer your phone</li>
+                        <li>You'll hear "Connecting to <?php echo htmlspecialchars(explode(' ', $donor->name)[0]); ?>..."</li>
+                        <li>Donor's phone will ring and you'll be connected!</li>
+                    </ol>
+                </div>
+                
+                <form id="twilioCallForm">
+                    <?php require_once __DIR__ . '/../../shared/csrf.php'; echo csrf_input(); ?>
+                    <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
+                    <input type="hidden" name="queue_id" value="<?php echo $queue_id; ?>">
+                    
+                    <div class="mb-3">
+                        <label for="agentPhone" class="form-label fw-semibold">
+                            Your Phone Number <span class="text-danger">*</span>
+                        </label>
+                        <input type="tel" class="form-control form-control-lg" id="agentPhone" name="agent_phone" 
+                               placeholder="07XXXXXXXXX or +447XXXXXXXXX" required
+                               pattern="^(07[0-9]{9}|447[0-9]{9}|\+447[0-9]{9})$">
+                        <div class="form-text">
+                            <i class="fas fa-lock me-1"></i>UK mobile format (e.g., 07123456789)
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Important:</strong> Make sure your phone is nearby and the volume is turned on!
+                    </div>
+                </form>
+                
+                <div id="twilioCallStatus" class="mt-3" style="display: none;">
+                    <!-- Status messages will appear here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-lg" onclick="initiateTwilioCall()">
+                    <i class="fas fa-phone-volume me-2"></i>Start Call
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+// Twilio Click-to-Call Functions
+let twilioModal = null;
+
+function showTwilioCallModal() {
+    if (!twilioModal) {
+        twilioModal = new bootstrap.Modal(document.getElementById('twilioCallModal'));
+    }
+    twilioModal.show();
+}
+
+function initiateTwilioCall() {
+    const form = document.getElementById('twilioCallForm');
+    const agentPhone = document.getElementById('agentPhone').value.trim();
+    const statusDiv = document.getElementById('twilioCallStatus');
+    const submitBtn = event.target;
+    
+    // Validate
+    if (!agentPhone) {
+        showTwilioStatus('error', 'Please enter your phone number');
+        return;
+    }
+    
+    // Show loading
+    const originalHTML = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initiating Call...';
+    
+    showTwilioStatus('info', '📞 Calling your phone...');
+    
+    // Send AJAX request
+    const formData = new FormData(form);
+    
+    fetch('api/twilio-initiate-call.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showTwilioStatus('success', '✅ ' + data.message);
+            
+            // Wait 2 seconds then redirect to conversation page
+            setTimeout(() => {
+                window.location.href = data.redirect_url;
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Failed to initiate call');
+        }
+    })
+    .catch(error => {
+        console.error('Twilio call error:', error);
+        showTwilioStatus('error', '❌ ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHTML;
+    });
+}
+
+function showTwilioStatus(type, message) {
+    const statusDiv = document.getElementById('twilioCallStatus');
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                       type === 'success' ? 'alert-success' : 'alert-info';
+    
+    statusDiv.innerHTML = `<div class="alert ${alertClass} mb-0">${message}</div>`;
+    statusDiv.style.display = 'block';
+}
+</script>
 </body>
 </html>
