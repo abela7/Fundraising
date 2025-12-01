@@ -91,6 +91,62 @@ try {
     $donor_total_pledged = (float)($donor['total_pledged'] ?? 0);
     $donor_total_paid = (float)($donor['total_paid'] ?? 0);
     $donor_balance = (float)($donor['balance'] ?? 0);
+
+    /**
+     * SAFETY NET:
+     * In some older data sets, the donors.total_pledged / total_paid / balance
+     * fields were never back-filled, so they stay 0. However, the true values
+     * exist in pledges, payments and pledge_payments.
+     *
+     * If everything is 0 here but the donor actually has financial history,
+     * the widget would incorrectly show £0.00 for everything.
+     *
+     * To avoid that, we add a fallback: when all three are 0, we recompute
+     * per-donor totals directly from the source tables using the same rules
+     * as the central FinancialCalculator:
+     *  - pledges.status = 'approved'
+     *  - payments.status = 'approved'
+     *  - pledge_payments.status = 'confirmed'
+     */
+    if ($donor_total_pledged === 0.0 && $donor_total_paid === 0.0 && $donor_balance === 0.0) {
+        // Check if there is any pledge / payment activity at all
+        $fallback_sql = "
+            SELECT
+                COALESCE((
+                    SELECT SUM(amount) 
+                    FROM pledges 
+                    WHERE donor_id = ? AND status = 'approved'
+                ), 0) AS fallback_total_pledged,
+                COALESCE((
+                    SELECT SUM(amount) 
+                    FROM payments 
+                    WHERE donor_id = ? AND status = 'approved'
+                ), 0) +
+                COALESCE((
+                    SELECT SUM(amount) 
+                    FROM pledge_payments 
+                    WHERE donor_id = ? AND status = 'confirmed'
+                ), 0) AS fallback_total_paid
+        ";
+
+        if ($stmt = $db->prepare($fallback_sql)) {
+            $stmt->bind_param('iii', $donor_id, $donor_id, $donor_id);
+            $stmt->execute();
+            $fallback_result = $stmt->get_result();
+            if ($fallback_row = $fallback_result->fetch_assoc()) {
+                $fallback_pledged = (float)$fallback_row['fallback_total_pledged'];
+                $fallback_paid = (float)$fallback_row['fallback_total_paid'];
+
+                // Only override if there is real data (at least some pledge or payment)
+                if ($fallback_pledged > 0 || $fallback_paid > 0) {
+                    $donor_total_pledged = $fallback_pledged;
+                    $donor_total_paid = $fallback_paid;
+                    $donor_balance = max(0.0, $donor_total_pledged - $donor_total_paid);
+                }
+            }
+            $stmt->close();
+        }
+    }
     
     // Get pledge info (same as view-donor.php)
     $pledge_data = null;
