@@ -227,6 +227,16 @@ try {
         $balance = max($total_pledged - $total_paid, 0);
     }
     
+    // Determine registrar name - fallback to pledge registrar if donor registrar is not set
+    $registrar_name = $donor['registrar_name'] ?? null;
+    if (empty($registrar_name) && !empty($pledges)) {
+        // Use the most recent pledge's registrar
+        $registrar_name = $pledges[0]['registrar_name'] ?? null;
+    }
+    if (empty($registrar_name)) {
+        $registrar_name = 'Unknown';
+    }
+    
     // Language label mapping
     $lang_labels = [
         'en' => 'English',
@@ -268,7 +278,7 @@ try {
             'church_id' => $donor['church_id'] ?? null,
             'church_name' => $donor['church_name'] ?? '',
             'church_city' => $donor['church_city'] ?? '',
-            'registrar_name' => $donor['registrar_name'] ?? 'Unknown',
+            'registrar_name' => $registrar_name,
             'reference_number' => $reference_number,
             'created_at' => $donor['created_at'] ?? '',
             'sms_opt_in' => (bool)($donor['sms_opt_in'] ?? true),
