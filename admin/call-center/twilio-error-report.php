@@ -1,22 +1,14 @@
 <?php
 declare(strict_types=1);
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
+require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../services/TwilioErrorCodes.php';
+require_login();
 
-try {
-    require_once __DIR__ . '/../../shared/auth.php';
-    require_once __DIR__ . '/../../config/db.php';
-    require_once __DIR__ . '/../../services/TwilioErrorCodes.php';
-    require_login();
-
-    $db = db();
-    $user_role = $_SESSION['user']['role'] ?? 'registrar';
-    $is_admin = ($user_role === 'admin');
-} catch (Exception $e) {
-    die("Initialization Error: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
-}
+$db = db();
+$user_role = $_SESSION['user']['role'] ?? 'registrar';
+$is_admin = ($user_role === 'admin');
 
 // Date filter
 $date_from = $_GET['date_from'] ?? date('Y-m-01'); // First day of current month
@@ -30,8 +22,6 @@ $failed_calls_count = 0;
 $successful_calls_count = 0;
 $success_rate = 0;
 $failure_rate = 0;
-
-try {
 
 // Get error statistics
 $error_stats_query = "
@@ -51,11 +41,14 @@ $error_stats_query = "
     ORDER BY error_count DESC
 ";
 
+$date_from_full = $date_from . ' 00:00:00';
+$date_to_full = $date_to . ' 23:59:59';
+
 $stmt = $db->prepare($error_stats_query);
 if (!$stmt) {
     die("Error preparing query: " . $db->error);
 }
-$stmt->bind_param('ss', $date_from . ' 00:00:00', $date_to . ' 23:59:59');
+$stmt->bind_param('ss', $date_from_full, $date_to_full);
 $stmt->execute();
 $result = $stmt->get_result();
 $error_stats = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
@@ -88,7 +81,7 @@ $stmt = $db->prepare($failed_calls_query);
 if (!$stmt) {
     die("Error preparing query: " . $db->error);
 }
-$stmt->bind_param('ss', $date_from . ' 00:00:00', $date_to . ' 23:59:59');
+$stmt->bind_param('ss', $date_from_full, $date_to_full);
 $stmt->execute();
 $result = $stmt->get_result();
 $failed_calls = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
@@ -109,21 +102,17 @@ $stmt = $db->prepare($total_twilio_calls_query);
 if (!$stmt) {
     die("Error preparing query: " . $db->error);
 }
-$stmt->bind_param('ss', $date_from . ' 00:00:00', $date_to . ' 23:59:59');
+$stmt->bind_param('ss', $date_from_full, $date_to_full);
 $stmt->execute();
 $result = $stmt->get_result();
 $summary = $result ? $result->fetch_assoc() : [];
 $stmt->close();
 
-    $total_calls = (int)($summary['total_calls'] ?? 0);
-    $failed_calls_count = (int)($summary['failed_calls'] ?? 0);
-    $successful_calls_count = (int)($summary['successful_calls'] ?? 0);
-    $success_rate = $total_calls > 0 ? round(($successful_calls_count / $total_calls) * 100, 1) : 0;
-    $failure_rate = $total_calls > 0 ? round(($failed_calls_count / $total_calls) * 100, 1) : 0;
-
-} catch (Exception $e) {
-    die("Database Error: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
-}
+$total_calls = (int)($summary['total_calls'] ?? 0);
+$failed_calls_count = (int)($summary['failed_calls'] ?? 0);
+$successful_calls_count = (int)($summary['successful_calls'] ?? 0);
+$success_rate = $total_calls > 0 ? round(($successful_calls_count / $total_calls) * 100, 1) : 0;
+$failure_rate = $total_calls > 0 ? round(($failed_calls_count / $total_calls) * 100, 1) : 0;
 
 $page_title = 'Twilio Error Report';
 ?>
