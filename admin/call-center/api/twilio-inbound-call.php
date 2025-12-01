@@ -40,45 +40,35 @@ try {
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
-    // Use Amazon Polly Neural voice for natural sound
-    $voice = 'Polly.Amy-Neural';
+    // Use Polly.Amy (standard, not Neural) - more compatible
+    $voice = 'Polly.Amy';
     
-    // Welcome message with SSML for natural pauses and emphasis
-    echo '<Say voice="' . $voice . '">';
-    echo '<speak>';
-    echo '<prosody rate="95%">';  // Slightly slower for clarity
-    echo 'Welcome to Liverpool Abune Teklehaymanot <break time="300ms"/> Ethiopian Orthodox Tewahedo Church.';
-    echo '</prosody>';
-    echo '</speak>';
+    // Welcome message - simple and clear
+    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo 'Welcome to Liverpool Abune Teklehaymanot, Ethiopian Orthodox Tewahedo Church.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
     // Personalize if donor found
     if ($donor) {
-        echo '<Say voice="' . $voice . '">';
-        echo '<speak>';
-        echo 'Hello <emphasis level="moderate">' . htmlspecialchars($donor['name']) . '</emphasis>. <break time="300ms"/> Thank you for calling.';
-        echo '</speak>';
+        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo 'Hello ' . htmlspecialchars($donor['name']) . '. Thank you for calling.';
         echo '</Say>';
         echo '<Pause length="1"/>';
     }
     
-    // Menu with Gather - natural pacing
+    // Menu with Gather
     echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-menu.php?caller=' . urlencode($callerNumber) . '" method="POST" timeout="10">';
-    echo '<Say voice="' . $voice . '">';
-    echo '<speak>';
-    echo '<prosody rate="95%">';
-    echo 'Please choose from the following options. <break time="500ms"/>';
-    echo 'To make a payment, <break time="200ms"/> press <say-as interpret-as="number">1</say-as>. <break time="400ms"/>';
-    echo 'To check your outstanding balance, <break time="200ms"/> press <say-as interpret-as="number">2</say-as>. <break time="400ms"/>';
-    echo 'To speak with a church member, <break time="200ms"/> press <say-as interpret-as="number">3</say-as>.';
-    echo '</prosody>';
-    echo '</speak>';
+    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo 'Please choose from the following options. ';
+    echo 'To make a payment, press 1. ';
+    echo 'To check your outstanding balance, press 2. ';
+    echo 'To speak with a church member, press 3.';
     echo '</Say>';
     echo '</Gather>';
     
     // If no input
-    echo '<Say voice="' . $voice . '">We didn\'t receive any input. Please call back and try again. Goodbye.</Say>';
+    echo '<Say voice="' . $voice . '" language="en-GB">We did not receive any input. Please call back and try again. Goodbye.</Say>';
     echo '<Hangup/>';
     
     echo '</Response>';
