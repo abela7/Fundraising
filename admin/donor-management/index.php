@@ -220,7 +220,7 @@ $db = db();
                                         <div class="feature-icon bg-success-subtle text-success me-2">
                                             <i class="fas fa-phone-volume"></i>
                                         </div>
-                                        <h6 class="mb-0">Twilio Call Dashboard</h6>
+                                        <h6 class="mb-0">Call Dashboard</h6>
                                     </div>
                                     <p class="card-text text-muted small">Click-to-call, settings, error reports & analytics.</p>
                                     <span class="badge bg-success badge-sm">Active</span>

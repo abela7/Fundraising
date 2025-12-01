@@ -582,15 +582,15 @@ $page_title = 'Call: ' . $donor->name;
                 </div>
                 
                 <div class="action-buttons">
-                    <!-- Twilio Click-to-Call Button -->
+                    <!-- Voice Click-to-Call Button -->
                     <?php if (!empty($user_phone)): ?>
                     <button type="button" class="btn btn-primary btn-lg" id="twilioCallBtn" onclick="initiateTwilioCallDirect()">
-                        <i class="fas fa-phone-volume me-2"></i>Call via Twilio
+                        <i class="fas fa-phone-volume me-2"></i>Call via Voice
                         <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Your phone (<?php echo htmlspecialchars($user_phone); ?>) will ring first</small>
                     </button>
                     <?php else: ?>
                     <button type="button" class="btn btn-primary btn-lg" onclick="showTwilioCallModal()">
-                        <i class="fas fa-phone-volume me-2"></i>Call via Twilio
+                        <i class="fas fa-phone-volume me-2"></i>Call via Voice
                         <small class="d-block" style="font-size: 0.7rem; opacity: 0.9;">Enter your phone number</small>
                     </button>
                     <?php endif; ?>
@@ -668,13 +668,13 @@ $page_title = 'Call: ' . $donor->name;
     </div>
 </div>
 
-<!-- Twilio Call Modal -->
+<!-- Voice Call Modal -->
 <div class="modal fade" id="twilioCallModal" tabindex="-1" aria-labelledby="twilioCallModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="twilioCallModalLabel">
-                    <i class="fas fa-phone-volume me-2"></i>Call via Twilio
+                    <i class="fas fa-phone-volume me-2"></i>Call via Voice
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -731,7 +731,7 @@ $page_title = 'Call: ' . $donor->name;
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
-// Twilio Click-to-Call Functions
+// Voice Click-to-Call Functions
 let twilioModal = null;
 
 // Direct call function (no modal) - uses logged-in user's phone

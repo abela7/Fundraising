@@ -75,7 +75,7 @@ try {
     die('<div style="background:#ff0000;color:white;padding:20px;">Error in require_admin(): ' . htmlspecialchars($e->getMessage()) . '</div>');
 }
 
-$page_title = 'Twilio Call Settings';
+$page_title = 'Call Settings';
 $current_user = null;
 $twilio_settings = null;
 $error_message = null;
@@ -157,7 +157,7 @@ if ($db) {
             // Save Twilio settings
             if ($action === 'save_settings') {
                 if (!$tables_exist) {
-                    throw new Exception('Twilio settings table does not exist. Please run the database setup script first.');
+                    throw new Exception('Call settings table does not exist. Please run the database setup script first.');
                 }
                 
                 $account_sid = trim($_POST['account_sid'] ?? '');
@@ -219,7 +219,7 @@ if ($db) {
                     throw new Exception('Failed to save settings: ' . $stmt->error);
                 }
                 
-                $_SESSION['success_message'] = 'Twilio settings saved successfully!';
+                $_SESSION['success_message'] = 'Call settings saved successfully!';
                 header('Location: settings.php');
                 exit;
             }
@@ -367,9 +367,9 @@ if ($db) {
                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
                     <div>
                         <h1 class="h4 mb-1">
-                            <i class="fas fa-phone-alt text-primary me-2"></i>Twilio Call Settings
+                            <i class="fas fa-phone-alt text-primary me-2"></i>Call Settings
                         </h1>
-                        <p class="text-muted mb-0 small">Configure Twilio for click-to-call functionality</p>
+                        <p class="text-muted mb-0 small">Configure voice calling for click-to-call functionality</p>
                     </div>
                     <a href="<?php echo url_for('admin/call-center/'); ?>" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-1"></i>Back to Call Center
@@ -407,7 +407,7 @@ if ($db) {
                 <?php if (!$tables_exist): ?>
                 <div class="info-box warning">
                     <h5><i class="fas fa-database me-2"></i>Database Setup Required</h5>
-                    <p class="mb-2">The Twilio database tables are not set up yet. Please run the setup script first:</p>
+                    <p class="mb-2">The call service database tables are not set up yet. Please run the setup script first:</p>
                     <ol class="mb-2">
                         <li>Open phpMyAdmin</li>
                         <li>Select your database: <code>abunetdg_fundraising</code></li>
@@ -422,10 +422,10 @@ if ($db) {
                 <!-- Getting Started Info -->
                 <?php if (!$twilio_settings): ?>
                 <div class="info-box">
-                    <h5><i class="fas fa-rocket me-2"></i>Getting Started with Twilio</h5>
-                    <p class="mb-2">Follow these steps to set up Twilio click-to-call:</p>
+                    <h5><i class="fas fa-rocket me-2"></i>Getting Started with Voice Calling</h5>
+                    <p class="mb-2">Follow these steps to set up click-to-call:</p>
                     <ol class="mb-0">
-                        <li><strong>Create Twilio Account:</strong> Sign up at <a href="https://www.twilio.com/try-twilio" target="_blank">twilio.com</a></li>
+                        <li><strong>Create Account:</strong> Sign up at <a href="https://www.twilio.com/try-twilio" target="_blank">twilio.com</a></li>
                         <li><strong>Buy Phone Number:</strong> Purchase a Liverpool UK number (+44 151)</li>
                         <li><strong>Get Credentials:</strong> Copy your Account SID and Auth Token from the console</li>
                         <li><strong>Add Credit:</strong> Add at least £50 for calling</li>
@@ -438,7 +438,7 @@ if ($db) {
                 <div class="card settings-card">
                     <div class="settings-header">
                         <h5>
-                            <i class="fas fa-cog me-2"></i>Twilio Configuration
+                            <i class="fas fa-cog me-2"></i>Call Configuration
                         </h5>
                         <?php if ($twilio_settings): ?>
                         <span class="badge bg-<?php echo $twilio_settings['is_active'] ? 'success' : 'secondary'; ?>">
@@ -459,13 +459,13 @@ if ($db) {
                                         Account SID <span class="text-danger">*</span>
                                         <i class="fas fa-info-circle text-muted ms-1" 
                                            data-bs-toggle="tooltip" 
-                                           title="Your Twilio Account SID (starts with AC)"></i>
+                                           title="Your Account SID (starts with AC)"></i>
                                     </label>
                                     <input type="text" name="account_sid" class="form-control credential-input" 
                                            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required
                                            pattern="AC[a-f0-9]{32}"
                                            value="<?php echo htmlspecialchars($twilio_settings['account_sid'] ?? ''); ?>">
-                                    <small class="text-muted">Find this in your Twilio Console</small>
+                                    <small class="text-muted">Find this in your service console</small>
                                 </div>
                                 
                                 <!-- Auth Token -->
@@ -474,21 +474,21 @@ if ($db) {
                                         Auth Token <span class="text-danger">*</span>
                                         <i class="fas fa-info-circle text-muted ms-1" 
                                            data-bs-toggle="tooltip" 
-                                           title="Your Twilio Auth Token (keep this secret!)"></i>
+                                           title="Your Auth Token (keep this secret!)"></i>
                                     </label>
                                     <input type="password" name="auth_token" class="form-control credential-input" 
                                            placeholder="Your Auth Token" required
                                            value="<?php echo htmlspecialchars($twilio_settings['auth_token'] ?? ''); ?>">
-                                    <small class="text-muted">Click the eye icon in Twilio Console to reveal</small>
+                                    <small class="text-muted">Click the eye icon in your service console to reveal</small>
                                 </div>
                                 
                                 <!-- Phone Number -->
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">
-                                        Twilio Phone Number <span class="text-danger">*</span>
+                                        Phone Number <span class="text-danger">*</span>
                                         <i class="fas fa-info-circle text-muted ms-1" 
                                            data-bs-toggle="tooltip" 
-                                           title="Your purchased Twilio number in E.164 format"></i>
+                                           title="Your purchased phone number in E.164 format"></i>
                                     </label>
                                     <input type="tel" name="phone_number" class="form-control credential-input" 
                                            placeholder="+44151XXXXXXX" required
@@ -504,7 +504,7 @@ if ($db) {
                                         <input class="form-check-input" type="checkbox" name="is_active" id="isActive" 
                                                <?php echo ($twilio_settings['is_active'] ?? 1) ? 'checked' : ''; ?>>
                                         <label class="form-check-label" for="isActive">
-                                            Enable Twilio Calling
+                                            Enable Voice Calling
                                         </label>
                                     </div>
                                     <small class="text-muted">Toggle to enable/disable click-to-call functionality</small>
@@ -560,10 +560,10 @@ if ($db) {
                     <div class="card-body p-4">
                         <div class="info-box">
                             <h6><i class="fas fa-info-circle me-2"></i>What are Webhooks?</h6>
-                            <p class="mb-0">Webhooks allow Twilio to send real-time updates about your calls back to your system. This enables automatic timer tracking, call recording, and status updates.</p>
+                            <p class="mb-0">Webhooks allow the call service to send real-time updates about your calls back to your system. This enables automatic timer tracking, call recording, and status updates.</p>
                         </div>
                         
-                        <h6 class="mt-4 mb-3">Configure these URLs in your Twilio Console:</h6>
+                        <h6 class="mt-4 mb-3">Configure these URLs in your service console:</h6>
                         
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Status Callback URL</label>
@@ -589,8 +589,8 @@ if ($db) {
                         
                         <div class="alert alert-warning mt-3">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Manual Setup Required:</strong> You need to configure these webhook URLs in your Twilio Console. 
-                            <a href="https://www.twilio.com/console/voice/settings/general" target="_blank" class="alert-link">Open Twilio Settings →</a>
+                            <strong>Manual Setup Required:</strong> You need to configure these webhook URLs in your service console. 
+                            <a href="https://www.twilio.com/console/voice/settings/general" target="_blank" class="alert-link">Open Service Settings →</a>
                         </div>
                     </div>
                 </div>

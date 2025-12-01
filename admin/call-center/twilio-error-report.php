@@ -119,7 +119,7 @@ $successful_calls_count = (int)($summary['successful_calls'] ?? 0);
 $success_rate = $total_calls > 0 ? round(($successful_calls_count / $total_calls) * 100, 1) : 0;
 $failure_rate = $total_calls > 0 ? round(($failed_calls_count / $total_calls) * 100, 1) : 0;
 
-$page_title = 'Twilio Error Report';
+$page_title = 'Call Error Report';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -236,7 +236,7 @@ $page_title = 'Twilio Error Report';
                     <div>
                         <h1 class="h4 mb-1">
                             <i class="fas fa-exclamation-triangle text-danger me-2"></i>
-                            Twilio Error Report
+                            Call Error Report
                         </h1>
                         <p class="text-muted mb-0 small">Analyze failed calls and error patterns</p>
                     </div>
@@ -273,7 +273,7 @@ $page_title = 'Twilio Error Report';
                     <div class="col-md-3">
                         <div class="stat-card">
                             <div class="stat-value text-primary"><?php echo number_format($total_calls); ?></div>
-                            <div class="stat-label">Total Twilio Calls</div>
+                            <div class="stat-label">Total Calls</div>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -309,7 +309,7 @@ $page_title = 'Twilio Error Report';
                             <div class="text-center py-5">
                                 <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                                 <h5>No Errors Found</h5>
-                                <p class="text-muted">All Twilio calls completed successfully in this period!</p>
+                                <p class="text-muted">All calls completed successfully in this period!</p>
                             </div>
                         <?php else: ?>
                             <?php foreach ($error_stats as $error): ?>

@@ -9,7 +9,7 @@ require_login();
 require_admin();
 
 $db = db();
-$page_title = 'Twilio Call Dashboard';
+$page_title = 'Call Dashboard';
 
 // Get Twilio configuration status
 $twilio = TwilioService::fromDatabase($db);
@@ -228,9 +228,9 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                     <div>
                         <h1 class="h4 mb-1">
                             <i class="fas fa-phone-volume text-primary me-2"></i>
-                            Twilio Call Dashboard
+                            Call Dashboard
                         </h1>
-                        <p class="text-muted mb-0 small">Manage Twilio integration and view call analytics</p>
+                        <p class="text-muted mb-0 small">Manage voice calling and view call analytics</p>
                     </div>
                     <div>
                         <a href="../index.php" class="btn btn-outline-secondary">
@@ -244,7 +244,7 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
                             <span class="status-indicator <?php echo $twilio_configured ? 'status-active' : 'status-inactive'; ?>"></span>
-                            <strong>Twilio Status:</strong>
+                            <strong>Call Service Status:</strong>
                             <?php if ($twilio_configured): ?>
                                 Active and Ready
                                 <?php if ($settings): ?>
@@ -300,8 +300,8 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                             <div class="quick-action-icon icon-primary">
                                 <i class="fas fa-cog"></i>
                             </div>
-                            <h6 class="mb-1">Twilio Settings</h6>
-                            <small class="text-muted">Configure API credentials</small>
+                            <h6 class="mb-1">Call Settings</h6>
+                            <small class="text-muted">Configure voice calling</small>
                         </a>
                     </div>
                     <div class="col-md-3">
@@ -324,7 +324,7 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                                 <i class="fas fa-history"></i>
                             </div>
                             <h6 class="mb-1">Call History</h6>
-                            <small class="text-muted">View all Twilio calls</small>
+                            <small class="text-muted">View all voice calls</small>
                         </a>
                     </div>
                     <div class="col-md-3">
@@ -387,7 +387,7 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                             <table class="table table-sm">
                                 <tbody>
                                     <tr>
-                                        <td><i class="fas fa-check-circle text-success me-2"></i>Twilio Service</td>
+                                        <td><i class="fas fa-check-circle text-success me-2"></i>Call Service</td>
                                         <td class="text-end">
                                             <span class="badge <?php echo $twilio_configured ? 'bg-success' : 'bg-secondary'; ?>">
                                                 <?php echo $twilio_configured ? 'Configured' : 'Not Set Up'; ?>
@@ -442,14 +442,14 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                             <div class="col-md-4">
                                 <h6><i class="fas fa-question-circle text-info me-2"></i>How It Works</h6>
                                 <p class="small text-muted">
-                                    Twilio enables click-to-call functionality. When you call a donor, 
-                                    Twilio calls your phone first, then connects you to the donor automatically.
+                                    Click-to-call enables voice calling directly from the system. When you call a donor, 
+                                    your phone rings first, then you're automatically connected to the donor.
                                 </p>
                             </div>
                             <div class="col-md-4">
                                 <h6><i class="fas fa-shield-alt text-success me-2"></i>Privacy & Security</h6>
                                 <p class="small text-muted">
-                                    All calls go through your Liverpool Twilio number. Your personal number 
+                                    All calls go through your Liverpool phone number. Your personal number 
                                     stays private. Call recordings are encrypted and stored securely.
                                 </p>
                             </div>
