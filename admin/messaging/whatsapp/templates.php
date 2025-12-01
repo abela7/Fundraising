@@ -25,9 +25,19 @@ try {
 
 try {
     require_login();
-    require_admin();
+    // Allow both admin and registrar to access templates
+    // Admin can edit/delete, registrar can view/create
 } catch (Throwable $e) {
     die('Auth error: ' . $e->getMessage());
+}
+
+// Check user role
+$is_admin = false;
+try {
+    $current_user_check = current_user();
+    $is_admin = ($current_user_check['role'] ?? '') === 'admin';
+} catch (Throwable $e) {
+    // If can't check, default to non-admin
 }
 
 $page_title = 'WhatsApp Templates';
@@ -125,6 +135,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
                     $stmt->close();
                     $success_message = 'WhatsApp template created successfully!';
                 } else {
+                    // Only admin can edit existing templates
+                    if (!$is_admin) {
+                        throw new Exception('Only administrators can edit templates.');
+                    }
+                    
                     $template_id = (int)($_POST['template_id'] ?? 0);
                     if ($template_id <= 0) {
                         throw new Exception('Invalid template ID');
@@ -157,6 +172,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
             }
             
             if ($action === 'delete') {
+                // Only admin can delete
+                if (!$is_admin) {
+                    throw new Exception('Only administrators can delete templates.');
+                }
+                
                 $template_id = (int)($_POST['template_id'] ?? 0);
                 if ($template_id <= 0) {
                     throw new Exception('Invalid template ID');
@@ -201,9 +221,9 @@ if ($tables_exist && $db) {
     }
 }
 
-// Get template for editing
+// Get template for editing (only admin can edit)
 $edit_template = null;
-if (isset($_GET['edit']) && $tables_exist && $db) {
+if (isset($_GET['edit']) && $tables_exist && $db && $is_admin) {
     try {
         $edit_id = (int)$_GET['edit'];
         if ($edit_id > 0) {
@@ -219,9 +239,11 @@ if (isset($_GET['edit']) && $tables_exist && $db) {
     } catch (Exception $e) {
         $error_message = 'Error loading template: ' . $e->getMessage();
     }
+} elseif (isset($_GET['edit']) && !$is_admin) {
+    $error_message = 'Only administrators can edit templates. You can create a new template based on an existing one.';
 }
 
-$show_form = isset($_GET['action']) && $_GET['action'] === 'new' || $edit_template;
+$show_form = (isset($_GET['action']) && $_GET['action'] === 'new') || $edit_template;
 
 $categories = [
     'payment_reminder' => 'Payment Reminder',
@@ -274,7 +296,12 @@ require_once __DIR__ . '/../../includes/header.php';
 
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">WhatsApp Message Templates</h5>
+                    <div>
+                        <h5 class="mb-0">WhatsApp Message Templates</h5>
+                        <?php if (!$is_admin): ?>
+                        <small class="text-muted">View and copy templates, or create your own</small>
+                        <?php endif; ?>
+                    </div>
                     <?php if (!$show_form): ?>
                     <a href="?action=new" class="btn btn-success">
                         <i class="fas fa-plus me-1"></i>New Template
@@ -285,6 +312,20 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="card-body">
                     <?php if ($show_form): ?>
                     <!-- Template Form -->
+                    <?php if (isset($_GET['copy_from'])): ?>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        You're creating a new template based on an existing one. Modify the fields as needed and save.
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!$is_admin && $edit_template): ?>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Only administrators can edit existing templates. You can create a new template instead.
+                    </div>
+                    <?php endif; ?>
+                    
                     <form method="POST" action="">
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="action" value="<?php echo $edit_template ? 'update' : 'create'; ?>">
@@ -296,7 +337,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Template Key <span class="text-danger">*</span></label>
                                 <input type="text" name="template_key" class="form-control" 
-                                       value="<?php echo htmlspecialchars($edit_template['template_key'] ?? ''); ?>" 
+                                       value="<?php echo htmlspecialchars($edit_template['template_key'] ?? $_GET['template_key'] ?? ''); ?>" 
                                        required pattern="[a-z0-9_]+" 
                                        placeholder="e.g., welcome_message">
                                 <small class="text-muted">Lowercase letters, numbers, and underscores only</small>
@@ -305,22 +346,25 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Template Name <span class="text-danger">*</span></label>
                                 <input type="text" name="name" class="form-control" 
-                                       value="<?php echo htmlspecialchars($edit_template['name'] ?? ''); ?>" required>
+                                       value="<?php echo htmlspecialchars($edit_template['name'] ?? $_GET['name'] ?? ''); ?>" required>
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Description</label>
-                            <textarea name="description" class="form-control" rows="2"><?php echo htmlspecialchars($edit_template['description'] ?? ''); ?></textarea>
+                            <textarea name="description" class="form-control" rows="2"><?php echo htmlspecialchars($edit_template['description'] ?? $_GET['description'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Category</label>
                                 <select name="category" class="form-select">
-                                    <?php foreach ($categories as $key => $label): ?>
+                                    <?php 
+                                    $currentCategory = $edit_template['category'] ?? $_GET['category'] ?? '';
+                                    foreach ($categories as $key => $label): 
+                                    ?>
                                     <option value="<?php echo $key; ?>" 
-                                            <?php echo ($edit_template['category'] ?? '') === $key ? 'selected' : ''; ?>>
+                                            <?php echo $currentCategory === $key ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($label); ?>
                                     </option>
                                     <?php endforeach; ?>
@@ -330,9 +374,12 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Priority</label>
                                 <select name="priority" class="form-select">
-                                    <option value="low" <?php echo ($edit_template['priority'] ?? '') === 'low' ? 'selected' : ''; ?>>Low</option>
-                                    <option value="normal" <?php echo ($edit_template['priority'] ?? '') === 'normal' ? 'selected' : ''; ?>>Normal</option>
-                                    <option value="high" <?php echo ($edit_template['priority'] ?? '') === 'high' ? 'selected' : ''; ?>>High</option>
+                                    <?php 
+                                    $currentPriority = $edit_template['priority'] ?? $_GET['priority'] ?? 'normal';
+                                    ?>
+                                    <option value="low" <?php echo $currentPriority === 'low' ? 'selected' : ''; ?>>Low</option>
+                                    <option value="normal" <?php echo $currentPriority === 'normal' ? 'selected' : ''; ?>>Normal</option>
+                                    <option value="high" <?php echo $currentPriority === 'high' ? 'selected' : ''; ?>>High</option>
                                 </select>
                             </div>
                         </div>
@@ -340,7 +387,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="mb-3">
                             <label class="form-label">Message (English) <span class="text-danger">*</span></label>
                             <textarea name="message_en" class="form-control" rows="4" required 
-                                      placeholder="Hi {name}, thank you for your support!"><?php echo htmlspecialchars($edit_template['message_en'] ?? ''); ?></textarea>
+                                      placeholder="Hi {name}, thank you for your support!"><?php echo htmlspecialchars($edit_template['message_en'] ?? $_GET['message_en'] ?? ''); ?></textarea>
                             <small class="text-muted">Use {variable_name} for dynamic content</small>
                         </div>
 
@@ -348,20 +395,20 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Message (Amharic)</label>
                                 <textarea name="message_am" class="form-control" rows="4" 
-                                          placeholder="Amharic translation"><?php echo htmlspecialchars($edit_template['message_am'] ?? ''); ?></textarea>
+                                          placeholder="Amharic translation"><?php echo htmlspecialchars($edit_template['message_am'] ?? $_GET['message_am'] ?? ''); ?></textarea>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Message (Tigrinya)</label>
                                 <textarea name="message_ti" class="form-control" rows="4" 
-                                          placeholder="Tigrinya translation"><?php echo htmlspecialchars($edit_template['message_ti'] ?? ''); ?></textarea>
+                                          placeholder="Tigrinya translation"><?php echo htmlspecialchars($edit_template['message_ti'] ?? $_GET['message_ti'] ?? ''); ?></textarea>
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Available Variables</label>
                             <input type="text" name="variables" class="form-control" 
-                                   value="<?php echo htmlspecialchars($edit_template['variables'] ?? ''); ?>" 
+                                   value="<?php echo htmlspecialchars($edit_template['variables'] ?? $_GET['variables'] ?? ''); ?>" 
                                    placeholder="name, amount, date, etc.">
                             <small class="text-muted">Comma-separated list of variables used in the template</small>
                         </div>
@@ -383,6 +430,13 @@ require_once __DIR__ . '/../../includes/header.php';
                     </form>
                     <?php else: ?>
                     <!-- Templates List -->
+                    <?php if (!$is_admin): ?>
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> You can view all templates and copy them to create your own. Only administrators can edit or delete existing templates.
+                    </div>
+                    <?php endif; ?>
+                    
                     <?php if (empty($templates)): ?>
                     <div class="text-center py-5">
                         <i class="fab fa-whatsapp fa-3x text-muted mb-3"></i>
@@ -436,6 +490,8 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
+                                            <?php if ($is_admin): ?>
+                                            <!-- Admin: Edit and Delete -->
                                             <a href="?edit=<?php echo $template['id']; ?>" class="btn btn-outline-primary" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </a>
@@ -447,6 +503,23 @@ require_once __DIR__ . '/../../includes/header.php';
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>
+                                            <?php else: ?>
+                                            <!-- Registrar: Copy to create new -->
+                                            <button type="button" class="btn btn-outline-success" 
+                                                    onclick="copyTemplate(<?php echo htmlspecialchars(json_encode([
+                                                        'name' => $template['name'] ?? '',
+                                                        'description' => $template['description'] ?? '',
+                                                        'category' => $template['category'] ?? 'general',
+                                                        'message_en' => $template['message_en'] ?? '',
+                                                        'message_am' => $template['message_am'] ?? '',
+                                                        'message_ti' => $template['message_ti'] ?? '',
+                                                        'variables' => $template['variables'] ?? '',
+                                                        'priority' => $template['priority'] ?? 'normal'
+                                                    ], JSON_HEX_APOS | JSON_HEX_QUOT)); ?>)" 
+                                                    title="Copy to create new template">
+                                                <i class="fas fa-copy"></i> Copy
+                                            </button>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -463,6 +536,36 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Copy template to create new one (for registrars)
+function copyTemplate(template) {
+    // Build URL with template data as query params
+    const params = new URLSearchParams();
+    params.append('action', 'new');
+    params.append('copy_from', '1');
+    params.append('name', (template.name || '') + ' (Copy)');
+    params.append('description', template.description || '');
+    params.append('category', template.category || 'general');
+    params.append('message_en', template.message_en || '');
+    params.append('message_am', template.message_am || '');
+    params.append('message_ti', template.message_ti || '');
+    params.append('variables', template.variables || '');
+    params.append('priority', template.priority || 'normal');
+    
+    window.location.href = 'templates.php?' + params.toString();
+}
+
+// Auto-fill form if copying
+<?php if (isset($_GET['copy_from']) && isset($_GET['action']) && $_GET['action'] === 'new'): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form is already pre-filled via URL params, just scroll to it
+    setTimeout(() => {
+        document.querySelector('form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+});
+<?php endif; ?>
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
 
