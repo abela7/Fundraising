@@ -733,8 +733,6 @@ $page_title = 'Call: ' . $donor->name;
 <script>
 // Twilio Click-to-Call Functions
 let twilioModal = null;
-let callStatusInterval = null;
-let currentSessionId = null;
 
 // Direct call function (no modal) - uses logged-in user's phone
 function initiateTwilioCallDirect() {
@@ -760,16 +758,12 @@ function initiateTwilioCallDirect() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            currentSessionId = data.session_id;
-            showToast('Call Started', 'success', 'Your phone is ringing now');
+            showToast('Call Started', 'success', 'Redirecting to call page');
             
-            // Start polling for call status (for notifications only)
-            startCallStatusPolling(data.session_id);
-            
-            // Redirect to call-status.php immediately
+            // Redirect to call-status.php immediately (NO polling here - we're leaving this page)
             setTimeout(() => {
                 window.location.href = 'call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&session_id=' + data.session_id;
-            }, 1500);
+            }, 800);
         } else {
             throw new Error(data.error || 'Failed to initiate call');
         }
@@ -816,13 +810,11 @@ function initiateTwilioCall() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            currentSessionId = data.session_id;
             showTwilioStatus('success', data.message);
-            startCallStatusPolling(data.session_id);
             
             setTimeout(() => {
                 window.location.href = 'call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?>&session_id=' + data.session_id;
-            }, 1500);
+            }, 800);
         } else {
             throw new Error(data.error || 'Failed to initiate call');
         }
@@ -842,50 +834,6 @@ function showTwilioStatus(type, message) {
     
     statusDiv.innerHTML = `<div class="alert ${alertClass} mb-0">${message}</div>`;
     statusDiv.style.display = 'block';
-}
-
-// Call Status Polling
-function startCallStatusPolling(sessionId) {
-    if (callStatusInterval) {
-        clearInterval(callStatusInterval);
-    }
-    
-    let lastStatus = '';
-    
-    callStatusInterval = setInterval(() => {
-        fetch('api/get-call-status.php?session_id=' + sessionId)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.status !== lastStatus) {
-                    lastStatus = data.status;
-                    handleCallStatusUpdate(data);
-                }
-            })
-            .catch(error => console.error('Status polling error:', error));
-    }, 2000); // Poll every 2 seconds
-}
-
-function handleCallStatusUpdate(data) {
-    const status = data.status;
-    const twilioStatus = data.twilio_status;
-    
-    // ONLY show toast notifications - NO automatic actions
-    if (twilioStatus === 'ringing') {
-        showToast('Your Phone Ringing', 'info', 'Answer your phone to continue');
-    } else if (twilioStatus === 'in-progress' || twilioStatus === 'answered') {
-        showToast('You Picked Up', 'success', 'Connecting to donor now');
-    } else if (twilioStatus === 'completed') {
-        showToast('Donor Answered', 'success', 'Click "Picked Up" to start conversation');
-        // Stop polling - call is connected
-        if (callStatusInterval) {
-            clearInterval(callStatusInterval);
-        }
-    } else if (twilioStatus === 'failed' || twilioStatus === 'busy' || twilioStatus === 'no-answer') {
-        showToast('Call Failed', 'error', 'Could not connect the call');
-        if (callStatusInterval) {
-            clearInterval(callStatusInterval);
-        }
-    }
 }
 
 // Mobile-friendly Toast Notifications
@@ -930,13 +878,6 @@ function showToast(title, type, message) {
         }, 5000);
     }
 }
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-    if (callStatusInterval) {
-        clearInterval(callStatusInterval);
-    }
-});
 </script>
 </body>
 </html>

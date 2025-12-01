@@ -411,8 +411,20 @@ window.addEventListener('beforeunload', () => {
 
 // Show initial toast if this is a Twilio call
 if (sessionId > 0) {
+    console.log('Twilio call detected. Session ID:', sessionId);
     showToast('Call in Progress', 'info', 'Listen for your phone ringing');
+} else {
+    console.log('Manual call mode. No session ID.');
 }
+
+// Debug: Log if page is about to redirect
+window.addEventListener('beforeunload', (event) => {
+    console.warn('Page is being unloaded/redirected!');
+});
+
+// Debug: Monitor for any unauthorized redirects
+const originalLocationHref = Object.getOwnPropertyDescriptor(window.location, 'href');
+console.log('Call status page loaded. Waiting for user action...');
 </script>
 </body>
 </html>
