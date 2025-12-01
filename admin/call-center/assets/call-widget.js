@@ -32,6 +32,10 @@ const CallWidget = {
         registrar: 'Unknown',
         church: 'Unknown',
         churchCity: '',
+        previousCallCount: 0,
+        lastCallDate: '',
+        lastCallOutcome: '',
+        lastCallAgent: '',
         representative: '',
         representativePhone: '',
         payments: [],
@@ -378,6 +382,54 @@ const CallWidget = {
                         </div>
                     </div>
                 </div>
+                
+                <div class="info-section highlight-section">
+                    <h5><i class="fas fa-user-plus"></i>Registration Info</h5>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Registered By</span>
+                            <span class="info-value"><strong>${this.config.registrar || '—'}</strong></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Date</span>
+                            <span class="info-value">${this.config.donorCreatedAt || '—'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Source</span>
+                            <span class="info-value">${(this.config.source || 'public_form').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        </div>
+                        ${this.config.pledgeDate ? `
+                        <div class="info-item">
+                            <span class="info-label">Pledge Date</span>
+                            <span class="info-value">${this.config.pledgeDate}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+                
+                ${this.config.previousCallCount > 0 ? `
+                <div class="info-section highlight-section warning">
+                    <h5><i class="fas fa-history"></i>Previous Calls</h5>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Total Calls</span>
+                            <span class="info-value"><strong>${this.config.previousCallCount}</strong></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Last Call</span>
+                            <span class="info-value">${this.config.lastCallDate || '—'}</span>
+                        </div>
+                        ${this.config.lastCallOutcome ? `
+                        <div class="info-item">
+                            <span class="info-label">Last Outcome</span>
+                            <span class="info-value">${this.config.lastCallOutcome.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        </div>` : ''}
+                        ${this.config.lastCallAgent ? `
+                        <div class="info-item">
+                            <span class="info-label">Last Agent</span>
+                            <span class="info-value">${this.config.lastCallAgent}</span>
+                        </div>` : ''}
+                    </div>
+                </div>` : ''}
                 
                 <div class="info-section">
                     <h5><i class="fas fa-coins"></i>Financial</h5>

@@ -424,6 +424,29 @@
     margin-bottom: 0;
 }
 
+.info-section.highlight-section {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #7dd3fc;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 0 -16px 24px -16px;
+    width: calc(100% + 32px);
+}
+
+.info-section.highlight-section h5 {
+    color: #0369a1;
+}
+
+/* Warning variant for call history */
+.info-section.highlight-section.warning {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-color: #fbbf24;
+}
+
+.info-section.highlight-section.warning h5 {
+    color: #b45309;
+}
+
 .info-section h5 {
     color: #0f172a;
     font-size: 0.8rem;

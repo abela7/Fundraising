@@ -78,7 +78,11 @@ try {
                     (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
                     (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
                     'Unknown'
-                ) as registrar_name
+                ) as registrar_name,
+               (SELECT COUNT(*) FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id) as previous_call_count,
+               (SELECT call_started_at FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id ORDER BY call_started_at DESC LIMIT 1) as last_call_date,
+               (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id ORDER BY call_started_at DESC LIMIT 1) as last_call_outcome,
+               (SELECT u.name FROM call_center_sessions cs JOIN users u ON cs.agent_id = u.id WHERE cs.donor_id = d.id AND cs.id != $session_id ORDER BY cs.call_started_at DESC LIMIT 1) as last_call_agent
         FROM donors d
         LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
         LEFT JOIN churches c ON d.church_id = c.id
@@ -1443,6 +1447,10 @@ $page_title = 'Live Call';
             churchCity: '<?php echo addslashes($donor->church_city ?? ''); ?>',
             representative: '<?php echo addslashes($donor->representative_name ?? ''); ?>',
             representativePhone: '<?php echo addslashes($donor->representative_phone ?? ''); ?>',
+            previousCallCount: <?php echo (int)($donor->previous_call_count ?? 0); ?>,
+            lastCallDate: '<?php echo $donor->last_call_date ? date('M j, Y g:i A', strtotime($donor->last_call_date)) : ''; ?>',
+            lastCallOutcome: '<?php echo addslashes($donor->last_call_outcome ?? ''); ?>',
+            lastCallAgent: '<?php echo addslashes($donor->last_call_agent ?? ''); ?>',
             payments: <?php echo json_encode($payments); ?>,
             paymentPlan: <?php echo json_encode($payment_plan); ?>
         });
