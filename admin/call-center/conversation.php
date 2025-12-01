@@ -59,39 +59,20 @@ try {
         }
     }
     
-    // Get comprehensive donor information for widget modal
-    // Use total_pledged, total_paid, balance directly from donors table (same as donor.php)
+    // Get donor information using same approach as view-donor.php (d.* gets all columns)
     $donor_query = "
-        SELECT d.id, d.name, d.phone, d.city, d.baptism_name, d.email, 
-               d.preferred_language, d.church_id, d.preferred_payment_method,
-               d.representative_id, d.donor_type,
-               d.total_pledged, d.total_paid, d.balance,
-               d.payment_status, d.source, d.created_at as donor_created_at,
-               d.admin_notes, d.flagged_for_followup, d.followup_priority,
-               COALESCE(p.amount, 0) as pledge_amount, 
-               p.created_at as pledge_date,
-               p.id as pledge_id,
-               p.notes as pledge_notes,
-               c.name as church_name,
-               c.city as church_city,
-               cr.name as representative_name,
-               cr.phone as representative_phone,
-               COALESCE(
-                    (SELECT name FROM users WHERE id = d.registered_by_user_id LIMIT 1),
-                    (SELECT u.name FROM pledges p2 JOIN users u ON p2.created_by_user_id = u.id WHERE p2.donor_id = d.id ORDER BY p2.created_at DESC LIMIT 1),
-                    'Unknown'
-                ) as registrar_name,
-               (SELECT COUNT(*) FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id) as previous_call_count,
-               (SELECT call_started_at FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id ORDER BY call_started_at DESC LIMIT 1) as last_call_date,
-               (SELECT outcome FROM call_center_sessions WHERE donor_id = d.id AND id != $session_id ORDER BY call_started_at DESC LIMIT 1) as last_call_outcome,
-               (SELECT u.name FROM call_center_sessions cs JOIN users u ON cs.agent_id = u.id WHERE cs.donor_id = d.id AND cs.id != $session_id ORDER BY cs.call_started_at DESC LIMIT 1) as last_call_agent
+        SELECT 
+            d.*,
+            u.name as registrar_name,
+            c.name as church_name,
+            c.city as church_city,
+            cr.name as representative_name,
+            cr.phone as representative_phone
         FROM donors d
-        LEFT JOIN pledges p ON d.id = p.donor_id AND p.status = 'approved'
+        LEFT JOIN users u ON d.registered_by_user_id = u.id
         LEFT JOIN churches c ON d.church_id = c.id
         LEFT JOIN church_representatives cr ON d.representative_id = cr.id
-        WHERE d.id = ? 
-        ORDER BY p.created_at DESC 
-        LIMIT 1
+        WHERE d.id = ?
     ";
     
     $stmt = $db->prepare($donor_query);
@@ -101,14 +82,62 @@ try {
     $donor = $result->fetch_object();
     $stmt->close();
     
-    // Use financial values directly from donors table (same as donor.php)
+    if (!$donor) {
+        header('Location: ../donor-management/donors.php');
+        exit;
+    }
+    
+    // Financial values from donors table (same as view-donor.php)
     $donor_total_pledged = (float)($donor->total_pledged ?? 0);
     $donor_total_paid = (float)($donor->total_paid ?? 0);
     $donor_balance = (float)($donor->balance ?? 0);
     
-    if (!$donor) {
-        header('Location: ../donor-management/donors.php');
-        exit;
+    // Get pledge info (same as view-donor.php)
+    $pledge_data = null;
+    $pledge_query = "
+        SELECT p.*, u.name as pledge_registrar_name 
+        FROM pledges p 
+        LEFT JOIN users u ON p.created_by_user_id = u.id
+        WHERE p.donor_id = ? 
+        ORDER BY p.created_at DESC
+        LIMIT 1
+    ";
+    $stmt = $db->prepare($pledge_query);
+    if ($stmt) {
+        $stmt->bind_param('i', $donor_id);
+        $stmt->execute();
+        $pledge_result = $stmt->get_result();
+        $pledge_data = $pledge_result->fetch_object();
+        $stmt->close();
+    }
+    
+    // Get call history for this donor
+    $previous_call_count = 0;
+    $last_call_date = null;
+    $last_call_outcome = null;
+    $last_call_agent = null;
+    
+    $call_history_query = "
+        SELECT 
+            COUNT(*) as call_count,
+            (SELECT call_started_at FROM call_center_sessions WHERE donor_id = ? AND id != ? ORDER BY call_started_at DESC LIMIT 1) as last_date,
+            (SELECT outcome FROM call_center_sessions WHERE donor_id = ? AND id != ? ORDER BY call_started_at DESC LIMIT 1) as last_outcome,
+            (SELECT u.name FROM call_center_sessions cs JOIN users u ON cs.agent_id = u.id WHERE cs.donor_id = ? AND cs.id != ? ORDER BY cs.call_started_at DESC LIMIT 1) as last_agent
+        FROM call_center_sessions 
+        WHERE donor_id = ? AND id != ?
+    ";
+    $stmt = $db->prepare($call_history_query);
+    if ($stmt) {
+        $stmt->bind_param('iiiiiiii', $donor_id, $session_id, $donor_id, $session_id, $donor_id, $session_id, $donor_id, $session_id);
+        $stmt->execute();
+        $call_history = $stmt->get_result()->fetch_object();
+        $stmt->close();
+        if ($call_history) {
+            $previous_call_count = (int)$call_history->call_count;
+            $last_call_date = $call_history->last_date;
+            $last_call_outcome = $call_history->last_outcome;
+            $last_call_agent = $call_history->last_agent;
+        }
     }
     
     // Get payment history for widget
@@ -182,8 +211,8 @@ try {
     
     // Extract reference number from pledge notes (digits only)
     $reference_number = '';
-    if (!empty($donor->pledge_notes)) {
-        $reference_number = preg_replace('/\D+/', '', $donor->pledge_notes);
+    if ($pledge_data && !empty($pledge_data->notes)) {
+        $reference_number = preg_replace('/\D+/', '', $pledge_data->notes);
     }
     
     // Get payment plan templates
@@ -747,9 +776,9 @@ $page_title = 'Live Call';
                                             "Did you pledge £<?php echo number_format($donor_balance, 2); ?>?"
                                         </div>
                                         <div class="verification-detail">
-                                            Original Pledge: £<?php echo number_format((float)$donor->pledge_amount, 2); ?>
-                                            <?php if ($donor->pledge_date): ?>
-                                                on <?php echo date('M j, Y', strtotime($donor->pledge_date)); ?>
+                                            Original Pledge: £<?php echo $pledge_data ? number_format((float)$pledge_data->amount, 2) : '0.00'; ?>
+                                            <?php if ($pledge_data && $pledge_data->created_at): ?>
+                                                on <?php echo date('M j, Y', strtotime($pledge_data->created_at)); ?>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -1435,29 +1464,29 @@ $page_title = 'Live Call';
             donorCity: '<?php echo addslashes($donor->city ?? ''); ?>',
             baptismName: '<?php echo addslashes($donor->baptism_name ?? ''); ?>',
             donorType: '<?php echo $donor->donor_type ?? 'pledge'; ?>',
-            totalPledged: <?php echo (float)($donor->total_pledged ?? 0); ?>,
-            totalPaid: <?php echo (float)($donor->total_paid ?? 0); ?>,
-            balance: <?php echo (float)($donor->balance ?? 0); ?>,
+            totalPledged: <?php echo $donor_total_pledged; ?>,
+            totalPaid: <?php echo $donor_total_paid; ?>,
+            balance: <?php echo $donor_balance; ?>,
             paymentStatus: '<?php echo $donor->payment_status ?? 'no_pledge'; ?>',
             preferredLanguage: '<?php echo $donor->preferred_language ?? 'en'; ?>',
             preferredPaymentMethod: '<?php echo $donor->preferred_payment_method ?? 'bank_transfer'; ?>',
             source: '<?php echo $donor->source ?? 'public_form'; ?>',
-            donorCreatedAt: '<?php echo $donor->donor_created_at ? date('M j, Y', strtotime($donor->donor_created_at)) : ''; ?>',
+            donorCreatedAt: '<?php echo $donor->created_at ? date('M j, Y', strtotime($donor->created_at)) : ''; ?>',
             adminNotes: <?php echo json_encode($donor->admin_notes ?? ''); ?>,
-            flaggedForFollowup: <?php echo $donor->flagged_for_followup ?? 0 ? 'true' : 'false'; ?>,
+            flaggedForFollowup: <?php echo ($donor->flagged_for_followup ?? 0) ? 'true' : 'false'; ?>,
             followupPriority: '<?php echo $donor->followup_priority ?? 'medium'; ?>',
-            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
-            pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
-            pledgeNotes: <?php echo json_encode($donor->pledge_notes ?? ''); ?>,
-            registrar: '<?php echo addslashes($donor->registrar_name); ?>',
+            pledgeAmount: <?php echo $pledge_data ? (float)$pledge_data->amount : 0; ?>,
+            pledgeDate: '<?php echo $pledge_data && $pledge_data->created_at ? date('M j, Y', strtotime($pledge_data->created_at)) : ''; ?>',
+            pledgeNotes: <?php echo json_encode($pledge_data->notes ?? ''); ?>,
+            registrar: '<?php echo addslashes($donor->registrar_name ?? ($pledge_data->pledge_registrar_name ?? 'Unknown')); ?>',
             church: '<?php echo addslashes($donor->church_name ?? 'Unknown'); ?>',
             churchCity: '<?php echo addslashes($donor->church_city ?? ''); ?>',
             representative: '<?php echo addslashes($donor->representative_name ?? ''); ?>',
             representativePhone: '<?php echo addslashes($donor->representative_phone ?? ''); ?>',
-            previousCallCount: <?php echo (int)($donor->previous_call_count ?? 0); ?>,
-            lastCallDate: '<?php echo $donor->last_call_date ? date('M j, Y g:i A', strtotime($donor->last_call_date)) : ''; ?>',
-            lastCallOutcome: '<?php echo addslashes($donor->last_call_outcome ?? ''); ?>',
-            lastCallAgent: '<?php echo addslashes($donor->last_call_agent ?? ''); ?>',
+            previousCallCount: <?php echo $previous_call_count; ?>,
+            lastCallDate: '<?php echo $last_call_date ? date('M j, Y g:i A', strtotime($last_call_date)) : ''; ?>',
+            lastCallOutcome: '<?php echo addslashes($last_call_outcome ?? ''); ?>',
+            lastCallAgent: '<?php echo addslashes($last_call_agent ?? ''); ?>',
             payments: <?php echo json_encode($payments); ?>,
             paymentPlan: <?php echo json_encode($payment_plan); ?>
         });
