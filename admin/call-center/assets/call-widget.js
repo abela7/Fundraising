@@ -19,6 +19,7 @@ const CallWidget = {
         donorCity: '',
         baptismName: '',
         balance: 0,
+        totalPaid: 0,
         preferredLanguage: 'en',
         preferredLanguageLabel: 'English',
         preferredPaymentMethod: '',
@@ -193,12 +194,20 @@ const CallWidget = {
         
         // Safe formatting
         let formattedAmount = '0.00';
+        let formattedPaid = '0.00';
         let formattedBalance = '0.00';
         try {
             formattedAmount = Number(this.config.pledgeAmount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         } catch (e) {
             console.warn('Error formatting amount', e);
             formattedAmount = '0.00';
+        }
+
+        try {
+            formattedPaid = Number(this.config.totalPaid || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+        } catch (e) {
+            console.warn('Error formatting paid amount', e);
+            formattedPaid = '0.00';
         }
 
         try {
@@ -290,8 +299,12 @@ const CallWidget = {
                     <!-- Pledge Tab -->
                     <div class="tab-content" data-tab="pledge">
                         <div class="info-group">
-                            <div class="info-label-sm">Pledge Amount</div>
+                            <div class="info-label-sm">Total Pledged</div>
                             <div class="info-value-sm text-danger">£${formattedAmount}</div>
+                        </div>
+                        <div class="info-group">
+                            <div class="info-label-sm">Total Paid</div>
+                            <div class="info-value-sm text-success">£${formattedPaid}</div>
                         </div>
                         <div class="info-group">
                             <div class="info-label-sm">Remaining Balance</div>

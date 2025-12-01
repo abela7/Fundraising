@@ -174,26 +174,44 @@
 /* Tabs */
 .panel-tabs {
     display: flex;
-    gap: 6px;
-    padding: 8px 10px;
+    gap: 4px;
+    padding: 10px 12px;
     border-bottom: 1px solid #e2e8f0;
     overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scroll-behavior: smooth;
+    background: #f8fafc;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.panel-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .panel-tab {
     border: none;
-    border-radius: 999px;
-    background: #e5e7eb;
-    color: #0f172a;
-    padding: 4px 10px;
-    font-size: 0.75rem;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     white-space: nowrap;
     cursor: pointer;
     outline: none;
-    transition: background 0.2s, color 0.2s;
+    transition: all 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.panel-tab:hover {
+    background: #e2e8f0;
+    color: #334155;
 }
 
 .panel-tab i {
@@ -202,6 +220,12 @@
 
 .panel-tab.active {
     background: #0a6286;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(10, 98, 134, 0.2);
+}
+
+.panel-tab.active:hover {
+    background: #075985;
     color: #fff;
 }
 

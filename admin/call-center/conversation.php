@@ -61,9 +61,10 @@ try {
     
     // Get donor and pledge information (including fields for Step 2 and widget)
     $donor_query = "
-        SELECT d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
+        SELECT d.id, d.name, d.phone, d.balance, d.city, d.baptism_name, d.email, 
                d.preferred_language, d.church_id, d.preferred_payment_method,
-               d.representative_id,
+               d.representative_id, d.total_pledged, d.total_paid, d.payment_status,
+               d.source, d.created_at, d.admin_notes,
                COALESCE(p.amount, 0) as pledge_amount, 
                p.created_at as pledge_date,
                p.id as pledge_id,
@@ -95,6 +96,90 @@ try {
     if (!$donor) {
         header('Location: ../donor-management/donors.php');
         exit;
+    }
+    
+    // --- Financial Totals (use live data to keep balances accurate) ---
+    $donor_total_pledged = isset($donor->total_pledged) ? (float)$donor->total_pledged : 0.0;
+    $donor_total_paid = isset($donor->total_paid) ? (float)$donor->total_paid : 0.0;
+    $donor_balance = isset($donor->balance) ? (float)$donor->balance : 0.0;
+    
+    $tables_cache = [];
+    $tableExists = function(string $table) use ($db, &$tables_cache): bool {
+        if (!array_key_exists($table, $tables_cache)) {
+            $safe = $db->real_escape_string($table);
+            $result = $db->query("SHOW TABLES LIKE '{$safe}'");
+            $tables_cache[$table] = $result && $result->num_rows > 0;
+        }
+        return $tables_cache[$table];
+    };
+    
+    // Sum approved pledges
+    $calculated_total_pledged = null;
+    if ($tableExists('pledges')) {
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM pledges WHERE donor_id = ? AND status = 'approved'");
+        if ($stmt) {
+            $stmt->bind_param('i', $donor_id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $calculated_total_pledged = isset($row['total']) ? (float)$row['total'] : 0.0;
+            $stmt->close();
+        }
+    }
+    
+    // Sum approved payments (instant + pledge payments)
+    $calculated_total_paid = 0.0;
+    $has_payment_rows = false;
+    
+    if ($tableExists('payments') && !empty($donor->phone)) {
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE donor_phone = ? AND status = 'approved'");
+        if ($stmt) {
+            $stmt->bind_param('s', $donor->phone);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $amount = isset($row['total']) ? (float)$row['total'] : 0.0;
+            if ($amount > 0) {
+                $has_payment_rows = true;
+            }
+            $calculated_total_paid += $amount;
+            $stmt->close();
+        }
+    }
+    
+    if ($tableExists('pledge_payments')) {
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM pledge_payments WHERE donor_id = ? AND status = 'confirmed'");
+        if ($stmt) {
+            $stmt->bind_param('i', $donor_id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $amount = isset($row['total']) ? (float)$row['total'] : 0.0;
+            if ($amount > 0) {
+                $has_payment_rows = true;
+            }
+            $calculated_total_paid += $amount;
+            $stmt->close();
+        }
+    }
+    
+    if ($calculated_total_pledged !== null && ($calculated_total_pledged > 0 || $donor_total_pledged <= 0)) {
+        $donor_total_pledged = $calculated_total_pledged;
+    }
+    
+    if ($has_payment_rows || $donor_total_paid <= 0) {
+        $donor_total_paid = $calculated_total_paid;
+    }
+    
+    $computed_balance = max($donor_total_pledged - $donor_total_paid, 0.0);
+    if ($computed_balance > 0 || $donor_balance <= 0) {
+        $donor_balance = $computed_balance;
+    }
+    
+    // Sync computed values back to donor object for template usage
+    $donor->total_pledged = $donor_total_pledged;
+    $donor->total_paid = $donor_total_paid;
+    $donor->balance = $donor_balance;
+    
+    if ((float)($donor->pledge_amount ?? 0) <= 0 && $donor_total_pledged > 0) {
+        $donor->pledge_amount = $donor_total_pledged;
     }
     
     // Get churches list for dropdown
@@ -691,13 +776,14 @@ $page_title = 'Live Call';
                                     <input class="form-check-input" type="checkbox" id="verifyAmount">
                                     <div class="verification-text">
                                         <div class="verification-question">
-                                            "Did you pledge £<?php echo number_format((float)$donor->balance, 2); ?>?"
+                                                "Did you pledge £<?php echo number_format((float)$donor->total_pledged, 2); ?>?"
                                         </div>
                                         <div class="verification-detail">
-                                            Original Pledge: £<?php echo number_format((float)$donor->pledge_amount, 2); ?>
-                                            <?php if ($donor->pledge_date): ?>
-                                                on <?php echo date('M j, Y', strtotime($donor->pledge_date)); ?>
-                                            <?php endif; ?>
+                                                Remaining Balance: £<?php echo number_format((float)$donor->balance, 2); ?><br>
+                                                Latest Approved Pledge: £<?php echo number_format((float)$donor->pledge_amount, 2); ?>
+                                                <?php if ($donor->pledge_date): ?>
+                                                    on <?php echo date('M j, Y', strtotime($donor->pledge_date)); ?>
+                                                <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
@@ -1387,7 +1473,8 @@ $page_title = 'Live Call';
             donorCity: '<?php echo addslashes($donor->city ?? ''); ?>',
             baptismName: '<?php echo addslashes($donor->baptism_name ?? ''); ?>',
             balance: <?php echo (float)$donor->balance; ?>,
-            pledgeAmount: <?php echo (float)$donor->pledge_amount; ?>,
+            pledgeAmount: <?php echo (float)$donor->total_pledged; ?>,
+            totalPaid: <?php echo (float)$donor->total_paid; ?>,
             pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
             registrar: '<?php echo addslashes($donor->registrar_name); ?>',
             church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>',
