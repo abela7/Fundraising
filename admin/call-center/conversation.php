@@ -180,6 +180,7 @@ $page_title = 'Live Call';
             max-width: 1100px;
             margin: 0 auto;
             padding-top: 20px;
+            padding-bottom: 120px; /* Space for fixed footer timer */
         }
         
         /* Steps Wizard */
