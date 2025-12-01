@@ -333,7 +333,6 @@ const CallWidget = {
         const formattedPledged = Number(this.config.totalPledged || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const formattedPaid = Number(this.config.totalPaid || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const formattedBalance = Number(this.config.balance || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
-        const formattedPledge = Number(this.config.pledgeAmount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         
         const statusColors = {
             'completed': 'success',
@@ -343,74 +342,58 @@ const CallWidget = {
             'no_pledge': 'secondary'
         };
         const statusColor = statusColors[this.config.paymentStatus] || 'secondary';
+        const statusLabel = (this.config.paymentStatus || 'no_pledge').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         
         return `
             <div class="tab-content-inner">
                 <div class="info-section">
-                    <h5><i class="fas fa-user me-2"></i>Basic Information</h5>
+                    <h5><i class="fas fa-user"></i>Profile</h5>
                     <div class="info-grid">
                         <div class="info-item">
-                            <span class="info-label">Donor ID</span>
+                            <span class="info-label">ID</span>
                             <span class="info-value">#${this.config.donorId}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Name</span>
-                            <span class="info-value highlight">${this.config.donorName}</span>
                         </div>
                         ${this.config.baptismName ? `
                         <div class="info-item">
                             <span class="info-label">Baptism Name</span>
                             <span class="info-value">${this.config.baptismName}</span>
-                        </div>
-                        ` : ''}
+                        </div>` : ''}
                         <div class="info-item">
                             <span class="info-label">Type</span>
                             <span class="info-value">
                                 <span class="badge bg-${this.config.donorType === 'pledge' ? 'warning' : 'success'}">
-                                    ${this.config.donorType === 'pledge' ? 'Pledge Donor' : 'Immediate Payer'}
+                                    ${this.config.donorType === 'pledge' ? 'Pledge' : 'Immediate'}
                                 </span>
                             </span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Payment Status</span>
+                            <span class="info-label">Status</span>
                             <span class="info-value">
-                                <span class="badge bg-${statusColor}">
-                                    ${(this.config.paymentStatus || 'no_pledge').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                </span>
+                                <span class="badge bg-${statusColor}">${statusLabel}</span>
                             </span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Registered</span>
-                            <span class="info-value">${this.config.donorCreatedAt || 'Unknown'}</span>
+                            <span class="info-label">Since</span>
+                            <span class="info-value">${this.config.donorCreatedAt || '—'}</span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="info-section">
-                    <h5><i class="fas fa-pound-sign me-2"></i>Financial Summary</h5>
+                    <h5><i class="fas fa-coins"></i>Financial</h5>
                     <div class="info-grid">
                         <div class="info-item highlight-box">
                             <span class="info-label">Total Pledged</span>
-                            <span class="info-value text-primary">£${formattedPledged}</span>
+                            <span class="info-value">£${formattedPledged}</span>
                         </div>
-                        <div class="info-item highlight-box">
+                        <div class="info-item highlight-box success">
                             <span class="info-label">Total Paid</span>
-                            <span class="info-value text-success">£${formattedPaid}</span>
+                            <span class="info-value">£${formattedPaid}</span>
                         </div>
-                        <div class="info-item highlight-box">
-                            <span class="info-label">Remaining Balance</span>
-                            <span class="info-value text-danger">£${formattedBalance}</span>
+                        <div class="info-item highlight-box danger">
+                            <span class="info-label">Balance Due</span>
+                            <span class="info-value">£${formattedBalance}</span>
                         </div>
-                        ${this.config.pledgeAmount > 0 ? `
-                        <div class="info-item">
-                            <span class="info-label">Current Pledge</span>
-                            <span class="info-value">£${formattedPledge}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Pledge Date</span>
-                            <span class="info-value">${this.config.pledgeDate}</span>
-                        </div>
-                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -418,16 +401,19 @@ const CallWidget = {
     },
     
     renderContactTab() {
+        const lang = (this.config.preferredLanguage || 'en').toUpperCase();
+        const langNames = { 'EN': 'English', 'AM': 'Amharic', 'TI': 'Tigrinya' };
+        
         return `
             <div class="tab-content-inner">
                 <div class="info-section">
-                    <h5><i class="fas fa-phone me-2"></i>Contact Information</h5>
+                    <h5><i class="fas fa-address-book"></i>Contact Details</h5>
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">Phone</span>
                             <span class="info-value">
                                 <a href="tel:${this.config.donorPhone}" class="contact-link">
-                                    <i class="fas fa-phone me-1"></i>${this.config.donorPhone}
+                                    <i class="fas fa-phone"></i>${this.config.donorPhone}
                                 </a>
                             </span>
                         </div>
@@ -436,58 +422,51 @@ const CallWidget = {
                             <span class="info-label">Email</span>
                             <span class="info-value">
                                 <a href="mailto:${this.config.donorEmail}" class="contact-link">
-                                    <i class="fas fa-envelope me-1"></i>${this.config.donorEmail}
+                                    <i class="fas fa-envelope"></i>${this.config.donorEmail}
                                 </a>
                             </span>
-                        </div>
-                        ` : ''}
+                        </div>` : ''}
                         ${this.config.donorCity ? `
                         <div class="info-item">
                             <span class="info-label">City</span>
                             <span class="info-value">${this.config.donorCity}</span>
-                        </div>
-                        ` : ''}
+                        </div>` : ''}
                         <div class="info-item">
-                            <span class="info-label">Preferred Language</span>
-                            <span class="info-value">
-                                <span class="badge bg-info">${(this.config.preferredLanguage || 'en').toUpperCase()}</span>
-                            </span>
+                            <span class="info-label">Language</span>
+                            <span class="info-value">${langNames[lang] || lang}</span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="info-section">
-                    <h5><i class="fas fa-church me-2"></i>Church & Representative</h5>
+                    <h5><i class="fas fa-church"></i>Church Info</h5>
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">Church</span>
-                            <span class="info-value">${this.config.church || 'Not assigned'}</span>
+                            <span class="info-value">${this.config.church || '—'}</span>
                         </div>
                         ${this.config.churchCity ? `
                         <div class="info-item">
-                            <span class="info-label">Church City</span>
+                            <span class="info-label">Location</span>
                             <span class="info-value">${this.config.churchCity}</span>
-                        </div>
-                        ` : ''}
+                        </div>` : ''}
                         ${this.config.representative ? `
                         <div class="info-item">
-                            <span class="info-label">Representative</span>
+                            <span class="info-label">Rep</span>
                             <span class="info-value">${this.config.representative}</span>
-                        </div>
-                        ` : ''}
+                        </div>` : ''}
                         ${this.config.representativePhone ? `
                         <div class="info-item">
-                            <span class="info-label">Rep. Phone</span>
+                            <span class="info-label">Rep Phone</span>
                             <span class="info-value">
                                 <a href="tel:${this.config.representativePhone}" class="contact-link">
-                                    <i class="fas fa-phone me-1"></i>${this.config.representativePhone}
+                                    <i class="fas fa-phone"></i>${this.config.representativePhone}
                                 </a>
                             </span>
-                        </div>
-                        ` : ''}
+                        </div>` : ''}
                         <div class="info-item">
                             <span class="info-label">Registrar</span>
-                            <span class="info-value">${this.config.registrar}</span>
+                            <span class="info-value">${this.config.registrar || '—'}</span>
                         </div>
                     </div>
                 </div>
@@ -501,47 +480,47 @@ const CallWidget = {
         const formattedBalance = Number(this.config.balance || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const paymentMethod = (this.config.preferredPaymentMethod || 'bank_transfer').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         const source = (this.config.source || 'public_form').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const progressPct = this.config.totalPledged > 0 ? ((this.config.totalPaid / this.config.totalPledged) * 100).toFixed(0) : 0;
         
         return `
             <div class="tab-content-inner">
                 <div class="info-section">
-                    <h5><i class="fas fa-chart-line me-2"></i>Financial Overview</h5>
+                    <h5><i class="fas fa-chart-pie"></i>Summary</h5>
                     <div class="info-grid">
-                        <div class="info-item highlight-box success">
+                        <div class="info-item highlight-box">
                             <span class="info-label">Total Pledged</span>
                             <span class="info-value">£${formattedPledged}</span>
                         </div>
-                        <div class="info-item highlight-box primary">
+                        <div class="info-item highlight-box success">
                             <span class="info-label">Total Paid</span>
                             <span class="info-value">£${formattedPaid}</span>
                         </div>
                         <div class="info-item highlight-box danger">
-                            <span class="info-label">Outstanding Balance</span>
+                            <span class="info-label">Balance Due</span>
                             <span class="info-value">£${formattedBalance}</span>
                         </div>
-                        ${this.config.totalPledged > 0 ? `
-                        <div class="info-item">
-                            <span class="info-label">Payment Progress</span>
-                            <span class="info-value">
-                                <div class="progress" style="height: 8px; margin-top: 4px;">
-                                    <div class="progress-bar" role="progressbar" 
-                                         style="width: ${(this.config.totalPaid / this.config.totalPledged * 100).toFixed(1)}%"
-                                         aria-valuenow="${(this.config.totalPaid / this.config.totalPledged * 100).toFixed(1)}" 
-                                         aria-valuemin="0" aria-valuemax="100">
-                                    </div>
-                                </div>
-                                <small class="text-muted">${((this.config.totalPaid / this.config.totalPledged) * 100).toFixed(1)}% paid</small>
-                            </span>
-                        </div>
-                        ` : ''}
                     </div>
                 </div>
                 
+                ${this.config.totalPledged > 0 ? `
                 <div class="info-section">
-                    <h5><i class="fas fa-cog me-2"></i>Payment Preferences</h5>
+                    <h5><i class="fas fa-tasks"></i>Progress</h5>
+                    <div style="padding: 4px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 0.85rem; color: #64748b;">Payment Progress</span>
+                            <span style="font-size: 0.95rem; font-weight: 700; color: #0a6286;">${progressPct}%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width: ${progressPct}%"></div>
+                        </div>
+                    </div>
+                </div>` : ''}
+                
+                <div class="info-section">
+                    <h5><i class="fas fa-sliders-h"></i>Preferences</h5>
                     <div class="info-grid">
                         <div class="info-item">
-                            <span class="info-label">Preferred Method</span>
+                            <span class="info-label">Payment Method</span>
                             <span class="info-value">${paymentMethod}</span>
                         </div>
                         <div class="info-item">
@@ -559,34 +538,33 @@ const CallWidget = {
             return `
                 <div class="tab-content-inner">
                     <div class="empty-state">
-                        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No payment history available</p>
+                        <i class="fas fa-receipt"></i>
+                        <p>No payments recorded yet</p>
                     </div>
                 </div>
             `;
         }
         
-        const paymentsHtml = this.config.payments.map(payment => {
+        const paymentsHtml = this.config.payments.slice(0, 10).map(payment => {
             const amount = Number(payment.amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
             const date = payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB', {
-                year: 'numeric',
+                day: 'numeric',
                 month: 'short',
-                day: 'numeric'
-            }) : 'Unknown';
-            const method = (payment.payment_method || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                year: 'numeric'
+            }) : '—';
+            const method = (payment.payment_method || '—').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             const statusColor = payment.status === 'approved' ? 'success' : payment.status === 'pending' ? 'warning' : 'secondary';
             
             return `
                 <div class="payment-item">
                     <div class="payment-header">
                         <span class="payment-amount">£${amount}</span>
-                        <span class="badge bg-${statusColor}">${(payment.status || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        <span class="badge bg-${statusColor}">${(payment.status || '—').replace(/_/g, ' ')}</span>
                     </div>
                     <div class="payment-details">
-                        <span><i class="fas fa-calendar me-1"></i>${date}</span>
-                        <span><i class="fas fa-money-bill-wave me-1"></i>${method}</span>
+                        <span><i class="fas fa-calendar-alt"></i>${date}</span>
+                        <span><i class="fas fa-credit-card"></i>${method}</span>
                     </div>
-                    ${payment.notes ? `<div class="payment-notes"><small class="text-muted">${payment.notes}</small></div>` : ''}
                 </div>
             `;
         }).join('');
@@ -594,10 +572,14 @@ const CallWidget = {
         return `
             <div class="tab-content-inner">
                 <div class="info-section">
-                    <h5><i class="fas fa-history me-2"></i>Payment History (${this.config.payments.length})</h5>
+                    <h5><i class="fas fa-history"></i>Recent Payments</h5>
                     <div class="payments-list">
                         ${paymentsHtml}
                     </div>
+                    ${this.config.payments.length > 10 ? `
+                    <div style="text-align: center; margin-top: 12px;">
+                        <small style="color: #64748b;">Showing 10 of ${this.config.payments.length} payments</small>
+                    </div>` : ''}
                 </div>
             </div>
         `;
@@ -608,8 +590,8 @@ const CallWidget = {
             return `
                 <div class="tab-content-inner">
                     <div class="empty-state">
-                        <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No active payment plan</p>
+                        <i class="fas fa-calendar-alt"></i>
+                        <p>No active payment plan</p>
                     </div>
                 </div>
             `;
@@ -620,119 +602,124 @@ const CallWidget = {
         const monthlyAmount = Number(plan.monthly_amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const paidAmount = Number(plan.paid_amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
         const remainingAmount = Number(plan.remaining_amount || 0).toLocaleString('en-GB', {minimumFractionDigits: 2});
+        const progressPct = plan.total_amount > 0 ? ((plan.paid_amount / plan.total_amount) * 100).toFixed(0) : 0;
         const startDate = plan.start_date ? new Date(plan.start_date).toLocaleDateString('en-GB', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }) : 'Not set';
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }) : '—';
         const endDate = plan.end_date ? new Date(plan.end_date).toLocaleDateString('en-GB', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }) : 'Not set';
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }) : '—';
         
         return `
             <div class="tab-content-inner">
                 <div class="info-section">
-                    <h5><i class="fas fa-calendar-check me-2"></i>Active Payment Plan</h5>
+                    <h5><i class="fas fa-file-contract"></i>Plan Details</h5>
                     <div class="info-grid">
                         <div class="info-item">
-                            <span class="info-label">Plan Name</span>
-                            <span class="info-value">${plan.template_name || 'Custom Plan'}</span>
-                        </div>
-                        <div class="info-item highlight-box">
-                            <span class="info-label">Total Amount</span>
-                            <span class="info-value">£${totalAmount}</span>
-                        </div>
-                        <div class="info-item highlight-box">
-                            <span class="info-label">Monthly Amount</span>
-                            <span class="info-value">£${monthlyAmount}</span>
-                        </div>
-                        <div class="info-item highlight-box success">
-                            <span class="info-label">Paid Amount</span>
-                            <span class="info-value">£${paidAmount}</span>
-                        </div>
-                        <div class="info-item highlight-box danger">
-                            <span class="info-label">Remaining</span>
-                            <span class="info-value">£${remainingAmount}</span>
+                            <span class="info-label">Plan</span>
+                            <span class="info-value">${plan.template_name || 'Custom'}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Duration</span>
                             <span class="info-value">${plan.duration_months || 0} months</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Start Date</span>
+                            <span class="info-label">Start</span>
                             <span class="info-value">${startDate}</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">End Date</span>
+                            <span class="info-label">End</span>
                             <span class="info-value">${endDate}</span>
                         </div>
-                        ${plan.total_amount > 0 ? `
-                        <div class="info-item">
-                            <span class="info-label">Progress</span>
-                            <span class="info-value">
-                                <div class="progress" style="height: 8px; margin-top: 4px;">
-                                    <div class="progress-bar" role="progressbar" 
-                                         style="width: ${((plan.paid_amount / plan.total_amount) * 100).toFixed(1)}%"
-                                         aria-valuenow="${((plan.paid_amount / plan.total_amount) * 100).toFixed(1)}" 
-                                         aria-valuemin="0" aria-valuemax="100">
-                                    </div>
-                                </div>
-                                <small class="text-muted">${((plan.paid_amount / plan.total_amount) * 100).toFixed(1)}% complete</small>
-                            </span>
-                        </div>
-                        ` : ''}
                     </div>
                 </div>
+                
+                <div class="info-section">
+                    <h5><i class="fas fa-money-check-alt"></i>Amounts</h5>
+                    <div class="info-grid">
+                        <div class="info-item highlight-box">
+                            <span class="info-label">Total</span>
+                            <span class="info-value">£${totalAmount}</span>
+                        </div>
+                        <div class="info-item highlight-box primary">
+                            <span class="info-label">Monthly</span>
+                            <span class="info-value">£${monthlyAmount}</span>
+                        </div>
+                        <div class="info-item highlight-box success">
+                            <span class="info-label">Paid</span>
+                            <span class="info-value">£${paidAmount}</span>
+                        </div>
+                        <div class="info-item highlight-box danger">
+                            <span class="info-label">Remaining</span>
+                            <span class="info-value">£${remainingAmount}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                ${plan.total_amount > 0 ? `
+                <div class="info-section">
+                    <h5><i class="fas fa-chart-line"></i>Progress</h5>
+                    <div style="padding: 4px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 0.85rem; color: #64748b;">Completion</span>
+                            <span style="font-size: 0.95rem; font-weight: 700; color: #22c55e;">${progressPct}%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width: ${progressPct}%; background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);"></div>
+                        </div>
+                    </div>
+                </div>` : ''}
             </div>
         `;
     },
     
     renderNotesTab() {
-        const hasNotes = this.config.adminNotes || this.config.pledgeNotes;
         const flagged = this.config.flaggedForFollowup;
         const priority = this.config.followupPriority || 'medium';
-        const priorityColors = {
-            'low': 'info',
-            'medium': 'warning',
-            'high': 'danger',
-            'urgent': 'danger'
-        };
+        const priorityColors = { 'low': 'info', 'medium': 'warning', 'high': 'danger', 'urgent': 'danger' };
+        const hasAny = flagged || this.config.adminNotes || this.config.pledgeNotes;
+        
+        if (!hasAny) {
+            return `
+                <div class="tab-content-inner">
+                    <div class="empty-state">
+                        <i class="fas fa-sticky-note"></i>
+                        <p>No notes or flags</p>
+                    </div>
+                </div>
+            `;
+        }
         
         return `
             <div class="tab-content-inner">
                 ${flagged ? `
-                <div class="alert alert-${priorityColors[priority]} mb-3">
-                    <i class="fas fa-flag me-2"></i>
-                    <strong>Flagged for Follow-up</strong> - Priority: 
-                    <span class="badge bg-${priorityColors[priority]}">${priority.toUpperCase()}</span>
-                </div>
-                ` : ''}
-                
-                <div class="info-section">
-                    <h5><i class="fas fa-sticky-note me-2"></i>Admin Notes</h5>
-                    <div class="notes-content">
-                        ${this.config.adminNotes ? `
-                            <div class="note-item">
-                                <div class="note-text">${this.config.adminNotes.replace(/\n/g, '<br>')}</div>
-                            </div>
-                        ` : `
-                            <p class="text-muted">No admin notes</p>
-                        `}
+                <div class="alert alert-${priorityColors[priority]}">
+                    <i class="fas fa-flag"></i>
+                    <div>
+                        <strong>Flagged for Follow-up</strong>
+                        <span class="badge bg-${priorityColors[priority]}" style="margin-left: 8px;">${priority.toUpperCase()}</span>
                     </div>
-                </div>
+                </div>` : ''}
+                
+                ${this.config.adminNotes ? `
+                <div class="info-section">
+                    <h5><i class="fas fa-user-shield"></i>Admin Notes</h5>
+                    <div class="notes-content">
+                        <div class="note-text">${this.config.adminNotes.replace(/\n/g, '<br>')}</div>
+                    </div>
+                </div>` : ''}
                 
                 ${this.config.pledgeNotes ? `
                 <div class="info-section">
-                    <h5><i class="fas fa-file-alt me-2"></i>Pledge Notes</h5>
-                    <div class="notes-content">
-                        <div class="note-item">
-                            <div class="note-text">${this.config.pledgeNotes.replace(/\n/g, '<br>')}</div>
-                        </div>
+                    <h5><i class="fas fa-file-alt"></i>Pledge Reference</h5>
+                    <div class="notes-content" style="background: #f0fdf4; border-color: #bbf7d0;">
+                        <div class="note-text" style="color: #166534;">${this.config.pledgeNotes.replace(/\n/g, '<br>')}</div>
                     </div>
-                </div>
-                ` : ''}
+                </div>` : ''}
             </div>
         `;
     },
