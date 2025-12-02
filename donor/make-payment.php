@@ -24,6 +24,7 @@ function require_donor_login(): void {
 }
 
 require_donor_login();
+validate_donor_device(); // Check if device was revoked
 $donor = current_donor();
 $page_title = 'Make a Payment';
 

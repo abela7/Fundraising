@@ -186,3 +186,88 @@ function logout(): void {
     }
     session_destroy();
 }
+
+/**
+ * Validate donor's trusted device token
+ * If device was revoked or expired, log the donor out
+ * Call this on every donor page load
+ */
+function validate_donor_device(): bool {
+    // Only check if donor is logged in
+    if (!isset($_SESSION['donor']['id'])) {
+        return true; // Not logged in, no device to validate
+    }
+    
+    // Check if they have a device token cookie
+    $cookie_name = 'donor_device_token';
+    if (!isset($_COOKIE[$cookie_name])) {
+        return true; // No device token, might have logged in without "remember device"
+    }
+    
+    $token = $_COOKIE[$cookie_name];
+    
+    // Validate token format (64 hex chars)
+    if (!preg_match('/^[a-f0-9]{64}$/', $token)) {
+        // Invalid token format - clear it
+        clear_donor_device_cookie();
+        return true;
+    }
+    
+    // Check database if tables exist
+    try {
+        $db = db();
+        
+        // Check if tables exist
+        $table_check = $db->query("SHOW TABLES LIKE 'donor_trusted_devices'");
+        if ($table_check->num_rows === 0) {
+            return true; // Tables don't exist yet, skip validation
+        }
+        
+        // Verify device is still active
+        $stmt = $db->prepare("
+            SELECT id, is_active, expires_at, donor_id
+            FROM donor_trusted_devices
+            WHERE device_token = ? AND donor_id = ?
+            LIMIT 1
+        ");
+        $donor_id = (int)$_SESSION['donor']['id'];
+        $stmt->bind_param('si', $token, $donor_id);
+        $stmt->execute();
+        $device = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        // If device not found, revoked, or expired - log out
+        if (!$device || !$device['is_active'] || strtotime($device['expires_at']) <= time()) {
+            // Device was revoked or expired
+            clear_donor_device_cookie();
+            
+            // Clear session
+            unset($_SESSION['donor']);
+            unset($_SESSION['otp_phone']);
+            
+            // Redirect to login with message
+            header('Location: /donor/login.php?device_revoked=1');
+            exit;
+        }
+        
+        return true; // Device is valid
+    } catch (Exception $e) {
+        // If DB check fails, allow access (fail open for availability)
+        error_log("Device validation failed: " . $e->getMessage());
+        return true;
+    }
+}
+
+/**
+ * Clear donor device token cookie
+ */
+function clear_donor_device_cookie(): void {
+    $cookie_options = [
+        'expires' => time() - 3600,
+        'path' => '/donor/',
+        'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ];
+    setcookie('donor_device_token', '', $cookie_options);
+}

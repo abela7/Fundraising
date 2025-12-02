@@ -45,6 +45,11 @@ if (isset($_GET['logout']) && $_GET['logout'] === 'success') {
     $success = 'You have been logged out successfully.';
 }
 
+// Handle device revoked message
+if (isset($_GET['device_revoked']) && $_GET['device_revoked'] === '1') {
+    $error = 'Your device access was revoked by an administrator. Please log in again with SMS verification.';
+}
+
 // Handle change phone (go back to step 1)
 if (isset($_GET['change']) && $_GET['change'] === '1') {
     unset($_SESSION['otp_phone']);

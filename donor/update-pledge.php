@@ -58,6 +58,7 @@ function require_donor_login(): void {
 
 try {
     require_donor_login();
+    validate_donor_device(); // Check if device was revoked
     $donor = current_donor();
     if (!$donor) {
         header('Location: login.php');
