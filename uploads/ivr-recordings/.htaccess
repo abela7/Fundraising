@@ -1,0 +1,11 @@
+# Allow access to audio files for IVR
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>
+
+# Allow audio file types
+<FilesMatch "\.(mp3|wav|webm|ogg|m4a)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+

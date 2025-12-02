@@ -328,12 +328,12 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="../../call-center/reports.php" class="quick-action-card">
-                            <div class="quick-action-icon icon-warning">
-                                <i class="fas fa-chart-bar"></i>
+                        <a href="../../call-center/ivr-recordings.php" class="quick-action-card">
+                            <div class="quick-action-icon icon-warning" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+                                <i class="fas fa-microphone-alt"></i>
                             </div>
-                            <h6 class="mb-1">Analytics</h6>
-                            <small class="text-muted">Call center reports</small>
+                            <h6 class="mb-1">IVR Recordings</h6>
+                            <small class="text-muted">Record voice messages</small>
                         </a>
                     </div>
                 </div>

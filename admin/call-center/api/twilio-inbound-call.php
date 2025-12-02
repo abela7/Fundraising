@@ -6,7 +6,7 @@
  * 1. DONOR calling (phone found in database) - personalized menu
  * 2. NON-DONOR calling (phone not found) - general menu with more options
  * 
- * Uses Google Neural voice for natural speech
+ * Supports custom voice recordings or TTS fallback
  */
 
 declare(strict_types=1);
@@ -17,8 +17,17 @@ error_log("Twilio Inbound Call: " . json_encode($_POST));
 
 try {
     require_once __DIR__ . '/../../../config/db.php';
+    require_once __DIR__ . '/../../../services/IVRRecordingService.php';
     
     $db = db();
+    
+    // Initialize recording service (will use recordings if available, TTS otherwise)
+    $ivr = null;
+    try {
+        $ivr = new IVRRecordingService($db);
+    } catch (Exception $e) {
+        error_log("IVR Recording service error: " . $e->getMessage());
+    }
     
     // Get caller info
     $callerNumber = $_POST['From'] ?? '';
@@ -35,16 +44,20 @@ try {
     
     $baseUrl = getBaseUrl();
     
-    // Google Neural voice - British male, very natural sounding
+    // Default voice for TTS fallback
     $voice = 'Google.en-GB-Neural2-B';
     
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
-    // Welcome message - natural flow
-    echo '<Say voice="' . $voice . '">';
-    echo 'Welcome to Liverpool Mekane Kidusan Abune Teklehaymanot, Ethiopian Orthodox Tewahedo Church.';
-    echo '</Say>';
+    // Welcome message - use recording if available, otherwise TTS
+    if ($ivr && $ivr->hasRecording('welcome_main')) {
+        echo $ivr->getTwiML('welcome_main');
+    } else {
+        echo '<Say voice="' . $voice . '">';
+        echo 'Welcome to Liverpool Mekane Kidusan Abune Teklehaymanot, Ethiopian Orthodox Tewahedo Church.';
+        echo '</Say>';
+    }
     echo '<Pause length="2"/>';
     
     if ($donor) {
