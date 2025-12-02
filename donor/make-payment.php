@@ -123,6 +123,8 @@ if (!empty($donor['name'])) {
 }
 
 // --- Handle Submission ---
+$submitted_payment = null; // Track newly submitted payment for status display
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_payment') {
     verify_csrf();
     
@@ -210,19 +212,131 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $log->execute();
                 
                 $db->commit();
-                $success_message = "Payment submitted successfully!";
+                
+                // Store submitted payment details for status display
+                $submitted_payment = [
+                    'id' => $payment_id,
+                    'amount' => $payment_amount,
+                    'method' => $payment_method,
+                    'reference' => $reference,
+                    'notes' => $notes,
+                    'status' => 'pending',
+                    'type' => $entity_type,
+                    'submitted_at' => date('Y-m-d H:i:s')
+                ];
                 
                 // Refresh Session
                 $ref = $db->prepare("SELECT * FROM donors WHERE id = ?");
                 $ref->bind_param('i', $donor['id']);
                 $ref->execute();
-                if ($d = $ref->get_result()->fetch_assoc()) $_SESSION['donor'] = $d;
+                if ($d = $ref->get_result()->fetch_assoc()) {
+                    $_SESSION['donor'] = $d;
+                    $donor = $d; // Update local variable too
+                }
                 
             } catch (Exception $e) {
                 $db->rollback();
                 $error_message = "System error: " . $e->getMessage();
             }
         }
+    }
+}
+
+// --- Fetch Pending and Recently Approved Payments for Status Display ---
+$pending_payments = [];
+$recent_approved_payments = [];
+if ($db_connection_ok) {
+    try {
+        $has_pp_table = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+        
+        // Get pending pledge payments
+        if ($has_pp_table) {
+            $pp_stmt = $db->prepare("
+                SELECT 
+                    pp.id, pp.amount, pp.payment_method as method, 
+                    pp.reference_number as reference, pp.status,
+                    pp.payment_date, pp.created_at, pp.notes,
+                    'pledge_payment' as payment_type
+                FROM pledge_payments pp
+                WHERE pp.donor_id = ? AND pp.status = 'pending'
+                ORDER BY pp.created_at DESC
+                LIMIT 10
+            ");
+            $pp_stmt->bind_param('i', $donor['id']);
+            $pp_stmt->execute();
+            $result = $pp_stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $pending_payments[] = $row;
+            }
+            
+            // Get recently approved pledge payments (last 7 days)
+            $pp_approved = $db->prepare("
+                SELECT 
+                    pp.id, pp.amount, pp.payment_method as method, 
+                    pp.reference_number as reference, pp.status,
+                    pp.payment_date, pp.created_at, pp.notes,
+                    'pledge_payment' as payment_type
+                FROM pledge_payments pp
+                WHERE pp.donor_id = ? AND pp.status = 'confirmed'
+                  AND pp.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                ORDER BY pp.created_at DESC
+                LIMIT 5
+            ");
+            $pp_approved->bind_param('i', $donor['id']);
+            $pp_approved->execute();
+            $result = $pp_approved->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $recent_approved_payments[] = $row;
+            }
+        }
+        
+        // Get pending instant payments
+        $p_stmt = $db->prepare("
+            SELECT 
+                p.id, p.amount, p.method, p.reference, p.status,
+                p.created_at as payment_date, p.created_at, p.notes,
+                'payment' as payment_type
+            FROM payments p
+            WHERE p.donor_id = ? AND p.status = 'pending'
+            ORDER BY p.created_at DESC
+            LIMIT 10
+        ");
+        $p_stmt->bind_param('i', $donor['id']);
+        $p_stmt->execute();
+        $result = $p_stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $pending_payments[] = $row;
+        }
+        
+        // Get recently approved instant payments (last 7 days)
+        $p_approved = $db->prepare("
+            SELECT 
+                p.id, p.amount, p.method, p.reference, p.status,
+                p.created_at as payment_date, p.created_at, p.notes,
+                'payment' as payment_type
+            FROM payments p
+            WHERE p.donor_id = ? AND p.status = 'approved'
+              AND p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            ORDER BY p.created_at DESC
+            LIMIT 5
+        ");
+        $p_approved->bind_param('i', $donor['id']);
+        $p_approved->execute();
+        $result = $p_approved->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $recent_approved_payments[] = $row;
+        }
+        
+        // Sort by created_at (newest first)
+        usort($pending_payments, function($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+        });
+        usort($recent_approved_payments, function($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+        });
+        
+    } catch (Exception $e) {
+        error_log('Error fetching payments: ' . $e->getMessage());
     }
 }
 ?>
@@ -248,6 +362,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         .card-radio:hover { border-color: #aeccea; background: #f8f9fa; }
         .card-radio.selected { border-color: #0d6efd; background: #f0f7ff; }
         .rep-finder-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
+        
+        /* Payment Status Styles */
+        .payment-status-container {
+            max-width: 600px;
+            margin: 0 auto;
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .status-icon-wrapper {
+            display: inline-block;
+        }
+        
+        .status-icon {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-icon.pending-icon {
+            background: linear-gradient(135deg, #ffc107 0%, #ffca2c 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+        }
+        
+        .status-icon.approved-icon {
+            background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(25, 135, 84, 0.4);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        /* Timeline Steps */
+        .timeline-steps {
+            position: relative;
+            padding-left: 0;
+        }
+        
+        .timeline-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        
+        .timeline-step:last-child {
+            margin-bottom: 0;
+        }
+        
+        .timeline-step::before {
+            content: '';
+            position: absolute;
+            left: 17px;
+            top: 35px;
+            height: calc(100% + 0.5rem);
+            width: 2px;
+            background: #e9ecef;
+        }
+        
+        .timeline-step:last-child::before {
+            display: none;
+        }
+        
+        .timeline-icon {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.875rem;
+            margin-right: 1rem;
+            z-index: 1;
+        }
+        
+        .timeline-step.completed .timeline-icon {
+            background: #198754 !important;
+        }
+        
+        .timeline-step.active .timeline-icon {
+            animation: pulse 2s infinite;
+        }
+        
+        .timeline-content {
+            flex: 1;
+            padding-top: 0.25rem;
+        }
+        
+        .timeline-step:not(.completed):not(.active) {
+            opacity: 0.5;
+        }
+        
+        /* Pending Payments Section */
+        .pending-payments-section .list-group-item {
+            transition: background 0.2s;
+        }
+        
+        .pending-payments-section .list-group-item:hover {
+            background: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -261,12 +485,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <h1 class="page-title">Make a Payment</h1>
                 </div>
 
-                <?php if ($success_message): ?>
-                    <div class="alert alert-success alert-dismissible fade show">
-                        <i class="fas fa-check-circle me-2"></i><?php echo $success_message; ?>
-                        <button class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                <?php endif; ?>
                 <?php if ($error_message): ?>
                     <div class="alert alert-danger alert-dismissible fade show">
                         <i class="fas fa-exclamation-circle me-2"></i><?php echo $error_message; ?>
@@ -274,7 +492,256 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     </div>
                 <?php endif; ?>
 
-                                <?php if ($donor['balance'] <= 0): ?>
+                <?php if ($submitted_payment): ?>
+                    <!-- Payment Submitted - Show Approval Status Page -->
+                    <div class="payment-status-container">
+                        <!-- Success Header -->
+                        <div class="text-center mb-4">
+                            <div class="status-icon-wrapper mb-3">
+                                <div class="status-icon pending-icon">
+                                    <i class="fas fa-clock fa-3x"></i>
+                                </div>
+                            </div>
+                            <h2 class="text-success mb-2">Payment Submitted!</h2>
+                            <p class="text-muted lead mb-0">Your payment is awaiting approval</p>
+                        </div>
+
+                        <!-- Payment Details Card -->
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-header bg-warning bg-opacity-10 border-bottom-0">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-hourglass-half text-warning me-2"></i>
+                                        Pending Approval
+                                    </h5>
+                                    <span class="badge bg-warning text-dark px-3 py-2">
+                                        <i class="fas fa-clock me-1"></i>Pending
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                            <span class="text-muted">Amount</span>
+                                            <span class="h4 mb-0 text-success">£<?php echo number_format($submitted_payment['amount'], 2); ?></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                            <span class="text-muted">Payment Method</span>
+                                            <span class="fw-semibold text-capitalize"><?php echo str_replace('_', ' ', $submitted_payment['method']); ?></span>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($submitted_payment['reference'])): ?>
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                            <span class="text-muted">Reference</span>
+                                            <span class="fw-semibold font-monospace"><?php echo htmlspecialchars($submitted_payment['reference']); ?></span>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center py-2">
+                                            <span class="text-muted">Submitted</span>
+                                            <span class="fw-semibold"><?php echo date('d M Y \a\t g:i A', strtotime($submitted_payment['submitted_at'])); ?></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- What Happens Next -->
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-header bg-light border-bottom-0">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-info-circle text-info me-2"></i>What happens next?
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="timeline-steps">
+                                    <div class="timeline-step completed">
+                                        <div class="timeline-icon bg-success">
+                                            <i class="fas fa-check"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <strong>Payment Submitted</strong>
+                                            <p class="text-muted mb-0 small">Your payment has been recorded</p>
+                                        </div>
+                                    </div>
+                                    <div class="timeline-step active">
+                                        <div class="timeline-icon bg-warning">
+                                            <i class="fas fa-hourglass-half"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <strong>Awaiting Approval</strong>
+                                            <p class="text-muted mb-0 small">Admin will review and approve your payment</p>
+                                        </div>
+                                    </div>
+                                    <div class="timeline-step">
+                                        <div class="timeline-icon bg-secondary">
+                                            <i class="fas fa-check-double"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <strong>Payment Confirmed</strong>
+                                            <p class="text-muted mb-0 small">Your balance will be updated</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-column flex-md-row gap-3 justify-content-center">
+                            <a href="payment-history.php" class="btn btn-outline-primary btn-lg px-4">
+                                <i class="fas fa-history me-2"></i>View Payment History
+                            </a>
+                            <?php if ($donor['balance'] > 0): ?>
+                            <a href="make-payment.php" class="btn btn-primary btn-lg px-4">
+                                <i class="fas fa-plus me-2"></i>Make Another Payment
+                            </a>
+                            <?php else: ?>
+                            <a href="index.php" class="btn btn-success btn-lg px-4">
+                                <i class="fas fa-home me-2"></i>Return to Dashboard
+                            </a>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if (count($pending_payments) > 1): ?>
+                        <!-- Other Pending Payments -->
+                        <div class="card border-0 shadow-sm mt-4">
+                            <div class="card-header bg-light border-bottom-0">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-list text-secondary me-2"></i>Your Pending Payments
+                                </h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    <?php foreach ($pending_payments as $pp): ?>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>£<?php echo number_format($pp['amount'], 2); ?></strong>
+                                            <span class="text-muted ms-2 small">
+                                                <?php echo ucfirst(str_replace('_', ' ', $pp['method'])); ?>
+                                            </span>
+                                            <div class="small text-muted">
+                                                <?php echo date('d M Y', strtotime($pp['created_at'])); ?>
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-clock me-1"></i>Pending
+                                        </span>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+
+                <?php elseif ((!empty($pending_payments) || !empty($recent_approved_payments)) && !isset($_GET['new'])): ?>
+                    <!-- Show Payment Status (when revisiting page) -->
+                    <div class="payments-status-section mb-4">
+                        
+                        <?php if (!empty($recent_approved_payments)): ?>
+                        <!-- Recently Approved Payments -->
+                        <div class="card border-success mb-4">
+                            <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Recently Approved
+                                </h5>
+                                <span class="badge bg-success"><?php echo count($recent_approved_payments); ?> approved</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    <?php foreach ($recent_approved_payments as $ap): ?>
+                                    <div class="list-group-item bg-success bg-opacity-5">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h5 class="mb-1 text-success">£<?php echo number_format($ap['amount'], 2); ?></h5>
+                                                <p class="mb-1 small">
+                                                    <span class="badge bg-secondary"><?php echo ucfirst(str_replace('_', ' ', $ap['method'])); ?></span>
+                                                    <?php if (!empty($ap['reference'])): ?>
+                                                        <span class="text-muted ms-2">Ref: <?php echo htmlspecialchars($ap['reference']); ?></span>
+                                                    <?php endif; ?>
+                                                </p>
+                                                <small class="text-muted">
+                                                    <?php echo date('d M Y', strtotime($ap['created_at'])); ?>
+                                                </small>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-success px-3 py-2">
+                                                    <i class="fas fa-check me-1"></i>Approved
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($pending_payments)): ?>
+                        <!-- Pending Payments -->
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clock text-warning me-2"></i>
+                                    Pending Approval
+                                </h5>
+                                <span class="badge bg-warning text-dark"><?php echo count($pending_payments); ?> pending</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    <?php foreach ($pending_payments as $pp): ?>
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h5 class="mb-1">£<?php echo number_format($pp['amount'], 2); ?></h5>
+                                                <p class="mb-1 small">
+                                                    <span class="badge bg-secondary"><?php echo ucfirst(str_replace('_', ' ', $pp['method'])); ?></span>
+                                                    <?php if (!empty($pp['reference'])): ?>
+                                                        <span class="text-muted ms-2">Ref: <?php echo htmlspecialchars($pp['reference']); ?></span>
+                                                    <?php endif; ?>
+                                                </p>
+                                                <small class="text-muted">
+                                                    Submitted <?php echo date('d M Y \a\t g:i A', strtotime($pp['created_at'])); ?>
+                                                </small>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-warning text-dark px-3 py-2">
+                                                    <i class="fas fa-hourglass-half me-1"></i>Awaiting Approval
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light text-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Payments will be approved by an administrator
+                                </small>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <div class="d-flex flex-column flex-md-row gap-3 justify-content-center mt-4">
+                            <a href="payment-history.php" class="btn btn-outline-primary">
+                                <i class="fas fa-history me-2"></i>View Full History
+                            </a>
+                            <?php if ($donor['balance'] > 0): ?>
+                            <a href="?new=1" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Make Another Payment
+                            </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                <?php elseif ($donor['balance'] <= 0): ?>
                                     <div class="alert alert-success text-center py-5">
                                         <i class="fas fa-check-circle fa-3x mb-3"></i>
                                         <h5>No Payment Due</h5>
