@@ -199,8 +199,8 @@ function handlePaymentMethodSelection($db, ?array $donor, string $callerNumber, 
  */
 function handleContactChurch($db, string $callerNumber, ?array $donor, string $voice): void
 {
-    $churchAdmin = 'Abel';
-    $churchPhone = '07360436171';
+    $churchAdmin = 'Liqe Tighuan Kesis Birhanu';
+    $churchPhone = '+44 7473 822244';
     
     echo '<Say voice="' . $voice . '">';
     echo 'We will send you an SMS with the contact details of our church administrator.';

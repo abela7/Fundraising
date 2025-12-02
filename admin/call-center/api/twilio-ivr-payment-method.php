@@ -157,7 +157,7 @@ function handleBankTransfer($db, ?array $donor, string $callerNumber, float $bal
  */
 function handleCashPayment($db, ?array $donor, string $callerNumber, float $balance, string $voice, string $callSid): void
 {
-    $adminPhone = '07360436171';
+    $adminPhone = '+44 7473 822244';
     
     echo '<Say voice="' . $voice . '">';
     echo 'Thank you for choosing cash payment.';

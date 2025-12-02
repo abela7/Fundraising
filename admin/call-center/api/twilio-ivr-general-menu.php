@@ -267,8 +267,8 @@ function handleDonationInfo(string $voice): void
  */
 function handleContactDetails($db, string $callerNumber, string $voice, string $callSid): void
 {
-    $churchAdmin = 'Abel';
-    $churchPhone = '07360436171';
+    $churchAdmin = 'Liqe Tighuan Kesis Birhanu';
+    $churchPhone = '+44 7473 822244';
     
     error_log("handleContactDetails - Caller: $callerNumber");
     
