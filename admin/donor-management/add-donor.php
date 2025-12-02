@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
 
 require_login();
@@ -146,10 +147,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $entityId = $db->insert_id;
             
             // Audit
-            $afterJson = json_encode(['amount'=>$amount,'method'=>$payment_method,'donor'=>$donorName,'status'=>'pending'], JSON_UNESCAPED_SLASHES);
-            $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'payment', ?, 'create_pending', ?, 'admin')");
-            $log->bind_param('iis', $createdBy, $entityId, $afterJson);
-            $log->execute();
+            log_audit(
+                $db,
+                'create_pending',
+                'payment',
+                $entityId,
+                null,
+                ['amount' => $amount, 'method' => $payment_method, 'donor' => $donorName, 'status' => 'pending', 'package_id' => $packageIdNullable],
+                'admin_portal',
+                $createdBy
+            );
             
         } else {
             // Insert PENDING pledge
@@ -181,10 +188,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $entityId = $db->insert_id;
             
             // Audit
-            $afterJson = json_encode(['amount'=>$amount,'type'=>'pledge','anonymous'=>$anonymous,'donor'=>$donorName,'status'=>'pending'], JSON_UNESCAPED_SLASHES);
-            $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'pledge', ?, 'create_pending', ?, 'admin')");
-            $log->bind_param('iis', $createdBy, $entityId, $afterJson);
-            $log->execute();
+            log_audit(
+                $db,
+                'create_pending',
+                'pledge',
+                $entityId,
+                null,
+                ['amount' => $amount, 'type' => 'pledge', 'anonymous' => $anonymous, 'donor' => $donorName, 'status' => 'pending', 'package_id' => $packageIdNullable],
+                'admin_portal',
+                $createdBy
+            );
         }
         
         $db->commit();

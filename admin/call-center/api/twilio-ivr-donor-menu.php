@@ -250,7 +250,13 @@ function sendSmsToCalller($db, string $callerPhone, string $adminName, string $a
     try {
         require_once __DIR__ . '/../../../services/SMSHelper.php';
         
-        $message = "Liverpool Abune Teklehaymanot EOTC\n\nPlease contact {$adminName} - {$adminPhone}\n\nGod bless you!";
+        // Create SMSHelper instance
+        $smsHelper = new SMSHelper($db);
+        
+        $message = "Liverpool Mekane Kidusan Abune Teklehaymanot EOTC\n\n";
+        $message .= "Church Administrator Contact:\n";
+        $message .= "{$adminName} - {$adminPhone}\n\n";
+        $message .= "God bless you!";
         
         // Normalize phone number
         $toPhone = $callerPhone;
@@ -258,12 +264,10 @@ function sendSmsToCalller($db, string $callerPhone, string $adminName, string $a
             $toPhone = '0' . substr($toPhone, 3);
         }
         
-        $result = SMSHelper::send($toPhone, $message, [
-            'source_type' => 'ivr_contact_request',
-            'log' => true
-        ]);
+        // Use sendDirect method
+        $result = $smsHelper->sendDirect($toPhone, $message, null, 'ivr_contact_request');
         
-        return $result['success'] ?? false;
+        return ($result['success'] ?? false);
         
     } catch (Exception $e) {
         error_log("SMS send error: " . $e->getMessage());

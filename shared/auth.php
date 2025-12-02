@@ -139,11 +139,46 @@ function login_with_phone_password(string $phone, string $password): bool {
         'role' => $user['role'],
     ];
     $db->query("UPDATE users SET last_login_at = NOW() WHERE id = " . (int)$user['id']);
+    
+    // Audit log login
+    require_once __DIR__ . '/audit_helper.php';
+    log_audit(
+        $db,
+        'login',
+        'user',
+        (int)$user['id'],
+        null,
+        ['name' => $user['name'], 'role' => $user['role'], 'phone' => $user['phone']],
+        get_current_source(),
+        (int)$user['id']
+    );
+    
     session_regenerate_id(true);
     return true;
 }
 
 function logout(): void {
+    // Audit log logout before clearing session
+    if (isset($_SESSION['user']['id'])) {
+        try {
+            require_once __DIR__ . '/audit_helper.php';
+            $db = db();
+            log_audit(
+                $db,
+                'logout',
+                'user',
+                (int)$_SESSION['user']['id'],
+                ['name' => $_SESSION['user']['name'] ?? '', 'role' => $_SESSION['user']['role'] ?? ''],
+                null,
+                get_current_source(),
+                (int)$_SESSION['user']['id']
+            );
+        } catch (Exception $e) {
+            // Don't fail logout if audit logging fails
+            error_log("Audit logging failed on logout: " . $e->getMessage());
+        }
+    }
+    
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();

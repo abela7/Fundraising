@@ -1,6 +1,7 @@
 <?php
 // admin/donations/void-pledge-payment.php
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 
 header('Content-Type: application/json');
@@ -64,27 +65,32 @@ try {
     
     // 3. NO donor balance updates needed (payment was never confirmed)
     
-    // 4. Audit Log - Enhanced with user details
-    $log_json = json_encode([
-        'action' => 'payment_rejected',
-        'payment_id' => $payment_id,
-        'donor_id' => $payment['donor_id'],
-        'pledge_id' => $payment['pledge_id'],
+    // 4. Audit Log
+    $beforeData = [
+        'status' => 'pending',
+        'amount' => $payment['amount'],
+        'payment_method' => $payment['payment_method'] ?? null
+    ];
+    $afterData = [
+        'status' => 'voided',
         'amount' => $payment['amount'],
         'payment_method' => $payment['payment_method'] ?? null,
         'reason' => $reason,
-        'rejected_by_user_id' => $user_id,
-        'rejected_by_name' => $user_name,
-        'rejected_by_role' => $user_role,
-        'rejected_at' => date('Y-m-d H:i:s'),
-        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
-        'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)
-    ]);
+        'voided_by' => $user_name,
+        'voided_by_role' => $user_role
+    ];
     
-    $source = ($user_role === 'registrar') ? 'registrar' : 'admin';
-    $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'reject', ?, ?)");
-    $log->bind_param('iiss', $user_id, $payment_id, $log_json, $source);
-    $log->execute();
+    $source = ($user_role === 'registrar') ? 'registrar_portal' : 'admin_portal';
+    log_audit(
+        $db,
+        'reject',
+        'pledge_payment',
+        $payment_id,
+        $beforeData,
+        $afterData,
+        $source,
+        $user_id
+    );
     
     $db->commit();
     

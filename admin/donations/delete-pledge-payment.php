@@ -2,6 +2,7 @@
 declare(strict_types=1);
 // admin/donations/delete-pledge-payment.php
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 
 header('Content-Type: application/json');
@@ -90,23 +91,25 @@ try {
     }
     
     // 6. Comprehensive Audit Log
-    $log_json = json_encode([
-        'action' => 'pledge_payment_deleted',
-        'reason' => 'Permanent deletion of voided payment record',
-        'payment_data' => $payment_details,
-        'deleted_by' => $user_id,
-        'deleted_at' => date('Y-m-d H:i:s'),
-        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-        'warning' => 'This is a PERMANENT deletion - record cannot be recovered'
-    ]);
-    
-    $log = $db->prepare("
-        INSERT INTO audit_logs 
-        (user_id, entity_type, entity_id, action, after_json, source) 
-        VALUES (?, 'pledge_payment', ?, 'delete', ?, 'admin')
-    ");
-    $log->bind_param('iis', $user_id, $payment_id, $log_json);
-    $log->execute();
+    log_audit(
+        $db,
+        'delete',
+        'pledge_payment',
+        $payment_id,
+        [
+            'id' => $payment_id,
+            'donor_id' => $donor_id,
+            'donor_name' => $payment['donor_name'],
+            'pledge_id' => $payment['pledge_id'],
+            'amount' => $payment['amount'],
+            'payment_method' => $payment['payment_method'],
+            'status' => $payment['status'],
+            'void_reason' => $payment['void_reason'] ?? null
+        ],
+        null,
+        'admin_portal',
+        $user_id
+    );
     
     $db->commit();
     

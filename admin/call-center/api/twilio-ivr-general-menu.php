@@ -127,7 +127,7 @@ function handleSendInfoSms($db, string $callerNumber, string $voice, string $cal
     echo '<Pause length="1"/>';
     
     // Send SMS with website links
-    $smsResult = sendInfoSms($callerNumber);
+    $smsResult = sendInfoSms($db, $callerNumber);
     
     if ($smsResult) {
         echo '<Say voice="' . $voice . '">';
@@ -236,7 +236,7 @@ function handleContactDetails($db, string $callerNumber, string $voice, string $
     echo '<Pause length="1"/>';
     
     // Send SMS with contact details
-    $smsResult = sendContactSms($callerNumber, $churchAdmin, $churchPhone);
+    $smsResult = sendContactSms($db, $callerNumber, $churchAdmin, $churchPhone);
     
     if ($smsResult) {
         echo '<Say voice="' . $voice . '">';
@@ -272,10 +272,13 @@ function handleContactDetails($db, string $callerNumber, string $voice, string $
 /**
  * Send SMS with website links for more information
  */
-function sendInfoSms(string $callerPhone): bool
+function sendInfoSms($db, string $callerPhone): bool
 {
     try {
         require_once __DIR__ . '/../../../services/SMSHelper.php';
+        
+        // Create SMSHelper instance
+        $smsHelper = new SMSHelper($db);
         
         $message = "Welcome to Liverpool Mekane Kidusan Abune Teklehaymanot Ethiopian Orthodox Tewahedo Church!\n\n";
         $message .= "To learn more about us, visit:\n";
@@ -287,12 +290,10 @@ function sendInfoSms(string $callerPhone): bool
         // Normalize phone number
         $toPhone = normalizePhoneForSms($callerPhone);
         
-        $result = SMSHelper::send($toPhone, $message, [
-            'source_type' => 'ivr_info_request',
-            'log' => true
-        ]);
+        // Use sendDirect method
+        $result = $smsHelper->sendDirect($toPhone, $message, null, 'ivr_info_request');
         
-        return $result['success'] ?? false;
+        return ($result['success'] ?? false);
         
     } catch (Exception $e) {
         error_log("SMS send error: " . $e->getMessage());
@@ -303,10 +304,13 @@ function sendInfoSms(string $callerPhone): bool
 /**
  * Send SMS with church admin contact details
  */
-function sendContactSms(string $callerPhone, string $adminName, string $adminPhone): bool
+function sendContactSms($db, string $callerPhone, string $adminName, string $adminPhone): bool
 {
     try {
         require_once __DIR__ . '/../../../services/SMSHelper.php';
+        
+        // Create SMSHelper instance
+        $smsHelper = new SMSHelper($db);
         
         $message = "Liverpool Mekane Kidusan Abune Teklehaymanot EOTC\n\n";
         $message .= "Church Administrator Contact:\n";
@@ -317,12 +321,10 @@ function sendContactSms(string $callerPhone, string $adminName, string $adminPho
         // Normalize phone number
         $toPhone = normalizePhoneForSms($callerPhone);
         
-        $result = SMSHelper::send($toPhone, $message, [
-            'source_type' => 'ivr_contact_request',
-            'log' => true
-        ]);
+        // Use sendDirect method
+        $result = $smsHelper->sendDirect($toPhone, $message, null, 'ivr_contact_request');
         
-        return $result['success'] ?? false;
+        return ($result['success'] ?? false);
         
     } catch (Exception $e) {
         error_log("SMS send error: " . $e->getMessage());

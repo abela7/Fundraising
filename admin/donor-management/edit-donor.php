@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -142,6 +143,34 @@ try {
     if (!$stmt->execute()) {
         throw new Exception("Update failed: " . $stmt->error);
     }
+    
+    // Fetch updated donor data for audit
+    $updated_stmt = $db->prepare("SELECT * FROM donors WHERE id = ?");
+    $updated_stmt->bind_param('i', $donor_id);
+    $updated_stmt->execute();
+    $updated_donor = $updated_stmt->get_result()->fetch_assoc();
+    $updated_stmt->close();
+    
+    // Audit log
+    $beforeData = [];
+    $afterData = [];
+    foreach ($editable_fields as $field => $type) {
+        if (isset($_POST[$field])) {
+            $beforeData[$field] = $current_donor[$field] ?? null;
+            $afterData[$field] = $updated_donor[$field] ?? null;
+        }
+    }
+    
+    log_audit(
+        $db,
+        'update',
+        'donor',
+        $donor_id,
+        $beforeData,
+        $afterData,
+        'admin_portal',
+        (int)($_SESSION['user']['id'] ?? 0)
+    );
     
     // Commit transaction
     $db->commit();

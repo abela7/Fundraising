@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/url.php';
+require_once __DIR__ . '/../shared/audit_helper.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 function current_donor(): ?array {
@@ -203,13 +204,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // See: admin/donations/approve-pledge-payment.php -> FinancialCalculator::recalculateDonorTotalsAfterApprove()
                 
                 // Audit Log
-                $audit = json_encode([
-                    'payment_id' => $payment_id, 'amount' => $payment_amount, 'method' => $payment_method,
-                    'pledge_id' => $pledge_id, 'payment_plan_id' => $payment_plan_id > 0 ? $payment_plan_id : null, 'proof' => $payment_proof
-                ]);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(0, ?, ?, 'create_pending', ?, 'donor_portal')");
-                $log->bind_param('sis', $entity_type, $payment_id, $audit);
-                $log->execute();
+                log_audit(
+                    $db,
+                    'create_pending',
+                    $entity_type,
+                    $payment_id,
+                    null,
+                    [
+                        'amount' => $payment_amount,
+                        'method' => $payment_method,
+                        'pledge_id' => $pledge_id > 0 ? $pledge_id : null,
+                        'payment_plan_id' => $payment_plan_id > 0 ? $payment_plan_id : null,
+                        'proof' => $payment_proof ? 'uploaded' : null,
+                        'reference' => $reference,
+                        'status' => 'pending'
+                    ],
+                    'donor_portal',
+                    0
+                );
                 
                 $db->commit();
                 

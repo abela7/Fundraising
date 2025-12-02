@@ -1,6 +1,7 @@
 <?php
 // admin/donations/approve-pledge-payment.php
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 
 header('Content-Type: application/json');
@@ -223,28 +224,34 @@ try {
     // If pledge is fully paid, potentially mark pledge as 'fulfilled' if that status exists
     // For now, we just rely on balance calculations
     
-    // 6. Audit Log - Enhanced with user details
-    $log_json = json_encode([
-        'action' => 'payment_approved',
-        'payment_id' => $payment_id,
-        'donor_id' => $donor_id,
+    // 6. Audit Log
+    $beforeData = [
+        'status' => 'pending',
+        'amount' => $payment['amount'],
+        'payment_method' => $payment['payment_method'] ?? null
+    ];
+    $afterData = [
+        'status' => 'confirmed',
+        'amount' => $payment['amount'],
+        'payment_method' => $payment['payment_method'] ?? null,
         'pledge_id' => $pledge_id,
         'payment_plan_id' => $payment_plan_id > 0 ? $payment_plan_id : null,
         'plan_updated' => $plan ? true : false,
-        'amount' => $payment['amount'],
-        'payment_method' => $payment['payment_method'] ?? null,
-        'approved_by_user_id' => $user_id,
-        'approved_by_name' => $user_name,
-        'approved_by_role' => $user_role,
-        'approved_at' => date('Y-m-d H:i:s'),
-        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
-        'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)
-    ]);
+        'approved_by' => $user_name,
+        'approved_by_role' => $user_role
+    ];
     
-    $source = ($user_role === 'registrar') ? 'registrar' : 'admin';
-    $log = $db->prepare("INSERT INTO audit_logs (user_id, entity_type, entity_id, action, after_json, source) VALUES (?, 'pledge_payment', ?, 'approve', ?, ?)");
-    $log->bind_param('iiss', $user_id, $payment_id, $log_json, $source);
-    $log->execute();
+    $source = ($user_role === 'registrar') ? 'registrar_portal' : 'admin_portal';
+    log_audit(
+        $db,
+        'approve',
+        'pledge_payment',
+        $payment_id,
+        $beforeData,
+        $afterData,
+        $source,
+        $user_id
+    );
     
     $db->commit();
     
