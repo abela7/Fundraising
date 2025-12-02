@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 // Set timezone
@@ -101,6 +102,25 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $recalc_stmt = $conn->prepare($recalc_query);
         $recalc_stmt->bind_param('iiiii', $donor_id, $donor_id, $donor_id, $donor_id, $donor_id);
         $recalc_stmt->execute();
+        
+        // Audit log the payment deletion
+        log_audit(
+            $conn,
+            'delete',
+            'payment',
+            $payment_id,
+            [
+                'donor_id' => $donor_id,
+                'donor_name' => $payment->donor_name,
+                'amount' => $payment->amount,
+                'method' => $payment->method ?? null,
+                'status' => $payment->status,
+                'allocated_cells' => $payment->allocated_cells
+            ],
+            null,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
         
         $conn->commit();
         

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 require_admin();
 
@@ -150,6 +151,20 @@ try {
             }
         }
     }
+    
+    // Audit log the payment edit
+    $afterData = $_POST;
+    $afterData['payment_id'] = $payment_id;
+    log_audit(
+        $db,
+        'update',
+        'payment',
+        $payment_id,
+        ['amount' => $old_amount, 'donor_id' => $donor_id],
+        $afterData,
+        'admin_portal',
+        (int)($_SESSION['user']['id'] ?? 0)
+    );
     
     $db->commit();
     
