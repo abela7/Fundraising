@@ -6,6 +6,8 @@
  * 1 - Learn about church and donate (gives bank details)
  * 2 - Contact church member (sends SMS)
  * 3 - Repeat menu
+ * 
+ * Uses Google Neural voice for natural speech
  */
 
 declare(strict_types=1);
@@ -27,7 +29,9 @@ try {
     updateCallSelection($db, $callSid, 'general_menu_' . $digits);
     
     $baseUrl = getBaseUrl();
-    $voice = 'Polly.Brian';
+    
+    // Google Neural voice - British male, very natural
+    $voice = 'Google.en-GB-Neural2-B';
     
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
@@ -49,7 +53,7 @@ try {
             break;
             
         default:
-            echo '<Say voice="' . $voice . '" language="en-GB">Invalid option. Please try again.</Say>';
+            echo '<Say voice="' . $voice . '">Invalid option. Please try again.</Say>';
             echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
     }
     
@@ -59,7 +63,7 @@ try {
     error_log("IVR General Menu Error: " . $e->getMessage());
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
-    echo '<Say voice="Polly.Brian" language="en-GB">We are experiencing technical difficulties. Please try again later.</Say>';
+    echo '<Say voice="Google.en-GB-Neural2-B">We are sorry, we are experiencing technical difficulties. Please try again later. God bless you.</Say>';
     echo '<Hangup/>';
     echo '</Response>';
 }
@@ -75,58 +79,58 @@ function handleAboutAndDonate(string $voice): void
     $sortCode = '20-61-31';
     $accountNumber = '30926233';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Liverpool Abune Teklehaymanot is an Ethiopian Orthodox Tewahedo Church serving the Ethiopian community in Liverpool and surrounding areas.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'We welcome everyone to join us for worship and community events.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'To support our church with a donation, you can make a bank transfer to the following account.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Bank name. ' . $bankName . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Bank name: ' . $bankName . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Account name. ' . $accountName . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Account name: ' . $accountName . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Sort code. ' . speakSortCode($sortCode) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Sort code: ' . speakSortCode($sortCode) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Account number. ' . speakDigits($accountNumber) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Account number: ' . speakDigits($accountNumber) . '.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
     // Repeat for clarity
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'I will repeat the bank details.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Sort code. ' . speakSortCode($sortCode) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Sort code: ' . speakSortCode($sortCode) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Account number. ' . speakDigits($accountNumber) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Account number: ' . speakDigits($accountNumber) . '.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for your interest in supporting our church. May God bless you abundantly. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
@@ -140,7 +144,7 @@ function handleContactChurch($db, string $callerNumber, string $voice, string $c
     $churchAdmin = 'Abel';
     $churchPhone = '07360436171';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'We will send you an SMS with the contact details of our church administrator.';
     echo '</Say>';
     echo '<Pause length="1"/>';
@@ -149,7 +153,7 @@ function handleContactChurch($db, string $callerNumber, string $voice, string $c
     $smsResult = sendSmsToCalller($callerNumber, $churchAdmin, $churchPhone);
     
     if ($smsResult) {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'The SMS has been sent to your phone.';
         echo '</Say>';
         echo '<Pause length="1"/>';
@@ -157,23 +161,23 @@ function handleContactChurch($db, string $callerNumber, string $voice, string $c
         // Update call record
         updateSmsSent($db, $callSid);
     } else {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'We could not send the SMS at this time.';
         echo '</Say>';
         echo '<Pause length="1"/>';
     }
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Please contact ' . $churchAdmin . ' at ' . speakPhoneNumber($churchPhone) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'I will repeat that number. ' . speakPhoneNumber($churchPhone) . '.';
     echo '</Say>';
     
     echo '<Pause length="2"/>';
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for calling. May God bless you. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
@@ -214,7 +218,7 @@ function sendSmsToCalller(string $callerPhone, string $adminName, string $adminP
 function speakDigits(string $number): string
 {
     $digits = preg_replace('/[^0-9]/', '', $number);
-    return implode(', ', str_split($digits));
+    return implode(' ', str_split($digits));
 }
 
 function speakSortCode(string $sortCode): string
@@ -224,13 +228,13 @@ function speakSortCode(string $sortCode): string
     foreach ($parts as $part) {
         $spoken[] = implode(' ', str_split($part));
     }
-    return implode('. ', $spoken);
+    return implode(', ', $spoken);
 }
 
 function speakPhoneNumber(string $phone): string
 {
     $digits = preg_replace('/[^0-9]/', '', $phone);
-    return implode(', ', str_split($digits));
+    return implode(' ', str_split($digits));
 }
 
 function updateCallSelection($db, string $callSid, string $selection): void
@@ -267,4 +271,3 @@ function getBaseUrl(): string
     $host = $_SERVER['HTTP_HOST'] ?? 'donate.abuneteklehaymanot.org';
     return $protocol . '://' . $host . '/admin/call-center/api/';
 }
-

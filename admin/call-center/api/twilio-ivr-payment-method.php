@@ -32,7 +32,9 @@ try {
     updateCallSelection($db, $callSid, 'payment_method_' . $digits);
     
     $baseUrl = getBaseUrl();
-    $voice = 'Polly.Brian';
+    
+    // Use Google Neural voice - British male, very natural
+    $voice = 'Google.en-GB-Neural2-B';
     
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
@@ -54,7 +56,7 @@ try {
             break;
             
         default:
-            echo '<Say voice="' . $voice . '" language="en-GB">Invalid option. Please try again.</Say>';
+            echo '<Say voice="' . $voice . '">Invalid option. Please try again.</Say>';
             echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
     }
     
@@ -64,7 +66,7 @@ try {
     error_log("IVR Payment Method Error: " . $e->getMessage());
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
-    echo '<Say voice="Polly.Brian" language="en-GB">We are experiencing technical difficulties. Please try again later.</Say>';
+    echo '<Say voice="Google.en-GB-Neural2-B">We are sorry, we are experiencing technical difficulties. Please try again later. God bless you.</Say>';
     echo '<Hangup/>';
     echo '</Response>';
 }
@@ -81,68 +83,70 @@ function handleBankTransfer($db, ?array $donor, string $callerNumber, float $bal
     $accountNumber = '30926233';
     $reference = $donor ? 'PLEDGE-' . $donor['id'] : 'DONATION';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for choosing bank transfer. Here are the bank details.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Bank name. ' . $bankName . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Bank name: ' . $bankName . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Account name. ' . $accountName . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Account name: ' . $accountName . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Sort code. ' . speakSortCode($sortCode) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Sort code: ' . speakSortCode($sortCode) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Account number. ' . speakDigits($accountNumber) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Account number: ' . speakDigits($accountNumber) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'For the payment reference, please use. ' . $reference . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'For the payment reference, please use: ' . $reference . '.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
     // Repeat for clarity
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'I will repeat the important details.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Sort code. ' . speakSortCode($sortCode) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Sort code: ' . speakSortCode($sortCode) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Account number. ' . speakDigits($accountNumber) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Account number: ' . speakDigits($accountNumber) . '.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
     // Send WhatsApp with bank details
     if ($donor) {
-        sendWhatsAppBankDetails($db, $donor, $callerNumber, $balance);
+        $whatsappSent = sendWhatsAppBankDetails($db, $donor, $callerNumber, $balance);
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
-        echo 'We have also sent the bank details to your WhatsApp for your convenience.';
-        echo '</Say>';
-        echo '<Pause length="1"/>';
+        if ($whatsappSent) {
+            echo '<Say voice="' . $voice . '">';
+            echo 'We have also sent the bank details to your WhatsApp for your convenience.';
+            echo '</Say>';
+            echo '<Pause length="1"/>';
+        }
     }
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Once we receive your payment, you will receive a confirmation message.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for your generous support. May God bless you abundantly. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
@@ -155,12 +159,12 @@ function handleCashPayment($db, ?array $donor, string $callerNumber, float $bala
 {
     $adminPhone = '07360436171';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for choosing cash payment.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'We have notified our church administrator about your request.';
     echo '</Say>';
     echo '<Pause length="1"/>';
@@ -171,18 +175,16 @@ function handleCashPayment($db, ?array $donor, string $callerNumber, float $bala
     // Update database
     updatePaymentRequest($db, $callSid, 'cash', $balance);
     
+    echo '<Say voice="' . $voice . '">';
     if ($whatsappSent) {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
         echo 'Someone will contact you shortly to arrange payment collection.';
-        echo '</Say>';
     } else {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
         echo 'Please expect a call from our team within the next few days.';
-        echo '</Say>';
     }
+    echo '</Say>';
     
     echo '<Pause length="2"/>';
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for your generous support. May God bless you abundantly. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
@@ -195,6 +197,13 @@ function sendWhatsAppBankDetails($db, array $donor, string $callerNumber, float 
 {
     try {
         require_once __DIR__ . '/../../../services/UltraMsgService.php';
+        
+        // Get WhatsApp service instance from database
+        $service = UltraMsgService::fromDatabase($db);
+        if (!$service) {
+            error_log("WhatsApp service not configured");
+            return false;
+        }
         
         $reference = 'PLEDGE-' . $donor['id'];
         
@@ -213,9 +222,9 @@ function sendWhatsAppBankDetails($db, array $donor, string $callerNumber, float 
         // Use donor's phone from database or caller number
         $phone = $donor['phone'] ?? $callerNumber;
         
-        UltraMsgService::sendMessage($phone, $message);
+        $result = $service->send($phone, $message);
         
-        return true;
+        return ($result['success'] ?? false);
         
     } catch (Exception $e) {
         error_log("WhatsApp bank details error: " . $e->getMessage());
@@ -231,6 +240,13 @@ function sendCashPaymentNotification($db, ?array $donor, string $callerNumber, f
     try {
         require_once __DIR__ . '/../../../services/UltraMsgService.php';
         
+        // Get WhatsApp service instance from database
+        $service = UltraMsgService::fromDatabase($db);
+        if (!$service) {
+            error_log("WhatsApp service not configured");
+            return false;
+        }
+        
         $donorName = $donor ? $donor['name'] : 'Unknown Caller';
         $donorId = $donor ? $donor['id'] : 'N/A';
         $donorPhone = $donor ? ($donor['phone'] ?? $callerNumber) : $callerNumber;
@@ -243,9 +259,9 @@ function sendCashPaymentNotification($db, ?array $donor, string $callerNumber, f
         $message .= "This donor called the IVR system and requested to pay by cash.\n\n";
         $message .= "Please contact them to arrange collection.";
         
-        UltraMsgService::sendMessage($adminPhone, $message);
+        $result = $service->send($adminPhone, $message);
         
-        return true;
+        return ($result['success'] ?? false);
         
     } catch (Exception $e) {
         error_log("WhatsApp cash notification error: " . $e->getMessage());
@@ -271,7 +287,7 @@ function getDonor($db, int $donorId): ?array
 function speakDigits(string $number): string
 {
     $digits = preg_replace('/[^0-9]/', '', $number);
-    return implode(', ', str_split($digits));
+    return implode(' ', str_split($digits));
 }
 
 function speakSortCode(string $sortCode): string
@@ -281,7 +297,7 @@ function speakSortCode(string $sortCode): string
     foreach ($parts as $part) {
         $spoken[] = implode(' ', str_split($part));
     }
-    return implode('. ', $spoken);
+    return implode(', ', $spoken);
 }
 
 function updateCallSelection($db, string $callSid, string $selection): void
@@ -314,4 +330,3 @@ function getBaseUrl(): string
     $host = $_SERVER['HTTP_HOST'] ?? 'donate.abuneteklehaymanot.org';
     return $protocol . '://' . $host . '/admin/call-center/api/';
 }
-

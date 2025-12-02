@@ -7,6 +7,8 @@
  * 2 - Make a payment (then asks payment method)
  * 3 - Contact church member (sends SMS)
  * 4 - Repeat menu
+ * 
+ * Uses Google Neural voice for natural speech
  */
 
 declare(strict_types=1);
@@ -32,7 +34,9 @@ try {
     updateCallSelection($db, $callSid, 'donor_menu_' . $digits);
     
     $baseUrl = getBaseUrl();
-    $voice = 'Polly.Brian';
+    
+    // Google Neural voice - British male, very natural
+    $voice = 'Google.en-GB-Neural2-B';
     
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
@@ -60,7 +64,7 @@ try {
             
         default:
             // Invalid option
-            echo '<Say voice="' . $voice . '" language="en-GB">Invalid option. Please try again.</Say>';
+            echo '<Say voice="' . $voice . '">Invalid option. Please try again.</Say>';
             echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
     }
     
@@ -70,7 +74,7 @@ try {
     error_log("IVR Donor Menu Error: " . $e->getMessage());
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
-    echo '<Say voice="Polly.Brian" language="en-GB">We are experiencing technical difficulties. Please try again later.</Say>';
+    echo '<Say voice="Google.en-GB-Neural2-B">We are sorry, we are experiencing technical difficulties. Please try again later. God bless you.</Say>';
     echo '<Hangup/>';
     echo '</Response>';
 }
@@ -81,47 +85,47 @@ try {
 function handleBalanceCheck(?array $donor, string $voice): void
 {
     if (!$donor) {
-        echo '<Say voice="' . $voice . '" language="en-GB">We could not retrieve your account information. Please try again later.</Say>';
+        echo '<Say voice="' . $voice . '">We could not retrieve your account information. Please try again later.</Say>';
         echo '<Hangup/>';
         return;
     }
     
-    $totalPledged = number_format((float)($donor['total_pledged'] ?? 0), 2);
-    $totalPaid = number_format((float)($donor['total_paid'] ?? 0), 2);
+    $totalPledged = (float)($donor['total_pledged'] ?? 0);
+    $totalPaid = (float)($donor['total_paid'] ?? 0);
     $balance = (float)($donor['balance'] ?? 0);
     
     // Recalculate if needed
-    if ($balance <= 0 && (float)($donor['total_pledged'] ?? 0) > 0) {
-        $balance = (float)$donor['total_pledged'] - (float)$donor['total_paid'];
+    if ($balance <= 0 && $totalPledged > 0) {
+        $balance = $totalPledged - $totalPaid;
     }
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Here is your account summary.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Your total pledge amount is ' . speakMoney($totalPledged) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'You have paid ' . speakMoney($totalPaid) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
     if ($balance > 0) {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
-        echo 'Your outstanding balance is ' . speakMoney(number_format($balance, 2)) . '.';
+        echo '<Say voice="' . $voice . '">';
+        echo 'Your outstanding balance is ' . speakMoney($balance) . '.';
         echo '</Say>';
     } else {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Congratulations! You have fully paid your pledge.';
         echo '</Say>';
     }
     
     echo '<Pause length="2"/>';
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for calling. May God bless you abundantly. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
@@ -133,57 +137,60 @@ function handleBalanceCheck(?array $donor, string $voice): void
 function handlePaymentMethodSelection($db, ?array $donor, string $callerNumber, string $baseUrl, string $voice): void
 {
     if (!$donor) {
-        echo '<Say voice="' . $voice . '" language="en-GB">We could not retrieve your account information. Please try again later.</Say>';
+        echo '<Say voice="' . $voice . '">We could not retrieve your account information. Please try again later.</Say>';
         echo '<Hangup/>';
         return;
     }
     
     $balance = (float)($donor['balance'] ?? 0);
-    if ($balance <= 0 && (float)($donor['total_pledged'] ?? 0) > 0) {
-        $balance = (float)$donor['total_pledged'] - (float)$donor['total_paid'];
+    $totalPledged = (float)($donor['total_pledged'] ?? 0);
+    $totalPaid = (float)($donor['total_paid'] ?? 0);
+    
+    if ($balance <= 0 && $totalPledged > 0) {
+        $balance = $totalPledged - $totalPaid;
     }
     
     if ($balance <= 0) {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Great news! You have no outstanding balance. Your pledge has been fully paid.';
         echo '</Say>';
         echo '<Pause length="1"/>';
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Thank you for your generous support. May God bless you. Goodbye.';
         echo '</Say>';
         echo '<Hangup/>';
         return;
     }
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Your outstanding balance is ' . speakMoney(number_format($balance, 2)) . '.';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Your outstanding balance is ' . speakMoney($balance) . '.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'How would you like to make your payment?';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
     echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-payment-method.php?caller=' . urlencode($callerNumber) . '&amp;donor_id=' . $donor['id'] . '&amp;balance=' . $balance . '" method="POST" timeout="60">';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'For bank transfer, press 1.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'For cash payment, press 2.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'To go back to the main menu, press 3.';
     echo '</Say>';
     
     echo '</Gather>';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">We did not receive any input. Goodbye.</Say>';
+    echo '<Say voice="' . $voice . '">We did not receive any input. Goodbye.</Say>';
     echo '<Hangup/>';
 }
 
@@ -195,7 +202,7 @@ function handleContactChurch($db, string $callerNumber, ?array $donor, string $v
     $churchAdmin = 'Abel';
     $churchPhone = '07360436171';
     
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'We will send you an SMS with the contact details of our church administrator.';
     echo '</Say>';
     echo '<Pause length="1"/>';
@@ -204,32 +211,32 @@ function handleContactChurch($db, string $callerNumber, ?array $donor, string $v
     $smsResult = sendSmsToCalller($db, $callerNumber, $churchAdmin, $churchPhone);
     
     if ($smsResult) {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'The SMS has been sent to your phone.';
         echo '</Say>';
         echo '<Pause length="1"/>';
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Please contact ' . $churchAdmin . ' at ' . speakPhoneNumber($churchPhone) . '.';
         echo '</Say>';
         
         // Update call record
         updateSmsSent($db, $_POST['CallSid'] ?? '');
     } else {
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'We could not send the SMS at this time.';
         echo '</Say>';
         echo '<Pause length="1"/>';
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Please contact ' . $churchAdmin . ' directly at ' . speakPhoneNumber($churchPhone) . '.';
         echo '</Say>';
         echo '<Pause length="1"/>';
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'I will repeat that number. ' . speakPhoneNumber($churchPhone) . '.';
         echo '</Say>';
     }
     
     echo '<Pause length="2"/>';
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'Thank you for calling. May God bless you. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
@@ -248,7 +255,7 @@ function sendSmsToCalller($db, string $callerPhone, string $adminName, string $a
         // Normalize phone number
         $toPhone = $callerPhone;
         if (strpos($toPhone, '+44') === 0) {
-            $toPhone = '0' . substr($toPhone, 1);
+            $toPhone = '0' . substr($toPhone, 3);
         }
         
         $result = SMSHelper::send($toPhone, $message, [
@@ -279,12 +286,10 @@ function getDonor($db, int $donorId): ?array
     return $donor;
 }
 
-function speakMoney(string $amount): string
+function speakMoney(float $amount): string
 {
-    $clean = str_replace(',', '', $amount);
-    $parts = explode('.', $clean);
-    $pounds = (int)$parts[0];
-    $pence = isset($parts[1]) ? (int)$parts[1] : 0;
+    $pounds = (int)floor($amount);
+    $pence = (int)round(($amount - $pounds) * 100);
     
     $result = $pounds . ' pounds';
     if ($pence > 0) {
@@ -296,7 +301,7 @@ function speakMoney(string $amount): string
 function speakPhoneNumber(string $phone): string
 {
     $digits = preg_replace('/[^0-9]/', '', $phone);
-    return implode(', ', str_split($digits));
+    return implode(' ', str_split($digits));
 }
 
 function updateCallSelection($db, string $callSid, string $selection): void
@@ -333,4 +338,3 @@ function getBaseUrl(): string
     $host = $_SERVER['HTTP_HOST'] ?? 'donate.abuneteklehaymanot.org';
     return $protocol . '://' . $host . '/admin/call-center/api/';
 }
-

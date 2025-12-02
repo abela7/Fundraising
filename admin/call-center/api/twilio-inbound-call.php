@@ -5,6 +5,8 @@
  * Two flows:
  * 1. DONOR calling (phone found in database) - personalized menu
  * 2. NON-DONOR calling (phone not found) - general menu
+ * 
+ * Uses Google Neural voice for natural speech
  */
 
 declare(strict_types=1);
@@ -32,56 +34,50 @@ try {
     logInboundCall($db, $callerNumber, $callSid, $donor);
     
     $baseUrl = getBaseUrl();
-    $voice = 'Polly.Brian';
+    
+    // Google Neural voice - British male, very natural sounding
+    $voice = 'Google.en-GB-Neural2-B';
     
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
     
-    // Welcome message - slow and relaxed with pauses
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Welcome to Liverpool Abune Teklehaymanot.';
-    echo '</Say>';
-    echo '<Pause length="1"/>';
-    echo '<Say voice="' . $voice . '" language="en-GB">';
-    echo 'Ethiopian Orthodox Tewahedo Church.';
+    // Welcome message - natural flow
+    echo '<Say voice="' . $voice . '">';
+    echo 'Welcome to Liverpool Abune Teklehaymanot, Ethiopian Orthodox Tewahedo Church.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
     if ($donor) {
         // ===== DONOR FLOW =====
-        echo '<Say voice="' . $voice . '" language="en-GB">';
-        echo 'Hello ' . htmlspecialchars($donor['name']) . '.';
-        echo '</Say>';
-        echo '<Pause length="1"/>';
-        echo '<Say voice="' . $voice . '" language="en-GB">';
-        echo 'Thank you for calling us today.';
+        echo '<Say voice="' . $voice . '">';
+        echo 'Hello ' . htmlspecialchars($donor['name']) . '. Thank you for calling us today.';
         echo '</Say>';
         echo '<Pause length="2"/>';
         
         // Donor menu with 5 minute timeout (300 seconds)
         echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-donor-menu.php?caller=' . urlencode($callerNumber) . '&amp;donor_id=' . $donor['id'] . '" method="POST" timeout="300">';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Please choose from the following options.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'To check your outstanding balance, press 1.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'To make a payment, press 2.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'To contact a church member, press 3.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'To hear these options again, press 4.';
         echo '</Say>';
         
@@ -89,7 +85,7 @@ try {
         
     } else {
         // ===== NON-DONOR FLOW =====
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Thank you for calling us today.';
         echo '</Say>';
         echo '<Pause length="2"/>';
@@ -97,22 +93,22 @@ try {
         // Non-donor menu
         echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-general-menu.php?caller=' . urlencode($callerNumber) . '" method="POST" timeout="300">';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'Please choose from the following options.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'To learn about our church and how to donate, press 1.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'To contact a church member, press 2.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
-        echo '<Say voice="' . $voice . '" language="en-GB">';
+        echo '<Say voice="' . $voice . '">';
         echo 'To hear these options again, press 3.';
         echo '</Say>';
         
@@ -120,7 +116,7 @@ try {
     }
     
     // If no input after 5 minutes
-    echo '<Say voice="' . $voice . '" language="en-GB">';
+    echo '<Say voice="' . $voice . '">';
     echo 'We did not receive any input. Thank you for calling. God bless you. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
@@ -131,7 +127,7 @@ try {
     error_log("Twilio Inbound Error: " . $e->getMessage());
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
-    echo '<Say voice="Polly.Brian" language="en-GB">We are experiencing technical difficulties. Please try again later. God bless you.</Say>';
+    echo '<Say voice="Google.en-GB-Neural2-B">We are sorry, we are experiencing technical difficulties. Please try again later. God bless you.</Say>';
     echo '<Hangup/>';
     echo '</Response>';
 }
