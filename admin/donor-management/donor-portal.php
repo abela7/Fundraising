@@ -162,6 +162,77 @@ if ($tables_exist) {
     }
 }
 
+// ===========================================
+// SUPPORT REQUESTS
+// ===========================================
+$support_tables_exist = false;
+$support_table_check = $db->query("SHOW TABLES LIKE 'donor_support_requests'");
+if ($support_table_check && $support_table_check->num_rows > 0) {
+    $support_tables_exist = true;
+}
+
+$support_stats = [
+    'open' => 0,
+    'in_progress' => 0,
+    'resolved_today' => 0,
+    'total' => 0
+];
+
+$recent_support_requests = [];
+if ($support_tables_exist) {
+    // Support stats
+    $result = $db->query("SELECT COUNT(*) as cnt FROM donor_support_requests WHERE status = 'open'");
+    $support_stats['open'] = (int)$result->fetch_assoc()['cnt'];
+    
+    $result = $db->query("SELECT COUNT(*) as cnt FROM donor_support_requests WHERE status = 'in_progress'");
+    $support_stats['in_progress'] = (int)$result->fetch_assoc()['cnt'];
+    
+    $result = $db->query("SELECT COUNT(*) as cnt FROM donor_support_requests WHERE DATE(resolved_at) = CURDATE()");
+    $support_stats['resolved_today'] = (int)$result->fetch_assoc()['cnt'];
+    
+    $result = $db->query("SELECT COUNT(*) as cnt FROM donor_support_requests");
+    $support_stats['total'] = (int)$result->fetch_assoc()['cnt'];
+    
+    // Recent support requests
+    $support_query = $db->query("
+        SELECT sr.*, d.name as donor_name, d.phone as donor_phone,
+               (SELECT COUNT(*) FROM donor_support_replies WHERE request_id = sr.id) as reply_count
+        FROM donor_support_requests sr
+        JOIN donors d ON sr.donor_id = d.id
+        ORDER BY 
+            CASE sr.status 
+                WHEN 'open' THEN 1 
+                WHEN 'in_progress' THEN 2 
+                WHEN 'resolved' THEN 3 
+                WHEN 'closed' THEN 4 
+            END,
+            sr.priority DESC,
+            sr.created_at DESC
+        LIMIT 20
+    ");
+    if ($support_query) {
+        while ($row = $support_query->fetch_assoc()) {
+            $recent_support_requests[] = $row;
+        }
+    }
+}
+
+// Support categories and statuses
+$support_categories = [
+    'payment' => ['label' => 'Payment', 'color' => 'primary'],
+    'plan' => ['label' => 'Plan', 'color' => 'info'],
+    'account' => ['label' => 'Account', 'color' => 'warning'],
+    'general' => ['label' => 'General', 'color' => 'secondary'],
+    'other' => ['label' => 'Other', 'color' => 'dark']
+];
+
+$support_statuses = [
+    'open' => ['label' => 'Open', 'color' => 'warning'],
+    'in_progress' => ['label' => 'In Progress', 'color' => 'info'],
+    'resolved' => ['label' => 'Resolved', 'color' => 'success'],
+    'closed' => ['label' => 'Closed', 'color' => 'secondary']
+];
+
 /**
  * Parse user agent
  */
@@ -347,8 +418,8 @@ CREATE TABLE IF NOT EXISTS donor_trusted_devices (
                 </div>
                 <?php else: ?>
 
-                <!-- Quick Link to Trusted Devices -->
-                <div class="row mb-4">
+                <!-- Quick Links -->
+                <div class="row mb-4 g-3">
                     <div class="col-md-6">
                         <a href="trusted-devices.php" class="portal-link" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
                             <div class="d-flex align-items-center gap-3">
@@ -358,6 +429,25 @@ CREATE TABLE IF NOT EXISTS donor_trusted_devices (
                                 <div>
                                     <h5 class="mb-1">Trusted Devices Management</h5>
                                     <p class="mb-0 opacity-75">View and manage all donor devices</p>
+                                </div>
+                                <i class="fas fa-arrow-right ms-auto opacity-75"></i>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="support-requests.php" class="portal-link" style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);">
+                            <div class="d-flex align-items-center gap-3">
+                                <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-headset fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-1">Support Requests</h5>
+                                    <p class="mb-0 opacity-75">
+                                        <?php if ($support_stats['open'] > 0): ?>
+                                        <span class="badge bg-warning me-1"><?php echo $support_stats['open']; ?> open</span>
+                                        <?php endif; ?>
+                                        View and respond to donor inquiries
+                                    </p>
                                 </div>
                                 <i class="fas fa-arrow-right ms-auto opacity-75"></i>
                             </div>
@@ -424,13 +514,21 @@ CREATE TABLE IF NOT EXISTS donor_trusted_devices (
                 <!-- Tabs -->
                 <ul class="nav nav-pills mb-4" role="tablist">
                     <li class="nav-item">
-                        <a class="nav-link active" data-bs-toggle="tab" href="#recent-logins">
+                        <a class="nav-link <?php echo $support_stats['open'] > 0 ? '' : 'active'; ?>" data-bs-toggle="tab" href="#recent-logins">
                             <i class="fas fa-history me-1"></i>Recent Logins
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-bs-toggle="tab" href="#trusted-devices">
                             <i class="fas fa-mobile-alt me-1"></i>Trusted Devices
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $support_stats['open'] > 0 ? 'active' : ''; ?>" data-bs-toggle="tab" href="#support-requests">
+                            <i class="fas fa-headset me-1"></i>Support Requests
+                            <?php if ($support_stats['open'] > 0): ?>
+                            <span class="badge bg-danger ms-1"><?php echo $support_stats['open']; ?></span>
+                            <?php endif; ?>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -442,7 +540,7 @@ CREATE TABLE IF NOT EXISTS donor_trusted_devices (
 
                 <div class="tab-content">
                     <!-- Recent Logins Tab -->
-                    <div class="tab-pane fade show active" id="recent-logins">
+                    <div class="tab-pane fade <?php echo $support_stats['open'] > 0 ? '' : 'show active'; ?>" id="recent-logins">
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="card-title mb-0">
@@ -581,6 +679,85 @@ CREATE TABLE IF NOT EXISTS donor_trusted_devices (
                                                         </button>
                                                     </form>
                                                     <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Support Requests Tab -->
+                    <div class="tab-pane fade <?php echo $support_stats['open'] > 0 ? 'show active' : ''; ?>" id="support-requests">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-headset me-2"></i>Recent Support Requests
+                                </h5>
+                                <a href="support-requests.php" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i>View All
+                                </a>
+                            </div>
+                            <div class="card-body p-0">
+                                <?php if (!$support_tables_exist): ?>
+                                <div class="text-center text-muted py-5">
+                                    <i class="fas fa-database fa-3x opacity-25 mb-3"></i>
+                                    <p>Support tables not set up yet</p>
+                                    <small>Run the SQL from <code>database/donor_support_requests.sql</code></small>
+                                </div>
+                                <?php elseif (empty($recent_support_requests)): ?>
+                                <div class="text-center text-muted py-5">
+                                    <i class="fas fa-inbox fa-3x opacity-25 mb-3"></i>
+                                    <p>No support requests yet</p>
+                                </div>
+                                <?php else: ?>
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Donor</th>
+                                                <th>Subject</th>
+                                                <th>Category</th>
+                                                <th>Status</th>
+                                                <th>Time</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($recent_support_requests as $req): ?>
+                                            <tr>
+                                                <td>
+                                                    <a href="view-donor.php?id=<?php echo $req['donor_id']; ?>">
+                                                        <strong><?php echo h($req['donor_name']); ?></strong>
+                                                    </a>
+                                                    <br><small class="text-muted"><?php echo h($req['donor_phone']); ?></small>
+                                                </td>
+                                                <td>
+                                                    <span class="fw-medium"><?php echo h(strlen($req['subject']) > 40 ? substr($req['subject'], 0, 40) . '...' : $req['subject']); ?></span>
+                                                    <?php if ($req['reply_count'] > 0): ?>
+                                                    <br><small class="text-muted"><i class="fas fa-comments me-1"></i><?php echo $req['reply_count']; ?> replies</small>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-<?php echo $support_categories[$req['category']]['color']; ?>">
+                                                        <?php echo $support_categories[$req['category']]['label']; ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-<?php echo $support_statuses[$req['status']]['color']; ?>">
+                                                        <?php echo $support_statuses[$req['status']]['label']; ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small><?php echo date('M j, g:i A', strtotime($req['created_at'])); ?></small>
+                                                </td>
+                                                <td>
+                                                    <a href="support-requests.php?view=<?php echo $req['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
                                                 </td>
                                             </tr>
                                             <?php endforeach; ?>

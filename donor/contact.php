@@ -1,11 +1,12 @@
 <?php
 /**
- * Donor Portal - Contact Admin / Support
+ * Donor Portal - Contact Support / Support Requests
  */
 
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/url.php';
+require_once __DIR__ . '/../shared/audit_helper.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 function current_donor(): ?array {
@@ -31,76 +32,260 @@ $current_donor = $donor;
 $success_message = '';
 $error_message = '';
 
-// Handle contact form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_contact') {
+// Check if support tables exist
+$tables_exist = false;
+if ($db_connection_ok) {
+    $table_check = $db->query("SHOW TABLES LIKE 'donor_support_requests'");
+    $tables_exist = $table_check && $table_check->num_rows > 0;
+}
+
+// Handle form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     verify_csrf();
+    $action = $_POST['action'] ?? '';
     
-    $subject = trim($_POST['subject'] ?? '');
-    $message = trim($_POST['message'] ?? '');
-    $category = trim($_POST['category'] ?? '');
-    
-    if (empty($subject) || empty($message)) {
-        $error_message = 'Please fill in all required fields.';
-    } else {
-        // Store message in messages table (if it exists) or create audit log
-        if ($db_connection_ok) {
+    if ($action === 'submit_request' && $tables_exist) {
+        $subject = trim($_POST['subject'] ?? '');
+        $message = trim($_POST['message'] ?? '');
+        $category = trim($_POST['category'] ?? 'general');
+        
+        if (empty($subject) || empty($message)) {
+            $error_message = 'Please fill in all required fields.';
+        } elseif (strlen($subject) > 255) {
+            $error_message = 'Subject is too long (max 255 characters).';
+        } else {
             try {
-                // Try to insert into messages table if it exists
-                $messages_table_exists = $db->query("SHOW TABLES LIKE 'messages'")->num_rows > 0;
-                
-                if ($messages_table_exists) {
-                    // Insert message (assuming messages table structure)
-                    $insert_stmt = $db->prepare("
-                        INSERT INTO messages (
-                            from_user_id, to_user_id, subject, message, 
-                            created_at, read_at, is_system
-                        ) VALUES (?, 0, ?, ?, NOW(), NULL, 1)
-                    ");
-                    // Use donor ID or 0 for system
-                    $from_id = 0; // System/donor portal
-                    $insert_stmt->bind_param('iss', $from_id, $subject, $message);
-                    $insert_stmt->execute();
-                }
-                
-                // Always create audit log
-                $audit_data = json_encode([
-                    'donor_id' => $donor['id'],
-                    'donor_name' => $donor['name'],
-                    'donor_phone' => $donor['phone'],
-                    'category' => $category,
-                    'subject' => $subject,
-                    'message' => $message
-                ], JSON_UNESCAPED_SLASHES);
-                $audit_stmt = $db->prepare("
-                    INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
-                    VALUES(?, 'donor', ?, 'contact_support', ?, 'donor_portal')
+                $stmt = $db->prepare("
+                    INSERT INTO donor_support_requests (donor_id, category, subject, message, status, priority)
+                    VALUES (?, ?, ?, ?, 'open', 'normal')
                 ");
-                $user_id = 0;
-                $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_data);
-                $audit_stmt->execute();
+                $stmt->bind_param('isss', $donor['id'], $category, $subject, $message);
+                $stmt->execute();
+                $request_id = $db->insert_id;
+                $stmt->close();
                 
-                $success_message = 'Your message has been sent successfully! We will get back to you as soon as possible.';
+                // Audit log
+                log_audit($db, 'create', 'support_request', $request_id, null, [
+                    'donor_id' => $donor['id'],
+                    'category' => $category,
+                    'subject' => $subject
+                ], 'donor_portal', 0);
                 
-                // Clear form
-                $_POST = [];
+                $success_message = 'Your support request has been submitted successfully! We will respond as soon as possible.';
+                $_POST = []; // Clear form
             } catch (Exception $e) {
-                $error_message = 'An error occurred while sending your message. Please try again later.';
+                error_log("Support request error: " . $e->getMessage());
+                $error_message = 'An error occurred. Please try again later.';
+            }
+        }
+    } elseif ($action === 'add_reply' && $tables_exist) {
+        $request_id = (int)($_POST['request_id'] ?? 0);
+        $message = trim($_POST['reply_message'] ?? '');
+        
+        if ($request_id <= 0 || empty($message)) {
+            $error_message = 'Please enter a message.';
+        } else {
+            // Verify request belongs to donor
+            $check = $db->prepare("SELECT id, status FROM donor_support_requests WHERE id = ? AND donor_id = ?");
+            $check->bind_param('ii', $request_id, $donor['id']);
+            $check->execute();
+            $request = $check->get_result()->fetch_assoc();
+            $check->close();
+            
+            if ($request && $request['status'] !== 'closed') {
+                try {
+                    // Add reply
+                    $stmt = $db->prepare("
+                        INSERT INTO donor_support_replies (request_id, donor_id, message, is_internal)
+                        VALUES (?, ?, ?, 0)
+                    ");
+                    $stmt->bind_param('iis', $request_id, $donor['id'], $message);
+                    $stmt->execute();
+                    $stmt->close();
+                    
+                    // Update request status if it was resolved
+                    if ($request['status'] === 'resolved') {
+                        $db->query("UPDATE donor_support_requests SET status = 'open' WHERE id = $request_id");
+                    }
+                    
+                    $success_message = 'Your reply has been added.';
+                } catch (Exception $e) {
+                    error_log("Support reply error: " . $e->getMessage());
+                    $error_message = 'An error occurred. Please try again.';
+                }
+            } else {
+                $error_message = 'Cannot reply to this request.';
             }
         }
     }
 }
+
+// Fetch donor's support requests
+$requests = [];
+$view_request = null;
+if ($tables_exist && $db_connection_ok) {
+    // Check if viewing a specific request
+    if (isset($_GET['view']) && is_numeric($_GET['view'])) {
+        $view_id = (int)$_GET['view'];
+        $stmt = $db->prepare("
+            SELECT sr.*, u.name as assigned_name
+            FROM donor_support_requests sr
+            LEFT JOIN users u ON sr.assigned_to = u.id
+            WHERE sr.id = ? AND sr.donor_id = ?
+        ");
+        $stmt->bind_param('ii', $view_id, $donor['id']);
+        $stmt->execute();
+        $view_request = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        // Fetch replies
+        if ($view_request) {
+            $replies_stmt = $db->prepare("
+                SELECT r.*, u.name as admin_name
+                FROM donor_support_replies r
+                LEFT JOIN users u ON r.user_id = u.id
+                WHERE r.request_id = ? AND r.is_internal = 0
+                ORDER BY r.created_at ASC
+            ");
+            $replies_stmt->bind_param('i', $view_id);
+            $replies_stmt->execute();
+            $view_request['replies'] = $replies_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $replies_stmt->close();
+        }
+    }
+    
+    // Fetch all requests
+    $stmt = $db->prepare("
+        SELECT id, category, subject, status, priority, created_at, updated_at,
+               (SELECT COUNT(*) FROM donor_support_replies WHERE request_id = donor_support_requests.id AND is_internal = 0) as reply_count
+        FROM donor_support_requests
+        WHERE donor_id = ?
+        ORDER BY 
+            CASE status 
+                WHEN 'open' THEN 1 
+                WHEN 'in_progress' THEN 2 
+                WHEN 'resolved' THEN 3 
+                WHEN 'closed' THEN 4 
+            END,
+            created_at DESC
+        LIMIT 50
+    ");
+    $stmt->bind_param('i', $donor['id']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $requests[] = $row;
+    }
+    $stmt->close();
+}
+
+// Category labels
+$categories = [
+    'payment' => ['label' => 'Payment Question', 'icon' => 'fa-credit-card', 'color' => 'primary'],
+    'plan' => ['label' => 'Payment Plan', 'icon' => 'fa-calendar-alt', 'color' => 'info'],
+    'account' => ['label' => 'Account Issue', 'icon' => 'fa-user-cog', 'color' => 'warning'],
+    'general' => ['label' => 'General Inquiry', 'icon' => 'fa-question-circle', 'color' => 'secondary'],
+    'other' => ['label' => 'Other', 'icon' => 'fa-ellipsis-h', 'color' => 'dark']
+];
+
+// Status labels
+$statuses = [
+    'open' => ['label' => 'Open', 'color' => 'warning'],
+    'in_progress' => ['label' => 'In Progress', 'color' => 'info'],
+    'resolved' => ['label' => 'Resolved', 'color' => 'success'],
+    'closed' => ['label' => 'Closed', 'color' => 'secondary']
+];
+
+function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
+function timeAgo($datetime) {
+    $time = strtotime($datetime);
+    $diff = time() - $time;
+    if ($diff < 60) return 'Just now';
+    if ($diff < 3600) return floor($diff / 60) . ' min ago';
+    if ($diff < 86400) return floor($diff / 3600) . ' hours ago';
+    if ($diff < 604800) return floor($diff / 86400) . ' days ago';
+    return date('M j, Y', $time);
+}
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars($donor['preferred_language'] ?? 'en'); ?>">
+<html lang="<?php echo h($donor['preferred_language'] ?? 'en'); ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo htmlspecialchars($page_title); ?> - Donor Portal</title>
+    <title><?php echo h($page_title); ?> - Donor Portal</title>
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
+    <style>
+        .request-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+            color: inherit;
+        }
+        .request-card:hover {
+            border-color: var(--primary-color, #0a6286);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            color: inherit;
+        }
+        .request-card.status-open { border-left: 4px solid #f59e0b; }
+        .request-card.status-in_progress { border-left: 4px solid #3b82f6; }
+        .request-card.status-resolved { border-left: 4px solid #10b981; }
+        .request-card.status-closed { border-left: 4px solid #6b7280; }
+        .reply-bubble {
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            max-width: 85%;
+        }
+        .reply-donor {
+            background: linear-gradient(135deg, #0a6286 0%, #084d68 100%);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .reply-admin {
+            background: #f1f5f9;
+            color: #1e293b;
+            border-bottom-left-radius: 4px;
+        }
+        .reply-meta {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+        .conversation-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #64748b;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            opacity: 0.3;
+            margin-bottom: 1rem;
+        }
+        .setup-alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%);
+            border: 1px solid #fcd34d;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+    </style>
 </head>
 <body>
 <div class="app-wrapper">
@@ -110,142 +295,261 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <?php include 'includes/topbar.php'; ?>
         
         <main class="main-content">
-                <div class="page-header">
-                    <h1 class="page-title">Contact Support</h1>
+            <div class="container-fluid p-3 p-md-4">
+                <div class="page-header mb-4">
+                    <h1 class="page-title">
+                        <i class="fas fa-headset me-2 text-primary"></i>Contact Support
+                    </h1>
                 </div>
 
                 <?php if ($success_message): ?>
-                    <div class="alert alert-success alert-dismissible fade show">
-                        <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success_message); ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                <div class="alert alert-success alert-dismissible fade show">
+                    <i class="fas fa-check-circle me-2"></i><?php echo h($success_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
                 <?php endif; ?>
 
                 <?php if ($error_message): ?>
-                    <div class="alert alert-danger alert-dismissible fade show">
-                        <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error_message); ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <i class="fas fa-exclamation-circle me-2"></i><?php echo h($error_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
                 <?php endif; ?>
 
+                <?php if (!$tables_exist): ?>
+                <!-- Setup Required -->
+                <div class="setup-alert">
+                    <div class="d-flex gap-3">
+                        <i class="fas fa-info-circle fa-2x text-warning"></i>
+                        <div>
+                            <h5 class="mb-2">Support System Coming Soon</h5>
+                            <p class="mb-0">The support request system is being set up. Please contact the church office directly for assistance in the meantime.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <?php elseif ($view_request): ?>
+                <!-- View Single Request -->
+                <div class="mb-3">
+                    <a href="contact.php" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to All Requests
+                    </a>
+                </div>
+                
                 <div class="row g-4">
-                    <!-- Contact Form -->
                     <div class="col-lg-8">
                         <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-ticket-alt me-2"></i>Request #<?php echo $view_request['id']; ?>
+                                </h5>
+                                <span class="badge bg-<?php echo $statuses[$view_request['status']]['color']; ?>">
+                                    <?php echo $statuses[$view_request['status']]['label']; ?>
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <span class="badge bg-<?php echo $categories[$view_request['category']]['color']; ?>">
+                                        <i class="fas <?php echo $categories[$view_request['category']]['icon']; ?> me-1"></i>
+                                        <?php echo $categories[$view_request['category']]['label']; ?>
+                                    </span>
+                                    <small class="text-muted ms-2">
+                                        <i class="fas fa-clock me-1"></i><?php echo timeAgo($view_request['created_at']); ?>
+                                    </small>
+                                </div>
+                                <h5><?php echo h($view_request['subject']); ?></h5>
+                                <p class="text-muted"><?php echo nl2br(h($view_request['message'])); ?></p>
+                            </div>
+                        </div>
+                        
+                        <!-- Conversation -->
+                        <div class="card mt-4">
                             <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="fas fa-paper-plane text-primary"></i>Send us a Message
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-comments me-2"></i>Conversation
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <form method="POST" id="contactForm">
+                                <?php if (!empty($view_request['replies'])): ?>
+                                <div class="conversation-container mb-3">
+                                    <?php foreach ($view_request['replies'] as $reply): ?>
+                                    <div class="reply-bubble <?php echo $reply['donor_id'] ? 'reply-donor' : 'reply-admin'; ?>">
+                                        <div><?php echo nl2br(h($reply['message'])); ?></div>
+                                        <div class="reply-meta">
+                                            <?php if ($reply['donor_id']): ?>
+                                            <i class="fas fa-user me-1"></i>You
+                                            <?php else: ?>
+                                            <i class="fas fa-headset me-1"></i><?php echo h($reply['admin_name'] ?? 'Support'); ?>
+                                            <?php endif; ?>
+                                            · <?php echo timeAgo($reply['created_at']); ?>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php else: ?>
+                                <p class="text-muted text-center py-3">
+                                    <i class="fas fa-comments opacity-25 fa-2x d-block mb-2"></i>
+                                    No replies yet. We'll respond soon!
+                                </p>
+                                <?php endif; ?>
+                                
+                                <?php if ($view_request['status'] !== 'closed'): ?>
+                                <form method="POST">
                                     <?php echo csrf_input(); ?>
-                                    <input type="hidden" name="action" value="submit_contact">
-                                    
-                                    <!-- Category -->
+                                    <input type="hidden" name="action" value="add_reply">
+                                    <input type="hidden" name="request_id" value="<?php echo $view_request['id']; ?>">
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold">
-                                            <i class="fas fa-tag me-2"></i>Category <span class="text-danger">*</span>
-                                        </label>
+                                        <textarea class="form-control" name="reply_message" rows="3" 
+                                                  placeholder="Type your reply..." required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-paper-plane me-1"></i>Send Reply
+                                    </button>
+                                </form>
+                                <?php else: ?>
+                                <div class="alert alert-secondary mb-0">
+                                    <i class="fas fa-lock me-2"></i>This request is closed. Open a new request if you need further assistance.
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">Request Details</h6>
+                            </div>
+                            <div class="card-body">
+                                <dl class="row mb-0">
+                                    <dt class="col-5 text-muted">Status</dt>
+                                    <dd class="col-7">
+                                        <span class="badge bg-<?php echo $statuses[$view_request['status']]['color']; ?>">
+                                            <?php echo $statuses[$view_request['status']]['label']; ?>
+                                        </span>
+                                    </dd>
+                                    <dt class="col-5 text-muted">Category</dt>
+                                    <dd class="col-7"><?php echo $categories[$view_request['category']]['label']; ?></dd>
+                                    <dt class="col-5 text-muted">Created</dt>
+                                    <dd class="col-7"><?php echo date('M j, Y g:i A', strtotime($view_request['created_at'])); ?></dd>
+                                    <?php if ($view_request['assigned_name']): ?>
+                                    <dt class="col-5 text-muted">Assigned To</dt>
+                                    <dd class="col-7"><?php echo h($view_request['assigned_name']); ?></dd>
+                                    <?php endif; ?>
+                                    <?php if ($view_request['resolved_at']): ?>
+                                    <dt class="col-5 text-muted">Resolved</dt>
+                                    <dd class="col-7"><?php echo date('M j, Y', strtotime($view_request['resolved_at'])); ?></dd>
+                                    <?php endif; ?>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <?php else: ?>
+                <!-- Request List & New Request Form -->
+                <div class="row g-4">
+                    <!-- New Request Form -->
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-plus-circle text-primary me-2"></i>New Support Request
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST">
+                                    <?php echo csrf_input(); ?>
+                                    <input type="hidden" name="action" value="submit_request">
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
                                         <select class="form-select" name="category" required>
                                             <option value="">Select a category...</option>
-                                            <option value="payment">Payment Question</option>
-                                            <option value="plan">Payment Plan Question</option>
-                                            <option value="account">Account Issue</option>
-                                            <option value="general">General Inquiry</option>
-                                            <option value="other">Other</option>
+                                            <?php foreach ($categories as $key => $cat): ?>
+                                            <option value="<?php echo $key; ?>">
+                                                <?php echo $cat['label']; ?>
+                                            </option>
+                                            <?php endforeach; ?>
                                         </select>
                                     </div>
 
-                                    <!-- Subject -->
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold">
-                                            <i class="fas fa-heading me-2"></i>Subject <span class="text-danger">*</span>
-                                        </label>
-                                        <input type="text" 
-                                               class="form-control" 
-                                               name="subject" 
-                                               placeholder="Brief description of your question..."
-                                               required>
+                                        <label class="form-label fw-bold">Subject <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="subject" 
+                                               placeholder="Brief description of your question..." 
+                                               maxlength="255" required>
                                     </div>
 
-                                    <!-- Message -->
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold">
-                                            <i class="fas fa-comment me-2"></i>Message <span class="text-danger">*</span>
-                                        </label>
-                                        <textarea class="form-control" 
-                                                  name="message" 
-                                                  rows="8" 
+                                        <label class="form-label fw-bold">Message <span class="text-danger">*</span></label>
+                                        <textarea class="form-control" name="message" rows="5" 
                                                   placeholder="Please provide details about your question or issue..."
                                                   required></textarea>
                                     </div>
 
-                                    <!-- Donor Info Display -->
-                                    <div class="alert alert-info">
+                                    <div class="alert alert-info py-2">
                                         <small>
-                                            <strong>Your Contact Information:</strong><br>
-                                            Name: <?php echo htmlspecialchars($donor['name']); ?><br>
-                                            Phone: <?php echo htmlspecialchars($donor['phone']); ?>
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Your contact info: <strong><?php echo h($donor['name']); ?></strong> (<?php echo h($donor['phone']); ?>)
                                         </small>
                                     </div>
 
-                                    <!-- Submit Button -->
-                                    <div class="d-grid gap-2">
-                                        <button type="submit" class="btn btn-primary btn-lg">
-                                            <i class="fas fa-paper-plane me-2"></i>Send Message
-                                        </button>
-                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-paper-plane me-2"></i>Submit Request
+                                    </button>
                                 </form>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Help & Info -->
-                    <div class="col-lg-4">
+                    <!-- Previous Requests -->
+                    <div class="col-lg-6">
                         <div class="card">
                             <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="fas fa-info-circle text-primary"></i>Quick Help
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-history text-primary me-2"></i>Your Requests
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <h6 class="fw-bold">Common Questions:</h6>
-                                <ul class="list-unstyled">
-                                    <li class="mb-2">
-                                        <i class="fas fa-question-circle text-primary me-2"></i>
-                                        <strong>Payment Status:</strong> Check your payment history page
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="fas fa-question-circle text-primary me-2"></i>
-                                        <strong>Plan Updates:</strong> Contact us to modify your payment plan
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="fas fa-question-circle text-primary me-2"></i>
-                                        <strong>Account Issues:</strong> We'll help reset your access
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="fas fa-phone text-primary"></i>Contact Details
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <p class="mb-2">
-                                    <i class="fas fa-church me-2 text-primary"></i>
-                                    <strong>Church Office</strong>
-                                </p>
-                                <p class="mb-0 text-muted">
-                                    Please contact the church office directly for urgent matters.
-                                </p>
+                                <?php if (empty($requests)): ?>
+                                <div class="empty-state">
+                                    <i class="fas fa-inbox"></i>
+                                    <p class="mb-0">No support requests yet</p>
+                                </div>
+                                <?php else: ?>
+                                <?php foreach ($requests as $req): ?>
+                                <a href="contact.php?view=<?php echo $req['id']; ?>" 
+                                   class="request-card status-<?php echo $req['status']; ?>">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge bg-<?php echo $categories[$req['category']]['color']; ?> bg-opacity-75">
+                                            <i class="fas <?php echo $categories[$req['category']]['icon']; ?> me-1"></i>
+                                            <?php echo $categories[$req['category']]['label']; ?>
+                                        </span>
+                                        <span class="badge bg-<?php echo $statuses[$req['status']]['color']; ?>">
+                                            <?php echo $statuses[$req['status']]['label']; ?>
+                                        </span>
+                                    </div>
+                                    <h6 class="mb-1"><?php echo h($req['subject']); ?></h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i><?php echo timeAgo($req['created_at']); ?>
+                                        </small>
+                                        <?php if ($req['reply_count'] > 0): ?>
+                                        <small class="text-muted">
+                                            <i class="fas fa-comments me-1"></i><?php echo $req['reply_count']; ?> replies
+                                        </small>
+                                        <?php endif; ?>
+                                    </div>
+                                </a>
+                                <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
+            </div>
         </main>
     </div>
 </div>
@@ -254,4 +558,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <script src="assets/donor.js"></script>
 </body>
 </html>
-
