@@ -1118,3 +1118,12 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Hover background utility */
+.hover-bg {
+  transition: background-color 0.15s ease;
+}
+
+.hover-bg:hover {
+  background-color: var(--gray-100, #f1f5f9);
+}

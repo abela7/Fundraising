@@ -584,6 +584,38 @@ if ($db_connection_ok) {
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Security Settings -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-shield-alt text-primary"></i>Security
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <a href="trusted-devices.php" class="d-flex align-items-center text-decoration-none text-dark p-2 rounded hover-bg">
+                                    <div class="me-3">
+                                        <i class="fas fa-mobile-alt fa-lg text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <strong>Trusted Devices</strong>
+                                        <p class="mb-0 small text-muted">Manage devices that can access your account</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </a>
+                                <hr class="my-2">
+                                <a href="logout.php?forget=1" class="d-flex align-items-center text-decoration-none text-danger p-2 rounded hover-bg" onclick="return confirm('This will log you out and require SMS verification on next login. Continue?');">
+                                    <div class="me-3">
+                                        <i class="fas fa-sign-out-alt fa-lg"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <strong>Sign Out Everywhere</strong>
+                                        <p class="mb-0 small text-muted">Log out and forget this device</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </div>
+                        </div>
 
                         <!-- Church Assignment (Read Only) -->
                         <div class="card">
