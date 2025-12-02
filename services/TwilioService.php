@@ -314,6 +314,78 @@ class TwilioService
     }
     
     /**
+     * Make a notification call with TTS message
+     * 
+     * @param string $toPhone Phone number to call
+     * @param string $twimlUrl URL that returns TwiML with the message
+     * @return array ['success' => bool, 'call_sid' => string|null, 'error' => string|null]
+     */
+    public function makeNotificationCall(string $toPhone, string $twimlUrl): array
+    {
+        try {
+            $toPhone = $this->normalizePhoneNumber($toPhone);
+            
+            if (!$toPhone) {
+                return [
+                    'success' => false,
+                    'call_sid' => null,
+                    'error' => 'Invalid phone number format'
+                ];
+            }
+            
+            // API endpoint
+            $url = self::API_BASE_URL . '/' . self::API_VERSION . '/Accounts/' . $this->accountSid . '/Calls.json';
+            
+            // Call parameters
+            $params = [
+                'To' => $toPhone,
+                'From' => $this->twilioNumber,
+                'Url' => $twimlUrl,
+                'Method' => 'GET',
+                'Timeout' => '30',
+            ];
+            
+            // Make API request
+            $response = $this->makeRequest('POST', $url, $params);
+            
+            if (!$response['success']) {
+                return [
+                    'success' => false,
+                    'call_sid' => null,
+                    'error' => $response['error'] ?? 'Failed to initiate call'
+                ];
+            }
+            
+            $callData = $response['data'];
+            $callSid = $callData['sid'] ?? null;
+            
+            if (!$callSid) {
+                return [
+                    'success' => false,
+                    'call_sid' => null,
+                    'error' => 'No Call SID returned from Twilio'
+                ];
+            }
+            
+            error_log("Notification call initiated: {$callSid} to {$toPhone}");
+            
+            return [
+                'success' => true,
+                'call_sid' => $callSid,
+                'error' => null
+            ];
+            
+        } catch (Exception $e) {
+            error_log("TwilioService::makeNotificationCall() error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'call_sid' => null,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
      * Normalize phone number to E.164 format
      * 
      * @param string $phone Phone number

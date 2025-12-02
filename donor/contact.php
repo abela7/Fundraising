@@ -9,6 +9,11 @@ require_once __DIR__ . '/../shared/url.php';
 require_once __DIR__ . '/../shared/audit_helper.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 require_once __DIR__ . '/../services/UltraMsgService.php';
+require_once __DIR__ . '/../services/TwilioService.php';
+require_once __DIR__ . '/../services/SMSHelper.php';
+
+// Admin notification phone number
+define('ADMIN_NOTIFICATION_PHONE', '07360436171');
 
 function current_donor(): ?array {
     if (isset($_SESSION['donor'])) {
@@ -72,20 +77,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     'subject' => $subject
                 ], 'donor_portal', 0);
                 
-                // Send WhatsApp notification to admin
+                // ===========================================
+                // ROBUST NOTIFICATION SYSTEM
+                // Priority: 1. WhatsApp → 2. Phone Call → 3. SMS
+                // ===========================================
+                $notification_sent = false;
+                $notification_method = '';
+                $notification_error = '';
+                
+                $category_labels = [
+                    'payment' => 'Payment Question',
+                    'plan' => 'Payment Plan',
+                    'account' => 'Account Issue',
+                    'general' => 'General Inquiry',
+                    'other' => 'Other'
+                ];
+                $cat_label = $category_labels[$category] ?? 'General';
+                
+                // Step 1: Try WhatsApp first
                 try {
                     $whatsapp = UltraMsgService::fromDatabase($db);
                     if ($whatsapp) {
-                        $admin_phone = '07360436171';
-                        $category_labels = [
-                            'payment' => 'Payment Question',
-                            'plan' => 'Payment Plan',
-                            'account' => 'Account Issue',
-                            'general' => 'General Inquiry',
-                            'other' => 'Other'
-                        ];
-                        $cat_label = $category_labels[$category] ?? 'General';
-                        
                         $wa_message = "🆘 *NEW SUPPORT REQUEST* 🆘\n\n";
                         $wa_message .= "*Request ID:* #{$request_id}\n";
                         $wa_message .= "*From:* {$donor['name']}\n";
@@ -96,11 +108,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         $wa_message .= "━━━━━━━━━━━━━━━\n";
                         $wa_message .= "View: " . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . "://{$_SERVER['HTTP_HOST']}/admin/donor-management/support-requests.php?view={$request_id}";
                         
-                        $whatsapp->send($admin_phone, $wa_message);
+                        $wa_result = $whatsapp->send(ADMIN_NOTIFICATION_PHONE, $wa_message);
+                        
+                        if ($wa_result['success']) {
+                            $notification_sent = true;
+                            $notification_method = 'whatsapp';
+                            error_log("Support notification sent via WhatsApp for request #{$request_id}");
+                        } else {
+                            throw new Exception($wa_result['error'] ?? 'WhatsApp send failed');
+                        }
+                    } else {
+                        throw new Exception('WhatsApp service not configured');
                     }
                 } catch (Exception $wa_error) {
-                    // Log but don't fail the request
-                    error_log("WhatsApp notification failed: " . $wa_error->getMessage());
+                    $notification_error = "WhatsApp failed: " . $wa_error->getMessage();
+                    error_log($notification_error);
+                }
+                
+                // Step 2: If WhatsApp failed, try Phone Call
+                if (!$notification_sent) {
+                    try {
+                        $twilio = TwilioService::fromDatabase($db);
+                        if ($twilio) {
+                            // Build TwiML URL for the notification message
+                            $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . "://{$_SERVER['HTTP_HOST']}";
+                            $twiml_url = $base_url . '/admin/call-center/api/twilio-support-notification.php';
+                            $twiml_url .= '?request_id=' . urlencode((string)$request_id);
+                            $twiml_url .= '&donor_name=' . urlencode($donor['name']);
+                            
+                            $call_result = $twilio->makeNotificationCall(ADMIN_NOTIFICATION_PHONE, $twiml_url);
+                            
+                            if ($call_result['success']) {
+                                $notification_sent = true;
+                                $notification_method = 'phone_call';
+                                error_log("Support notification sent via Phone Call for request #{$request_id}, CallSid: " . $call_result['call_sid']);
+                            } else {
+                                throw new Exception($call_result['error'] ?? 'Call failed');
+                            }
+                        } else {
+                            throw new Exception('Twilio service not configured');
+                        }
+                    } catch (Exception $call_error) {
+                        $notification_error .= " | Call failed: " . $call_error->getMessage();
+                        error_log("Phone call notification failed: " . $call_error->getMessage());
+                    }
+                }
+                
+                // Step 3: If both WhatsApp and Call failed, try SMS
+                if (!$notification_sent) {
+                    try {
+                        $sms = new SMSHelper($db);
+                        if ($sms->isReady()) {
+                            $sms_message = "🆘 SUPPORT REQUEST #{$request_id}\n";
+                            $sms_message .= "From: {$donor['name']} ({$donor['phone']})\n";
+                            $sms_message .= "Category: {$cat_label}\n";
+                            $sms_message .= "Subject: {$subject}\n";
+                            $sms_message .= "Please check the donor portal.";
+                            
+                            $sms_result = $sms->sendDirect(ADMIN_NOTIFICATION_PHONE, $sms_message);
+                            
+                            if ($sms_result['success']) {
+                                $notification_sent = true;
+                                $notification_method = 'sms';
+                                error_log("Support notification sent via SMS for request #{$request_id}");
+                            } else {
+                                throw new Exception($sms_result['error'] ?? 'SMS send failed');
+                            }
+                        } else {
+                            throw new Exception('SMS service not ready');
+                        }
+                    } catch (Exception $sms_error) {
+                        $notification_error .= " | SMS failed: " . $sms_error->getMessage();
+                        error_log("SMS notification failed: " . $sms_error->getMessage());
+                    }
+                }
+                
+                // Log final notification status
+                if ($notification_sent) {
+                    error_log("Support request #{$request_id} notification SUCCESS via {$notification_method}");
+                } else {
+                    error_log("Support request #{$request_id} notification FAILED - All methods exhausted: {$notification_error}");
                 }
                 
                 $success_message = 'Your support request has been submitted successfully! We will respond as soon as possible.';
