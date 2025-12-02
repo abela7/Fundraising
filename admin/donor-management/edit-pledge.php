@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -94,9 +95,39 @@ try {
     }
     $stmt->bind_param($types, ...$values);
     
+    // Get before data for audit
+    $beforeData = [
+        'amount' => $old_amount,
+        'status' => $pledge['status'] ?? 'pending'
+    ];
+    
     if (!$stmt->execute()) {
         throw new Exception("Update failed: " . $stmt->error);
     }
+    
+    // Get after data for audit
+    $after_stmt = $db->prepare("SELECT amount, status FROM pledges WHERE id = ?");
+    $after_stmt->bind_param('i', $pledge_id);
+    $after_stmt->execute();
+    $after_data = $after_stmt->get_result()->fetch_assoc();
+    $after_stmt->close();
+    
+    $afterData = [
+        'amount' => $after_data['amount'] ?? $old_amount,
+        'status' => $after_data['status'] ?? 'pending'
+    ];
+    
+    // Audit log
+    log_audit(
+        $db,
+        'update',
+        'pledge',
+        $pledge_id,
+        $beforeData,
+        $afterData,
+        'admin_portal',
+        (int)($_SESSION['user']['id'] ?? 0)
+    );
     
     // If amount changed and status is approved, recalculate donor totals
     if (isset($new_amount) && $old_amount != $new_amount) {

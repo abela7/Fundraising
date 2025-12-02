@@ -2,6 +2,7 @@
 require_once '../../config/db.php';
 require_once '../../shared/auth.php';
 require_once '../../shared/csrf.php';
+require_once '../../shared/audit_helper.php';
 require_login();
 require_admin();
 
@@ -82,6 +83,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // Get before data for audit
+        $beforeData = [
+            'name' => $userRow['name'],
+            'email' => $userRow['email'],
+            'phone' => $userRow['phone']
+        ];
+        
         $sql = 'UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?';
         $stmt = $db->prepare($sql);
         $emailParam = ($email === '' ? null : $email);
@@ -94,6 +102,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userRow['phone'] = $phone;
             $_SESSION['user']['name'] = $name;
             $_SESSION['user']['phone'] = $phone;
+            
+            // Audit log
+            log_audit(
+                $db,
+                'update',
+                'user',
+                $updateId,
+                $beforeData,
+                ['name' => $name, 'email' => $emailParam, 'phone' => $phone],
+                'admin_portal',
+                $updateId
+            );
+            
             $_SESSION['success'] = 'Profile updated successfully.';
         } else {
             $_SESSION['error'] = 'Failed to update profile.';
@@ -138,6 +159,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $updPwdId = (int)$userRow['id'];
         $stmt->bind_param('si', $newHash, $updPwdId);
         if ($stmt->execute()) {
+            // Audit log password change
+            log_audit(
+                $db,
+                'change_password',
+                'user',
+                $updPwdId,
+                null, // Don't log old password hash
+                ['password_changed' => true],
+                'admin_portal',
+                $updPwdId
+            );
+            
             $_SESSION['success'] = 'Password updated successfully.';
         } else {
             $_SESSION['error'] = 'Failed to update password.';

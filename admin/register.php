@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
+require_once __DIR__ . '/../shared/audit_helper.php';
 require_once __DIR__ . '/../config/db.php';
 
 $db = db();
@@ -40,6 +41,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt2 = $db->prepare('INSERT INTO users (name, phone, email, role, password_hash, active, created_at) VALUES (?,?,?,?,?,1,NOW())');
             $stmt2->bind_param('sssss', $name, $phone, $email, $role, $hash);
             if ($stmt2->execute()) {
+                $new_user_id = $db->insert_id;
+                
+                // Audit log
+                log_audit(
+                    $db,
+                    'create',
+                    'user',
+                    $new_user_id,
+                    null,
+                    ['name' => $name, 'phone' => $phone, 'email' => $email, 'role' => $role, 'active' => 1],
+                    'admin_portal',
+                    $totalUsers > 0 ? (int)($_SESSION['user']['id'] ?? 0) : null
+                );
+                
                 $msg = 'User created successfully';
                 if ($totalUsers === 0) {
                     $script = $_SERVER['SCRIPT_NAME'] ?? '';

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
 require_once __DIR__ . '/../../shared/CustomAmountAllocator.php';
@@ -431,23 +432,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 
                 // Audit log - use original pledge ID for update requests
                 $auditEntityId = $isPledgeUpdate && $originalPledgeId ? $originalPledgeId : $pledgeId;
-                $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-                $ipBin = $ip ? @inet_pton($ip) : null;
-                $before = json_encode(['status' => 'pending', 'type' => $pledge['type'], 'amount' => (float)$pledge['amount']], JSON_UNESCAPED_SLASHES);
-                $after  = json_encode([
+                $beforeData = [
+                    'status' => 'pending',
+                    'type' => $pledge['type'],
+                    'amount' => (float)$pledge['amount']
+                ];
+                $afterData = [
                     'status' => $isPledgeUpdate ? 'updated' : 'approved',
                     'grid_allocation' => $allocationResult,
                     'is_update_request' => $isPledgeUpdate
-                ], JSON_UNESCAPED_SLASHES);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, ip_address, source) VALUES(?, 'pledge', ?, 'approve', ?, ?, ?, 'admin')");
-                $log->bind_param('iisss', $uid, $auditEntityId, $before, $after, $ipBin);
-                // Workaround: mysqli doesn't support 'b' bind natively well; fallback to send as NULL/escaped string
-                // So we re-prepare without ip if bind fails
-                if (!$log->execute()) {
-                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'approve', ?, ?, 'admin')");
-                    $log->bind_param('iiss', $uid, $auditEntityId, $before, $after);
-                    $log->execute();
-                }
+                ];
+                
+                log_audit(
+                    $db,
+                    'approve',
+                    'pledge',
+                    $auditEntityId,
+                    $beforeData,
+                    $afterData,
+                    'admin_portal',
+                    $uid
+                );
                 
                 // Handle custom amount allocation result
                 if ($allocationResult['success']) {
@@ -692,17 +697,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 }
 
                 // Audit log
-                $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-                $ipBin = $ip ? @inet_pton($ip) : null;
-                $before = json_encode(['status' => 'pending'], JSON_UNESCAPED_SLASHES);
-                $after  = json_encode(['status' => 'rejected'], JSON_UNESCAPED_SLASHES);
-                $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, ip_address, source) VALUES(?, 'pledge', ?, 'reject', ?, ?, ?, 'admin')");
-                $log->bind_param('iisss', $uid, $pledgeId, $before, $after, $ipBin);
-                if (!$log->execute()) {
-                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'reject', ?, ?, 'admin')");
-                    $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
-                    $log->execute();
-                }
+                log_audit(
+                    $db,
+                    'reject',
+                    'pledge',
+                    $pledgeId,
+                    ['status' => 'pending'],
+                    ['status' => 'rejected'],
+                    'admin_portal',
+                    $uid
+                );
                 $actionMsg = 'Rejected';
             } elseif ($action === 'update') {
                 // Update pledge details
@@ -751,13 +755,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     
                     // Audit log
                     $uid = (int)current_user()['id'];
-                    $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-                    $ipBin = $ip ? @inet_pton($ip) : null;
-                    $before = json_encode(['status' => 'pending'], JSON_UNESCAPED_SLASHES);
-                    $after = json_encode(['donor_name' => $donorName, 'amount' => $amount, 'package_id' => $packageId, 'updated' => true], JSON_UNESCAPED_SLASHES);
-                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'pledge', ?, 'update', ?, ?, 'admin')");
-                    $log->bind_param('iiss', $uid, $pledgeId, $before, $after);
-                    $log->execute();
+                    // Get before data
+                    $beforeData = [
+                        'donor_name' => $pledge['donor_name'] ?? '',
+                        'amount' => (float)$pledge['amount'],
+                        'status' => 'pending'
+                    ];
+                    
+                    log_audit(
+                        $db,
+                        'update',
+                        'pledge',
+                        $pledgeId,
+                        $beforeData,
+                        ['donor_name' => $donorName, 'amount' => $amount, 'package_id' => $packageId, 'updated' => true],
+                        'admin_portal',
+                        $uid
+                    );
                     
                     $actionMsg = 'Updated successfully';
                 } else {
@@ -942,11 +956,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     $upd->execute();
 
                     $uid = (int)current_user()['id'];
-                    $before = json_encode(['status'=>'pending'], JSON_UNESCAPED_SLASHES);
-                    $after  = json_encode(['status'=>'voided'], JSON_UNESCAPED_SLASHES);
-                    $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'reject', ?, ?, 'admin')");
-                    $log->bind_param('iiss', $uid, $paymentId, $before, $after);
-                    $log->execute();
+                    log_audit(
+                        $db,
+                        'reject',
+                        'payment',
+                        $paymentId,
+                        ['status' => 'pending'],
+                        ['status' => 'voided'],
+                        'admin_portal',
+                        $uid
+                    );
                     $actionMsg = 'Payment rejected';
                 } else if ($action === 'update_payment') {
                     // Update standalone payment fields while keeping status pending
@@ -971,11 +990,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
 
                         // Audit
                         $uid = (int)current_user()['id'];
-                        $before = json_encode(['status'=>'pending'], JSON_UNESCAPED_SLASHES);
-                        $after  = json_encode(['amount'=>$amount,'method'=>$method,'package_id'=>$packageId,'updated'=>true], JSON_UNESCAPED_SLASHES);
-                        $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'update', ?, ?, 'admin')");
-                        $log->bind_param('iiss', $uid, $paymentId, $before, $after);
-                        $log->execute();
+                        $beforeData = [
+                            'donor_name' => $pay['donor_name'] ?? '',
+                            'amount' => (float)$pay['amount'],
+                            'method' => $pay['method'] ?? 'cash',
+                            'status' => 'pending'
+                        ];
+                        
+                        log_audit(
+                            $db,
+                            'update',
+                            'payment',
+                            $paymentId,
+                            $beforeData,
+                            ['amount' => $amount, 'method' => $method, 'package_id' => $packageId, 'updated' => true],
+                            'admin_portal',
+                            $uid
+                        );
 
                         $actionMsg = 'Payment updated successfully';
                     } else {

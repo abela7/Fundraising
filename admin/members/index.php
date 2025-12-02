@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/url.php';
 require_admin();
@@ -25,12 +26,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare('INSERT INTO users (name, phone, email, role, password_hash, active, created_at) VALUES (?,?,?,?,?,?,NOW())');
             $stmt->bind_param('sssssi', $name, $phone, $email, $role, $hash, $active);
             $stmt->execute();
+            $new_user_id = $db->insert_id;
+            
+            // Audit log
+            log_audit(
+                $db,
+                'create',
+                'user',
+                $new_user_id,
+                null,
+                ['name' => $name, 'phone' => $phone, 'email' => $email, 'role' => $role, 'active' => $active],
+                'admin_portal',
+                (int)($_SESSION['user']['id'] ?? 0)
+            );
+            
             $msg = 'Member created. Code: ' . $code;
         } else {
             $id = (int)$_POST['id'];
+            
+            // Get before data
+            $before_stmt = $db->prepare('SELECT name, phone, email, role, active FROM users WHERE id = ?');
+            $before_stmt->bind_param('i', $id);
+            $before_stmt->execute();
+            $beforeData = $before_stmt->get_result()->fetch_assoc();
+            $before_stmt->close();
+            
             $stmt = $db->prepare('UPDATE users SET name=?, phone=?, email=?, role=?, active=? WHERE id=?');
             $stmt->bind_param('ssssii', $name, $phone, $email, $role, $active, $id);
             $stmt->execute();
+            
+            // Audit log
+            log_audit(
+                $db,
+                'update',
+                'user',
+                $id,
+                $beforeData,
+                ['name' => $name, 'phone' => $phone, 'email' => $email, 'role' => $role, 'active' => $active],
+                'admin_portal',
+                (int)($_SESSION['user']['id'] ?? 0)
+            );
+            
             $msg = 'Member updated';
         }
     } elseif ($action === 'reset_code') {
@@ -40,14 +76,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $db->prepare('UPDATE users SET password_hash=? WHERE id=?');
         $stmt->bind_param('si', $hash, $id);
         $stmt->execute();
+        
+        // Audit log
+        log_audit(
+            $db,
+            'reset_password',
+            'user',
+            $id,
+            null,
+            ['password_reset' => true],
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
         $msg = 'Code reset to: ' . $code;
     } elseif ($action === 'delete') {
         $id = (int)$_POST['id'];
+        
+        // Get before data
+        $before_stmt = $db->prepare('SELECT name, active FROM users WHERE id = ?');
+        $before_stmt->bind_param('i', $id);
+        $before_stmt->execute();
+        $beforeData = $before_stmt->get_result()->fetch_assoc();
+        $before_stmt->close();
+        
         $db->query('UPDATE users SET active=0 WHERE id=' . $id);
+        
+        // Audit log
+        log_audit(
+            $db,
+            'update',
+            'user',
+            $id,
+            $beforeData ? ['active' => $beforeData['active']] : null,
+            ['active' => 0],
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
         $msg = 'Member deactivated';
     } elseif ($action === 'activate') {
         $id = (int)$_POST['id'];
+        
+        // Get before data
+        $before_stmt = $db->prepare('SELECT name, active FROM users WHERE id = ?');
+        $before_stmt->bind_param('i', $id);
+        $before_stmt->execute();
+        $beforeData = $before_stmt->get_result()->fetch_assoc();
+        $before_stmt->close();
+        
         $db->query('UPDATE users SET active=1 WHERE id=' . $id);
+        
+        // Audit log
+        log_audit(
+            $db,
+            'update',
+            'user',
+            $id,
+            $beforeData ? ['active' => $beforeData['active']] : null,
+            ['active' => 1],
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
         $msg = 'Member activated';
     } elseif ($action === 'permanent_delete') {
         $id = (int)$_POST['id'];

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 
@@ -102,13 +103,36 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) 
             $unlink_stmt->execute();
         }
         
-        // Step 3: Delete the pledge
+        // Step 3: Audit log before deletion
+        $pledgeData = [
+            'id' => $pledge_id,
+            'donor_id' => $donor_id,
+            'donor_name' => $pledge->donor_name,
+            'amount' => $pledge->amount,
+            'status' => $pledge->status,
+            'allocated_cells' => $pledge->allocated_cells,
+            'linked_plans' => $pledge->linked_plans,
+            'linked_payments' => $pledge->linked_payments
+        ];
+        
+        log_audit(
+            $conn,
+            'delete',
+            'pledge',
+            $pledge_id,
+            $pledgeData,
+            null,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
+        // Step 4: Delete the pledge
         $delete_query = "DELETE FROM pledges WHERE id = ?";
         $delete_stmt = $conn->prepare($delete_query);
         $delete_stmt->bind_param('i', $pledge_id);
         $delete_stmt->execute();
         
-        // Step 4: Recalculate donor totals
+        // Step 5: Recalculate donor totals
         $recalc_query = "
             UPDATE donors 
             SET total_pledged = (

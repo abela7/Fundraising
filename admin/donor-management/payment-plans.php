@@ -628,20 +628,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             $debug_log[] = 'Donor table updated successfully';
             
             // Audit log
-            $audit_data = json_encode([
-                'donor_id' => $donor_id,
-                'pledge_id' => $pledge_id,
-                'template_id' => $template_id,
-                'total_amount' => $total_amount,
-                'monthly_amount' => $monthly_amount,
-                'total_payments' => $total_payments,
-                'start_date' => $start_date,
-                'next_payment_due' => $next_payment_due,
-                'schedule' => json_decode($schedule_json, true)
-            ], JSON_UNESCAPED_SLASHES);
-            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) VALUES(?, 'donor_payment_plan', ?, 'create', ?, 'admin')");
-            $audit->bind_param('iis', $current_user['id'], $plan_id, $audit_data);
-            $audit->execute();
+            require_once __DIR__ . '/../../shared/audit_helper.php';
+            log_audit(
+                $db,
+                'create',
+                'donor_payment_plan',
+                $plan_id,
+                null,
+                [
+                    'donor_id' => $donor_id,
+                    'pledge_id' => $pledge_id,
+                    'template_id' => $template_id,
+                    'total_amount' => $total_amount,
+                    'monthly_amount' => $monthly_amount,
+                    'total_payments' => $total_payments,
+                    'start_date' => $start_date,
+                    'next_payment_due' => $next_payment_due,
+                    'schedule' => json_decode($schedule_json, true)
+                ],
+                'admin_portal',
+                $current_user['id']
+            );
             
             $db->commit();
             echo json_encode(['success' => true, 'message' => 'Payment plan saved successfully!']);

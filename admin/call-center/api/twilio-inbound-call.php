@@ -91,7 +91,10 @@ try {
         echo '<Pause length="2"/>';
         
         // New caller menu with expanded options
-        echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-general-menu.php?caller=' . urlencode($callerNumber) . '" method="POST" timeout="300">';
+        // Pass caller number in URL for SMS functionality
+        $menuUrl = $baseUrl . 'twilio-ivr-general-menu.php?caller=' . urlencode($callerNumber);
+        error_log("General Menu URL: " . $menuUrl);
+        echo '<Gather numDigits="1" action="' . htmlspecialchars($menuUrl) . '" method="POST" timeout="300">';
         
         echo '<Say voice="' . $voice . '">';
         echo 'Please choose from the following options.';

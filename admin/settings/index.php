@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_admin();
 
@@ -27,9 +28,28 @@ $msg = '';
             $sqm = (float)($_POST['sqm_meters'] ?? 0);
 
             if ($packageId > 0 && !empty($label) && $price > 0) {
+                // Get before data
+                $before_stmt = $db->prepare('SELECT * FROM donation_packages WHERE id = ?');
+                $before_stmt->bind_param('i', $packageId);
+                $before_stmt->execute();
+                $beforeData = $before_stmt->get_result()->fetch_assoc();
+                $before_stmt->close();
+                
                 $stmt = $db->prepare('UPDATE donation_packages SET label=?, price=?, sqm_meters=? WHERE id=?');
                 $stmt->bind_param('sddi', $label, $price, $sqm, $packageId);
                 if ($stmt->execute()) {
+                    // Audit log
+                    log_audit(
+                        $db,
+                        'update',
+                        'donation_package',
+                        $packageId,
+                        $beforeData ? ['label' => $beforeData['label'], 'price' => $beforeData['price'], 'sqm_meters' => $beforeData['sqm_meters']] : null,
+                        ['label' => $label, 'price' => $price, 'sqm_meters' => $sqm],
+                        'admin_portal',
+                        (int)($_SESSION['user']['id'] ?? 0)
+                    );
+                    
                     $response = ['status' => 'success', 'message' => 'Package updated successfully.'];
                 } else {
                     $response['message'] = 'Database error during update.';
@@ -46,7 +66,21 @@ $msg = '';
                 $stmt = $db->prepare('INSERT INTO donation_packages (label, price, sqm_meters) VALUES (?, ?, ?)');
                 $stmt->bind_param('sdd', $label, $price, $sqm);
                 if ($stmt->execute()) {
-                     $response = ['status' => 'success', 'message' => 'Package added successfully.', 'new_id' => $db->insert_id];
+                    $new_id = $db->insert_id;
+                    
+                    // Audit log
+                    log_audit(
+                        $db,
+                        'create',
+                        'donation_package',
+                        $new_id,
+                        null,
+                        ['label' => $label, 'price' => $price, 'sqm_meters' => $sqm],
+                        'admin_portal',
+                        (int)($_SESSION['user']['id'] ?? 0)
+                    );
+                    
+                    $response = ['status' => 'success', 'message' => 'Package added successfully.', 'new_id' => $new_id];
                 } else {
                     $response['message'] = 'Database error during insert.';
                 }
@@ -65,9 +99,30 @@ $msg = '';
                 if ($in_use_count > 0) {
                     $response['message'] = 'Cannot delete: This package is already linked to donations.';
                 } else {
+                    // Get before data for audit
+                    $before_stmt = $db->prepare('SELECT * FROM donation_packages WHERE id = ?');
+                    $before_stmt->bind_param('i', $packageId);
+                    $before_stmt->execute();
+                    $beforeData = $before_stmt->get_result()->fetch_assoc();
+                    $before_stmt->close();
+                    
                     $stmt = $db->prepare('DELETE FROM donation_packages WHERE id=?');
                     $stmt->bind_param('i', $packageId);
                     if ($stmt->execute()) {
+                        // Audit log
+                        if ($beforeData) {
+                            log_audit(
+                                $db,
+                                'delete',
+                                'donation_package',
+                                $packageId,
+                                ['label' => $beforeData['label'], 'price' => $beforeData['price'], 'sqm_meters' => $beforeData['sqm_meters']],
+                                null,
+                                'admin_portal',
+                                (int)($_SESSION['user']['id'] ?? 0)
+                            );
+                        }
+                        
                         $response = ['status' => 'success', 'message' => 'Package deleted successfully.'];
                     } else {
                         $response['message'] = 'Database error during deletion.';
@@ -94,9 +149,28 @@ $msg = '';
              $projectorMode = 'amount';
          }
         
+        // Get before data
+        $before_stmt = $db->prepare('SELECT * FROM settings WHERE id=1');
+        $before_stmt->execute();
+        $beforeData = $before_stmt->get_result()->fetch_assoc();
+        $before_stmt->close();
+        
         $stmt = $db->prepare('UPDATE settings SET target_amount=?, currency_code=?, projector_display_mode=? WHERE id=1');
         $stmt->bind_param('dss', $target, $currency, $projectorMode);
-         $stmt->execute();
+        $stmt->execute();
+        
+        // Audit log
+        log_audit(
+            $db,
+            'update',
+            'settings',
+            1,
+            $beforeData ? ['target_amount' => $beforeData['target_amount'], 'currency_code' => $beforeData['currency_code'], 'projector_display_mode' => $beforeData['projector_display_mode']] : null,
+            ['target_amount' => $target, 'currency_code' => $currency, 'projector_display_mode' => $projectorMode],
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
         $msg = 'Settings updated successfully';
         // Re-fetch settings after update
         $settings = $db->query('SELECT * FROM settings WHERE id=1')->fetch_assoc() ?: $settings;

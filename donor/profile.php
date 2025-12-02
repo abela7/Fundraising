@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/url.php';
+require_once __DIR__ . '/../shared/audit_helper.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 function current_donor(): ?array {
@@ -156,32 +157,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $update_stmt->close();
                     
                     // Audit log
-                    try {
-                        $audit_data = [
-                            'donor_id' => $donor['id'],
-                            'name' => $name,
-                            'phone' => $username
-                        ];
-                        if ($has_email_column) $audit_data['email'] = $email_normalized;
-                        if ($has_baptism_column) $audit_data['baptism_name'] = $baptism_normalized;
-                        
-                        $audit_json = json_encode($audit_data, JSON_UNESCAPED_SLASHES);
-                        
-                        $audit_stmt = $db->prepare("
-                            INSERT INTO audit_logs(user_id, entity_type, entity_id, action, after_json, source) 
-                            VALUES(?, 'donor', ?, 'update_profile', ?, 'donor_portal')
-                        ");
-                        if ($audit_stmt) {
-                            $user_id = 0;
-                            $audit_stmt->bind_param('iis', $user_id, $donor['id'], $audit_json);
-                            if (!$audit_stmt->execute()) {
-                                error_log('Audit log insert failed: ' . $audit_stmt->error);
-                            }
-                            $audit_stmt->close();
-                        }
-                    } catch (Exception $audit_ex) {
-                        error_log('Audit log error (non-fatal): ' . $audit_ex->getMessage());
-                    }
+                    $beforeData = [
+                        'name' => $donor['name'],
+                        'phone' => $donor['phone']
+                    ];
+                    if ($has_email_column) $beforeData['email'] = $donor['email'] ?? null;
+                    if ($has_baptism_column) $beforeData['baptism_name'] = $donor['baptism_name'] ?? null;
+                    
+                    $afterData = [
+                        'name' => $name,
+                        'phone' => $username
+                    ];
+                    if ($has_email_column) $afterData['email'] = $email_normalized;
+                    if ($has_baptism_column) $afterData['baptism_name'] = $baptism_normalized;
+                    
+                    log_audit(
+                        $db,
+                        'update',
+                        'donor',
+                        $donor['id'],
+                        $beforeData,
+                        $afterData,
+                        'donor_portal',
+                        0
+                    );
                     
                     $db->commit();
                     $db->autocommit(true);
@@ -247,8 +246,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 if (!$update_stmt->execute()) throw new RuntimeException($update_stmt->error);
                 $update_stmt->close();
                 
-                // Audit log
-                // ... (Existing audit log logic simplified for brevity, assuming it's similar)
+                // Audit log preferences update
+                $beforeData = [
+                    'preferred_language' => $donor['preferred_language'] ?? 'en',
+                    'preferred_payment_method' => $donor['preferred_payment_method'] ?? 'bank_transfer',
+                    'preferred_payment_day' => $donor['preferred_payment_day'] ?? 1,
+                    'sms_opt_in' => $donor['sms_opt_in'] ?? 1
+                ];
+                if ($has_email_opt_in_column) {
+                    $beforeData['email_opt_in'] = $donor['email_opt_in'] ?? 1;
+                }
+                
+                $afterData = [
+                    'preferred_language' => $preferred_language,
+                    'preferred_payment_method' => $preferred_payment_method,
+                    'preferred_payment_day' => $preferred_payment_day,
+                    'sms_opt_in' => $sms_opt_in
+                ];
+                if ($has_email_opt_in_column) {
+                    $afterData['email_opt_in'] = $email_opt_in;
+                }
+                
+                log_audit(
+                    $db,
+                    'update',
+                    'donor',
+                    $donor['id'],
+                    $beforeData,
+                    $afterData,
+                    'donor_portal',
+                    0
+                );
                 
                 $db->commit();
                 $db->autocommit(true);

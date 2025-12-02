@@ -14,26 +14,45 @@
 
 declare(strict_types=1);
 
+// Catch all errors and convert to TwiML response
+set_error_handler(function($severity, $message, $file, $line) {
+    error_log("IVR PHP Error: $message in $file:$line");
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
 header('Content-Type: text/xml');
 
-error_log("Twilio IVR General Menu: " . json_encode($_POST) . " | GET: " . json_encode($_GET));
+error_log("Twilio IVR General Menu - POST: " . json_encode($_POST) . " | GET: " . json_encode($_GET));
+
+// Google Neural voice
+$voice = 'Google.en-GB-Neural2-B';
 
 try {
     require_once __DIR__ . '/../../../config/db.php';
     
     $db = db();
     
-    $callerNumber = $_GET['caller'] ?? $_POST['From'] ?? '';
+    // Get caller number - try multiple sources
+    $callerNumber = '';
+    if (!empty($_GET['caller'])) {
+        $callerNumber = $_GET['caller'];
+    } elseif (!empty($_POST['From'])) {
+        $callerNumber = $_POST['From'];
+    } elseif (!empty($_POST['Caller'])) {
+        $callerNumber = $_POST['Caller'];
+    }
+    
+    error_log("IVR General Menu - Caller Number: " . $callerNumber);
+    
     $digits = $_POST['Digits'] ?? '';
     $callSid = $_POST['CallSid'] ?? '';
     
     // Update call record
-    updateCallSelection($db, $callSid, 'general_menu_' . $digits);
+    if ($callSid) {
+        updateCallSelection($db, $callSid, 'general_menu_' . $digits);
+    }
     
     $baseUrl = getBaseUrl();
-    
-    // Google Neural voice - British male, very natural
-    $voice = 'Google.en-GB-Neural2-B';
     
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
@@ -41,7 +60,7 @@ try {
     switch ($digits) {
         case '1':
             // Learn about church (verbal)
-            handleAboutChurch($voice, $baseUrl);
+            handleAboutChurch($voice, $baseUrl, $callerNumber);
             break;
             
         case '2':
@@ -71,11 +90,13 @@ try {
     
     echo '</Response>';
     
-} catch (Exception $e) {
-    error_log("IVR General Menu Error: " . $e->getMessage());
+} catch (Throwable $e) {
+    error_log("IVR General Menu FATAL Error: " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine());
+    
+    // Always return valid TwiML even on error
     echo '<?xml version="1.0" encoding="UTF-8"?>';
     echo '<Response>';
-    echo '<Say voice="Google.en-GB-Neural2-B">We are sorry, we are experiencing technical difficulties. Please try again later. God bless you.</Say>';
+    echo '<Say voice="' . $voice . '">We apologize, but we could not complete your request at this time. Please try again later or visit our website at abune teklehaymanot dot org. God bless you. Goodbye.</Say>';
     echo '<Hangup/>';
     echo '</Response>';
 }
@@ -83,7 +104,7 @@ try {
 /**
  * Option 1: About the Church (Verbal Info)
  */
-function handleAboutChurch(string $voice, string $baseUrl): void
+function handleAboutChurch(string $voice, string $baseUrl, string $callerNumber): void
 {
     echo '<Say voice="' . $voice . '">';
     echo 'Liverpool Mekane Kidusan Abune Teklehaymanot is an Ethiopian Orthodox Tewahedo Church serving the Ethiopian community in Liverpool and the surrounding areas.';
@@ -105,8 +126,8 @@ function handleAboutChurch(string $voice, string $baseUrl): void
     echo '</Say>';
     echo '<Pause length="2"/>';
     
-    // Offer to send SMS with more info
-    echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-general-menu.php" method="POST" timeout="30">';
+    // Offer to send SMS with more info - pass caller number
+    echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-general-menu.php?caller=' . urlencode($callerNumber) . '" method="POST" timeout="30">';
     echo '<Say voice="' . $voice . '">';
     echo 'Would you like to receive more information via SMS? Press 2 to receive our website links. Press 5 to return to the main menu. Or simply hang up if you are done.';
     echo '</Say>';
@@ -121,6 +142,20 @@ function handleAboutChurch(string $voice, string $baseUrl): void
  */
 function handleSendInfoSms($db, string $callerNumber, string $voice, string $callSid): void
 {
+    error_log("handleSendInfoSms - Caller: $callerNumber, CallSid: $callSid");
+    
+    // Check if we have a phone number
+    if (empty($callerNumber)) {
+        error_log("ERROR: No caller number available for SMS");
+        echo '<Say voice="' . $voice . '">';
+        echo 'We apologize, but we could not identify your phone number to send the SMS. Please visit our website at abune teklehaymanot dot org for more information.';
+        echo '</Say>';
+        echo '<Pause length="2"/>';
+        echo '<Say voice="' . $voice . '">Thank you for calling. God bless you. Goodbye.</Say>';
+        echo '<Hangup/>';
+        return;
+    }
+    
     echo '<Say voice="' . $voice . '">';
     echo 'We will send you an SMS with links to learn more about our church.';
     echo '</Say>';
@@ -129,16 +164,21 @@ function handleSendInfoSms($db, string $callerNumber, string $voice, string $cal
     // Send SMS with website links
     $smsResult = sendInfoSms($db, $callerNumber);
     
-    if ($smsResult) {
+    error_log("SMS Result: " . json_encode($smsResult));
+    
+    if ($smsResult['success']) {
         echo '<Say voice="' . $voice . '">';
         echo 'The SMS has been sent to your phone. Please check your messages.';
         echo '</Say>';
         
         // Update call record
-        updateSmsSent($db, $callSid);
+        if ($callSid) {
+            updateSmsSent($db, $callSid);
+        }
     } else {
+        error_log("SMS Failed - Error: " . ($smsResult['error'] ?? 'Unknown'));
         echo '<Say voice="' . $voice . '">';
-        echo 'We could not send the SMS at this time. Please visit our website at abune teklehaymanot dot org.';
+        echo 'We could not send the SMS at this time. Please visit our website at abune teklehaymanot dot org for more information.';
         echo '</Say>';
     }
     
@@ -230,6 +270,23 @@ function handleContactDetails($db, string $callerNumber, string $voice, string $
     $churchAdmin = 'Abel';
     $churchPhone = '07360436171';
     
+    error_log("handleContactDetails - Caller: $callerNumber");
+    
+    // Check if we have a phone number
+    if (empty($callerNumber)) {
+        echo '<Say voice="' . $voice . '">';
+        echo 'You can contact our church administrator, ' . $churchAdmin . ', at ' . speakPhoneNumber($churchPhone) . '.';
+        echo '</Say>';
+        echo '<Pause length="1"/>';
+        echo '<Say voice="' . $voice . '">';
+        echo 'I will repeat that number. ' . speakPhoneNumber($churchPhone) . '.';
+        echo '</Say>';
+        echo '<Pause length="2"/>';
+        echo '<Say voice="' . $voice . '">Thank you for calling. May God bless you. Goodbye.</Say>';
+        echo '<Hangup/>';
+        return;
+    }
+    
     echo '<Say voice="' . $voice . '">';
     echo 'We will send you an SMS with our church administrator contact details.';
     echo '</Say>';
@@ -238,14 +295,16 @@ function handleContactDetails($db, string $callerNumber, string $voice, string $
     // Send SMS with contact details
     $smsResult = sendContactSms($db, $callerNumber, $churchAdmin, $churchPhone);
     
-    if ($smsResult) {
+    if ($smsResult['success']) {
         echo '<Say voice="' . $voice . '">';
         echo 'The SMS has been sent to your phone.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
         // Update call record
-        updateSmsSent($db, $callSid);
+        if ($callSid) {
+            updateSmsSent($db, $callSid);
+        }
     } else {
         echo '<Say voice="' . $voice . '">';
         echo 'We could not send the SMS at this time.';
@@ -272,9 +331,19 @@ function handleContactDetails($db, string $callerNumber, string $voice, string $
 /**
  * Send SMS with website links for more information
  */
-function sendInfoSms($db, string $callerPhone): bool
+function sendInfoSms($db, string $callerPhone): array
 {
+    error_log("sendInfoSms - Phone: $callerPhone");
+    
     try {
+        // Normalize phone number first
+        $toPhone = normalizePhoneForSms($callerPhone);
+        error_log("sendInfoSms - Normalized Phone: $toPhone");
+        
+        if (empty($toPhone) || strlen($toPhone) < 10) {
+            return ['success' => false, 'error' => 'Invalid phone number'];
+        }
+        
         require_once __DIR__ . '/../../../services/SMSHelper.php';
         
         // Create SMSHelper instance
@@ -287,26 +356,36 @@ function sendInfoSms($db, string $callerPhone): bool
         $message .= "https://donate.abuneteklehaymanot.org/\n\n";
         $message .= "May God bless you!";
         
-        // Normalize phone number
-        $toPhone = normalizePhoneForSms($callerPhone);
+        error_log("sendInfoSms - Sending to: $toPhone");
         
         // Use sendDirect method
         $result = $smsHelper->sendDirect($toPhone, $message, null, 'ivr_info_request');
         
-        return ($result['success'] ?? false);
+        error_log("sendInfoSms - Result: " . json_encode($result));
         
-    } catch (Exception $e) {
-        error_log("SMS send error: " . $e->getMessage());
-        return false;
+        return $result;
+        
+    } catch (Throwable $e) {
+        error_log("sendInfoSms ERROR: " . $e->getMessage() . " | " . $e->getFile() . ":" . $e->getLine());
+        return ['success' => false, 'error' => $e->getMessage()];
     }
 }
 
 /**
  * Send SMS with church admin contact details
  */
-function sendContactSms($db, string $callerPhone, string $adminName, string $adminPhone): bool
+function sendContactSms($db, string $callerPhone, string $adminName, string $adminPhone): array
 {
+    error_log("sendContactSms - Phone: $callerPhone");
+    
     try {
+        // Normalize phone number first
+        $toPhone = normalizePhoneForSms($callerPhone);
+        
+        if (empty($toPhone) || strlen($toPhone) < 10) {
+            return ['success' => false, 'error' => 'Invalid phone number'];
+        }
+        
         require_once __DIR__ . '/../../../services/SMSHelper.php';
         
         // Create SMSHelper instance
@@ -318,17 +397,14 @@ function sendContactSms($db, string $callerPhone, string $adminName, string $adm
         $message .= "Website: https://abuneteklehaymanot.org/\n\n";
         $message .= "God bless you!";
         
-        // Normalize phone number
-        $toPhone = normalizePhoneForSms($callerPhone);
-        
         // Use sendDirect method
         $result = $smsHelper->sendDirect($toPhone, $message, null, 'ivr_contact_request');
         
-        return ($result['success'] ?? false);
+        return $result;
         
-    } catch (Exception $e) {
-        error_log("SMS send error: " . $e->getMessage());
-        return false;
+    } catch (Throwable $e) {
+        error_log("sendContactSms ERROR: " . $e->getMessage());
+        return ['success' => false, 'error' => $e->getMessage()];
     }
 }
 
@@ -337,9 +413,19 @@ function sendContactSms($db, string $callerPhone, string $adminName, string $adm
  */
 function normalizePhoneForSms(string $phone): string
 {
+    // Remove any whitespace
+    $phone = trim($phone);
+    
+    // Convert +44 to 0
     if (strpos($phone, '+44') === 0) {
         return '0' . substr($phone, 3);
     }
+    
+    // Convert 44 to 0 (without +)
+    if (strpos($phone, '44') === 0 && strlen($phone) > 10) {
+        return '0' . substr($phone, 2);
+    }
+    
     return $phone;
 }
 
@@ -367,28 +453,36 @@ function speakPhoneNumber(string $phone): string
 
 function updateCallSelection($db, string $callSid, string $selection): void
 {
+    if (empty($callSid)) return;
+    
     try {
         $stmt = $db->prepare("UPDATE twilio_inbound_calls SET menu_selection = ? WHERE call_sid = ?");
-        $stmt->bind_param('ss', $selection, $callSid);
-        $stmt->execute();
-        $stmt->close();
-    } catch (Exception $e) {
+        if ($stmt) {
+            $stmt->bind_param('ss', $selection, $callSid);
+            $stmt->execute();
+            $stmt->close();
+        }
+    } catch (Throwable $e) {
         error_log("Update selection error: " . $e->getMessage());
     }
 }
 
 function updateSmsSent($db, string $callSid): void
 {
+    if (empty($callSid)) return;
+    
     try {
         // Check if column exists
         $check = $db->query("SHOW COLUMNS FROM twilio_inbound_calls LIKE 'sms_sent'");
         if ($check && $check->num_rows > 0) {
             $stmt = $db->prepare("UPDATE twilio_inbound_calls SET sms_sent = 1 WHERE call_sid = ?");
-            $stmt->bind_param('s', $callSid);
-            $stmt->execute();
-            $stmt->close();
+            if ($stmt) {
+                $stmt->bind_param('s', $callSid);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         error_log("Update SMS sent error: " . $e->getMessage());
     }
 }

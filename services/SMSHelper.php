@@ -191,7 +191,7 @@ class SMSHelper
             }
         }
         
-        return $this->sendSMS($donorId, $phoneNumber, $message, null, $sourceType);
+        return $this->sendSMSNow($donorId, $phoneNumber, $message, null, $sourceType, true);
     }
     
     /**
