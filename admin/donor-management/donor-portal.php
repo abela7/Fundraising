@@ -276,7 +276,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
                         <p class="text-muted mb-0">Monitor SMS OTP authentication and trusted devices</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a href="../../donor/login.php" target="_blank" class="btn btn-outline-primary">
+                        <a href="../../donor/" target="_blank" class="btn btn-outline-primary">
                             <i class="fas fa-external-link-alt me-1"></i>Open Portal
                         </a>
                         <form method="POST" class="d-inline">
@@ -347,19 +347,19 @@ CREATE TABLE IF NOT EXISTS donor_trusted_devices (
                 </div>
                 <?php else: ?>
 
-                <!-- Quick Link to Portal -->
+                <!-- Quick Link to Trusted Devices -->
                 <div class="row mb-4">
-                    <div class="col-md-12">
-                        <a href="../../donor/login.php" target="_blank" class="portal-link">
+                    <div class="col-md-6">
+                        <a href="trusted-devices.php" class="portal-link" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
                             <div class="d-flex align-items-center gap-3">
                                 <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-user-circle fa-lg"></i>
+                                    <i class="fas fa-mobile-alt fa-lg"></i>
                                 </div>
                                 <div>
-                                    <h5 class="mb-1">Donor Portal Login</h5>
-                                    <p class="mb-0 opacity-75">donor/login.php - SMS OTP Login System</p>
+                                    <h5 class="mb-1">Trusted Devices Management</h5>
+                                    <p class="mb-0 opacity-75">View and manage all donor devices</p>
                                 </div>
-                                <i class="fas fa-external-link-alt ms-auto opacity-75"></i>
+                                <i class="fas fa-arrow-right ms-auto opacity-75"></i>
                             </div>
                         </a>
                     </div>

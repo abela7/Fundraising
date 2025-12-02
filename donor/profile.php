@@ -165,12 +165,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     if ($has_baptism_column) $beforeData['baptism_name'] = $donor['baptism_name'] ?? null;
                     
                     $afterData = [
-                        'name' => $name,
-                        'phone' => $username
-                    ];
+                            'name' => $name,
+                            'phone' => $username
+                        ];
                     if ($has_email_column) $afterData['email'] = $email_normalized;
                     if ($has_baptism_column) $afterData['baptism_name'] = $baptism_normalized;
-                    
+                        
                     log_audit(
                         $db,
                         'update',

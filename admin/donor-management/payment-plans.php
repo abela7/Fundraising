@@ -636,15 +636,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $plan_id,
                 null,
                 [
-                    'donor_id' => $donor_id,
-                    'pledge_id' => $pledge_id,
-                    'template_id' => $template_id,
-                    'total_amount' => $total_amount,
-                    'monthly_amount' => $monthly_amount,
-                    'total_payments' => $total_payments,
-                    'start_date' => $start_date,
-                    'next_payment_due' => $next_payment_due,
-                    'schedule' => json_decode($schedule_json, true)
+                'donor_id' => $donor_id,
+                'pledge_id' => $pledge_id,
+                'template_id' => $template_id,
+                'total_amount' => $total_amount,
+                'monthly_amount' => $monthly_amount,
+                'total_payments' => $total_payments,
+                'start_date' => $start_date,
+                'next_payment_due' => $next_payment_due,
+                'schedule' => json_decode($schedule_json, true)
                 ],
                 'admin_portal',
                 $current_user['id']
