@@ -45,6 +45,11 @@ if (isset($_GET['logout']) && $_GET['logout'] === 'success') {
     $success = 'You have been logged out successfully.';
 }
 
+// Handle change phone (go back to step 1)
+if (isset($_GET['change']) && $_GET['change'] === '1') {
+    unset($_SESSION['otp_phone']);
+}
+
 /**
  * Check if device is trusted for a donor
  */
@@ -441,13 +446,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     } elseif ($action === 'verify_otp') {
         // Step 2: Verify OTP
         $phone = $_SESSION['otp_phone'] ?? '';
-        $code = trim($_POST['otp_code'] ?? '');
+        $code = preg_replace('/[^0-9]/', '', trim($_POST['otp_code'] ?? ''));
         $remember = isset($_POST['remember_device']);
         
         if (empty($phone)) {
             $error = 'Session expired. Please start again.';
         } elseif (strlen($code) !== OTP_LENGTH) {
-            $error = 'Please enter the 6-digit verification code.';
+            $error = 'Please enter all 6 digits of the verification code.';
             $step = 'otp';
         } else {
             $verify_result = verifyOTP($db, $phone, $code);
@@ -524,30 +529,28 @@ if (isset($_SESSION['otp_phone']) && $step === 'phone') {
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/auth.css?v=<?php echo @filemtime(__DIR__ . '/assets/auth.css'); ?>">
     <style>
-        .otp-inputs {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin: 1.5rem 0;
-        }
-        .otp-input {
-            width: 48px;
-            height: 56px;
+        .otp-single-input {
+            width: 100%;
+            max-width: 240px;
+            height: 60px;
             text-align: center;
-            font-size: 1.5rem;
-            font-weight: 600;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.5rem;
             border: 2px solid #dee2e6;
-            border-radius: 8px;
+            border-radius: 12px;
             transition: all 0.2s;
+            margin: 1.5rem auto;
+            display: block;
         }
-        .otp-input:focus {
+        .otp-single-input:focus {
             border-color: var(--primary-color, #0a6286);
             box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.15);
             outline: none;
         }
-        .otp-input.filled {
-            border-color: var(--primary-color, #0a6286);
-            background: rgba(10, 98, 134, 0.05);
+        .otp-single-input.valid {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.05);
         }
         .step-indicator {
             display: flex;
@@ -607,10 +610,9 @@ if (isset($_SESSION['otp_phone']) && $step === 'phone') {
             margin-top: 0.25rem;
         }
         @media (max-width: 400px) {
-            .otp-input {
-                width: 42px;
+            .otp-single-input {
+                font-size: 1.5rem;
                 height: 50px;
-                font-size: 1.25rem;
             }
         }
     </style>
@@ -684,14 +686,13 @@ if (isset($_SESSION['otp_phone']) && $step === 'phone') {
                 <form method="POST" class="auth-form" id="otpForm">
                     <?php echo csrf_input(); ?>
                     <input type="hidden" name="action" value="verify_otp">
-                    <input type="hidden" name="otp_code" id="otpCodeHidden">
                     
                     <div class="phone-display">
                         <div>
                             <small class="text-muted">Code sent to</small>
                             <div class="phone-number"><?php echo htmlspecialchars(substr($phone, 0, 5) . ' ' . substr($phone, 5)); ?></div>
                         </div>
-                        <a href="login.php" class="btn btn-sm btn-outline-secondary">
+                        <a href="login.php?change=1" class="btn btn-sm btn-outline-secondary">
                             <i class="fas fa-edit"></i>
                         </a>
                     </div>
@@ -700,17 +701,17 @@ if (isset($_SESSION['otp_phone']) && $step === 'phone') {
                         Enter the 6-digit code we sent to your phone.
                     </p>
                     
-                    <div class="otp-inputs">
-                        <?php for ($i = 1; $i <= 6; $i++): ?>
-                        <input type="text" 
-                               class="otp-input" 
-                               maxlength="1" 
-                               inputmode="numeric" 
-                               pattern="[0-9]"
-                               id="otp<?php echo $i; ?>"
-                               autocomplete="one-time-code">
-                        <?php endfor; ?>
-                    </div>
+                    <input type="text" 
+                           class="otp-single-input" 
+                           name="otp_code"
+                           id="otpCode"
+                           maxlength="6" 
+                           inputmode="numeric" 
+                           pattern="[0-9]{6}"
+                           placeholder="000000"
+                           autocomplete="one-time-code"
+                           required
+                           autofocus>
                     
                     <div class="remember-device">
                         <label>
@@ -725,21 +726,22 @@ if (isset($_SESSION['otp_phone']) && $step === 'phone') {
                         </label>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-login w-100" id="verifyBtn" disabled>
+                    <button type="submit" class="btn btn-primary btn-login w-100" id="verifyBtn">
                         <i class="fas fa-check-circle me-2"></i>Verify & Login
                     </button>
-                    
-                    <div class="text-center mt-3">
-                        <span class="resend-timer" id="resendTimer">Resend code in <span id="countdown">60</span>s</span>
-                        <form method="POST" class="d-inline" id="resendForm" style="display: none !important;">
-                            <?php echo csrf_input(); ?>
-                            <input type="hidden" name="action" value="resend_otp">
-                            <button type="submit" class="btn btn-link p-0" id="resendBtn">
-                                <i class="fas fa-redo me-1"></i>Resend Code
-                            </button>
-                        </form>
-                    </div>
                 </form>
+                
+                <!-- Resend Form (separate from main form) -->
+                <div class="text-center mt-3">
+                    <span class="resend-timer" id="resendTimer">Resend code in <span id="countdown">60</span>s</span>
+                    <form method="POST" class="d-inline" id="resendForm" style="display: none;">
+                        <?php echo csrf_input(); ?>
+                        <input type="hidden" name="action" value="resend_otp">
+                        <button type="submit" class="btn btn-link p-0">
+                            <i class="fas fa-redo me-1"></i>Resend Code
+                        </button>
+                    </form>
+                </div>
                 <?php endif; ?>
 
                 <div class="auth-footer">
@@ -784,57 +786,30 @@ if (isset($_SESSION['otp_phone']) && $step === 'phone') {
         phone.value = phone.value.replace(/\D/g, '');
     });
     <?php else: ?>
-    // OTP input handling
-    const otpInputs = document.querySelectorAll('.otp-input');
-    const otpHidden = document.getElementById('otpCodeHidden');
+    // OTP input handling - single input field
+    const otpInput = document.getElementById('otpCode');
     const verifyBtn = document.getElementById('verifyBtn');
     
-    function updateOtpValue() {
-        let code = '';
-        otpInputs.forEach(input => {
-            code += input.value;
-            input.classList.toggle('filled', input.value !== '');
-        });
-        otpHidden.value = code;
-        verifyBtn.disabled = code.length !== 6;
-    }
-    
-    otpInputs.forEach((input, index) => {
-        input.addEventListener('input', function(e) {
-            const value = e.target.value.replace(/\D/g, '');
-            e.target.value = value.slice(-1);
-            
-            if (value && index < otpInputs.length - 1) {
-                otpInputs[index + 1].focus();
-            }
-            updateOtpValue();
-        });
+    // Only allow numbers
+    otpInput.addEventListener('input', function(e) {
+        // Remove non-digits
+        let value = e.target.value.replace(/\D/g, '');
+        // Limit to 6 digits
+        if (value.length > 6) value = value.slice(0, 6);
+        e.target.value = value;
         
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace' && !e.target.value && index > 0) {
-                otpInputs[index - 1].focus();
-            }
-        });
-        
-        input.addEventListener('paste', function(e) {
-            e.preventDefault();
-            const paste = (e.clipboardData || window.clipboardData).getData('text');
-            const digits = paste.replace(/\D/g, '').slice(0, 6);
-            
-            digits.split('').forEach((digit, i) => {
-                if (otpInputs[i]) {
-                    otpInputs[i].value = digit;
-                }
-            });
-            updateOtpValue();
-            if (digits.length === 6) {
-                otpInputs[5].focus();
-            }
-        });
+        // Add valid class when 6 digits
+        e.target.classList.toggle('valid', value.length === 6);
     });
     
-    // Focus first input
-    otpInputs[0].focus();
+    // Handle paste
+    otpInput.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text');
+        const digits = paste.replace(/\D/g, '').slice(0, 6);
+        e.target.value = digits;
+        e.target.classList.toggle('valid', digits.length === 6);
+    });
     
     // Resend countdown
     let countdown = 60;
@@ -849,8 +824,7 @@ if (isset($_SESSION['otp_phone']) && $step === 'phone') {
         if (countdown <= 0) {
             clearInterval(timer);
             timerEl.style.display = 'none';
-            resendForm.style.display = 'inline !important';
-            resendForm.style.cssText = 'display: inline !important';
+            resendForm.style.display = 'inline';
         }
     }, 1000);
     <?php endif; ?>
