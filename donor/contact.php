@@ -8,6 +8,7 @@ require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/url.php';
 require_once __DIR__ . '/../shared/audit_helper.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
+require_once __DIR__ . '/../services/UltraMsgService.php';
 
 function current_donor(): ?array {
     if (isset($_SESSION['donor'])) {
@@ -70,6 +71,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     'category' => $category,
                     'subject' => $subject
                 ], 'donor_portal', 0);
+                
+                // Send WhatsApp notification to admin
+                try {
+                    $whatsapp = UltraMsgService::fromDatabase($db);
+                    if ($whatsapp) {
+                        $admin_phone = '07360436171';
+                        $category_labels = [
+                            'payment' => 'Payment Question',
+                            'plan' => 'Payment Plan',
+                            'account' => 'Account Issue',
+                            'general' => 'General Inquiry',
+                            'other' => 'Other'
+                        ];
+                        $cat_label = $category_labels[$category] ?? 'General';
+                        
+                        $wa_message = "🆘 *NEW SUPPORT REQUEST* 🆘\n\n";
+                        $wa_message .= "*Request ID:* #{$request_id}\n";
+                        $wa_message .= "*From:* {$donor['name']}\n";
+                        $wa_message .= "*Phone:* {$donor['phone']}\n";
+                        $wa_message .= "*Category:* {$cat_label}\n";
+                        $wa_message .= "*Subject:* {$subject}\n\n";
+                        $wa_message .= "*Message:*\n{$message}\n\n";
+                        $wa_message .= "━━━━━━━━━━━━━━━\n";
+                        $wa_message .= "View: " . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . "://{$_SERVER['HTTP_HOST']}/admin/donor-management/support-requests.php?view={$request_id}";
+                        
+                        $whatsapp->send($admin_phone, $wa_message);
+                    }
+                } catch (Exception $wa_error) {
+                    // Log but don't fail the request
+                    error_log("WhatsApp notification failed: " . $wa_error->getMessage());
+                }
                 
                 $success_message = 'Your support request has been submitted successfully! We will respond as soon as possible.';
                 $_POST = []; // Clear form
