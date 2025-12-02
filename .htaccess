@@ -1,0 +1,118 @@
+# =============================================================================
+# URL OBFUSCATION - Security through obscurity layer
+# =============================================================================
+# This file routes obscured URLs to real folders and blocks direct access.
+#
+# HOW IT WORKS:
+#   - Users access: /m8k3x9p2/login.php → internally serves /admin/login.php
+#   - Users access: /r4j7n1w5/login.php → internally serves /registrar/login.php
+#   - Direct access to /admin/ or /registrar/ returns 404 (except Twilio API)
+#
+# TO UNDO: Simply delete this file. Everything reverts to normal immediately.
+#
+# CHANGE SECRET PATHS:
+#   1. Update PATH_ADMIN_PUBLIC in config/paths.php
+#   2. Update the corresponding values below (m8k3x9p2, r4j7n1w5)
+# =============================================================================
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Set the base path (adjust if your app is in a subdirectory)
+# For root domain: RewriteBase /
+# For subdirectory like /Fundraising: RewriteBase /Fundraising/
+RewriteBase /
+
+# =============================================================================
+# SECTION 1: ROUTE OBSCURED URLS TO REAL FOLDERS
+# =============================================================================
+
+# Route /m8k3x9p2/* to /admin/* (Admin Panel)
+RewriteRule ^m8k3x9p2/(.*)$ admin/$1 [L,QSA]
+
+# Route /r4j7n1w5/* to /registrar/* (Registrar Panel)  
+RewriteRule ^r4j7n1w5/(.*)$ registrar/$1 [L,QSA]
+
+# =============================================================================
+# SECTION 2: ALLOW TWILIO API ACCESS (Keep these paths public)
+# =============================================================================
+# Twilio webhook callbacks need direct access to these endpoints
+
+# Allow Twilio API endpoints
+RewriteCond %{REQUEST_URI} ^/admin/call-center/api/ [NC]
+RewriteRule ^ - [L]
+
+# Allow Twilio-related services
+RewriteCond %{REQUEST_URI} ^/services/ [NC]
+RewriteRule ^ - [L]
+
+# Allow webhooks folder if it exists
+RewriteCond %{REQUEST_URI} ^/webhooks/ [NC]
+RewriteRule ^ - [L]
+
+# =============================================================================
+# SECTION 3: ALLOW STATIC ASSETS (CSS, JS, images)
+# =============================================================================
+# These need to be accessible for the pages to render correctly
+
+# Allow admin assets (CSS, JS)
+RewriteCond %{REQUEST_URI} ^/admin/assets/ [NC]
+RewriteRule ^ - [L]
+
+# Allow admin subdirectory assets
+RewriteCond %{REQUEST_URI} /assets/.*\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ - [L]
+
+# =============================================================================
+# SECTION 4: BLOCK DIRECT ACCESS TO SENSITIVE FOLDERS
+# =============================================================================
+# Anyone trying to access /admin/ or /registrar/ directly gets 404
+
+# Block direct access to /admin/ (except already allowed above)
+RewriteCond %{REQUEST_URI} ^/admin/ [NC]
+RewriteCond %{REQUEST_URI} !^/admin/call-center/api/ [NC]
+RewriteCond %{REQUEST_URI} !^/admin/assets/ [NC]
+RewriteCond %{REQUEST_URI} !/assets/.*\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ - [R=404,L]
+
+# Block direct access to /registrar/
+RewriteCond %{REQUEST_URI} ^/registrar/ [NC]
+RewriteCond %{REQUEST_URI} !/assets/.*\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ - [R=404,L]
+
+# =============================================================================
+# SECTION 5: GENERAL SECURITY HEADERS
+# =============================================================================
+
+# Prevent directory listing
+Options -Indexes
+
+# Block access to sensitive files
+<FilesMatch "\.(sql|log|md|git|env|local\.php)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block access to config directory files except env.php (needed by PHP includes)
+<FilesMatch "^(env\.local\.php|env\.local\.sample\.php)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# =============================================================================
+# NOTES FOR DEVELOPMENT (XAMPP/localhost)
+# =============================================================================
+# If you're testing locally on XAMPP in a subfolder like /Fundraising:
+# 
+# 1. Change RewriteBase to: RewriteBase /Fundraising/
+# 
+# 2. Update the blocking rules to include the subfolder:
+#    RewriteCond %{REQUEST_URI} ^/Fundraising/admin/ [NC]
+#    RewriteCond %{REQUEST_URI} ^/Fundraising/registrar/ [NC]
+#
+# 3. Update the routing rules:
+#    RewriteRule ^m8k3x9p2/(.*)$ Fundraising/admin/$1 [L,QSA]
+#
+# The current configuration is set for production (root domain deployment).
+# =============================================================================
+

@@ -1,0 +1,78 @@
+# =============================================================================
+# URL OBFUSCATION - LOCAL DEVELOPMENT VERSION (XAMPP)
+# =============================================================================
+# Use this file when testing locally on XAMPP in the /Fundraising subfolder.
+#
+# TO USE:
+#   1. Rename .htaccess to .htaccess.production (backup)
+#   2. Rename this file to .htaccess
+#
+# ACCESS YOUR SITE VIA:
+#   http://localhost/Fundraising/m8k3x9p2/login.php  (Admin)
+#   http://localhost/Fundraising/r4j7n1w5/login.php  (Registrar)
+# =============================================================================
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Set the base path for subfolder installation
+RewriteBase /Fundraising/
+
+# =============================================================================
+# SECTION 1: ROUTE OBSCURED URLS TO REAL FOLDERS
+# =============================================================================
+
+# Route /m8k3x9p2/* to /admin/* (Admin Panel)
+RewriteRule ^m8k3x9p2/(.*)$ admin/$1 [L,QSA]
+
+# Route /r4j7n1w5/* to /registrar/* (Registrar Panel)  
+RewriteRule ^r4j7n1w5/(.*)$ registrar/$1 [L,QSA]
+
+# =============================================================================
+# SECTION 2: ALLOW TWILIO API ACCESS
+# =============================================================================
+
+RewriteCond %{REQUEST_URI} ^/Fundraising/admin/call-center/api/ [NC]
+RewriteRule ^ - [L]
+
+RewriteCond %{REQUEST_URI} ^/Fundraising/services/ [NC]
+RewriteRule ^ - [L]
+
+RewriteCond %{REQUEST_URI} ^/Fundraising/webhooks/ [NC]
+RewriteRule ^ - [L]
+
+# =============================================================================
+# SECTION 3: ALLOW STATIC ASSETS
+# =============================================================================
+
+RewriteCond %{REQUEST_URI} ^/Fundraising/admin/assets/ [NC]
+RewriteRule ^ - [L]
+
+RewriteCond %{REQUEST_URI} /assets/.*\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ - [L]
+
+# =============================================================================
+# SECTION 4: BLOCK DIRECT ACCESS TO SENSITIVE FOLDERS
+# =============================================================================
+
+RewriteCond %{REQUEST_URI} ^/Fundraising/admin/ [NC]
+RewriteCond %{REQUEST_URI} !^/Fundraising/admin/call-center/api/ [NC]
+RewriteCond %{REQUEST_URI} !^/Fundraising/admin/assets/ [NC]
+RewriteCond %{REQUEST_URI} !/assets/.*\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ - [R=404,L]
+
+RewriteCond %{REQUEST_URI} ^/Fundraising/registrar/ [NC]
+RewriteCond %{REQUEST_URI} !/assets/.*\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ - [R=404,L]
+
+# =============================================================================
+# SECTION 5: GENERAL SECURITY
+# =============================================================================
+
+Options -Indexes
+
+<FilesMatch "\.(sql|log|md|git|env|local\.php)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
