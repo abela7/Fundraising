@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 // Set timezone to London for call center (handles GMT/BST automatically)
@@ -157,6 +158,23 @@ try {
                 $stmt->close();
             }
         }
+        
+        // Audit log the invalid number marking
+        log_audit(
+            $db,
+            'update',
+            'donor_invalid_number',
+            $donor_id,
+            ['phone' => $donor->phone],
+            [
+                'reason' => $reason,
+                'outcome' => $outcome,
+                'session_id' => $session_id,
+                'queue_id' => $queue_id
+            ],
+            'admin_portal',
+            $user_id
+        );
         
         // Get browser-provided time (in browser's local timezone)
         $call_date = isset($_POST['call_date']) ? $_POST['call_date'] : date('Y-m-d');

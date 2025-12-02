@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 $db = db();
@@ -79,6 +80,19 @@ try {
     $q_res = $db->query("SELECT id FROM call_center_queues WHERE donor_id = $donor_id ORDER BY id DESC LIMIT 1");
     $q_row = $q_res->fetch_assoc();
     $queue_id = $q_row ? $q_row['id'] : 0;
+    
+    // Audit log the plan redo
+    $user_id = (int)$_SESSION['user']['id'];
+    log_audit(
+        $db,
+        'delete',
+        'payment_plan_redo',
+        $plan_id,
+        ['donor_id' => $donor_id, 'session_id' => $session_id],
+        null,
+        'admin_portal',
+        $user_id
+    );
     
     $db->commit();
     

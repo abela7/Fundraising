@@ -8,6 +8,7 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 
 // Debug helper function
 function debug_log($message) {
@@ -313,6 +314,26 @@ date_default_timezone_set('Europe/London');
                     $stmt->close();
                     }
                 }
+                
+                // Audit log the callback scheduling
+                log_audit(
+                    $db,
+                    'create',
+                    'callback_appointment',
+                    $appointment_id,
+                    null,
+                    [
+                        'donor_id' => $donor_id,
+                        'session_id' => $session_id,
+                        'queue_id' => $queue_id,
+                        'appointment_date' => $appointment_date,
+                        'appointment_time' => $appointment_time,
+                        'appointment_type' => $appointment_type,
+                        'reason' => $reason
+                    ],
+                    'admin_portal',
+                    $user_id
+                );
                 
                 // Commit transaction
                 $db->commit();
