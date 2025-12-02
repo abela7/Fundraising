@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/url.php';
 require_admin();
@@ -56,6 +57,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $stmt->execute();
                 $stmt->close();
+                
+                // Audit log
+                log_audit(
+                    $db,
+                    'approve',
+                    'registrar_application',
+                    $appId,
+                    ['status' => $app['status'], 'name' => $app['name'], 'phone' => $app['phone']],
+                    ['status' => 'approved', 'user_id' => $userId, 'approved_by' => $adminId],
+                    'admin_portal',
+                    $adminId
+                );
+                
+                // Audit log user creation
+                log_audit(
+                    $db,
+                    'create',
+                    'user',
+                    $userId,
+                    null,
+                    ['name' => $app['name'], 'phone' => $app['phone'], 'email' => $app['email'], 'role' => 'registrar', 'active' => 1],
+                    'admin_portal',
+                    $adminId
+                );
                 
                 $db->commit();
                 

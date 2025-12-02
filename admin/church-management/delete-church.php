@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -63,6 +64,18 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $unlink_donors->bind_param("i", $church_id);
             $unlink_donors->execute();
         }
+        
+        // Audit log before deletion
+        log_audit(
+            $db,
+            'delete',
+            'church',
+            $church_id,
+            ['name' => $church['name'], 'city' => $church['city'], 'representatives_count' => $reps_count, 'donors_count' => $donors_count],
+            null,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
         
         // Delete church
         $delete_stmt = $db->prepare("DELETE FROM churches WHERE id = ?");

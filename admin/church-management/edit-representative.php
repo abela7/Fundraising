@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -105,6 +106,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("issssiisi", $church_id, $name, $role, $phone, $email, $is_primary, $is_active, $notes, $rep_id);
             
             if ($stmt->execute()) {
+                // Audit log
+                log_audit(
+                    $db,
+                    'update',
+                    'church_representative',
+                    $rep_id,
+                    ['name' => $rep['name'], 'role' => $rep['role'], 'phone' => $rep['phone'], 'email' => $rep['email'], 'church_id' => $rep['church_id'], 'is_primary' => $rep['is_primary'], 'is_active' => $rep['is_active']],
+                    ['name' => $name, 'role' => $role, 'phone' => $phone, 'email' => $email, 'church_id' => $church_id, 'is_primary' => $is_primary, 'is_active' => $is_active],
+                    'admin_portal',
+                    (int)($_SESSION['user']['id'] ?? 0)
+                );
+                
                 header("Location: representatives.php?success=" . urlencode("Representative updated successfully!"));
                 exit;
             } else {

@@ -30,6 +30,7 @@ register_shutdown_function(function() {
 
 try {
     require_once __DIR__ . '/../../shared/auth.php';
+    require_once __DIR__ . '/../../shared/audit_helper.php';
     require_once __DIR__ . '/../../config/db.php';
     require_login();
 
@@ -170,7 +171,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $confirm === 'yes') {
             $reset_stmt->execute();
         }
         
-        // Step 3: Delete the payment plan (now safe - all references are unlinked)
+        // Step 3: Audit log before deletion
+        $planData = [
+            'id' => $plan_id,
+            'donor_id' => $donor_id,
+            'donor_name' => $plan->donor_name,
+            'total_amount' => $plan->total_amount ?? null,
+            'monthly_amount' => $plan->monthly_amount ?? null,
+            'status' => $plan->status ?? null,
+            'linked_sessions' => $linked_sessions
+        ];
+        
+        log_audit(
+            $conn,
+            'delete',
+            'donor_payment_plan',
+            $plan_id,
+            $planData,
+            null,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
+        // Step 4: Delete the payment plan (now safe - all references are unlinked)
         $delete_query = "DELETE FROM donor_payment_plans WHERE id = ?";
         $delete_stmt = $conn->prepare($delete_query);
         $delete_stmt->bind_param('i', $plan_id);

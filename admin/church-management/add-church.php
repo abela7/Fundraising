@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -39,6 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("ssssi", $name, $city, $address, $phone, $is_active);
             
             if ($stmt->execute()) {
+                $church_id = $db->insert_id;
+                
+                // Audit log
+                log_audit(
+                    $db,
+                    'create',
+                    'church',
+                    $church_id,
+                    null,
+                    ['name' => $name, 'city' => $city, 'address' => $address, 'phone' => $phone, 'is_active' => $is_active],
+                    'admin_portal',
+                    (int)($_SESSION['user']['id'] ?? 0)
+                );
+                
                 header("Location: churches.php?success=" . urlencode("Church added successfully!"));
                 exit;
             } else {

@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -42,6 +43,18 @@ try {
 // Handle deletion
 if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        // Audit log before deletion
+        log_audit(
+            $db,
+            'delete',
+            'church_representative',
+            $rep_id,
+            ['name' => $rep['name'], 'role' => $rep['role'], 'church_name' => $rep['church_name']],
+            null,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
         $delete_stmt = $db->prepare("DELETE FROM church_representatives WHERE id = ?");
         $delete_stmt->bind_param("i", $rep_id);
         $delete_stmt->execute();

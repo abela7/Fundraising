@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -63,6 +64,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("ssssii", $name, $city, $address, $phone, $is_active, $church_id);
             
             if ($stmt->execute()) {
+                // Audit log
+                log_audit(
+                    $db,
+                    'update',
+                    'church',
+                    $church_id,
+                    ['name' => $church['name'], 'city' => $church['city'], 'address' => $church['address'], 'phone' => $church['phone'], 'is_active' => $church['is_active']],
+                    ['name' => $name, 'city' => $city, 'address' => $address, 'phone' => $phone, 'is_active' => $is_active],
+                    'admin_portal',
+                    (int)($_SESSION['user']['id'] ?? 0)
+                );
+                
                 header("Location: churches.php?success=" . urlencode("Church updated successfully!"));
                 exit;
             } else {

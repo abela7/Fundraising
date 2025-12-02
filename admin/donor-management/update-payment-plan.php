@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 
 require_login();
@@ -126,20 +127,38 @@ try {
         $donor_query->close();
     }
 
-    // Log the update
-    $user_id = (int)$_SESSION['user']['id'];
-    $log_query = $db->prepare("
-        INSERT INTO donor_audit_log (donor_id, action, field_name, old_value, new_value, user_id, created_at)
-        SELECT donor_id, 'plan_updated', 'payment_plan', ?, ?, ?, NOW()
-        FROM donor_payment_plans
-        WHERE id = ?
-    ");
+    // Get before data for audit
+    $before_stmt = $db->prepare("SELECT * FROM donor_payment_plans WHERE id = ?");
+    $before_stmt->bind_param('i', $plan_id);
+    $before_stmt->execute();
+    $beforeData = $before_stmt->get_result()->fetch_assoc();
+    $before_stmt->close();
     
-    $old_value = "Plan #$plan_id";
-    $new_value = "Updated: status=$status, installment=$monthly_amount, payments=$total_payments, frequency={$plan_frequency_number}x{$plan_frequency_unit}, payment_day=$payment_day, method=$payment_method";
-    $log_query->bind_param('ssii', $old_value, $new_value, $user_id, $plan_id);
-    $log_query->execute();
-    $log_query->close();
+    // Audit log
+    log_audit(
+        $db,
+        'update',
+        'donor_payment_plan',
+        $plan_id,
+        $beforeData ? [
+            'monthly_amount' => $beforeData['monthly_amount'],
+            'total_payments' => $beforeData['total_payments'],
+            'status' => $beforeData['status'],
+            'payment_day' => $beforeData['payment_day'],
+            'payment_method' => $beforeData['payment_method']
+        ] : null,
+        [
+            'monthly_amount' => $monthly_amount,
+            'total_payments' => $total_payments,
+            'status' => $status,
+            'payment_day' => $payment_day,
+            'payment_method' => $payment_method,
+            'plan_frequency_unit' => $plan_frequency_unit,
+            'plan_frequency_number' => $plan_frequency_number
+        ],
+        'admin_portal',
+        (int)$_SESSION['user']['id']
+    );
 
     // Sync Schedule Table (Amount Only)
     // If amount changed, update all pending installments

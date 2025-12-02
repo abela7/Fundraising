@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -108,11 +109,37 @@ try {
     if (!$stmt) {
         throw new Exception("Prepare failed: " . $db->error);
     }
+    // Get before data for audit
+    $before_stmt = $db->prepare("SELECT * FROM donor_payment_plans WHERE id = ?");
+    $before_stmt->bind_param('i', $plan_id);
+    $before_stmt->execute();
+    $beforeData = $before_stmt->get_result()->fetch_assoc();
+    $before_stmt->close();
+    
     $stmt->bind_param($types, ...$values);
     
     if (!$stmt->execute()) {
         throw new Exception("Update failed: " . $stmt->error);
     }
+    
+    // Get after data for audit
+    $after_stmt = $db->prepare("SELECT * FROM donor_payment_plans WHERE id = ?");
+    $after_stmt->bind_param('i', $plan_id);
+    $after_stmt->execute();
+    $afterData = $after_stmt->get_result()->fetch_assoc();
+    $after_stmt->close();
+    
+    // Audit log
+    log_audit(
+        $db,
+        'update',
+        'donor_payment_plan',
+        $plan_id,
+        $beforeData,
+        $afterData,
+        'admin_portal',
+        (int)($_SESSION['user']['id'] ?? 0)
+    );
     
     // Update donor's cached plan data if this is the active plan
     $active_check = $db->prepare("SELECT active_payment_plan_id FROM donors WHERE id = ?");
