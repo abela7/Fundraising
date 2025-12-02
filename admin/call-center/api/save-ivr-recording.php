@@ -48,8 +48,11 @@ try {
     ];
     
     // Handle audio file upload
+    $formatNote = '';
+    
     if (isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
         $audioFile = $_FILES['audio'];
+        $isMp3Upload = ($_POST['is_mp3_upload'] ?? '0') === '1';
         
         // Create uploads directory if needed
         $uploadDir = __DIR__ . '/../../../uploads/ivr-recordings/';
@@ -60,47 +63,79 @@ try {
         // Generate unique filename
         $timestamp = time();
         $key = $recording['recording_key'];
-        $extension = 'webm'; // Browser MediaRecorder usually outputs webm
-        $filename = "{$key}_{$timestamp}.{$extension}";
-        $filepath = $uploadDir . $filename;
         
-        // Move uploaded file
-        if (!move_uploaded_file($audioFile['tmp_name'], $filepath)) {
-            throw new Exception('Failed to save audio file');
-        }
+        // Determine file extension from upload
+        $originalName = $audioFile['name'];
+        $originalExt = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
         
-        // Try to convert to MP3 using ffmpeg if available
-        $mp3Filename = "{$key}_{$timestamp}.mp3";
-        $mp3Filepath = $uploadDir . $mp3Filename;
-        
-        $ffmpegPath = findFFmpeg();
-        if ($ffmpegPath) {
-            $cmd = escapeshellcmd($ffmpegPath) . ' -i ' . escapeshellarg($filepath) . 
-                   ' -acodec libmp3lame -ab 128k -ar 44100 ' . escapeshellarg($mp3Filepath) . ' 2>&1';
-            exec($cmd, $output, $returnCode);
+        // If it's an MP3/WAV upload, keep the format
+        if ($isMp3Upload && in_array($originalExt, ['mp3', 'wav'])) {
+            $extension = $originalExt;
+            $filename = "{$key}_{$timestamp}.{$extension}";
+            $filepath = $uploadDir . $filename;
             
-            if ($returnCode === 0 && file_exists($mp3Filepath)) {
-                // Use MP3 instead
-                unlink($filepath);
-                $filepath = $mp3Filepath;
-                $filename = $mp3Filename;
-                $extension = 'mp3';
+            // Move uploaded file directly
+            if (!move_uploaded_file($audioFile['tmp_name'], $filepath)) {
+                throw new Exception('Failed to save audio file');
+            }
+            
+            $formatNote = 'MP3/WAV file uploaded successfully - optimal for Twilio!';
+            
+        } else {
+            // Browser recording (WebM) - try to convert to MP3
+            $extension = 'webm';
+            $filename = "{$key}_{$timestamp}.{$extension}";
+            $filepath = $uploadDir . $filename;
+            
+            // Move uploaded file
+            if (!move_uploaded_file($audioFile['tmp_name'], $filepath)) {
+                throw new Exception('Failed to save audio file');
+            }
+            
+            // Try to convert to MP3 using ffmpeg if available
+            $mp3Filename = "{$key}_{$timestamp}.mp3";
+            $mp3Filepath = $uploadDir . $mp3Filename;
+            
+            $ffmpegPath = findFFmpeg();
+            $conversionSuccess = false;
+            
+            if ($ffmpegPath) {
+                // Convert WebM to MP3 for Twilio compatibility
+                $cmd = escapeshellcmd($ffmpegPath) . ' -y -i ' . escapeshellarg($filepath) . 
+                       ' -acodec libmp3lame -ab 128k -ar 8000 -ac 1 ' . escapeshellarg($mp3Filepath) . ' 2>&1';
+                exec($cmd, $output, $returnCode);
+                
+                error_log("FFmpeg conversion: " . implode("\n", $output));
+                
+                if ($returnCode === 0 && file_exists($mp3Filepath) && filesize($mp3Filepath) > 0) {
+                    // Use MP3 instead
+                    @unlink($filepath);
+                    $filepath = $mp3Filepath;
+                    $filename = $mp3Filename;
+                    $extension = 'mp3';
+                    $conversionSuccess = true;
+                    $formatNote = 'Recording converted to MP3 for Twilio compatibility.';
+                }
+            }
+            
+            if (!$conversionSuccess) {
+                $formatNote = 'WARNING: Recording saved as WebM format. Twilio may not play this correctly. For best results, upload an MP3 file instead.';
+                error_log("FFmpeg not available or conversion failed. File saved as WebM.");
             }
         }
         
         // Get audio duration
         $duration = getAudioDuration($filepath);
         
-        // Build URL
-        $baseUrl = getBaseUrl();
-        $fileUrl = $baseUrl . 'uploads/ivr-recordings/' . $filename;
+        // Build URL - ensure it's the full public URL
+        $fileUrl = 'https://donate.abuneteklehaymanot.org/uploads/ivr-recordings/' . $filename;
         
         // Update fields
         $updateFields['file_path'] = $filepath;
         $updateFields['file_url'] = $fileUrl;
         $updateFields['file_size'] = filesize($filepath);
         $updateFields['duration_seconds'] = $duration;
-        $updateFields['mime_type'] = ($extension === 'mp3') ? 'audio/mpeg' : 'audio/webm';
+        $updateFields['mime_type'] = ($extension === 'mp3') ? 'audio/mpeg' : (($extension === 'wav') ? 'audio/wav' : 'audio/webm');
         $updateFields['recorded_by'] = $_SESSION['user_id'] ?? null;
         $updateFields['use_recording'] = 1; // Auto-enable when recording
         
@@ -148,7 +183,8 @@ try {
         'success' => true,
         'message' => 'Recording saved successfully',
         'recording_id' => $recordingId,
-        'file_url' => $updateFields['file_url'] ?? $recording['file_url']
+        'file_url' => $updateFields['file_url'] ?? $recording['file_url'],
+        'format_note' => $formatNote ?? null
     ]);
     
 } catch (Throwable $e) {

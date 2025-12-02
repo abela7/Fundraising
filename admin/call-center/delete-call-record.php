@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 $db = db();
@@ -70,6 +71,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // 3. Delete Session
         $db->query("DELETE FROM call_center_sessions WHERE id = $session_id");
+        
+        // Audit log the deletion
+        log_audit(
+            $db,
+            'delete',
+            'call_session',
+            $session_id,
+            [
+                'donor_id' => $call->donor_id,
+                'agent_id' => $call->agent_id,
+                'linked_plan_id' => $call->linked_plan_id,
+                'action_type' => $action,
+                'total_amount' => $call->total_amount ?? null
+            ],
+            null,
+            'admin_portal',
+            $user_id
+        );
         
         $db->commit();
         header('Location: call-history.php?msg=deleted');

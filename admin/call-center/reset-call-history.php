@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 require_admin();
 
@@ -257,6 +258,25 @@ if ($action === 'preview') {
         ";
         $db->query($reset_queue);
         $results['queues_updated'] = $db->affected_rows;
+        
+        // Audit log the bulk reset operation
+        $user_id = (int)$_SESSION['user']['id'];
+        log_audit(
+            $db,
+            'bulk_delete',
+            'call_history_reset',
+            0,
+            null,
+            [
+                'calls_deleted' => $results['calls_deleted'],
+                'appointments_deleted' => $results['appointments_deleted'],
+                'calls_remaining' => $results['calls_remaining'],
+                'queues_updated' => $results['queues_updated'],
+                'action' => 'reset_call_history'
+            ],
+            'admin_portal',
+            $user_id
+        );
         
         $db->commit();
         

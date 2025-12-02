@@ -635,6 +635,12 @@ $categoryColors = [
                         </button>
                     </div>
                     
+                    <div class="upload-section mt-4 p-3 bg-light rounded">
+                        <h6 class="mb-3"><i class="fas fa-upload me-2"></i> Or Upload MP3 File</h6>
+                        <p class="text-muted small mb-2">For best quality, upload a pre-recorded MP3 file (recommended)</p>
+                        <input type="file" class="form-control" id="audioFileUpload" accept="audio/mpeg,audio/mp3,audio/wav,.mp3,.wav" onchange="handleFileUpload(event)">
+                    </div>
+                    
                     <div class="fallback-text">
                         <label><i class="fas fa-robot me-1"></i> Fallback Text (TTS)</label>
                         <textarea class="form-control" id="fallbackText" rows="3" placeholder="Text to read if no recording is available..."></textarea>
@@ -912,6 +918,102 @@ $categoryColors = [
         document.getElementById('fallbackText').addEventListener('input', function() {
             document.getElementById('textPreview').textContent = this.value;
         });
+        
+        // Handle MP3 file upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Check file type
+            const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav'];
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(mp3|wav)$/i)) {
+                alert('Please upload an MP3 or WAV file for best Twilio compatibility.');
+                event.target.value = '';
+                return;
+            }
+            
+            // Preview the uploaded file
+            const audioUrl = URL.createObjectURL(file);
+            document.getElementById('audioPreview').src = audioUrl;
+            document.getElementById('audioPreview').style.display = 'block';
+            
+            // Store for upload
+            uploadedFile = file;
+            recordedBlob = null; // Clear any recorded blob
+            
+            document.getElementById('postRecordControls').style.display = 'flex';
+            document.getElementById('recordingHint').textContent = 'MP3 file selected. Click Save to upload.';
+        }
+        
+        let uploadedFile = null;
+        
+        // Modified save function to handle uploaded files
+        async function saveRecording() {
+            const formData = new FormData();
+            formData.append('recording_id', currentRecordingId);
+            formData.append('use_recording', document.getElementById('useRecording').checked ? '1' : '0');
+            formData.append('fallback_text', document.getElementById('fallbackText').value);
+            
+            // Prefer uploaded MP3 over browser recording
+            if (uploadedFile) {
+                formData.append('audio', uploadedFile, uploadedFile.name);
+                formData.append('is_mp3_upload', '1');
+            } else if (recordedBlob) {
+                formData.append('audio', recordedBlob, 'recording.webm');
+                formData.append('is_mp3_upload', '0');
+            }
+            
+            try {
+                document.querySelector('.modal-body').style.opacity = '0.5';
+                
+                const response = await fetch('api/save-ivr-recording.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Recording saved successfully!' + (result.format_note ? '\n\n' + result.format_note : ''));
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.error);
+                    document.querySelector('.modal-body').style.opacity = '1';
+                }
+            } catch (err) {
+                alert('Error saving recording: ' + err.message);
+                document.querySelector('.modal-body').style.opacity = '1';
+            }
+        }
+        
+        // Test recording in browser
+        function testRecordingInBrowser(url) {
+            const audio = new Audio(url);
+            audio.play();
+        }
+        
+        // Diagnostic check
+        async function checkRecording(key) {
+            try {
+                const response = await fetch('api/test-ivr-recording.php?key=' + encodeURIComponent(key));
+                const result = await response.json();
+                console.log('Recording Diagnostic:', result);
+                
+                let message = 'Recording: ' + result.title + '\n\n';
+                message += 'Mode: ' + result.mode + '\n';
+                message += 'File exists: ' + (result.checks?.file_exists ? 'Yes' : 'No') + '\n';
+                message += 'URL accessible: ' + (result.checks?.url_accessible ? 'Yes' : 'No') + '\n';
+                message += 'Twilio compatible: ' + (result.checks?.twilio_compatible ? 'Yes' : 'No') + '\n';
+                
+                if (result.recommendation) {
+                    message += '\nRecommendation: ' + result.recommendation;
+                }
+                
+                alert(message);
+            } catch (err) {
+                alert('Error checking recording: ' + err.message);
+            }
+        }
     </script>
 </body>
 </html>

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 $db = db();
@@ -42,6 +43,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param('iisi', $new_agent_id, $total_seconds, $new_notes, $session_id);
     
     if ($stmt->execute()) {
+        // Audit log the edit
+        log_audit(
+            $db,
+            'update',
+            'call_session',
+            $session_id,
+            [
+                'agent_id' => $call->agent_id,
+                'duration_seconds' => $call->duration_seconds,
+                'notes' => $call->notes
+            ],
+            [
+                'agent_id' => $new_agent_id,
+                'duration_seconds' => $total_seconds,
+                'notes' => $new_notes
+            ],
+            'admin_portal',
+            $user_id
+        );
+        
         header("Location: call-details.php?id={$session_id}");
         exit;
     } else {

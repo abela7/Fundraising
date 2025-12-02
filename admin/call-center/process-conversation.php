@@ -8,6 +8,7 @@ ini_set('log_errors', 1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 // Set timezone
@@ -389,6 +390,26 @@ try {
         $update_queue->execute();
         $update_queue->close();
     }
+    
+    // Audit log the conversation outcome
+    log_audit(
+        $db,
+        'create',
+        'payment_plan',
+        $plan_id,
+        null,
+        [
+            'donor_id' => $donor_id,
+            'session_id' => $session_id,
+            'queue_id' => $queue_id,
+            'plan_frequency_unit' => $plan_frequency_unit,
+            'plan_frequency_number' => $plan_frequency_number,
+            'total_payments' => $total_payments,
+            'source' => 'call_center'
+        ],
+        'admin_portal',
+        $user_id
+    );
     
     $db->commit();
     

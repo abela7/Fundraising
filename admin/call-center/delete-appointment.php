@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 
 require_login();
 
@@ -54,6 +55,18 @@ try {
     
     if ($stmt->execute()) {
         if ($stmt->affected_rows > 0) {
+            // Audit log the deletion
+            log_audit(
+                $db,
+                'delete',
+                'appointment',
+                $appointment_id,
+                ['status' => $appointment['status']],
+                null,
+                'admin_portal',
+                $user_id
+            );
+            
             $_SESSION['success'] = 'Appointment deleted successfully.';
         } else {
             throw new Exception('Failed to delete appointment. Please try again.');

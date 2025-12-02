@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 // Set timezone
@@ -66,6 +67,23 @@ try {
     
     // 3. Update Donor (Optional - maybe flag as 'refused' or 'do_not_call'?)
     // For now, we just log the interaction. The donor status might remain active but with a 'refused' history.
+    
+    // Audit log the refusal
+    log_audit(
+        $db,
+        'update',
+        'donor_refusal',
+        $donor_id,
+        null,
+        [
+            'session_id' => $session_id,
+            'queue_id' => $queue_id,
+            'reason' => $reason_outcome,
+            'notes' => $notes
+        ],
+        'admin_portal',
+        $user_id
+    );
     
     $db->commit();
     
