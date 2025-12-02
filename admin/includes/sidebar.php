@@ -192,11 +192,18 @@ try {
         <span class="nav-label">Members</span>
       </a>
       <a href="<?php echo url_for('admin/donor-management/'); ?>" 
-         class="nav-link <?php echo $current_dir === 'donor-management' || strpos($_SERVER['PHP_SELF'], '/donor-management/') !== false ? 'active' : ''; ?>">
+         class="nav-link <?php echo ($current_dir === 'donor-management' && $current_page !== 'donor-portal') ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-users-cog"></i>
         </span>
         <span class="nav-label">Donor Management</span>
+      </a>
+      <a href="<?php echo url_for('admin/donor-management/donor-portal.php'); ?>" 
+         class="nav-link <?php echo ($current_dir === 'donor-management' && $current_page === 'donor-portal') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-user-shield"></i>
+        </span>
+        <span class="nav-label">Donor Portal</span>
       </a>
       <a href="<?php echo url_for('admin/church-management/'); ?>" 
          class="nav-link <?php echo $current_dir === 'church-management' ? 'active' : ''; ?>">
