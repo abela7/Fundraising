@@ -85,19 +85,21 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $delete_stmt->bind_param('i', $payment_id);
         $delete_stmt->execute();
         
-        // Step 3: Recalculate donor totals
+        // Step 3: Recalculate donor totals (from both payments and pledge_payments tables)
         $recalc_query = "
-            UPDATE donors 
+            UPDATE donors d
             SET total_paid = (
-                    SELECT COALESCE(SUM(amount), 0) 
-                    FROM payments 
-                    WHERE donor_id = ? AND status = 'approved'
+                    COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = ? AND status = 'approved'), 0) +
+                    COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = ? AND status = 'confirmed'), 0)
                 ),
-                balance = total_pledged - total_paid
+                balance = GREATEST(0, total_pledged - (
+                    COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = ? AND status = 'approved'), 0) +
+                    COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = ? AND status = 'confirmed'), 0)
+                ))
             WHERE id = ?
         ";
         $recalc_stmt = $conn->prepare($recalc_query);
-        $recalc_stmt->bind_param('ii', $donor_id, $donor_id);
+        $recalc_stmt->bind_param('iiiii', $donor_id, $donor_id, $donor_id, $donor_id, $donor_id);
         $recalc_stmt->execute();
         
         $conn->commit();

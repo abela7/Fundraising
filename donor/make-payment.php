@@ -464,13 +464,395 @@ if ($db_connection_ok) {
             opacity: 0.5;
         }
         
-        /* Pending Payments Section */
-        .pending-payments-section .list-group-item {
-            transition: background 0.2s;
+        /* ===== Enhanced Payment Status Section ===== */
+        .payments-status-section {
+            max-width: 600px;
+            margin: 0 auto;
         }
         
-        .pending-payments-section .list-group-item:hover {
-            background: #f8f9fa;
+        .status-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .status-header.approved-header {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-bottom: 1px solid #6ee7b7;
+        }
+        
+        .status-header.pending-header {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-bottom: 1px solid #fcd34d;
+        }
+        
+        .status-header-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .status-header.approved-header .status-header-content {
+            color: #065f46;
+        }
+        
+        .status-header.approved-header i {
+            font-size: 1.25rem;
+        }
+        
+        .status-header.pending-header .status-header-content {
+            color: #92400e;
+        }
+        
+        .status-count {
+            background: #059669;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-count.pending {
+            background: #d97706;
+        }
+        
+        .status-cards {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .payment-status-card {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .payment-status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .payment-status-card.approved {
+            border-color: #a7f3d0;
+        }
+        
+        .payment-status-card.pending {
+            border-color: #fde68a;
+        }
+        
+        .payment-card-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #f9fafb;
+        }
+        
+        .payment-status-card.approved .payment-card-main {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        }
+        
+        .payment-status-card.pending .payment-card-main {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+        
+        .payment-amount-large {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        
+        .payment-status-card.approved .payment-amount-large {
+            color: #059669;
+        }
+        
+        .payment-status-card.pending .payment-amount-large {
+            color: #d97706;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .status-badge.approved {
+            background: #059669;
+            color: white;
+        }
+        
+        .status-badge.pending {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .payment-card-details {
+            padding: 12px 20px 16px;
+            background: white;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .detail-value {
+            font-size: 0.9rem;
+            color: #374151;
+            font-weight: 600;
+        }
+        
+        .method-badge {
+            background: #e5e7eb;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        
+        .status-info-footer {
+            text-align: center;
+            padding: 14px 20px;
+            background: #f9fafb;
+            color: #6b7280;
+            font-size: 0.875rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .status-info-footer i {
+            margin-right: 6px;
+            color: #9ca3af;
+        }
+        
+        /* Action Buttons */
+        .action-buttons-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .btn-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .btn-action i {
+            font-size: 1.1rem;
+        }
+        
+        .btn-action.btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        
+        .btn-action.btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+        }
+        
+        .btn-action.btn-outline-primary {
+            border: 2px solid #3b82f6;
+            color: #3b82f6;
+            background: white;
+        }
+        
+        .btn-action.btn-outline-primary:hover {
+            background: #eff6ff;
+        }
+        
+        /* Other Pending Section (after submission) */
+        .other-pending-section {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .other-pending-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #6b7280;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .other-pending-title i {
+            color: #9ca3af;
+        }
+        
+        .other-pending-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .other-pending-item {
+            background: white;
+            border-radius: 10px;
+            padding: 14px 16px;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .other-pending-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .other-pending-amount {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #d97706;
+        }
+        
+        .other-pending-method {
+            background: #e5e7eb;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .other-pending-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .other-pending-date {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        .other-pending-badge {
+            background: #fef3c7;
+            color: #d97706;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* Mobile Optimizations */
+        @media (min-width: 576px) {
+            .action-buttons-container {
+                flex-direction: row;
+                justify-content: center;
+            }
+            
+            .btn-action {
+                flex: 1;
+                max-width: 250px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .status-header {
+                padding: 14px 16px;
+            }
+            
+            .status-header-content {
+                font-size: 1rem;
+            }
+            
+            .status-count {
+                padding: 5px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .status-cards {
+                padding: 12px;
+            }
+            
+            .payment-card-main {
+                padding: 14px 16px;
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+            
+            .payment-amount-large {
+                font-size: 1.5rem;
+            }
+            
+            .payment-card-details {
+                padding: 10px 16px 14px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                padding: 10px 0;
+            }
+            
+            .btn-action {
+                padding: 12px 20px;
+                font-size: 0.95rem;
+            }
+            
+            /* Other pending mobile styles */
+            .other-pending-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .other-pending-meta {
+                width: 100%;
+                justify-content: space-between;
+            }
         }
     </style>
 </head>
@@ -609,31 +991,26 @@ if ($db_connection_ok) {
 
                         <?php if (count($pending_payments) > 1): ?>
                         <!-- Other Pending Payments -->
-                        <div class="card border-0 shadow-sm mt-4">
-                            <div class="card-header bg-light border-bottom-0">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-list text-secondary me-2"></i>Your Pending Payments
-                                </h6>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="list-group list-group-flush">
-                                    <?php foreach ($pending_payments as $pp): ?>
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>£<?php echo number_format($pp['amount'], 2); ?></strong>
-                                            <span class="text-muted ms-2 small">
-                                                <?php echo ucfirst(str_replace('_', ' ', $pp['method'])); ?>
-                                            </span>
-                                            <div class="small text-muted">
-                                                <?php echo date('d M Y', strtotime($pp['created_at'])); ?>
-                                            </div>
-                                        </div>
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="fas fa-clock me-1"></i>Pending
+                        <div class="other-pending-section mt-4">
+                            <h6 class="other-pending-title">
+                                <i class="fas fa-list-ul"></i>
+                                Your Other Pending Payments
+                            </h6>
+                            <div class="other-pending-list">
+                                <?php foreach ($pending_payments as $pp): ?>
+                                <div class="other-pending-item">
+                                    <div class="other-pending-main">
+                                        <span class="other-pending-amount">£<?php echo number_format($pp['amount'], 2); ?></span>
+                                        <span class="other-pending-method"><?php echo ucfirst(str_replace('_', ' ', $pp['method'])); ?></span>
+                                    </div>
+                                    <div class="other-pending-meta">
+                                        <span class="other-pending-date"><?php echo date('d M Y', strtotime($pp['created_at'])); ?></span>
+                                        <span class="other-pending-badge">
+                                            <i class="fas fa-clock"></i> Pending
                                         </span>
                                     </div>
-                                    <?php endforeach; ?>
                                 </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
                         <?php endif; ?>
@@ -641,101 +1018,107 @@ if ($db_connection_ok) {
 
                 <?php elseif ((!empty($pending_payments) || !empty($recent_approved_payments)) && !isset($_GET['new'])): ?>
                     <!-- Show Payment Status (when revisiting page) -->
-                    <div class="payments-status-section mb-4">
+                    <div class="payments-status-section">
                         
                         <?php if (!empty($recent_approved_payments)): ?>
                         <!-- Recently Approved Payments -->
-                        <div class="card border-success mb-4">
-                            <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-check-circle text-success me-2"></i>
-                                    Recently Approved
-                                </h5>
-                                <span class="badge bg-success"><?php echo count($recent_approved_payments); ?> approved</span>
+                        <div class="status-section mb-4">
+                            <div class="status-header approved-header">
+                                <div class="status-header-content">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Recently Approved</span>
+                                </div>
+                                <span class="status-count"><?php echo count($recent_approved_payments); ?> approved</span>
                             </div>
-                            <div class="card-body p-0">
-                                <div class="list-group list-group-flush">
-                                    <?php foreach ($recent_approved_payments as $ap): ?>
-                                    <div class="list-group-item bg-success bg-opacity-5">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div>
-                                                <h5 class="mb-1 text-success">£<?php echo number_format($ap['amount'], 2); ?></h5>
-                                                <p class="mb-1 small">
-                                                    <span class="badge bg-secondary"><?php echo ucfirst(str_replace('_', ' ', $ap['method'])); ?></span>
-                                                    <?php if (!empty($ap['reference'])): ?>
-                                                        <span class="text-muted ms-2">Ref: <?php echo htmlspecialchars($ap['reference']); ?></span>
-                                                    <?php endif; ?>
-                                                </p>
-                                                <small class="text-muted">
-                                                    <?php echo date('d M Y', strtotime($ap['created_at'])); ?>
-                                                </small>
-                                            </div>
-                                            <div class="text-end">
-                                                <span class="badge bg-success px-3 py-2">
-                                                    <i class="fas fa-check me-1"></i>Approved
-                                                </span>
-                                            </div>
+                            <div class="status-cards">
+                                <?php foreach ($recent_approved_payments as $ap): ?>
+                                <div class="payment-status-card approved">
+                                    <div class="payment-card-main">
+                                        <div class="payment-amount-large">£<?php echo number_format($ap['amount'], 2); ?></div>
+                                        <div class="payment-badge-status">
+                                            <span class="status-badge approved">
+                                                <i class="fas fa-check-circle"></i> Approved
+                                            </span>
                                         </div>
                                     </div>
-                                    <?php endforeach; ?>
+                                    <div class="payment-card-details">
+                                        <div class="detail-row">
+                                            <span class="detail-label">Method</span>
+                                            <span class="detail-value method-badge"><?php echo ucfirst(str_replace('_', ' ', $ap['method'])); ?></span>
+                                        </div>
+                                        <?php if (!empty($ap['reference'])): ?>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Reference</span>
+                                            <span class="detail-value font-monospace"><?php echo htmlspecialchars($ap['reference']); ?></span>
+                                        </div>
+                                        <?php endif; ?>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Date</span>
+                                            <span class="detail-value"><?php echo date('d M Y', strtotime($ap['created_at'])); ?></span>
+                                        </div>
+                                    </div>
                                 </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
                         <?php endif; ?>
                         
                         <?php if (!empty($pending_payments)): ?>
                         <!-- Pending Payments -->
-                        <div class="card border-warning">
-                            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-clock text-warning me-2"></i>
-                                    Pending Approval
-                                </h5>
-                                <span class="badge bg-warning text-dark"><?php echo count($pending_payments); ?> pending</span>
+                        <div class="status-section mb-4">
+                            <div class="status-header pending-header">
+                                <div class="status-header-content">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Pending Approval</span>
+                                </div>
+                                <span class="status-count pending"><?php echo count($pending_payments); ?> pending</span>
                             </div>
-                            <div class="card-body p-0">
-                                <div class="list-group list-group-flush">
-                                    <?php foreach ($pending_payments as $pp): ?>
-                                    <div class="list-group-item">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div>
-                                                <h5 class="mb-1">£<?php echo number_format($pp['amount'], 2); ?></h5>
-                                                <p class="mb-1 small">
-                                                    <span class="badge bg-secondary"><?php echo ucfirst(str_replace('_', ' ', $pp['method'])); ?></span>
-                                                    <?php if (!empty($pp['reference'])): ?>
-                                                        <span class="text-muted ms-2">Ref: <?php echo htmlspecialchars($pp['reference']); ?></span>
-                                                    <?php endif; ?>
-                                                </p>
-                                                <small class="text-muted">
-                                                    Submitted <?php echo date('d M Y \a\t g:i A', strtotime($pp['created_at'])); ?>
-                                                </small>
-                                            </div>
-                                            <div class="text-end">
-                                                <span class="badge bg-warning text-dark px-3 py-2">
-                                                    <i class="fas fa-hourglass-half me-1"></i>Awaiting Approval
-                                                </span>
-                                            </div>
+                            <div class="status-cards">
+                                <?php foreach ($pending_payments as $pp): ?>
+                                <div class="payment-status-card pending">
+                                    <div class="payment-card-main">
+                                        <div class="payment-amount-large">£<?php echo number_format($pp['amount'], 2); ?></div>
+                                        <div class="payment-badge-status">
+                                            <span class="status-badge pending">
+                                                <i class="fas fa-hourglass-half"></i> Pending
+                                            </span>
                                         </div>
                                     </div>
-                                    <?php endforeach; ?>
+                                    <div class="payment-card-details">
+                                        <div class="detail-row">
+                                            <span class="detail-label">Method</span>
+                                            <span class="detail-value method-badge"><?php echo ucfirst(str_replace('_', ' ', $pp['method'])); ?></span>
+                                        </div>
+                                        <?php if (!empty($pp['reference'])): ?>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Reference</span>
+                                            <span class="detail-value font-monospace"><?php echo htmlspecialchars($pp['reference']); ?></span>
+                                        </div>
+                                        <?php endif; ?>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Submitted</span>
+                                            <span class="detail-value"><?php echo date('d M Y, g:i A', strtotime($pp['created_at'])); ?></span>
+                                        </div>
+                                    </div>
                                 </div>
+                                <?php endforeach; ?>
                             </div>
-                            <div class="card-footer bg-light text-center">
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Payments will be approved by an administrator
-                                </small>
+                            <div class="status-info-footer">
+                                <i class="fas fa-info-circle"></i>
+                                Payments will be approved by an administrator
                             </div>
                         </div>
                         <?php endif; ?>
                         
-                        <div class="d-flex flex-column flex-md-row gap-3 justify-content-center mt-4">
-                            <a href="payment-history.php" class="btn btn-outline-primary">
-                                <i class="fas fa-history me-2"></i>View Full History
+                        <div class="action-buttons-container">
+                            <a href="payment-history.php" class="btn btn-outline-primary btn-action">
+                                <i class="fas fa-history"></i>
+                                <span>View Full History</span>
                             </a>
                             <?php if ($donor['balance'] > 0): ?>
-                            <a href="?new=1" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i>Make Another Payment
+                            <a href="?new=1" class="btn btn-primary btn-action">
+                                <i class="fas fa-plus"></i>
+                                <span>Make Another Payment</span>
                             </a>
                             <?php endif; ?>
                         </div>

@@ -191,7 +191,7 @@ class FinancialCalculator {
         $donorId = (int)$donorId;
         
         try {
-            // Update total_paid first (balance is GENERATED and will auto-update)
+            // Update total_paid AND balance (balance is NOT a generated column)
             $stmt = $this->db->prepare("
                 UPDATE donors d
                 SET 
@@ -199,6 +199,10 @@ class FinancialCalculator {
                         COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
                         COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
                     ),
+                    d.balance = GREATEST(0, d.total_pledged - (
+                        COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
+                        COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
+                    )),
                     d.payment_status = CASE
                         WHEN d.total_pledged > 0 AND (d.total_pledged - (
                             COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
@@ -221,7 +225,6 @@ class FinancialCalculator {
             $stmt->bind_param('i', $donorId);
             $stmt->execute();
             
-            // Note: balance is a GENERATED column (total_pledged - total_paid) and auto-updates
             return true;
         } catch (Exception $e) {
             error_log("Failed to recalculate donor totals after approve for donor {$donorId}: " . $e->getMessage());
@@ -240,7 +243,7 @@ class FinancialCalculator {
         $donorId = (int)$donorId;
         
         try {
-            // Update total_paid (balance is GENERATED and will auto-update)
+            // Update total_paid AND balance (balance is NOT a generated column)
             // Preserve overdue/defaulted statuses - only change status for clear transitions
             $stmt = $this->db->prepare("
                 UPDATE donors d
@@ -249,6 +252,10 @@ class FinancialCalculator {
                         COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
                         COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
                     ),
+                    d.balance = GREATEST(0, d.total_pledged - (
+                        COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
+                        COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
+                    )),
                     d.payment_status = CASE
                         WHEN d.total_pledged > 0 AND (d.total_pledged - (
                             COALESCE((SELECT SUM(amount) FROM payments WHERE donor_id = d.id AND status = 'approved'), 0) + 
@@ -271,7 +278,6 @@ class FinancialCalculator {
             $stmt->bind_param('i', $donorId);
             $stmt->execute();
             
-            // Note: balance is a GENERATED column (total_pledged - total_paid) and auto-updates
             return true;
         } catch (Exception $e) {
             error_log("Failed to recalculate donor totals after undo for donor {$donorId}: " . $e->getMessage());

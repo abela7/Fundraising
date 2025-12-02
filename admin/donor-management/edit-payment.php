@@ -130,19 +130,21 @@ try {
         $current_status = $status_check->get_result()->fetch_assoc()['status'] ?? 'pending';
         
         if ($current_status === 'approved') {
-            // Recalculate total_paid for donor
+            // Recalculate total_paid for donor (from both payments and pledge_payments tables)
             $donor_phone = $payment['donor_phone'];
             $recalc_stmt = $db->prepare("
-                UPDATE donors 
+                UPDATE donors d
                 SET total_paid = (
-                    SELECT COALESCE(SUM(amount), 0) 
-                    FROM payments 
-                    WHERE donor_phone = ? AND status = 'approved'
+                    COALESCE((SELECT SUM(amount) FROM payments WHERE donor_phone = ? AND status = 'approved'), 0) +
+                    COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
                 ),
-                balance = total_pledged - total_paid
+                balance = GREATEST(0, total_pledged - (
+                    COALESCE((SELECT SUM(amount) FROM payments WHERE donor_phone = ? AND status = 'approved'), 0) +
+                    COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)
+                ))
                 WHERE phone = ?
             ");
-            $recalc_stmt->bind_param('ss', $donor_phone, $donor_phone);
+            $recalc_stmt->bind_param('sss', $donor_phone, $donor_phone, $donor_phone);
             if (!$recalc_stmt->execute()) {
                 throw new Exception("Failed to recalculate donor totals: " . $recalc_stmt->error);
             }
