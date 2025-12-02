@@ -4,7 +4,7 @@
  * 
  * Two flows:
  * 1. DONOR calling (phone found in database) - personalized menu
- * 2. NON-DONOR calling (phone not found) - general menu
+ * 2. NON-DONOR calling (phone not found) - general menu with more options
  * 
  * Uses Google Neural voice for natural speech
  */
@@ -43,7 +43,7 @@ try {
     
     // Welcome message - natural flow
     echo '<Say voice="' . $voice . '">';
-    echo 'Welcome to Liverpool Abune Teklehaymanot, Ethiopian Orthodox Tewahedo Church.';
+    echo 'Welcome to Liverpool Mekane Kidusan Abune Teklehaymanot, Ethiopian Orthodox Tewahedo Church.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
@@ -84,13 +84,13 @@ try {
         echo '</Gather>';
         
     } else {
-        // ===== NON-DONOR FLOW =====
+        // ===== NON-DONOR / NEW CALLER FLOW =====
         echo '<Say voice="' . $voice . '">';
-        echo 'Thank you for calling us today.';
+        echo 'Thank you for calling us today. We are happy to assist you.';
         echo '</Say>';
         echo '<Pause length="2"/>';
         
-        // Non-donor menu
+        // New caller menu with expanded options
         echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-general-menu.php?caller=' . urlencode($callerNumber) . '" method="POST" timeout="300">';
         
         echo '<Say voice="' . $voice . '">';
@@ -99,17 +99,27 @@ try {
         echo '<Pause length="1"/>';
         
         echo '<Say voice="' . $voice . '">';
-        echo 'To learn about our church and how to donate, press 1.';
+        echo 'To learn about our church, press 1.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
         echo '<Say voice="' . $voice . '">';
-        echo 'To contact a church member, press 2.';
+        echo 'To receive a link via SMS with more information, press 2.';
         echo '</Say>';
         echo '<Pause length="1"/>';
         
         echo '<Say voice="' . $voice . '">';
-        echo 'To hear these options again, press 3.';
+        echo 'To hear how you can support our church, press 3.';
+        echo '</Say>';
+        echo '<Pause length="1"/>';
+        
+        echo '<Say voice="' . $voice . '">';
+        echo 'To get our church administrator contact details, press 4.';
+        echo '</Say>';
+        echo '<Pause length="1"/>';
+        
+        echo '<Say voice="' . $voice . '">';
+        echo 'To hear these options again, press 5.';
         echo '</Say>';
         
         echo '</Gather>';

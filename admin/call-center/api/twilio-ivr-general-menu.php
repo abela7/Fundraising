@@ -1,11 +1,13 @@
 <?php
 /**
- * Twilio IVR - General Menu Handler (Non-Donors)
+ * Twilio IVR - General Menu Handler (Non-Donors / New Callers)
  * 
  * Options:
- * 1 - Learn about church and donate (gives bank details)
- * 2 - Contact church member (sends SMS)
- * 3 - Repeat menu
+ * 1 - Learn about our church (verbal info)
+ * 2 - Receive SMS with website links
+ * 3 - How to support/donate (bank details)
+ * 4 - Get church admin contact details
+ * 5 - Repeat menu
  * 
  * Uses Google Neural voice for natural speech
  */
@@ -38,16 +40,26 @@ try {
     
     switch ($digits) {
         case '1':
-            // Learn about church and donate
-            handleAboutAndDonate($voice);
+            // Learn about church (verbal)
+            handleAboutChurch($voice, $baseUrl);
             break;
             
         case '2':
-            // Contact church member
-            handleContactChurch($db, $callerNumber, $voice, $callSid);
+            // Send SMS with website links
+            handleSendInfoSms($db, $callerNumber, $voice, $callSid);
             break;
             
         case '3':
+            // How to support/donate
+            handleDonationInfo($voice);
+            break;
+            
+        case '4':
+            // Church admin contact
+            handleContactDetails($db, $callerNumber, $voice, $callSid);
+            break;
+            
+        case '5':
             // Repeat main menu
             echo '<Redirect>' . $baseUrl . 'twilio-inbound-call.php</Redirect>';
             break;
@@ -69,9 +81,78 @@ try {
 }
 
 /**
- * Option 1: About the Church and How to Donate
+ * Option 1: About the Church (Verbal Info)
  */
-function handleAboutAndDonate(string $voice): void
+function handleAboutChurch(string $voice, string $baseUrl): void
+{
+    echo '<Say voice="' . $voice . '">';
+    echo 'Liverpool Mekane Kidusan Abune Teklehaymanot is an Ethiopian Orthodox Tewahedo Church serving the Ethiopian community in Liverpool and the surrounding areas.';
+    echo '</Say>';
+    echo '<Pause length="2"/>';
+    
+    echo '<Say voice="' . $voice . '">';
+    echo 'Our church was established in 2014 and has been a spiritual home for many faithful members. We hold regular services, celebrations, and community events.';
+    echo '</Say>';
+    echo '<Pause length="2"/>';
+    
+    echo '<Say voice="' . $voice . '">';
+    echo 'We are currently working towards purchasing our own church building, and we warmly welcome any support from the community.';
+    echo '</Say>';
+    echo '<Pause length="2"/>';
+    
+    echo '<Say voice="' . $voice . '">';
+    echo 'We welcome everyone to join us for worship and fellowship.';
+    echo '</Say>';
+    echo '<Pause length="2"/>';
+    
+    // Offer to send SMS with more info
+    echo '<Gather numDigits="1" action="' . $baseUrl . 'twilio-ivr-general-menu.php" method="POST" timeout="30">';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Would you like to receive more information via SMS? Press 2 to receive our website links. Press 5 to return to the main menu. Or simply hang up if you are done.';
+    echo '</Say>';
+    echo '</Gather>';
+    
+    echo '<Say voice="' . $voice . '">Thank you for your interest in our church. May God bless you. Goodbye.</Say>';
+    echo '<Hangup/>';
+}
+
+/**
+ * Option 2: Send SMS with Website Links
+ */
+function handleSendInfoSms($db, string $callerNumber, string $voice, string $callSid): void
+{
+    echo '<Say voice="' . $voice . '">';
+    echo 'We will send you an SMS with links to learn more about our church.';
+    echo '</Say>';
+    echo '<Pause length="1"/>';
+    
+    // Send SMS with website links
+    $smsResult = sendInfoSms($callerNumber);
+    
+    if ($smsResult) {
+        echo '<Say voice="' . $voice . '">';
+        echo 'The SMS has been sent to your phone. Please check your messages.';
+        echo '</Say>';
+        
+        // Update call record
+        updateSmsSent($db, $callSid);
+    } else {
+        echo '<Say voice="' . $voice . '">';
+        echo 'We could not send the SMS at this time. Please visit our website at abune teklehaymanot dot org.';
+        echo '</Say>';
+    }
+    
+    echo '<Pause length="2"/>';
+    echo '<Say voice="' . $voice . '">';
+    echo 'Thank you for your interest in our church. May God bless you abundantly. Goodbye.';
+    echo '</Say>';
+    echo '<Hangup/>';
+}
+
+/**
+ * Option 3: Donation Information (Bank Details)
+ */
+function handleDonationInfo(string $voice): void
 {
     // Bank details
     $bankName = 'Barclays Bank';
@@ -80,17 +161,17 @@ function handleAboutAndDonate(string $voice): void
     $accountNumber = '30926233';
     
     echo '<Say voice="' . $voice . '">';
-    echo 'Liverpool Abune Teklehaymanot is an Ethiopian Orthodox Tewahedo Church serving the Ethiopian community in Liverpool and surrounding areas.';
+    echo 'Thank you for your interest in supporting our church.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
     echo '<Say voice="' . $voice . '">';
-    echo 'We welcome everyone to join us for worship and community events.';
+    echo 'We are currently fundraising to purchase our own church building. Your generous donation will help us achieve this goal and continue serving our community.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
     echo '<Say voice="' . $voice . '">';
-    echo 'To support our church with a donation, you can make a bank transfer to the following account.';
+    echo 'To make a donation via bank transfer, please use the following details.';
     echo '</Say>';
     echo '<Pause length="2"/>';
     
@@ -131,26 +212,31 @@ function handleAboutAndDonate(string $voice): void
     echo '<Pause length="2"/>';
     
     echo '<Say voice="' . $voice . '">';
-    echo 'Thank you for your interest in supporting our church. May God bless you abundantly. Goodbye.';
+    echo 'You can also visit our donation website at donate dot abune teklehaymanot dot org to make a pledge or learn about other ways to give.';
+    echo '</Say>';
+    echo '<Pause length="2"/>';
+    
+    echo '<Say voice="' . $voice . '">';
+    echo 'Thank you for your generous heart. May God bless you abundantly. Goodbye.';
     echo '</Say>';
     echo '<Hangup/>';
 }
 
 /**
- * Option 2: Contact Church Member - Send SMS
+ * Option 4: Church Admin Contact Details
  */
-function handleContactChurch($db, string $callerNumber, string $voice, string $callSid): void
+function handleContactDetails($db, string $callerNumber, string $voice, string $callSid): void
 {
     $churchAdmin = 'Abel';
     $churchPhone = '07360436171';
     
     echo '<Say voice="' . $voice . '">';
-    echo 'We will send you an SMS with the contact details of our church administrator.';
+    echo 'We will send you an SMS with our church administrator contact details.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
-    // Send SMS to caller
-    $smsResult = sendSmsToCalller($callerNumber, $churchAdmin, $churchPhone);
+    // Send SMS with contact details
+    $smsResult = sendContactSms($callerNumber, $churchAdmin, $churchPhone);
     
     if ($smsResult) {
         echo '<Say voice="' . $voice . '">';
@@ -168,7 +254,7 @@ function handleContactChurch($db, string $callerNumber, string $voice, string $c
     }
     
     echo '<Say voice="' . $voice . '">';
-    echo 'Please contact ' . $churchAdmin . ' at ' . speakPhoneNumber($churchPhone) . '.';
+    echo 'You can contact our church administrator, ' . $churchAdmin . ', at ' . speakPhoneNumber($churchPhone) . '.';
     echo '</Say>';
     echo '<Pause length="1"/>';
     
@@ -184,20 +270,52 @@ function handleContactChurch($db, string $callerNumber, string $voice, string $c
 }
 
 /**
- * Send SMS to caller with church contact details
+ * Send SMS with website links for more information
  */
-function sendSmsToCalller(string $callerPhone, string $adminName, string $adminPhone): bool
+function sendInfoSms(string $callerPhone): bool
 {
     try {
         require_once __DIR__ . '/../../../services/SMSHelper.php';
         
-        $message = "Liverpool Abune Teklehaymanot EOTC\n\nPlease contact {$adminName} - {$adminPhone}\n\nGod bless you!";
+        $message = "Welcome to Liverpool Mekane Kidusan Abune Teklehaymanot Ethiopian Orthodox Tewahedo Church!\n\n";
+        $message .= "To learn more about us, visit:\n";
+        $message .= "https://abuneteklehaymanot.org/\n\n";
+        $message .= "To support our church building fund, please visit:\n";
+        $message .= "https://donate.abuneteklehaymanot.org/\n\n";
+        $message .= "May God bless you!";
         
         // Normalize phone number
-        $toPhone = $callerPhone;
-        if (strpos($toPhone, '+44') === 0) {
-            $toPhone = '0' . substr($toPhone, 3);
-        }
+        $toPhone = normalizePhoneForSms($callerPhone);
+        
+        $result = SMSHelper::send($toPhone, $message, [
+            'source_type' => 'ivr_info_request',
+            'log' => true
+        ]);
+        
+        return $result['success'] ?? false;
+        
+    } catch (Exception $e) {
+        error_log("SMS send error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Send SMS with church admin contact details
+ */
+function sendContactSms(string $callerPhone, string $adminName, string $adminPhone): bool
+{
+    try {
+        require_once __DIR__ . '/../../../services/SMSHelper.php';
+        
+        $message = "Liverpool Mekane Kidusan Abune Teklehaymanot EOTC\n\n";
+        $message .= "Church Administrator Contact:\n";
+        $message .= "{$adminName} - {$adminPhone}\n\n";
+        $message .= "Website: https://abuneteklehaymanot.org/\n\n";
+        $message .= "God bless you!";
+        
+        // Normalize phone number
+        $toPhone = normalizePhoneForSms($callerPhone);
         
         $result = SMSHelper::send($toPhone, $message, [
             'source_type' => 'ivr_contact_request',
@@ -215,6 +333,14 @@ function sendSmsToCalller(string $callerPhone, string $adminName, string $adminP
 /**
  * Helper functions
  */
+function normalizePhoneForSms(string $phone): string
+{
+    if (strpos($phone, '+44') === 0) {
+        return '0' . substr($phone, 3);
+    }
+    return $phone;
+}
+
 function speakDigits(string $number): string
 {
     $digits = preg_replace('/[^0-9]/', '', $number);
