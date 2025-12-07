@@ -696,10 +696,29 @@ unset($donor); // Break reference
                                 }
                                 ?>
                             </h5>
-                            <button class="btn btn-sm btn-outline-primary" id="toggleFilter" type="button">
-                                <i class="fas fa-filter me-1"></i>Filters
-                                <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
-                            </button>
+                            <div class="d-flex gap-2">
+                                <form method="GET" action="donors.php" class="d-flex gap-2">
+                                    <?php if ($show_all): ?>
+                                        <input type="hidden" name="show_all" value="1">
+                                    <?php endif; ?>
+                                    <?php if ($filter_agent_id): ?>
+                                        <input type="hidden" name="filter_agent" value="<?php echo $filter_agent_id; ?>">
+                                    <?php endif; ?>
+                                    <div class="input-group input-group-sm" style="width: 250px;">
+                                        <input type="text" class="form-control" name="search" id="header_search_input"
+                                               value="<?php echo htmlspecialchars($search_term); ?>" 
+                                               placeholder="Search donors..." 
+                                               aria-label="Search donors">
+                                        <button class="btn btn-outline-primary" type="submit">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                                <button class="btn btn-sm btn-outline-secondary" id="toggleFilter" type="button">
+                                    <i class="fas fa-filter me-1"></i>Filters
+                                    <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
@@ -710,17 +729,11 @@ unset($donor); // Break reference
                             <?php if ($show_all): ?>
                                 <input type="hidden" name="show_all" value="1">
                             <?php endif; ?>
+                            <?php if (!empty($search_term)): ?>
+                                <input type="hidden" name="search" value="<?php echo htmlspecialchars($search_term); ?>">
+                            <?php endif; ?>
                             <div class="row g-2">
-                                    <div class="col-12 col-sm-6 col-lg-3">
-                                        <label class="form-label small fw-bold mb-1">
-                                            <i class="fas fa-search me-1"></i>Search
-                                        </label>
-                                        <input type="text" class="form-control form-control-sm" name="search" id="search_input" 
-                                               value="<?php echo htmlspecialchars($search_term); ?>" 
-                                               placeholder="Name, phone, or reference number">
-                                    </div>
-                                    
-                                    <div class="col-12 col-sm-6 col-lg-3">
+                                    <div class="col-12 col-sm-6 col-lg-4">
                                         <label class="form-label small fw-bold mb-1">
                                             <i class="fas fa-user-tie me-1"></i>Assigned Agent
                                         </label>
@@ -1327,18 +1340,15 @@ $(document).ready(function() {
         updateFilterCount();
     });
     
-    // Search input - submit on Enter key
-    $('#search_input').on('keypress', function(e) {
-        if (e.which === 13) { // Enter key
-            e.preventDefault();
-            $('#filterForm').submit();
-        }
+    // Sync search input with hidden filter input
+    $('#header_search_input').on('input', function() {
+        $('input[name="search"][type="hidden"]').val($(this).val());
     });
-    
+
     // Assigned agent filter - server-side (reload page, preserve search)
     $('#filter_assigned_agent').on('change', function() {
         const value = $(this).val();
-        const searchValue = $('#search_input').val();
+        const searchValue = $('#header_search_input').val();
         const url = new URL(window.location);
         
         // Clear existing params
