@@ -255,10 +255,17 @@ if (empty($approved)) {
                 <button type="submit" class="btn btn-reject" title="Undo this update batch">
                     <i class="fas fa-undo"></i>
                 </button>
+            <?php elseif ($isPayment): ?>
+                <input type="hidden" name="action" value="undo_payment">
+                <input type="hidden" name="payment_id" value="<?php echo $pledge_id; ?>">
+                <input type="hidden" name="payment_amount" value="<?php echo $pledge_amount; ?>">
+                <button type="submit" class="btn btn-reject" title="Undo payment approval">
+                    <i class="fas fa-undo"></i>
+                </button>
             <?php else: ?>
                 <input type="hidden" name="action" value="undo">
                 <input type="hidden" name="pledge_id" value="<?php echo $pledge_id; ?>">
-                <button type="submit" class="btn btn-reject">
+                <button type="submit" class="btn btn-reject" title="Undo pledge approval">
                     <i class="fas fa-undo"></i>
                 </button>
             <?php endif; ?>

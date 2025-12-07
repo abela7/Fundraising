@@ -379,6 +379,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $upd = $db->prepare("UPDATE pledges SET status='pending' WHERE id=?");
                     $upd->bind_param('i', $pledgeId);
                     $upd->execute();
+                    
+                    // Update donor's total_pledged and balance
+                    $pledgeAmount = (float)$pledge['amount'];
+                    $findDonorByPledge = $db->prepare("SELECT donor_id FROM pledges WHERE id = ?");
+                    $findDonorByPledge->bind_param('i', $pledgeId);
+                    $findDonorByPledge->execute();
+                    $pledgeDonorResult = $findDonorByPledge->get_result()->fetch_assoc();
+                    $findDonorByPledge->close();
+                    
+                    $pledgeDonorId = (int)($pledgeDonorResult['donor_id'] ?? 0);
+                    if ($pledgeDonorId > 0) {
+                        $updateDonor = $db->prepare("
+                            UPDATE donors SET
+                                total_pledged = GREATEST(0, total_pledged - ?),
+                                balance = GREATEST(0, GREATEST(0, total_pledged - ?) - total_paid),
+                                payment_status = CASE
+                                    WHEN total_paid = 0 THEN 'not_started'
+                                    WHEN total_paid >= GREATEST(0, total_pledged - ?) THEN 'completed'
+                                    WHEN total_paid > 0 THEN 'paying'
+                                    ELSE 'not_started'
+                                END,
+                                updated_at = NOW()
+                            WHERE id = ?
+                        ");
+                        $updateDonor->bind_param('dddi', $pledgeAmount, $pledgeAmount, $pledgeAmount, $pledgeDonorId);
+                        $updateDonor->execute();
+                        $updateDonor->close();
+                    }
                 }
 
                 // Decrement counters by the amount previously added
@@ -571,7 +599,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->begin_transaction();
             try {
                 // Lock payment and ensure currently approved
-                $sel = $db->prepare("SELECT id, amount, status FROM payments WHERE id=? FOR UPDATE");
+                $sel = $db->prepare("SELECT id, amount, status, donor_id FROM payments WHERE id=? FOR UPDATE");
                 $sel->bind_param('i', $paymentId);
                 $sel->execute();
                 $pay = $sel->get_result()->fetch_assoc();
@@ -597,6 +625,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ctr->bind_param('dd', $delta, $grandDelta);
                 $ctr->execute();
 
+                // Update donor's total_paid and balance
+                $donorId = (int)($pay['donor_id'] ?? 0);
+                if ($donorId > 0) {
+                    $paymentAmount = (float)$pay['amount'];
+                    $updateDonor = $db->prepare("
+                        UPDATE donors SET
+                            total_paid = GREATEST(0, total_paid - ?),
+                            balance = GREATEST(0, total_pledged - GREATEST(0, total_paid - ?)),
+                            updated_at = NOW()
+                        WHERE id = ?
+                    ");
+                    $updateDonor->bind_param('ddi', $paymentAmount, $paymentAmount, $donorId);
+                    $updateDonor->execute();
+                    $updateDonor->close();
+                }
+
                 // Deallocate floor grid cells using batch tracking
                 $batchTracker = new GridAllocationBatchTracker($db);
                 $batches = $batchTracker->getBatchesForPayment($paymentId);
@@ -621,8 +665,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Audit
                 $uid = (int)(current_user()['id'] ?? 0);
-                $before = json_encode(['status'=>'approved'], JSON_UNESCAPED_SLASHES);
-                $after  = json_encode(['status'=>'pending'], JSON_UNESCAPED_SLASHES);
+                $before = json_encode(['status'=>'approved', 'donor_id' => $donorId], JSON_UNESCAPED_SLASHES);
+                $after  = json_encode(['status'=>'pending', 'donor_total_paid_reduced_by' => (float)$pay['amount']], JSON_UNESCAPED_SLASHES);
                 $log = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'payment', ?, 'undo_approve', ?, ?, 'admin')");
                 $log->bind_param('iiss', $uid, $paymentId, $before, $after);
                 $log->execute();
