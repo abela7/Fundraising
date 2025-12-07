@@ -882,3 +882,22 @@
         display: none;
     }
 }
+
+/* Toggle All Button */
+#toggleAllAccordions {
+    transition: all 0.2s ease;
+}
+
+#toggleAllAccordions:hover {
+    transform: translateY(-1px);
+}
+
+@media (max-width: 576px) {
+    #toggleAllAccordions span {
+        display: none;
+    }
+    
+    #toggleAllAccordions i {
+        margin: 0 !important;
+    }
+}

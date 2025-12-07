@@ -523,9 +523,12 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                         <h4 class="mb-1"><i class="fas fa-file-alt text-primary me-2"></i>Comprehensive Report</h4>
                         <small class="text-muted"><i class="fas fa-calendar-check me-1"></i><?php echo htmlspecialchars($rangeLabel); ?></small>
                     </div>
-                    <div class="d-flex gap-2 align-items-center">
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
                         <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#datePickerPanel" aria-expanded="false">
                             <i class="fas fa-calendar-alt me-1"></i>Select Dates
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" id="toggleAllAccordions" onclick="toggleAllSections()">
+                            <i class="fas fa-expand-alt me-1" id="toggleIcon"></i><span id="toggleText">Expand All</span>
                         </button>
                         <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-1"></i>Print</button>
                     </div>
@@ -1771,6 +1774,72 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
       })
       .catch(()=>{ body.innerHTML = '<div class="alert alert-danger">Failed to load details.</div>'; });
   }
+
+  // =============================================
+  // Toggle All Accordions
+  // =============================================
+  
+  let allExpanded = false;
+  
+  function toggleAllSections() {
+    const accordion = document.getElementById('reportAccordion');
+    if (!accordion) return;
+    
+    const collapses = accordion.querySelectorAll('.accordion-collapse');
+    const toggleIcon = document.getElementById('toggleIcon');
+    const toggleText = document.getElementById('toggleText');
+    
+    if (allExpanded) {
+      // Collapse all
+      collapses.forEach(collapse => {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+        bsCollapse.hide();
+      });
+      toggleIcon.className = 'fas fa-expand-alt me-1';
+      toggleText.textContent = 'Expand All';
+      allExpanded = false;
+    } else {
+      // Expand all
+      collapses.forEach(collapse => {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+        bsCollapse.show();
+      });
+      toggleIcon.className = 'fas fa-compress-alt me-1';
+      toggleText.textContent = 'Collapse All';
+      allExpanded = true;
+    }
+  }
+  
+  // Update button state based on actual accordion states
+  document.addEventListener('DOMContentLoaded', function() {
+    const accordion = document.getElementById('reportAccordion');
+    if (!accordion) return;
+    
+    // Check initial state - if all are expanded, update button
+    function updateToggleButtonState() {
+      const collapses = accordion.querySelectorAll('.accordion-collapse');
+      const expandedCount = accordion.querySelectorAll('.accordion-collapse.show').length;
+      const toggleIcon = document.getElementById('toggleIcon');
+      const toggleText = document.getElementById('toggleText');
+      
+      if (expandedCount === collapses.length) {
+        allExpanded = true;
+        toggleIcon.className = 'fas fa-compress-alt me-1';
+        toggleText.textContent = 'Collapse All';
+      } else if (expandedCount === 0) {
+        allExpanded = false;
+        toggleIcon.className = 'fas fa-expand-alt me-1';
+        toggleText.textContent = 'Expand All';
+      }
+    }
+    
+    // Listen for accordion state changes
+    accordion.addEventListener('shown.bs.collapse', updateToggleButtonState);
+    accordion.addEventListener('hidden.bs.collapse', updateToggleButtonState);
+    
+    // Initial state check
+    setTimeout(updateToggleButtonState, 100);
+  });
 
   // =============================================
   // Custom Date Picker Functions
