@@ -336,6 +336,14 @@ $donors = [];
 try {
     $user_id = (int)$current_user['id'];
     
+    // Check payment table columns for reference field
+    $payment_columns = [];
+    $col_query = $db->query("SHOW COLUMNS FROM payments");
+    while ($col = $col_query->fetch_assoc()) {
+        $payment_columns[] = $col['Field'];
+    }
+    $payment_ref_col = in_array('transaction_ref', $payment_columns) ? 'transaction_ref' : 'reference';
+    
     // Build query based on filter
     $query = "
         SELECT 
@@ -361,28 +369,35 @@ try {
             pp.next_reminder_date, pp.miss_notification_date, pp.overdue_reminder_date,
             pp.payments_made, pp.amount_paid,
             -- Template name if exists
-            t.name as template_name
+            t.name as template_name,
+            -- Aggregated searchable data: pledge notes and payment references
+            COALESCE(GROUP_CONCAT(DISTINCT pl.notes SEPARATOR ' '), '') as pledge_notes,
+            COALESCE(GROUP_CONCAT(DISTINCT pay.{$payment_ref_col} SEPARATOR ' '), '') as payment_refs,
+            COALESCE(GROUP_CONCAT(DISTINCT ppay.reference_number SEPARATOR ' '), '') as pledge_payment_refs
         FROM donors d
         LEFT JOIN users u ON d.agent_id = u.id
         LEFT JOIN churches c ON d.church_id = c.id
         LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id AND pp.status = 'active'
         LEFT JOIN payment_plan_templates t ON pp.template_id = t.id
+        LEFT JOIN pledges pl ON (pl.donor_id = d.id OR pl.donor_phone = d.phone)
+        LEFT JOIN payments pay ON (pay.donor_id = d.id OR pay.donor_phone = d.phone)
+        LEFT JOIN pledge_payments ppay ON ppay.donor_id = d.id
     ";
     
     if ($show_all) {
         // Show all donors (no filter)
-        $query .= " ORDER BY d.created_at DESC";
+        $query .= " GROUP BY d.id ORDER BY d.created_at DESC";
         $donors_result = $db->query($query);
     } elseif ($filter_agent_id !== null) {
         // Show donors assigned to specific agent
-        $query .= " WHERE d.agent_id = ? ORDER BY d.created_at DESC";
+        $query .= " WHERE d.agent_id = ? GROUP BY d.id ORDER BY d.created_at DESC";
         $stmt = $db->prepare($query);
         $stmt->bind_param('i', $filter_agent_id);
         $stmt->execute();
         $donors_result = $stmt->get_result();
     } else {
         // Default: Show only donors assigned to current user
-        $query .= " WHERE d.agent_id = ? ORDER BY d.created_at DESC";
+        $query .= " WHERE d.agent_id = ? GROUP BY d.id ORDER BY d.created_at DESC";
         $stmt = $db->prepare($query);
         $stmt->bind_param('i', $user_id);
         $stmt->execute();
@@ -1166,13 +1181,46 @@ unset($donor); // Break reference
 
 <script>
 $(document).ready(function() {
+    // Custom search function that searches across name, phone, and reference fields
+    // This must be added BEFORE DataTable initialization
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        // Get search value from DataTables search box
+        const searchValue = settings.oPreviousSearch.sSearch.toLowerCase().trim();
+        
+        // If no search value, show all rows (other filters will still apply)
+        if (!searchValue) {
+            return true;
+        }
+        
+        // Get the row element and donor data
+        const $row = $(settings.aoData[dataIndex].nTr);
+        const donorData = $row.data('donor');
+        
+        if (!donorData) {
+            return false;
+        }
+        
+        // Build searchable text from all relevant fields
+        // Handle null/undefined values from GROUP_CONCAT
+        const searchableText = [
+            donorData.name || '',
+            donorData.phone || '',
+            donorData.pledge_notes || '',
+            donorData.payment_refs || '',
+            donorData.pledge_payment_refs || ''
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        // Check if search term matches any part of the searchable text
+        return searchableText.includes(searchValue);
+    });
+    
     // Initialize DataTable
     const table = $('#donorsTable').DataTable({
         order: [[1, 'asc']],
         pageLength: 25,
         lengthMenu: [[25, 50, 100, 250, 500, -1], [25, 50, 100, 250, 500, "All"]],
         language: {
-            search: "Search donors:",
+            search: "Search (name, phone, reference):",
             lengthMenu: "Show _MENU_ donors per page"
         }
     });
