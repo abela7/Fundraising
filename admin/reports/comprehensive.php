@@ -498,16 +498,203 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                     </div>
                 <?php endif; ?>
 
+                <?php
+                // Determine current filter for display
+                $currentRange = $_GET['date'] ?? 'month';
+                $fromParam = $_GET['from'] ?? '';
+                $toParam = $_GET['to'] ?? '';
+                
+                // Build display label
+                $rangeLabel = match($currentRange) {
+                    'today' => 'Today (' . date('d M Y') . ')',
+                    'week' => 'This Week (' . (new DateTime())->modify('monday this week')->format('d M') . ' - ' . (new DateTime())->modify('sunday this week')->format('d M Y') . ')',
+                    'month' => date('F Y'),
+                    'quarter' => 'Q' . ceil(date('n')/3) . ' ' . date('Y'),
+                    'year' => 'Year ' . date('Y'),
+                    'all' => 'All Time',
+                    'custom' => ($fromParam && $toParam) 
+                        ? (DateTime::createFromFormat('Y-m-d', $fromParam)?->format('d M Y') ?? $fromParam) . ' to ' . (DateTime::createFromFormat('Y-m-d', $toParam)?->format('d M Y') ?? $toParam)
+                        : 'Custom Range',
+                    default => 'This Month',
+                };
+                ?>
                 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0"><i class="fas fa-file-alt text-primary me-2"></i>Comprehensive Report</h4>
-                    <div class="d-flex gap-2 date-range-buttons">
-                        <a class="btn btn-outline-secondary" href="?date=today"><i class="fas fa-clock me-1"></i>Today</a>
-                        <a class="btn btn-outline-secondary" href="?date=week"><i class="fas fa-calendar-week me-1"></i>This Week</a>
-                        <a class="btn btn-outline-secondary" href="?date=month"><i class="fas fa-calendar me-1"></i>This Month</a>
-                        <a class="btn btn-outline-secondary" href="?date=quarter"><i class="fas fa-calendar-alt me-1"></i>Quarter</a>
-                        <a class="btn btn-outline-secondary" href="?date=year"><i class="fas fa-calendar-day me-1"></i>This Year</a>
-                        <a class="btn btn-outline-secondary" href="?date=all"><i class="fas fa-infinity me-1"></i>All Time</a>
+                    <div>
+                        <h4 class="mb-1"><i class="fas fa-file-alt text-primary me-2"></i>Comprehensive Report</h4>
+                        <small class="text-muted"><i class="fas fa-calendar-check me-1"></i><?php echo htmlspecialchars($rangeLabel); ?></small>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#datePickerPanel" aria-expanded="false">
+                            <i class="fas fa-calendar-alt me-1"></i>Select Dates
+                        </button>
                         <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-1"></i>Print</button>
+                    </div>
+                </div>
+
+                <!-- Custom Date Picker Panel -->
+                <div class="collapse <?php echo ($currentRange === 'custom' || isset($_GET['showPicker'])) ? 'show' : ''; ?> mb-3" id="datePickerPanel">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <!-- Quick Presets -->
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold text-muted mb-2"><i class="fas fa-bolt me-1"></i>Quick Presets</label>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <a class="btn btn-sm <?php echo $currentRange === 'today' ? 'btn-primary' : 'btn-outline-secondary'; ?>" href="?date=today"><i class="fas fa-clock me-1"></i>Today</a>
+                                        <a class="btn btn-sm <?php echo $currentRange === 'week' ? 'btn-primary' : 'btn-outline-secondary'; ?>" href="?date=week"><i class="fas fa-calendar-week me-1"></i>This Week</a>
+                                        <a class="btn btn-sm <?php echo $currentRange === 'month' ? 'btn-primary' : 'btn-outline-secondary'; ?>" href="?date=month"><i class="fas fa-calendar me-1"></i>This Month</a>
+                                        <a class="btn btn-sm <?php echo $currentRange === 'quarter' ? 'btn-primary' : 'btn-outline-secondary'; ?>" href="?date=quarter"><i class="fas fa-calendar-alt me-1"></i>This Quarter</a>
+                                        <a class="btn btn-sm <?php echo $currentRange === 'year' ? 'btn-primary' : 'btn-outline-secondary'; ?>" href="?date=year"><i class="fas fa-calendar-day me-1"></i>This Year</a>
+                                        <a class="btn btn-sm <?php echo $currentRange === 'all' ? 'btn-primary' : 'btn-outline-secondary'; ?>" href="?date=all"><i class="fas fa-infinity me-1"></i>All Time</a>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-12"><hr class="my-2"></div>
+                                
+                                <!-- Custom Date Selection -->
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold text-muted mb-2"><i class="fas fa-sliders-h me-1"></i>Custom Selection</label>
+                                    
+                                    <!-- Selection Type Tabs -->
+                                    <ul class="nav nav-pills nav-fill mb-3" id="dateSelectionTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="tab-day" data-bs-toggle="pill" data-bs-target="#panel-day" type="button" role="tab">
+                                                <i class="fas fa-calendar-day me-1"></i>Specific Day
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="tab-week" data-bs-toggle="pill" data-bs-target="#panel-week" type="button" role="tab">
+                                                <i class="fas fa-calendar-week me-1"></i>Specific Week
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="tab-month" data-bs-toggle="pill" data-bs-target="#panel-month" type="button" role="tab">
+                                                <i class="fas fa-calendar me-1"></i>Specific Month
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="tab-range" data-bs-toggle="pill" data-bs-target="#panel-range" type="button" role="tab">
+                                                <i class="fas fa-arrows-left-right me-1"></i>Date Range
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content" id="dateSelectionContent">
+                                        <!-- Specific Day Panel -->
+                                        <div class="tab-pane fade show active" id="panel-day" role="tabpanel">
+                                            <form method="get" class="row g-2 align-items-end" onsubmit="return setDayRange()">
+                                                <input type="hidden" name="date" value="custom">
+                                                <div class="col-md-4">
+                                                    <label class="form-label small">Select Date</label>
+                                                    <input type="date" class="form-control" id="dayDate" value="<?php echo date('Y-m-d'); ?>" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <button type="submit" class="btn btn-primary w-100">
+                                                        <i class="fas fa-search me-1"></i>View Day Report
+                                                    </button>
+                                                </div>
+                                                <input type="hidden" name="from" id="dayFrom">
+                                                <input type="hidden" name="to" id="dayTo">
+                                            </form>
+                                        </div>
+                                        
+                                        <!-- Specific Week Panel -->
+                                        <div class="tab-pane fade" id="panel-week" role="tabpanel">
+                                            <form method="get" class="row g-2 align-items-end" onsubmit="return setWeekRange()">
+                                                <input type="hidden" name="date" value="custom">
+                                                <div class="col-md-4">
+                                                    <label class="form-label small">Select Any Date in Week</label>
+                                                    <input type="date" class="form-control" id="weekDate" value="<?php echo date('Y-m-d'); ?>" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="text-muted small" id="weekPreview">
+                                                        Week: <?php 
+                                                        $mon = (new DateTime())->modify('monday this week');
+                                                        $sun = (new DateTime())->modify('sunday this week');
+                                                        echo $mon->format('d M') . ' - ' . $sun->format('d M Y');
+                                                        ?>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <button type="submit" class="btn btn-primary w-100">
+                                                        <i class="fas fa-search me-1"></i>View Week Report
+                                                    </button>
+                                                </div>
+                                                <input type="hidden" name="from" id="weekFrom">
+                                                <input type="hidden" name="to" id="weekTo">
+                                            </form>
+                                        </div>
+                                        
+                                        <!-- Specific Month Panel -->
+                                        <div class="tab-pane fade" id="panel-month" role="tabpanel">
+                                            <form method="get" class="row g-2 align-items-end" onsubmit="return setMonthRange()">
+                                                <input type="hidden" name="date" value="custom">
+                                                <div class="col-md-3">
+                                                    <label class="form-label small">Month</label>
+                                                    <select class="form-select" id="monthSelect">
+                                                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                                                            <option value="<?php echo $m; ?>" <?php echo $m == date('n') ? 'selected' : ''; ?>>
+                                                                <?php echo date('F', mktime(0, 0, 0, $m, 1)); ?>
+                                                            </option>
+                                                        <?php endfor; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small">Year</label>
+                                                    <select class="form-select" id="yearSelect">
+                                                        <?php 
+                                                        $currentYear = (int)date('Y');
+                                                        for ($y = $currentYear; $y >= $currentYear - 5; $y--): 
+                                                        ?>
+                                                            <option value="<?php echo $y; ?>" <?php echo $y == $currentYear ? 'selected' : ''; ?>>
+                                                                <?php echo $y; ?>
+                                                            </option>
+                                                        <?php endfor; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="text-muted small" id="monthPreview">
+                                                        <?php echo date('F Y'); ?>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <button type="submit" class="btn btn-primary w-100">
+                                                        <i class="fas fa-search me-1"></i>View Month Report
+                                                    </button>
+                                                </div>
+                                                <input type="hidden" name="from" id="monthFrom">
+                                                <input type="hidden" name="to" id="monthTo">
+                                            </form>
+                                        </div>
+                                        
+                                        <!-- Date Range Panel -->
+                                        <div class="tab-pane fade" id="panel-range" role="tabpanel">
+                                            <form method="get" class="row g-2 align-items-end">
+                                                <input type="hidden" name="date" value="custom">
+                                                <div class="col-md-3">
+                                                    <label class="form-label small">From Date</label>
+                                                    <input type="date" class="form-control" name="from" id="rangeFrom" value="<?php echo htmlspecialchars($fromParam ?: date('Y-m-01')); ?>" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small">To Date</label>
+                                                    <input type="date" class="form-control" name="to" id="rangeTo" value="<?php echo htmlspecialchars($toParam ?: date('Y-m-d')); ?>" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="text-muted small" id="rangePreview">
+                                                        <!-- Preview updated by JS -->
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <button type="submit" class="btn btn-primary w-100">
+                                                        <i class="fas fa-search me-1"></i>View Range Report
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1584,6 +1771,154 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
       })
       .catch(()=>{ body.innerHTML = '<div class="alert alert-danger">Failed to load details.</div>'; });
   }
+
+  // =============================================
+  // Custom Date Picker Functions
+  // =============================================
+  
+  // Helper: Format date for display
+  function formatDateDisplay(dateStr) {
+    const d = new Date(dateStr);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  
+  // Helper: Get Monday of the week for a given date
+  function getMondayOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  }
+  
+  // Helper: Get Sunday of the week for a given date
+  function getSundayOfWeek(date) {
+    const monday = getMondayOfWeek(date);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return sunday;
+  }
+  
+  // Helper: Format date as YYYY-MM-DD
+  function toYMD(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Set day range (same day for from and to)
+  function setDayRange() {
+    const dateInput = document.getElementById('dayDate');
+    const fromInput = document.getElementById('dayFrom');
+    const toInput = document.getElementById('dayTo');
+    
+    if (dateInput && fromInput && toInput) {
+      fromInput.value = dateInput.value;
+      toInput.value = dateInput.value;
+    }
+    return true;
+  }
+  
+  // Set week range from selected date
+  function setWeekRange() {
+    const dateInput = document.getElementById('weekDate');
+    const fromInput = document.getElementById('weekFrom');
+    const toInput = document.getElementById('weekTo');
+    
+    if (dateInput && fromInput && toInput) {
+      const selectedDate = new Date(dateInput.value);
+      const monday = getMondayOfWeek(selectedDate);
+      const sunday = getSundayOfWeek(selectedDate);
+      
+      fromInput.value = toYMD(monday);
+      toInput.value = toYMD(sunday);
+    }
+    return true;
+  }
+  
+  // Set month range from selected month/year
+  function setMonthRange() {
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const fromInput = document.getElementById('monthFrom');
+    const toInput = document.getElementById('monthTo');
+    
+    if (monthSelect && yearSelect && fromInput && toInput) {
+      const month = parseInt(monthSelect.value);
+      const year = parseInt(yearSelect.value);
+      
+      // First day of month
+      const firstDay = new Date(year, month - 1, 1);
+      // Last day of month
+      const lastDay = new Date(year, month, 0);
+      
+      fromInput.value = toYMD(firstDay);
+      toInput.value = toYMD(lastDay);
+    }
+    return true;
+  }
+  
+  // Update week preview when date changes
+  document.addEventListener('DOMContentLoaded', function() {
+    const weekDateInput = document.getElementById('weekDate');
+    const weekPreview = document.getElementById('weekPreview');
+    
+    if (weekDateInput && weekPreview) {
+      weekDateInput.addEventListener('change', function() {
+        const selectedDate = new Date(this.value);
+        const monday = getMondayOfWeek(selectedDate);
+        const sunday = getSundayOfWeek(selectedDate);
+        
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        weekPreview.textContent = 'Week: ' + monday.getDate() + ' ' + months[monday.getMonth()] + 
+                                  ' - ' + sunday.getDate() + ' ' + months[sunday.getMonth()] + ' ' + sunday.getFullYear();
+      });
+    }
+    
+    // Update month preview when month/year changes
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const monthPreview = document.getElementById('monthPreview');
+    
+    function updateMonthPreview() {
+      if (monthSelect && yearSelect && monthPreview) {
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+        const month = parseInt(monthSelect.value);
+        const year = parseInt(yearSelect.value);
+        monthPreview.textContent = months[month - 1] + ' ' + year;
+      }
+    }
+    
+    if (monthSelect) monthSelect.addEventListener('change', updateMonthPreview);
+    if (yearSelect) yearSelect.addEventListener('change', updateMonthPreview);
+    
+    // Update range preview when dates change
+    const rangeFrom = document.getElementById('rangeFrom');
+    const rangeTo = document.getElementById('rangeTo');
+    const rangePreview = document.getElementById('rangePreview');
+    
+    function updateRangePreview() {
+      if (rangeFrom && rangeTo && rangePreview) {
+        const from = new Date(rangeFrom.value);
+        const to = new Date(rangeTo.value);
+        
+        if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+          const diffTime = Math.abs(to - from);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+          rangePreview.innerHTML = '<i class="fas fa-info-circle me-1"></i>' + diffDays + ' day' + (diffDays !== 1 ? 's' : '') + ' selected';
+        }
+      }
+    }
+    
+    if (rangeFrom) rangeFrom.addEventListener('change', updateRangePreview);
+    if (rangeTo) rangeTo.addEventListener('change', updateRangePreview);
+    
+    // Initial update
+    updateRangePreview();
+  });
 </script>
 </body>
 </html>

@@ -783,4 +783,102 @@
         border: 1px solid #dee2e6 !important;
         box-shadow: none !important;
     }
+    
+    #datePickerPanel {
+        display: none !important;
+    }
+}
+
+/* ============================================
+   CUSTOM DATE PICKER PANEL
+   ============================================ */
+
+#datePickerPanel .card {
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+#datePickerPanel .nav-pills {
+    background: #e9ecef;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+#datePickerPanel .nav-pills .nav-link {
+    border-radius: 6px;
+    color: #495057;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+#datePickerPanel .nav-pills .nav-link:hover {
+    background: rgba(13, 110, 253, 0.1);
+}
+
+#datePickerPanel .nav-pills .nav-link.active {
+    background: #0d6efd;
+    color: white;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+}
+
+#datePickerPanel .tab-pane {
+    padding-top: 0.5rem;
+}
+
+#datePickerPanel input[type="date"],
+#datePickerPanel select {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+}
+
+#datePickerPanel input[type="date"]:focus,
+#datePickerPanel select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+#datePickerPanel .btn-primary {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+}
+
+/* Mobile Responsive for Date Picker */
+@media (max-width: 768px) {
+    #datePickerPanel .nav-pills {
+        flex-direction: column;
+    }
+    
+    #datePickerPanel .nav-pills .nav-item {
+        width: 100%;
+    }
+    
+    #datePickerPanel .nav-pills .nav-link {
+        text-align: center;
+        margin-bottom: 2px;
+    }
+    
+    #datePickerPanel .row.g-2 > div {
+        margin-bottom: 0.5rem;
+    }
+    
+    #datePickerPanel .btn-primary {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    #datePickerPanel .nav-pills .nav-link {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.75rem;
+    }
+    
+    #datePickerPanel .nav-pills .nav-link i {
+        display: none;
+    }
 }
