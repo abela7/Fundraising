@@ -330,7 +330,6 @@ try {
 // Get filter parameters
 $filter_agent_id = isset($_GET['filter_agent']) && $_GET['filter_agent'] !== '' ? (int)$_GET['filter_agent'] : null;
 $show_all = isset($_GET['show_all']) && $_GET['show_all'] === '1';
-$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 // Get donors list with payment plan details
 $donors = [];
@@ -344,69 +343,6 @@ try {
         $payment_columns[] = $col['Field'];
     }
     $payment_ref_col = in_array('transaction_ref', $payment_columns) ? 'transaction_ref' : 'reference';
-    
-    // Build WHERE conditions
-    $where_conditions = [];
-    $params = [];
-    $types = '';
-    
-    // Agent filter
-    if (!$show_all) {
-        if ($filter_agent_id !== null) {
-            $where_conditions[] = "d.agent_id = ?";
-            $params[] = $filter_agent_id;
-            $types .= 'i';
-        } else {
-            $where_conditions[] = "d.agent_id = ?";
-            $params[] = $user_id;
-            $types .= 'i';
-        }
-    }
-    
-    // Search filter - search in name, phone, and reference numbers from pledges/payments
-    if (!empty($search_term)) {
-        $search_param = "%{$search_term}%";
-        
-        // Search in donor name or phone
-        $search_conditions = [
-            "d.name LIKE ?",
-            "d.phone LIKE ?"
-        ];
-        $params[] = $search_param;
-        $params[] = $search_param;
-        $types .= 'ss';
-        
-        // Search in pledge notes
-        $search_conditions[] = "EXISTS (
-            SELECT 1 FROM pledges pl_search 
-            WHERE (pl_search.donor_id = d.id OR pl_search.donor_phone = d.phone) 
-            AND pl_search.notes LIKE ?
-        )";
-        $params[] = $search_param;
-        $types .= 's';
-        
-        // Search in payment references
-        $search_conditions[] = "EXISTS (
-            SELECT 1 FROM payments pay_search 
-            WHERE (pay_search.donor_id = d.id OR pay_search.donor_phone = d.phone) 
-            AND pay_search.{$payment_ref_col} LIKE ?
-        )";
-        $params[] = $search_param;
-        $types .= 's';
-        
-        // Search in pledge payment references
-        $search_conditions[] = "EXISTS (
-            SELECT 1 FROM pledge_payments ppay_search 
-            WHERE ppay_search.donor_id = d.id 
-            AND ppay_search.reference_number LIKE ?
-        )";
-        $params[] = $search_param;
-        $types .= 's';
-        
-        $where_conditions[] = "(" . implode(" OR ", $search_conditions) . ")";
-    }
-    
-    $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
     
     // Build query based on filter
     $query = "
@@ -446,25 +382,26 @@ try {
         LEFT JOIN pledges pl ON (pl.donor_id = d.id OR pl.donor_phone = d.phone)
         LEFT JOIN payments pay ON (pay.donor_id = d.id OR pay.donor_phone = d.phone)
         LEFT JOIN pledge_payments ppay ON ppay.donor_id = d.id
-        {$where_clause}
-        GROUP BY d.id 
-        ORDER BY d.created_at DESC
     ";
     
-    if (!empty($params)) {
+    if ($show_all) {
+        // Show all donors (no filter)
+        $query .= " GROUP BY d.id ORDER BY d.created_at DESC";
+        $donors_result = $db->query($query);
+    } elseif ($filter_agent_id !== null) {
+        // Show donors assigned to specific agent
+        $query .= " WHERE d.agent_id = ? GROUP BY d.id ORDER BY d.created_at DESC";
         $stmt = $db->prepare($query);
-        // Bind parameters dynamically
-        $bind_params = [$types];
-        $refs = [];
-        foreach ($params as $key => $value) {
-            $refs[$key] = $value;
-            $bind_params[] = &$refs[$key];
-        }
-        call_user_func_array([$stmt, 'bind_param'], $bind_params);
+        $stmt->bind_param('i', $filter_agent_id);
         $stmt->execute();
         $donors_result = $stmt->get_result();
     } else {
-        $donors_result = $db->query($query);
+        // Default: Show only donors assigned to current user
+        $query .= " WHERE d.agent_id = ? GROUP BY d.id ORDER BY d.created_at DESC";
+        $stmt = $db->prepare($query);
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $donors_result = $stmt->get_result();
     }
     
     if ($donors_result) {
@@ -706,21 +643,9 @@ unset($donor); // Break reference
                     <!-- Filter Panel -->
                     <div id="filterPanel" class="border-bottom" style="display: none;">
                         <div class="p-3 bg-light">
-                            <form method="GET" action="donors.php" id="filterForm">
-                            <?php if ($show_all): ?>
-                                <input type="hidden" name="show_all" value="1">
-                            <?php endif; ?>
+                            <form method="GET" action="donors.php">
                             <div class="row g-2">
-                                    <div class="col-12 col-sm-6 col-lg-3">
-                                        <label class="form-label small fw-bold mb-1">
-                                            <i class="fas fa-search me-1"></i>Search
-                                        </label>
-                                        <input type="text" class="form-control form-control-sm" name="search" id="search_input" 
-                                               value="<?php echo htmlspecialchars($search_term); ?>" 
-                                               placeholder="Name, phone, or reference number">
-                                    </div>
-                                    
-                                    <div class="col-12 col-sm-6 col-lg-3">
+                                    <div class="col-12 col-sm-6 col-lg-4">
                                         <label class="form-label small fw-bold mb-1">
                                             <i class="fas fa-user-tie me-1"></i>Assigned Agent
                                         </label>
@@ -772,16 +697,11 @@ unset($donor); // Break reference
                                 <div class="col-12 mt-2">
                                     <div class="d-flex flex-wrap gap-2 align-items-center">
                                             <button type="submit" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-check me-1"></i>Apply Filters
+                                                <i class="fas fa-check me-1"></i>Apply
                                         </button>
-                                            <a href="donors.php<?php echo $show_all ? '?show_all=1' : ''; ?>" class="btn btn-sm btn-danger">
+                                            <a href="donors.php" class="btn btn-sm btn-danger">
                                                 <i class="fas fa-times me-1"></i>Clear All
                                             </a>
-                                        <?php if (!empty($search_term)): ?>
-                                            <span class="badge bg-info">
-                                                <i class="fas fa-search me-1"></i>Searching: "<?php echo htmlspecialchars($search_term); ?>"
-                                            </span>
-                                        <?php endif; ?>
                                         <span class="text-muted small" id="filterResultCount"></span>
                                     </div>
                                 </div>
@@ -1261,20 +1181,47 @@ unset($donor); // Break reference
 
 <script>
 $(document).ready(function() {
-    // Initialize DataTable (server-side search is handled via form submission)
+    // Custom search function that searches across name, phone, and reference fields
+    // This must be added BEFORE DataTable initialization
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        // Get search value from DataTables search box
+        const searchValue = settings.oPreviousSearch.sSearch.toLowerCase().trim();
+        
+        // If no search value, show all rows (other filters will still apply)
+        if (!searchValue) {
+            return true;
+        }
+        
+        // Get the row element and donor data
+        const $row = $(settings.aoData[dataIndex].nTr);
+        const donorData = $row.data('donor');
+        
+        if (!donorData) {
+            return false;
+        }
+        
+        // Build searchable text from all relevant fields
+        // Handle null/undefined values from GROUP_CONCAT
+        const searchableText = [
+            donorData.name || '',
+            donorData.phone || '',
+            donorData.pledge_notes || '',
+            donorData.payment_refs || '',
+            donorData.pledge_payment_refs || ''
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        // Check if search term matches any part of the searchable text
+        return searchableText.includes(searchValue);
+    });
+    
+    // Initialize DataTable
     const table = $('#donorsTable').DataTable({
         order: [[1, 'asc']],
         pageLength: 25,
         lengthMenu: [[25, 50, 100, 250, 500, -1], [25, 50, 100, 250, 500, "All"]],
         language: {
-            search: "",
+            search: "Search (name, phone, reference):",
             lengthMenu: "Show _MENU_ donors per page"
-        },
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip', // Custom layout without default search
-        // Hide the default search box since we use server-side search
-        initComplete: function() {
-            // Hide DataTables default search box
-            $('.dataTables_filter').hide();
         }
     });
     
@@ -1327,36 +1274,16 @@ $(document).ready(function() {
         updateFilterCount();
     });
     
-    // Search input - submit on Enter key
-    $('#search_input').on('keypress', function(e) {
-        if (e.which === 13) { // Enter key
-            e.preventDefault();
-            $('#filterForm').submit();
-        }
-    });
-    
-    // Assigned agent filter - server-side (reload page, preserve search)
+    // Assigned agent filter - server-side (reload page)
     $('#filter_assigned_agent').on('change', function() {
         const value = $(this).val();
-        const searchValue = $('#search_input').val();
-        const url = new URL(window.location);
-        
-        // Clear existing params
-        url.search = '';
-        
-        // Add search if present
-        if (searchValue) {
-            url.searchParams.set('search', searchValue);
-        }
-        
-        // Add agent filter
         if (value === 'all') {
-            url.searchParams.set('show_all', '1');
-        } else if (value !== '') {
-            url.searchParams.set('filter_agent', value);
+            window.location.href = 'donors.php?show_all=1';
+        } else if (value === '') {
+            window.location.href = 'donors.php';
+        } else {
+            window.location.href = 'donors.php?filter_agent=' + value;
         }
-        
-        window.location.href = url.toString();
     });
     
     // Update filter result count
