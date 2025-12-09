@@ -9,13 +9,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 
-// For demo/preview, allow viewing without auth
-// In production, this would require donor authentication
-
 $sqm = $_GET['sqm'] ?? '1';
 $reference = $_GET['ref'] ?? '0000';
-$donorName = $_GET['name'] ?? '';
-$format = $_GET['format'] ?? 'view'; // view, png, pdf
+$format = $_GET['format'] ?? 'view';
 
 // Calculate display value for square meters
 function formatSqm(float $value): string {
@@ -42,7 +38,7 @@ $sqmDisplay = formatSqm((float)$sqm);
     <title>Donation Certificate - Liverpool Abune Teklehaymanot EOTC</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=Noto+Serif+Ethiopic:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=Noto+Serif+Ethiopic:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -75,178 +71,140 @@ $sqmDisplay = formatSqm((float)$sqm);
             box-shadow: 0 20px 60px rgba(0,0,0,0.4);
         }
 
-        /* Certificate Design */
+        /* ========== CERTIFICATE DESIGN ========== */
         .certificate {
             width: 850px;
             height: 550px;
-            background: linear-gradient(135deg, #0d7377 0%, #14919b 50%, #0d7377 100%);
+            background: #0e8b8b;
             position: relative;
             overflow: hidden;
             font-family: 'Inter', sans-serif;
         }
 
-        /* Subtle pattern overlay */
-        .certificate::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 20% 80%, rgba(255,255,255,0.03) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 50%);
-            pointer-events: none;
-        }
-
-        .certificate-content {
-            position: relative;
-            z-index: 1;
-            height: 100%;
-            padding: 25px 35px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Top Amharic Quote */
+        /* Top Amharic Quote - small yellow text at very top */
         .top-quote {
             font-family: 'Noto Serif Ethiopic', serif;
-            color: #f4d03f;
-            font-size: 15px;
+            color: #e8c547;
+            font-size: 14px;
             text-align: center;
-            line-height: 1.6;
-            margin-bottom: 8px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            line-height: 1.5;
+            padding: 20px 40px 10px;
         }
 
-        /* Church Name */
+        /* Church Name - white, uppercase, spaced */
         .church-name {
             color: #ffffff;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 600;
             text-align: center;
-            letter-spacing: 3px;
-            margin-bottom: 30px;
+            letter-spacing: 4px;
             text-transform: uppercase;
+            padding: 10px 0 0;
         }
 
-        /* Main Slogan Section */
-        .slogan-section {
-            text-align: center;
+        /* Main Content Area */
+        .main-content {
+            position: relative;
+            height: calc(100% - 120px);
+            display: flex;
+        }
+
+        /* Left side - Slogan centered */
+        .slogan-area {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding-bottom: 40px;
+            align-items: center;
+            padding-left: 40px;
         }
 
         .slogan-amharic {
             font-family: 'Noto Serif Ethiopic', serif;
-            color: #f4d03f;
-            font-size: 58px;
+            color: #e8c547;
+            font-size: 72px;
             font-style: italic;
-            margin-bottom: 5px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            font-weight: 500;
+            line-height: 1.1;
         }
 
         .slogan-english {
             font-family: 'Playfair Display', serif;
-            color: #f4d03f;
-            font-size: 52px;
+            color: #e8c547;
+            font-size: 58px;
             font-style: italic;
             font-weight: 400;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-top: -5px;
         }
 
-        /* Square Meter Display - Right Side */
-        .sqm-section {
-            position: absolute;
-            top: 140px;
-            right: 35px;
+        /* Right side - Sq.m boxes */
+        .info-boxes {
+            width: 200px;
+            padding: 30px 30px 0 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .box-group {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+
+        .box-label {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
             text-align: right;
         }
 
-        .sqm-label {
-            color: #ffffff;
-            font-size: 16px;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .sqm-value-box {
-            background: rgba(255,255,255,0.95);
-            border-radius: 6px;
-            padding: 12px 25px;
-            min-width: 140px;
+        .value-box {
+            background: #f5f5f5;
+            border-radius: 25px;
+            padding: 12px 30px;
+            min-width: 150px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: inline-block;
         }
 
         .sqm-value {
-            font-size: 28px;
-            font-weight: 600;
-            color: #0d7377;
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+            display: inline;
         }
 
         .sqm-unit {
-            font-size: 14px;
+            font-size: 16px;
             color: #666;
-            margin-left: 5px;
-        }
-
-        /* Reference Number Box */
-        .ref-section {
-            position: absolute;
-            top: 240px;
-            right: 35px;
-            text-align: right;
-        }
-
-        .ref-label {
-            color: #ffffff;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .ref-value-box {
-            background: rgba(255,255,255,0.95);
-            border-radius: 6px;
-            padding: 10px 25px;
-            min-width: 140px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            vertical-align: super;
+            margin-left: 2px;
         }
 
         .ref-value {
-            font-size: 22px;
-            font-weight: 600;
-            color: #0d7377;
-            letter-spacing: 2px;
+            font-size: 26px;
+            font-weight: 700;
+            color: #333;
+            letter-spacing: 3px;
         }
 
-        /* Bottom Section */
+        /* Bottom Section - QR and Bank Details */
         .bottom-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-top: auto;
-        }
-
-        /* QR Code */
-        .qr-section {
+            position: absolute;
+            bottom: 25px;
+            left: 30px;
             display: flex;
             align-items: flex-end;
-            gap: 20px;
+            gap: 25px;
         }
 
         .qr-code {
-            width: 100px;
-            height: 100px;
+            width: 110px;
+            height: 110px;
             background: #fff;
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
         .qr-code img {
@@ -254,61 +212,28 @@ $sqmDisplay = formatSqm((float)$sqm);
             height: 100%;
         }
 
-        /* Bank Details */
         .bank-details {
             color: #ffffff;
-            font-size: 15px;
-            line-height: 1.8;
+            font-size: 16px;
+            line-height: 1.9;
         }
 
-        .bank-details .label {
-            display: inline-block;
-            width: 85px;
+        .bank-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .bank-label {
             font-weight: 500;
+            min-width: 90px;
         }
 
-        .bank-details .value {
-            font-weight: 600;
+        .bank-value {
+            font-weight: 700;
             letter-spacing: 1px;
         }
 
-        /* Decorative Elements */
-        .corner-decoration {
-            position: absolute;
-            width: 80px;
-            height: 80px;
-            opacity: 0.1;
-        }
-
-        .corner-decoration.top-left {
-            top: 10px;
-            left: 10px;
-            border-top: 3px solid #f4d03f;
-            border-left: 3px solid #f4d03f;
-        }
-
-        .corner-decoration.top-right {
-            top: 10px;
-            right: 10px;
-            border-top: 3px solid #f4d03f;
-            border-right: 3px solid #f4d03f;
-        }
-
-        .corner-decoration.bottom-left {
-            bottom: 10px;
-            left: 10px;
-            border-bottom: 3px solid #f4d03f;
-            border-left: 3px solid #f4d03f;
-        }
-
-        .corner-decoration.bottom-right {
-            bottom: 10px;
-            right: 10px;
-            border-bottom: 3px solid #f4d03f;
-            border-right: 3px solid #f4d03f;
-        }
-
-        /* Download Buttons */
+        /* ========== PAGE CONTROLS ========== */
         .download-actions {
             margin-top: 1.5rem;
             display: flex;
@@ -331,22 +256,22 @@ $sqmDisplay = formatSqm((float)$sqm);
         }
 
         .btn-primary {
-            background: #0d7377;
+            background: #0e8b8b;
             color: #fff;
         }
 
         .btn-primary:hover {
-            background: #0a5c5f;
+            background: #0a7070;
             transform: translateY(-2px);
         }
 
         .btn-secondary {
-            background: #f4d03f;
-            color: #0d7377;
+            background: #e8c547;
+            color: #0e8b8b;
         }
 
         .btn-secondary:hover {
-            background: #e6c235;
+            background: #d4b33e;
             transform: translateY(-2px);
         }
 
@@ -355,7 +280,6 @@ $sqmDisplay = formatSqm((float)$sqm);
             height: 18px;
         }
 
-        /* Form for testing */
         .test-form {
             background: rgba(255,255,255,0.1);
             padding: 1.5rem;
@@ -428,59 +352,60 @@ $sqmDisplay = formatSqm((float)$sqm);
     <!-- Certificate -->
     <div class="certificate-wrapper">
         <div class="certificate" id="certificate">
-            <!-- Corner Decorations -->
-            <div class="corner-decoration top-left"></div>
-            <div class="corner-decoration top-right"></div>
-            <div class="corner-decoration bottom-left"></div>
-            <div class="corner-decoration bottom-right"></div>
+            
+            <!-- Top Amharic Quote -->
+            <div class="top-quote">
+                "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንፈስት ያዘጋጁልኝ ዘንድ<br>
+                አሁ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ::" ፪ ዜና ፪÷ቿ
+            </div>
 
-            <div class="certificate-content">
-                <!-- Top Amharic Quote -->
-                <div class="top-quote">
-                    "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንፈስት ያዘጋጁልኝ ዘንድ<br>
-                    አሁ ባረያዎቼ ከባረያዎችህ ጋር ይሆናሉ::" ፪ ዜና ፪÷ቿ
-                </div>
+            <!-- Church Name -->
+            <div class="church-name">Liverpool Abune Teklehaymanot EOTC</div>
 
-                <!-- Church Name -->
-                <div class="church-name">Liverpool Abune Teklehaymanot EOTC</div>
-
-                <!-- Main Slogan -->
-                <div class="slogan-section">
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Left - Slogan -->
+                <div class="slogan-area">
                     <div class="slogan-amharic">ይህ ታሪኬ ነው</div>
                     <div class="slogan-english">It is My History</div>
                 </div>
 
-                <!-- Square Meter Display -->
-                <div class="sqm-section">
-                    <div class="sqm-label">Sq.m</div>
-                    <div class="sqm-value-box">
-                        <span class="sqm-value"><?= htmlspecialchars($sqmDisplay) ?></span>
-                        <span class="sqm-unit">m²</span>
+                <!-- Right - Info Boxes -->
+                <div class="info-boxes">
+                    <div class="box-group">
+                        <div class="box-label">Sq.m</div>
+                        <div class="value-box">
+                            <span class="sqm-value"><?= htmlspecialchars($sqmDisplay) ?></span><span class="sqm-unit">m²</span>
+                        </div>
+                    </div>
+                    
+                    <div class="box-group">
+                        <div class="box-label">Reference</div>
+                        <div class="value-box">
+                            <span class="ref-value"><?= htmlspecialchars($reference) ?></span>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Reference Number -->
-                <div class="ref-section">
-                    <div class="ref-label">Reference</div>
-                    <div class="ref-value-box">
-                        <span class="ref-value"><?= htmlspecialchars($reference) ?></span>
-                    </div>
+            <!-- Bottom Section -->
+            <div class="bottom-section">
+                <div class="qr-code">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=<?= urlencode('https://fundraising.abuneteklehaymanot.org/verify?ref=' . $reference) ?>" alt="QR Code">
                 </div>
-
-                <!-- Bottom Section -->
-                <div class="bottom-section">
-                    <div class="qr-section">
-                        <!-- QR Code - Using a placeholder, will generate dynamically -->
-                        <div class="qr-code">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=<?= urlencode('https://fundraising.abuneteklehaymanot.org/verify?ref=' . $reference) ?>" alt="QR Code">
-                        </div>
-                        
-                        <!-- Bank Details -->
-                        <div class="bank-details">
-                            <div><span class="label">Acc.name</span> <span class="value">LMKATH</span></div>
-                            <div><span class="label">Acc.no</span> <span class="value">85455687</span></div>
-                            <div><span class="label">Sort code</span> <span class="value">53-70-44</span></div>
-                        </div>
+                
+                <div class="bank-details">
+                    <div class="bank-row">
+                        <span class="bank-label">Acc.name</span>
+                        <span class="bank-value">LMKATH</span>
+                    </div>
+                    <div class="bank-row">
+                        <span class="bank-label">Acc.no</span>
+                        <span class="bank-value">85455687</span>
+                    </div>
+                    <div class="bank-row">
+                        <span class="bank-label">Sort code</span>
+                        <span class="bank-value">53-70-44</span>
                     </div>
                 </div>
             </div>
@@ -509,9 +434,7 @@ $sqmDisplay = formatSqm((float)$sqm);
         </button>
     </div>
 
-    <!-- html2canvas for image download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- jsPDF for PDF download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <script>
@@ -565,4 +488,3 @@ $sqmDisplay = formatSqm((float)$sqm);
     </script>
 </body>
 </html>
-
