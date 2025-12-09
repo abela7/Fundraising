@@ -100,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             // Manual update with validation
             $new_total_pledged = isset($_POST['total_pledged']) ? (float)$_POST['total_pledged'] : (float)$current_data['total_pledged'];
             $new_total_paid = isset($_POST['total_paid']) ? (float)$_POST['total_paid'] : (float)$current_data['total_paid'];
+            $new_balance = isset($_POST['balance']) ? (float)$_POST['balance'] : max(0, $new_total_pledged - $new_total_paid);
             
             // Validate amounts
             if ($new_total_pledged < 0) {
@@ -108,9 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             if ($new_total_paid < 0) {
                 throw new Exception("Total paid cannot be negative");
             }
-            
-            // Calculate balance
-            $new_balance = max(0, $new_total_pledged - $new_total_paid);
+            if ($new_balance < 0) {
+                throw new Exception("Balance cannot be negative");
+            }
         }
         
         // Determine payment status
@@ -1470,11 +1471,14 @@ function formatDateTime($date) {
                             <div class="col-12">
                                 <label class="form-label fw-bold">
                                     <i class="fas fa-balance-scale text-danger me-1"></i>Balance (£)
-                                    <span class="badge bg-secondary ms-1">Auto-calculated</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="calculateBalance()" title="Auto-calculate balance">
+                                        <i class="fas fa-calculator me-1"></i>Auto-calc
+                                    </button>
                                 </label>
-                                <input type="text" class="form-control form-control-lg bg-light" 
-                                       id="edit_balance_display" readonly
+                                <input type="number" class="form-control form-control-lg" name="balance"
+                                       id="edit_balance" step="0.01" min="0"
                                        value="<?php echo number_format((float)$donor['balance'], 2, '.', ''); ?>">
+                                <small class="text-muted">Click "Auto-calc" to set Balance = Pledged - Paid, or enter manually</small>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold">
@@ -2041,28 +2045,35 @@ function setFinancialsMode(mode) {
 function calculateBalance() {
     const pledgedInput = document.getElementById('edit_total_pledged');
     const paidInput = document.getElementById('edit_total_paid');
-    const balanceDisplay = document.getElementById('edit_balance_display');
+    const balanceInput = document.getElementById('edit_balance');
     const statusSelect = document.getElementById('edit_payment_status');
     const autoStatusCheckbox = document.getElementById('auto_status_checkbox');
     
-    if (pledgedInput && paidInput && balanceDisplay) {
+    if (pledgedInput && paidInput && balanceInput) {
         const pledged = parseFloat(pledgedInput.value) || 0;
         const paid = parseFloat(paidInput.value) || 0;
         const balance = Math.max(0, pledged - paid);
-        balanceDisplay.value = balance.toFixed(2);
+        balanceInput.value = balance.toFixed(2);
         
         // Auto-determine status if checkbox is checked
         if (autoStatusCheckbox && autoStatusCheckbox.checked && statusSelect) {
-            if (pledged === 0 && paid === 0) {
-                statusSelect.value = 'no_pledge';
-            } else if (paid === 0) {
-                statusSelect.value = 'not_started';
-            } else if (paid >= pledged && pledged > 0) {
-                statusSelect.value = 'completed';
-            } else if (paid > 0) {
-                statusSelect.value = 'paying';
-            }
+            updatePaymentStatus(pledged, paid);
         }
+    }
+}
+
+function updatePaymentStatus(pledged, paid) {
+    const statusSelect = document.getElementById('edit_payment_status');
+    if (!statusSelect) return;
+    
+    if (pledged === 0 && paid === 0) {
+        statusSelect.value = 'no_pledge';
+    } else if (paid === 0) {
+        statusSelect.value = 'not_started';
+    } else if (paid >= pledged && pledged > 0) {
+        statusSelect.value = 'completed';
+    } else if (paid > 0) {
+        statusSelect.value = 'paying';
     }
 }
 
