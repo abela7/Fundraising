@@ -39,10 +39,10 @@ if ($search || $selected_donor_id) {
         }
     } elseif ($search) {
         try {
-            // Search by donor details OR pledge notes (reference number)
+            // Search by donor details OR pledge notes (reference number) OR payment references
             $term = "%$search%";
             
-            // Get donor IDs from pledges with matching notes OR payment references
+            // Get donor IDs from pledges with matching notes
             $pledge_donors_sql = "
                 SELECT DISTINCT donor_id FROM pledges WHERE notes LIKE ?
                 UNION
@@ -54,19 +54,41 @@ if ($search || $selected_donor_id) {
             $pledge_donor_ids = [];
             $res = $stmt->get_result();
             while ($row = $res->fetch_assoc()) {
-                $pledge_donor_ids[] = (int)$row['donor_id'];
+                if ($row['donor_id']) {
+                    $pledge_donor_ids[] = (int)$row['donor_id'];
+                }
             }
+            
+            // Get donor IDs from immediate payments (payments table)
+            $payment_donors_sql = "
+                SELECT DISTINCT donor_id FROM payments 
+                WHERE (reference LIKE ? OR donor_name LIKE ? OR donor_phone LIKE ?)
+                AND donor_id IS NOT NULL
+            ";
+            $stmt = $db->prepare($payment_donors_sql);
+            $stmt->bind_param('sss', $term, $term, $term);
+            $stmt->execute();
+            $payment_donor_ids = [];
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                if ($row['donor_id']) {
+                    $payment_donor_ids[] = (int)$row['donor_id'];
+                }
+            }
+            
+            // Combine all donor IDs
+            $all_donor_ids = array_unique(array_merge($pledge_donor_ids, $payment_donor_ids));
             
             // Build donor query
             $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance FROM donors d WHERE ";
             
-            if (!empty($pledge_donor_ids)) {
-                // Search by name/phone/email OR pledge reference
-                $placeholders = implode(',', array_fill(0, count($pledge_donor_ids), '?'));
+            if (!empty($all_donor_ids)) {
+                // Search by name/phone/email OR pledge/payment reference
+                $placeholders = implode(',', array_fill(0, count($all_donor_ids), '?'));
                 $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ? OR d.id IN ($placeholders))";
                 
-                $types = 'sss' . str_repeat('i', count($pledge_donor_ids));
-                $params = array_merge([$term, $term, $term], $pledge_donor_ids);
+                $types = 'sss' . str_repeat('i', count($all_donor_ids));
+                $params = array_merge([$term, $term, $term], $all_donor_ids);
             } else {
                 // Only search by name/phone/email
                 $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
@@ -79,7 +101,6 @@ if ($search || $selected_donor_id) {
             
             // PHP 8.0 compatible binding
             $bind_params = [$types];
-            // Create a separate array for references to ensure stability
             $refs = [];
             foreach ($params as $key => $value) {
                 $refs[$key] = $value;
@@ -90,11 +111,19 @@ if ($search || $selected_donor_id) {
             $stmt->execute();
             $res = $stmt->get_result();
             while ($row = $res->fetch_assoc()) {
+                // Check if donor has pledges or only immediate payments
+                $donor_id = (int)$row['id'];
+                $has_pledges = in_array($donor_id, $pledge_donor_ids);
+                $has_payments = in_array($donor_id, $payment_donor_ids);
+                
+                // Add payment status flag
+                $row['has_pledges'] = $has_pledges;
+                $row['has_immediate_payments'] = $has_payments && !$has_pledges;
+                
                 $donors[] = $row;
             }
         } catch (Exception $e) {
             // Silently fail or log error, but don't crash page
-            // For admin debugging, maybe echo in comment
             echo "<!-- Search Error: " . htmlspecialchars($e->getMessage()) . " -->";
         }
     }
@@ -129,6 +158,24 @@ if ($search || $selected_donor_id) {
             border-color: #0d6efd;
             background: #e7f1ff;
             box-shadow: 0 2px 8px rgba(13,110,253,0.2);
+        }
+        .donor-card.paid-only {
+            border-color: #ffc107;
+            background: #fffbf0;
+        }
+        .donor-payment-notice {
+            font-size: 0.75rem;
+            color: #856404;
+            background: #fff3cd;
+            padding: 0.35rem 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .donor-payment-notice i {
+            font-size: 0.7rem;
         }
         .pledge-row {
             cursor: pointer;
@@ -510,7 +557,7 @@ if ($search || $selected_donor_id) {
                                         </div>
                                     <?php else: ?>
                                         <?php foreach ($donors as $d): ?>
-                                            <div class="donor-card <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?>" 
+                                            <div class="donor-card <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?> <?php echo !empty($d['has_immediate_payments']) ? 'paid-only' : ''; ?>" 
                                                  data-donor-id="<?php echo $d['id']; ?>"
                                                  onclick="selectDonor(<?php echo $d['id']; ?>, '<?php echo addslashes($d['name']); ?>')">
                                                 <div class="d-flex justify-content-between align-items-start">
@@ -519,9 +566,15 @@ if ($search || $selected_donor_id) {
                                                         <div class="small text-muted">
                                                             <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($d['phone']); ?>
                                                         </div>
+                                                        <?php if (!empty($d['has_immediate_payments'])): ?>
+                                                        <div class="donor-payment-notice">
+                                                            <i class="fas fa-info-circle"></i>
+                                                            <span>This donor has already paid (no active pledges)</span>
+                                                        </div>
+                                                        <?php endif; ?>
                                                     </div>
                                                     <div class="flex-shrink-0">
-                                                        <span class="badge bg-danger">£<?php echo number_format($d['balance'], 2); ?></span>
+                                                        <span class="badge bg-<?php echo !empty($d['has_immediate_payments']) ? 'success' : 'danger'; ?>">£<?php echo number_format($d['balance'], 2); ?></span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -713,12 +766,20 @@ function selectDonor(id, name) {
     // Update profile link
     document.getElementById('viewProfileLink').href = `../donor-management/view-donor.php?id=${id}`;
     
-    // Show next button
-    document.getElementById('step1Actions').style.display = 'block';
+    // Check if donor card has paid-only class
+    const donorCard = event.target.closest('.donor-card');
+    const hasOnlyPayments = donorCard && donorCard.classList.contains('paid-only');
+    
+    // Show next button only if donor has pledges
+    if (!hasOnlyPayments) {
+        document.getElementById('step1Actions').style.display = 'block';
+    } else {
+        document.getElementById('step1Actions').style.display = 'none';
+    }
     
     // Highlight selected card
     document.querySelectorAll('.donor-card').forEach(c => c.classList.remove('selected'));
-    event.target.closest('.donor-card').classList.add('selected');
+    donorCard.classList.add('selected');
     
     // Load and show donor history
     loadDonorHistory(id);
