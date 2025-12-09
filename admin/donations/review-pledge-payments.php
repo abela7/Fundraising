@@ -48,12 +48,13 @@ if ($filter === 'pending') {
 }
 
 if (!empty($search)) {
-    $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR pp.reference_number LIKE ?)";
+    $where_conditions[] = "(d.name LIKE ? OR d.phone LIKE ? OR pp.reference_number LIKE ? OR pl.notes LIKE ?)";
     $search_param = "%{$search}%";
     $params[] = $search_param;
     $params[] = $search_param;
     $params[] = $search_param;
-    $types .= 'sss';
+    $params[] = $search_param;
+    $types .= 'ssss';
 }
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
@@ -66,6 +67,7 @@ $count_sql = "
     SELECT COUNT(*) as total
     FROM pledge_payments pp
     LEFT JOIN donors d ON pp.donor_id = d.id
+    LEFT JOIN pledges pl ON pp.pledge_id = pl.id
     {$where_clause}
 ";
 
@@ -736,7 +738,7 @@ function build_url($params) {
                         <input type="hidden" name="filter" value="<?php echo htmlspecialchars($filter); ?>">
                         <div class="flex-grow-1">
                             <input type="text" name="search" class="form-control" 
-                                   placeholder="Search by name, phone, or reference..." 
+                                   placeholder="Search by name, phone, payment reference, or pledge reference..." 
                                    value="<?php echo htmlspecialchars($search); ?>">
                         </div>
                         <button type="submit" class="btn btn-primary">
