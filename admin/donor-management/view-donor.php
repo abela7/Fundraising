@@ -1560,6 +1560,7 @@ function formatDateTime($date) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editPledgeForm" method="POST" action="edit-pledge.php">
+                <?php echo csrf_input(); ?>
                 <input type="hidden" name="pledge_id" id="editPledgeId">
                 <input type="hidden" name="donor_id" id="editPledgeDonorId" value="<?php echo $donor_id; ?>">
                 <div class="modal-body">
@@ -1574,6 +1575,20 @@ function formatDateTime($date) {
                             <option value="approved">Approved</option>
                             <option value="rejected">Rejected</option>
                             <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Registrar</label>
+                        <select class="form-select" name="created_by_user_id" id="editPledgeRegistrar">
+                            <option value="">-- Select Registrar --</option>
+                            <?php
+                            $registrar_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC");
+                            while ($reg = $registrar_query->fetch_assoc()):
+                            ?>
+                            <option value="<?php echo (int)$reg['id']; ?>">
+                                <?php echo htmlspecialchars($reg['name']); ?> (<?php echo htmlspecialchars($reg['role']); ?>)
+                            </option>
+                            <?php endwhile; ?>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -1847,6 +1862,7 @@ function loadPledgeData(pledgeId, donorId) {
                 document.getElementById('editPledgeDonorId').value = donorId;
                 document.getElementById('editPledgeAmount').value = data.pledge.amount || '';
                 document.getElementById('editPledgeStatus').value = data.pledge.status || 'pending';
+                document.getElementById('editPledgeRegistrar').value = data.pledge.created_by_user_id || '';
                 const date = data.pledge.created_at ? new Date(data.pledge.created_at).toISOString().slice(0, 16) : '';
                 document.getElementById('editPledgeDate').value = date;
             }

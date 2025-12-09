@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/audit_helper.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
@@ -29,9 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !$pledge_id || !$donor_id) {
     exit;
 }
 
+// Verify CSRF token
+verify_csrf();
+
 try {
     // Verify pledge exists and belongs to donor
-    $check_stmt = $db->prepare("SELECT id, donor_id, amount FROM pledges WHERE id = ? AND donor_id = ?");
+    $check_stmt = $db->prepare("SELECT id, donor_id, amount, status, created_by_user_id, created_at FROM pledges WHERE id = ? AND donor_id = ?");
     $check_stmt->bind_param('ii', $pledge_id, $donor_id);
     $check_stmt->execute();
     $pledge = $check_stmt->get_result()->fetch_assoc();
@@ -41,6 +45,9 @@ try {
     }
     
     $old_amount = (float)$pledge['amount'];
+    $old_status = $pledge['status'] ?? 'pending';
+    $old_registrar = $pledge['created_by_user_id'];
+    $old_created_at = $pledge['created_at'];
     
     $db->begin_transaction();
     
@@ -80,6 +87,24 @@ try {
         $values[] = $created_at;
     }
     
+    // Handle registrar (created_by_user_id) update
+    if (isset($_POST['created_by_user_id']) && $_POST['created_by_user_id'] !== '') {
+        $new_registrar_id = (int)$_POST['created_by_user_id'];
+        // Verify the user exists and is admin or registrar
+        $user_check = $db->prepare("SELECT id, name, role FROM users WHERE id = ? AND role IN ('admin', 'registrar')");
+        $user_check->bind_param('i', $new_registrar_id);
+        $user_check->execute();
+        $registrar_user = $user_check->get_result()->fetch_assoc();
+        
+        if (!$registrar_user) {
+            throw new Exception("Invalid registrar selected");
+        }
+        
+        $updates[] = "`created_by_user_id` = ?";
+        $types .= 'i';
+        $values[] = $new_registrar_id;
+    }
+    
     if (empty($updates)) {
         throw new Exception("No fields to update");
     }
@@ -98,7 +123,9 @@ try {
     // Get before data for audit
     $beforeData = [
         'amount' => $old_amount,
-        'status' => $pledge['status'] ?? 'pending'
+        'status' => $old_status,
+        'created_by_user_id' => $old_registrar,
+        'created_at' => $old_created_at
     ];
     
     if (!$stmt->execute()) {
@@ -106,15 +133,41 @@ try {
     }
     
     // Get after data for audit
-    $after_stmt = $db->prepare("SELECT amount, status FROM pledges WHERE id = ?");
+    $after_stmt = $db->prepare("SELECT amount, status, created_by_user_id, created_at FROM pledges WHERE id = ?");
     $after_stmt->bind_param('i', $pledge_id);
     $after_stmt->execute();
     $after_data = $after_stmt->get_result()->fetch_assoc();
     $after_stmt->close();
     
+    // Get registrar name for audit clarity
+    $registrar_name_before = null;
+    $registrar_name_after = null;
+    
+    if ($old_registrar) {
+        $reg_stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+        $reg_stmt->bind_param('i', $old_registrar);
+        $reg_stmt->execute();
+        $reg_result = $reg_stmt->get_result()->fetch_assoc();
+        $registrar_name_before = $reg_result['name'] ?? null;
+        $reg_stmt->close();
+    }
+    
+    if ($after_data['created_by_user_id']) {
+        $reg_stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+        $reg_stmt->bind_param('i', $after_data['created_by_user_id']);
+        $reg_stmt->execute();
+        $reg_result = $reg_stmt->get_result()->fetch_assoc();
+        $registrar_name_after = $reg_result['name'] ?? null;
+        $reg_stmt->close();
+    }
+    
     $afterData = [
         'amount' => $after_data['amount'] ?? $old_amount,
-        'status' => $after_data['status'] ?? 'pending'
+        'status' => $after_data['status'] ?? 'pending',
+        'created_by_user_id' => $after_data['created_by_user_id'],
+        'created_at' => $after_data['created_at'],
+        'registrar_name_before' => $registrar_name_before,
+        'registrar_name_after' => $registrar_name_after
     ];
     
     // Audit log
