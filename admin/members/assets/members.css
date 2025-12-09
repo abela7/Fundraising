@@ -183,6 +183,26 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
   border-color: var(--primary);
 }
 
+/* Tablet Responsive */
+@media (max-width: 991.98px) and (min-width: 768px) {
+  .table th,
+  .table td {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .btn-group .btn {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .avatar-circle {
+    width: 38px;
+    height: 38px;
+    font-size: 1.1rem;
+  }
+}
+
 /* Mobile Responsive */
 @media (max-width: 991.98px) {
   .table-responsive {
@@ -196,6 +216,50 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
   .btn-icon {
     width: 44px;
     height: 44px;
+  }
+  
+  /* Header adjustments */
+  .d-flex.justify-content-between {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 1rem;
+  }
+  
+  .d-flex.justify-content-between .btn {
+    width: 100%;
+  }
+  
+  /* Bulk actions bar mobile */
+  #bulkActionsBar {
+    margin-bottom: 1rem;
+  }
+  
+  #bulkActionsBar .card-body {
+    padding: 0.75rem;
+  }
+  
+  #bulkActionsBar .d-flex {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch !important;
+  }
+  
+  #bulkActionsBar .d-flex > div:first-child {
+    text-align: center;
+  }
+  
+  #bulkActionsBar .form-select-sm {
+    width: 100% !important;
+    min-width: auto;
+  }
+  
+  #bulkActionsBar .btn {
+    width: 100%;
+  }
+  
+  #bulkActionsBar .text-muted {
+    font-size: 0.875rem;
+    white-space: nowrap;
   }
 }
 
@@ -214,19 +278,262 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
     border: 1px solid var(--gray-200);
     border-radius: 8px;
     padding: 1rem;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
   
   .table tbody td {
-    display: block;
-    text-align: right;
-    padding: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
     border: none;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  
+  .table tbody td:last-child {
+    border-bottom: none;
+  }
+  
+  .table tbody td:first-child {
+    border-bottom: 2px solid var(--gray-300);
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .table tbody td:first-child::before {
+    content: 'Select';
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+  
+  .table tbody td:not(:first-child)::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+  
+  /* Avatar adjustments */
+  .avatar-circle {
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+  
+  /* Badge adjustments */
+  .badge {
+    font-size: 0.65rem;
+    padding: 0.4rem 0.6rem;
+  }
+  
+  /* Button group mobile */
+  .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-group .btn {
+    width: 100%;
+    margin-bottom: 0.25rem;
+    border-radius: 6px !important;
+  }
+  
+  .btn-group .btn:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Header mobile */
+  h1.h3 {
+    font-size: 1.25rem;
+  }
+  
+  /* Card padding mobile */
+  .card-body {
+    padding: 1rem !important;
+  }
+  
+  /* Modal mobile */
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .table tbody td {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
   
   .table tbody td::before {
-    content: attr(data-label);
-    float: left;
-    font-weight: 600;
-    color: var(--gray-600);
+    margin-right: 0;
+  }
+  
+  .table tbody td.text-end {
+    text-align: left !important;
+  }
+  
+  /* Contact info mobile */
+  .table tbody td > div {
+    width: 100%;
+  }
+  
+  /* Bulk actions mobile */
+  #bulkActionsBar {
+    margin-bottom: 0.75rem;
+  }
+  
+  #bulkActionsBar .card-body {
+    padding: 0.75rem;
+  }
+  
+  #bulkActionsBar .d-flex {
+    gap: 0.5rem;
+  }
+  
+  #bulkActionsBar .btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  #bulkActionsBar .form-select-sm {
+    font-size: 0.875rem;
+    padding: 0.5rem;
+  }
+  
+  /* Avatar smaller on very small screens */
+  .avatar-circle {
+    width: 30px;
+    height: 30px;
+    font-size: 0.875rem;
+  }
+  
+  /* Smaller text */
+  .table tbody td {
+    font-size: 0.8rem;
+  }
+  
+  small {
+    font-size: 0.7rem;
+  }
+  
+  /* Header mobile */
+  .d-flex.justify-content-between h1 {
+    font-size: 1.1rem;
+  }
+  
+  .d-flex.justify-content-between p {
+    font-size: 0.85rem;
+  }
+  
+  /* Card mobile */
+  .card {
+    border-radius: 8px;
+  }
+  
+  /* Button group stack vertically */
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .btn-group .btn {
+    border-radius: 6px !important;
+    margin-bottom: 0.25rem;
+  }
+  
+  .btn-group .btn:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Table card mobile */
+  .table-responsive {
+    overflow-x: visible;
+  }
+  
+  /* Checkbox mobile */
+  .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  /* User info mobile */
+  .table tbody td .d-flex {
+    flex-wrap: wrap;
+  }
+  
+  .table tbody td .d-flex .avatar-circle {
+    margin-right: 0.75rem !important;
+  }
+  
+  /* Actions column mobile */
+  .table tbody td[data-label="Actions"] {
+    width: 100%;
+    padding-top: 1rem;
+  }
+  
+  .table tbody td[data-label="Actions"] .btn-group {
+    width: 100%;
+  }
+  
+  /* Status badges mobile */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+  
+  /* Contact info mobile layout */
+  .table tbody td[data-label="Contact"] > div > div {
+    margin-bottom: 0.25rem;
+  }
+  
+  .table tbody td[data-label="Contact"] > div > div:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Modal mobile */
+  .modal-dialog {
+    margin: 0.25rem;
+  }
+  
+  .modal-content {
+    border-radius: 12px;
+  }
+  
+  .modal-header {
+    padding: 1rem;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+  }
+  
+  .modal-footer {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .modal-footer .btn:last-child {
+    margin-bottom: 0;
   }
 }

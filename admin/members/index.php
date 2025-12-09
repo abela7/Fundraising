@@ -349,13 +349,13 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
       <?php endif; ?>
 
       <!-- Members Header -->
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
           <h1 class="h3 mb-1">Members Management</h1>
           <p class="text-muted mb-0">Manage admin and registrar users</p>
         </div>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
-          <i class="fas fa-user-plus me-2"></i>Add New Member
+          <i class="fas fa-user-plus me-2"></i><span class="d-none d-sm-inline">Add New Member</span><span class="d-inline d-sm-none">Add</span>
         </button>
       </div>
 
@@ -414,7 +414,7 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
                            value="<?php echo (int)$r['id']; ?>" 
                            onchange="updateBulkActionsBar()">
                   </td>
-                  <td data-bs-toggle="tooltip" title="Click to view member details">
+                  <td data-label="User" data-bs-toggle="tooltip" title="Click to view member details">
                     <div class="d-flex align-items-center">
                       <div class="avatar-circle me-3">
                         <?php echo strtoupper(substr($r['name'], 0, 1)); ?>
@@ -425,19 +425,19 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Contact">
                     <div>
                       <div><i class="fas fa-phone text-muted me-1"></i> <?php echo htmlspecialchars($r['phone']); ?></div>
                       <small class="text-muted"><i class="fas fa-envelope me-1"></i> <?php echo htmlspecialchars($r['email']); ?></small>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Role">
                     <span class="badge rounded-pill bg-<?php echo $r['role']==='admin'?'primary':'info'; ?>">
                       <i class="fas fa-<?php echo $r['role']==='admin'?'crown':'user'; ?> me-1"></i>
                       <?php echo ucfirst($r['role']); ?>
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <?php if ((int)$r['active'] === 1): ?>
                       <span class="badge rounded-pill bg-success-subtle text-success">
                         <i class="fas fa-check-circle me-1"></i>Active
@@ -448,10 +448,10 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
                       </span>
                     <?php endif; ?>
                   </td>
-                  <td>
+                  <td data-label="Joined">
                     <small class="text-muted"><?php echo date('M d, Y', strtotime($r['created_at'])); ?></small>
                   </td>
-                  <td class="text-end" onclick="event.stopPropagation();">
+                  <td class="text-end" data-label="Actions" onclick="event.stopPropagation();">
                     <div class="btn-group" role="group">
                       <button type="button" class="btn btn-sm btn-light" 
                               onclick="event.stopPropagation(); editMember(<?php echo htmlspecialchars(json_encode($r)); ?>)"
