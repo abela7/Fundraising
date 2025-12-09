@@ -29,12 +29,19 @@ $donors = [];
 if ($search || $selected_donor_id) {
     if ($selected_donor_id) {
         // Direct donor ID lookup
-        $query = "SELECT id, name, phone, email, balance FROM donors WHERE id = ?";
+        $query = "SELECT id, name, phone, email, balance, total_paid, total_pledged FROM donors WHERE id = ?";
         $stmt = $db->prepare($query);
         $stmt->bind_param('i', $selected_donor_id);
         $stmt->execute();
         $res = $stmt->get_result();
         while ($row = $res->fetch_assoc()) {
+            // Check if donor has pledges
+            $check_pledges = $db->prepare("SELECT COUNT(*) as count FROM pledges WHERE donor_id = ?");
+            $check_pledges->bind_param('i', $row['id']);
+            $check_pledges->execute();
+            $pledge_result = $check_pledges->get_result()->fetch_assoc();
+            $row['has_pledges'] = ($pledge_result['count'] ?? 0) > 0;
+            $row['has_immediate_payments'] = (float)$row['total_paid'] > 0 && !$row['has_pledges'];
             $donors[] = $row;
         }
     } elseif ($search) {
@@ -80,7 +87,7 @@ if ($search || $selected_donor_id) {
             $all_donor_ids = array_unique(array_merge($pledge_donor_ids, $payment_donor_ids));
             
             // Build donor query
-            $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance FROM donors d WHERE ";
+            $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance, d.total_paid, d.total_pledged FROM donors d WHERE ";
             
             if (!empty($all_donor_ids)) {
                 // Search by name/phone/email OR pledge/payment reference
@@ -557,7 +564,13 @@ if ($search || $selected_donor_id) {
                                         </div>
                                     <?php else: ?>
                                         <?php foreach ($donors as $d): ?>
-                                            <div class="donor-card <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?> <?php echo !empty($d['has_immediate_payments']) ? 'paid-only' : ''; ?>" 
+                                            <?php 
+                                            $has_only_payments = !empty($d['has_immediate_payments']);
+                                            $display_amount = $has_only_payments ? (float)($d['total_paid'] ?? 0) : (float)($d['balance'] ?? 0);
+                                            $badge_color = $has_only_payments ? 'success' : 'danger';
+                                            $badge_label = $has_only_payments ? 'Paid' : 'Balance';
+                                            ?>
+                                            <div class="donor-card <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?> <?php echo $has_only_payments ? 'paid-only' : ''; ?>" 
                                                  data-donor-id="<?php echo $d['id']; ?>"
                                                  onclick="selectDonor(<?php echo $d['id']; ?>, '<?php echo addslashes($d['name']); ?>')">
                                                 <div class="d-flex justify-content-between align-items-start">
@@ -566,15 +579,18 @@ if ($search || $selected_donor_id) {
                                                         <div class="small text-muted">
                                                             <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($d['phone']); ?>
                                                         </div>
-                                                        <?php if (!empty($d['has_immediate_payments'])): ?>
+                                                        <?php if ($has_only_payments): ?>
                                                         <div class="donor-payment-notice">
                                                             <i class="fas fa-info-circle"></i>
                                                             <span>This donor has already paid (no active pledges)</span>
                                                         </div>
                                                         <?php endif; ?>
                                                     </div>
-                                                    <div class="flex-shrink-0">
-                                                        <span class="badge bg-<?php echo !empty($d['has_immediate_payments']) ? 'success' : 'danger'; ?>">£<?php echo number_format($d['balance'], 2); ?></span>
+                                                    <div class="flex-shrink-0 text-end">
+                                                        <div class="badge bg-<?php echo $badge_color; ?>">£<?php echo number_format($display_amount, 2); ?></div>
+                                                        <?php if ($has_only_payments): ?>
+                                                        <div class="small text-muted mt-1" style="font-size: 0.7rem;">Paid</div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
                                             </div>
