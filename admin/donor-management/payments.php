@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_login();
 
 // Allow both admin and registrar access
@@ -19,6 +20,81 @@ $page_title = 'Payment Management';
 $current_user = current_user();
 $db = db();
 $is_admin = ($current_user['role'] ?? '') === 'admin';
+
+// Handle DELETE payment request (admin only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_payment' && $is_admin) {
+    verify_csrf();
+    $payment_id = (int)($_POST['payment_id'] ?? 0);
+    
+    if ($payment_id > 0) {
+        try {
+            $db->begin_transaction();
+            
+            // Get payment details before deletion for audit
+            $stmt = $db->prepare("
+                SELECT pp.*, d.name as donor_name, d.phone as donor_phone, pl.notes as pledge_notes
+                FROM pledge_payments pp
+                LEFT JOIN donors d ON pp.donor_id = d.id
+                LEFT JOIN pledges pl ON pp.pledge_id = pl.id
+                WHERE pp.id = ?
+            ");
+            $stmt->bind_param('i', $payment_id);
+            $stmt->execute();
+            $payment = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            if (!$payment) {
+                throw new Exception("Payment not found");
+            }
+            
+            // Only allow deletion of voided payments for safety
+            if ($payment['status'] !== 'voided') {
+                throw new Exception("Only voided payments can be deleted. Please void the payment first.");
+            }
+            
+            // Delete the payment
+            $delete_stmt = $db->prepare("DELETE FROM pledge_payments WHERE id = ?");
+            $delete_stmt->bind_param('i', $payment_id);
+            $delete_stmt->execute();
+            $delete_stmt->close();
+            
+            // Audit log the deletion
+            log_audit(
+                $db,
+                'delete',
+                'pledge_payment',
+                $payment_id,
+                [
+                    'id' => $payment['id'],
+                    'donor_id' => $payment['donor_id'],
+                    'donor_name' => $payment['donor_name'],
+                    'donor_phone' => $payment['donor_phone'],
+                    'pledge_id' => $payment['pledge_id'],
+                    'amount' => $payment['amount'],
+                    'payment_method' => $payment['payment_method'],
+                    'payment_date' => $payment['payment_date'],
+                    'reference_number' => $payment['reference_number'],
+                    'status' => $payment['status'],
+                    'notes' => $payment['notes']
+                ],
+                ['deleted' => true, 'reason' => 'Voided payment removed by admin'],
+                'admin_portal',
+                (int)$current_user['id']
+            );
+            
+            $db->commit();
+            
+            // Redirect with success message
+            header('Location: payments.php?success=' . urlencode('Payment #' . $payment_id . ' deleted successfully'));
+            exit;
+            
+        } catch (Exception $e) {
+            $db->rollback();
+            header('Location: payments.php?error=' . urlencode($e->getMessage()));
+            exit;
+        }
+    }
+}
 
 $success_message = '';
 $error_message = '';
@@ -617,6 +693,20 @@ if (empty($error_message)) {
                     </div>
                 <?php endif; ?>
                 
+                <?php if (!empty($_GET['success'])): ?>
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($_GET['success']); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (!empty($_GET['error'])): ?>
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($_GET['error']); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+                
                 <!-- Page Header -->
                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                     <div>
@@ -1097,6 +1187,16 @@ if (empty($error_message)) {
                 </div>
             </div>
             <div class="modal-footer bg-light">
+                <?php if ($is_admin): ?>
+                <form method="POST" id="deletePaymentForm" class="d-inline" onsubmit="return confirmDeletePayment()">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="action" value="delete_payment">
+                    <input type="hidden" name="payment_id" id="delete_payment_id" value="">
+                    <button type="submit" class="btn btn-danger" id="modal_delete_btn" style="display: none;">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </form>
+                <?php endif; ?>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <a href="#" id="modal_view_donor_btn" class="btn btn-primary">
                     <i class="fas fa-user me-1"></i>View Donor
@@ -1200,8 +1300,36 @@ function showPaymentDetail(element) {
     // View donor button
     document.getElementById('modal_view_donor_btn').href = 'view-donor.php?id=' + payment.donor_id;
     
+    // Delete button - only show for voided payments (admin only)
+    const deleteBtn = document.getElementById('modal_delete_btn');
+    const deletePaymentId = document.getElementById('delete_payment_id');
+    if (deleteBtn && deletePaymentId) {
+        if (payment.status === 'voided') {
+            deleteBtn.style.display = 'inline-block';
+            deletePaymentId.value = payment.id;
+        } else {
+            deleteBtn.style.display = 'none';
+            deletePaymentId.value = '';
+        }
+    }
+    
     // Show modal
     new bootstrap.Modal(document.getElementById('paymentDetailModal')).show();
+}
+
+// Confirm delete payment
+function confirmDeletePayment() {
+    const paymentId = document.getElementById('delete_payment_id').value;
+    const donorName = document.getElementById('modal_donor_name').textContent;
+    const amount = document.getElementById('modal_amount').textContent;
+    
+    return confirm(
+        'Are you sure you want to permanently delete this payment?\n\n' +
+        'Payment #' + paymentId + '\n' +
+        'Donor: ' + donorName + '\n' +
+        'Amount: ' + amount + '\n\n' +
+        'This action cannot be undone, but will be recorded in the audit log.'
+    );
 }
 
 // Fallback for sidebar toggle
