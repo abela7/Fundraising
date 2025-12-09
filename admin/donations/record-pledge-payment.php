@@ -211,6 +211,16 @@ if ($search || $selected_donor_id) {
             font-size: 0.9rem;
             font-weight: 600;
             color: #333;
+            flex: 1;
+        }
+        .history-header .btn-outline-primary {
+            border-width: 1px;
+            font-weight: 500;
+        }
+        .history-header .btn-outline-primary:hover {
+            background: #1976d2;
+            border-color: #1976d2;
+            color: white;
         }
         .history-summary {
             display: flex;
@@ -404,6 +414,13 @@ if ($search || $selected_donor_id) {
             .history-header h6 {
                 font-size: 0.8rem;
             }
+            .history-header .btn-outline-primary {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.4rem;
+            }
+            .history-header .btn-outline-primary i {
+                margin-right: 0.25rem;
+            }
             .history-summary {
                 gap: 0.5rem;
             }
@@ -515,9 +532,14 @@ if ($search || $selected_donor_id) {
                                 <div id="donorHistoryContainer" class="donor-history-container" style="display: none;">
                                     <div class="history-header">
                                         <h6><span id="historyDonorName">Donor</span>'s History</h6>
-                                        <button type="button" class="btn btn-sm btn-link text-muted p-0" onclick="hideHistory()">
-                                            <i class="fas fa-times"></i>
-                                        </button>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <a href="#" id="viewProfileLink" class="btn btn-sm btn-outline-primary" target="_blank" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                                <i class="fas fa-user me-1"></i>Profile
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-link text-muted p-0" onclick="hideHistory()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     
                                     <!-- Dynamic Summary Pills - Only shows relevant data -->
@@ -686,6 +708,9 @@ function selectDonor(id, name) {
     document.getElementById('selectedDonorName').textContent = name;
     document.getElementById('selectedDonorNameTop').textContent = name;
     document.getElementById('historyDonorName').textContent = name;
+    
+    // Update profile link
+    document.getElementById('viewProfileLink').href = `../donor-management/view-donor.php?id=${id}`;
     
     // Show next button
     document.getElementById('step1Actions').style.display = 'block';
