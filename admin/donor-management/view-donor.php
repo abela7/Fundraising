@@ -561,7 +561,7 @@ function formatDateTime($date) {
                         </div>
                     </div>
                     
-                    <div class="d-flex gap-3 flex-wrap">
+                    <div class="d-flex gap-3 flex-wrap align-items-center">
                         <div class="stat-badge">
                             <span class="stat-value text-warning"><?php echo formatMoney($donor['total_pledged']); ?></span>
                             <span class="stat-label">Pledged</span>
@@ -574,6 +574,9 @@ function formatDateTime($date) {
                             <span class="stat-value text-danger"><?php echo formatMoney($donor['balance']); ?></span>
                             <span class="stat-label">Balance</span>
                         </div>
+                        <button type="button" class="btn btn-sm btn-outline-warning ms-2" data-bs-toggle="modal" data-bs-target="#editFinancialModal" title="Edit Financial Summary">
+                            <i class="fas fa-edit"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -1411,6 +1414,151 @@ function formatDateTime($date) {
     </div>
 </div>
 
+<!-- Edit Financial Summary Modal -->
+<div class="modal fade" id="editFinancialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning bg-opacity-10">
+                <h5 class="modal-title"><i class="fas fa-calculator me-2 text-warning"></i>Edit Financial Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editFinancialForm" method="POST" action="edit-financial.php">
+                <?php echo csrf_input(); ?>
+                <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small>You can manually adjust the totals or click "Recalculate" to compute from actual pledges and payments.</small>
+                    </div>
+                    
+                    <!-- Current Values Display -->
+                    <div class="row mb-3">
+                        <div class="col-4 text-center">
+                            <small class="text-muted d-block">Current Pledged</small>
+                            <strong class="text-warning"><?php echo formatMoney($donor['total_pledged']); ?></strong>
+                        </div>
+                        <div class="col-4 text-center">
+                            <small class="text-muted d-block">Current Paid</small>
+                            <strong class="text-success"><?php echo formatMoney($donor['total_paid']); ?></strong>
+                        </div>
+                        <div class="col-4 text-center">
+                            <small class="text-muted d-block">Current Balance</small>
+                            <strong class="text-danger"><?php echo formatMoney($donor['balance']); ?></strong>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Edit Mode Selection -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Update Method</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="update_method" id="method_recalculate" value="recalculate" checked>
+                            <label class="form-check-label" for="method_recalculate">
+                                <i class="fas fa-sync-alt text-primary me-1"></i> Recalculate from Database
+                                <small class="text-muted d-block">Compute totals from actual approved pledges and payments</small>
+                            </label>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" name="update_method" id="method_manual" value="manual">
+                            <label class="form-check-label" for="method_manual">
+                                <i class="fas fa-edit text-warning me-1"></i> Manual Override
+                                <small class="text-muted d-block">Manually set the values (use with caution)</small>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Input Fields (hidden by default) -->
+                    <div id="manualInputSection" style="display: none;">
+                        <hr>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Total Pledged (£)</label>
+                                <input type="number" class="form-control" name="total_pledged" id="editTotalPledged" step="0.01" min="0" value="<?php echo number_format((float)$donor['total_pledged'], 2, '.', ''); ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Total Paid (£)</label>
+                                <input type="number" class="form-control" name="total_paid" id="editTotalPaid" step="0.01" min="0" value="<?php echo number_format((float)$donor['total_paid'], 2, '.', ''); ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Balance (£)</label>
+                                <input type="number" class="form-control" name="balance" id="editBalance" step="0.01" min="0" value="<?php echo number_format((float)$donor['balance'], 2, '.', ''); ?>">
+                                <small class="text-muted">Auto-calculated: Pledged - Paid</small>
+                            </div>
+                        </div>
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" name="auto_calc_balance" id="autoCalcBalance" checked>
+                            <label class="form-check-label" for="autoCalcBalance">
+                                Auto-calculate balance (Pledged - Paid)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Database Summary -->
+                    <div id="recalculateInfo" class="mt-3">
+                        <hr>
+                        <h6 class="mb-2"><i class="fas fa-database me-2"></i>Database Values</h6>
+                        <?php
+                        // Calculate actual values from database
+                        $calc_pledged = 0;
+                        $calc_paid = 0;
+                        
+                        // Sum approved pledges
+                        $pledge_sum = $db->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM pledges WHERE donor_id = ? AND status = 'approved'");
+                        $pledge_sum->bind_param('i', $donor_id);
+                        $pledge_sum->execute();
+                        $calc_pledged = (float)$pledge_sum->get_result()->fetch_assoc()['total'];
+                        
+                        // Sum approved payments from payments table
+                        $payment_sum1 = $db->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE donor_id = ? AND status = 'approved'");
+                        $payment_sum1->bind_param('i', $donor_id);
+                        $payment_sum1->execute();
+                        $paid_from_payments = (float)$payment_sum1->get_result()->fetch_assoc()['total'];
+                        
+                        // Sum confirmed payments from pledge_payments table
+                        $payment_sum2 = $db->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM pledge_payments WHERE donor_id = ? AND status = 'confirmed'");
+                        $payment_sum2->bind_param('i', $donor_id);
+                        $payment_sum2->execute();
+                        $paid_from_pledge_payments = (float)$payment_sum2->get_result()->fetch_assoc()['total'];
+                        
+                        $calc_paid = $paid_from_payments + $paid_from_pledge_payments;
+                        $calc_balance = max(0, $calc_pledged - $calc_paid);
+                        ?>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="p-2 bg-warning bg-opacity-10 rounded">
+                                    <small class="text-muted d-block">Approved Pledges</small>
+                                    <strong>£<?php echo number_format($calc_pledged, 2); ?></strong>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-success bg-opacity-10 rounded">
+                                    <small class="text-muted d-block">Approved Payments</small>
+                                    <strong>£<?php echo number_format($calc_paid, 2); ?></strong>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-danger bg-opacity-10 rounded">
+                                    <small class="text-muted d-block">Calculated Balance</small>
+                                    <strong>£<?php echo number_format($calc_balance, 2); ?></strong>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Payments: £<?php echo number_format($paid_from_payments, 2); ?> (instant) + £<?php echo number_format($paid_from_pledge_payments, 2); ?> (pledge payments)
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update Financial Summary</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Edit Assignment Modal -->
 <div class="modal fade" id="editAssignmentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -1619,6 +1767,46 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Financial Summary Modal - Toggle manual input section
+    const methodRecalculate = document.getElementById('method_recalculate');
+    const methodManual = document.getElementById('method_manual');
+    const manualInputSection = document.getElementById('manualInputSection');
+    const recalculateInfo = document.getElementById('recalculateInfo');
+    
+    if (methodRecalculate && methodManual && manualInputSection) {
+        methodRecalculate.addEventListener('change', function() {
+            if (this.checked) {
+                manualInputSection.style.display = 'none';
+                if (recalculateInfo) recalculateInfo.style.display = 'block';
+            }
+        });
+        
+        methodManual.addEventListener('change', function() {
+            if (this.checked) {
+                manualInputSection.style.display = 'block';
+                if (recalculateInfo) recalculateInfo.style.display = 'none';
+            }
+        });
+    }
+    
+    // Auto-calculate balance when pledged or paid changes
+    const editTotalPledged = document.getElementById('editTotalPledged');
+    const editTotalPaid = document.getElementById('editTotalPaid');
+    const editBalance = document.getElementById('editBalance');
+    const autoCalcBalance = document.getElementById('autoCalcBalance');
+    
+    function calculateBalance() {
+        if (autoCalcBalance && autoCalcBalance.checked && editTotalPledged && editTotalPaid && editBalance) {
+            const pledged = parseFloat(editTotalPledged.value) || 0;
+            const paid = parseFloat(editTotalPaid.value) || 0;
+            editBalance.value = Math.max(0, pledged - paid).toFixed(2);
+        }
+    }
+    
+    if (editTotalPledged) editTotalPledged.addEventListener('input', calculateBalance);
+    if (editTotalPaid) editTotalPaid.addEventListener('input', calculateBalance);
+    if (autoCalcBalance) autoCalcBalance.addEventListener('change', calculateBalance);
 });
 
 function loadRepresentatives(churchId) {
