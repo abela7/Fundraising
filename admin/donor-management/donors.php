@@ -715,9 +715,9 @@ unset($donor); // Break reference
                                     </div>
                                 </form>
                                 <button class="btn btn-sm btn-outline-secondary" id="toggleFilter" type="button">
-                                    <i class="fas fa-filter me-1"></i>Filters
-                                    <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
-                                </button>
+                                <i class="fas fa-filter me-1"></i>Filters
+                                <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
+                            </button>
                             </div>
                         </div>
                     </div>
