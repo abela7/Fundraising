@@ -75,34 +75,50 @@ $sqmDisplay = formatSqm((float)$sqm);
         .certificate {
             width: 850px;
             height: 550px;
-            background-color: #0d7a7a;
-            /* Diagonal line pattern overlay */
-            background-image: 
-                repeating-linear-gradient(
-                    135deg,
-                    transparent,
-                    transparent 2px,
-                    rgba(255, 255, 255, 0.03) 2px,
-                    rgba(255, 255, 255, 0.03) 4px
-                ),
-                repeating-linear-gradient(
-                    45deg,
-                    transparent,
-                    transparent 2px,
-                    rgba(0, 0, 0, 0.03) 2px,
-                    rgba(0, 0, 0, 0.03) 4px
-                ),
-                linear-gradient(
-                    160deg,
-                    #0a6b6b 0%,
-                    #0d7d7d 30%,
-                    #109090 50%,
-                    #0d7d7d 70%,
-                    #0a6b6b 100%
-                );
+            background-color: #0e7f8c;
             position: relative;
             overflow: hidden;
             font-family: 'Inter', sans-serif;
+        }
+
+        /* Geometric arrow/chevron background pattern */
+        .certificate::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                /* Top triangle - lighter teal */
+                linear-gradient(
+                    to bottom right,
+                    #1a9a9a 0%,
+                    #1a9a9a 50%,
+                    transparent 50%
+                ),
+                /* Base color */
+                #0e7f8c;
+            clip-path: polygon(0 0, 45% 0, 60% 55%, 0 100%);
+            z-index: 0;
+        }
+
+        .certificate::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            /* Bottom angled section - slightly different shade */
+            background: #148a8a;
+            clip-path: polygon(0 45%, 45% 45%, 60% 100%, 0 100%);
+            z-index: 0;
+        }
+
+        .certificate-content {
+            position: relative;
+            z-index: 1;
         }
 
         /* Top Amharic Quote - small yellow text at very top */
@@ -376,6 +392,7 @@ $sqmDisplay = formatSqm((float)$sqm);
     <!-- Certificate -->
     <div class="certificate-wrapper">
         <div class="certificate" id="certificate">
+            <div class="certificate-content">
             
             <!-- Top Amharic Quote -->
             <div class="top-quote">
@@ -433,6 +450,7 @@ $sqmDisplay = formatSqm((float)$sqm);
                     </div>
                 </div>
             </div>
+            </div><!-- /certificate-content -->
         </div>
     </div>
 
