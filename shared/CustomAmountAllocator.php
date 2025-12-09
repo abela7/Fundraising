@@ -358,7 +358,8 @@ class CustomAmountAllocator {
             }
             
             // Rule 2: £100+ = allocate appropriate cells
-            $allocationResult = $this->allocateAppropriateCells(null, $amount, $donorName, $status, $paymentId);
+            // Note: 5th param is allocationBatchId, 6th param is paymentId
+            $allocationResult = $this->allocateAppropriateCells(null, $amount, $donorName, $status, $allocationBatchId, $paymentId);
             
             $this->db->commit();
             
