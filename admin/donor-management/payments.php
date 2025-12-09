@@ -21,6 +21,152 @@ $current_user = current_user();
 $db = db();
 $is_admin = ($current_user['role'] ?? '') === 'admin';
 
+// Handle UPDATE payment request (admin only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_payment' && $is_admin) {
+    verify_csrf();
+    $payment_id = (int)($_POST['payment_id'] ?? 0);
+    
+    if ($payment_id > 0) {
+        try {
+            $db->begin_transaction();
+            
+            // Get payment details before update for audit
+            $stmt = $db->prepare("
+                SELECT pp.*, d.name as donor_name, d.phone as donor_phone
+                FROM pledge_payments pp
+                LEFT JOIN donors d ON pp.donor_id = d.id
+                WHERE pp.id = ?
+            ");
+            $stmt->bind_param('i', $payment_id);
+            $stmt->execute();
+            $payment = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            if (!$payment) {
+                throw new Exception("Payment not found");
+            }
+            
+            $beforeData = [
+                'payment_date' => $payment['payment_date'],
+                'approved_by_user_id' => $payment['approved_by_user_id'],
+                'notes' => $payment['notes'],
+                'payment_proof' => $payment['payment_proof']
+            ];
+            
+            $updates = [];
+            $types = '';
+            $values = [];
+            
+            // Update payment date
+            if (isset($_POST['payment_date']) && !empty($_POST['payment_date'])) {
+                $payment_date = trim($_POST['payment_date']);
+                if (!strtotime($payment_date)) {
+                    throw new Exception("Invalid payment date format");
+                }
+                $updates[] = "payment_date = ?";
+                $types .= 's';
+                $values[] = $payment_date;
+            }
+            
+            // Update approved by
+            if (isset($_POST['approved_by_user_id'])) {
+                $approved_by = !empty($_POST['approved_by_user_id']) ? (int)$_POST['approved_by_user_id'] : null;
+                $updates[] = "approved_by_user_id = ?";
+                $types .= 'i';
+                $values[] = $approved_by;
+            }
+            
+            // Update notes
+            if (isset($_POST['notes'])) {
+                $notes = trim($_POST['notes']);
+                $updates[] = "notes = ?";
+                $types .= 's';
+                $values[] = $notes;
+            }
+            
+            // Handle payment proof upload
+            if (isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK) {
+                $upload_dir = __DIR__ . '/../../uploads/payment_proofs/';
+                if (!is_dir($upload_dir)) {
+                    @mkdir($upload_dir, 0755, true);
+                }
+                
+                $file_ext = strtolower(pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION));
+                $allowed_exts = ['jpg', 'jpeg', 'png', 'pdf'];
+                if (!in_array($file_ext, $allowed_exts)) {
+                    throw new Exception("Invalid file type. Allowed: " . implode(', ', $allowed_exts));
+                }
+                
+                $new_filename = 'proof_' . $payment_id . '_' . time() . '.' . $file_ext;
+                $upload_path = $upload_dir . $new_filename;
+                
+                if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $upload_path)) {
+                    // Delete old proof if exists
+                    if (!empty($payment['payment_proof'])) {
+                        $old_path = __DIR__ . '/../../' . $payment['payment_proof'];
+                        if (file_exists($old_path)) {
+                            @unlink($old_path);
+                        }
+                    }
+                    
+                    $proof_path = 'uploads/payment_proofs/' . $new_filename;
+                    $updates[] = "payment_proof = ?";
+                    $types .= 's';
+                    $values[] = $proof_path;
+                } else {
+                    throw new Exception("Failed to upload payment proof");
+                }
+            }
+            
+            if (!empty($updates)) {
+                $updates[] = "updated_at = NOW()";
+                $sql = "UPDATE pledge_payments SET " . implode(', ', $updates) . " WHERE id = ?";
+                $types .= 'i';
+                $values[] = $payment_id;
+                
+                $update_stmt = $db->prepare($sql);
+                $update_stmt->bind_param($types, ...$values);
+                $update_stmt->execute();
+                $update_stmt->close();
+                
+                // Get after data for audit
+                $after_stmt = $db->prepare("SELECT payment_date, approved_by_user_id, notes, payment_proof FROM pledge_payments WHERE id = ?");
+                $after_stmt->bind_param('i', $payment_id);
+                $after_stmt->execute();
+                $after_data = $after_stmt->get_result()->fetch_assoc();
+                $after_stmt->close();
+                
+                // Audit log
+                log_audit(
+                    $db,
+                    'update',
+                    'pledge_payment',
+                    $payment_id,
+                    $beforeData,
+                    [
+                        'payment_date' => $after_data['payment_date'],
+                        'approved_by_user_id' => $after_data['approved_by_user_id'],
+                        'notes' => $after_data['notes'],
+                        'payment_proof' => $after_data['payment_proof']
+                    ],
+                    'admin_portal',
+                    (int)$current_user['id']
+                );
+            }
+            
+            $db->commit();
+            
+            header('Location: payments.php?success=' . urlencode('Payment #' . $payment_id . ' updated successfully'));
+            exit;
+            
+        } catch (Exception $e) {
+            $db->rollback();
+            header('Location: payments.php?error=' . urlencode($e->getMessage()));
+            exit;
+        }
+    }
+}
+
 // Handle DELETE payment request (admin only)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_payment' && $is_admin) {
     verify_csrf();
@@ -299,6 +445,17 @@ if (empty($error_message)) {
         
     } catch (Exception $e) {
         $error_message = "Error loading payments: " . $e->getMessage();
+    }
+}
+
+// Get list of users (for approved_by dropdown in edit modal)
+$users_list = [];
+if ($is_admin && empty($error_message)) {
+    $users_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC");
+    if ($users_query) {
+        while ($user_row = $users_query->fetch_assoc()) {
+            $users_list[] = $user_row;
+        }
     }
 }
 
@@ -1000,17 +1157,7 @@ if (empty($error_message)) {
                                 </div>
                                 
                                 <div class="payment-card-footer">
-                                    <div>
-                                        <?php 
-                                        // Show pledge notes (4-digit ref) if available, otherwise payment reference
-                                        $display_ref = $payment['pledge_notes'] ?? $payment['reference_number'] ?? '';
-                                        if (!empty($display_ref)): ?>
-                                            <code class="small text-muted"><?php echo htmlspecialchars(substr($display_ref, 0, 20)); ?></code>
-                                        <?php else: ?>
-                                            <span class="text-muted small">No reference</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex gap-2 ms-auto">
                                         <?php if (!empty($payment['payment_proof'])): ?>
                                             <button type="button" class="action-btn proof" 
                                                     onclick="event.stopPropagation(); viewProof('../../<?php echo htmlspecialchars($payment['payment_proof']); ?>')"
@@ -1052,7 +1199,6 @@ if (empty($error_message)) {
                                                 <th>Date</th>
                                                 <th>Status</th>
                                                 <th>Plan</th>
-                                                <th>Reference</th>
                                                 <th class="text-end">Actions</th>
                                             </tr>
                                         </thead>
@@ -1108,16 +1254,6 @@ if (empty($error_message)) {
                                                             </span>
                                                         <?php elseif (!empty($payment['has_active_plan'])): ?>
                                                             <span class="plan-indicator">Has Plan</span>
-                                                        <?php else: ?>
-                                                            <span class="text-muted">-</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td>
-                                                        <?php 
-                                                        // Show pledge notes (4-digit ref) if available, otherwise payment reference
-                                                        $display_ref = $payment['pledge_notes'] ?? $payment['reference_number'] ?? '';
-                                                        if (!empty($display_ref)): ?>
-                                                            <code class="small"><?php echo htmlspecialchars(substr($display_ref, 0, 15)); ?></code>
                                                         <?php else: ?>
                                                             <span class="text-muted">-</span>
                                                         <?php endif; ?>
@@ -1290,6 +1426,68 @@ if (empty($error_message)) {
                             <p id="modal_notes" class="mb-0 small">-</p>
                         </div>
                     </div>
+                    
+                    <!-- Edit Form (hidden by default) -->
+                    <?php if ($is_admin): ?>
+                    <div class="col-12" id="modal_edit_section" style="display: none;">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning bg-opacity-10 py-2">
+                                <h6 class="mb-0 small text-warning"><i class="fas fa-edit me-2"></i>Edit Payment Details</h6>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST" id="editPaymentForm" enctype="multipart/form-data">
+                                    <?php echo csrf_input(); ?>
+                                    <input type="hidden" name="action" value="update_payment">
+                                    <input type="hidden" name="payment_id" id="edit_payment_id" value="">
+                                    
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">Payment Date</label>
+                                            <input type="date" class="form-control" name="payment_date" id="edit_payment_date" required>
+                                        </div>
+                                        
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">Approved By</label>
+                                            <select class="form-select" name="approved_by_user_id" id="edit_approved_by">
+                                                <option value="">-- Select Registrar --</option>
+                                                <?php foreach ($users_list as $user): ?>
+                                                    <option value="<?php echo (int)$user['id']; ?>">
+                                                        <?php echo htmlspecialchars($user['name']); ?> (<?php echo htmlspecialchars($user['role']); ?>)
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <label class="form-label small fw-bold">Notes</label>
+                                            <textarea class="form-control" name="notes" id="edit_notes" rows="3" placeholder="Add notes about this payment..."></textarea>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <label class="form-label small fw-bold">Payment Proof</label>
+                                            <input type="file" class="form-control" name="payment_proof" id="edit_payment_proof" accept="image/*,.pdf">
+                                            <small class="text-muted">Allowed: JPG, PNG, PDF. Current proof will be replaced.</small>
+                                            <div id="current_proof_info" class="mt-2 small text-muted" style="display: none;">
+                                                <i class="fas fa-info-circle"></i> Current proof: <span id="current_proof_name"></span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <div class="d-flex gap-2">
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="fas fa-save me-1"></i>Save Changes
+                                                </button>
+                                                <button type="button" class="btn btn-secondary" onclick="toggleEditMode()">
+                                                    <i class="fas fa-times me-1"></i>Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="modal-footer bg-light">
@@ -1302,8 +1500,11 @@ if (empty($error_message)) {
                         <i class="fas fa-trash me-1"></i>Delete
                     </button>
                 </form>
+                <button type="button" class="btn btn-warning" id="modal_edit_btn" onclick="toggleEditMode()">
+                    <i class="fas fa-edit me-1"></i>Edit
+                </button>
                 <?php endif; ?>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modal_close_btn">Close</button>
                 <a href="#" id="modal_view_donor_btn" class="btn btn-primary">
                     <i class="fas fa-user me-1"></i>View Donor
                 </a>
@@ -1429,8 +1630,80 @@ function showPaymentDetail(element) {
         }
     }
     
+    // Populate edit form
+    const editPaymentId = document.getElementById('edit_payment_id');
+    const editPaymentDate = document.getElementById('edit_payment_date');
+    const editApprovedBy = document.getElementById('edit_approved_by');
+    const editNotes = document.getElementById('edit_notes');
+    const currentProofInfo = document.getElementById('current_proof_info');
+    const currentProofName = document.getElementById('current_proof_name');
+    
+    if (editPaymentId) {
+        editPaymentId.value = payment.id;
+        
+        // Set payment date (format YYYY-MM-DD)
+        if (editPaymentDate && payment.payment_date) {
+            const date = new Date(payment.payment_date);
+            editPaymentDate.value = date.toISOString().split('T')[0];
+        }
+        
+        // Set approved by
+        if (editApprovedBy) {
+            editApprovedBy.value = payment.approved_by_user_id || '';
+        }
+        
+        // Set notes
+        if (editNotes) {
+            editNotes.value = payment.notes || '';
+        }
+        
+        // Show current proof info
+        if (payment.payment_proof) {
+            const proofPath = payment.payment_proof;
+            const proofFileName = proofPath.split('/').pop();
+            if (currentProofInfo && currentProofName) {
+                currentProofName.textContent = proofFileName;
+                currentProofInfo.style.display = 'block';
+            }
+        } else if (currentProofInfo) {
+            currentProofInfo.style.display = 'none';
+        }
+    }
+    
+    // Hide edit section initially
+    const editSection = document.getElementById('modal_edit_section');
+    if (editSection) {
+        editSection.style.display = 'none';
+    }
+    
     // Show modal
     new bootstrap.Modal(document.getElementById('paymentDetailModal')).show();
+}
+
+// Toggle edit mode
+function toggleEditMode() {
+    const editSection = document.getElementById('modal_edit_section');
+    const editBtn = document.getElementById('modal_edit_btn');
+    const closeBtn = document.getElementById('modal_close_btn');
+    const viewDonorBtn = document.getElementById('modal_view_donor_btn');
+    
+    if (editSection && editBtn) {
+        if (editSection.style.display === 'none') {
+            editSection.style.display = 'block';
+            editBtn.innerHTML = '<i class="fas fa-times me-1"></i>Cancel Edit';
+            editBtn.classList.remove('btn-warning');
+            editBtn.classList.add('btn-secondary');
+            if (closeBtn) closeBtn.style.display = 'none';
+            if (viewDonorBtn) viewDonorBtn.style.display = 'none';
+        } else {
+            editSection.style.display = 'none';
+            editBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+            editBtn.classList.remove('btn-secondary');
+            editBtn.classList.add('btn-warning');
+            if (closeBtn) closeBtn.style.display = 'inline-block';
+            if (viewDonorBtn) viewDonorBtn.style.display = 'inline-block';
+        }
+    }
 }
 
 // Confirm delete payment
@@ -1447,6 +1720,28 @@ function confirmDeletePayment() {
         'This action cannot be undone, but will be recorded in the audit log.'
     );
 }
+
+// Reset edit mode when modal is closed
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentModal = document.getElementById('paymentDetailModal');
+    if (paymentModal) {
+        paymentModal.addEventListener('hidden.bs.modal', function() {
+            const editSection = document.getElementById('modal_edit_section');
+            const editBtn = document.getElementById('modal_edit_btn');
+            const closeBtn = document.getElementById('modal_close_btn');
+            const viewDonorBtn = document.getElementById('modal_view_donor_btn');
+            
+            if (editSection) editSection.style.display = 'none';
+            if (editBtn) {
+                editBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+                editBtn.classList.remove('btn-secondary');
+                editBtn.classList.add('btn-warning');
+            }
+            if (closeBtn) closeBtn.style.display = 'inline-block';
+            if (viewDonorBtn) viewDonorBtn.style.display = 'inline-block';
+        });
+    }
+});
 
 // Fallback for sidebar toggle
 if (typeof window.toggleSidebar !== 'function') {
