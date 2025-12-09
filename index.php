@@ -5,22 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ! - Liverpool Abune Teklehaymanot EOTC</title>
     
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="ለትውልድ የሚሻገር ትልቅ አሻራ የምናሳርፍበት፣ መንፈሳዊ አገልግሎታችንን በተሟላ ሁኔታ የምናከናውንበት እና ለልጆቻችን ሃይማኖታችንን የምናስተላልፍበት ሕንጻ ቤተ ክርስቲያን ባለቤት ለመሆን እየተጋን ነው።">
-    <meta name="keywords" content="Abune Teklehaymanot, Liverpool Church, Ethiopian Orthodox, Donation, Fundraising, Church Building, Legacy">
-    <meta name="author" content="Liverpool Mekane Kidusan Abune Teklehaymanot EOTC">
-    <meta name="robots" content="index, follow">
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:title" content="የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!">
-    <meta property="og:description" content="የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="Abune-Teklehaymanot.png">
-    
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="የበረከት ተካፋይ እና የታሪክ አካል ይሁኑ!">
-    <meta name="twitter:description" content="የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን ህልም እውን እንዲሆን ያግዙን።">
+    <!-- Block search engines - this is a private system -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="googlebot" content="noindex, nofollow">
     
     <!-- Dependencies -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">

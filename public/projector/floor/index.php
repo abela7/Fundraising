@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<?php include __DIR__ . '/../../../shared/noindex.php'; ?>
 <title>Floor Map - Live Fundraising</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <link rel="icon" type="image/svg+xml" href="../../../assets/favicon.svg">

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php include __DIR__ . '/../../../shared/noindex.php'; ?>
     <title>3D Floor Map - Church Fundraising</title>
     <?php require_once __DIR__ . '/../../shared/url.php'; ?>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(url_for('favicon.ico')) ?>">
