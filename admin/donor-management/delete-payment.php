@@ -4,7 +4,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/audit_helper.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_login();
+require_admin();
 
 // Set timezone
 date_default_timezone_set('Europe/London');
@@ -66,6 +68,9 @@ try {
 // Handle deletion confirmation
 if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        // Verify CSRF token
+        verify_csrf();
+        
         $conn->begin_transaction();
         
         // Step 1: Deallocate floor grid cells if any
@@ -335,7 +340,8 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 </ul>
             </div>
             
-            <form method="POST">
+            <form method="POST" action="delete-payment.php?id=<?php echo $payment_id; ?>&donor_id=<?php echo $donor_id; ?>&confirm=yes">
+                <?php echo csrf_input(); ?>
                 <div class="action-buttons">
                     <a href="view-donor.php?id=<?php echo $donor_id; ?>" class="btn btn-outline-secondary">
                         <i class="fas fa-times me-2"></i>Cancel
