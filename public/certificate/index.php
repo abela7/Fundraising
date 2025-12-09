@@ -15,88 +15,84 @@ declare(strict_types=1);
         }
 
         body {
-            background: #1a1a2e;
+            background: #0b6f7c;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            padding: 24px;
         }
 
-        /* ========== BACKGROUND ONLY ========== */
+        /* Background canvas */
         .certificate {
             width: 850px;
             height: 550px;
             position: relative;
             overflow: hidden;
+            background: #0b6f7c;
+            /* subtle grain/noise */
+            background-image:
+                radial-gradient(circle at 12% 18%, rgba(255,255,255,0.02), transparent 26%),
+                radial-gradient(circle at 88% 12%, rgba(255,255,255,0.02), transparent 22%),
+                radial-gradient(circle at 30% 78%, rgba(0,0,0,0.03), transparent 32%),
+                repeating-linear-gradient(
+                    135deg,
+                    transparent 0,
+                    transparent 8px,
+                    rgba(255,255,255,0.015) 8px,
+                    rgba(255,255,255,0.015) 16px
+                );
         }
 
-        /* Base - Deep teal/blue background */
+        /* Large left angular shape */
         .certificate::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #0a6b6b;
-            /* Very subtle diagonal crosshatch texture */
-            background-image: 
-                repeating-linear-gradient(
-                    135deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(255, 255, 255, 0.015) 3px,
-                    rgba(255, 255, 255, 0.015) 6px
-                ),
-                repeating-linear-gradient(
-                    45deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(0, 0, 0, 0.01) 3px,
-                    rgba(0, 0, 0, 0.01) 6px
-                );
+            top: -8%;
+            left: -12%;
+            width: 72%;
+            height: 125%;
+            background: #158d9c;
+            opacity: 0.9;
+            clip-path: polygon(0 0, 98% 9%, 64% 100%, 0 100%);
         }
 
-        /* Lighter teal angular zig-zag shape */
+        /* Right zig/arrow shape */
         .certificate::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #1a9a9a;
-            /* Same subtle diagonal texture on the lighter shape */
-            background-image: 
-                repeating-linear-gradient(
-                    135deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(255, 255, 255, 0.02) 3px,
-                    rgba(255, 255, 255, 0.02) 6px
-                ),
-                repeating-linear-gradient(
-                    45deg,
-                    transparent,
-                    transparent 3px,
-                    rgba(0, 0, 0, 0.015) 3px,
-                    rgba(0, 0, 0, 0.015) 6px
-                );
-            /* Angular zig-zag shape: top-left down-right, then horizontal right, then down-right */
-            clip-path: polygon(
-                0 0,
-                55% 0,
-                55% 48%,
-                62% 48%,
-                62% 62%,
-                55% 100%,
-                0 100%
-            );
+            top: 8%;
+            right: -14%;
+            width: 72%;
+            height: 120%;
+            background: #0a6b7b;
+            opacity: 0.9;
+            clip-path: polygon(26% 0, 80% 0, 56% 43%, 100% 43%, 80% 100%, 32% 100%, 50% 60%, 26% 60%);
+        }
+
+        /* Guideline boxes (keep to mimic the blank placeholders) */
+        .placeholder-stack {
+            position: absolute;
+            right: 52px;
+            bottom: 70px;
+            display: grid;
+            gap: 20px;
+            width: 170px;
+        }
+
+        .placeholder {
+            height: 60px;
+            border-radius: 24px;
+            background: #f0f1f2;
         }
     </style>
 </head>
 <body>
-    <div class="certificate"></div>
+    <div class="certificate" aria-label="Certificate background only">
+        <div class="placeholder-stack" aria-hidden="true">
+            <div class="placeholder"></div>
+            <div class="placeholder"></div>
+        </div>
+    </div>
 </body>
 </html>
