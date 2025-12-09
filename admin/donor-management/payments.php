@@ -962,7 +962,12 @@ if (empty($error_message)) {
                                         </div>
                                         <div class="meta-item">
                                             <span class="meta-label">Date</span>
-                                            <span class="meta-value"><?php echo $date ? date('d M Y', strtotime($date)) : '-'; ?></span>
+                                            <span class="meta-value">
+                                                <?php echo $date ? date('d M Y', strtotime($date)) : '-'; ?>
+                                                <?php if (!empty($payment['created_at'])): ?>
+                                                    <span class="text-muted small"><?php echo date('H:i', strtotime($payment['created_at'])); ?></span>
+                                                <?php endif; ?>
+                                            </span>
                                         </div>
                                         <div class="meta-item">
                                             <span class="meta-label">Status</span>
@@ -996,8 +1001,11 @@ if (empty($error_message)) {
                                 
                                 <div class="payment-card-footer">
                                     <div>
-                                        <?php if (!empty($payment['reference_number'])): ?>
-                                            <code class="small text-muted"><?php echo htmlspecialchars(substr($payment['reference_number'], 0, 20)); ?></code>
+                                        <?php 
+                                        // Show pledge notes (4-digit ref) if available, otherwise payment reference
+                                        $display_ref = $payment['pledge_notes'] ?? $payment['reference_number'] ?? '';
+                                        if (!empty($display_ref)): ?>
+                                            <code class="small text-muted"><?php echo htmlspecialchars(substr($display_ref, 0, 20)); ?></code>
                                         <?php else: ?>
                                             <span class="text-muted small">No reference</span>
                                         <?php endif; ?>
@@ -1082,7 +1090,7 @@ if (empty($error_message)) {
                                                     </td>
                                                     <td>
                                                         <?php echo $date ? date('d M Y', strtotime($date)) : '-'; ?>
-                                                        <div class="small text-muted"><?php echo $date ? date('H:i', strtotime($date)) : ''; ?></div>
+                                                        <div class="small text-muted"><?php echo !empty($payment['created_at']) ? date('H:i', strtotime($payment['created_at'])) : ''; ?></div>
                                                     </td>
                                                     <td>
                                                         <span class="status-pill <?php echo $status_class; ?>">
@@ -1105,8 +1113,11 @@ if (empty($error_message)) {
                                                         <?php endif; ?>
                                                     </td>
                                                     <td>
-                                                        <?php if (!empty($payment['reference_number'])): ?>
-                                                            <code class="small"><?php echo htmlspecialchars(substr($payment['reference_number'], 0, 15)); ?></code>
+                                                        <?php 
+                                                        // Show pledge notes (4-digit ref) if available, otherwise payment reference
+                                                        $display_ref = $payment['pledge_notes'] ?? $payment['reference_number'] ?? '';
+                                                        if (!empty($display_ref)): ?>
+                                                            <code class="small"><?php echo htmlspecialchars(substr($display_ref, 0, 15)); ?></code>
                                                         <?php else: ?>
                                                             <span class="text-muted">-</span>
                                                         <?php endif; ?>
@@ -1343,12 +1354,22 @@ function showPaymentDetail(element) {
     const methodText = (payment.payment_method || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     document.getElementById('modal_method').textContent = methodText;
     
-    // Date
+    // Date & Time
     const date = payment.payment_date || payment.created_at;
-    document.getElementById('modal_date').textContent = date ? new Date(date).toLocaleDateString('en-GB') : '-';
+    const createdAt = payment.created_at;
+    let dateDisplay = '-';
+    if (date) {
+        dateDisplay = new Date(date).toLocaleDateString('en-GB');
+        if (createdAt) {
+            const time = new Date(createdAt);
+            dateDisplay += ' ' + time.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+    document.getElementById('modal_date').textContent = dateDisplay;
     
-    // Reference
-    document.getElementById('modal_reference').textContent = payment.reference_number || '-';
+    // Reference - show pledge notes (4-digit ref) if available, otherwise payment reference
+    const reference = payment.pledge_notes || payment.reference_number || '-';
+    document.getElementById('modal_reference').textContent = reference;
     
     // Notes
     if (payment.notes && payment.notes.trim()) {
