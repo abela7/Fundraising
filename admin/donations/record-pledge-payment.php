@@ -185,8 +185,99 @@ if ($search || $selected_donor_id) {
             box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
         }
         .donor-list-container {
-            max-height: 500px;
+            max-height: 400px;
             overflow-y: auto;
+        }
+        
+        /* Donor History Styles */
+        .donor-history-container {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid #dee2e6;
+        }
+        .history-stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            height: 100%;
+        }
+        .history-stat-card .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        .history-stat-card .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+        .history-timeline {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .timeline-item {
+            display: flex;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.8rem;
+        }
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+        .timeline-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-right: 0.75rem;
+            font-size: 0.7rem;
+        }
+        .timeline-icon.confirmed { background: #d1e7dd; color: #0f5132; }
+        .timeline-icon.pending { background: #fff3cd; color: #664d03; }
+        .timeline-icon.voided { background: #f8d7da; color: #842029; }
+        .timeline-icon.pledge { background: #cfe2ff; color: #084298; }
+        .timeline-content {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .timeline-amount {
+            font-weight: 600;
+        }
+        .pledge-progress-mini {
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 0.25rem;
+        }
+        .pledge-progress-mini .bar {
+            height: 100%;
+            background: linear-gradient(90deg, #198754, #20c997);
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        .history-badge {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+        }
+        .no-history-message {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #6c757d;
+        }
+        .no-history-message i {
+            font-size: 2rem;
+            opacity: 0.3;
+            margin-bottom: 0.5rem;
         }
         
         /* Mobile Optimizations */
@@ -207,7 +298,7 @@ if ($search || $selected_donor_id) {
                 margin-bottom: 0.5rem;
             }
             .donor-list-container {
-                max-height: 300px;
+                max-height: 250px;
             }
             .table {
                 font-size: 0.875rem;
@@ -217,6 +308,18 @@ if ($search || $selected_donor_id) {
             }
             .form-group-custom label {
                 font-size: 0.8rem;
+            }
+            .history-stat-card {
+                padding: 0.5rem;
+            }
+            .history-stat-card .stat-value {
+                font-size: 1rem;
+            }
+            .history-stat-card .stat-label {
+                font-size: 0.6rem;
+            }
+            .history-timeline {
+                max-height: 250px;
             }
         }
         
@@ -258,6 +361,42 @@ if ($search || $selected_donor_id) {
             /* Hide less important columns on very small screens */
             .table .hide-xs {
                 display: none;
+            }
+            /* History section mobile */
+            .donor-history-container {
+                padding: 0.75rem;
+                margin-top: 0.75rem;
+            }
+            .donor-history-container h6 {
+                font-size: 0.85rem;
+            }
+            .history-stat-card {
+                padding: 0.4rem;
+            }
+            .history-stat-card .stat-value {
+                font-size: 0.9rem;
+            }
+            .history-stat-card .stat-label {
+                font-size: 0.55rem;
+            }
+            .history-timeline {
+                max-height: 200px;
+            }
+            .timeline-item {
+                padding: 0.4rem 0;
+            }
+            .timeline-icon {
+                width: 24px;
+                height: 24px;
+                font-size: 0.6rem;
+                margin-right: 0.5rem;
+            }
+            .timeline-amount {
+                font-size: 0.85rem;
+            }
+            .nav-tabs .nav-link {
+                padding: 0.4rem 0.5rem;
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -322,6 +461,7 @@ if ($search || $selected_donor_id) {
                                     <?php else: ?>
                                         <?php foreach ($donors as $d): ?>
                                             <div class="donor-card <?php echo $selected_donor_id == $d['id'] ? 'selected' : ''; ?>" 
+                                                 data-donor-id="<?php echo $d['id']; ?>"
                                                  onclick="selectDonor(<?php echo $d['id']; ?>, '<?php echo addslashes($d['name']); ?>')">
                                                 <div class="d-flex justify-content-between align-items-start">
                                                     <div class="flex-grow-1 me-2">
@@ -337,6 +477,95 @@ if ($search || $selected_donor_id) {
                                             </div>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
+                                </div>
+                                
+                                <!-- Donor History Section -->
+                                <div id="donorHistoryContainer" class="donor-history-container" style="display: none;">
+                                    <div class="d-flex align-items-center justify-content-between mb-3">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-history text-primary me-2"></i>
+                                            <span id="historyDonorName">Donor</span>'s History
+                                        </h6>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="hideHistory()">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Stats Summary -->
+                                    <div class="row g-2 mb-3" id="historyStats">
+                                        <div class="col-4 col-md-2">
+                                            <div class="history-stat-card">
+                                                <div class="stat-value text-primary" id="statPledged">£0</div>
+                                                <div class="stat-label">Pledged</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-md-2">
+                                            <div class="history-stat-card">
+                                                <div class="stat-value text-success" id="statPaid">£0</div>
+                                                <div class="stat-label">Paid</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-md-2">
+                                            <div class="history-stat-card">
+                                                <div class="stat-value text-danger" id="statBalance">£0</div>
+                                                <div class="stat-label">Balance</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-md-2">
+                                            <div class="history-stat-card">
+                                                <div class="stat-value text-success" id="statConfirmed">0</div>
+                                                <div class="stat-label">Confirmed</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-md-2">
+                                            <div class="history-stat-card">
+                                                <div class="stat-value text-warning" id="statPending">0</div>
+                                                <div class="stat-label">Pending</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-md-2">
+                                            <div class="history-stat-card">
+                                                <div class="stat-value text-secondary" id="statVoided">0</div>
+                                                <div class="stat-label">Voided</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Tabs for History -->
+                                    <ul class="nav nav-tabs nav-fill mb-2" role="tablist" style="font-size: 0.8rem;">
+                                        <li class="nav-item">
+                                            <button class="nav-link active py-2" data-bs-toggle="tab" data-bs-target="#tabPayments">
+                                                <i class="fas fa-money-bill-wave me-1 d-none d-sm-inline"></i>Payments
+                                            </button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link py-2" data-bs-toggle="tab" data-bs-target="#tabPledges">
+                                                <i class="fas fa-hand-holding-usd me-1 d-none d-sm-inline"></i>Pledges
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content">
+                                        <!-- Payments Tab -->
+                                        <div class="tab-pane fade show active" id="tabPayments">
+                                            <div class="history-timeline" id="paymentsTimeline">
+                                                <div class="text-center py-3">
+                                                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                                                    <small class="d-block text-muted mt-1">Loading...</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Pledges Tab -->
+                                        <div class="tab-pane fade" id="tabPledges">
+                                            <div class="history-timeline" id="pledgesTimeline">
+                                                <div class="text-center py-3">
+                                                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                                                    <small class="d-block text-muted mt-1">Loading...</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <!-- Step 1 Action Buttons -->
@@ -487,6 +716,7 @@ function selectDonor(id, name) {
     document.getElementById('formDonorId').value = id;
     document.getElementById('selectedDonorName').textContent = name;
     document.getElementById('selectedDonorNameTop').textContent = name;
+    document.getElementById('historyDonorName').textContent = name;
     
     // Show next button
     document.getElementById('step1Actions').style.display = 'block';
@@ -494,6 +724,243 @@ function selectDonor(id, name) {
     // Highlight selected card
     document.querySelectorAll('.donor-card').forEach(c => c.classList.remove('selected'));
     event.target.closest('.donor-card').classList.add('selected');
+    
+    // Load and show donor history
+    loadDonorHistory(id);
+}
+
+function loadDonorHistory(donorId) {
+    const container = document.getElementById('donorHistoryContainer');
+    const paymentsTimeline = document.getElementById('paymentsTimeline');
+    const pledgesTimeline = document.getElementById('pledgesTimeline');
+    
+    // Show container with loading state
+    container.style.display = 'block';
+    paymentsTimeline.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <small class="d-block text-muted mt-1">Loading payments...</small>
+        </div>
+    `;
+    pledgesTimeline.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <small class="d-block text-muted mt-1">Loading pledges...</small>
+        </div>
+    `;
+    
+    fetch(`get-donor-history.php?donor_id=${donorId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                paymentsTimeline.innerHTML = `<div class="text-center text-danger py-3"><i class="fas fa-exclamation-circle"></i> ${data.error}</div>`;
+                return;
+            }
+            
+            // Update stats
+            const stats = data.stats;
+            document.getElementById('statPledged').textContent = '£' + stats.total_pledged.toFixed(0);
+            document.getElementById('statPaid').textContent = '£' + stats.total_paid.toFixed(0);
+            document.getElementById('statBalance').textContent = '£' + stats.balance.toFixed(0);
+            document.getElementById('statConfirmed').textContent = stats.confirmed_payments;
+            document.getElementById('statPending').textContent = stats.pending_payments;
+            document.getElementById('statVoided').textContent = stats.voided_payments;
+            
+            // Render payments timeline
+            renderPaymentsTimeline(data.pledge_payments, data.immediate_payments, paymentsTimeline);
+            
+            // Render pledges timeline
+            renderPledgesTimeline(data.pledges, pledgesTimeline);
+        })
+        .catch(err => {
+            console.error(err);
+            paymentsTimeline.innerHTML = `<div class="text-center text-danger py-3"><i class="fas fa-exclamation-circle"></i> Error loading history</div>`;
+        });
+}
+
+function renderPaymentsTimeline(pledgePayments, immediatePayments, container) {
+    // Combine and sort all payments by date
+    const allPayments = [];
+    
+    pledgePayments.forEach(p => {
+        allPayments.push({
+            type: 'pledge_payment',
+            amount: parseFloat(p.amount),
+            status: p.status,
+            date: p.payment_date || p.created_at,
+            method: p.payment_method,
+            reference: p.pledge_reference || p.reference_number,
+            notes: p.notes
+        });
+    });
+    
+    immediatePayments.forEach(p => {
+        allPayments.push({
+            type: 'immediate_payment',
+            amount: parseFloat(p.amount),
+            status: p.status === 'approved' ? 'confirmed' : p.status,
+            date: p.payment_date,
+            method: p.payment_method,
+            reference: p.reference,
+            notes: ''
+        });
+    });
+    
+    // Sort by date descending
+    allPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (allPayments.length === 0) {
+        container.innerHTML = `
+            <div class="no-history-message">
+                <i class="fas fa-receipt d-block"></i>
+                <p class="small mb-0">No payment history yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    allPayments.forEach(p => {
+        const statusClass = p.status === 'confirmed' ? 'confirmed' : 
+                           p.status === 'pending' ? 'pending' : 'voided';
+        const statusIcon = p.status === 'confirmed' ? 'fa-check' : 
+                          p.status === 'pending' ? 'fa-clock' : 'fa-times';
+        const statusBadge = p.status === 'confirmed' ? 'bg-success' : 
+                           p.status === 'pending' ? 'bg-warning text-dark' : 'bg-secondary';
+        const typeLabel = p.type === 'pledge_payment' ? 'Pledge Payment' : 'Direct Payment';
+        const methodIcon = getMethodIcon(p.method);
+        
+        html += `
+            <div class="timeline-item">
+                <div class="timeline-icon ${statusClass}">
+                    <i class="fas ${statusIcon}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="timeline-amount">£${p.amount.toFixed(2)}</span>
+                            <span class="history-badge ${statusBadge} ms-1">${p.status}</span>
+                        </div>
+                        <small class="text-muted">${formatDate(p.date)}</small>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                        <small class="text-muted">
+                            <i class="fas ${methodIcon} me-1"></i>${formatMethod(p.method)}
+                        </small>
+                        ${p.reference ? `<small class="text-muted">• Ref: ${p.reference}</small>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function renderPledgesTimeline(pledges, container) {
+    if (pledges.length === 0) {
+        container.innerHTML = `
+            <div class="no-history-message">
+                <i class="fas fa-hand-holding-usd d-block"></i>
+                <p class="small mb-0">No pledges yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    pledges.forEach(p => {
+        const amount = parseFloat(p.amount);
+        const paid = parseFloat(p.paid_amount);
+        const remaining = parseFloat(p.remaining);
+        const progress = p.progress_percent;
+        
+        const statusClass = p.status === 'approved' ? 'pledge' : 
+                           p.status === 'pending' ? 'pending' : 'voided';
+        const statusBadge = p.status === 'approved' ? 'bg-primary' : 
+                           p.status === 'pending' ? 'bg-warning text-dark' : 'bg-secondary';
+        
+        let progressStatus = '';
+        if (p.status === 'approved') {
+            if (progress >= 100) {
+                progressStatus = '<span class="text-success"><i class="fas fa-check-circle"></i> Fully Paid</span>';
+            } else if (progress > 0) {
+                progressStatus = `<span class="text-info">${progress}% paid</span>`;
+            } else {
+                progressStatus = '<span class="text-warning">Not started</span>';
+            }
+        }
+        
+        html += `
+            <div class="timeline-item">
+                <div class="timeline-icon ${statusClass}">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="timeline-amount">£${amount.toFixed(2)}</span>
+                            <span class="history-badge ${statusBadge} ms-1">${p.status}</span>
+                        </div>
+                        <small class="text-muted">${formatDate(p.created_at)}</small>
+                    </div>
+                    ${p.status === 'approved' ? `
+                        <div class="pledge-progress-mini mt-1">
+                            <div class="bar" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">Paid: £${paid.toFixed(2)}</small>
+                            <small>${progressStatus}</small>
+                        </div>
+                    ` : ''}
+                    ${p.notes ? `<small class="text-muted d-block mt-1">Ref: ${p.notes}</small>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function getMethodIcon(method) {
+    const icons = {
+        'cash': 'fa-money-bill',
+        'bank': 'fa-university',
+        'bank_transfer': 'fa-university',
+        'card': 'fa-credit-card',
+        'cheque': 'fa-money-check',
+        'other': 'fa-receipt'
+    };
+    return icons[method] || 'fa-receipt';
+}
+
+function formatMethod(method) {
+    const labels = {
+        'cash': 'Cash',
+        'bank': 'Bank',
+        'bank_transfer': 'Bank Transfer',
+        'card': 'Card',
+        'cheque': 'Cheque',
+        'other': 'Other'
+    };
+    return labels[method] || method || 'Unknown';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+function hideHistory() {
+    document.getElementById('donorHistoryContainer').style.display = 'none';
 }
 
 // Next button: Go to Step 2
