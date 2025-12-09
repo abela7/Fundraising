@@ -1,15 +1,12 @@
 <?php
 declare(strict_types=1);
-/**
- * Certificate Background Test - ONLY BACKGROUND
- */
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificate Background Test</title>
+    <title>Certificate Background Only</title>
     <style>
         * {
             margin: 0;
@@ -26,57 +23,80 @@ declare(strict_types=1);
             padding: 2rem;
         }
 
-        /* ========== CERTIFICATE BACKGROUND ONLY ========== */
+        /* ========== BACKGROUND ONLY ========== */
         .certificate {
             width: 850px;
             height: 550px;
             position: relative;
             overflow: hidden;
-            /* Base color - darker teal */
-            background-color: #0e7f8b;
         }
 
-        /* Geometric shapes using pseudo-elements and divs */
-        
-        /* Top-left lighter triangle - goes from top-left corner down */
-        .shape-1 {
+        /* Base - Deep teal/blue background */
+        .certificate::before {
+            content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #1a9a9a;
-            clip-path: polygon(0 0, 55% 0, 55% 55%, 0 100%);
+            background-color: #0a6b6b;
+            /* Very subtle diagonal crosshatch texture */
+            background-image: 
+                repeating-linear-gradient(
+                    135deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(255, 255, 255, 0.015) 3px,
+                    rgba(255, 255, 255, 0.015) 6px
+                ),
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.01) 3px,
+                    rgba(0, 0, 0, 0.01) 6px
+                );
         }
 
-        /* Bottom-left section - slightly different shade */
-        .shape-2 {
+        /* Lighter teal angular zig-zag shape */
+        .certificate::after {
+            content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #148d8d;
-            clip-path: polygon(0 48%, 48% 48%, 55% 100%, 0 100%);
-        }
-
-        /* The pointed arrow tip area */
-        .shape-3 {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #11888a;
-            clip-path: polygon(48% 48%, 62% 48%, 62% 62%, 55% 100%, 48% 100%);
+            background-color: #1a9a9a;
+            /* Same subtle diagonal texture on the lighter shape */
+            background-image: 
+                repeating-linear-gradient(
+                    135deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(255, 255, 255, 0.02) 3px,
+                    rgba(255, 255, 255, 0.02) 6px
+                ),
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.015) 3px,
+                    rgba(0, 0, 0, 0.015) 6px
+                );
+            /* Angular zig-zag shape: top-left down-right, then horizontal right, then down-right */
+            clip-path: polygon(
+                0 0,
+                55% 0,
+                55% 48%,
+                62% 48%,
+                62% 62%,
+                55% 100%,
+                0 100%
+            );
         }
     </style>
 </head>
 <body>
-    <div class="certificate">
-        <div class="shape-1"></div>
-        <div class="shape-2"></div>
-        <div class="shape-3"></div>
-    </div>
+    <div class="certificate"></div>
 </body>
 </html>
