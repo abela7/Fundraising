@@ -297,6 +297,16 @@ function build_url($params) {
             margin: 0 0 0.25rem;
             color: #1e293b;
         }
+        .donor-info h5 a {
+            color: #1e293b;
+            text-decoration: none;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+        .donor-info h5 a:hover {
+            color: #6366f1;
+            text-decoration: underline;
+        }
         .donor-info .phone {
             font-size: 0.8rem;
             color: #64748b;
@@ -810,7 +820,15 @@ function build_url($params) {
                                         <?php endif; ?>
                                         
                                         <div class="donor-info">
-                                            <h5><?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown Donor'); ?></h5>
+                                            <h5>
+                                                <?php if (!empty($p['donor_id'])): ?>
+                                                    <a href="../donor-management/view-donor.php?id=<?php echo (int)$p['donor_id']; ?>">
+                                                        <?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown Donor'); ?>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown Donor'); ?>
+                                                <?php endif; ?>
+                                            </h5>
                                             <div class="phone">
                                                 <i class="fas fa-phone"></i>
                                                 <?php echo htmlspecialchars($p['donor_phone'] ?? '-'); ?>
