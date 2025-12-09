@@ -118,9 +118,23 @@ $filter_date_from = $_GET['date_from'] ?? '';
 $filter_date_to = $_GET['date_to'] ?? '';
 $search = $_GET['search'] ?? '';
 
+// Check if any filters are active (excluding status filter for pills)
+$has_active_filters = !empty($filter_method) || !empty($filter_date_from) || !empty($filter_date_to) || !empty($search);
+
 // Build query
 $payments = [];
-$stats = [
+// Overall stats (for filter pills - always show total counts)
+$overall_stats = [
+    'total' => 0,
+    'pending' => 0,
+    'confirmed' => 0,
+    'voided' => 0,
+    'total_amount' => 0,
+    'confirmed_amount' => 0,
+    'pending_amount' => 0
+];
+// Filtered stats (for cards - changes based on filters)
+$filtered_stats = [
     'total' => 0,
     'pending' => 0,
     'confirmed' => 0,
@@ -132,8 +146,8 @@ $stats = [
 
 if (empty($error_message)) {
     try {
-        // Get statistics
-        $stats_query = "
+        // Get OVERALL statistics (for filter pills)
+        $overall_stats_query = "
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -144,12 +158,12 @@ if (empty($error_message)) {
                 COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
             FROM pledge_payments
         ";
-        $stats_result = $db->query($stats_query);
-        if ($stats_result) {
-            $stats = $stats_result->fetch_assoc();
+        $overall_stats_result = $db->query($overall_stats_query);
+        if ($overall_stats_result) {
+            $overall_stats = $overall_stats_result->fetch_assoc();
         }
         
-        // Build main query with filters
+        // Build filter conditions
         $where_conditions = [];
         $params = [];
         $types = '';
@@ -190,6 +204,35 @@ if (empty($error_message)) {
         }
         
         $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        
+        // Get FILTERED statistics (for stat cards)
+        $filtered_stats_sql = "
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN pp.status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN pp.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+                SUM(CASE WHEN pp.status = 'voided' THEN 1 ELSE 0 END) as voided,
+                COALESCE(SUM(pp.amount), 0) as total_amount,
+                COALESCE(SUM(CASE WHEN pp.status = 'confirmed' THEN pp.amount ELSE 0 END), 0) as confirmed_amount,
+                COALESCE(SUM(CASE WHEN pp.status = 'pending' THEN pp.amount ELSE 0 END), 0) as pending_amount
+            FROM pledge_payments pp
+            LEFT JOIN donors d ON pp.donor_id = d.id
+            LEFT JOIN pledges pl ON pp.pledge_id = pl.id
+            {$where_clause}
+        ";
+        
+        if (!empty($params)) {
+            $filtered_stats_stmt = $db->prepare($filtered_stats_sql);
+            $filtered_stats_stmt->bind_param($types, ...$params);
+            $filtered_stats_stmt->execute();
+            $filtered_stats_result = $filtered_stats_stmt->get_result();
+        } else {
+            $filtered_stats_result = $db->query($filtered_stats_sql);
+        }
+        
+        if ($filtered_stats_result) {
+            $filtered_stats = $filtered_stats_result->fetch_assoc();
+        }
         
         $sql = "
             SELECT 
@@ -259,12 +302,41 @@ if (empty($error_message)) {
     }
 }
 
-// Get unique donors who have paid
+// Get unique donors who have paid (filtered)
 $paying_donors_count = 0;
 if (empty($error_message)) {
-    $unique_donors = $db->query("SELECT COUNT(DISTINCT donor_id) as cnt FROM pledge_payments WHERE status = 'confirmed'");
-    if ($unique_donors) {
-        $paying_donors_count = (int)$unique_donors->fetch_assoc()['cnt'];
+    // Build filtered unique donors query
+    $unique_donors_sql = "
+        SELECT COUNT(DISTINCT pp.donor_id) as cnt 
+        FROM pledge_payments pp
+        LEFT JOIN donors d ON pp.donor_id = d.id
+        LEFT JOIN pledges pl ON pp.pledge_id = pl.id
+        {$where_clause}
+    ";
+    
+    // Add confirmed status filter if not already filtering by status
+    if ($filter_status === 'all') {
+        $unique_donors_sql = "
+            SELECT COUNT(DISTINCT pp.donor_id) as cnt 
+            FROM pledge_payments pp
+            LEFT JOIN donors d ON pp.donor_id = d.id
+            LEFT JOIN pledges pl ON pp.pledge_id = pl.id
+            " . (!empty($where_clause) ? $where_clause . " AND pp.status = 'confirmed'" : "WHERE pp.status = 'confirmed'");
+    }
+    
+    if (!empty($params)) {
+        $unique_donors_stmt = $db->prepare($unique_donors_sql);
+        $unique_donors_stmt->bind_param($types, ...$params);
+        $unique_donors_stmt->execute();
+        $unique_donors_result = $unique_donors_stmt->get_result();
+        if ($unique_donors_result) {
+            $paying_donors_count = (int)$unique_donors_result->fetch_assoc()['cnt'];
+        }
+    } else {
+        $unique_donors = $db->query($unique_donors_sql);
+        if ($unique_donors) {
+            $paying_donors_count = (int)$unique_donors->fetch_assoc()['cnt'];
+        }
     }
 }
 ?>
@@ -721,49 +793,72 @@ if (empty($error_message)) {
                             <i class="fas fa-plus me-1"></i><span class="d-none d-sm-inline">Record</span>
                         </a>
                         <?php endif; ?>
-                        <a href="../donations/review-pledge-payments.php" class="btn btn-warning btn-sm">
-                            <i class="fas fa-clock me-1"></i>Pending <span class="badge bg-dark ms-1"><?php echo (int)$stats['pending']; ?></span>
+                                <a href="../donations/review-pledge-payments.php" class="btn btn-warning btn-sm">
+                            <i class="fas fa-clock me-1"></i>Pending <span class="badge bg-dark ms-1"><?php echo (int)$overall_stats['pending']; ?></span>
                         </a>
                     </div>
                 </div>
                 
-                <!-- Stats Mini Cards -->
+                <!-- Stats Mini Cards (filtered) -->
                 <div class="stats-mini">
                     <div class="stat-mini-card">
                         <div class="stat-mini-value text-primary"><?php echo number_format($paying_donors_count); ?></div>
                         <div class="stat-mini-label">Donors</div>
-                        <div class="stat-mini-sub">Have paid</div>
+                        <div class="stat-mini-sub"><?php echo ($has_active_filters || $filter_status !== 'all') ? 'In results' : 'Have paid'; ?></div>
                     </div>
                     <div class="stat-mini-card">
-                        <div class="stat-mini-value text-success"><?php echo number_format((int)$stats['confirmed']); ?></div>
+                        <div class="stat-mini-value text-success"><?php echo number_format((int)$filtered_stats['confirmed']); ?></div>
                         <div class="stat-mini-label">Confirmed</div>
-                        <div class="stat-mini-sub">£<?php echo number_format((float)$stats['confirmed_amount'], 0); ?></div>
+                        <div class="stat-mini-sub">£<?php echo number_format((float)$filtered_stats['confirmed_amount'], 0); ?></div>
                     </div>
                     <div class="stat-mini-card">
-                        <div class="stat-mini-value text-warning"><?php echo number_format((int)$stats['pending']); ?></div>
+                        <div class="stat-mini-value text-warning"><?php echo number_format((int)$filtered_stats['pending']); ?></div>
                         <div class="stat-mini-label">Pending</div>
-                        <div class="stat-mini-sub">£<?php echo number_format((float)$stats['pending_amount'], 0); ?></div>
+                        <div class="stat-mini-sub">£<?php echo number_format((float)$filtered_stats['pending_amount'], 0); ?></div>
                     </div>
                     <div class="stat-mini-card">
-                        <div class="stat-mini-value text-secondary"><?php echo number_format((int)$stats['total']); ?></div>
+                        <div class="stat-mini-value text-secondary"><?php echo number_format((int)$filtered_stats['total']); ?></div>
                         <div class="stat-mini-label">Total</div>
-                        <div class="stat-mini-sub">£<?php echo number_format((float)$stats['total_amount'], 0); ?></div>
+                        <div class="stat-mini-sub">£<?php echo number_format((float)$filtered_stats['total_amount'], 0); ?></div>
                     </div>
                 </div>
                 
-                <!-- Filter Pills -->
+                <?php if ($has_active_filters || $filter_status !== 'all'): ?>
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="fas fa-filter me-2"></i>
+                    <strong>Filtered Results:</strong> 
+                    Showing <?php echo number_format((int)$filtered_stats['total']); ?> payment(s) 
+                    totaling £<?php echo number_format((float)$filtered_stats['total_amount'], 2); ?>
+                    <?php if (!empty($filter_date_from) || !empty($filter_date_to)): ?>
+                        <span class="ms-2">
+                            <i class="fas fa-calendar me-1"></i>
+                            <?php 
+                            if ($filter_date_from && $filter_date_to) {
+                                echo date('d M Y', strtotime($filter_date_from)) . ' - ' . date('d M Y', strtotime($filter_date_to));
+                            } elseif ($filter_date_from) {
+                                echo 'From ' . date('d M Y', strtotime($filter_date_from));
+                            } elseif ($filter_date_to) {
+                                echo 'Until ' . date('d M Y', strtotime($filter_date_to));
+                            }
+                            ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                
+                <!-- Filter Pills (show overall counts) -->
                 <div class="filter-pills">
-                    <a href="?status=all" class="filter-pill all <?php echo $filter_status === 'all' ? 'active' : ''; ?>">
-                        All <span class="count"><?php echo number_format((int)$stats['total']); ?></span>
+                    <a href="?status=all<?php echo !empty($filter_method) ? '&method=' . urlencode($filter_method) : ''; ?><?php echo !empty($filter_date_from) ? '&date_from=' . urlencode($filter_date_from) : ''; ?><?php echo !empty($filter_date_to) ? '&date_to=' . urlencode($filter_date_to) : ''; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>" class="filter-pill all <?php echo $filter_status === 'all' ? 'active' : ''; ?>">
+                        All <span class="count"><?php echo number_format((int)$overall_stats['total']); ?></span>
                     </a>
-                    <a href="?status=confirmed" class="filter-pill confirmed <?php echo $filter_status === 'confirmed' ? 'active' : ''; ?>">
-                        <i class="fas fa-check-circle"></i> Confirmed <span class="count"><?php echo number_format((int)$stats['confirmed']); ?></span>
+                    <a href="?status=confirmed<?php echo !empty($filter_method) ? '&method=' . urlencode($filter_method) : ''; ?><?php echo !empty($filter_date_from) ? '&date_from=' . urlencode($filter_date_from) : ''; ?><?php echo !empty($filter_date_to) ? '&date_to=' . urlencode($filter_date_to) : ''; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>" class="filter-pill confirmed <?php echo $filter_status === 'confirmed' ? 'active' : ''; ?>">
+                        <i class="fas fa-check-circle"></i> Confirmed <span class="count"><?php echo number_format((int)$overall_stats['confirmed']); ?></span>
                     </a>
-                    <a href="?status=pending" class="filter-pill pending <?php echo $filter_status === 'pending' ? 'active' : ''; ?>">
-                        <i class="fas fa-clock"></i> Pending <span class="count"><?php echo number_format((int)$stats['pending']); ?></span>
+                    <a href="?status=pending<?php echo !empty($filter_method) ? '&method=' . urlencode($filter_method) : ''; ?><?php echo !empty($filter_date_from) ? '&date_from=' . urlencode($filter_date_from) : ''; ?><?php echo !empty($filter_date_to) ? '&date_to=' . urlencode($filter_date_to) : ''; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>" class="filter-pill pending <?php echo $filter_status === 'pending' ? 'active' : ''; ?>">
+                        <i class="fas fa-clock"></i> Pending <span class="count"><?php echo number_format((int)$overall_stats['pending']); ?></span>
                     </a>
-                    <a href="?status=voided" class="filter-pill voided <?php echo $filter_status === 'voided' ? 'active' : ''; ?>">
-                        <i class="fas fa-ban"></i> Voided <span class="count"><?php echo number_format((int)$stats['voided']); ?></span>
+                    <a href="?status=voided<?php echo !empty($filter_method) ? '&method=' . urlencode($filter_method) : ''; ?><?php echo !empty($filter_date_from) ? '&date_from=' . urlencode($filter_date_from) : ''; ?><?php echo !empty($filter_date_to) ? '&date_to=' . urlencode($filter_date_to) : ''; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>" class="filter-pill voided <?php echo $filter_status === 'voided' ? 'active' : ''; ?>">
+                        <i class="fas fa-ban"></i> Voided <span class="count"><?php echo number_format((int)$overall_stats['voided']); ?></span>
                     </a>
                 </div>
                 
