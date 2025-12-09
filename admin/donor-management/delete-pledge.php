@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/audit_helper.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
+require_admin();
 
 // Set timezone
 date_default_timezone_set('Europe/London');
@@ -69,6 +71,12 @@ try {
 $can_delete = true;
 $block_reason = '';
 
+// Only allow deletion of REJECTED pledges
+if ($pledge->status !== 'rejected') {
+    $can_delete = false;
+    $block_reason = 'Only rejected pledges can be deleted. This pledge has status: "' . ucfirst($pledge->status) . '". Please reject the pledge first before deleting.';
+}
+
 if ($pledge->linked_plans > 0) {
     $can_delete = false;
     $block_reason = 'This pledge has ' . $pledge->linked_plans . ' active payment plan(s). You must delete the payment plan(s) first.';
@@ -77,9 +85,13 @@ if ($pledge->linked_plans > 0) {
 // Handle deletion confirmation
 if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) {
     try {
+        // Verify CSRF token
+        verify_csrf();
+        
         $conn->begin_transaction();
         
         // Step 1: Deallocate floor grid cells (set back to available)
+        $cells_deallocated = 0;
         if ($pledge->allocated_cells > 0) {
             $deallocate_query = "
                 UPDATE floor_grid_cells 
@@ -93,26 +105,45 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) 
             $deallocate_stmt = $conn->prepare($deallocate_query);
             $deallocate_stmt->bind_param('i', $pledge_id);
             $deallocate_stmt->execute();
+            $cells_deallocated = $deallocate_stmt->affected_rows;
         }
         
-        // Step 2: Unlink payments (don't delete them, just unlink)
+        // Step 2: Unlink payments from pledge_payments table (if any)
+        $unlinked_pledge_payments = 0;
+        $unlink_pp_query = "UPDATE pledge_payments SET pledge_id = NULL WHERE pledge_id = ?";
+        $unlink_pp_stmt = $conn->prepare($unlink_pp_query);
+        $unlink_pp_stmt->bind_param('i', $pledge_id);
+        $unlink_pp_stmt->execute();
+        $unlinked_pledge_payments = $unlink_pp_stmt->affected_rows;
+        
+        // Step 3: Unlink payments from payments table (don't delete them, just unlink)
+        $unlinked_payments = 0;
         if ($pledge->linked_payments > 0) {
             $unlink_payments_query = "UPDATE payments SET pledge_id = NULL WHERE pledge_id = ?";
             $unlink_stmt = $conn->prepare($unlink_payments_query);
             $unlink_stmt->bind_param('i', $pledge_id);
             $unlink_stmt->execute();
+            $unlinked_payments = $unlink_stmt->affected_rows;
         }
         
-        // Step 3: Audit log before deletion
+        // Step 4: Audit log before deletion (comprehensive)
         $pledgeData = [
             'id' => $pledge_id,
             'donor_id' => $donor_id,
             'donor_name' => $pledge->donor_name,
-            'amount' => $pledge->amount,
+            'donor_phone' => $pledge->donor_phone,
+            'amount' => (float)$pledge->amount,
             'status' => $pledge->status,
-            'allocated_cells' => $pledge->allocated_cells,
-            'linked_plans' => $pledge->linked_plans,
-            'linked_payments' => $pledge->linked_payments
+            'type' => $pledge->type ?? 'pledge',
+            'notes' => $pledge->notes ?? '',
+            'created_at' => $pledge->created_at ?? '',
+            'allocated_cells' => (int)$pledge->allocated_cells,
+            'cells_deallocated' => $cells_deallocated,
+            'linked_plans' => (int)$pledge->linked_plans,
+            'linked_payments' => (int)$pledge->linked_payments,
+            'unlinked_payments' => $unlinked_payments,
+            'unlinked_pledge_payments' => $unlinked_pledge_payments,
+            'deletion_reason' => 'Rejected pledge deleted by admin'
         ];
         
         log_audit(
@@ -121,35 +152,45 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) 
             'pledge',
             $pledge_id,
             $pledgeData,
-            null,
+            ['deleted' => true, 'status_at_deletion' => 'rejected'],
             'admin_portal',
             (int)($_SESSION['user']['id'] ?? 0)
         );
         
-        // Step 4: Delete the pledge
+        // Step 5: Delete the pledge
         $delete_query = "DELETE FROM pledges WHERE id = ?";
         $delete_stmt = $conn->prepare($delete_query);
         $delete_stmt->bind_param('i', $pledge_id);
         $delete_stmt->execute();
         
-        // Step 5: Recalculate donor totals
-        $recalc_query = "
+        // Step 6: Update donor's pledge_count (rejected pledges don't affect totals)
+        // Since we're only deleting rejected pledges, we don't need to recalculate total_pledged
+        // But we should update the pledge_count
+        $update_count_query = "
             UPDATE donors 
-            SET total_pledged = (
-                    SELECT COALESCE(SUM(amount), 0) 
+            SET pledge_count = (
+                    SELECT COUNT(*) 
                     FROM pledges 
-                    WHERE donor_id = ? AND status = 'approved'
+                    WHERE donor_id = ?
                 ),
-                balance = total_pledged - total_paid
+                updated_at = NOW()
             WHERE id = ?
         ";
-        $recalc_stmt = $conn->prepare($recalc_query);
-        $recalc_stmt->bind_param('ii', $donor_id, $donor_id);
-        $recalc_stmt->execute();
+        $update_count_stmt = $conn->prepare($update_count_query);
+        $update_count_stmt->bind_param('ii', $donor_id, $donor_id);
+        $update_count_stmt->execute();
         
         $conn->commit();
         
-        header('Location: view-donor.php?id=' . $donor_id . '&success=' . urlencode('Pledge deleted successfully. ' . $pledge->allocated_cells . ' cell(s) deallocated.'));
+        $success_msg = 'Rejected pledge deleted successfully.';
+        if ($cells_deallocated > 0) {
+            $success_msg .= ' ' . $cells_deallocated . ' cell(s) deallocated.';
+        }
+        if ($unlinked_payments > 0 || $unlinked_pledge_payments > 0) {
+            $success_msg .= ' ' . ($unlinked_payments + $unlinked_pledge_payments) . ' payment(s) unlinked.';
+        }
+        
+        header('Location: view-donor.php?id=' . $donor_id . '&success=' . urlencode($success_msg));
         exit;
         
     } catch (Exception $e) {
@@ -306,9 +347,14 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) 
                     </a>
                 </div>
             <?php else: ?>
+                <div class="alert alert-success py-2 mb-3">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Eligible for Deletion:</strong> This pledge has status "Rejected" and can be safely deleted.
+                </div>
+                
                 <div class="danger-box">
                     <strong><i class="fas fa-exclamation-circle me-2"></i>Warning:</strong>
-                    You are about to permanently delete this pledge. This action cannot be undone!
+                    You are about to permanently delete this rejected pledge. This action cannot be undone!
                 </div>
                 
                 <div class="info-box">
@@ -368,19 +414,21 @@ if ($confirm === 'yes' && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) 
                 <div class="info-box mt-3">
                     <h6 class="mb-2"><strong>What will happen:</strong></h6>
                     <ul class="mb-0">
-                        <li>The pledge will be permanently deleted</li>
+                        <li>The rejected pledge will be permanently deleted</li>
                         <?php if ($pledge->allocated_cells > 0): ?>
                         <li><?php echo $pledge->allocated_cells; ?> floor grid cell(s) will be deallocated and made available</li>
                         <?php endif; ?>
                         <?php if ($pledge->linked_payments > 0): ?>
                         <li><?php echo $pledge->linked_payments; ?> payment(s) will be unlinked (but kept in the system)</li>
                         <?php endif; ?>
-                        <li>Donor's total pledge amount will be recalculated</li>
-                        <li>Donor's balance will be updated</li>
+                        <li class="text-success"><i class="fas fa-check me-1"></i>Donor's total pledged amount will NOT be affected (rejected pledges don't count)</li>
+                        <li class="text-success"><i class="fas fa-check me-1"></i>Donor's balance will NOT be affected</li>
+                        <li>This action will be recorded in the audit log</li>
                     </ul>
                 </div>
                 
-                <form method="POST">
+                <form method="POST" action="delete-pledge.php?id=<?php echo $pledge_id; ?>&donor_id=<?php echo $donor_id; ?>&confirm=yes">
+                    <?php require_once __DIR__ . '/../../shared/csrf.php'; echo csrf_input(); ?>
                     <div class="action-buttons">
                         <a href="view-donor.php?id=<?php echo $donor_id; ?>" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>Cancel
