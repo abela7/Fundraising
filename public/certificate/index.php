@@ -75,7 +75,31 @@ $sqmDisplay = formatSqm((float)$sqm);
         .certificate {
             width: 850px;
             height: 550px;
-            background: #0e8b8b;
+            background-color: #0d7a7a;
+            /* Diagonal line pattern overlay */
+            background-image: 
+                repeating-linear-gradient(
+                    135deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.03) 2px,
+                    rgba(255, 255, 255, 0.03) 4px
+                ),
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.03) 2px,
+                    rgba(0, 0, 0, 0.03) 4px
+                ),
+                linear-gradient(
+                    160deg,
+                    #0a6b6b 0%,
+                    #0d7d7d 30%,
+                    #109090 50%,
+                    #0d7d7d 70%,
+                    #0a6b6b 100%
+                );
             position: relative;
             overflow: hidden;
             font-family: 'Inter', sans-serif;
