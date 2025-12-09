@@ -140,6 +140,125 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         
         $msg = 'Member activated';
+    } elseif ($action === 'bulk_action') {
+        $selected_ids = $_POST['selected_ids'] ?? [];
+        $bulk_action = $_POST['bulk_action'] ?? '';
+        
+        if (empty($selected_ids) || !is_array($selected_ids)) {
+            $msg = 'No members selected';
+        } else {
+            $selected_ids = array_map('intval', $selected_ids);
+            $count = 0;
+            $errors = [];
+            
+            $db->begin_transaction();
+            try {
+                foreach ($selected_ids as $id) {
+                    // Prevent self-deletion or self-deactivation
+                    if ($id === (int)($_SESSION['user']['id'] ?? 0) && in_array($bulk_action, ['delete', 'activate', 'deactivate'])) {
+                        $errors[] = "Cannot modify your own account";
+                        continue;
+                    }
+                    
+                    // Get before data for audit
+                    $before_stmt = $db->prepare('SELECT name, role, active FROM users WHERE id = ?');
+                    $before_stmt->bind_param('i', $id);
+                    $before_stmt->execute();
+                    $beforeData = $before_stmt->get_result()->fetch_assoc();
+                    $before_stmt->close();
+                    
+                    if (!$beforeData) {
+                        continue;
+                    }
+                    
+                    switch ($bulk_action) {
+                        case 'activate':
+                            $db->query("UPDATE users SET active=1 WHERE id=$id");
+                            log_audit($db, 'update', 'user', $id, ['active' => $beforeData['active']], ['active' => 1], 'admin_portal', (int)($_SESSION['user']['id'] ?? 0));
+                            $count++;
+                            break;
+                            
+                        case 'deactivate':
+                            $db->query("UPDATE users SET active=0 WHERE id=$id");
+                            log_audit($db, 'update', 'user', $id, ['active' => $beforeData['active']], ['active' => 0], 'admin_portal', (int)($_SESSION['user']['id'] ?? 0));
+                            $count++;
+                            break;
+                            
+                        case 'role_admin':
+                            $db->query("UPDATE users SET role='admin' WHERE id=$id");
+                            log_audit($db, 'update', 'user', $id, ['role' => $beforeData['role']], ['role' => 'admin'], 'admin_portal', (int)($_SESSION['user']['id'] ?? 0));
+                            $count++;
+                            break;
+                            
+                        case 'role_registrar':
+                            $db->query("UPDATE users SET role='registrar' WHERE id=$id");
+                            log_audit($db, 'update', 'user', $id, ['role' => $beforeData['role']], ['role' => 'registrar'], 'admin_portal', (int)($_SESSION['user']['id'] ?? 0));
+                            $count++;
+                            break;
+                            
+                        case 'delete':
+                            // Check for associated data
+                            $check_stmt = $db->prepare('SELECT COUNT(*) as count FROM pledges WHERE approved_by_user_id = ?');
+                            $check_stmt->bind_param('i', $id);
+                            $check_stmt->execute();
+                            $result = $check_stmt->get_result()->fetch_assoc();
+                            
+                            if ($result['count'] > 0) {
+                                $errors[] = "Cannot delete {$beforeData['name']}: Has associated pledge approvals";
+                                continue;
+                            }
+                            
+                            $check_stmt = $db->prepare('SELECT COUNT(*) as count FROM payments WHERE received_by_user_id = ?');
+                            $check_stmt->bind_param('i', $id);
+                            $check_stmt->execute();
+                            $result = $check_stmt->get_result()->fetch_assoc();
+                            
+                            if ($result['count'] > 0) {
+                                $errors[] = "Cannot delete {$beforeData['name']}: Has associated payment records";
+                                continue;
+                            }
+                            
+                            // Delete registrar application if exists
+                            $user_stmt = $db->prepare('SELECT email, phone FROM users WHERE id = ?');
+                            $user_stmt->bind_param('i', $id);
+                            $user_stmt->execute();
+                            $userResult = $user_stmt->get_result()->fetch_assoc();
+                            
+                            if ($userResult) {
+                                $del_stmt = $db->prepare('DELETE FROM registrar_applications WHERE email = ? OR phone = ?');
+                                $del_stmt->bind_param('ss', $userResult['email'], $userResult['phone']);
+                                $del_stmt->execute();
+                            }
+                            
+                            $del_stmt = $db->prepare('DELETE FROM users WHERE id = ?');
+                            $del_stmt->bind_param('i', $id);
+                            $del_stmt->execute();
+                            
+                            log_audit($db, 'delete', 'user', $id, $beforeData, null, 'admin_portal', (int)($_SESSION['user']['id'] ?? 0));
+                            $count++;
+                            break;
+                    }
+                }
+                
+                $db->commit();
+                
+                $action_names = [
+                    'activate' => 'activated',
+                    'deactivate' => 'deactivated',
+                    'role_admin' => 'changed to admin',
+                    'role_registrar' => 'changed to registrar',
+                    'delete' => 'deleted'
+                ];
+                
+                $msg = "$count member(s) " . ($action_names[$bulk_action] ?? 'updated');
+                if (!empty($errors)) {
+                    $msg .= '. ' . implode('. ', array_slice($errors, 0, 3));
+                }
+            } catch (Exception $e) {
+                $db->rollback();
+                $msg = 'Error: ' . $e->getMessage();
+            }
+        }
     } elseif ($action === 'permanent_delete') {
         $id = (int)$_POST['id'];
         // First check if this member has any associated data
@@ -240,6 +359,33 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
         </button>
       </div>
 
+      <!-- Bulk Actions Bar -->
+      <div id="bulkActionsBar" class="card mb-3" style="display: none;">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="text-muted"><span id="selectedCount">0</span> selected</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <select id="bulkActionSelect" class="form-select form-select-sm" style="width: auto;">
+                <option value="">Choose action...</option>
+                <option value="activate">Activate</option>
+                <option value="deactivate">Deactivate</option>
+                <option value="role_admin">Change to Admin</option>
+                <option value="role_registrar">Change to Registrar</option>
+                <option value="delete">Delete Permanently</option>
+              </select>
+              <button type="button" class="btn btn-sm btn-primary" onclick="executeBulkAction()">
+                <i class="fas fa-check me-1"></i>Apply
+              </button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                <i class="fas fa-times me-1"></i>Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Members Table -->
       <div class="card animate-fade-in">
         <div class="card-body p-0">
@@ -247,6 +393,9 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
             <table id="membersTable" class="table table-hover mb-0">
               <thead>
                 <tr>
+                  <th width="40">
+                    <input type="checkbox" id="selectAll" class="form-check-input" onchange="toggleSelectAll()">
+                  </th>
                   <th>User</th>
                   <th>Contact</th>
                   <th>Role</th>
@@ -257,9 +406,15 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
               </thead>
               <tbody>
                 <?php foreach ($rows as $r): ?>
-                <tr class="member-row" style="cursor: pointer;" onclick="window.location.href='view.php?id=<?php echo (int)$r['id']; ?>'" 
-                    data-bs-toggle="tooltip" title="Click to view member details">
-                  <td>
+                <tr class="member-row" data-member-id="<?php echo (int)$r['id']; ?>" 
+                    onclick="if(event.target.type !== 'checkbox' && !event.target.closest('.btn-group')) window.location.href='view.php?id=<?php echo (int)$r['id']; ?>'"
+                    style="cursor: pointer;">
+                  <td onclick="event.stopPropagation();">
+                    <input type="checkbox" class="form-check-input member-checkbox" 
+                           value="<?php echo (int)$r['id']; ?>" 
+                           onchange="updateBulkActionsBar()">
+                  </td>
+                  <td data-bs-toggle="tooltip" title="Click to view member details">
                     <div class="d-flex align-items-center">
                       <div class="avatar-circle me-3">
                         <?php echo strtoupper(substr($r['name'], 0, 1)); ?>
@@ -296,7 +451,7 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
                   <td>
                     <small class="text-muted"><?php echo date('M d, Y', strtotime($r['created_at'])); ?></small>
                   </td>
-                  <td class="text-end">
+                  <td class="text-end" onclick="event.stopPropagation();">
                     <div class="btn-group" role="group">
                       <button type="button" class="btn btn-sm btn-light" 
                               onclick="event.stopPropagation(); editMember(<?php echo htmlspecialchars(json_encode($r)); ?>)"
@@ -905,6 +1060,100 @@ function shareRegistrarOnWhatsApp() {
     ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
     : `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
   window.open(url, '_blank');
+}
+
+// Bulk Actions Functions
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.member-checkbox');
+  checkboxes.forEach(cb => cb.checked = selectAll.checked);
+  updateBulkActionsBar();
+}
+
+function updateBulkActionsBar() {
+  const checkboxes = document.querySelectorAll('.member-checkbox:checked');
+  const count = checkboxes.length;
+  const bulkBar = document.getElementById('bulkActionsBar');
+  const selectedCount = document.getElementById('selectedCount');
+  
+  if (count > 0) {
+    bulkBar.style.display = 'block';
+    selectedCount.textContent = count;
+  } else {
+    bulkBar.style.display = 'none';
+  }
+  
+  // Update select all checkbox
+  const allCheckboxes = document.querySelectorAll('.member-checkbox');
+  const selectAll = document.getElementById('selectAll');
+  selectAll.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+}
+
+function clearSelection() {
+  document.querySelectorAll('.member-checkbox').forEach(cb => cb.checked = false);
+  document.getElementById('selectAll').checked = false;
+  updateBulkActionsBar();
+}
+
+function executeBulkAction() {
+  const checkboxes = document.querySelectorAll('.member-checkbox:checked');
+  const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+  const action = document.getElementById('bulkActionSelect').value;
+  
+  if (selectedIds.length === 0) {
+    alert('Please select at least one member');
+    return;
+  }
+  
+  if (!action) {
+    alert('Please select an action');
+    return;
+  }
+  
+  const actionNames = {
+    'activate': 'activate',
+    'deactivate': 'deactivate',
+    'role_admin': 'change to Admin',
+    'role_registrar': 'change to Registrar',
+    'delete': 'permanently delete'
+  };
+  
+  const actionName = actionNames[action] || action;
+  const confirmMsg = `Are you sure you want to ${actionName} ${selectedIds.length} member(s)?`;
+  
+  if (action === 'delete') {
+    if (!confirm(`⚠️ PERMANENT DELETE WARNING ⚠️\n\n${confirmMsg}\n\nThis action CANNOT be undone!\n\nClick OK to confirm deletion.`)) {
+      return;
+    }
+  } else {
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+  }
+  
+  // Create form and submit
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.innerHTML = '<?php echo csrf_input(); ?>';
+  
+  form.appendChild(createHiddenInput('action', 'bulk_action'));
+  form.appendChild(createHiddenInput('bulk_action', action));
+  
+  selectedIds.forEach(id => {
+    const input = createHiddenInput('selected_ids[]', id);
+    form.appendChild(input);
+  });
+  
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function createHiddenInput(name, value) {
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = name;
+  input.value = value;
+  return input;
 }
 </script>
 </body>
