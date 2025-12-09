@@ -1614,6 +1614,7 @@ function formatDateTime($date) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editPaymentForm" method="POST" action="edit-payment.php">
+                <?php echo csrf_input(); ?>
                 <input type="hidden" name="payment_id" id="editPaymentId">
                 <input type="hidden" name="donor_id" id="editPaymentDonorId" value="<?php echo $donor_id; ?>">
                 <div class="modal-body">
@@ -1625,7 +1626,7 @@ function formatDateTime($date) {
                         <label class="form-label">Payment Method</label>
                         <select class="form-select" name="method" id="editPaymentMethod">
                             <option value="cash">Cash</option>
-                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="bank">Bank Transfer</option>
                             <option value="card">Card</option>
                             <option value="other">Other</option>
                         </select>
@@ -1640,6 +1641,20 @@ function formatDateTime($date) {
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
                             <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Registrar</label>
+                        <select class="form-select" name="received_by_user_id" id="editPaymentRegistrar">
+                            <option value="">-- Select Registrar --</option>
+                            <?php
+                            $pay_registrar_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC");
+                            while ($preg = $pay_registrar_query->fetch_assoc()):
+                            ?>
+                            <option value="<?php echo (int)$preg['id']; ?>">
+                                <?php echo htmlspecialchars($preg['name']); ?> (<?php echo htmlspecialchars($preg['role']); ?>)
+                            </option>
+                            <?php endwhile; ?>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -1882,6 +1897,7 @@ function loadPaymentData(paymentId, donorId) {
                 document.getElementById('editPaymentMethod').value = data.payment.method || 'cash';
                 document.getElementById('editPaymentReference').value = data.payment.reference || '';
                 document.getElementById('editPaymentStatus').value = data.payment.status || 'pending';
+                document.getElementById('editPaymentRegistrar').value = data.payment.received_by_user_id || '';
                 const date = data.payment.date ? new Date(data.payment.date).toISOString().slice(0, 16) : '';
                 document.getElementById('editPaymentDate').value = date;
             }

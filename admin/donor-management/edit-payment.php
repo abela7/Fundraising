@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/audit_helper.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_login();
 require_admin();
 
@@ -29,6 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !$payment_id || !$donor_id) {
     exit;
 }
 
+// Verify CSRF token
+verify_csrf();
+
 try {
     // Check payment table columns
     $col_query = $db->query("SHOW COLUMNS FROM payments");
@@ -42,8 +46,8 @@ try {
     $method_col = in_array('payment_method', $columns) ? 'payment_method' : 'method';
     $ref_col = in_array('transaction_ref', $columns) ? 'transaction_ref' : 'reference';
     
-    // Verify payment exists
-    $check_stmt = $db->prepare("SELECT id, amount, donor_phone FROM payments WHERE id = ?");
+    // Verify payment exists and get current data for audit
+    $check_stmt = $db->prepare("SELECT * FROM payments WHERE id = ?");
     $check_stmt->bind_param('i', $payment_id);
     $check_stmt->execute();
     $payment = $check_stmt->get_result()->fetch_assoc();
@@ -52,7 +56,13 @@ try {
         throw new Exception("Payment not found");
     }
     
+    // Store original values for audit
     $old_amount = (float)$payment['amount'];
+    $old_status = $payment['status'] ?? 'pending';
+    $old_registrar = $payment['received_by_user_id'] ?? null;
+    $old_method = $payment[$method_col] ?? '';
+    $old_reference = $payment[$ref_col] ?? '';
+    $old_date = $payment[$date_col] ?? '';
     
     $db->begin_transaction();
     
@@ -105,6 +115,24 @@ try {
         $values[] = $date;
     }
     
+    // Handle registrar (received_by_user_id) update
+    if (isset($_POST['received_by_user_id']) && $_POST['received_by_user_id'] !== '' && in_array('received_by_user_id', $columns)) {
+        $new_registrar_id = (int)$_POST['received_by_user_id'];
+        // Verify the user exists and is admin or registrar
+        $user_check = $db->prepare("SELECT id, name, role FROM users WHERE id = ? AND role IN ('admin', 'registrar')");
+        $user_check->bind_param('i', $new_registrar_id);
+        $user_check->execute();
+        $registrar_user = $user_check->get_result()->fetch_assoc();
+        
+        if (!$registrar_user) {
+            throw new Exception("Invalid registrar selected");
+        }
+        
+        $updates[] = "`received_by_user_id` = ?";
+        $types .= 'i';
+        $values[] = $new_registrar_id;
+    }
+    
     if (empty($updates)) {
         throw new Exception("No fields to update");
     }
@@ -152,15 +180,65 @@ try {
         }
     }
     
-    // Audit log the payment edit
-    $afterData = $_POST;
-    $afterData['payment_id'] = $payment_id;
+    // Get after data for audit
+    $after_stmt = $db->prepare("SELECT * FROM payments WHERE id = ?");
+    $after_stmt->bind_param('i', $payment_id);
+    $after_stmt->execute();
+    $after_payment = $after_stmt->get_result()->fetch_assoc();
+    $after_stmt->close();
+    
+    // Get registrar names for audit clarity
+    $registrar_name_before = null;
+    $registrar_name_after = null;
+    
+    if ($old_registrar) {
+        $reg_stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+        $reg_stmt->bind_param('i', $old_registrar);
+        $reg_stmt->execute();
+        $reg_result = $reg_stmt->get_result()->fetch_assoc();
+        $registrar_name_before = $reg_result['name'] ?? null;
+        $reg_stmt->close();
+    }
+    
+    $new_registrar_id_audit = $after_payment['received_by_user_id'] ?? null;
+    if ($new_registrar_id_audit) {
+        $reg_stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+        $reg_stmt->bind_param('i', $new_registrar_id_audit);
+        $reg_stmt->execute();
+        $reg_result = $reg_stmt->get_result()->fetch_assoc();
+        $registrar_name_after = $reg_result['name'] ?? null;
+        $reg_stmt->close();
+    }
+    
+    // Comprehensive audit log
+    $beforeData = [
+        'amount' => $old_amount,
+        'status' => $old_status,
+        'method' => $old_method,
+        'reference' => $old_reference,
+        'date' => $old_date,
+        'received_by_user_id' => $old_registrar,
+        'registrar_name' => $registrar_name_before,
+        'donor_id' => $donor_id
+    ];
+    
+    $afterData = [
+        'amount' => (float)($after_payment['amount'] ?? $old_amount),
+        'status' => $after_payment['status'] ?? $old_status,
+        'method' => $after_payment[$method_col] ?? $old_method,
+        'reference' => $after_payment[$ref_col] ?? $old_reference,
+        'date' => $after_payment[$date_col] ?? $old_date,
+        'received_by_user_id' => $new_registrar_id_audit,
+        'registrar_name' => $registrar_name_after,
+        'donor_id' => $donor_id
+    ];
+    
     log_audit(
         $db,
         'update',
         'payment',
         $payment_id,
-        ['amount' => $old_amount, 'donor_id' => $donor_id],
+        $beforeData,
         $afterData,
         'admin_portal',
         (int)($_SESSION['user']['id'] ?? 0)
