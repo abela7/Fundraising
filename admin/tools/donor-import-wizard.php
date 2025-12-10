@@ -170,24 +170,29 @@ function getPaymentMethodDisplay($method) {
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0f0f0f;
-            --bg-secondary: #1a1a1a;
-            --bg-tertiary: #252525;
-            --bg-card: #1e1e1e;
-            --bg-hover: #2a2a2a;
-            --text-primary: #f5f5f5;
-            --text-secondary: #a0a0a0;
-            --text-muted: #666;
-            --border: #333;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-hover: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --border-hover: #cbd5e1;
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
             --accent-green: #10b981;
             --accent-orange: #f59e0b;
             --accent-red: #ef4444;
-            --accent-cyan: #06b6d4;
-            --glow-blue: rgba(59, 130, 246, 0.3);
-            --glow-green: rgba(16, 185, 129, 0.3);
-            --glow-purple: rgba(139, 92, 246, 0.3);
+            --accent-cyan: #0891b2;
+            --accent-indigo: #6366f1;
+            --glow-blue: rgba(59, 130, 246, 0.2);
+            --glow-green: rgba(16, 185, 129, 0.2);
+            --glow-purple: rgba(139, 92, 246, 0.2);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         
         * {
@@ -200,8 +205,8 @@ function getPaymentMethodDisplay($method) {
             font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-primary);
             background-image: 
-                radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-                radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+                radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
             color: var(--text-primary);
             min-height: 100vh;
             line-height: 1.6;
@@ -213,25 +218,24 @@ function getPaymentMethodDisplay($method) {
             height: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: var(--bg-secondary);
+            background: var(--bg-tertiary);
         }
         ::-webkit-scrollbar-thumb {
-            background: var(--border);
+            background: #cbd5e1;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #444;
+            background: #94a3b8;
         }
         
         .wizard-header {
-            background: linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(30, 30, 30, 0.95) 100%);
-            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
+            border-bottom: none;
             padding: 24px 0;
             position: sticky;
             top: 0;
             z-index: 100;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-lg);
         }
         
         .progress-info {
@@ -245,23 +249,20 @@ function getPaymentMethodDisplay($method) {
         .wizard-header h1 {
             font-size: 1.5rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #ffffff;
         }
         
         .wizard-header p {
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.8);
             font-size: 0.875rem;
         }
         
         .donor-nav select {
             padding: 10px 16px;
             border-radius: 10px;
-            border: 1px solid var(--border);
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
+            border: none;
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
             font-size: 14px;
             font-family: inherit;
             cursor: pointer;
@@ -269,14 +270,19 @@ function getPaymentMethodDisplay($method) {
             transition: all 0.2s;
         }
         
+        .donor-nav select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
         .donor-nav select:hover {
-            border-color: var(--accent-blue);
+            background: rgba(255, 255, 255, 0.25);
         }
         
         .donor-nav select:focus {
             outline: none;
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px var(--glow-blue);
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
         }
         
         .stats-bar {
@@ -286,12 +292,12 @@ function getPaymentMethodDisplay($method) {
         }
         
         .stat-item {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
             padding: 8px 16px;
             border-radius: 8px;
             font-size: 13px;
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.9);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -310,9 +316,7 @@ function getPaymentMethodDisplay($method) {
             margin-bottom: 24px;
             position: relative;
             overflow: hidden;
-            box-shadow: 
-                0 0 0 1px rgba(255, 255, 255, 0.02),
-                0 4px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: var(--shadow-lg);
         }
         
         .donor-card::before {
@@ -322,9 +326,9 @@ function getPaymentMethodDisplay($method) {
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-cyan), var(--accent-green));
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b);
             background-size: 300% 100%;
-            animation: gradientMove 3s ease infinite;
+            animation: gradientMove 4s ease infinite;
         }
         
         @keyframes gradientMove {
@@ -352,15 +356,15 @@ function getPaymentMethodDisplay($method) {
             align-items: center;
             gap: 10px;
             font-size: 14px;
-            color: var(--text-secondary);
-            background: var(--bg-tertiary);
+            color: #475569;
+            background: #f1f5f9;
             padding: 8px 14px;
             border-radius: 8px;
-            border: 1px solid var(--border);
+            border: 1px solid #e2e8f0;
         }
         
         .donor-meta-item i {
-            color: var(--accent-blue);
+            color: #3b82f6;
             font-size: 12px;
         }
         
@@ -378,21 +382,21 @@ function getPaymentMethodDisplay($method) {
         }
         
         .status-completed {
-            background: rgba(16, 185, 129, 0.15);
-            color: var(--accent-green);
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
         }
         
         .status-paying {
-            background: rgba(245, 158, 11, 0.15);
-            color: var(--accent-orange);
-            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
         }
         
         .status-not_started {
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--accent-red);
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
         }
         
         /* Financial Summary */
@@ -404,8 +408,8 @@ function getPaymentMethodDisplay($method) {
         }
         
         .financial-item {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
             padding: 20px;
             border-radius: 12px;
             text-align: center;
@@ -413,23 +417,24 @@ function getPaymentMethodDisplay($method) {
         }
         
         .financial-item:hover {
-            border-color: var(--accent-blue);
+            border-color: #3b82f6;
             transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
         }
         
         .financial-item .amount {
             font-size: 1.5rem;
             font-weight: 700;
             font-family: 'JetBrains Mono', monospace;
-            color: var(--text-primary);
+            color: #1e293b;
         }
         
-        .financial-item .amount.text-success { color: var(--accent-green); }
-        .financial-item .amount.text-danger { color: var(--accent-red); }
+        .financial-item .amount.text-success { color: #047857; }
+        .financial-item .amount.text-danger { color: #dc2626; }
         
         .financial-item .label {
             font-size: 11px;
-            color: var(--text-muted);
+            color: #94a3b8;
             margin-top: 6px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -443,12 +448,12 @@ function getPaymentMethodDisplay($method) {
             margin-bottom: 16px;
             overflow: hidden;
             transition: all 0.3s;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: var(--shadow-sm);
         }
         
         .step-container:hover {
-            border-color: #444;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-md);
             transform: translateY(-2px);
         }
         
@@ -469,46 +474,45 @@ function getPaymentMethodDisplay($method) {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: currentColor;
             border-radius: 10px;
             font-size: 15px;
             font-weight: 700;
             margin-right: 14px;
-            color: var(--bg-primary);
+            color: #ffffff;
         }
         
-        .step-1 .step-number { background: var(--accent-blue); }
-        .step-2 .step-number { background: var(--accent-orange); }
-        .step-3 .step-number { background: var(--accent-green); }
-        .step-4 .step-number { background: var(--accent-purple); }
+        .step-1 .step-number { background: #3b82f6; }
+        .step-2 .step-number { background: #f59e0b; }
+        .step-3 .step-number { background: #10b981; }
+        .step-4 .step-number { background: #8b5cf6; }
         
         .step-header.step-1 {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
-            color: var(--accent-blue);
-            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            color: #1e40af;
+            border-bottom: 1px solid #bfdbfe;
         }
         
         .step-header.step-2 {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
-            color: var(--accent-orange);
-            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            color: #b45309;
+            border-bottom: 1px solid #fde68a;
         }
         
         .step-header.step-3 {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
-            color: var(--accent-green);
-            border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            color: #047857;
+            border-bottom: 1px solid #a7f3d0;
         }
         
         .step-header.step-4 {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
-            color: var(--accent-purple);
-            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            color: #6d28d9;
+            border-bottom: 1px solid #ddd6fe;
         }
         
         .step-content {
             padding: 24px;
-            background: var(--bg-secondary);
+            background: var(--bg-card);
         }
         
         .step-content p {
@@ -534,22 +538,23 @@ function getPaymentMethodDisplay($method) {
         .copy-field .value {
             flex: 1;
             padding: 12px 16px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
             border-radius: 10px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
-            color: var(--text-primary);
+            color: #1e293b;
             transition: all 0.2s;
         }
         
         .copy-field .value:hover {
-            border-color: var(--accent-blue);
+            border-color: #3b82f6;
+            background: #ffffff;
         }
         
         .copy-btn {
             padding: 12px 20px;
-            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
             color: white;
             border: none;
             border-radius: 10px;
@@ -561,16 +566,17 @@ function getPaymentMethodDisplay($method) {
             display: flex;
             align-items: center;
             gap: 8px;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
         }
         
         .copy-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 20px var(--glow-blue);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
         }
         
         .copy-btn.copied {
-            background: linear-gradient(135deg, var(--accent-green) 0%, #059669 100%);
-            box-shadow: 0 4px 20px var(--glow-green);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
         
         /* External Links */
@@ -579,32 +585,31 @@ function getPaymentMethodDisplay($method) {
             align-items: center;
             gap: 8px;
             padding: 10px 18px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
+            border: none;
+            color: white;
             text-decoration: none;
             border-radius: 10px;
             font-weight: 500;
             font-size: 13px;
             transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(30, 64, 175, 0.3);
         }
         
         .external-link:hover {
-            background: var(--accent-blue);
-            border-color: var(--accent-blue);
-            color: white;
             transform: translateY(-2px);
-            box-shadow: 0 4px 20px var(--glow-blue);
+            box-shadow: 0 6px 20px rgba(30, 64, 175, 0.4);
+            color: white;
         }
         
         /* Warning Box */
         .warning-box {
-            background: rgba(245, 158, 11, 0.1);
-            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: #fffbeb;
+            border: 1px solid #fde68a;
             border-radius: 12px;
             padding: 16px 20px;
             margin-bottom: 20px;
-            color: var(--accent-orange);
+            color: #b45309;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -612,42 +617,42 @@ function getPaymentMethodDisplay($method) {
         
         .warning-box i {
             font-size: 18px;
+            color: #f59e0b;
         }
         
         /* Skip Payment */
         .skip-payment {
-            background: var(--bg-tertiary);
-            border: 1px dashed var(--border);
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
             border-radius: 12px;
             padding: 32px;
             text-align: center;
-            color: var(--text-muted);
+            color: #94a3b8;
         }
         
         .skip-payment i {
-            color: var(--text-muted);
-            opacity: 0.5;
+            color: #cbd5e1;
         }
         
         /* Instructions Box */
         .instructions-box {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-left: 3px solid var(--accent-cyan);
+            background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+            border: 1px solid #a5f3fc;
+            border-left: 4px solid #0891b2;
             border-radius: 10px;
             padding: 16px 20px;
             margin-top: 20px;
         }
         
         .instructions-box strong {
-            color: var(--accent-cyan);
+            color: #0e7490;
             display: block;
             margin-bottom: 8px;
         }
         
         .instructions-box ol {
             margin: 12px 0 0 20px;
-            color: var(--text-secondary);
+            color: #164e63;
         }
         
         .instructions-box ol li {
@@ -656,7 +661,7 @@ function getPaymentMethodDisplay($method) {
         }
         
         .instructions-box ol li strong {
-            color: var(--text-primary);
+            color: #0e7490;
             display: inline;
             margin-bottom: 0;
         }
@@ -671,6 +676,7 @@ function getPaymentMethodDisplay($method) {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 16px;
+            box-shadow: var(--shadow-sm);
         }
         
         .btn-nav {
@@ -687,35 +693,37 @@ function getPaymentMethodDisplay($method) {
         }
         
         .btn-outline-secondary {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
         }
         
         .btn-outline-secondary:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: #444;
+            background: #e2e8f0;
+            color: #475569;
+            border-color: #cbd5e1;
         }
         
         .btn-success {
-            background: linear-gradient(135deg, var(--accent-green) 0%, #059669 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
         }
         
         .btn-success:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 20px var(--glow-green);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
             color: white;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
         }
         
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 20px var(--glow-blue);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
         }
         
         .btn-primary:disabled {
@@ -739,9 +747,9 @@ function getPaymentMethodDisplay($method) {
             gap: 12px;
             border-radius: 8px;
             margin-bottom: 8px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
             transition: all 0.2s;
         }
         
@@ -752,9 +760,13 @@ function getPaymentMethodDisplay($method) {
         }
         
         .checklist li.done {
-            background: rgba(16, 185, 129, 0.1);
-            border-color: rgba(16, 185, 129, 0.3);
-            color: var(--accent-green);
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+            color: #047857;
+        }
+        
+        .checklist li.done i {
+            color: #10b981;
         }
         
         .checklist li.text-muted {
@@ -769,10 +781,10 @@ function getPaymentMethodDisplay($method) {
             width: 56px;
             height: 56px;
             border-radius: 16px;
-            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
             color: white;
             border: none;
-            box-shadow: 0 4px 20px var(--glow-blue);
+            box-shadow: 0 4px 20px rgba(30, 64, 175, 0.4);
             cursor: pointer;
             font-size: 20px;
             z-index: 1001;
@@ -781,7 +793,7 @@ function getPaymentMethodDisplay($method) {
         
         .sidebar-toggle:hover {
             transform: scale(1.1);
-            box-shadow: 0 6px 30px var(--glow-purple);
+            box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5);
         }
         
         /* Donor List Sidebar */
@@ -791,8 +803,8 @@ function getPaymentMethodDisplay($method) {
             top: 0;
             bottom: 0;
             width: 320px;
-            background: var(--bg-secondary);
-            border-left: 1px solid var(--border);
+            background: #ffffff;
+            border-left: 1px solid #e2e8f0;
             overflow-y: auto;
             transform: translateX(100%);
             transition: transform 0.3s ease;
@@ -801,12 +813,11 @@ function getPaymentMethodDisplay($method) {
         
         .donor-list-sidebar.open {
             transform: translateX(0);
-            box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+            box-shadow: -10px 0 40px rgba(0, 0, 0, 0.15);
         }
         
         .sidebar-header {
-            background: var(--bg-tertiary);
-            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
             padding: 20px;
             display: flex;
             justify-content: space-between;
@@ -817,39 +828,47 @@ function getPaymentMethodDisplay($method) {
         }
         
         .sidebar-header h5 {
-            color: var(--text-primary);
+            color: #ffffff;
             font-weight: 600;
             margin: 0;
             font-size: 16px;
         }
         
+        .sidebar-header button {
+            color: rgba(255, 255, 255, 0.8) !important;
+        }
+        
+        .sidebar-header button:hover {
+            color: #ffffff !important;
+        }
+        
         .donor-list-item {
             padding: 14px 18px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid #f1f5f9;
             cursor: pointer;
             transition: all 0.2s;
             background: transparent;
         }
         
         .donor-list-item:hover {
-            background: var(--bg-hover);
+            background: #f8fafc;
         }
         
         .donor-list-item.active {
-            background: rgba(59, 130, 246, 0.15);
-            border-left: 3px solid var(--accent-blue);
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6;
         }
         
         .donor-list-item.completed {
-            background: rgba(16, 185, 129, 0.1);
+            background: #f0fdf4;
         }
         
         .donor-list-item strong {
-            color: var(--text-primary);
+            color: #1e293b;
         }
         
         .donor-list-item small {
-            color: var(--text-muted);
+            color: #94a3b8;
         }
         
         /* Notes area */
@@ -982,8 +1001,8 @@ function getPaymentMethodDisplay($method) {
                 </div>
             </div>
             <?php if ($currentDonor['notes']): ?>
-            <div class="notes-box" style="margin-top: 16px; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 10px;">
-                <small style="color: var(--text-secondary);"><i class="fas fa-sticky-note me-2" style="color: var(--accent-cyan);"></i><?php echo htmlspecialchars($currentDonor['notes']); ?></small>
+            <div class="notes-box" style="margin-top: 16px; padding: 12px 16px; background: #fefce8; border: 1px solid #fde68a; border-radius: 10px;">
+                <small style="color: #854d0e;"><i class="fas fa-sticky-note me-2" style="color: #eab308;"></i><?php echo htmlspecialchars($currentDonor['notes']); ?></small>
             </div>
             <?php endif; ?>
         </div>
@@ -1175,7 +1194,7 @@ function getPaymentMethodDisplay($method) {
 
         <!-- Checklist -->
         <div class="step-container">
-            <div class="step-header" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%); color: var(--accent-cyan); border-bottom: 1px solid rgba(6, 182, 212, 0.2);">
+            <div class="step-header" style="background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%); color: #0e7490; border-bottom: 1px solid #a5f3fc;">
                 <span><i class="fas fa-clipboard-check me-2"></i> Completion Checklist</span>
             </div>
             <div class="step-content">
