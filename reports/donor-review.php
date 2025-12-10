@@ -53,7 +53,7 @@ $rawDonors = [
     ['no' => 39, 'name' => 'W/Michael', 'phone' => '', 'pledge' => '35', 'method' => '', 'deadline' => '', 'notes' => 'paid all £ 35'],
     ['no' => 40, 'name' => 'Samuel', 'phone' => '7453303053', 'pledge' => '1000', 'method' => 'cash', 'deadline' => 'monthly', 'notes' => 'start June'],
     ['no' => 41, 'name' => 'Beti', 'phone' => '', 'pledge' => '110', 'method' => '', 'deadline' => '', 'notes' => 'paid'],
-    ['no' => 42, 'name' => 'Abel', 'phone' => '7360436171', 'pledge' => '500', 'method' => '', 'deadline' => '', 'notes' => "didn't answer"],
+    ['no' => 42, 'name' => 'Abel', 'phone' => '7360436171', 'pledge' => '500', 'method' => '', 'deadline' => '', 'notes' => ''],
     ['no' => 43, 'name' => 'Saniat', 'phone' => 'C/o 07932793867', 'pledge' => '200', 'method' => '', 'deadline' => '', 'notes' => ''],
     ['no' => 44, 'name' => 'Milana Birhane', 'phone' => '735957727', 'pledge' => '500', 'method' => '', 'deadline' => '', 'notes' => '1 number is missing from the phone number'],
     ['no' => 45, 'name' => 'Elsabeth Mitiku', 'phone' => '7365938258', 'pledge' => '300', 'method' => '', 'deadline' => '', 'notes' => ''],
@@ -113,11 +113,33 @@ $rawDonors = [
 // Process and identify issues
 $donors = [];
 $phoneTracker = [];
+$phoneOwners = []; // Track who owns each phone number
+$coPhones = []; // Track C/o phone relationships
 
+// First pass: build phone ownership map
 foreach ($rawDonors as $d) {
-    $cleanPhone = preg_replace('/[^0-9]/', '', $d['phone']);
-    if (strlen($cleanPhone) >= 10) {
+    $phone = trim($d['phone']);
+    $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+    
+    // Track normal phone owners
+    if (strlen($cleanPhone) >= 10 && stripos($phone, 'c/o') === false) {
         $phoneTracker[$cleanPhone] = ($phoneTracker[$cleanPhone] ?? 0) + 1;
+        if (!isset($phoneOwners[$cleanPhone])) {
+            $phoneOwners[$cleanPhone] = [];
+        }
+        $phoneOwners[$cleanPhone][] = $d['name'];
+    }
+    
+    // Track C/o relationships
+    if (stripos($phone, 'c/o') !== false) {
+        preg_match('/(\d{10,11})/', $phone, $matches);
+        if (!empty($matches[1])) {
+            $coPhone = $matches[1];
+            if (!str_starts_with($coPhone, '0')) {
+                $coPhone = '0' . substr($coPhone, 0, 10);
+            }
+            $coPhones[$d['no']] = ['phone' => $coPhone, 'user' => $d['name']];
+        }
     }
 }
 
@@ -148,11 +170,39 @@ foreach ($rawDonors as $d) {
     $donor['balance_amount'] = max(0, $pledgeAmount - $paidAmount);
     
     $phone = trim($d['phone']);
+    $isFullyPaid = ($paidAmount > 0 && $donor['balance_amount'] == 0);
+    
     if (empty($phone)) {
-        $donor['issues'][] = ['type' => 'danger', 'icon' => 'phone-slash', 'text' => 'No phone number - cannot contact'];
-        $donor['issue_level'] = 'danger';
+        if ($isFullyPaid) {
+            // Fully paid donor - no phone is just info, not critical
+            $donor['issues'][] = ['type' => 'info', 'icon' => 'check-circle', 'text' => 'No phone, but already fully paid ✓'];
+        } else {
+            $donor['issues'][] = ['type' => 'danger', 'icon' => 'phone-slash', 'text' => 'No phone number - cannot contact'];
+            $donor['issue_level'] = 'danger';
+        }
     } elseif (stripos($phone, 'c/o') !== false) {
-        $donor['issues'][] = ['type' => 'warning', 'icon' => 'user-friends', 'text' => 'Uses someone else\'s phone: ' . $phone];
+        // Find who owns this phone number
+        preg_match('/(\d{10,11})/', $phone, $matches);
+        $ownerPhone = !empty($matches[1]) ? $matches[1] : '';
+        if (!str_starts_with($ownerPhone, '0') && strlen($ownerPhone) == 10) {
+            $ownerPhone = '0' . $ownerPhone;
+        }
+        $cleanOwnerPhone = preg_replace('/[^0-9]/', '', $ownerPhone);
+        
+        $ownerName = 'Unknown';
+        // Search for who owns this number
+        foreach ($rawDonors as $check) {
+            $checkPhone = preg_replace('/[^0-9]/', '', $check['phone']);
+            if (!str_starts_with($checkPhone, '0') && strlen($checkPhone) == 10) {
+                $checkPhone = '0' . $checkPhone;
+            }
+            if ($checkPhone === $cleanOwnerPhone && stripos($check['phone'], 'c/o') === false) {
+                $ownerName = $check['name'];
+                break;
+            }
+        }
+        
+        $donor['issues'][] = ['type' => 'warning', 'icon' => 'user-friends', 'text' => 'Uses phone of: ' . $ownerName . ' (' . $ownerPhone . ')'];
         if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
     } elseif (preg_match('/[a-zA-Z]/', $phone)) {
         $donor['issues'][] = ['type' => 'warning', 'icon' => 'exclamation-triangle', 'text' => 'Phone has text: "' . $phone . '"'];
@@ -166,6 +216,19 @@ foreach ($rawDonors as $d) {
             $donor['issues'][] = ['type' => 'warning', 'icon' => 'phone', 'text' => 'Phone too long (' . strlen($cleanPhone) . ' digits)'];
             if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
         }
+        
+        // Check if someone else uses this phone via C/o
+        $usedByOthers = [];
+        foreach ($coPhones as $coNo => $coData) {
+            $coClean = preg_replace('/[^0-9]/', '', $coData['phone']);
+            if ($coClean === $cleanPhone || '0' . $coClean === $cleanPhone || $coClean === '0' . $cleanPhone) {
+                $usedByOthers[] = $coData['user'];
+            }
+        }
+        if (!empty($usedByOthers)) {
+            $donor['issues'][] = ['type' => 'info', 'icon' => 'users', 'text' => 'Phone shared with: ' . implode(', ', $usedByOthers)];
+        }
+        
         if (strlen($cleanPhone) >= 10 && isset($phoneTracker[$cleanPhone]) && $phoneTracker[$cleanPhone] > 1) {
             $donor['issues'][] = ['type' => 'info', 'icon' => 'clone', 'text' => 'Shared phone (' . $phoneTracker[$cleanPhone] . ' donors)'];
         }
@@ -203,8 +266,7 @@ foreach ($rawDonors as $d) {
     }
     
     if ($pledgeAmount >= 5000) {
-        $donor['issues'][] = ['type' => 'warning', 'icon' => 'gem', 'text' => 'VIP - £' . number_format($pledgeAmount)];
-        if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
+        $donor['issues'][] = ['type' => 'info', 'icon' => 'ban', 'text' => 'Amount too high (£' . number_format($pledgeAmount) . ') - skip, don\'t add to system'];
     } elseif ($pledgeAmount >= 1500) {
         $donor['issues'][] = ['type' => 'info', 'icon' => 'star', 'text' => 'High value: £' . number_format($pledgeAmount)];
     }
