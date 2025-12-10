@@ -691,6 +691,9 @@ if ($search || $selected_donor_id) {
                                             <div class="form-group-custom">
                                                 <label class="form-label">Payment Amount</label>
                                                 <div class="input-group">
+                                                    <button type="button" class="btn btn-primary" onclick="pasteAmount()" title="Paste from clipboard" style="padding: 0.5rem 0.75rem;">
+                                                        <i class="fas fa-paste"></i>
+                                                    </button>
                                                     <span class="input-group-text">£</span>
                                                     <input type="number" step="0.01" name="amount" id="paymentAmount" 
                                                            class="form-control" placeholder="0.00" required>
@@ -711,7 +714,7 @@ if ($search || $selected_donor_id) {
                                                 <select name="payment_method" class="form-select" required>
                                                     <option value="">Select method...</option>
                                                     <option value="cash">Cash</option>
-                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                    <option value="bank_transfer" selected>Bank Transfer</option>
                                                     <option value="card">Card</option>
                                                     <option value="cheque">Cheque</option>
                                                     <option value="other">Other</option>
@@ -767,6 +770,28 @@ if ($search || $selected_donor_id) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
+// Paste amount from clipboard
+async function pasteAmount() {
+    const input = document.getElementById('paymentAmount');
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+            // Clean the text - remove £, commas, spaces
+            let cleanedText = text.trim().replace(/[£$€,\s]/g, '');
+            // Keep only numbers and decimal point
+            cleanedText = cleanedText.replace(/[^0-9.]/g, '');
+            if (cleanedText) {
+                input.value = cleanedText;
+                input.focus();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    } catch (err) {
+        input.focus();
+        console.log('Clipboard access denied');
+    }
+}
+
 let selectedDonorId = null;
 let selectedDonorName = '';
 
