@@ -970,7 +970,7 @@ function build_url($params) {
                                 <!-- Actions -->
                                 <div class="card-actions">
                                     <?php if ($p['status'] === 'pending'): ?>
-                                        <button class="btn btn-approve" onclick="approvePayment(<?php echo $p['id']; ?>)">
+                                        <button class="btn btn-approve" onclick="approvePayment(<?php echo $p['id']; ?>, this)">
                                             <i class="fas fa-check"></i>
                                             <span>Approve</span>
                                         </button>
@@ -1071,8 +1071,10 @@ function viewProof(src) {
     new bootstrap.Modal(document.getElementById('proofModal')).show();
 }
 
-function approvePayment(id) {
-    if (!confirm('Approve this payment?\n\nThis will:\n• Update donor balance\n• Mark payment as confirmed\n• Update financial totals')) return;
+function approvePayment(id, btn) {
+    // Disable the button to prevent double-clicks
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving...';
     
     fetch('approve-pledge-payment.php', {
         method: 'POST',
@@ -1082,15 +1084,19 @@ function approvePayment(id) {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            alert('✓ Payment approved successfully!');
+            // Instant reload - no confirmation needed
             location.reload();
         } else {
             alert('Error: ' + res.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> <span>Approve</span>';
         }
     })
     .catch(err => {
         alert('Network error. Please try again.');
         console.error(err);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> <span>Approve</span>';
     });
 }
 
