@@ -4,7 +4,7 @@
  * Mobile-first design for sharing with data collectors
  * No authentication required
  * 
- * Accessible only via direct link - not indexed by search engines
+ * Uses church branding from main website
  */
 
 // Prevent search engine indexing
@@ -112,9 +112,8 @@ $rawDonors = [
 
 // Process and identify issues
 $donors = [];
-$phoneTracker = []; // Track phone numbers for duplicates
+$phoneTracker = [];
 
-// First pass: count phones
 foreach ($rawDonors as $d) {
     $cleanPhone = preg_replace('/[^0-9]/', '', $d['phone']);
     if (strlen($cleanPhone) >= 10) {
@@ -122,13 +121,11 @@ foreach ($rawDonors as $d) {
     }
 }
 
-// Second pass: analyze each donor
 foreach ($rawDonors as $d) {
     $donor = $d;
     $donor['issues'] = [];
     $donor['issue_level'] = 'info';
     
-    // Parse pledge amount (handle combined amounts like "500+500")
     $pledgeStr = $d['pledge'];
     $pledgeAmount = 0;
     if (preg_match_all('/(\d+)/', $pledgeStr, $matches)) {
@@ -138,7 +135,6 @@ foreach ($rawDonors as $d) {
     }
     $donor['pledge_amount'] = $pledgeAmount;
     
-    // Parse paid amount from notes
     $paidAmount = 0;
     $notes = strtolower($d['notes']);
     if (preg_match('/paid\s*(?:all\s*)?[£]?\s*([\d,]+(?:\.\d{2})?)/i', $d['notes'], $match)) {
@@ -151,114 +147,73 @@ foreach ($rawDonors as $d) {
     $donor['paid_amount'] = $paidAmount;
     $donor['balance_amount'] = max(0, $pledgeAmount - $paidAmount);
     
-    // ===== ISSUE DETECTION =====
-    
-    // 1. NO PHONE - Critical
     $phone = trim($d['phone']);
     if (empty($phone)) {
         $donor['issues'][] = ['type' => 'danger', 'icon' => 'phone-slash', 'text' => 'No phone number - cannot contact'];
         $donor['issue_level'] = 'danger';
-    } 
-    // Phone has "C/o" (care of another person)
-    elseif (stripos($phone, 'c/o') !== false) {
+    } elseif (stripos($phone, 'c/o') !== false) {
         $donor['issues'][] = ['type' => 'warning', 'icon' => 'user-friends', 'text' => 'Uses someone else\'s phone: ' . $phone];
         if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
-    }
-    // Phone has letters (corrupted)
-    elseif (preg_match('/[a-zA-Z]/', $phone)) {
+    } elseif (preg_match('/[a-zA-Z]/', $phone)) {
         $donor['issues'][] = ['type' => 'warning', 'icon' => 'exclamation-triangle', 'text' => 'Phone has text: "' . $phone . '"'];
         if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
-    }
-    // Phone too short or too long
-    else {
+    } else {
         $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
         if (strlen($cleanPhone) < 10) {
-            $donor['issues'][] = ['type' => 'warning', 'icon' => 'phone', 'text' => 'Phone too short (' . strlen($cleanPhone) . ' digits): ' . $phone];
+            $donor['issues'][] = ['type' => 'warning', 'icon' => 'phone', 'text' => 'Phone too short (' . strlen($cleanPhone) . ' digits)'];
             if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
         } elseif (strlen($cleanPhone) > 11) {
-            $donor['issues'][] = ['type' => 'warning', 'icon' => 'phone', 'text' => 'Phone too long (' . strlen($cleanPhone) . ' digits): ' . $phone];
+            $donor['issues'][] = ['type' => 'warning', 'icon' => 'phone', 'text' => 'Phone too long (' . strlen($cleanPhone) . ' digits)'];
             if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
         }
-        // Check for duplicates
         if (strlen($cleanPhone) >= 10 && isset($phoneTracker[$cleanPhone]) && $phoneTracker[$cleanPhone] > 1) {
-            $donor['issues'][] = ['type' => 'info', 'icon' => 'clone', 'text' => 'Shared phone number (used by ' . $phoneTracker[$cleanPhone] . ' donors)'];
+            $donor['issues'][] = ['type' => 'info', 'icon' => 'clone', 'text' => 'Shared phone (' . $phoneTracker[$cleanPhone] . ' donors)'];
         }
     }
     
-    // 2. NO PLEDGE AMOUNT - Critical
     if ($pledgeAmount == 0 && empty($d['pledge'])) {
         $donor['issues'][] = ['type' => 'danger', 'icon' => 'pound-sign', 'text' => 'No pledge amount recorded'];
         $donor['issue_level'] = 'danger';
     }
     
-    // 3. Combined/Complex pledge amount
     if (strpos($pledgeStr, '+') !== false) {
-        $donor['issues'][] = ['type' => 'info', 'icon' => 'calculator', 'text' => 'Combined pledge: ' . $pledgeStr . ' = £' . number_format($pledgeAmount)];
+        $donor['issues'][] = ['type' => 'info', 'icon' => 'calculator', 'text' => 'Combined pledge: ' . $pledgeStr];
     }
     
-    // 4. Overpaid
     if ($paidAmount > $pledgeAmount && $pledgeAmount > 0) {
-        $overpay = $paidAmount - $pledgeAmount;
-        $donor['issues'][] = ['type' => 'warning', 'icon' => 'arrow-up', 'text' => 'Overpaid by £' . number_format($overpay) . ' - needs allocation'];
+        $donor['issues'][] = ['type' => 'warning', 'icon' => 'arrow-up', 'text' => 'Overpaid by £' . number_format($paidAmount - $pledgeAmount)];
         if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
     }
     
-    // 5. Payment mismatch (paid £200 but pledge is £100)
-    if ($paidAmount > 0 && $pledgeAmount > 0 && $paidAmount > $pledgeAmount * 2) {
-        $donor['issues'][] = ['type' => 'warning', 'icon' => 'not-equal', 'text' => 'Payment (£' . number_format($paidAmount) . ') > 2x pledge (£' . number_format($pledgeAmount) . ')'];
-        if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
-    }
-    
-    // 6. Notes requiring attention
-    $notesLower = strtolower($d['notes']);
     if (!empty($d['notes'])) {
-        // Specific attention-needed notes
-        if (stripos($d['notes'], "didn't answer") !== false || stripos($d['notes'], 'didnt answer') !== false) {
+        if (stripos($d['notes'], "didn't answer") !== false) {
             $donor['issues'][] = ['type' => 'warning', 'icon' => 'phone-alt', 'text' => 'Did not answer phone'];
             if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
         }
         if (stripos($d['notes'], 'missing') !== false) {
-            $donor['issues'][] = ['type' => 'warning', 'icon' => 'question-circle', 'text' => 'Note: ' . $d['notes']];
+            $donor['issues'][] = ['type' => 'warning', 'icon' => 'question-circle', 'text' => $d['notes']];
             if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
         }
         if (stripos($d['notes'], 'manchester') !== false || stripos($d['notes'], 'blackpool') !== false) {
-            $donor['issues'][] = ['type' => 'info', 'icon' => 'map-marker-alt', 'text' => 'Different location: ' . $d['notes']];
+            $donor['issues'][] = ['type' => 'info', 'icon' => 'map-marker-alt', 'text' => $d['notes']];
         }
         if (stripos($d['notes'], 'auction') !== false) {
-            $donor['issues'][] = ['type' => 'info', 'icon' => 'gavel', 'text' => 'Includes auction payment: ' . $d['notes']];
-        }
-        if (stripos($d['notes'], 'start june') !== false || stripos($d['notes'], 'start june') !== false) {
-            $donor['issues'][] = ['type' => 'info', 'icon' => 'calendar', 'text' => 'Scheduled start: ' . $d['notes']];
+            $donor['issues'][] = ['type' => 'info', 'icon' => 'gavel', 'text' => $d['notes']];
         }
     }
     
-    // 7. High value pledge (£1500+)
-    if ($pledgeAmount >= 1500) {
-        $donor['issues'][] = ['type' => 'info', 'icon' => 'star', 'text' => 'High value pledge: £' . number_format($pledgeAmount)];
-    }
-    
-    // 8. Very high value (£5000+)
     if ($pledgeAmount >= 5000) {
-        $donor['issues'][] = ['type' => 'warning', 'icon' => 'gem', 'text' => 'VIP Donor - Very high pledge: £' . number_format($pledgeAmount)];
+        $donor['issues'][] = ['type' => 'warning', 'icon' => 'gem', 'text' => 'VIP - £' . number_format($pledgeAmount)];
         if ($donor['issue_level'] !== 'danger') $donor['issue_level'] = 'warning';
-    }
-    
-    // 9. Unusual amounts
-    if ($pledgeAmount > 0 && !in_array($pledgeAmount, [35, 50, 100, 110, 150, 200, 250, 300, 400, 500, 600, 700, 750, 900, 1000, 1100, 1500, 5000])) {
-        // Check if it's not a common amount
-        $unusualAmounts = [35, 110, 150, 250, 750, 900, 1100];
-        if (!in_array($pledgeAmount, [100, 200, 300, 400, 500, 600, 1000, 1500, 5000])) {
-            $donor['issues'][] = ['type' => 'info', 'icon' => 'info-circle', 'text' => 'Non-standard pledge amount: £' . number_format($pledgeAmount)];
-        }
+    } elseif ($pledgeAmount >= 1500) {
+        $donor['issues'][] = ['type' => 'info', 'icon' => 'star', 'text' => 'High value: £' . number_format($pledgeAmount)];
     }
     
     $donors[] = $donor;
 }
 
-// Filter to only donors with issues
 $donorsWithIssues = array_filter($donors, fn($d) => !empty($d['issues']));
 
-// Sort by issue level (danger first, then warning, then info)
 usort($donorsWithIssues, function($a, $b) {
     $order = ['danger' => 0, 'warning' => 1, 'info' => 2];
     $levelA = $order[$a['issue_level']] ?? 3;
@@ -267,12 +222,10 @@ usort($donorsWithIssues, function($a, $b) {
     return $a['no'] <=> $b['no'];
 });
 
-// Count by level
 $dangerCount = count(array_filter($donorsWithIssues, fn($d) => $d['issue_level'] === 'danger'));
 $warningCount = count(array_filter($donorsWithIssues, fn($d) => $d['issue_level'] === 'warning'));
 $infoCount = count(array_filter($donorsWithIssues, fn($d) => $d['issue_level'] === 'info'));
 
-// Helper function
 function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
 ?>
 <!DOCTYPE html>
@@ -280,130 +233,106 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#1a1a2e">
+    <meta name="theme-color" content="#1e4d5c">
     <meta name="robots" content="noindex, nofollow">
     <meta name="googlebot" content="noindex, nofollow">
-    <title>📋 Donor Review Report</title>
+    <title>Donor Review - Liverpool Abune Teklehaymanot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-dark: #0f0f1a;
-            --bg-card: #1a1a2e;
-            --bg-card-hover: #252542;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b8;
-            --text-muted: #6b6b80;
-            --accent-blue: #4f8cff;
-            --accent-green: #2ecc71;
-            --accent-orange: #f39c12;
-            --accent-red: #e74c3c;
-            --border-color: #2a2a45;
-            --danger-bg: rgba(231, 76, 60, 0.15);
-            --warning-bg: rgba(243, 156, 18, 0.15);
-            --info-bg: rgba(79, 140, 255, 0.15);
-            --success-bg: rgba(46, 204, 113, 0.15);
+            /* Church Brand Colors */
+            --primary-blue: #0a6286;
+            --primary-dark: #1e4d5c;
+            --primary-gold: #e2ca18;
+            --accent-gold: #ffd700;
+            --text-white: #ffffff;
+            --text-light: #e8f4f8;
+            --bg-light: #f8fafc;
+            
+            /* Status Colors */
+            --danger: #dc3545;
+            --warning: #f39c12;
+            --success: #28a745;
+            --info: #0a6286;
+            
+            /* Backgrounds */
+            --danger-bg: rgba(220, 53, 69, 0.1);
+            --warning-bg: rgba(243, 156, 18, 0.1);
+            --info-bg: rgba(10, 98, 134, 0.1);
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-primary);
+            font-family: 'Noto Sans Ethiopic', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #2a6b7d 100%);
             min-height: 100vh;
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
+            color: var(--text-white);
         }
         
         /* Header */
         .header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 100%);
-            padding: 20px 16px;
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            padding: 16px;
             position: sticky;
             top: 0;
             z-index: 100;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
         .header-content {
             max-width: 600px;
             margin: 0 auto;
+            text-align: center;
         }
         
         .header h1 {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 700;
+            color: var(--accent-gold);
             margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .header h1 i {
-            color: var(--accent-blue);
         }
         
         .header p {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
+            font-size: 0.8rem;
+            color: var(--text-light);
+            opacity: 0.9;
         }
         
-        .church-name {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-        
-        /* Stats Bar */
+        /* Stats Pills */
         .stats-bar {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             padding: 16px;
             max-width: 600px;
             margin: 0 auto;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         
         .stat-pill {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 16px;
+            gap: 6px;
+            padding: 8px 14px;
             border-radius: 50px;
-            font-size: 0.875rem;
+            font-size: 0.8rem;
             font-weight: 600;
-            white-space: nowrap;
-            flex-shrink: 0;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.15);
         }
         
-        .stat-pill.danger {
-            background: var(--danger-bg);
-            color: var(--accent-red);
-            border: 1px solid rgba(231, 76, 60, 0.3);
-        }
-        
-        .stat-pill.warning {
-            background: var(--warning-bg);
-            color: var(--accent-orange);
-            border: 1px solid rgba(243, 156, 18, 0.3);
-        }
-        
-        .stat-pill.info {
-            background: var(--info-bg);
-            color: var(--accent-blue);
-            border: 1px solid rgba(79, 140, 255, 0.3);
-        }
+        .stat-pill.danger { border-color: var(--danger); color: #ff8a8a; }
+        .stat-pill.warning { border-color: var(--warning); color: #ffd98a; }
+        .stat-pill.info { border-color: var(--accent-gold); color: var(--accent-gold); }
         
         .stat-pill .count {
-            background: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.2);
             padding: 2px 8px;
             border-radius: 20px;
             font-size: 0.75rem;
@@ -417,33 +346,32 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             max-width: 600px;
             margin: 0 auto;
             overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
         }
         
         .filter-tab {
             padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            color: var(--text-secondary);
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: transparent;
+            color: var(--text-light);
             cursor: pointer;
             white-space: nowrap;
             transition: all 0.2s;
         }
         
         .filter-tab.active {
-            background: var(--accent-blue);
-            color: white;
-            border-color: var(--accent-blue);
+            background: linear-gradient(135deg, var(--primary-gold), #ffed4e);
+            color: var(--primary-dark);
+            border-color: var(--primary-gold);
         }
         
         .filter-tab:hover:not(.active) {
-            background: var(--bg-card-hover);
+            background: rgba(255,255,255,0.1);
         }
         
-        /* Main Content */
+        /* Main */
         .main {
             padding: 0 16px 100px;
             max-width: 600px;
@@ -452,207 +380,150 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
         
         /* Donor Card */
         .donor-card {
-            background: var(--bg-card);
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
             border-radius: 16px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             overflow: hidden;
-            border: 1px solid var(--border-color);
-            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .donor-card.danger {
-            border-left: 4px solid var(--accent-red);
-        }
-        
-        .donor-card.warning {
-            border-left: 4px solid var(--accent-orange);
-        }
-        
-        .donor-card.info {
-            border-left: 4px solid var(--accent-blue);
-        }
+        .donor-card.danger { border-left: 4px solid var(--danger); }
+        .donor-card.warning { border-left: 4px solid var(--warning); }
+        .donor-card.info { border-left: 4px solid var(--accent-gold); }
         
         .donor-header {
-            padding: 16px;
+            padding: 14px 16px;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 12px;
+            gap: 10px;
         }
         
-        .donor-info {
-            flex: 1;
-            min-width: 0;
-        }
+        .donor-info { flex: 1; min-width: 0; }
         
         .donor-number {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
-            color: var(--text-muted);
+            color: var(--accent-gold);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         
         .donor-name {
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
-            color: var(--text-primary);
+            color: var(--text-white);
             margin-bottom: 4px;
-            word-break: break-word;
         }
         
         .donor-phone {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
+            font-size: 0.8rem;
+            color: var(--text-light);
             display: flex;
             align-items: center;
             gap: 6px;
         }
         
         .donor-phone a {
-            color: var(--accent-blue);
+            color: var(--accent-gold);
             text-decoration: none;
         }
         
-        .donor-phone.error {
-            color: var(--accent-red);
-        }
+        .donor-phone.error { color: #ff8a8a; }
         
-        .donor-badge {
-            padding: 6px 12px;
+        .call-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--success);
+            color: white;
+            padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.7rem;
             font-weight: 600;
+            text-decoration: none;
+            margin-left: 8px;
+        }
+        
+        .donor-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            flex-shrink: 0;
         }
         
-        .donor-badge.danger {
-            background: var(--danger-bg);
-            color: var(--accent-red);
-        }
+        .donor-badge.danger { background: var(--danger-bg); color: var(--danger); }
+        .donor-badge.warning { background: var(--warning-bg); color: var(--warning); }
+        .donor-badge.info { background: var(--info-bg); color: var(--accent-gold); }
         
-        .donor-badge.warning {
-            background: var(--warning-bg);
-            color: var(--accent-orange);
-        }
-        
-        .donor-badge.info {
-            background: var(--info-bg);
-            color: var(--accent-blue);
-        }
-        
-        /* Financial Summary */
+        /* Financial Row */
         .financial-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: var(--border-color);
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
         
         .financial-item {
-            background: var(--bg-card);
-            padding: 12px;
+            padding: 10px;
             text-align: center;
+            border-right: 1px solid rgba(255,255,255,0.05);
         }
         
+        .financial-item:last-child { border-right: none; }
+        
         .financial-label {
-            font-size: 0.65rem;
-            color: var(--text-muted);
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.6);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         
         .financial-value {
-            font-size: 1rem;
+            font-size: 0.9rem;
             font-weight: 700;
         }
         
-        .financial-value.pledge { color: var(--accent-blue); }
-        .financial-value.paid { color: var(--accent-green); }
-        .financial-value.balance { color: var(--accent-orange); }
-        .financial-value.zero { color: var(--text-muted); }
+        .financial-value.pledge { color: var(--accent-gold); }
+        .financial-value.paid { color: var(--success); }
+        .financial-value.balance { color: var(--warning); }
+        .financial-value.zero { color: rgba(255,255,255,0.4); }
         
-        /* Issues List */
+        /* Issues */
         .issues-list {
-            padding: 12px 16px 16px;
-            border-top: 1px solid var(--border-color);
+            padding: 10px 14px 14px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
         
         .issues-title {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--text-muted);
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.6);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            margin-bottom: 8px;
         }
         
         .issue-item {
             display: flex;
             align-items: flex-start;
-            gap: 10px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            margin-bottom: 8px;
-            font-size: 0.85rem;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
         }
         
-        .issue-item:last-child {
-            margin-bottom: 0;
-        }
+        .issue-item:last-child { margin-bottom: 0; }
         
-        .issue-item.danger {
-            background: var(--danger-bg);
-            color: #f5a5a0;
-        }
+        .issue-item.danger { background: var(--danger-bg); color: #ff8a8a; }
+        .issue-item.warning { background: var(--warning-bg); color: #ffd98a; }
+        .issue-item.info { background: var(--info-bg); color: var(--text-light); }
         
-        .issue-item.warning {
-            background: var(--warning-bg);
-            color: #f8d49a;
-        }
-        
-        .issue-item.info {
-            background: var(--info-bg);
-            color: #9ac4ff;
-        }
-        
-        .issue-item i {
-            margin-top: 2px;
-            flex-shrink: 0;
-            width: 16px;
-            text-align: center;
-        }
-        
-        .issue-item.danger i { color: var(--accent-red); }
-        .issue-item.warning i { color: var(--accent-orange); }
-        .issue-item.info i { color: var(--accent-blue); }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-secondary);
-        }
-        
-        .empty-state i {
-            font-size: 3rem;
-            color: var(--accent-green);
-            margin-bottom: 16px;
-        }
-        
-        .empty-state h3 {
-            font-size: 1.25rem;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-        }
+        .issue-item i { width: 14px; margin-top: 2px; flex-shrink: 0; }
+        .issue-item.danger i { color: var(--danger); }
+        .issue-item.warning i { color: var(--warning); }
+        .issue-item.info i { color: var(--accent-gold); }
         
         /* Footer */
         .footer {
@@ -660,98 +531,60 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(to top, var(--bg-dark) 60%, transparent);
-            padding: 40px 16px 20px;
-            text-align: center;
+            background: linear-gradient(to top, var(--primary-dark), transparent);
+            padding: 30px 16px 16px;
         }
         
         .footer-content {
             max-width: 600px;
             margin: 0 auto;
             display: flex;
-            gap: 12px;
+            gap: 10px;
             justify-content: center;
         }
         
         .footer-btn {
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-size: 0.875rem;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 0.8rem;
             font-weight: 600;
             text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .footer-btn.primary {
-            background: var(--accent-blue);
-            color: white;
-        }
-        
-        .footer-btn.secondary {
-            background: var(--bg-card);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: var(--bg-dark);
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 4px;
-        }
-        
-        /* Hide elements based on filter */
-        .donor-card.hidden {
-            display: none;
-        }
-        
-        /* Pulse animation for critical items */
-        @keyframes pulse-border {
-            0%, 100% { border-left-color: var(--accent-red); }
-            50% { border-left-color: rgba(231, 76, 60, 0.4); }
-        }
-        
-        .donor-card.danger.pulse {
-            animation: pulse-border 2s infinite;
-        }
-        
-        /* Print styles */
-        @media print {
-            .header { position: relative; }
-            .footer { display: none; }
-            .donor-card { break-inside: avoid; }
-        }
-        
-        /* Call button */
-        .call-btn {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: var(--accent-green);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-decoration: none;
-            margin-left: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
         }
         
-        .call-btn:hover {
-            background: #27ae60;
+        .footer-btn.primary {
+            background: linear-gradient(135deg, var(--primary-gold), #ffed4e);
+            color: var(--primary-dark);
+        }
+        
+        .footer-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-white);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .donor-card.hidden { display: none; }
+        
+        /* Empty */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+        }
+        
+        .empty-state i {
+            font-size: 2.5rem;
+            color: var(--success);
+            margin-bottom: 12px;
+        }
+        
+        .empty-state h3 {
+            color: var(--accent-gold);
+            margin-bottom: 6px;
         }
     </style>
 </head>
@@ -759,34 +592,30 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
     <header class="header">
         <div class="header-content">
             <h1><i class="fas fa-clipboard-check"></i> Donor Review Report</h1>
-            <p>Donors requiring attention • <?php echo count($donorsWithIssues); ?> of <?php echo count($donors); ?> donors</p>
-            <p class="church-name">Liverpool Abune Teklehaymanot EOTC • Generated <?php echo date('j M Y, g:i A'); ?></p>
+            <p><?php echo count($donorsWithIssues); ?> of <?php echo count($donors); ?> donors need attention • <?php echo date('j M Y'); ?></p>
         </div>
     </header>
     
     <div class="stats-bar">
         <div class="stat-pill danger">
-            <i class="fas fa-exclamation-circle"></i>
-            Critical
+            <i class="fas fa-exclamation-circle"></i> Critical
             <span class="count"><?php echo $dangerCount; ?></span>
         </div>
         <div class="stat-pill warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            Warnings
+            <i class="fas fa-exclamation-triangle"></i> Warning
             <span class="count"><?php echo $warningCount; ?></span>
         </div>
         <div class="stat-pill info">
-            <i class="fas fa-info-circle"></i>
-            Info
+            <i class="fas fa-info-circle"></i> Info
             <span class="count"><?php echo $infoCount; ?></span>
         </div>
     </div>
     
     <div class="filter-tabs">
         <button class="filter-tab active" data-filter="all">All (<?php echo count($donorsWithIssues); ?>)</button>
-        <button class="filter-tab" data-filter="danger">Critical (<?php echo $dangerCount; ?>)</button>
-        <button class="filter-tab" data-filter="warning">Warning (<?php echo $warningCount; ?>)</button>
-        <button class="filter-tab" data-filter="info">Info (<?php echo $infoCount; ?>)</button>
+        <button class="filter-tab" data-filter="danger">Critical</button>
+        <button class="filter-tab" data-filter="warning">Warning</button>
+        <button class="filter-tab" data-filter="info">Info</button>
     </div>
     
     <main class="main">
@@ -794,7 +623,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             <div class="empty-state">
                 <i class="fas fa-check-circle"></i>
                 <h3>All Clear!</h3>
-                <p>No donors require special attention at this time.</p>
+                <p>No donors require attention.</p>
             </div>
         <?php else: ?>
             <?php foreach ($donorsWithIssues as $donor): ?>
@@ -806,10 +635,10 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
                         $cleanPhone = '0' . $cleanPhone;
                     }
                 ?>
-                <div class="donor-card <?php echo h($donor['issue_level']); ?> <?php echo $donor['issue_level'] === 'danger' ? 'pulse' : ''; ?>" data-level="<?php echo h($donor['issue_level']); ?>">
+                <div class="donor-card <?php echo h($donor['issue_level']); ?>" data-level="<?php echo h($donor['issue_level']); ?>">
                     <div class="donor-header">
                         <div class="donor-info">
-                            <div class="donor-number">Donor #<?php echo $donor['no']; ?></div>
+                            <div class="donor-number">#<?php echo $donor['no']; ?></div>
                             <div class="donor-name"><?php echo h($donor['name']); ?></div>
                             <?php if ($hasValidPhone): ?>
                                 <div class="donor-phone">
@@ -826,16 +655,12 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
                                 </div>
                             <?php else: ?>
                                 <div class="donor-phone error">
-                                    <i class="fas fa-phone-slash"></i>
-                                    No phone number
+                                    <i class="fas fa-phone-slash"></i> No phone
                                 </div>
                             <?php endif; ?>
                         </div>
                         <div class="donor-badge <?php echo h($donor['issue_level']); ?>">
-                            <?php 
-                            echo $donor['issue_level'] === 'danger' ? 'Critical' : 
-                                 ($donor['issue_level'] === 'warning' ? 'Warning' : 'Review');
-                            ?>
+                            <?php echo $donor['issue_level'] === 'danger' ? 'Critical' : ($donor['issue_level'] === 'warning' ? 'Warning' : 'Review'); ?>
                         </div>
                     </div>
                     
@@ -862,8 +687,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
                     
                     <div class="issues-list">
                         <div class="issues-title">
-                            <i class="fas fa-flag"></i>
-                            Issues (<?php echo count($donor['issues']); ?>)
+                            <i class="fas fa-flag"></i> Issues (<?php echo count($donor['issues']); ?>)
                         </div>
                         <?php foreach ($donor['issues'] as $issue): ?>
                             <div class="issue-item <?php echo h($issue['type']); ?>">
@@ -879,49 +703,31 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
     
     <div class="footer">
         <div class="footer-content">
-            <button class="footer-btn secondary" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-                <i class="fas fa-arrow-up"></i>
-                Top
+            <button class="footer-btn secondary" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+                <i class="fas fa-arrow-up"></i> Top
             </button>
             <button class="footer-btn primary" onclick="location.reload()">
-                <i class="fas fa-sync-alt"></i>
-                Refresh
+                <i class="fas fa-sync-alt"></i> Refresh
             </button>
         </div>
     </div>
     
     <script>
-        // Filter functionality
         document.querySelectorAll('.filter-tab').forEach(tab => {
             tab.addEventListener('click', function() {
                 const filter = this.dataset.filter;
-                
-                // Update active tab
                 document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
-                
-                // Filter cards
                 document.querySelectorAll('.donor-card').forEach(card => {
-                    if (filter === 'all' || card.dataset.level === filter) {
-                        card.classList.remove('hidden');
-                    } else {
-                        card.classList.add('hidden');
-                    }
+                    card.classList.toggle('hidden', filter !== 'all' && card.dataset.level !== filter);
                 });
             });
         });
         
-        // Pull to refresh (mobile)
         let touchStart = 0;
-        document.addEventListener('touchstart', e => {
-            touchStart = e.changedTouches[0].screenY;
-        });
-        
+        document.addEventListener('touchstart', e => touchStart = e.changedTouches[0].screenY);
         document.addEventListener('touchend', e => {
-            const touchEnd = e.changedTouches[0].screenY;
-            if (window.scrollY === 0 && touchEnd - touchStart > 100) {
-                location.reload();
-            }
+            if (window.scrollY === 0 && e.changedTouches[0].screenY - touchStart > 100) location.reload();
         });
     </script>
 </body>
