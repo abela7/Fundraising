@@ -67,31 +67,18 @@ function log_audit(
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         
-        // Handle binary IP address binding
-        if ($ipBinary !== null) {
-            $stmt->bind_param(
-                'isisssss',
-                $userId,
-                $entityType,
-                $entityId,
-                $action,
-                $beforeJson,
-                $afterJson,
-                $source,
-                $ipBinary
-            );
-        } else {
-            $stmt->bind_param(
-                'isissss',
-                $userId,
-                $entityType,
-                $entityId,
-                $action,
-                $beforeJson,
-                $afterJson,
-                $source
-            );
-        }
+        // Bind all parameters including IP (null if not available)
+        $stmt->bind_param(
+            'isisssss',
+            $userId,
+            $entityType,
+            $entityId,
+            $action,
+            $beforeJson,
+            $afterJson,
+            $source,
+            $ipBinary
+        );
         
         $result = $stmt->execute();
         $stmt->close();
