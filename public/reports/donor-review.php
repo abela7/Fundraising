@@ -3,7 +3,12 @@
  * Public Donor Review Report
  * Mobile-first design for sharing with data collectors
  * No authentication required
+ * 
+ * Accessible only via direct link - not indexed by search engines
  */
+
+// Prevent search engine indexing
+header('X-Robots-Tag: noindex, nofollow');
 
 // Actual donor data from Excel (parsed)
 $rawDonors = [
@@ -276,6 +281,8 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1a1a2e">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="googlebot" content="noindex, nofollow">
     <title>📋 Donor Review Report</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
