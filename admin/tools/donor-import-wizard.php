@@ -164,293 +164,707 @@ function getPaymentMethodDisplay($method) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donor Import Wizard - Step by Step</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #2563eb;
-            --success: #16a34a;
-            --warning: #d97706;
-            --danger: #dc2626;
-            --gray: #6b7280;
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --bg-card: #1e1e1e;
+            --bg-hover: #2a2a2a;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666;
+            --border: #333;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-cyan: #06b6d4;
+            --glow-blue: rgba(59, 130, 246, 0.3);
+            --glow-green: rgba(16, 185, 129, 0.3);
+            --glow-purple: rgba(139, 92, 246, 0.3);
         }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f1f5f9;
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            background-image: 
+                radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+            color: var(--text-primary);
             min-height: 100vh;
+            line-height: 1.6;
         }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+        
         .wizard-header {
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            color: white;
-            padding: 20px 0;
-            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(30, 30, 30, 0.95) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
+        
         .progress-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 20px;
         }
-        .donor-nav {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .donor-nav select {
-            padding: 8px 15px;
-            border-radius: 8px;
-            border: none;
-            font-size: 14px;
-        }
-        .step-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-        .step-header {
-            padding: 15px 20px;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-        .step-header.step-1 { background: #dbeafe; color: #1e40af; }
-        .step-header.step-2 { background: #fef3c7; color: #92400e; }
-        .step-header.step-3 { background: #d1fae5; color: #065f46; }
-        .step-header.step-4 { background: #ede9fe; color: #5b21b6; }
-        .step-content {
-            padding: 20px;
-            border-top: 1px solid #e5e7eb;
-        }
-        .copy-field {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            gap: 10px;
-        }
-        .copy-field label {
-            min-width: 140px;
-            font-weight: 500;
-            color: var(--gray);
-            font-size: 13px;
-        }
-        .copy-field .value {
-            flex: 1;
-            padding: 10px 15px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 14px;
-        }
-        .copy-btn {
-            padding: 8px 16px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-        .copy-btn:hover {
-            background: #1d4ed8;
-        }
-        .copy-btn.copied {
-            background: var(--success);
-        }
-        .donor-card {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .donor-name {
-            font-size: 24px;
+        
+        .wizard-header h1 {
+            font-size: 1.5rem;
             font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 5px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
+        
+        .wizard-header p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .donor-nav select {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            min-width: 250px;
+            transition: all 0.2s;
+        }
+        
+        .donor-nav select:hover {
+            border-color: var(--accent-blue);
+        }
+        
+        .donor-nav select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--glow-blue);
+        }
+        
+        .stats-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-item i {
+            font-size: 12px;
+        }
+        
+        /* Donor Card */
+        .donor-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.02),
+                0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .donor-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-cyan), var(--accent-green));
+            background-size: 300% 100%;
+            animation: gradientMove 3s ease infinite;
+        }
+        
+        @keyframes gradientMove {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .donor-name {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        
         .donor-meta {
             display: flex;
-            gap: 20px;
+            gap: 24px;
             flex-wrap: wrap;
-            margin-top: 10px;
+            margin-top: 16px;
         }
+        
         .donor-meta-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-size: 14px;
-            color: var(--gray);
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
         }
+        
         .donor-meta-item i {
-            width: 20px;
+            color: var(--accent-blue);
+            font-size: 12px;
         }
+        
+        /* Status Badges */
         .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .status-completed { background: #d1fae5; color: #065f46; }
-        .status-paying { background: #fef3c7; color: #92400e; }
-        .status-not_started { background: #fee2e2; color: #991b1b; }
+        
+        .status-completed {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        .status-paying {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-orange);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        
+        .status-not_started {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        /* Financial Summary */
         .financial-summary {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 20px;
         }
+        
         .financial-item {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .financial-item .amount {
-            font-size: 20px;
-            font-weight: 700;
-            color: #1e293b;
-        }
-        .financial-item .label {
-            font-size: 12px;
-            color: var(--gray);
-            margin-top: 5px;
-        }
-        .nav-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: space-between;
-            margin-top: 30px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
             padding: 20px;
-            background: white;
             border-radius: 12px;
+            text-align: center;
+            transition: all 0.2s;
         }
-        .btn-nav {
-            padding: 12px 30px;
-            border-radius: 8px;
+        
+        .financial-item:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+        
+        .financial-item .amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+        
+        .financial-item .amount.text-success { color: var(--accent-green); }
+        .financial-item .amount.text-danger { color: var(--accent-red); }
+        
+        .financial-item .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Step Containers */
+        .step-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: all 0.3s;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .step-container:hover {
+            border-color: #444;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .step-header {
+            padding: 20px 24px;
             font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 15px;
+        }
+        
+        .step-number {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: currentColor;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            margin-right: 14px;
+            color: var(--bg-primary);
+        }
+        
+        .step-1 .step-number { background: var(--accent-blue); }
+        .step-2 .step-number { background: var(--accent-orange); }
+        .step-3 .step-number { background: var(--accent-green); }
+        .step-4 .step-number { background: var(--accent-purple); }
+        
+        .step-header.step-1 {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+            color: var(--accent-blue);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        
+        .step-header.step-2 {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+            color: var(--accent-orange);
+            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+        }
+        
+        .step-header.step-3 {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+            color: var(--accent-green);
+            border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .step-header.step-4 {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+            color: var(--accent-purple);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        }
+        
+        .step-content {
+            padding: 24px;
+            background: var(--bg-secondary);
+        }
+        
+        .step-content p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+        
+        /* Copy Fields */
+        .copy-field {
+            display: flex;
+            align-items: center;
+            margin-bottom: 14px;
+            gap: 12px;
+        }
+        
+        .copy-field label {
+            min-width: 150px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        
+        .copy-field .value {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        
+        .copy-field .value:hover {
+            border-color: var(--accent-blue);
+        }
+        
+        .copy-btn {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
             display: flex;
             align-items: center;
             gap: 8px;
         }
+        
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--glow-blue);
+        }
+        
+        .copy-btn.copied {
+            background: linear-gradient(135deg, var(--accent-green) 0%, #059669 100%);
+            box-shadow: 0 4px 20px var(--glow-green);
+        }
+        
+        /* External Links */
         .external-link {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 10px 20px;
-            background: #1e40af;
-            color: white;
+            padding: 10px 18px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: 500;
+            font-size: 13px;
             transition: all 0.2s;
         }
+        
         .external-link:hover {
-            background: #1e3a8a;
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
             color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--glow-blue);
         }
+        
+        /* Warning Box */
         .warning-box {
-            background: #fef3c7;
-            border: 1px solid #fcd34d;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        .warning-box i {
-            color: #d97706;
-        }
-        .skip-payment {
-            background: #f1f5f9;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            color: var(--gray);
-        }
-        .stats-bar {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            color: var(--accent-orange);
             display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
         }
-        .stat-item {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 8px;
+        
+        .warning-box i {
+            font-size: 18px;
+        }
+        
+        /* Skip Payment */
+        .skip-payment {
+            background: var(--bg-tertiary);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        
+        .skip-payment i {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+        
+        /* Instructions Box */
+        .instructions-box {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent-cyan);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-top: 20px;
+        }
+        
+        .instructions-box strong {
+            color: var(--accent-cyan);
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .instructions-box ol {
+            margin: 12px 0 0 20px;
+            color: var(--text-secondary);
+        }
+        
+        .instructions-box ol li {
+            margin-bottom: 8px;
+            padding-left: 4px;
+        }
+        
+        .instructions-box ol li strong {
+            color: var(--text-primary);
+            display: inline;
+            margin-bottom: 0;
+        }
+        
+        /* Navigation Buttons */
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+            margin-top: 32px;
+            padding: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        
+        .btn-nav {
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-size: 14px;
-        }
-        .donor-list-sidebar {
-            position: fixed;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            width: 300px;
-            background: white;
-            box-shadow: -4px 0 10px rgba(0,0,0,0.1);
-            overflow-y: auto;
-            transform: translateX(100%);
-            transition: transform 0.3s;
-            z-index: 1000;
-        }
-        .donor-list-sidebar.open {
-            transform: translateX(0);
-        }
-        .sidebar-toggle {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: var(--primary);
-            color: white;
+            transition: all 0.2s;
             border: none;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
             cursor: pointer;
-            font-size: 20px;
-            z-index: 1001;
         }
-        .donor-list-item {
-            padding: 12px 15px;
-            border-bottom: 1px solid #e5e7eb;
-            cursor: pointer;
-            transition: background 0.2s;
+        
+        .btn-outline-secondary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
         }
-        .donor-list-item:hover {
-            background: #f8fafc;
+        
+        .btn-outline-secondary:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: #444;
         }
-        .donor-list-item.active {
-            background: #dbeafe;
-            border-left: 3px solid var(--primary);
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent-green) 0%, #059669 100%);
+            color: white;
         }
-        .donor-list-item.completed {
-            background: #d1fae5;
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--glow-green);
         }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--glow-blue);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* Checklist */
         .checklist {
             list-style: none;
             padding: 0;
             margin: 0;
         }
+        
         .checklist li {
-            padding: 8px 0;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            transition: all 0.2s;
         }
+        
         .checklist li i {
             width: 20px;
             text-align: center;
+            font-size: 16px;
         }
+        
         .checklist li.done {
-            color: var(--success);
-            text-decoration: line-through;
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: var(--accent-green);
         }
+        
+        .checklist li.text-muted {
+            opacity: 0.5;
+        }
+        
+        /* Sidebar Toggle */
+        .sidebar-toggle {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 20px var(--glow-blue);
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 1001;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px var(--glow-purple);
+        }
+        
+        /* Donor List Sidebar */
+        .donor-list-sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 320px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .donor-list-sidebar.open {
+            transform: translateX(0);
+            box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .sidebar-header {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .sidebar-header h5 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin: 0;
+            font-size: 16px;
+        }
+        
+        .donor-list-item {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+        }
+        
+        .donor-list-item:hover {
+            background: var(--bg-hover);
+        }
+        
+        .donor-list-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-left: 3px solid var(--accent-blue);
+        }
+        
+        .donor-list-item.completed {
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .donor-list-item strong {
+            color: var(--text-primary);
+        }
+        
+        .donor-list-item small {
+            color: var(--text-muted);
+        }
+        
+        /* Notes area */
+        .mt-3.p-2.bg-white {
+            background: var(--bg-tertiary) !important;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px !important;
+        }
+        
+        .mt-3.p-2.bg-white small {
+            color: var(--text-secondary);
+        }
+        
+        /* Responsive */
         @media (max-width: 768px) {
             .copy-field {
                 flex-direction: column;
@@ -462,6 +876,30 @@ function getPaymentMethodDisplay($method) {
             .copy-field .value {
                 width: 100%;
             }
+            .financial-summary {
+                grid-template-columns: 1fr;
+            }
+            .nav-buttons {
+                flex-direction: column;
+            }
+            .btn-nav {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .step-container {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .donor-card {
+            animation: fadeIn 0.4s ease;
         }
     </style>
 </head>
@@ -544,8 +982,8 @@ function getPaymentMethodDisplay($method) {
                 </div>
             </div>
             <?php if ($currentDonor['notes']): ?>
-            <div class="mt-3 p-2 bg-white rounded">
-                <small class="text-muted"><i class="fas fa-sticky-note me-1"></i> <?php echo htmlspecialchars($currentDonor['notes']); ?></small>
+            <div class="notes-box" style="margin-top: 16px; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 10px;">
+                <small style="color: var(--text-secondary);"><i class="fas fa-sticky-note me-2" style="color: var(--accent-cyan);"></i><?php echo htmlspecialchars($currentDonor['notes']); ?></small>
             </div>
             <?php endif; ?>
         </div>
@@ -567,7 +1005,7 @@ function getPaymentMethodDisplay($method) {
         <!-- Step 1: Registration -->
         <div class="step-container">
             <div class="step-header step-1" onclick="toggleStep(1)">
-                <span><i class="fas fa-1 me-2"></i> Step 1: Register Pledge</span>
+                <span><span class="step-number">1</span> Register Pledge</span>
                 <a href="https://donate.abuneteklehaymanot.org/registrar/" target="_blank" class="external-link" onclick="event.stopPropagation();">
                     <i class="fas fa-external-link-alt"></i> Open Registrar
                 </a>
@@ -599,8 +1037,8 @@ function getPaymentMethodDisplay($method) {
                     <button class="copy-btn" onclick="copyField('field-amount', this)"><i class="fas fa-copy"></i> Copy</button>
                 </div>
                 
-                <div class="mt-3 p-3 bg-light rounded">
-                    <strong>Instructions:</strong>
+                <div class="instructions-box">
+                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
                     <ol class="mb-0 mt-2">
                         <li>Select <strong>"Custom"</strong> amount</li>
                         <li>Enter <strong>£<?php echo number_format($currentDonor['pledge'], 2); ?></strong></li>
@@ -614,7 +1052,7 @@ function getPaymentMethodDisplay($method) {
         <!-- Step 2: Approval -->
         <div class="step-container">
             <div class="step-header step-2" onclick="toggleStep(2)">
-                <span><i class="fas fa-2 me-2"></i> Step 2: Approve Pledge</span>
+                <span><span class="step-number">2</span> Approve Pledge</span>
                 <a href="https://donate.abuneteklehaymanot.org/admin/approvals/" target="_blank" class="external-link" onclick="event.stopPropagation();">
                     <i class="fas fa-external-link-alt"></i> Open Approvals
                 </a>
@@ -628,8 +1066,8 @@ function getPaymentMethodDisplay($method) {
                     <button class="copy-btn" onclick="copyField('field-search', this)"><i class="fas fa-copy"></i> Copy</button>
                 </div>
                 
-                <div class="mt-3 p-3 bg-light rounded">
-                    <strong>Instructions:</strong>
+                <div class="instructions-box">
+                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
                     <ol class="mb-0 mt-2">
                         <li>Find <strong>"<?php echo htmlspecialchars($currentDonor['name']); ?>"</strong> in the pending list</li>
                         <li>Verify amount is <strong>£<?php echo number_format($currentDonor['pledge'], 2); ?></strong></li>
@@ -642,7 +1080,7 @@ function getPaymentMethodDisplay($method) {
         <!-- Step 3: Record Payment (if paid) -->
         <div class="step-container">
             <div class="step-header step-3" onclick="toggleStep(3)">
-                <span><i class="fas fa-3 me-2"></i> Step 3: Record Payment</span>
+                <span><span class="step-number">3</span> Record Payment</span>
                 <?php if ($currentDonor['has_payment']): ?>
                 <a href="https://donate.abuneteklehaymanot.org/admin/donations/record-pledge-payment.php" target="_blank" class="external-link" onclick="event.stopPropagation();">
                     <i class="fas fa-external-link-alt"></i> Open Payment Form
@@ -677,8 +1115,8 @@ function getPaymentMethodDisplay($method) {
                     <button class="copy-btn" onclick="copyField('field-pay-ref', this)"><i class="fas fa-copy"></i> Copy</button>
                 </div>
                 
-                <div class="mt-3 p-3 bg-light rounded">
-                    <strong>Instructions:</strong>
+                <div class="instructions-box">
+                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
                     <ol class="mb-0 mt-2">
                         <li>Search for donor <strong>"<?php echo htmlspecialchars($currentDonor['name']); ?>"</strong></li>
                         <li>Enter payment amount: <strong>£<?php echo number_format($currentDonor['paid'], 2); ?></strong></li>
@@ -700,7 +1138,7 @@ function getPaymentMethodDisplay($method) {
         <!-- Step 4: Approve Payment (if paid) -->
         <div class="step-container">
             <div class="step-header step-4" onclick="toggleStep(4)">
-                <span><i class="fas fa-4 me-2"></i> Step 4: Approve Payment</span>
+                <span><span class="step-number">4</span> Approve Payment</span>
                 <?php if ($currentDonor['has_payment']): ?>
                 <a href="https://donate.abuneteklehaymanot.org/admin/donations/review-pledge-payments.php" target="_blank" class="external-link" onclick="event.stopPropagation();">
                     <i class="fas fa-external-link-alt"></i> Open Payment Review
@@ -717,8 +1155,8 @@ function getPaymentMethodDisplay($method) {
                     <button class="copy-btn" onclick="copyField('field-approve-search', this)"><i class="fas fa-copy"></i> Copy</button>
                 </div>
                 
-                <div class="mt-3 p-3 bg-light rounded">
-                    <strong>Instructions:</strong>
+                <div class="instructions-box">
+                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
                     <ol class="mb-0 mt-2">
                         <li>Find payment for <strong>"<?php echo htmlspecialchars($currentDonor['name']); ?>"</strong></li>
                         <li>Verify amount is <strong>£<?php echo number_format($currentDonor['paid'], 2); ?></strong></li>
@@ -737,7 +1175,7 @@ function getPaymentMethodDisplay($method) {
 
         <!-- Checklist -->
         <div class="step-container">
-            <div class="step-header" style="background: #f1f5f9;">
+            <div class="step-header" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%); color: var(--accent-cyan); border-bottom: 1px solid rgba(6, 182, 212, 0.2);">
                 <span><i class="fas fa-clipboard-check me-2"></i> Completion Checklist</span>
             </div>
             <div class="step-content">
@@ -788,8 +1226,9 @@ function getPaymentMethodDisplay($method) {
 
     <!-- Donor List Sidebar -->
     <div class="donor-list-sidebar" id="donorSidebar">
-        <div class="p-3 bg-light border-bottom">
-            <h5 class="mb-0"><i class="fas fa-users me-2"></i>All Donors</h5>
+        <div class="sidebar-header">
+            <h5><i class="fas fa-users me-2"></i>All Donors</h5>
+            <button onclick="toggleSidebar()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;"><i class="fas fa-times"></i></button>
         </div>
         <?php foreach ($donors as $i => $d): ?>
         <div class="donor-list-item <?php echo $i === $currentIndex ? 'active' : ''; ?>" 
