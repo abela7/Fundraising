@@ -321,7 +321,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             --info: #0a6286;
             
             /* Backgrounds */
-            --danger-bg: rgba(220, 53, 69, 0.1);
+            --danger-bg: rgba(255, 68, 68, 0.15);
             --warning-bg: rgba(243, 156, 18, 0.1);
             --info-bg: rgba(10, 98, 134, 0.1);
         }
@@ -389,7 +389,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             border: 1px solid rgba(255,255,255,0.15);
         }
         
-        .stat-pill.danger { border-color: var(--danger); color: #ff8a8a; }
+        .stat-pill.danger { border-color: #ff4444; color: #ffcccc; }
         .stat-pill.warning { border-color: var(--warning); color: #ffd98a; }
         .stat-pill.info { border-color: var(--accent-gold); color: var(--accent-gold); }
         
@@ -450,7 +450,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .donor-card.danger { border-left: 4px solid var(--danger); }
+        .donor-card.danger { border-left: 4px solid #ff4444; }
         .donor-card.warning { border-left: 4px solid var(--warning); }
         .donor-card.info { border-left: 4px solid var(--accent-gold); }
         
@@ -493,7 +493,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             text-decoration: none;
         }
         
-        .donor-phone.error { color: #ff8a8a; }
+        .donor-phone.error { color: #ffcccc; font-weight: 600; }
         
         .call-btn {
             display: inline-flex;
@@ -517,7 +517,7 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
             text-transform: uppercase;
         }
         
-        .donor-badge.danger { background: var(--danger-bg); color: var(--danger); }
+        .donor-badge.danger { background: rgba(255, 68, 68, 0.2); color: #ffcccc; border: 1px solid rgba(255, 68, 68, 0.4); }
         .donor-badge.warning { background: var(--warning-bg); color: var(--warning); }
         .donor-badge.info { background: var(--info-bg); color: var(--accent-gold); }
         
@@ -578,12 +578,12 @@ function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'
         
         .issue-item:last-child { margin-bottom: 0; }
         
-        .issue-item.danger { background: var(--danger-bg); color: #ff8a8a; }
+        .issue-item.danger { background: var(--danger-bg); color: #ffcccc; font-weight: 500; }
         .issue-item.warning { background: var(--warning-bg); color: #ffd98a; }
         .issue-item.info { background: var(--info-bg); color: var(--text-light); }
         
         .issue-item i { width: 14px; margin-top: 2px; flex-shrink: 0; }
-        .issue-item.danger i { color: var(--danger); }
+        .issue-item.danger i { color: #ff6666; }
         .issue-item.warning i { color: var(--warning); }
         .issue-item.info i { color: var(--accent-gold); }
         
