@@ -1030,40 +1030,38 @@ function getPaymentMethodDisplay($method) {
                 </a>
             </div>
             <div class="step-content" id="step1">
-                <p class="text-muted mb-3">Copy each field and enter into the registrar form:</p>
-                
-                <div class="copy-field">
-                    <label>Full Name:</label>
-                    <div class="value" id="field-name"><?php echo htmlspecialchars($currentDonor['name']); ?></div>
-                    <button class="copy-btn" onclick="copyField('field-name', this)"><i class="fas fa-copy"></i> Copy</button>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="copy-field mb-2">
+                            <label>Name:</label>
+                            <div class="value" id="field-name"><?php echo htmlspecialchars($currentDonor['name']); ?></div>
+                            <button class="copy-btn" onclick="copyField('field-name', this)"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="copy-field mb-2">
+                            <label>Phone:</label>
+                            <div class="value" id="field-phone"><?php echo $currentDonor['phone'] ?: 'NO PHONE'; ?></div>
+                            <button class="copy-btn" onclick="copyField('field-phone', this)"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="copy-field mb-2">
+                            <label>Tombola:</label>
+                            <div class="value" id="field-tombola"><?php echo $currentDonor['reference']; ?></div>
+                            <button class="copy-btn" onclick="copyField('field-tombola', this)"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="copy-field mb-2">
+                            <label>Amount:</label>
+                            <div class="value" id="field-amount"><?php echo $currentDonor['pledge']; ?></div>
+                            <button class="copy-btn" onclick="copyField('field-amount', this)"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="copy-field">
-                    <label>Phone Number:</label>
-                    <div class="value" id="field-phone"><?php echo $currentDonor['phone'] ?: 'NO PHONE - CREATE PLACEHOLDER'; ?></div>
-                    <button class="copy-btn" onclick="copyField('field-phone', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="copy-field">
-                    <label>Tombola/Reference:</label>
-                    <div class="value" id="field-tombola"><?php echo $currentDonor['reference']; ?></div>
-                    <button class="copy-btn" onclick="copyField('field-tombola', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="copy-field">
-                    <label>Amount (£):</label>
-                    <div class="value" id="field-amount"><?php echo $currentDonor['pledge']; ?></div>
-                    <button class="copy-btn" onclick="copyField('field-amount', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="instructions-box">
-                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
-                    <ol class="mb-0 mt-2">
-                        <li>Select <strong>"Custom"</strong> amount</li>
-                        <li>Enter <strong>£<?php echo number_format($currentDonor['pledge'], 2); ?></strong></li>
-                        <li>Select <strong>"Promise to Pay Later"</strong></li>
-                        <li>Click <strong>"Register Donation"</strong></li>
-                    </ol>
+                <div class="mt-3 p-2 rounded text-center" style="background: #dbeafe; color: #1e40af; font-size: 13px;">
+                    <i class="fas fa-info-circle me-1"></i> Select <strong>Custom</strong> → Enter amount → <strong>Promise to Pay Later</strong>
                 </div>
             </div>
         </div>
@@ -1077,21 +1075,12 @@ function getPaymentMethodDisplay($method) {
                 </a>
             </div>
             <div class="step-content" id="step2">
-                <p class="text-muted mb-3">Find the pending pledge and approve it:</p>
-                
-                <div class="copy-field">
-                    <label>Search for:</label>
-                    <div class="value" id="field-search"><?php echo htmlspecialchars($currentDonor['name']); ?></div>
-                    <button class="copy-btn" onclick="copyField('field-search', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="instructions-box">
-                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
-                    <ol class="mb-0 mt-2">
-                        <li>Find <strong>"<?php echo htmlspecialchars($currentDonor['name']); ?>"</strong> in the pending list</li>
-                        <li>Verify amount is <strong>£<?php echo number_format($currentDonor['pledge'], 2); ?></strong></li>
-                        <li>Click <strong>"Approve"</strong></li>
-                    </ol>
+                <div class="d-flex align-items-center justify-content-between p-3 rounded" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+                    <div>
+                        <strong style="color: #166534;"><?php echo htmlspecialchars($currentDonor['name']); ?></strong>
+                        <span style="color: #15803d;"> — £<?php echo number_format($currentDonor['pledge'], 2); ?></span>
+                    </div>
+                    <span style="color: #16a34a;"><i class="fas fa-arrow-right me-2"></i>Click Approve</span>
                 </div>
             </div>
         </div>
@@ -1108,47 +1097,30 @@ function getPaymentMethodDisplay($method) {
             </div>
             <div class="step-content" id="step3">
                 <?php if ($currentDonor['has_payment']): ?>
-                <p class="text-muted mb-3">Record the payment for this donor:</p>
-                
-                <div class="copy-field">
-                    <label>Donor Name:</label>
-                    <div class="value" id="field-pay-name"><?php echo htmlspecialchars($currentDonor['name']); ?></div>
-                    <button class="copy-btn" onclick="copyField('field-pay-name', this)"><i class="fas fa-copy"></i> Copy</button>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="copy-field mb-0">
+                            <label>Amount:</label>
+                            <div class="value" id="field-pay-amount"><?php echo $currentDonor['paid']; ?></div>
+                            <button class="copy-btn" onclick="copyField('field-pay-amount', this)"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="copy-field mb-0">
+                            <label>Reference:</label>
+                            <div class="value" id="field-pay-ref"><?php echo $currentDonor['reference']; ?></div>
+                            <button class="copy-btn" onclick="copyField('field-pay-ref', this)"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="copy-field">
-                    <label>Payment Amount:</label>
-                    <div class="value" id="field-pay-amount"><?php echo $currentDonor['paid']; ?></div>
-                    <button class="copy-btn" onclick="copyField('field-pay-amount', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="copy-field">
-                    <label>Payment Method:</label>
-                    <div class="value" id="field-pay-method"><?php echo getPaymentMethodDisplay($currentDonor['method']); ?></div>
-                    <button class="copy-btn" onclick="copyField('field-pay-method', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="copy-field">
-                    <label>Reference:</label>
-                    <div class="value" id="field-pay-ref"><?php echo $currentDonor['reference']; ?></div>
-                    <button class="copy-btn" onclick="copyField('field-pay-ref', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="instructions-box">
-                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
-                    <ol class="mb-0 mt-2">
-                        <li>Search for donor <strong>"<?php echo htmlspecialchars($currentDonor['name']); ?>"</strong></li>
-                        <li>Enter payment amount: <strong>£<?php echo number_format($currentDonor['paid'], 2); ?></strong></li>
-                        <li>Select method: <strong><?php echo getPaymentMethodDisplay($currentDonor['method']); ?></strong></li>
-                        <li>Add reference: <strong><?php echo $currentDonor['reference']; ?></strong></li>
-                        <li>Click <strong>"Record Payment"</strong></li>
-                    </ol>
+                <div class="mt-3 p-3 rounded" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <span style="color: #64748b;">Method: <strong style="color: #1e293b;"><?php echo getPaymentMethodDisplay($currentDonor['method']); ?></strong></span>
                 </div>
                 <?php else: ?>
                 <div class="skip-payment">
                     <i class="fas fa-forward fa-2x mb-3 d-block"></i>
-                    <strong>No Payment to Record</strong>
-                    <p class="mb-0">This donor has not made any payments yet. Skip to Step 4 or next donor.</p>
+                    <strong>No Payment</strong>
+                    <p class="mb-0">Skip to next donor</p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -1166,27 +1138,18 @@ function getPaymentMethodDisplay($method) {
             </div>
             <div class="step-content" id="step4">
                 <?php if ($currentDonor['has_payment']): ?>
-                <p class="text-muted mb-3">Find and approve the pending payment:</p>
-                
-                <div class="copy-field">
-                    <label>Search for:</label>
-                    <div class="value" id="field-approve-search"><?php echo htmlspecialchars($currentDonor['name']); ?></div>
-                    <button class="copy-btn" onclick="copyField('field-approve-search', this)"><i class="fas fa-copy"></i> Copy</button>
-                </div>
-                
-                <div class="instructions-box">
-                    <strong><i class="fas fa-info-circle me-2"></i>Instructions:</strong>
-                    <ol class="mb-0 mt-2">
-                        <li>Find payment for <strong>"<?php echo htmlspecialchars($currentDonor['name']); ?>"</strong></li>
-                        <li>Verify amount is <strong>£<?php echo number_format($currentDonor['paid'], 2); ?></strong></li>
-                        <li>Click <strong>"Approve"</strong> or <strong>"Confirm"</strong></li>
-                    </ol>
+                <div class="d-flex align-items-center justify-content-between p-3 rounded" style="background: #f5f3ff; border: 1px solid #ddd6fe;">
+                    <div>
+                        <strong style="color: #5b21b6;"><?php echo htmlspecialchars($currentDonor['name']); ?></strong>
+                        <span style="color: #7c3aed;"> — £<?php echo number_format($currentDonor['paid'], 2); ?></span>
+                    </div>
+                    <span style="color: #8b5cf6;"><i class="fas fa-arrow-right me-2"></i>Click Approve</span>
                 </div>
                 <?php else: ?>
                 <div class="skip-payment">
                     <i class="fas fa-forward fa-2x mb-3 d-block"></i>
-                    <strong>No Payment to Approve</strong>
-                    <p class="mb-0">This donor has no payments. Proceed to next donor.</p>
+                    <strong>No Payment</strong>
+                    <p class="mb-0">Skip to next donor</p>
                 </div>
                 <?php endif; ?>
             </div>
