@@ -11,108 +11,125 @@
  * 5. Move to next donor
  */
 
-// Donor data from Excel - parsed and cleaned
+// Donor data from Excel - parsed and cleaned with DEEP ANALYSIS
+// Special cases are flagged with 'flags' array containing issue types
+
 $donors = [
     // Donors 1-50 get reference 0601-0650
     // Donors 51+ get reference starting from 0452
     
-    ['no' => 1, 'name' => 'Like Tiguhan Birhanu', 'phone' => '07473822244', 'pledge' => 1500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid £500', 'registrar' => 'T'],
-    ['no' => 2, 'name' => 'Kesis Dagmawi', 'phone' => '07474962830', 'pledge' => 1500, 'paid' => 400, 'method' => 'bank_transfer', 'notes' => 'paid £400', 'registrar' => 'T'],
-    ['no' => 3, 'name' => 'Woinshet t/ Medin', 'phone' => '07932793867', 'pledge' => 500, 'paid' => 400, 'method' => 'bank_transfer', 'notes' => 'paid £400', 'registrar' => 'T'],
-    ['no' => 4, 'name' => 'Hiwot', 'phone' => '07508030686', 'pledge' => 1000, 'paid' => 250, 'method' => 'bank_transfer', 'notes' => 'paid £250', 'registrar' => 'T'],
-    ['no' => 5, 'name' => 'Geda Gemechu', 'phone' => '07393180103', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'T'],
-    ['no' => 6, 'name' => 'Mosisa Hunde', 'phone' => '07404411392', 'pledge' => 600, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 7, 'name' => 'Ayelech Habtamu', 'phone' => '07435627896', 'pledge' => 1000, 'paid' => 1000, 'method' => 'cash', 'notes' => 'paid all £1,000', 'registrar' => 'T'],
-    ['no' => 8, 'name' => 'Abel and Emuye', 'phone' => '07490447376', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'T'],
-    ['no' => 9, 'name' => 'Yohanis Akililu', 'phone' => '07949146267', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'T'],
-    ['no' => 10, 'name' => 'Nahom Alemu', 'phone' => '07915459008', 'pledge' => 500, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid £300', 'registrar' => 'T'],
-    ['no' => 11, 'name' => 'Sisay Asefa', 'phone' => '07482767756', 'pledge' => 1000, 'paid' => 700, 'method' => 'cash', 'notes' => 'paid £700', 'registrar' => 'T'],
-    ['no' => 12, 'name' => 'Roza Hunde', 'phone' => '07902944713', 'pledge' => 1000, 'paid' => 1000, 'method' => 'cash', 'notes' => 'paid all £1,000', 'registrar' => 'T'],
-    ['no' => 13, 'name' => 'Selam', 'phone' => '', 'pledge' => 200, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid £200 - NO PHONE', 'registrar' => 'T'],
-    ['no' => 14, 'name' => 'Yeshiwork', 'phone' => '07878567049', 'pledge' => 100, 'paid' => 200, 'method' => 'bank_transfer', 'notes' => 'paid all £200 (overpaid)', 'registrar' => 'T'],
-    ['no' => 15, 'name' => 'Mekdes Tewolde', 'phone' => '07449884424', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'T'],
-    ['no' => 16, 'name' => 'Mihret Birhanu', 'phone' => '07311305605', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 17, 'name' => 'Etsub', 'phone' => '07931261431', 'pledge' => 1000, 'paid' => 500, 'method' => 'cash', 'notes' => 'paid £500', 'registrar' => 'J'],
-    ['no' => 18, 'name' => 'Yalew Mekonnen', 'phone' => '07440347838', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'J'],
-    ['no' => 19, 'name' => 'Yared Syoum', 'phone' => '07477732373', 'pledge' => 1500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 20, 'name' => 'Dereje Argaw', 'phone' => '07383333847', 'pledge' => 1000, 'paid' => 700, 'method' => 'bank_transfer', 'notes' => 'paid £700', 'registrar' => 'J'],
-    ['no' => 21, 'name' => 'Kakidan Melkamu', 'phone' => '07311114440', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'J'],
-    ['no' => 22, 'name' => 'Aster', 'phone' => '07508993242', 'pledge' => 0, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => 'NO PLEDGE AMOUNT - SKIP?', 'registrar' => 'J'],
-    ['no' => 23, 'name' => 'Tesfaye Daba', 'phone' => '07944693263', 'pledge' => 100, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 24, 'name' => 'Girma Birhan', 'phone' => '07873725678', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid (assumed full)', 'registrar' => 'J'],
-    ['no' => 25, 'name' => 'Gabreiel Mader', 'phone' => '07388418902', 'pledge' => 600, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid £100', 'registrar' => 'J'],
-    ['no' => 26, 'name' => 'Yonatan Dawit', 'phone' => '07828556674', 'pledge' => 50, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 27, 'name' => 'Fiseha Habtamu', 'phone' => '07415217801', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'J'],
-    ['no' => 28, 'name' => 'Eyerusalem and Tsegaye', 'phone' => '07719597801', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 29, 'name' => 'Maranata Mehari', 'phone' => '07387173507', 'pledge' => 500, 'paid' => 500, 'method' => 'cash', 'notes' => 'paid all £500', 'registrar' => 'J'],
-    ['no' => 30, 'name' => 'Henok Birhane', 'phone' => '07495039019', 'pledge' => 500, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 31, 'name' => 'Helen Tewolde', 'phone' => '07378503752', 'pledge' => 500, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 32, 'name' => 'Roza Awot', 'phone' => '07378503752', 'pledge' => 200, 'paid' => 0, 'method' => 'cash', 'notes' => 'From Manchester - DUPLICATE PHONE with #31', 'registrar' => 'E'],
-    ['no' => 33, 'name' => 'Mulu Sate Mola', 'phone' => '07770075784', 'pledge' => 200, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 34, 'name' => 'Meaza and Mahlet', 'phone' => '07438156695', 'pledge' => 750, 'paid' => 300, 'method' => 'cash', 'notes' => 'paid £300', 'registrar' => 'E'],
-    ['no' => 35, 'name' => 'Hailemichael', 'phone' => '07455476714', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => 'Phone fixed (was 74554767141)', 'registrar' => 'E'],
-    ['no' => 36, 'name' => 'Maya Mangistu', 'phone' => '07888139734', 'pledge' => 200, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid all £200', 'registrar' => 'E'],
-    ['no' => 37, 'name' => 'Saba Mekonen', 'phone' => '', 'pledge' => 300, 'paid' => 300, 'method' => 'cash', 'notes' => 'paid all £300 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 38, 'name' => 'Michael Nigusie', 'phone' => '07415329333', 'pledge' => 1000, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 39, 'name' => 'W/Michael', 'phone' => '', 'pledge' => 35, 'paid' => 35, 'method' => 'cash', 'notes' => 'paid all £35 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 40, 'name' => 'Samuel', 'phone' => '07453303053', 'pledge' => 1000, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 41, 'name' => 'Beti', 'phone' => '', 'pledge' => 110, 'paid' => 110, 'method' => 'cash', 'notes' => 'paid - NO PHONE', 'registrar' => 'E'],
-    ['no' => 42, 'name' => 'Abel', 'phone' => '07360436171', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => "didn't answer", 'registrar' => 'E'],
-    ['no' => 43, 'name' => 'Saniat', 'phone' => '07932793867', 'pledge' => 200, 'paid' => 0, 'method' => 'cash', 'notes' => 'C/o phone - DUPLICATE with #3', 'registrar' => 'E'],
-    ['no' => 44, 'name' => 'Milana Birhane', 'phone' => '07359577270', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => 'Phone had missing digit - added 0', 'registrar' => 'E'],
-    ['no' => 45, 'name' => 'Elsabeth Mitiku', 'phone' => '07365938258', 'pledge' => 300, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 46, 'name' => 'Ermias Tekalu', 'phone' => '07415005376', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'E'],
-    ['no' => 47, 'name' => 'Mikael Tesfaye', 'phone' => '07476336051', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 48, 'name' => 'Megabe Hadis Daniel', 'phone' => '07401399936', 'pledge' => 300, 'paid' => 150, 'method' => 'bank_transfer', 'notes' => 'paid £150', 'registrar' => 'J'],
-    ['no' => 49, 'name' => 'Filmon Tedros', 'phone' => '07460485935', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500 - C/o Rahel', 'registrar' => 'J'],
-    ['no' => 50, 'name' => 'Kbreab (Welde Gebreal)', 'phone' => '07459259509', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
+    ['no' => 1, 'name' => 'Like Tiguhan Birhanu', 'phone' => '07473822244', 'pledge' => 1500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid £500', 'registrar' => 'T', 'flags' => [], 'original_data' => 'pledge_amount: 1500'],
+    ['no' => 2, 'name' => 'Kesis Dagmawi', 'phone' => '07474962830', 'pledge' => 1500, 'paid' => 400, 'method' => 'bank_transfer', 'notes' => 'paid £400', 'registrar' => 'T', 'flags' => [], 'original_data' => 'pledge_amount: 1500'],
+    ['no' => 3, 'name' => 'Woinshet t/ Medin', 'phone' => '07932793867', 'pledge' => 500, 'paid' => 400, 'method' => 'bank_transfer', 'notes' => 'paid £400', 'registrar' => 'T', 'flags' => [], 'original_data' => 'Original phone: 7932793867 (added 0)'],
+    ['no' => 4, 'name' => 'Hiwot', 'phone' => '07508030686', 'pledge' => 1000, 'paid' => 250, 'method' => 'bank_transfer', 'notes' => 'paid £250', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 5, 'name' => 'Geda Gemechu', 'phone' => '07393180103', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 6, 'name' => 'Mosisa Hunde', 'phone' => '07404411392', 'pledge' => 600, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 7, 'name' => 'Ayelech Habtamu', 'phone' => '07435627896', 'pledge' => 1000, 'paid' => 1000, 'method' => 'cash', 'notes' => 'paid all £1,000', 'registrar' => 'T', 'flags' => [], 'original_data' => 'deadline: 28/06/2025'],
+    ['no' => 8, 'name' => 'Abel and Emuye', 'phone' => '07490447376', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 9, 'name' => 'Yohanis Akililu', 'phone' => '07949146267', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 10, 'name' => 'Nahom Alemu', 'phone' => '07915459008', 'pledge' => 500, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid £300', 'registrar' => 'T', 'flags' => [], 'original_data' => 'deadline: 31/5/25'],
+    ['no' => 11, 'name' => 'Sisay Asefa', 'phone' => '07482767756', 'pledge' => 1000, 'paid' => 700, 'method' => 'cash', 'notes' => 'paid £700', 'registrar' => 'T', 'flags' => [], 'original_data' => 'deadline: 31/5/25'],
+    ['no' => 12, 'name' => 'Roza Hunde', 'phone' => '07902944713', 'pledge' => 1000, 'paid' => 1000, 'method' => 'cash', 'notes' => 'paid all £1,000', 'registrar' => 'T', 'flags' => [], 'original_data' => 'deadline: 28/06/2025'],
+    ['no' => 13, 'name' => 'Selam', 'phone' => '', 'pledge' => 200, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid £200', 'registrar' => 'T', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 14, 'name' => 'Yeshiwork', 'phone' => '07878567049', 'pledge' => 100, 'paid' => 200, 'method' => 'bank_transfer', 'notes' => 'paid all £200', 'registrar' => 'T', 'flags' => ['overpaid'], 'original_data' => 'OVERPAID: Pledged £100 but paid £200'],
+    ['no' => 15, 'name' => 'Mekdes Tewolde', 'phone' => '07449884424', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 16, 'name' => 'Mihret Birhanu', 'phone' => '07311305605', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 17, 'name' => 'Etsub', 'phone' => '07931261431', 'pledge' => 1000, 'paid' => 500, 'method' => 'cash', 'notes' => 'paid £500', 'registrar' => 'J', 'flags' => [], 'original_data' => 'deadline: 4 months time'],
+    ['no' => 18, 'name' => 'Yalew Mekonnen', 'phone' => '07440347838', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'J', 'flags' => ['complex_pledge'], 'original_data' => 'ORIGINAL PLEDGE: 500+500 (combined to 1000)'],
+    ['no' => 19, 'name' => 'Yared Syoum', 'phone' => '07477732373', 'pledge' => 1500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 20, 'name' => 'Dereje Argaw', 'phone' => '07383333847', 'pledge' => 1000, 'paid' => 700, 'method' => 'bank_transfer', 'notes' => 'paid £700', 'registrar' => 'J', 'flags' => [], 'original_data' => 'payment plan: monthly'],
+    ['no' => 21, 'name' => 'Kakidan Melkamu', 'phone' => '07311114440', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 22, 'name' => 'Aster', 'phone' => '07508993242', 'pledge' => 0, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => ['no_pledge'], 'original_data' => 'NO PLEDGE AMOUNT IN EXCEL - CONSIDER SKIPPING'],
+    ['no' => 23, 'name' => 'Tesfaye Daba', 'phone' => '07944693263', 'pledge' => 100, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => 'deadline: this month'],
+    ['no' => 24, 'name' => 'Girma Birhan', 'phone' => '07873725678', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid', 'registrar' => 'J', 'flags' => ['unclear_amount'], 'original_data' => 'Excel says "paid" with no amount - assumed full £300'],
+    ['no' => 25, 'name' => 'Gabreiel Mader', 'phone' => '07388418902', 'pledge' => 600, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid £100', 'registrar' => 'J', 'flags' => ['complex_pledge'], 'original_data' => 'ORIGINAL PLEDGE: 200+400 (combined to 600), payment plan: monthly'],
+    ['no' => 26, 'name' => 'Yonatan Dawit', 'phone' => '07828556674', 'pledge' => 50, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => 'deadline: july'],
+    ['no' => 27, 'name' => 'Fiseha Habtamu', 'phone' => '07415217801', 'pledge' => 1000, 'paid' => 1000, 'method' => 'bank_transfer', 'notes' => 'paid all £1,000', 'registrar' => 'J', 'flags' => [], 'original_data' => 'deadline: split in half'],
+    ['no' => 28, 'name' => 'Eyerusalem and Tsegaye', 'phone' => '07719597801', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => 'payment plan: monthly'],
+    ['no' => 29, 'name' => 'Maranata Mehari', 'phone' => '07387173507', 'pledge' => 500, 'paid' => 500, 'method' => 'cash', 'notes' => 'paid all £500', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 30, 'name' => 'Henok Birhane', 'phone' => '07495039019', 'pledge' => 500, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => 'payment plan: monthly'],
+    ['no' => 31, 'name' => 'Helen Tewolde', 'phone' => '07378503752', 'pledge' => 500, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => 'payment plan: monthly'],
+    ['no' => 32, 'name' => 'Roza Awot', 'phone' => '07378503752', 'pledge' => 200, 'paid' => 0, 'method' => 'cash', 'notes' => 'From Manchester', 'registrar' => 'E', 'flags' => ['duplicate_phone'], 'original_data' => 'DUPLICATE PHONE with #31 Helen Tewolde'],
+    ['no' => 33, 'name' => 'Mulu Sate Mola', 'phone' => '07770075784', 'pledge' => 200, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => 'deadline: 3 month time'],
+    ['no' => 34, 'name' => 'Meaza and Mahlet', 'phone' => '07438156695', 'pledge' => 750, 'paid' => 300, 'method' => 'cash', 'notes' => 'paid £300', 'registrar' => 'E', 'flags' => ['inconsistent'], 'original_data' => 'Excel says "paid all £300" but pledge is £750 - INCONSISTENT! contact: Meaza Abrham'],
+    ['no' => 35, 'name' => 'Hailemichael', 'phone' => '07455476714', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => ['phone_fixed'], 'original_data' => 'PHONE FIXED: Original was 74554767141 (12 digits) - removed extra 1'],
+    ['no' => 36, 'name' => 'Maya Mangistu', 'phone' => '07888139734', 'pledge' => 200, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid all £200', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 37, 'name' => 'Saba Mekonen', 'phone' => '', 'pledge' => 300, 'paid' => 300, 'method' => 'cash', 'notes' => 'paid all £300', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 38, 'name' => 'Michael Nigusie', 'phone' => '07415329333', 'pledge' => 1000, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => 'payment plan: monthly, start June'],
+    ['no' => 39, 'name' => 'W/Michael', 'phone' => '', 'pledge' => 35, 'paid' => 35, 'method' => 'cash', 'notes' => 'paid all £35', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 40, 'name' => 'Samuel', 'phone' => '07453303053', 'pledge' => 1000, 'paid' => 0, 'method' => 'cash', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => 'payment plan: monthly, start June'],
+    ['no' => 41, 'name' => 'Beti', 'phone' => '', 'pledge' => 110, 'paid' => 110, 'method' => 'cash', 'notes' => 'paid', 'registrar' => 'E', 'flags' => ['no_phone', 'unclear_amount'], 'original_data' => 'NO PHONE, Excel says "paid" with no amount - assumed full £110'],
+    ['no' => 42, 'name' => 'Abel', 'phone' => '07360436171', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => "didn't answer", 'registrar' => 'E', 'flags' => [], 'original_data' => 'Note: didn\'t answer phone'],
+    ['no' => 43, 'name' => 'Saniat', 'phone' => '07932793867', 'pledge' => 200, 'paid' => 0, 'method' => 'cash', 'notes' => 'C/o #3 Woinshet', 'registrar' => 'E', 'flags' => ['shared_phone'], 'original_data' => 'SHARED PHONE (C/o): Same as #3 Woinshet t/ Medin'],
+    ['no' => 44, 'name' => 'Milana Birhane', 'phone' => '07359577270', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => ['phone_fixed'], 'original_data' => 'PHONE FIXED: Original was 735957727 (10 digits) - added 0 at position 3'],
+    ['no' => 45, 'name' => 'Elsabeth Mitiku', 'phone' => '07365938258', 'pledge' => 300, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 46, 'name' => 'Ermias Tekalu', 'phone' => '07415005376', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 47, 'name' => 'Mikael Tesfaye', 'phone' => '07476336051', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 48, 'name' => 'Megabe Hadis Daniel', 'phone' => '07401399936', 'pledge' => 300, 'paid' => 150, 'method' => 'bank_transfer', 'notes' => 'paid £150', 'registrar' => 'J', 'flags' => [], 'original_data' => 'deadline: 3 month time'],
+    ['no' => 49, 'name' => 'Filmon Tedros', 'phone' => '07460485935', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'J', 'flags' => ['shared_phone'], 'original_data' => 'C/o Rahel - phone belongs to Rahel, not donor'],
+    ['no' => 50, 'name' => 'Kbreab (Welde Gebreal)', 'phone' => '07459259509', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
     // Donors 51+ get reference starting from 0452
-    ['no' => 51, 'name' => 'Hagos Tsegaye', 'phone' => '07868671227', 'pledge' => 1000, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid £200', 'registrar' => 'J'],
-    ['no' => 52, 'name' => 'Lidya Hagos', 'phone' => '07706085397', 'pledge' => 250, 'paid' => 250, 'method' => 'bank_transfer', 'notes' => 'paid all £250', 'registrar' => 'E'],
-    ['no' => 53, 'name' => 'Fqrte Gebrel', 'phone' => '07933293944', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'J'],
-    ['no' => 54, 'name' => 'Genet Solomon', 'phone' => '07931796244', 'pledge' => 100, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid all £100', 'registrar' => 'J'],
-    ['no' => 55, 'name' => 'Filmon G/ezgi', 'phone' => '07476743908', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'J'],
-    ['no' => 56, 'name' => 'Mahilet Hagos', 'phone' => '07438253791', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid all £300', 'registrar' => 'J'],
-    ['no' => 57, 'name' => 'Yared Habtemaryam', 'phone' => '07392205538', 'pledge' => 100, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid all £100', 'registrar' => 'J'],
-    ['no' => 58, 'name' => 'Eyobe Zelalem', 'phone' => '07466690312', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 59, 'name' => 'Kibrom Getchew', 'phone' => '07495760372', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 60, 'name' => 'H/mariam Tesfe', 'phone' => '07469481854', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 61, 'name' => 'Yontan', 'phone' => '07516172076', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 62, 'name' => 'Mesfin Tefera (Blackpool)', 'phone' => '07386208291', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 63, 'name' => 'Amanuel', 'phone' => '07392364310', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 64, 'name' => 'Kiflemicheal (Henok)', 'phone' => '07411002386', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 65, 'name' => 'Ashenafi Bereda', 'phone' => '07739440766', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T'],
-    ['no' => 66, 'name' => 'Tewodros Akililu', 'phone' => '07456574276', 'pledge' => 500, 'paid' => 250, 'method' => 'bank_transfer', 'notes' => 'paid £250', 'registrar' => 'T'],
-    ['no' => 67, 'name' => 'Jemla Sefa', 'phone' => '07413117896', 'pledge' => 600, 'paid' => 600, 'method' => 'bank_transfer', 'notes' => 'paid all £600', 'registrar' => 'T'],
-    ['no' => 68, 'name' => 'Saba Mekonnen', 'phone' => '07727346626', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid all £300', 'registrar' => 'E'],
-    ['no' => 69, 'name' => 'Mesert H/selasie (Grace)', 'phone' => '07500657641', 'pledge' => 5000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => 'LARGEST PLEDGE', 'registrar' => 'E'],
-    ['no' => 70, 'name' => 'Abebeau Abera', 'phone' => '07513816289', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 71, 'name' => 'Daniel Mesfin', 'phone' => '07455805157', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 72, 'name' => 'Yared Kidane', 'phone' => '07307718126', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 73, 'name' => 'Haile Alemu', 'phone' => '07857223571', 'pledge' => 900, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid £100', 'registrar' => 'E'],
-    ['no' => 74, 'name' => 'Dejene', 'phone' => '07449212748', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E'],
-    ['no' => 75, 'name' => 'Betlehem Alemayehu (Getacheu)', 'phone' => '07476884024', 'pledge' => 500, 'paid' => 90, 'method' => 'bank_transfer', 'notes' => 'paid £90', 'registrar' => 'E'],
-    ['no' => 76, 'name' => 'Selamawit Afeworkie', 'phone' => '07946869284', 'pledge' => 1100, 'paid' => 1100, 'method' => 'bank_transfer', 'notes' => 'paid all £1,100', 'registrar' => 'E'],
-    ['no' => 77, 'name' => 'Haile Yesus (Barber)', 'phone' => '', 'pledge' => 150, 'paid' => 150, 'method' => 'cash', 'notes' => 'paid all £150 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 78, 'name' => 'Daniel Kassa', 'phone' => '', 'pledge' => 1000, 'paid' => 800, 'method' => 'cash', 'notes' => 'paid £800 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 79, 'name' => 'Tesfaye Mezmuran', 'phone' => '', 'pledge' => 500, 'paid' => 500, 'method' => 'cash', 'notes' => 'paid all £500 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 80, 'name' => 'Frehiwot', 'phone' => '07981670102', 'pledge' => 300, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 81, 'name' => 'Elsa Tadesse', 'phone' => '07458985366', 'pledge' => 200, 'paid' => 50, 'method' => 'bank_transfer', 'notes' => 'paid £50', 'registrar' => 'J'],
-    ['no' => 82, 'name' => 'Tesfanesh Megersa', 'phone' => '07479334292', 'pledge' => 100, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 83, 'name' => 'Tegist Kassa', 'phone' => '07480933736', 'pledge' => 50, 'paid' => 50, 'method' => 'bank_transfer', 'notes' => 'paid all £50', 'registrar' => 'J'],
-    ['no' => 84, 'name' => 'Woleteslassie', 'phone' => '07588152998', 'pledge' => 50, 'paid' => 20, 'method' => 'bank_transfer', 'notes' => 'paid £20', 'registrar' => 'J'],
-    ['no' => 85, 'name' => 'Woletemariam', 'phone' => '07476103881', 'pledge' => 50, 'paid' => 10, 'method' => 'bank_transfer', 'notes' => 'paid £10', 'registrar' => 'J'],
-    ['no' => 86, 'name' => 'Hanock Philemon', 'phone' => '07904936740', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 87, 'name' => 'Ababia Gemechu', 'phone' => '07749027431', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J'],
-    ['no' => 88, 'name' => 'Simon Yohanes', 'phone' => '07406034100', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid all £300 - Phone fixed (added 0)', 'registrar' => 'J'],
-    ['no' => 89, 'name' => 'Semhar Abrhame', 'phone' => '', 'pledge' => 600, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid £200 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 90, 'name' => 'Tsehaye Getnet', 'phone' => '', 'pledge' => 200, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid all £200 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 91, 'name' => 'Yonas Legese', 'phone' => '', 'pledge' => 1000, 'paid' => 1000, 'method' => 'cash', 'notes' => 'paid all £1,000 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 92, 'name' => 'Beza', 'phone' => '', 'pledge' => 100, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid all £100 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 93, 'name' => 'Georgia & Muhammed', 'phone' => '', 'pledge' => 100, 'paid' => 100, 'method' => 'cash', 'notes' => 'paid all £100 - NO PHONE', 'registrar' => 'E'],
-    ['no' => 94, 'name' => 'Eden Mehari', 'phone' => '07961474962', 'pledge' => 100, 'paid' => 100, 'method' => 'cash', 'notes' => 'paid £100 - pledge amount assumed', 'registrar' => 'E'],
-    ['no' => 95, 'name' => 'Eyarusalem Hagos', 'phone' => '07951545098', 'pledge' => 700, 'paid' => 700, 'method' => 'cash', 'notes' => 'paid all £700 (500+200)', 'registrar' => 'T'],
-    ['no' => 96, 'name' => 'Tewodros Ferewe', 'phone' => '07480973939', 'pledge' => 0, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => 'NO PLEDGE AMOUNT - SKIP?', 'registrar' => 'T'],
+    ['no' => 51, 'name' => 'Hagos Tsegaye', 'phone' => '07868671227', 'pledge' => 1000, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid £200', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 52, 'name' => 'Lidya Hagos', 'phone' => '07706085397', 'pledge' => 250, 'paid' => 250, 'method' => 'bank_transfer', 'notes' => 'paid all £250', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 53, 'name' => 'Fqrte Gebrel', 'phone' => '07933293944', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 54, 'name' => 'Genet Solomon', 'phone' => '07931796244', 'pledge' => 100, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid all £100', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 55, 'name' => 'Filmon G/ezgi', 'phone' => '07476743908', 'pledge' => 500, 'paid' => 500, 'method' => 'bank_transfer', 'notes' => 'paid all £500', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 56, 'name' => 'Mahilet Hagos', 'phone' => '07438253791', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid all £300', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 57, 'name' => 'Yared Habtemaryam', 'phone' => '07392205538', 'pledge' => 100, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid all £100', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 58, 'name' => 'Eyobe Zelalem', 'phone' => '07466690312', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 59, 'name' => 'Kibrom Getchew', 'phone' => '07495760372', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 60, 'name' => 'H/mariam Tesfe', 'phone' => '07469481854', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 61, 'name' => 'Yontan', 'phone' => '07516172076', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 62, 'name' => 'Mesfin Tefera (Blackpool)', 'phone' => '07386208291', 'pledge' => 600, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 63, 'name' => 'Amanuel', 'phone' => '07392364310', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 64, 'name' => 'Kiflemicheal (Henok)', 'phone' => '07411002386', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 65, 'name' => 'Ashenafi Bereda', 'phone' => '07739440766', 'pledge' => 500, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 66, 'name' => 'Tewodros Akililu', 'phone' => '07456574276', 'pledge' => 500, 'paid' => 250, 'method' => 'bank_transfer', 'notes' => 'paid £250', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 67, 'name' => 'Jemla Sefa', 'phone' => '07413117896', 'pledge' => 600, 'paid' => 600, 'method' => 'bank_transfer', 'notes' => 'paid all £600', 'registrar' => 'T', 'flags' => [], 'original_data' => ''],
+    ['no' => 68, 'name' => 'Saba Mekonnen', 'phone' => '07727346626', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid all £300', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 69, 'name' => 'Mesert H/selasie (Grace)', 'phone' => '07500657641', 'pledge' => 5000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => ['high_value'], 'original_data' => 'LARGEST PLEDGE: £5,000'],
+    ['no' => 70, 'name' => 'Abebeau Abera', 'phone' => '07513816289', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 71, 'name' => 'Daniel Mesfin', 'phone' => '07455805157', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 72, 'name' => 'Yared Kidane', 'phone' => '07307718126', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 73, 'name' => 'Haile Alemu', 'phone' => '07857223571', 'pledge' => 900, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid £100', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 74, 'name' => 'Dejene', 'phone' => '07449212748', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 75, 'name' => 'Betlehem Alemayehu (Getacheu)', 'phone' => '07476884024', 'pledge' => 500, 'paid' => 90, 'method' => 'bank_transfer', 'notes' => 'paid £90', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 76, 'name' => 'Selamawit Afeworkie', 'phone' => '07946869284', 'pledge' => 1100, 'paid' => 1100, 'method' => 'bank_transfer', 'notes' => 'paid all £1,100', 'registrar' => 'E', 'flags' => [], 'original_data' => ''],
+    ['no' => 77, 'name' => 'Haile Yesus (Barber)', 'phone' => '', 'pledge' => 150, 'paid' => 150, 'method' => 'cash', 'notes' => 'paid all £150', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 78, 'name' => 'Daniel Kassa', 'phone' => '', 'pledge' => 1000, 'paid' => 800, 'method' => 'cash', 'notes' => 'paid £800', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE, deadline: 31/5/25 - 28/6/25'],
+    ['no' => 79, 'name' => 'Tesfaye Mezmuran', 'phone' => '', 'pledge' => 500, 'paid' => 500, 'method' => 'cash', 'notes' => 'paid all £500', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE, deadline: 7/28/2026'],
+    ['no' => 80, 'name' => 'Frehiwot', 'phone' => '07981670102', 'pledge' => 300, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 81, 'name' => 'Elsa Tadesse', 'phone' => '07458985366', 'pledge' => 200, 'paid' => 50, 'method' => 'bank_transfer', 'notes' => 'paid £50', 'registrar' => 'J', 'flags' => [], 'original_data' => 'deadline: 25/7/25'],
+    ['no' => 82, 'name' => 'Tesfanesh Megersa', 'phone' => '07479334292', 'pledge' => 100, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 83, 'name' => 'Tegist Kassa', 'phone' => '07480933736', 'pledge' => 50, 'paid' => 50, 'method' => 'bank_transfer', 'notes' => 'paid all £50', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 84, 'name' => 'Woleteslassie', 'phone' => '07588152998', 'pledge' => 50, 'paid' => 20, 'method' => 'bank_transfer', 'notes' => 'paid £20', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 85, 'name' => 'Woletemariam', 'phone' => '07476103881', 'pledge' => 50, 'paid' => 10, 'method' => 'bank_transfer', 'notes' => 'paid £10', 'registrar' => 'J', 'flags' => [], 'original_data' => 'deadline: 15/7/25'],
+    ['no' => 86, 'name' => 'Hanock Philemon', 'phone' => '07904936740', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 87, 'name' => 'Ababia Gemechu', 'phone' => '07749027431', 'pledge' => 1000, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'J', 'flags' => [], 'original_data' => ''],
+    ['no' => 88, 'name' => 'Simon Yohanes', 'phone' => '07406034100', 'pledge' => 300, 'paid' => 300, 'method' => 'bank_transfer', 'notes' => 'paid all £300', 'registrar' => 'J', 'flags' => ['phone_fixed'], 'original_data' => 'PHONE FIXED: Original was 740603410 (10 digits) - added 0'],
+    ['no' => 89, 'name' => 'Semhar Abrhame', 'phone' => '', 'pledge' => 600, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid £200', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 90, 'name' => 'Tsehaye Getnet', 'phone' => '', 'pledge' => 200, 'paid' => 200, 'method' => 'cash', 'notes' => 'paid all £200', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 91, 'name' => 'Yonas Legese', 'phone' => '', 'pledge' => 1000, 'paid' => 1000, 'method' => 'cash', 'notes' => 'paid all £1,000', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 92, 'name' => 'Beza', 'phone' => '', 'pledge' => 100, 'paid' => 100, 'method' => 'bank_transfer', 'notes' => 'paid all £100', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 93, 'name' => 'Georgia & Muhammed', 'phone' => '', 'pledge' => 100, 'paid' => 100, 'method' => 'cash', 'notes' => 'paid all £100', 'registrar' => 'E', 'flags' => ['no_phone'], 'original_data' => 'NO PHONE NUMBER IN EXCEL'],
+    ['no' => 94, 'name' => 'Eden Mehari', 'phone' => '07961474962', 'pledge' => 100, 'paid' => 100, 'method' => 'cash', 'notes' => 'paid £100', 'registrar' => 'E', 'flags' => ['no_pledge_in_excel'], 'original_data' => 'NO PLEDGE AMOUNT IN EXCEL - Only "paid £100" shown. Pledge assumed as £100'],
+    ['no' => 95, 'name' => 'Eyarusalem Hagos', 'phone' => '07951545098', 'pledge' => 700, 'paid' => 700, 'method' => 'cash', 'notes' => 'paid all £700 (500+200)', 'registrar' => 'T', 'flags' => ['complex_pledge'], 'original_data' => 'ORIGINAL PLEDGE: "500 +200" - combined to 700. Note: £200 was from auction'],
+    ['no' => 96, 'name' => 'Tewodros Ferewe', 'phone' => '07480973939', 'pledge' => 0, 'paid' => 0, 'method' => 'bank_transfer', 'notes' => '', 'registrar' => 'T', 'flags' => ['no_pledge'], 'original_data' => 'NO PLEDGE AMOUNT IN EXCEL - CONSIDER SKIPPING'],
+];
+
+// Flag definitions for display
+$flagDefinitions = [
+    'no_phone' => ['icon' => 'fa-phone-slash', 'color' => 'danger', 'label' => 'No Phone', 'desc' => 'No phone number in original Excel'],
+    'no_pledge' => ['icon' => 'fa-ban', 'color' => 'danger', 'label' => 'No Pledge', 'desc' => 'No pledge amount - consider skipping'],
+    'no_pledge_in_excel' => ['icon' => 'fa-question-circle', 'color' => 'warning', 'label' => 'Pledge Assumed', 'desc' => 'No pledge in Excel, amount assumed from payment'],
+    'overpaid' => ['icon' => 'fa-exclamation-triangle', 'color' => 'warning', 'label' => 'Overpaid', 'desc' => 'Paid more than pledged amount'],
+    'duplicate_phone' => ['icon' => 'fa-clone', 'color' => 'warning', 'label' => 'Duplicate Phone', 'desc' => 'Same phone number as another donor'],
+    'shared_phone' => ['icon' => 'fa-share-alt', 'color' => 'info', 'label' => 'Shared Phone', 'desc' => 'Phone belongs to someone else (C/o)'],
+    'phone_fixed' => ['icon' => 'fa-wrench', 'color' => 'info', 'label' => 'Phone Fixed', 'desc' => 'Phone number was corrected (wrong digit count)'],
+    'complex_pledge' => ['icon' => 'fa-calculator', 'color' => 'info', 'label' => 'Combined Amount', 'desc' => 'Original pledge was multiple amounts added together'],
+    'unclear_amount' => ['icon' => 'fa-question', 'color' => 'warning', 'label' => 'Amount Unclear', 'desc' => 'Excel said "paid" but no amount - assumed full payment'],
+    'inconsistent' => ['icon' => 'fa-not-equal', 'color' => 'danger', 'label' => 'Inconsistent', 'desc' => 'Data contradicts itself - needs manual review'],
+    'high_value' => ['icon' => 'fa-gem', 'color' => 'primary', 'label' => 'High Value', 'desc' => 'Unusually large pledge amount'],
 ];
 
 // Generate reference numbers
@@ -141,6 +158,18 @@ $totalBalance = $totalPledged - $totalPaid;
 $completedCount = count(array_filter($donors, fn($d) => $d['status'] === 'completed'));
 $payingCount = count(array_filter($donors, fn($d) => $d['status'] === 'paying'));
 $notStartedCount = count(array_filter($donors, fn($d) => $d['status'] === 'not_started'));
+
+// Count special cases
+$specialCasesCount = count(array_filter($donors, fn($d) => !empty($d['flags'])));
+$noPhoneCount = count(array_filter($donors, fn($d) => in_array('no_phone', $d['flags'] ?? [])));
+$noPledgeCount = count(array_filter($donors, fn($d) => in_array('no_pledge', $d['flags'] ?? [])));
+$duplicatePhoneCount = count(array_filter($donors, fn($d) => in_array('duplicate_phone', $d['flags'] ?? []) || in_array('shared_phone', $d['flags'] ?? [])));
+$dataIssuesCount = count(array_filter($donors, fn($d) => 
+    in_array('overpaid', $d['flags'] ?? []) || 
+    in_array('inconsistent', $d['flags'] ?? []) || 
+    in_array('unclear_amount', $d['flags'] ?? []) ||
+    in_array('complex_pledge', $d['flags'] ?? [])
+));
 
 // Get current donor index from session or default to 0
 session_start();
@@ -944,6 +973,11 @@ function getPaymentMethodDisplay($method) {
                     <div class="stat-item">
                         <i class="fas fa-clock me-1"></i> <?php echo $notStartedCount; ?> Not Started
                     </div>
+                    <?php if ($specialCasesCount > 0): ?>
+                    <div class="stat-item" style="background: rgba(245, 158, 11, 0.3); border: 1px solid rgba(245, 158, 11, 0.5);">
+                        <i class="fas fa-exclamation-triangle me-1" style="color: #fbbf24;"></i> <?php echo $specialCasesCount; ?> Special Cases
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <div class="donor-nav">
                     <select id="donorSelect" class="form-select" onchange="goToDonor(this.value)">
@@ -1007,14 +1041,50 @@ function getPaymentMethodDisplay($method) {
             <?php endif; ?>
         </div>
 
-        <?php if (!$currentDonor['phone']): ?>
+        <?php 
+        // Show special case flags if any
+        $flags = $currentDonor['flags'] ?? [];
+        if (!empty($flags)): 
+        ?>
+        <div class="special-cases-box mb-4" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; border-radius: 16px; padding: 20px;">
+            <h6 style="color: #991b1b; margin-bottom: 16px; font-weight: 600;">
+                <i class="fas fa-exclamation-circle me-2"></i>⚠️ SPECIAL CASE - REVIEW REQUIRED
+            </h6>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <?php foreach ($flags as $flag): 
+                    $def = $flagDefinitions[$flag] ?? ['icon' => 'fa-flag', 'color' => 'secondary', 'label' => $flag, 'desc' => ''];
+                ?>
+                <span class="badge bg-<?php echo $def['color']; ?> d-flex align-items-center gap-2" style="padding: 8px 14px; font-size: 13px; border-radius: 8px;">
+                    <i class="fas <?php echo $def['icon']; ?>"></i>
+                    <?php echo $def['label']; ?>
+                </span>
+                <?php endforeach; ?>
+            </div>
+            <?php foreach ($flags as $flag): 
+                $def = $flagDefinitions[$flag] ?? ['icon' => 'fa-flag', 'color' => 'secondary', 'label' => $flag, 'desc' => ''];
+            ?>
+            <div class="mb-2" style="font-size: 14px; color: #7f1d1d;">
+                <strong><?php echo $def['label']; ?>:</strong> <?php echo $def['desc']; ?>
+            </div>
+            <?php endforeach; ?>
+            
+            <?php if (!empty($currentDonor['original_data'])): ?>
+            <div class="mt-3 p-3" style="background: rgba(255,255,255,0.7); border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #374151;">
+                <strong style="color: #111827;">📋 Original Excel Data:</strong><br>
+                <?php echo htmlspecialchars($currentDonor['original_data']); ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!$currentDonor['phone'] && !in_array('no_phone', $flags)): ?>
         <div class="warning-box">
             <i class="fas fa-exclamation-triangle me-2"></i>
             <strong>Warning:</strong> This donor has no phone number. You may need to create a placeholder phone or skip this donor.
         </div>
         <?php endif; ?>
 
-        <?php if ($currentDonor['pledge'] <= 0): ?>
+        <?php if ($currentDonor['pledge'] <= 0 && !in_array('no_pledge', $flags)): ?>
         <div class="warning-box">
             <i class="fas fa-exclamation-triangle me-2"></i>
             <strong>Warning:</strong> This donor has no pledge amount. Consider skipping this donor.
@@ -1212,18 +1282,36 @@ function getPaymentMethodDisplay($method) {
             <h5><i class="fas fa-users me-2"></i>All Donors</h5>
             <button onclick="toggleSidebar()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;"><i class="fas fa-times"></i></button>
         </div>
-        <?php foreach ($donors as $i => $d): ?>
-        <div class="donor-list-item <?php echo $i === $currentIndex ? 'active' : ''; ?>" 
-             onclick="goToDonor(<?php echo $i + 1; ?>)">
+        <?php foreach ($donors as $i => $d): 
+            $hasFlags = !empty($d['flags']);
+            $flagCount = count($d['flags'] ?? []);
+        ?>
+        <div class="donor-list-item <?php echo $i === $currentIndex ? 'active' : ''; ?> <?php echo $hasFlags ? 'has-flags' : ''; ?>" 
+             onclick="goToDonor(<?php echo $i + 1; ?>)"
+             style="<?php echo $hasFlags ? 'border-left: 3px solid #f59e0b;' : ''; ?>">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <strong>#<?php echo $d['no']; ?></strong> <?php echo htmlspecialchars(substr($d['name'], 0, 20)); ?>
+                    <?php if ($hasFlags): ?>
+                    <span style="color: #f59e0b; font-size: 11px;" title="<?php echo $flagCount; ?> special case(s)">⚠️</span>
+                    <?php endif; ?>
                 </div>
                 <span class="status-badge status-<?php echo $d['status']; ?>" style="font-size: 10px; padding: 2px 8px;">
                     <?php echo $d['status'] === 'completed' ? '✓' : ($d['status'] === 'paying' ? '…' : '○'); ?>
                 </span>
             </div>
             <small class="text-muted">£<?php echo number_format($d['pledge']); ?> | Ref: <?php echo $d['reference']; ?></small>
+            <?php if ($hasFlags): ?>
+            <div class="mt-1">
+                <?php foreach ($d['flags'] as $flag): 
+                    $def = $flagDefinitions[$flag] ?? ['icon' => 'fa-flag', 'color' => 'secondary', 'label' => $flag];
+                ?>
+                <span class="badge bg-<?php echo $def['color']; ?>" style="font-size: 9px; padding: 2px 6px;">
+                    <?php echo $def['label']; ?>
+                </span>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
         <?php endforeach; ?>
     </div>
