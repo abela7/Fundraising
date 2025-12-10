@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel to Registrar Helper - Donor Import</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .step h2 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        .step-content {
+            color: #34495e;
+            margin-bottom: 15px;
+        }
+        .step-content ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        .step-content li {
+            margin-bottom: 5px;
+        }
+        .data-input {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+        .data-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn-secondary {
+            background: #95a5a6;
+        }
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            display: none;
+        }
+        .output.show {
+            display: block;
+        }
+        .donor-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .donor-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .donor-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .info-item {
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 3px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #7f8c8d;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .info-value {
+            color: #2c3e50;
+            font-size: 14px;
+            margin-top: 3px;
+        }
+        .copy-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .copy-btn:hover {
+            background: #229954;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .instructions ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+        .format-example {
+            background: #e8f4f8;
+            border-left: 3px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Excel to Registrar Helper</h1>
+        <p class="subtitle">Convert your Excel donor data into easy-to-use format for manual registration</p>
+
+        <div class="instructions">
+            <h3>📝 How to Use:</h3>
+            <ul>
+                <li><strong>Step 1:</strong> Copy your Excel data (all columns) and paste below</li>
+                <li><strong>Step 2:</strong> Click "Process Data" - it will format each donor</li>
+                <li><strong>Step 3:</strong> Go to <a href="https://donate.abuneteklehaymanot.org/registrar/" target="_blank">Registrar Page</a></li>
+                <li><strong>Step 4:</strong> Copy each donor's info and register them one by one</li>
+                <li><strong>Step 5:</strong> After registering all, approve them in <a href="https://donate.abuneteklehaymanot.org/admin/approvals/" target="_blank">Approvals Page</a></li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h2>Step 1: Paste Your Excel Data</h2>
+            <div class="step-content">
+                <p>Copy all rows from your Excel (including header row) and paste here:</p>
+                <div class="format-example">
+                    NO. | Full name | Phone Number | pledge_amount | cash | account transfer | payment deadline | any note and status<br>
+                    1 | John Smith | 07412345678 | 400.00 | 0 | 0 | 2025-03-01 | Not started<br>
+                    2 | Mary Johnson | 07423456789 | 200.00 | 50 | 50 | 2025-02-15 | Paying
+                </div>
+                <textarea id="excelData" class="data-input" placeholder="Paste your Excel data here (tab or pipe separated)..."></textarea>
+                <button class="btn" onclick="processData()">Process Data</button>
+                <button class="btn btn-secondary" onclick="clearData()">Clear</button>
+            </div>
+        </div>
+
+        <div id="output" class="output">
+            <h2>Step 2: Register Each Donor</h2>
+            <p style="margin-bottom: 15px; color: #7f8c8d;">Click "Copy Info" for each donor, then paste into the Registrar form</p>
+            <div id="donorsList"></div>
+        </div>
+    </div>
+
+    <script>
+        function processData() {
+            const input = document.getElementById('excelData').value.trim();
+            if (!input) {
+                alert('Please paste your Excel data first!');
+                return;
+            }
+
+            const lines = input.split('\n').filter(line => line.trim());
+            if (lines.length < 2) {
+                alert('Please include at least the header row and one data row!');
+                return;
+            }
+
+            // Parse header
+            const header = lines[0].split(/\t|\|/).map(h => h.trim());
+            const headerMap = {};
+            header.forEach((h, i) => {
+                const key = h.toLowerCase().replace(/\s+/g, '_');
+                headerMap[key] = i;
+            });
+
+            // Find column indices
+            const getCol = (keys) => {
+                for (const key of keys) {
+                    if (headerMap[key] !== undefined) return headerMap[key];
+                }
+                return -1;
+            };
+
+            const nameIdx = getCol(['full_name', 'name', 'donor_name']);
+            const phoneIdx = getCol(['phone_number', 'phone', 'donor_phone']);
+            const pledgeIdx = getCol(['pledge_amount', 'pledge', 'amount']);
+            const cashIdx = getCol(['cash']);
+            const transferIdx = getCol(['account_transfer', 'transfer', 'bank_transfer']);
+            const deadlineIdx = getCol(['payment_deadline', 'deadline', 'due_date']);
+            const notesIdx = getCol(['any_note_and_status', 'notes', 'status', 'note']);
+
+            if (nameIdx === -1 || phoneIdx === -1 || pledgeIdx === -1) {
+                alert('Could not find required columns: Full name, Phone Number, pledge_amount');
+                return;
+            }
+
+            // Process each row
+            const donors = [];
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i].split(/\t|\|/).map(c => c.trim());
+                if (row.length < 3) continue;
+
+                const name = row[nameIdx] || '';
+                const phone = row[phoneIdx] || '';
+                const pledgeAmount = parseFloat(row[pledgeIdx] || '0') || 0;
+                const cash = parseFloat(row[cashIdx] || '0') || 0;
+                const transfer = parseFloat(row[transferIdx] || '0') || 0;
+                const deadline = row[deadlineIdx] || '';
+                const notes = row[notesIdx] || '';
+
+                if (!name || !phone || pledgeAmount <= 0) continue;
+
+                const totalPaid = cash + transfer;
+                const balance = pledgeAmount - totalPaid;
+                
+                let paymentStatus = 'not_started';
+                if (totalPaid >= pledgeAmount) {
+                    paymentStatus = 'completed';
+                } else if (totalPaid > 0) {
+                    paymentStatus = 'paying';
+                }
+
+                donors.push({
+                    name,
+                    phone: phone.replace(/[^0-9]/g, '').replace(/^44/, '0'),
+                    pledgeAmount,
+                    cash,
+                    transfer,
+                    totalPaid,
+                    balance,
+                    deadline,
+                    notes,
+                    paymentStatus
+                });
+            }
+
+            if (donors.length === 0) {
+                alert('No valid donors found! Check your data format.');
+                return;
+            }
+
+            displayDonors(donors);
+        }
+
+        function displayDonors(donors) {
+            const output = document.getElementById('output');
+            const list = document.getElementById('donorsList');
+            
+            list.innerHTML = '';
+            
+            donors.forEach((donor, index) => {
+                const card = document.createElement('div');
+                card.className = 'donor-card';
+                
+                const paymentMethod = donor.cash > 0 ? 'cash' : (donor.transfer > 0 ? 'bank_transfer' : 'bank_transfer');
+                const paymentInfo = donor.totalPaid > 0 
+                    ? `Paid: £${donor.totalPaid.toFixed(2)} (Cash: £${donor.cash.toFixed(2)}, Transfer: £${donor.transfer.toFixed(2)})`
+                    : 'Not started paying';
+                
+                card.innerHTML = `
+                    <h3>Donor #${index + 1}: ${donor.name}</h3>
+                    <div class="donor-info">
+                        <div class="info-item">
+                            <div class="info-label">Phone</div>
+                            <div class="info-value">${donor.phone}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Pledge Amount</div>
+                            <div class="info-value">£${donor.pledgeAmount.toFixed(2)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Total Paid</div>
+                            <div class="info-value">£${donor.totalPaid.toFixed(2)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Balance</div>
+                            <div class="info-value">£${donor.balance.toFixed(2)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Status</div>
+                            <div class="info-value">${donor.paymentStatus}</div>
+                        </div>
+                        ${donor.deadline ? `<div class="info-item">
+                            <div class="info-label">Deadline</div>
+                            <div class="info-value">${donor.deadline}</div>
+                        </div>` : ''}
+                    </div>
+                    ${donor.notes ? `<div style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                        <strong>Notes:</strong> ${donor.notes}
+                    </div>` : ''}
+                    <div style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-radius: 3px; font-size: 13px;">
+                        <strong>📋 Registration Instructions:</strong><br>
+                        1. Type: <strong>${donor.totalPaid > 0 ? 'Paid Now' : 'Promise to Pay Later'}</strong><br>
+                        2. Name: <strong>${donor.name}</strong><br>
+                        3. Phone: <strong>${donor.phone}</strong><br>
+                        4. Amount: <strong>£${donor.pledgeAmount.toFixed(2)}</strong> (select Custom and enter amount)<br>
+                        ${donor.totalPaid > 0 ? `5. Payment Method: <strong>${paymentMethod === 'cash' ? 'Cash' : 'Bank Transfer'}</strong><br>` : ''}
+                        ${donor.deadline ? `6. Notes: Deadline: ${donor.deadline}${donor.notes ? ' | ' + donor.notes : ''}` : (donor.notes ? `6. Notes: ${donor.notes}` : '')}
+                    </div>
+                    <button class="copy-btn" onclick="copyDonorInfo(${index})">📋 Copy Registration Info</button>
+                `;
+                
+                list.appendChild(card);
+            });
+
+            // Store donors globally for copy function
+            window.donorsData = donors;
+            
+            output.classList.add('show');
+            output.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyDonorInfo(index) {
+            const donor = window.donorsData[index];
+            const paymentMethod = donor.cash > 0 ? 'cash' : (donor.transfer > 0 ? 'bank' : 'bank');
+            
+            const info = `Donor Registration Info:
+Name: ${donor.name}
+Phone: ${donor.phone}
+Pledge Amount: £${donor.pledgeAmount.toFixed(2)}
+Type: ${donor.totalPaid > 0 ? 'Paid Now' : 'Promise to Pay Later'}
+${donor.totalPaid > 0 ? `Payment Method: ${paymentMethod === 'cash' ? 'Cash' : 'Bank Transfer'}` : ''}
+${donor.deadline ? `Deadline: ${donor.deadline}` : ''}
+${donor.notes ? `Notes: ${donor.notes}` : ''}`;
+
+            navigator.clipboard.writeText(info).then(() => {
+                alert('✅ Copied! Now paste into the Registrar form.');
+            }).catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = info;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('✅ Copied! Now paste into the Registrar form.');
+            });
+        }
+
+        function clearData() {
+            document.getElementById('excelData').value = '';
+            document.getElementById('output').classList.remove('show');
+            document.getElementById('donorsList').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
+

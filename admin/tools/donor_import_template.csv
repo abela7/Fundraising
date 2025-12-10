@@ -1,0 +1,5 @@
+name,phone,pledge_amount,paid_amount,payment_status,email,city,baptism_name,pledge_date,last_payment_date,payment_method,preferred_language,admin_notes
+John Smith,07412345678,400.00,0.00,not_started,john@example.com,Liverpool,,2025-01-15,,bank_transfer,en,
+Mary Johnson,07423456789,200.00,100.00,paying,mary@example.com,Manchester,,2025-01-20,2025-02-10,bank_transfer,en,Follow up next month
+David Brown,07434567890,400.00,400.00,completed,david@example.com,Liverpool,Yohannes,2025-01-10,2025-03-01,cash,en,Paid in full
+
