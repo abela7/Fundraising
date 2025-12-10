@@ -1126,10 +1126,7 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
         return;
     }
     
-    if (!confirm('Submit this payment for approval?\n\nThe payment will be reviewed by an admin before being finalized.')) {
-        return;
-    }
-    
+    // Submit immediately without confirmation
     const formData = new FormData(this);
     const btn = document.getElementById('btnSubmit');
     const originalHTML = btn.innerHTML;
