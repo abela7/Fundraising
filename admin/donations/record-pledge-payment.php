@@ -537,9 +537,12 @@ if ($search || $selected_donor_id) {
                                     Select Donor
                                 </div>
                                 
-                                <form method="GET" class="mb-3">
+                                <form method="GET" class="mb-3" id="searchForm">
                                     <div class="input-group">
-                                        <input type="text" name="search" class="form-control" 
+                                        <button type="button" class="btn btn-primary" onclick="pasteSearch()" title="Paste from clipboard">
+                                            <i class="fas fa-paste"></i>
+                                        </button>
+                                        <input type="text" name="search" id="searchInput" class="form-control" 
                                                placeholder="Search name, phone, or reference..." 
                                                value="<?php echo htmlspecialchars($search); ?>">
                                         <button class="btn btn-primary" type="submit">
@@ -785,6 +788,22 @@ async function pasteAmount() {
                 input.focus();
                 input.dispatchEvent(new Event('input', { bubbles: true }));
             }
+        }
+    } catch (err) {
+        input.focus();
+        console.log('Clipboard access denied');
+    }
+}
+
+// Paste search from clipboard and auto-submit
+async function pasteSearch() {
+    const input = document.getElementById('searchInput');
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+            input.value = text.trim();
+            // Auto-submit the search form
+            document.getElementById('searchForm').submit();
         }
     } catch (err) {
         input.focus();
