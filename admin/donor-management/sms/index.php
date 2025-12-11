@@ -520,6 +520,7 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
         .bg-red-light { background: #fee2e2; color: #dc2626; }
         .bg-yellow-light { background: #fef3c7; color: #d97706; }
         .bg-blue-light { background: #dbeafe; color: #0a6286; }
+        .bg-info-light { background: #cffafe; color: #0891b2; }
         .bg-gray-light { background: #f1f5f9; color: #475569; }
     </style>
 </head>
@@ -733,6 +734,28 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                                     <div class="action-content">
                                         <p class="action-name">WhatsApp Settings</p>
                                         <p class="action-desc">UltraMsg configuration</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </a>
+                                
+                                <a href="../../tools/test-messaging.php" class="action-item">
+                                    <div class="action-icon bg-info-light">
+                                        <i class="fas fa-vial"></i>
+                                    </div>
+                                    <div class="action-content">
+                                        <p class="action-name">Test Messaging</p>
+                                        <p class="action-desc">Test SMS & WhatsApp integration</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </a>
+                                
+                                <a href="../message-history.php" class="action-item">
+                                    <div class="action-icon bg-primary-light">
+                                        <i class="fas fa-envelope-open-text"></i>
+                                    </div>
+                                    <div class="action-content">
+                                        <p class="action-name">Message History</p>
+                                        <p class="action-desc">View donor message history</p>
                                     </div>
                                     <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
