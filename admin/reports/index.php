@@ -109,8 +109,14 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
         'ref' => '',
         'name' => $d['name'] ?? '',
         'phone' => $d['phone'] ?? '',
+        // pledge = outstanding pledged (matches dashboard "Pledged (approved)")
         'pledge' => 0.0,
+        // paid = total paid (instant payments + pledge payments)
         'paid' => 0.0,
+        // internal helpers
+        '_pledge_total' => 0.0,
+        '_pledge_paid' => 0.0,
+        '_instant_paid' => 0.0,
       ];
     }
   }
@@ -206,8 +212,10 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
     while ($r = $plRes->fetch_assoc()) {
       $did = (int)$r['donor_id'];
       $amt = (float)$r['total'];
-      if (!isset($donors[$did])) $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
-      $donors[$did]['pledge'] += $amt;
+      if (!isset($donors[$did])) {
+        $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0,'_pledge_total'=>0.0,'_pledge_paid'=>0.0,'_instant_paid'=>0.0];
+      }
+      $donors[$did]['_pledge_total'] += $amt;
     }
     $plStmt->close();
   }
@@ -228,8 +236,10 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
     while ($r = $payRes->fetch_assoc()) {
       $did = (int)$r['donor_id'];
       $amt = (float)$r['total'];
-      if (!isset($donors[$did])) $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
-      $donors[$did]['paid'] += $amt;
+      if (!isset($donors[$did])) {
+        $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0,'_pledge_total'=>0.0,'_pledge_paid'=>0.0,'_instant_paid'=>0.0];
+      }
+      $donors[$did]['_instant_paid'] += $amt;
     }
     $payStmt->close();
   }
@@ -279,11 +289,14 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
         'ref' => $ref !== '' ? str_pad($ref, 4, '0', STR_PAD_LEFT) : '',
         'name' => $r['donor_name'] ?? '',
         'phone' => $r['donor_phone'] ?? '',
-        'pledge' => 0.0,
-        'paid' => 0.0,
+        'pledge' => 0.0, // outstanding
+        'paid' => 0.0,   // total paid
+        '_pledge_total' => 0.0,
+        '_pledge_paid' => 0.0,
+        '_instant_paid' => 0.0,
       ];
     }
-    $unlinked[$k]['pledge'] += (float)($r['total'] ?? 0);
+    $unlinked[$k]['_pledge_total'] += (float)($r['total'] ?? 0);
   }
   $uplStmt->close();
 
@@ -327,6 +340,9 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
         'phone' => $r['donor_phone'] ?? '',
         'pledge' => 0.0,
         'paid' => 0.0,
+        '_pledge_total' => 0.0,
+        '_pledge_paid' => 0.0,
+        '_instant_paid' => 0.0,
       ];
     } elseif (($unlinked[$k]['ref'] ?? '') === '') {
       $ref = '';
@@ -340,7 +356,7 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
         $unlinked[$k]['ref'] = str_pad($ref, 4, '0', STR_PAD_LEFT);
       }
     }
-    $unlinked[$k]['paid'] += (float)($r['total'] ?? 0);
+    $unlinked[$k]['_instant_paid'] += (float)($r['total'] ?? 0);
   }
   $upayStmt->close();
 
@@ -359,11 +375,38 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
     while ($r = $ppRes->fetch_assoc()) {
       $did = (int)$r['donor_id'];
       $amt = (float)$r['total'];
-      if (!isset($donors[$did])) $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
-      $donors[$did]['paid'] += $amt;
+      if (!isset($donors[$did])) {
+        $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0,'_pledge_total'=>0.0,'_pledge_paid'=>0.0,'_instant_paid'=>0.0];
+      }
+      $donors[$did]['_pledge_paid'] += $amt;
     }
     $ppStmt->close();
   }
+
+  // Finalize per-row metrics to match FinancialCalculator:
+  // - pledged (display) = total pledges - pledge_payments
+  // - paid (display) = instant payments + pledge_payments
+  // - balance = pledged (display)
+  foreach ($donors as &$d) {
+    $pledgeTotal = (float)($d['_pledge_total'] ?? 0);
+    $pledgePaid = (float)($d['_pledge_paid'] ?? 0);
+    $instantPaid = (float)($d['_instant_paid'] ?? 0);
+
+    $outstanding = max(0, $pledgeTotal - $pledgePaid);
+    $totalPaid = $instantPaid + $pledgePaid;
+
+    $d['pledge'] = $outstanding;
+    $d['paid'] = $totalPaid;
+  }
+  unset($d);
+  foreach ($unlinked as &$u) {
+    $pledgeTotal = (float)($u['_pledge_total'] ?? 0);
+    $instantPaid = (float)($u['_instant_paid'] ?? 0);
+    // unlinked can’t have pledge_payments (no donor_id link), so outstanding == pledgeTotal
+    $u['pledge'] = max(0, $pledgeTotal);
+    $u['paid'] = max(0, $instantPaid);
+  }
+  unset($u);
 
   // Attach ref (always 4 digits)
   foreach ($donors as $did => &$d) {
@@ -412,9 +455,10 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
     'totals' => [
       'pledge' => $totalPledge,
       'paid' => $totalPaid,
-      'balance' => $totalBalance,
-      // Total raised = money in account + remaining outstanding
-      'grand' => ($totalPaid + $totalBalance),
+      // Balance shown in UI should be the outstanding pledged (same as pledge)
+      'balance' => $totalPledge,
+      // Total Raised (system) = Paid + Outstanding Pledged
+      'grand' => ($totalPaid + $totalPledge),
     ]
   ];
 }
