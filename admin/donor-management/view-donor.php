@@ -18,6 +18,17 @@ if (!$donor_id) {
     exit;
 }
 
+// Get current user's phone for Twilio calling
+$user_id = (int)$_SESSION['user']['id'];
+$user_phone_query = "SELECT phone, phone_number FROM users WHERE id = ?";
+$user_stmt = $db->prepare($user_phone_query);
+$user_stmt->bind_param('i', $user_id);
+$user_stmt->execute();
+$user_result = $user_stmt->get_result();
+$user_data = $user_result->fetch_assoc();
+$user_stmt->close();
+$agent_phone = $user_data['phone_number'] ?? $user_data['phone'] ?? '';
+
 // Handle Financial Summary Update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_financials') {
     require_once __DIR__ . '/../../shared/csrf.php';
@@ -938,23 +949,34 @@ function formatDateTime($date) {
             }
         }
         
-        /* SMS Modal mobile styles */
+        /* SMS & Call Modal mobile styles */
         @media (max-width: 575px) {
-            #sendSmsModal .modal-dialog {
+            #sendSmsModal .modal-dialog,
+            #twilioQuickCallModal .modal-dialog {
                 margin: 0.5rem;
             }
-            #sendSmsModal .modal-content {
+            #sendSmsModal .modal-content,
+            #twilioQuickCallModal .modal-content {
                 border-radius: 12px;
             }
-            #sendSmsModal .modal-body {
+            #sendSmsModal .modal-body,
+            #twilioQuickCallModal .modal-body {
                 padding: 1rem;
             }
-            #sendSmsModal textarea {
+            #sendSmsModal textarea,
+            #twilioQuickCallModal input[type="tel"] {
                 font-size: 16px; /* Prevents zoom on iOS */
             }
             #sendSmsModal .sms-template-btn {
                 font-size: 0.75rem;
                 padding: 0.375rem 0.5rem;
+            }
+            #twilioQuickCallModal .modal-footer {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            #twilioQuickCallModal .modal-footer .btn {
+                width: 100%;
             }
         }
     </style>
@@ -1135,13 +1157,13 @@ function formatDateTime($date) {
                                         <span class="fw-semibold">WhatsApp</span>
                                     </a>
                                     
-                                    <!-- Call Button (Twilio) -->
-                                    <a href="../call-center/make-call.php?donor_id=<?php echo $donor_id; ?>" 
-                                       class="btn d-inline-flex align-items-center gap-2 px-3 py-2 text-decoration-none" 
-                                       style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;">
+                                    <!-- Call Button (Twilio Quick Call) -->
+                                    <button type="button" class="btn d-inline-flex align-items-center gap-2 px-3 py-2" 
+                                       style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;"
+                                       data-bs-toggle="modal" data-bs-target="#twilioQuickCallModal">
                                         <i class="fas fa-phone-alt"></i>
                                         <span class="fw-semibold">Call</span>
-                                    </a>
+                                    </button>
                                     
                                     <!-- Message History Button -->
                                     <a href="message-history.php?donor_id=<?= $donor_id ?>" 
@@ -2263,8 +2285,154 @@ function formatDateTime($date) {
     </div>
 </div>
 
+<!-- Twilio Quick Call Modal -->
+<div class="modal fade" id="twilioQuickCallModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; padding: 1.25rem;">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-phone-volume me-2"></i>Call <?php echo htmlspecialchars($donor['name']); ?>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Recipient Info -->
+                <div class="d-flex align-items-center mb-4 p-3 rounded" style="background: #ecfdf5; border: 1px solid #a7f3d0;">
+                    <div class="me-3" style="width: 48px; height: 48px; background: linear-gradient(135deg, #059669, #047857); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.25rem;">
+                        <?php echo strtoupper(substr($donor['name'], 0, 1)); ?>
+                    </div>
+                    <div>
+                        <div class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></div>
+                        <div class="text-muted small">
+                            <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor['phone']); ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- How it works -->
+                <div class="alert alert-info mb-4" style="border-radius: 12px; border: none; background: #f0f9ff;">
+                    <div class="fw-bold mb-2"><i class="fas fa-info-circle me-2"></i>How it works:</div>
+                    <ol class="mb-0 ps-3" style="font-size: 0.875rem;">
+                        <li>Enter your phone number below</li>
+                        <li>Your phone will ring first</li>
+                        <li>Answer, then you'll be connected to <?php echo htmlspecialchars(explode(' ', $donor['name'])[0]); ?></li>
+                        <li>Donor sees the <strong>church number</strong>, not yours!</li>
+                    </ol>
+                </div>
+                
+                <!-- Phone Input -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-mobile-alt me-1 text-success"></i>Your Phone Number
+                    </label>
+                    <input type="tel" class="form-control form-control-lg" id="twilioAgentPhone" 
+                           value="<?php echo htmlspecialchars($agent_phone); ?>"
+                           placeholder="07XXXXXXXXX" 
+                           pattern="^(07[0-9]{9}|447[0-9]{9}|\+447[0-9]{9})$"
+                           style="border-radius: 12px; font-size: 1.125rem; padding: 0.875rem 1rem;"
+                           required>
+                    <div class="form-text">
+                        <i class="fas fa-lock me-1"></i>UK mobile format (e.g., 07123456789)
+                    </div>
+                </div>
+                
+                <!-- Status Area -->
+                <div id="twilioCallStatus" style="display: none;"></div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 1rem 1.5rem; background: #f8fafc;">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-success btn-lg" id="twilioCallBtn" onclick="initiateTwilioQuickCall()" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border: none;">
+                    <i class="fas fa-phone-volume me-2"></i>Call Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Twilio Quick Call Function
+function initiateTwilioQuickCall() {
+    const agentPhone = document.getElementById('twilioAgentPhone').value.trim();
+    const callBtn = document.getElementById('twilioCallBtn');
+    const statusDiv = document.getElementById('twilioCallStatus');
+    
+    if (!agentPhone) {
+        showTwilioStatus('error', 'Please enter your phone number');
+        return;
+    }
+    
+    // Validate UK phone format
+    const phonePattern = /^(07[0-9]{9}|447[0-9]{9}|\+447[0-9]{9})$/;
+    if (!phonePattern.test(agentPhone.replace(/\s/g, ''))) {
+        showTwilioStatus('error', 'Please enter a valid UK mobile number');
+        return;
+    }
+    
+    const originalHTML = callBtn.innerHTML;
+    callBtn.disabled = true;
+    callBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calling...';
+    
+    showTwilioStatus('info', '<i class="fas fa-phone-volume me-2"></i>Calling your phone...');
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('donor_id', <?php echo $donor_id; ?>);
+    formData.append('queue_id', 0);
+    formData.append('agent_phone', agentPhone);
+    formData.append('csrf_token', csrfToken);
+    
+    fetch('../call-center/api/twilio-initiate-call.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showTwilioStatus('success', '<i class="fas fa-check-circle me-2"></i>Call initiated! Answer your phone.');
+            
+            // Keep modal open and show success
+            setTimeout(() => {
+                showTwilioStatus('success', '<i class="fas fa-phone me-2"></i>Connected! Call in progress...');
+                // Option: redirect to call status page for tracking
+                // window.location.href = '../call-center/call-status.php?donor_id=<?php echo $donor_id; ?>&session_id=' + data.session_id;
+            }, 2000);
+            
+            // Reset button after a moment
+            setTimeout(() => {
+                callBtn.disabled = false;
+                callBtn.innerHTML = originalHTML;
+            }, 5000);
+        } else {
+            throw new Error(data.error || 'Failed to initiate call');
+        }
+    })
+    .catch(error => {
+        console.error('Twilio call error:', error);
+        showTwilioStatus('error', '<i class="fas fa-exclamation-triangle me-2"></i>' + error.message);
+        callBtn.disabled = false;
+        callBtn.innerHTML = originalHTML;
+    });
+}
+
+function showTwilioStatus(type, message) {
+    const statusDiv = document.getElementById('twilioCallStatus');
+    const bgColor = type === 'error' ? '#fef2f2' : 
+                    type === 'success' ? '#ecfdf5' : '#f0f9ff';
+    const borderColor = type === 'error' ? '#fecaca' : 
+                        type === 'success' ? '#a7f3d0' : '#bae6fd';
+    const textColor = type === 'error' ? '#b91c1c' : 
+                      type === 'success' ? '#065f46' : '#0369a1';
+    
+    statusDiv.innerHTML = `<div class="p-3 rounded" style="background: ${bgColor}; border: 1px solid ${borderColor}; color: ${textColor};">${message}</div>`;
+    statusDiv.style.display = 'block';
+}
+
 // Load Donor Data - Use PHP data already on page
 function loadDonorData(donorId) {
     // Data is already available from PHP, populate form directly
