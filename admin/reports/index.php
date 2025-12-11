@@ -234,6 +234,116 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
     $payStmt->close();
   }
 
+  // Unlinked donors (rows in pledges/payments without donor_id)
+  // This is what makes donor counts match report pages that count distinct donors
+  // from pledges/payments even when donor_id is NULL (e.g., older/imported data).
+  $unlinked = [];
+  $makeKey = static function (?string $name, ?string $phone, ?string $email): string {
+    return (string)($name ?? '') . '|' . (string)($phone ?? '') . '|' . (string)($email ?? '');
+  };
+
+  // Unlinked pledges (approved)
+  if ($pledgesHasDonorId) {
+    $uplStmt = $db->prepare("
+      SELECT donor_name, donor_phone, donor_email, MAX(notes) AS notes_any, COALESCE(SUM(amount),0) AS total
+      FROM pledges
+      WHERE status='approved'
+        AND (donor_id IS NULL OR donor_id = 0)
+        AND created_at BETWEEN ? AND ?
+      GROUP BY donor_name, donor_phone, donor_email
+    ");
+  } else {
+    $uplStmt = $db->prepare("
+      SELECT donor_name, donor_phone, donor_email, MAX(notes) AS notes_any, COALESCE(SUM(amount),0) AS total
+      FROM pledges
+      WHERE status='approved'
+        AND created_at BETWEEN ? AND ?
+      GROUP BY donor_name, donor_phone, donor_email
+    ");
+  }
+  $uplStmt->bind_param('ss', $fromDate, $toDate);
+  $uplStmt->execute();
+  $uplRes = $uplStmt->get_result();
+  while ($r = $uplRes->fetch_assoc()) {
+    $k = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '', $r['donor_email'] ?? '');
+    if (!isset($unlinked[$k])) {
+      $ref = '';
+      $phone = trim((string)($r['donor_phone'] ?? ''));
+      if ($phone !== '' && isset($refByPhone[$phone])) {
+        $ref = $refByPhone[$phone];
+      } else {
+        $ref = $extractRef((string)($r['notes_any'] ?? ''));
+      }
+      $unlinked[$k] = [
+        'donor_id' => null,
+        'ref' => $ref !== '' ? str_pad($ref, 4, '0', STR_PAD_LEFT) : '',
+        'name' => $r['donor_name'] ?? '',
+        'phone' => $r['donor_phone'] ?? '',
+        'pledge' => 0.0,
+        'paid' => 0.0,
+      ];
+    }
+    $unlinked[$k]['pledge'] += (float)($r['total'] ?? 0);
+  }
+  $uplStmt->close();
+
+  // Unlinked payments (approved)
+  $payDateCol = $paymentsHasReceivedAt ? 'received_at' : 'created_at';
+  if ($paymentsHasDonorId) {
+    $upayStmt = $db->prepare("
+      SELECT donor_name, donor_phone, donor_email, MAX({$paymentRefCol}) AS ref_any, COALESCE(SUM(amount),0) AS total
+      FROM payments
+      WHERE status='approved'
+        AND (donor_id IS NULL OR donor_id = 0)
+        AND {$payDateCol} BETWEEN ? AND ?
+      GROUP BY donor_name, donor_phone, donor_email
+    ");
+  } else {
+    $upayStmt = $db->prepare("
+      SELECT donor_name, donor_phone, donor_email, MAX({$paymentRefCol}) AS ref_any, COALESCE(SUM(amount),0) AS total
+      FROM payments
+      WHERE status='approved'
+        AND {$payDateCol} BETWEEN ? AND ?
+      GROUP BY donor_name, donor_phone, donor_email
+    ");
+  }
+  $upayStmt->bind_param('ss', $fromDate, $toDate);
+  $upayStmt->execute();
+  $upayRes = $upayStmt->get_result();
+  while ($r = $upayRes->fetch_assoc()) {
+    $k = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '', $r['donor_email'] ?? '');
+    if (!isset($unlinked[$k])) {
+      $ref = '';
+      $phone = trim((string)($r['donor_phone'] ?? ''));
+      if ($phone !== '' && isset($refByPhone[$phone])) {
+        $ref = $refByPhone[$phone];
+      } else {
+        $ref = $extractRef((string)($r['ref_any'] ?? ''));
+      }
+      $unlinked[$k] = [
+        'donor_id' => null,
+        'ref' => $ref !== '' ? str_pad($ref, 4, '0', STR_PAD_LEFT) : '',
+        'name' => $r['donor_name'] ?? '',
+        'phone' => $r['donor_phone'] ?? '',
+        'pledge' => 0.0,
+        'paid' => 0.0,
+      ];
+    } elseif (($unlinked[$k]['ref'] ?? '') === '') {
+      $ref = '';
+      $phone = trim((string)($r['donor_phone'] ?? ''));
+      if ($phone !== '' && isset($refByPhone[$phone])) {
+        $ref = $refByPhone[$phone];
+      } else {
+        $ref = $extractRef((string)($r['ref_any'] ?? ''));
+      }
+      if ($ref !== '') {
+        $unlinked[$k]['ref'] = str_pad($ref, 4, '0', STR_PAD_LEFT);
+      }
+    }
+    $unlinked[$k]['paid'] += (float)($r['total'] ?? 0);
+  }
+  $upayStmt->close();
+
   // Pledge payments
   if ($hasPledgePayments && $hasPledgePaymentsTable) {
     $ppStmt = $db->prepare("
@@ -268,6 +378,11 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
   unset($d);
 
   $rows = array_values($donors);
+  foreach ($unlinked as $u) {
+    // Keep these separate to match report donor counts (they represent transactions
+    // that are not linked to a donor record).
+    $rows[] = $u;
+  }
   usort($rows, static function ($a, $b) {
     $ap = (float)($a['pledge'] ?? 0);
     $bp = (float)($b['pledge'] ?? 0);
@@ -298,7 +413,8 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
       'pledge' => $totalPledge,
       'paid' => $totalPaid,
       'balance' => $totalBalance,
-      'grand' => ($totalPledge + $totalPaid),
+      // Total raised = money in account + remaining outstanding
+      'grand' => ($totalPaid + $totalBalance),
     ]
   ];
 }
@@ -409,7 +525,7 @@ if (isset($_GET['report'])) {
     $html .= '<td class="number"><strong>' . number_format((float)$t['balance'], 2) . '</strong></td>';
     $html .= '</tr>';
     $html .= '<tr style="background-color:#eef2ff;font-weight:bold;">';
-    $html .= '<td colspan="7" style="text-align:right;"><strong>Grand Total (Pledge + Paid):</strong> ' . number_format((float)$t['grand'], 2) . '</td>';
+    $html .= '<td colspan="7" style="text-align:right;"><strong>Total Raised (Paid + Balance):</strong> ' . number_format((float)$t['grand'], 2) . '</td>';
     $html .= '</tr>';
     $html .= '</table></body></html>';
 
@@ -984,7 +1100,7 @@ if (isset($_GET['report'])) {
       echo '<td class="number"><strong>' . number_format($totalBalance, 2) . '</strong></td>';
       echo '</tr>';
       echo '<tr style="background-color: #eef2ff; font-weight: bold;">';
-      echo '<td colspan="7" style="text-align:right;"><strong>Grand Total (Pledge + Paid):</strong> ' . number_format($grandTotalForBackup, 2) . '</td>';
+      echo '<td colspan="7" style="text-align:right;"><strong>Total Raised (Paid + Balance):</strong> ' . number_format($grandTotalForBackup, 2) . '</td>';
       echo '</tr>';
 
       echo '</table>';
