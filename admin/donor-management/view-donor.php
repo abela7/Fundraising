@@ -704,6 +704,37 @@ function formatDateTime($date) {
                 width: 100%;
             }
         }
+        
+        /* Contact accordion mobile styles */
+        @media (max-width: 575px) {
+            #collapseContact .col-sm-4 {
+                width: 100%;
+            }
+            #collapseContact .btn {
+                min-height: 100px !important;
+                margin-bottom: 0;
+            }
+        }
+        
+        /* SMS Modal mobile styles */
+        @media (max-width: 575px) {
+            #sendSmsModal .modal-dialog {
+                margin: 0.5rem;
+            }
+            #sendSmsModal .modal-content {
+                border-radius: 12px;
+            }
+            #sendSmsModal .modal-body {
+                padding: 1rem;
+            }
+            #sendSmsModal textarea {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            #sendSmsModal .sms-template-btn {
+                font-size: 0.75rem;
+                padding: 0.375rem 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -839,6 +870,71 @@ function formatDateTime($date) {
                                         <div class="info-row">
                                             <span class="info-label">Church Affiliation</span>
                                             <span class="info-value"><?php echo htmlspecialchars($donor['church_name'] ?? 'Unknown'); ?></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Donor -->
+                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseContact">
+                                <i class="fas fa-address-book me-3 text-info"></i> Contact Donor
+                            </button>
+                        </h2>
+                        <div id="collapseContact" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <!-- SMS Button -->
+                                    <div class="col-12 col-sm-4">
+                                        <button type="button" class="btn btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-2 py-4" 
+                                                style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; border: none; border-radius: 12px; min-height: 120px;"
+                                                data-bs-toggle="modal" data-bs-target="#sendSmsModal">
+                                            <i class="fas fa-sms fa-2x"></i>
+                                            <span class="fw-bold">Send SMS</span>
+                                            <small class="opacity-75">Text message</small>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- WhatsApp Button -->
+                                    <div class="col-12 col-sm-4">
+                                        <a href="../messaging/whatsapp/inbox.php?phone=<?php echo urlencode($donor['phone']); ?>&donor_id=<?php echo $donor_id; ?>" 
+                                           class="btn btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-2 py-4 text-decoration-none" 
+                                           style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border: none; border-radius: 12px; min-height: 120px;">
+                                            <i class="fab fa-whatsapp fa-2x"></i>
+                                            <span class="fw-bold">WhatsApp</span>
+                                            <small class="opacity-75">Open conversation</small>
+                                        </a>
+                                    </div>
+                                    
+                                    <!-- Call Button -->
+                                    <div class="col-12 col-sm-4">
+                                        <a href="tel:<?php echo htmlspecialchars($donor['phone']); ?>" 
+                                           class="btn btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-2 py-4 text-decoration-none" 
+                                           style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 12px; min-height: 120px;">
+                                            <i class="fas fa-phone-alt fa-2x"></i>
+                                            <span class="fw-bold">Call</span>
+                                            <small class="opacity-75"><?php echo htmlspecialchars($donor['phone']); ?></small>
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quick Info -->
+                                <div class="mt-3 p-3 rounded" style="background: #f8fafc; border: 1px solid #e5e7eb;">
+                                    <div class="row g-2 text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">Phone</small>
+                                            <strong><?php echo htmlspecialchars($donor['phone']); ?></strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">Language</small>
+                                            <strong><?php echo strtoupper($donor['preferred_language'] ?? 'EN'); ?></strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">Reference</small>
+                                            <strong>#<?php echo htmlspecialchars($donor_reference); ?></strong>
                                         </div>
                                     </div>
                                 </div>
@@ -1856,6 +1952,97 @@ function formatDateTime($date) {
     </div>
 </div>
 
+<!-- Send SMS Modal -->
+<div class="modal fade" id="sendSmsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; border: none; padding: 1.25rem;">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-sms me-2"></i>Send SMS to <?php echo htmlspecialchars($donor['name']); ?>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="sendSmsForm" method="POST" action="sms/send-ajax.php">
+                <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
+                <input type="hidden" name="phone" value="<?php echo htmlspecialchars($donor['phone']); ?>">
+                <input type="hidden" name="donor_name" value="<?php echo htmlspecialchars($donor['name']); ?>">
+                <div class="modal-body p-4">
+                    <!-- Recipient Info -->
+                    <div class="d-flex align-items-center mb-4 p-3 rounded" style="background: #f0f9ff; border: 1px solid #bae6fd;">
+                        <div class="me-3" style="width: 48px; height: 48px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.25rem;">
+                            <?php echo strtoupper(substr($donor['name'], 0, 1)); ?>
+                        </div>
+                        <div>
+                            <div class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></div>
+                            <div class="text-muted small">
+                                <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor['phone']); ?>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Message Input -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-comment-alt me-1 text-primary"></i>Message
+                        </label>
+                        <textarea name="message" id="smsMessage" class="form-control" rows="5" 
+                                  placeholder="Type your message here..." 
+                                  style="border-radius: 12px; font-size: 1rem; padding: 1rem;"
+                                  required></textarea>
+                        
+                        <!-- Character Counter -->
+                        <div class="d-flex justify-content-between align-items-center mt-2" id="smsCharInfo">
+                            <div>
+                                <span class="badge bg-light text-dark" id="smsCharBadge">
+                                    <span id="smsCharCount">0</span> / 160 characters
+                                </span>
+                            </div>
+                            <div>
+                                <span class="badge" id="smsParts" style="background: #0ea5e9; color: white;">
+                                    <i class="fas fa-envelope me-1"></i><span id="smsPartCount">1</span> SMS
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- SMS Info Box -->
+                        <div class="mt-2 p-2 rounded small" id="smsInfoBox" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <span id="smsInfoText">Standard SMS: 160 characters per message</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Templates (optional) -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Quick Templates</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary sms-template-btn" 
+                                    data-template="Hi {name}, this is a reminder about your pledge. Please contact us if you have any questions.">
+                                <i class="fas fa-clock me-1"></i>Reminder
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary sms-template-btn" 
+                                    data-template="Thank you {name} for your generous donation! God bless you.">
+                                <i class="fas fa-heart me-1"></i>Thank You
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary sms-template-btn" 
+                                    data-template="Hi {name}, we wanted to follow up on your pledge. Please call us at your convenience.">
+                                <i class="fas fa-phone me-1"></i>Follow Up
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 1rem 1.5rem; background: #f8fafc;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="sendSmsBtn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); border: none;">
+                        <i class="fas fa-paper-plane me-2"></i>Send SMS
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Load Donor Data - Use PHP data already on page
@@ -2171,6 +2358,136 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 <script src="../assets/admin.js"></script>
+<script>
+// SMS Modal Functionality
+(function() {
+    const smsMessage = document.getElementById('smsMessage');
+    const smsCharCount = document.getElementById('smsCharCount');
+    const smsPartCount = document.getElementById('smsPartCount');
+    const smsCharBadge = document.getElementById('smsCharBadge');
+    const smsParts = document.getElementById('smsParts');
+    const smsInfoBox = document.getElementById('smsInfoBox');
+    const smsInfoText = document.getElementById('smsInfoText');
+    const donorName = <?php echo json_encode($donor['name']); ?>;
+    
+    function hasSpecialChars(text) {
+        return /[^\x00-\x7F]|[€\[\]{}\\~\^|]/.test(text);
+    }
+    
+    function updateSmsCounter() {
+        if (!smsMessage) return;
+        
+        const text = smsMessage.value;
+        const len = text.length;
+        const isUnicode = hasSpecialChars(text);
+        
+        const singleLimit = isUnicode ? 70 : 160;
+        const multiLimit = isUnicode ? 67 : 153;
+        
+        smsCharCount.textContent = len;
+        smsCharBadge.innerHTML = '<span id="smsCharCount">' + len + '</span> / ' + singleLimit + ' characters';
+        
+        let parts = 1;
+        if (len > singleLimit) {
+            parts = Math.ceil(len / multiLimit);
+        }
+        smsPartCount.textContent = parts;
+        
+        // Update styling based on parts
+        if (parts === 1) {
+            smsParts.style.background = '#0ea5e9';
+            smsInfoBox.style.background = '#ecfdf5';
+            smsInfoBox.style.borderColor = '#a7f3d0';
+            smsInfoBox.style.color = '#065f46';
+            smsInfoText.innerHTML = '<i class="fas fa-check-circle me-1"></i>Message fits in 1 SMS';
+        } else if (parts <= 2) {
+            smsParts.style.background = '#f59e0b';
+            smsInfoBox.style.background = '#fef3c7';
+            smsInfoBox.style.borderColor = '#fcd34d';
+            smsInfoBox.style.color = '#92400e';
+            smsInfoText.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Message will be sent as ' + parts + ' SMS parts';
+        } else {
+            smsParts.style.background = '#ef4444';
+            smsInfoBox.style.background = '#fee2e2';
+            smsInfoBox.style.borderColor = '#fecaca';
+            smsInfoBox.style.color = '#991b1b';
+            smsInfoText.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Long message: ' + parts + ' SMS parts (consider shortening)';
+        }
+        
+        if (isUnicode) {
+            smsInfoText.innerHTML += '<br><small>Special characters detected - using Unicode encoding</small>';
+        }
+    }
+    
+    if (smsMessage) {
+        smsMessage.addEventListener('input', updateSmsCounter);
+        updateSmsCounter();
+    }
+    
+    // Template buttons
+    document.querySelectorAll('.sms-template-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const template = this.getAttribute('data-template');
+            if (smsMessage && template) {
+                smsMessage.value = template.replace('{name}', donorName);
+                updateSmsCounter();
+                smsMessage.focus();
+            }
+        });
+    });
+    
+    // Form submission
+    const sendSmsForm = document.getElementById('sendSmsForm');
+    const sendSmsBtn = document.getElementById('sendSmsBtn');
+    
+    if (sendSmsForm) {
+        sendSmsForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(sendSmsForm);
+            sendSmsBtn.disabled = true;
+            sendSmsBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+            
+            fetch('sms/send-ajax.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success
+                    sendSmsBtn.innerHTML = '<i class="fas fa-check me-2"></i>Sent!';
+                    sendSmsBtn.classList.remove('btn-primary');
+                    sendSmsBtn.classList.add('btn-success');
+                    
+                    setTimeout(function() {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('sendSmsModal'));
+                        if (modal) modal.hide();
+                        
+                        // Reset form
+                        smsMessage.value = '';
+                        updateSmsCounter();
+                        sendSmsBtn.disabled = false;
+                        sendSmsBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send SMS';
+                        sendSmsBtn.classList.remove('btn-success');
+                        sendSmsBtn.classList.add('btn-primary');
+                        
+                        // Show notification
+                        alert('SMS sent successfully!');
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Failed to send SMS');
+                }
+            })
+            .catch(error => {
+                sendSmsBtn.disabled = false;
+                sendSmsBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send SMS';
+                alert('Error: ' + error.message);
+            });
+        });
+    }
+})();
+</script>
 <script>
 // Additional safety check for accordions
 document.addEventListener('DOMContentLoaded', function() {
