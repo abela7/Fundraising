@@ -249,23 +249,129 @@ if (isset($_GET['report'])) {
       $pledgesHasDonorId = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'")->num_rows > 0;
       $paymentsHasDonorId = $db->query("SHOW COLUMNS FROM payments LIKE 'donor_id'")->num_rows > 0;
       $paymentsHasReceivedAt = $db->query("SHOW COLUMNS FROM payments LIKE 'received_at'")->num_rows > 0;
+      $hasPledgePaymentsTable = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+      $ppHasReferenceNumber = $hasPledgePaymentsTable ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'reference_number'")->num_rows > 0) : false;
+
+      // Payment reference column can differ across installs
+      $paymentRefCol = 'reference';
+      $paymentColumnsRes = $db->query("SHOW COLUMNS FROM payments");
+      if ($paymentColumnsRes) {
+        $paymentCols = [];
+        while ($col = $paymentColumnsRes->fetch_assoc()) {
+          $paymentCols[] = $col['Field'];
+        }
+        if (in_array('transaction_ref', $paymentCols, true)) {
+          $paymentRefCol = 'transaction_ref';
+        }
+      }
 
       // 1) Load donors (base list)
       $donors = [];
       if ($hasDonorsTable) {
-        $donorRes = $db->query("SELECT id, name, phone, email FROM donors ORDER BY name ASC, id ASC");
+        $donorRes = $db->query("SELECT id, name, phone FROM donors ORDER BY name ASC, id ASC");
         while ($d = $donorRes->fetch_assoc()) {
           $id = (int)$d['id'];
           $donors[$id] = [
             'donor_id' => $id,
+            'ref' => '',
             'name' => $d['name'] ?? '',
             'phone' => $d['phone'] ?? '',
-            'email' => $d['email'] ?? '',
             'pledge' => 0.0,
             'paid' => 0.0,
           ];
         }
       }
+
+      // Reference lookup (4-digit) for donor identification
+      $extractRef = static function (string $text): string {
+        if (preg_match('/\b(\d{4})\b/', $text, $m)) {
+          return $m[1];
+        }
+        return '';
+      };
+
+      $refByDonorId = [];
+      $refByPhone = [];
+
+      // Prefer reference from latest pledge notes (stored in pledge notes)
+      $refPledgeStmt = $db->prepare("
+        SELECT donor_id, donor_phone, notes
+        FROM pledges
+        WHERE status='approved'
+          AND notes REGEXP '[0-9]{4}'
+          AND created_at BETWEEN ? AND ?
+        ORDER BY created_at DESC
+      ");
+      $refPledgeStmt->bind_param('ss', $fromDate, $toDate);
+      $refPledgeStmt->execute();
+      $refPledgeRes = $refPledgeStmt->get_result();
+      while ($r = $refPledgeRes->fetch_assoc()) {
+        $ref = $extractRef((string)($r['notes'] ?? ''));
+        if ($ref === '') {
+          continue;
+        }
+        $did = isset($r['donor_id']) ? (int)$r['donor_id'] : 0;
+        if ($did > 0 && !isset($refByDonorId[$did])) {
+          $refByDonorId[$did] = $ref;
+        }
+        $phone = trim((string)($r['donor_phone'] ?? ''));
+        if ($phone !== '' && !isset($refByPhone[$phone])) {
+          $refByPhone[$phone] = $ref;
+        }
+      }
+      $refPledgeStmt->close();
+
+      // Fallback: pledge_payments.reference_number
+      if ($hasPledgePaymentsTable && $ppHasReferenceNumber) {
+        $refPPStmt = $db->prepare("
+          SELECT donor_id, reference_number
+          FROM pledge_payments
+          WHERE status='confirmed'
+            AND reference_number REGEXP '[0-9]{4}'
+            AND created_at BETWEEN ? AND ?
+          ORDER BY created_at DESC
+        ");
+        $refPPStmt->bind_param('ss', $fromDate, $toDate);
+        $refPPStmt->execute();
+        $refPPRes = $refPPStmt->get_result();
+        while ($r = $refPPRes->fetch_assoc()) {
+          $did = (int)($r['donor_id'] ?? 0);
+          $ref = $extractRef((string)($r['reference_number'] ?? ''));
+          if ($did > 0 && $ref !== '' && !isset($refByDonorId[$did])) {
+            $refByDonorId[$did] = $ref;
+          }
+        }
+        $refPPStmt->close();
+      }
+
+      // Fallback: payments.reference / payments.transaction_ref (approved)
+      $payDateCol = $paymentsHasReceivedAt ? 'received_at' : 'created_at';
+      $refPayStmt = $db->prepare("
+        SELECT donor_id, donor_phone, {$paymentRefCol} AS ref
+        FROM payments
+        WHERE status='approved'
+          AND {$paymentRefCol} REGEXP '[0-9]{4}'
+          AND {$payDateCol} BETWEEN ? AND ?
+        ORDER BY {$payDateCol} DESC
+      ");
+      $refPayStmt->bind_param('ss', $fromDate, $toDate);
+      $refPayStmt->execute();
+      $refPayRes = $refPayStmt->get_result();
+      while ($r = $refPayRes->fetch_assoc()) {
+        $ref = $extractRef((string)($r['ref'] ?? ''));
+        if ($ref === '') {
+          continue;
+        }
+        $did = isset($r['donor_id']) ? (int)$r['donor_id'] : 0;
+        if ($did > 0 && !isset($refByDonorId[$did])) {
+          $refByDonorId[$did] = $ref;
+        }
+        $phone = trim((string)($r['donor_phone'] ?? ''));
+        if ($phone !== '' && !isset($refByPhone[$phone])) {
+          $refByPhone[$phone] = $ref;
+        }
+      }
+      $refPayStmt->close();
 
       // 2) Aggregate pledges by donor_id (approved only)
       if ($pledgesHasDonorId) {
@@ -283,7 +389,7 @@ if (isset($_GET['report'])) {
           $did = (int)$r['donor_id'];
           $amt = (float)$r['total'];
           if (!isset($donors[$did])) {
-            $donors[$did] = ['donor_id'=>$did,'name'=>'','phone'=>'','email'=>'','pledge'=>0.0,'paid'=>0.0];
+            $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
           }
           $donors[$did]['pledge'] += $amt;
         }
@@ -307,7 +413,7 @@ if (isset($_GET['report'])) {
           $did = (int)$r['donor_id'];
           $amt = (float)$r['total'];
           if (!isset($donors[$did])) {
-            $donors[$did] = ['donor_id'=>$did,'name'=>'','phone'=>'','email'=>'','pledge'=>0.0,'paid'=>0.0];
+            $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
           }
           $donors[$did]['paid'] += $amt;
         }
@@ -330,7 +436,7 @@ if (isset($_GET['report'])) {
           $did = (int)$r['donor_id'];
           $amt = (float)$r['total'];
           if (!isset($donors[$did])) {
-            $donors[$did] = ['donor_id'=>$did,'name'=>'','phone'=>'','email'=>'','pledge'=>0.0,'paid'=>0.0];
+            $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
           }
           $donors[$did]['paid'] += $amt;
         }
@@ -339,73 +445,100 @@ if (isset($_GET['report'])) {
 
       // 5) Add "unlinked donors" from pledges/payments where donor_id isn't stored (group by name/phone/email)
       $unlinked = [];
-      $makeKey = static function ($name, $phone, $email): string {
-        return trim((string)$name) . '|' . trim((string)$phone) . '|' . trim((string)$email);
+      $makeKey = static function ($name, $phone): string {
+        return trim((string)$name) . '|' . trim((string)$phone);
       };
 
       if (!$pledgesHasDonorId) {
         // still capture pledges by donor fields
         $uplStmt = $db->prepare("
-          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          SELECT donor_name, donor_phone, MAX(notes) AS notes_any, COALESCE(SUM(amount),0) AS total
           FROM pledges
           WHERE status='approved' AND created_at BETWEEN ? AND ?
-          GROUP BY donor_name, donor_phone, donor_email
+          GROUP BY donor_name, donor_phone
         ");
       } else {
         $uplStmt = $db->prepare("
-          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          SELECT donor_name, donor_phone, MAX(notes) AS notes_any, COALESCE(SUM(amount),0) AS total
           FROM pledges
           WHERE status='approved' AND (donor_id IS NULL OR donor_id = 0)
             AND created_at BETWEEN ? AND ?
-          GROUP BY donor_name, donor_phone, donor_email
+          GROUP BY donor_name, donor_phone
         ");
       }
       $uplStmt->bind_param('ss', $fromDate, $toDate);
       $uplStmt->execute();
       $uplRes = $uplStmt->get_result();
       while ($r = $uplRes->fetch_assoc()) {
-        $key = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '', $r['donor_email'] ?? '');
+        $key = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '');
         if (!isset($unlinked[$key])) {
-          $unlinked[$key] = ['donor_id'=>'','name'=>$r['donor_name'] ?? '','phone'=>$r['donor_phone'] ?? '','email'=>$r['donor_email'] ?? '','pledge'=>0.0,'paid'=>0.0];
+          $ref = '';
+          $phone = trim((string)($r['donor_phone'] ?? ''));
+          if ($phone !== '' && isset($refByPhone[$phone])) {
+            $ref = $refByPhone[$phone];
+          } else {
+            $ref = $extractRef((string)($r['notes_any'] ?? ''));
+          }
+          $unlinked[$key] = ['ref'=>$ref,'name'=>$r['donor_name'] ?? '','phone'=>$r['donor_phone'] ?? '','pledge'=>0.0,'paid'=>0.0];
         }
         $unlinked[$key]['pledge'] += (float)($r['total'] ?? 0);
       }
       $uplStmt->close();
 
-      $payDateCol = $paymentsHasReceivedAt ? 'received_at' : 'created_at';
       if (!$paymentsHasDonorId) {
         $upayStmt = $db->prepare("
-          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          SELECT donor_name, donor_phone, COALESCE(SUM(amount),0) AS total
           FROM payments
           WHERE status='approved' AND {$payDateCol} BETWEEN ? AND ?
-          GROUP BY donor_name, donor_phone, donor_email
+          GROUP BY donor_name, donor_phone
         ");
       } else {
         $upayStmt = $db->prepare("
-          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          SELECT donor_name, donor_phone, COALESCE(SUM(amount),0) AS total
           FROM payments
           WHERE status='approved' AND (donor_id IS NULL OR donor_id = 0)
             AND {$payDateCol} BETWEEN ? AND ?
-          GROUP BY donor_name, donor_phone, donor_email
+          GROUP BY donor_name, donor_phone
         ");
       }
       $upayStmt->bind_param('ss', $fromDate, $toDate);
       $upayStmt->execute();
       $upayRes = $upayStmt->get_result();
       while ($r = $upayRes->fetch_assoc()) {
-        $key = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '', $r['donor_email'] ?? '');
+        $key = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '');
         if (!isset($unlinked[$key])) {
-          $unlinked[$key] = ['donor_id'=>'','name'=>$r['donor_name'] ?? '','phone'=>$r['donor_phone'] ?? '','email'=>$r['donor_email'] ?? '','pledge'=>0.0,'paid'=>0.0];
+          $ref = '';
+          $phone = trim((string)($r['donor_phone'] ?? ''));
+          if ($phone !== '' && isset($refByPhone[$phone])) {
+            $ref = $refByPhone[$phone];
+          }
+          $unlinked[$key] = ['ref'=>$ref,'name'=>$r['donor_name'] ?? '','phone'=>$r['donor_phone'] ?? '','pledge'=>0.0,'paid'=>0.0];
         }
         $unlinked[$key]['paid'] += (float)($r['total'] ?? 0);
       }
       $upayStmt->close();
 
+      // Attach reference numbers to donors (prefer pledge notes, then phone, then fallback padded donor_id)
+      foreach ($donors as $did => &$d) {
+        $ref = $refByDonorId[$did] ?? '';
+        if ($ref === '') {
+          $phone = trim((string)($d['phone'] ?? ''));
+          if ($phone !== '' && isset($refByPhone[$phone])) {
+            $ref = $refByPhone[$phone];
+          }
+        }
+        if ($ref === '') {
+          $ref = str_pad((string)$did, 4, '0', STR_PAD_LEFT);
+        }
+        $d['ref'] = $ref;
+      }
+      unset($d);
+
       // Merge donors + unlinked into one list, then output
       $rows = array_values($donors);
       foreach ($unlinked as $u) {
         // Skip rows that are truly empty
-        if (($u['name'] ?? '') === '' && ($u['phone'] ?? '') === '' && ($u['email'] ?? '') === '') {
+        if (($u['name'] ?? '') === '' && ($u['phone'] ?? '') === '') {
           continue;
         }
         $rows[] = $u;
@@ -436,10 +569,9 @@ if (isset($_GET['report'])) {
       echo '<tr><td colspan="7">&nbsp;</td></tr>';
       echo '<tr>';
       echo '<th>#</th>';
-      echo '<th>Donor ID</th>';
+      echo '<th>Reference</th>';
       echo '<th>Name</th>';
       echo '<th>Phone</th>';
-      echo '<th>Email</th>';
       echo '<th class="number">Pledge (' . $esc($reportCurrency) . ')</th>';
       echo '<th class="number">Paid (' . $esc($reportCurrency) . ')</th>';
       echo '<th class="number">Balance (' . $esc($reportCurrency) . ')</th>';
@@ -457,10 +589,9 @@ if (isset($_GET['report'])) {
 
         echo '<tr>';
         echo '<td>' . $i++ . '</td>';
-        echo '<td>' . $esc($row['donor_id'] ?? '') . '</td>';
+        echo '<td>' . $esc($row['ref'] ?? '') . '</td>';
         echo '<td>' . $esc($row['name'] ?? '') . '</td>';
         echo '<td>' . $esc($row['phone'] ?? '') . '</td>';
-        echo '<td>' . $esc($row['email'] ?? '') . '</td>';
         echo '<td class="number">' . number_format($pledge, 2) . '</td>';
         echo '<td class="number">' . number_format($paid, 2) . '</td>';
         echo '<td class="number">' . number_format($balance, 2) . '</td>';
@@ -469,7 +600,7 @@ if (isset($_GET['report'])) {
 
       $grandTotalForBackup = $totalPaid + $totalBalance;
       echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
-      echo '<td colspan="5" style="text-align:right;"><strong>Totals:</strong></td>';
+      echo '<td colspan="4" style="text-align:right;"><strong>Totals:</strong></td>';
       echo '<td class="number"><strong>' . number_format($totalPledge, 2) . '</strong></td>';
       echo '<td class="number"><strong>' . number_format($totalPaid, 2) . '</strong></td>';
       echo '<td class="number"><strong>' . number_format($totalBalance, 2) . '</strong></td>';
