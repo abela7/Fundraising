@@ -93,18 +93,33 @@ $donor = null;
 if ($donorId && isset($db) && $db) {
     try {
         // #region agent log
-        debug_log_msg('message-history.php:88', 'Fetching donor by ID', ['donorId' => $donorId], 'G');
+        debug_log_msg('message-history.php:88', 'Fetching donor by ID', ['donorId' => $donorId, 'db_error' => $db->error], 'G');
         // #endregion
         $stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ?");
-        $stmt->bind_param('i', $donorId);
-        $stmt->execute();
-        $donor = $stmt->get_result()->fetch_assoc();
-        // #region agent log
-        debug_log_msg('message-history.php:94', 'Donor fetched', ['donor_found' => ($donor !== null)], 'G');
-        // #endregion
+        if (!$stmt) {
+            // #region agent log
+            debug_log_msg('message-history.php:91', 'Prepare failed', ['error' => $db->error, 'errno' => $db->errno], 'G');
+            // #endregion
+            $errors[] = 'Database prepare error: ' . $db->error;
+        } else {
+            $stmt->bind_param('i', $donorId);
+            $stmt->execute();
+            if ($stmt->error) {
+                // #region agent log
+                debug_log_msg('message-history.php:97', 'Execute failed', ['error' => $stmt->error], 'G');
+                // #endregion
+                $errors[] = 'Database execute error: ' . $stmt->error;
+            } else {
+                $donor = $stmt->get_result()->fetch_assoc();
+                // #region agent log
+                debug_log_msg('message-history.php:102', 'Donor fetched', ['donor_found' => ($donor !== null), 'donor_data' => $donor], 'G');
+                // #endregion
+            }
+            $stmt->close();
+        }
     } catch (Exception $e) {
         // #region agent log
-        debug_log_msg('message-history.php:97', 'Error fetching donor', ['error' => $e->getMessage()], 'G');
+        debug_log_msg('message-history.php:108', 'Exception fetching donor', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()], 'G');
         // #endregion
         $errors[] = 'Error fetching donor: ' . $e->getMessage();
     }
@@ -161,10 +176,28 @@ if (!empty($search_term) && !$donorId && isset($db) && $db) {
         LIMIT 50
     ";
     
+    // #region agent log
+    debug_log_msg('message-history.php:145', 'Preparing search query', ['query_length' => strlen($search_query), 'payment_ref_col' => $payment_ref_col], 'H');
+    // #endregion
     $stmt = $db->prepare($search_query);
-    $stmt->bind_param('ssss', $search_param, $search_param, $search_param, $search_param);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    if (!$stmt) {
+        // #region agent log
+        debug_log_msg('message-history.php:148', 'Search prepare failed', ['error' => $db->error, 'errno' => $db->errno], 'H');
+        // #endregion
+        $errors[] = 'Search query prepare error: ' . $db->error;
+    } else {
+        $stmt->bind_param('ssss', $search_param, $search_param, $search_param, $search_param);
+        $stmt->execute();
+        if ($stmt->error) {
+            // #region agent log
+            debug_log_msg('message-history.php:154', 'Search execute failed', ['error' => $stmt->error], 'H');
+            // #endregion
+            $errors[] = 'Search query execute error: ' . $stmt->error;
+        } else {
+            $result = $stmt->get_result();
+            // #region agent log
+            debug_log_msg('message-history.php:159', 'Search query executed', ['result_rows' => $result->num_rows], 'H');
+            // #endregion
     
     while ($row = $result->fetch_assoc()) {
         // Extract 4-digit reference if not already extracted
@@ -196,6 +229,9 @@ if (!empty($search_term) && !$donorId && isset($db) && $db) {
         
         $search_results[] = $row;
     }
+            $stmt->close();
+        }
+    }
     // #region agent log
     debug_log_msg('message-history.php:175', 'Search completed', ['results_count' => count($search_results)], 'H');
     // #endregion
@@ -215,18 +251,40 @@ if ($donorId && $donor && isset($msg) && $msg) {
         // #region agent log
         debug_log_msg('message-history.php:185', 'Getting message history', ['donorId' => $donorId], 'I');
         // #endregion
+        
+        // Check if message_log table exists
+        if (isset($db) && $db) {
+            $table_check = $db->query("SHOW TABLES LIKE 'message_log'");
+            $table_exists = $table_check && $table_check->num_rows > 0;
+            // #region agent log
+            debug_log_msg('message-history.php:191', 'Checking message_log table', ['table_exists' => $table_exists], 'I');
+            // #endregion
+            if (!$table_exists) {
+                $errors[] = 'The message_log table does not exist. Please run the migration: database/unified_message_logging.sql';
+            }
+        }
+        
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
         $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
         $channelFilter = $_GET['channel'] ?? null;
         
+        // #region agent log
+        debug_log_msg('message-history.php:201', 'Calling getDonorMessageHistory', ['donorId' => $donorId, 'limit' => $limit, 'offset' => $offset, 'channelFilter' => $channelFilter], 'I');
+        // #endregion
         $messages = $msg->getDonorMessageHistory($donorId, $limit, $offset, $channelFilter);
+        // #region agent log
+        debug_log_msg('message-history.php:204', 'getDonorMessageHistory returned', ['messages_count' => count($messages), 'messages_sample' => array_slice($messages, 0, 2)], 'I');
+        // #endregion
+        // #region agent log
+        debug_log_msg('message-history.php:207', 'Calling getDonorMessageStats', ['donorId' => $donorId], 'I');
+        // #endregion
         $stats = $msg->getDonorMessageStats($donorId);
         // #region agent log
-        debug_log_msg('message-history.php:193', 'Message history retrieved', ['messages_count' => count($messages)], 'I');
+        debug_log_msg('message-history.php:210', 'getDonorMessageStats returned', ['stats' => $stats], 'I');
         // #endregion
     } catch (Exception $e) {
         // #region agent log
-        debug_log_msg('message-history.php:196', 'Error getting message history', ['error' => $e->getMessage()], 'I');
+        debug_log_msg('message-history.php:213', 'Error getting message history', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()], 'I');
         // #endregion
         $errors[] = 'Error loading message history: ' . $e->getMessage();
     }
