@@ -537,12 +537,9 @@ if ($search || $selected_donor_id) {
                                     Select Donor
                                 </div>
                                 
-                                <form method="GET" class="mb-3" id="searchForm">
+                                <form method="GET" class="mb-3">
                                     <div class="input-group">
-                                        <button type="button" class="btn btn-primary" onclick="pasteSearch()" title="Paste from clipboard">
-                                            <i class="fas fa-paste"></i>
-                                        </button>
-                                        <input type="text" name="search" id="searchInput" class="form-control" 
+                                        <input type="text" name="search" class="form-control" 
                                                placeholder="Search name, phone, or reference..." 
                                                value="<?php echo htmlspecialchars($search); ?>">
                                         <button class="btn btn-primary" type="submit">
@@ -694,9 +691,6 @@ if ($search || $selected_donor_id) {
                                             <div class="form-group-custom">
                                                 <label class="form-label">Payment Amount</label>
                                                 <div class="input-group">
-                                                    <button type="button" class="btn btn-primary" onclick="pasteAmount()" title="Paste from clipboard" style="padding: 0.5rem 0.75rem;">
-                                                        <i class="fas fa-paste"></i>
-                                                    </button>
                                                     <span class="input-group-text">£</span>
                                                     <input type="number" step="0.01" name="amount" id="paymentAmount" 
                                                            class="form-control" placeholder="0.00" required>
@@ -773,44 +767,6 @@ if ($search || $selected_donor_id) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
-// Paste amount from clipboard
-async function pasteAmount() {
-    const input = document.getElementById('paymentAmount');
-    try {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-            // Clean the text - remove £, commas, spaces
-            let cleanedText = text.trim().replace(/[£$€,\s]/g, '');
-            // Keep only numbers and decimal point
-            cleanedText = cleanedText.replace(/[^0-9.]/g, '');
-            if (cleanedText) {
-                input.value = cleanedText;
-                input.focus();
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        }
-    } catch (err) {
-        input.focus();
-        console.log('Clipboard access denied');
-    }
-}
-
-// Paste search from clipboard and auto-submit
-async function pasteSearch() {
-    const input = document.getElementById('searchInput');
-    try {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-            input.value = text.trim();
-            // Auto-submit the search form
-            document.getElementById('searchForm').submit();
-        }
-    } catch (err) {
-        input.focus();
-        console.log('Clipboard access denied');
-    }
-}
-
 let selectedDonorId = null;
 let selectedDonorName = '';
 

@@ -384,32 +384,6 @@ if (isset($_SESSION['success_message'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/registrar.css?v=<?php echo @filemtime(__DIR__ . '/assets/registrar.css'); ?>">
-    <style>
-        /* Paste Button Styles */
-        .paste-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-            border: none;
-            color: white;
-            padding: 0.5rem 0.75rem;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-        }
-        .paste-btn:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-            color: white;
-            transform: scale(1.05);
-        }
-        .paste-btn:active {
-            transform: scale(0.95);
-        }
-        .paste-btn.pasted {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-        .paste-btn i {
-            pointer-events: none;
-        }
-    </style>
 </head>
 <body>
     <div class="app-wrapper">
@@ -457,38 +431,23 @@ if (isset($_SESSION['success_message'])) {
                             
                             <div class="mb-3">
                                 <label for="name" class="form-label">Full Name</label>
-                                <div class="input-group">
-                                    <button type="button" class="btn btn-outline-primary paste-btn" onclick="pasteToInput('name')" title="Paste from clipboard">
-                                        <i class="fas fa-paste"></i>
-                                    </button>
-                                    <input type="text" class="form-control" id="name" name="name" required
-                                           placeholder="Enter full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
-                                </div>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       placeholder="Enter full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
                             </div>
                             
                             <div class="mb-3">
                                 <label for="phone" class="form-label">Phone Number</label>
-                                <div class="input-group">
-                                    <button type="button" class="btn btn-outline-primary paste-btn" onclick="pasteToInput('phone')" title="Paste from clipboard">
-                                        <i class="fas fa-paste"></i>
-                                    </button>
-                                    <input type="tel" class="form-control" id="phone" name="phone" required
-                                           placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
-                                </div>
+                                <input type="tel" class="form-control" id="phone" name="phone" required
+                                       placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                             </div>
                             
                             <div class="mb-3">
                                 <label for="notes" class="form-label">Tombola Number<span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <button type="button" class="btn btn-outline-primary paste-btn" onclick="pasteToInput('notes')" title="Paste from clipboard">
-                                        <i class="fas fa-paste"></i>
-                                    </button>
-                                    <input type="number" class="form-control" id="notes" name="notes" required
-                                           min="0" max="9999" step="1" inputmode="numeric"
-                                           oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
-                                           placeholder="Enter 4-digit tombola number"
-                                           value="<?php echo htmlspecialchars($_POST['notes'] ?? ''); ?>">
-                                </div>
+                                <input type="number" class="form-control" id="notes" name="notes" required
+                                       min="0" max="9999" step="1" inputmode="numeric"
+                                       oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
+                                       placeholder="Enter 4-digit tombola number"
+                                       value="<?php echo htmlspecialchars($_POST['notes'] ?? ''); ?>">
                             </div>
                             
                             <div class="form-check mb-3">
@@ -550,9 +509,6 @@ if (isset($_SESSION['success_message'])) {
                             <div class="mb-3 d-none" id="customAmountDiv">
                                 <label for="custom_amount" class="form-label">Custom Amount</label>
                                 <div class="input-group">
-                                    <button type="button" class="btn btn-outline-primary paste-btn" onclick="pasteToInput('custom_amount')" title="Paste from clipboard">
-                                        <i class="fas fa-paste"></i>
-                                    </button>
                                     <span class="input-group-text"><?php echo $currency; ?></span>
                                     <input type="number" class="form-control" id="custom_amount" name="custom_amount" 
                                            min="1" step="0.01" placeholder="0.00">
@@ -661,60 +617,6 @@ if (isset($_SESSION['success_message'])) {
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/registrar.js?v=<?php echo @filemtime(__DIR__ . '/assets/registrar.js'); ?>"></script>
-    <script>
-    // Paste from clipboard function
-    async function pasteToInput(inputId) {
-        const input = document.getElementById(inputId);
-        const btn = event.currentTarget;
-        
-        try {
-            const text = await navigator.clipboard.readText();
-            if (text) {
-                // Clean up the text based on input type
-                let cleanedText = text.trim();
-                
-                // For number inputs, extract just the numbers
-                if (input.type === 'number') {
-                    // Remove currency symbols, commas, spaces
-                    cleanedText = cleanedText.replace(/[£$€,\s]/g, '');
-                    // Keep only numbers and decimal point
-                    cleanedText = cleanedText.replace(/[^0-9.]/g, '');
-                }
-                
-                // For phone input, clean up phone format
-                if (inputId === 'phone') {
-                    cleanedText = cleanedText.replace(/[^0-9+]/g, '');
-                }
-                
-                // For tombola (notes), keep only 4 digits
-                if (inputId === 'notes') {
-                    cleanedText = cleanedText.replace(/[^0-9]/g, '').slice(0, 4);
-                }
-                
-                input.value = cleanedText;
-                input.focus();
-                
-                // Visual feedback
-                btn.classList.add('pasted');
-                const originalIcon = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i>';
-                
-                setTimeout(() => {
-                    btn.classList.remove('pasted');
-                    btn.innerHTML = originalIcon;
-                }, 1000);
-                
-                // Trigger input event for any listeners
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        } catch (err) {
-            // Fallback: focus the input so user can paste manually
-            input.focus();
-            console.log('Clipboard access denied, please paste manually');
-        }
-    }
-    </script>
     <script>
     // Quick amount selection
     document.querySelectorAll('.quick-amount-btn').forEach(btn => {
