@@ -1164,14 +1164,6 @@ function formatDateTime($date) {
                                         <i class="fas fa-phone-alt"></i>
                                         <span class="fw-semibold">Call</span>
                                     </button>
-                                    
-                                    <!-- Message History Button -->
-                                    <a href="message-history.php?donor_id=<?= $donor_id ?>" 
-                                       class="btn d-inline-flex align-items-center gap-2 px-3 py-2 text-decoration-none"
-                                       style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;">
-                                        <i class="fas fa-history"></i>
-                                        <span class="fw-semibold">History</span>
-                                    </a>
                                 </div>
                                 
                                 <!-- Quick Info - Compact -->
