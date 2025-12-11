@@ -1044,9 +1044,12 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Window width:', window.innerWidth);
     // #endregion
     
-    // Find all sidebar toggle buttons
-    const sidebarToggleButtons = document.querySelectorAll('.sidebar-toggle, [onclick*="toggleSidebar"], .sidebar-close');
+    // Find all sidebar toggle buttons (including topbar-toggle)
+    const sidebarToggleButtons = document.querySelectorAll('.sidebar-toggle, .topbar-toggle, [onclick*="toggleSidebar"], .sidebar-close');
     console.log('Found toggle buttons:', sidebarToggleButtons.length);
+    sidebarToggleButtons.forEach((btn, idx) => {
+        console.log('Toggle button ' + idx + ':', btn.className, btn.tagName);
+    });
     
     sidebarToggleButtons.forEach(function(button) {
         button.addEventListener('click', function(e) {
