@@ -75,10 +75,45 @@ if (isset($_GET['report'])) {
   [$fromDate, $toDate] = resolve_range($db);
   $report = $_GET['report'];
   $format = $_GET['format'] ?? 'csv';
-  if ($report === 'donors' && $format === 'csv') {
-    header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="donors_report.csv"');
-    $out = fopen('php://output','w');
-    fputcsv($out,['Donor','Phone','Email','Total Pledged','Total Paid','Outstanding','Last Seen']);
+  
+  // Donor report should be "all donors" by default (no date param = all time)
+  if ($report === 'donors' && !isset($_GET['date'])) {
+    $fromDate = '1970-01-01 00:00:00';
+    $toDate = '2999-12-31 23:59:59';
+  }
+
+  if ($report === 'donors' && ($format === 'csv' || $format === 'excel')) {
+    $isExcel = $format === 'excel';
+    if ($isExcel) {
+      header('Content-Type: application/vnd.ms-excel');
+      header('Content-Disposition: attachment; filename="donors_report_' . date('Y-m-d_H-i-s') . '.xls"');
+      header('Cache-Control: max-age=0');
+
+      echo '<!DOCTYPE html>';
+      echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+      echo '<head>';
+      echo '<meta charset="UTF-8">';
+      echo '<style>';
+      echo 'table { border-collapse: collapse; width: 100%; }';
+      echo 'th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }';
+      echo 'th { background-color: #f2f2f2; font-weight: bold; }';
+      echo '.number { text-align: right; }';
+      echo '</style>';
+      echo '</head><body>';
+      echo '<table>';
+      echo '<tr>';
+      echo '<th>Name</th>';
+      echo '<th>Phone</th>';
+      echo '<th>Pledge Amount (' . htmlspecialchars($currency, ENT_QUOTES, 'UTF-8') . ')</th>';
+      echo '<th>Paid (' . htmlspecialchars($currency, ENT_QUOTES, 'UTF-8') . ')</th>';
+      echo '<th>Balance (' . htmlspecialchars($currency, ENT_QUOTES, 'UTF-8') . ')</th>';
+      echo '</tr>';
+    } else {
+      header('Content-Type: text/csv');
+      header('Content-Disposition: attachment; filename="donors_report.csv"');
+      $out = fopen('php://output', 'w');
+      fputcsv($out, ['Name', 'Phone', 'Pledge Amount', 'Paid', 'Balance']);
+    }
 
     // Build donor aggregates by grouping on name/phone/email across pledges and payments
     // Note: $hasPledgePayments already set from FinancialCalculator at top of file
@@ -116,113 +151,34 @@ if (isset($_GET['report'])) {
     while($r=$res->fetch_assoc()){
       $totalPledged = (float)($r['total_pledged'] ?? 0);
       $totalPaid    = (float)($r['total_paid'] ?? 0);
-      $outstanding  = max($totalPledged - $totalPaid, 0);
-      fputcsv($out,[
-        $r['donor_name'] !== '' ? $r['donor_name'] : 'Anonymous',
-        $r['donor_phone'],
-        $r['donor_email'],
-        number_format($totalPledged,2,'.',''),
-        number_format($totalPaid,2,'.',''),
-        number_format($outstanding,2,'.',''),
-        $r['last_seen_at']
-      ]);
-    }
-    fclose($out); exit;
-  }
-  if ($report === 'donors' && $format === 'excel') {
-    // Set headers for Excel download
-    header('Content-Type: application/vnd.ms-excel');
-    header('Content-Disposition: attachment; filename="donor_report_' . date('Y-m-d_H-i-s') . '.xls"');
-    header('Cache-Control: max-age=0');
-    
-    // Start Excel content
-    echo '<!DOCTYPE html>';
-    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-    echo '<head>';
-    echo '<meta charset="UTF-8">';
-    echo '<style>';
-    echo 'table { border-collapse: collapse; width: 100%; }';
-    echo 'th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }';
-    echo 'th { background-color: #f2f2f2; font-weight: bold; }';
-    echo '.number { text-align: right; }';
-    echo '</style>';
-    echo '</head><body>';
-    
-    echo '<table>';
-    echo '<tr>';
-    echo '<th>Name</th>';
-    echo '<th>Phone</th>';
-    echo '<th>Pledge Amount</th>';
-    echo '<th>Paid</th>';
-    echo '<th>Balance</th>';
-    echo '</tr>';
-    
-    // Build donor aggregates by grouping on name/phone/email across pledges and payments
-    // Note: $hasPledgePayments already set from FinancialCalculator at top of file
-    $sql = "SELECT donor_name, donor_phone, donor_email,
-                   SUM(CASE WHEN src='pledge' THEN amount ELSE 0 END) AS total_pledged,
-                   SUM(CASE WHEN src='payment' THEN amount ELSE 0 END) AS total_paid,
-                   MAX(last_seen_at) AS last_seen_at
-            FROM (
-              SELECT donor_name, donor_phone, donor_email, amount, created_at AS last_seen_at, 'pledge' AS src
-              FROM pledges
-              WHERE status='approved' AND created_at BETWEEN ? AND ?
-              UNION ALL
-              SELECT donor_name, donor_phone, donor_email, amount, received_at AS last_seen_at, 'payment' AS src
-              FROM payments
-              WHERE status='approved' AND received_at BETWEEN ? AND ?
-              " . ($hasPledgePayments ? "
-              UNION ALL
-              SELECT d.name AS donor_name, d.phone AS donor_phone, d.email AS donor_email, pp.amount, pp.created_at AS last_seen_at, 'payment' AS src
-              FROM pledge_payments pp
-              LEFT JOIN donors d ON pp.donor_id = d.id
-              WHERE pp.status='confirmed' AND pp.created_at BETWEEN ? AND ?
-              " : "") . "
-            ) c
-            GROUP BY donor_name, donor_phone, donor_email
-            ORDER BY total_paid DESC";
-    
-    $stmt = $db->prepare($sql);
-    if ($hasPledgePayments) {
-        $stmt->bind_param('ssssss', $fromDate, $toDate, $fromDate, $toDate, $fromDate, $toDate);
-    } else {
-        $stmt->bind_param('ssss', $fromDate, $toDate, $fromDate, $toDate);
-    }
-    $stmt->execute();
-    $res = $stmt->get_result();
-    
-    $totalPledgedAll = 0;
-    $totalPaidAll = 0;
-    $totalBalanceAll = 0;
-    
-    while($r = $res->fetch_assoc()){
-      $totalPledged = (float)($r['total_pledged'] ?? 0);
-      $totalPaid    = (float)($r['total_paid'] ?? 0);
       $balance      = max($totalPledged - $totalPaid, 0);
-      
-      $totalPledgedAll += $totalPledged;
-      $totalPaidAll += $totalPaid;
-      $totalBalanceAll += $balance;
-      
-      echo '<tr>';
-      echo '<td>' . htmlspecialchars($r['donor_name'] !== '' ? $r['donor_name'] : 'Anonymous') . '</td>';
-      echo '<td>' . htmlspecialchars($r['donor_phone'] ?? '') . '</td>';
-      echo '<td class="number">' . number_format($totalPledged, 2) . '</td>';
-      echo '<td class="number">' . number_format($totalPaid, 2) . '</td>';
-      echo '<td class="number">' . number_format($balance, 2) . '</td>';
-      echo '</tr>';
+      $name = ($r['donor_name'] ?? '') !== '' ? $r['donor_name'] : 'Anonymous';
+      $phone = $r['donor_phone'] ?? '';
+
+      if ($isExcel) {
+        echo '<tr>';
+        echo '<td>' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '</td>';
+        echo '<td>' . htmlspecialchars($phone, ENT_QUOTES, 'UTF-8') . '</td>';
+        echo '<td class="number">' . number_format($totalPledged, 2) . '</td>';
+        echo '<td class="number">' . number_format($totalPaid, 2) . '</td>';
+        echo '<td class="number">' . number_format($balance, 2) . '</td>';
+        echo '</tr>';
+      } else {
+        fputcsv($out, [
+          $name,
+          $phone,
+          number_format($totalPledged, 2, '.', ''),
+          number_format($totalPaid, 2, '.', ''),
+          number_format($balance, 2, '.', ''),
+        ]);
+      }
     }
-    
-    // Add summary row
-    echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
-    echo '<td colspan="2" style="text-align: right;"><strong>Total:</strong></td>';
-    echo '<td class="number"><strong>' . number_format($totalPledgedAll, 2) . '</strong></td>';
-    echo '<td class="number"><strong>' . number_format($totalPaidAll, 2) . '</strong></td>';
-    echo '<td class="number"><strong>' . number_format($totalBalanceAll, 2) . '</strong></td>';
-    echo '</tr>';
-    
-    echo '</table>';
-    echo '</body></html>';
+    if ($isExcel) {
+      echo '</table>';
+      echo '</body></html>';
+    } else {
+      fclose($out);
+    }
     exit;
   }
   if ($report === 'financial' && $format === 'csv') {
