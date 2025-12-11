@@ -266,6 +266,7 @@ if ($donorId && $donor && isset($db) && $db) {
     <title>Message History<?= $donor ? ' - ' . htmlspecialchars($donor['name']) : '' ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../assets/admin.css">
     <style>
         .debug-panel {
             background: #fff3cd;
@@ -387,16 +388,61 @@ if ($donorId && $donor && isset($db) && $db) {
 </head>
 <body>
 <div class="admin-wrapper">
-    <?php include '../includes/sidebar.php'; ?>
+    <?php 
+    // #region agent log
+    debug_log_msg('message-history.php:390', 'Including sidebar.php', ['path' => __DIR__ . '/../includes/sidebar.php', 'file_exists' => file_exists(__DIR__ . '/../includes/sidebar.php')], 'J');
+    // #endregion
+    $sidebar_path = __DIR__ . '/../includes/sidebar.php';
+    if (file_exists($sidebar_path)) {
+        include $sidebar_path;
+        // #region agent log
+        debug_log_msg('message-history.php:395', 'Sidebar included successfully', [], 'J');
+        // #endregion
+    } else {
+        // #region agent log
+        debug_log_msg('message-history.php:398', 'Sidebar file not found', ['path' => $sidebar_path], 'J');
+        // #endregion
+        echo '<!-- Sidebar file not found: ' . htmlspecialchars($sidebar_path) . ' -->';
+    }
+    ?>
     
     <div class="admin-content">
-        <?php include '../includes/topbar.php'; ?>
+        <?php 
+        // #region agent log
+        debug_log_msg('message-history.php:405', 'Including topbar.php', ['path' => __DIR__ . '/../includes/topbar.php', 'file_exists' => file_exists(__DIR__ . '/../includes/topbar.php')], 'J');
+        // #endregion
+        $topbar_path = __DIR__ . '/../includes/topbar.php';
+        if (file_exists($topbar_path)) {
+            include $topbar_path;
+            // #region agent log
+            debug_log_msg('message-history.php:410', 'Topbar included successfully', [], 'J');
+            // #endregion
+        } else {
+            // #region agent log
+            debug_log_msg('message-history.php:413', 'Topbar file not found', ['path' => $topbar_path], 'J');
+            // #endregion
+            echo '<!-- Topbar file not found: ' . htmlspecialchars($topbar_path) . ' -->';
+        }
+        ?>
         
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
+                <?php 
+                // #region agent log
+                debug_log_msg('message-history.php:422', 'Starting main content render', ['has_errors' => !empty($errors), 'has_donor' => isset($donor), 'has_messages' => isset($messages)], 'K');
+                // #endregion
+                ?>
                 
                 <!-- Debug Panel - Show errors if any -->
-                <?php if (!empty($errors)): ?>
+                <?php 
+                // #region agent log
+                debug_log_msg('message-history.php:430', 'Checking for errors', ['errors_count' => count($errors), 'errors' => $errors], 'L');
+                // #endregion
+                if (!empty($errors)): 
+                // #region agent log
+                debug_log_msg('message-history.php:433', 'Rendering error panel', [], 'L');
+                // #endregion
+                ?>
                     <div class="error-panel">
                         <h5><i class="fas fa-exclamation-triangle me-2"></i>Errors Detected</h5>
                         <ul>
@@ -415,6 +461,11 @@ if ($donorId && $donor && isset($db) && $db) {
                 <?php endif; ?>
                 
                 <!-- Debug Info Panel -->
+                <?php 
+                // #region agent log
+                debug_log_msg('message-history.php:450', 'Rendering debug info panel', [], 'L');
+                // #endregion
+                ?>
                 <div class="debug-panel">
                     <h5><i class="fas fa-bug me-2"></i>Debug Information</h5>
                     <p><strong>PHP Version:</strong> <?= PHP_VERSION ?></p>
@@ -436,6 +487,11 @@ if ($donorId && $donor && isset($db) && $db) {
                 </div>
                 
                 <!-- Page Header -->
+                <?php 
+                // #region agent log
+                debug_log_msg('message-history.php:470', 'Rendering page header', [], 'L');
+                // #endregion
+                ?>
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
                     <div>
                         <h2 class="mb-1">
@@ -449,6 +505,11 @@ if ($donorId && $donor && isset($db) && $db) {
                 </div>
                 
                 <!-- Search Card -->
+                <?php 
+                // #region agent log
+                debug_log_msg('message-history.php:485', 'Rendering search card', ['search_term' => $search_term, 'donorId' => $donorId], 'L');
+                // #endregion
+                ?>
                 <div class="card search-card">
                     <div class="card-body">
                         <form method="GET" action="" class="row g-3">
@@ -479,7 +540,19 @@ if ($donorId && $donor && isset($db) && $db) {
                 </div>
                 
                 <!-- Search Results -->
-                <?php if (!empty($search_term) && empty($donorId) && !empty($search_results)): ?>
+                <?php 
+                // #region agent log
+                debug_log_msg('message-history.php:510', 'Checking search results', [
+                    'has_search_term' => !empty($search_term),
+                    'has_donorId' => !empty($donorId),
+                    'search_results_count' => count($search_results)
+                ], 'L');
+                // #endregion
+                if (!empty($search_term) && empty($donorId) && !empty($search_results)): 
+                // #region agent log
+                debug_log_msg('message-history.php:518', 'Rendering search results', ['count' => count($search_results)], 'L');
+                // #endregion
+                ?>
                     <div class="card mb-4">
                         <div class="card-header bg-primary text-white">
                             <h5 class="mb-0">
@@ -530,7 +603,20 @@ if ($donorId && $donor && isset($db) && $db) {
                 <?php endif; ?>
                 
                 <!-- Donor Message History -->
-                <?php if ($donorId && $donor): ?>
+                <?php 
+                // #region agent log
+                debug_log_msg('message-history.php:560', 'Checking donor message history', [
+                    'has_donorId' => !empty($donorId),
+                    'has_donor' => isset($donor) && $donor !== null,
+                    'has_messages' => isset($messages),
+                    'messages_count' => isset($messages) ? count($messages) : 0
+                ], 'L');
+                // #endregion
+                if ($donorId && $donor): 
+                // #region agent log
+                debug_log_msg('message-history.php:570', 'Rendering donor message history', [], 'L');
+                // #endregion
+                ?>
                     <!-- Selected Donor Info -->
                     <div class="card mb-4">
                         <div class="card-body">
@@ -878,5 +964,16 @@ if ($donorId && $donor && isset($db) && $db) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<?php 
+// #region agent log
+debug_log_msg('message-history.php:end', 'Page render completed', [
+    'has_errors' => !empty($errors),
+    'has_donor' => isset($donor) && $donor !== null,
+    'has_messages' => isset($messages),
+    'messages_count' => isset($messages) ? count($messages) : 0,
+    'search_results_count' => isset($search_results) ? count($search_results) : 0
+], 'M');
+// #endregion
+?>
 </body>
 </html>
