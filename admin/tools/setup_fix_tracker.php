@@ -113,13 +113,13 @@ CREATE TABLE IF NOT EXISTS `security_fixes` (
                                 </div>
 
                                 <?php if ($table_exists): ?>
-                                    <p>The security fixes table is already set up. You can now use the <a href="../fix_report.php">Fix Report</a> page.</p>
+                                    <p>The security fixes table is already set up. You can now use the <a href="fix_report.php">Fix Report</a> page.</p>
                                 <?php else: ?>
-                                    <p>The security fixes table has been created. You can now use the <a href="../fix_report.php">Fix Report</a> page to track security fixes.</p>
+                                    <p>The security fixes table has been created. You can now use the <a href="fix_report.php">Fix Report</a> page to track security fixes.</p>
                                 <?php endif; ?>
 
                                 <div class="mt-3">
-                                    <a href="../fix_report.php" class="btn btn-primary">
+                                    <a href="fix_report.php" class="btn btn-primary">
                                         <i class="fas fa-arrow-right me-2"></i>
                                         Go to Fix Report
                                     </a>

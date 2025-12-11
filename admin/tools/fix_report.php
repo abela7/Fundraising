@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../shared/auth.php';
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../shared/ReportParser.php';
+require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/ReportParser.php';
 require_login();
 
 $page_title = 'Security Fix Report';
@@ -230,10 +230,10 @@ if ($table_exists) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo htmlspecialchars($page_title); ?> - Fundraising Admin</title>
-    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="assets/admin.css">
+    <link rel="stylesheet" href="../assets/admin.css">
     <style>
         .status-badge {
             font-size: 0.75rem;
@@ -300,10 +300,10 @@ if ($table_exists) {
 </head>
 <body>
 <div class="admin-wrapper">
-    <?php include 'includes/sidebar.php'; ?>
+    <?php include '../includes/sidebar.php'; ?>
 
     <div class="admin-content">
-        <?php include 'includes/topbar.php'; ?>
+        <?php include '../includes/topbar.php'; ?>
 
         <main class="main-content">
             <div class="container-fluid">
@@ -327,7 +327,7 @@ if ($table_exists) {
                                 Clear All
                             </button>
                         <?php else: ?>
-                            <a href="tools/setup_fix_tracker.php" class="btn btn-outline-primary">
+                            <a href="setup_fix_tracker.php" class="btn btn-outline-primary">
                                 <i class="fas fa-cog me-2"></i>
                                 Setup Database First
                             </a>
@@ -482,7 +482,7 @@ if ($table_exists) {
                             <i class="fas fa-database fa-3x text-muted mb-3"></i>
                             <h5>Database Setup Required</h5>
                             <p class="text-muted">The security fixes tracking table hasn't been created yet.</p>
-                            <a href="tools/setup_fix_tracker.php" class="btn btn-primary">
+                            <a href="setup_fix_tracker.php" class="btn btn-primary">
                                 <i class="fas fa-cog me-2"></i>
                                 Setup Database
                             </a>
@@ -618,7 +618,7 @@ if ($table_exists) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/admin.js"></script>
+<script src="../assets/admin.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Handle status changes

@@ -97,7 +97,7 @@ if ($table_exists) {
                         <p class="text-muted mb-0">All issues marked as completed</p>
                     </div>
                     <div>
-                        <a href="fix_report.php" class="btn btn-outline-secondary">
+                        <a href="tools/fix_report.php" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Fix Report
                         </a>
                     </div>

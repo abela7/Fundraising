@@ -1,6 +1,9 @@
 <?php
 require_once '../../config/db.php';
 require_once '../../shared/auth.php';
+require_once '../../shared/csrf.php';
+require_once '../../shared/url.php';
+require_once '../../services/UltraMsgService.php';
 require_login();
 require_admin();
 
@@ -70,11 +73,379 @@ function resolve_range(mysqli $db): array {
   return [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')];
 }
 
+/**
+ * Build donor-summary backup rows (1 row per donor/reference).
+ *
+ * @return array{rows: array<int, array<string, mixed>>, totals: array{pledge: float, paid: float, balance: float, grand: float}}
+ */
+function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate, bool $hasPledgePayments): array {
+  $hasDonorsTable = $db->query("SHOW TABLES LIKE 'donors'")->num_rows > 0;
+  $pledgesHasDonorId = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'")->num_rows > 0;
+  $paymentsHasDonorId = $db->query("SHOW COLUMNS FROM payments LIKE 'donor_id'")->num_rows > 0;
+  $paymentsHasReceivedAt = $db->query("SHOW COLUMNS FROM payments LIKE 'received_at'")->num_rows > 0;
+  $hasPledgePaymentsTable = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+  $ppHasReferenceNumber = $hasPledgePaymentsTable ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'reference_number'")->num_rows > 0) : false;
+
+  // Payment reference column can differ across installs
+  $paymentRefCol = 'reference';
+  $paymentColumnsRes = $db->query("SHOW COLUMNS FROM payments");
+  if ($paymentColumnsRes) {
+    $paymentCols = [];
+    while ($col = $paymentColumnsRes->fetch_assoc()) {
+      $paymentCols[] = $col['Field'];
+    }
+    if (in_array('transaction_ref', $paymentCols, true)) {
+      $paymentRefCol = 'transaction_ref';
+    }
+  }
+
+  $donors = [];
+  if ($hasDonorsTable) {
+    $donorRes = $db->query("SELECT id, name, phone FROM donors ORDER BY name ASC, id ASC");
+    while ($d = $donorRes->fetch_assoc()) {
+      $id = (int)$d['id'];
+      $donors[$id] = [
+        'donor_id' => $id,
+        'ref' => '',
+        'name' => $d['name'] ?? '',
+        'phone' => $d['phone'] ?? '',
+        'pledge' => 0.0,
+        'paid' => 0.0,
+      ];
+    }
+  }
+
+  $extractRef = static function (string $text): string {
+    if (preg_match('/\b(\d{4})\b/', $text, $m)) {
+      return $m[1];
+    }
+    return '';
+  };
+
+  $refByDonorId = [];
+  $refByPhone = [];
+
+  // Prefer reference from pledge notes
+  $refPledgeStmt = $db->prepare("
+    SELECT donor_id, donor_phone, notes
+    FROM pledges
+    WHERE status='approved'
+      AND notes REGEXP '[0-9]{4}'
+      AND created_at BETWEEN ? AND ?
+    ORDER BY created_at DESC
+  ");
+  $refPledgeStmt->bind_param('ss', $fromDate, $toDate);
+  $refPledgeStmt->execute();
+  $refPledgeRes = $refPledgeStmt->get_result();
+  while ($r = $refPledgeRes->fetch_assoc()) {
+    $ref = $extractRef((string)($r['notes'] ?? ''));
+    if ($ref === '') continue;
+    $did = isset($r['donor_id']) ? (int)$r['donor_id'] : 0;
+    if ($did > 0 && !isset($refByDonorId[$did])) $refByDonorId[$did] = $ref;
+    $phone = trim((string)($r['donor_phone'] ?? ''));
+    if ($phone !== '' && !isset($refByPhone[$phone])) $refByPhone[$phone] = $ref;
+  }
+  $refPledgeStmt->close();
+
+  // Fallback: pledge_payments.reference_number
+  if ($hasPledgePayments && $hasPledgePaymentsTable && $ppHasReferenceNumber) {
+    $refPPStmt = $db->prepare("
+      SELECT donor_id, reference_number
+      FROM pledge_payments
+      WHERE status='confirmed'
+        AND reference_number REGEXP '[0-9]{4}'
+        AND created_at BETWEEN ? AND ?
+      ORDER BY created_at DESC
+    ");
+    $refPPStmt->bind_param('ss', $fromDate, $toDate);
+    $refPPStmt->execute();
+    $refPPRes = $refPPStmt->get_result();
+    while ($r = $refPPRes->fetch_assoc()) {
+      $did = (int)($r['donor_id'] ?? 0);
+      $ref = $extractRef((string)($r['reference_number'] ?? ''));
+      if ($did > 0 && $ref !== '' && !isset($refByDonorId[$did])) $refByDonorId[$did] = $ref;
+    }
+    $refPPStmt->close();
+  }
+
+  // Fallback: payments reference column
+  $payDateCol = $paymentsHasReceivedAt ? 'received_at' : 'created_at';
+  $refPayStmt = $db->prepare("
+    SELECT donor_id, donor_phone, {$paymentRefCol} AS ref
+    FROM payments
+    WHERE status='approved'
+      AND {$paymentRefCol} REGEXP '[0-9]{4}'
+      AND {$payDateCol} BETWEEN ? AND ?
+    ORDER BY {$payDateCol} DESC
+  ");
+  $refPayStmt->bind_param('ss', $fromDate, $toDate);
+  $refPayStmt->execute();
+  $refPayRes = $refPayStmt->get_result();
+  while ($r = $refPayRes->fetch_assoc()) {
+    $ref = $extractRef((string)($r['ref'] ?? ''));
+    if ($ref === '') continue;
+    $did = isset($r['donor_id']) ? (int)$r['donor_id'] : 0;
+    if ($did > 0 && !isset($refByDonorId[$did])) $refByDonorId[$did] = $ref;
+    $phone = trim((string)($r['donor_phone'] ?? ''));
+    if ($phone !== '' && !isset($refByPhone[$phone])) $refByPhone[$phone] = $ref;
+  }
+  $refPayStmt->close();
+
+  // Pledges
+  if ($pledgesHasDonorId) {
+    $plStmt = $db->prepare("
+      SELECT donor_id, COALESCE(SUM(amount),0) AS total
+      FROM pledges
+      WHERE status='approved' AND donor_id IS NOT NULL AND donor_id <> 0
+        AND created_at BETWEEN ? AND ?
+      GROUP BY donor_id
+    ");
+    $plStmt->bind_param('ss', $fromDate, $toDate);
+    $plStmt->execute();
+    $plRes = $plStmt->get_result();
+    while ($r = $plRes->fetch_assoc()) {
+      $did = (int)$r['donor_id'];
+      $amt = (float)$r['total'];
+      if (!isset($donors[$did])) $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
+      $donors[$did]['pledge'] += $amt;
+    }
+    $plStmt->close();
+  }
+
+  // Payments
+  if ($paymentsHasDonorId) {
+    $dateCol = $paymentsHasReceivedAt ? 'received_at' : 'created_at';
+    $payStmt = $db->prepare("
+      SELECT donor_id, COALESCE(SUM(amount),0) AS total
+      FROM payments
+      WHERE status='approved' AND donor_id IS NOT NULL AND donor_id <> 0
+        AND {$dateCol} BETWEEN ? AND ?
+      GROUP BY donor_id
+    ");
+    $payStmt->bind_param('ss', $fromDate, $toDate);
+    $payStmt->execute();
+    $payRes = $payStmt->get_result();
+    while ($r = $payRes->fetch_assoc()) {
+      $did = (int)$r['donor_id'];
+      $amt = (float)$r['total'];
+      if (!isset($donors[$did])) $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
+      $donors[$did]['paid'] += $amt;
+    }
+    $payStmt->close();
+  }
+
+  // Pledge payments
+  if ($hasPledgePayments && $hasPledgePaymentsTable) {
+    $ppStmt = $db->prepare("
+      SELECT donor_id, COALESCE(SUM(amount),0) AS total
+      FROM pledge_payments
+      WHERE status='confirmed' AND donor_id IS NOT NULL AND donor_id <> 0
+        AND created_at BETWEEN ? AND ?
+      GROUP BY donor_id
+    ");
+    $ppStmt->bind_param('ss', $fromDate, $toDate);
+    $ppStmt->execute();
+    $ppRes = $ppStmt->get_result();
+    while ($r = $ppRes->fetch_assoc()) {
+      $did = (int)$r['donor_id'];
+      $amt = (float)$r['total'];
+      if (!isset($donors[$did])) $donors[$did] = ['donor_id'=>$did,'ref'=>'','name'=>'','phone'=>'','pledge'=>0.0,'paid'=>0.0];
+      $donors[$did]['paid'] += $amt;
+    }
+    $ppStmt->close();
+  }
+
+  // Attach ref (always 4 digits)
+  foreach ($donors as $did => &$d) {
+    $ref = $refByDonorId[$did] ?? '';
+    if ($ref === '') {
+      $phone = trim((string)($d['phone'] ?? ''));
+      if ($phone !== '' && isset($refByPhone[$phone])) $ref = $refByPhone[$phone];
+    }
+    if ($ref === '') $ref = str_pad((string)$did, 4, '0', STR_PAD_LEFT);
+    $d['ref'] = str_pad($ref, 4, '0', STR_PAD_LEFT);
+  }
+  unset($d);
+
+  $rows = array_values($donors);
+  usort($rows, static function ($a, $b) {
+    $ap = (float)($a['pledge'] ?? 0);
+    $bp = (float)($b['pledge'] ?? 0);
+    if (($ap > 0) !== ($bp > 0)) return ($ap > 0) ? -1 : 1;
+    $an = strtolower(trim((string)($a['name'] ?? '')));
+    $bn = strtolower(trim((string)($b['name'] ?? '')));
+    if ($an !== $bn) return $an <=> $bn;
+    $aph = strtolower(trim((string)($a['phone'] ?? '')));
+    $bph = strtolower(trim((string)($b['phone'] ?? '')));
+    return $aph <=> $bph;
+  });
+
+  $totalPledge = 0.0;
+  $totalPaid = 0.0;
+  $totalBalance = 0.0;
+  foreach ($rows as $row) {
+    $pledge = (float)($row['pledge'] ?? 0);
+    $paid = (float)($row['paid'] ?? 0);
+    $balance = max($pledge - $paid, 0);
+    $totalPledge += $pledge;
+    $totalPaid += $paid;
+    $totalBalance += $balance;
+  }
+
+  return [
+    'rows' => $rows,
+    'totals' => [
+      'pledge' => $totalPledge,
+      'paid' => $totalPaid,
+      'balance' => $totalBalance,
+      'grand' => ($totalPledge + $totalPaid),
+    ]
+  ];
+}
+
 // Exports (CSV/print) no hard-code
 if (isset($_GET['report'])) {
   [$fromDate, $toDate] = resolve_range($db);
   $report = $_GET['report'];
   $format = $_GET['format'] ?? 'csv';
+
+  // WhatsApp daily backup sender:
+  // - Manual send: POST (admin session + CSRF)
+  // - Automatic send: GET with cron_key (for cPanel cron)
+  if ($report === 'whatsapp_backup') {
+    $cronKey = '';
+    if (defined('FUNDRAISING_CRON_KEY')) {
+      $cronKey = (string)FUNDRAISING_CRON_KEY;
+    } elseif (getenv('FUNDRAISING_CRON_KEY')) {
+      $cronKey = (string)getenv('FUNDRAISING_CRON_KEY');
+    }
+
+    $isCron = isset($_GET['cron_key']);
+    if ($isCron) {
+      if ($cronKey === '' || !hash_equals($cronKey, (string)$_GET['cron_key'])) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Invalid cron key\n";
+        exit;
+      }
+    } else {
+      if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Method not allowed\n";
+        exit;
+      }
+      verify_csrf(true);
+    }
+
+    $service = UltraMsgService::fromDatabase($db);
+    if (!$service) {
+      http_response_code(500);
+      header('Content-Type: text/plain; charset=utf-8');
+      echo "WhatsApp provider (UltraMsg) is not configured\n";
+      exit;
+    }
+
+    // Force all-time
+    $fromDateAll = '1970-01-01 00:00:00';
+    $toDateAll = '2999-12-31 23:59:59';
+    $summary = build_donor_backup_summary($db, $fromDateAll, $toDateAll, $hasPledgePayments);
+
+    // Save file
+    $subdir = 'uploads/whatsapp/backups/' . date('Y/m');
+    $absDir = __DIR__ . '/../../' . $subdir;
+    if (!is_dir($absDir)) {
+      mkdir($absDir, 0755, true);
+    }
+
+    // cleanup (> 7 days)
+    $cleanupBase = __DIR__ . '/../../uploads/whatsapp/backups';
+    if (is_dir($cleanupBase)) {
+      $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cleanupBase, FilesystemIterator::SKIP_DOTS));
+      $cutoff = time() - (7 * 24 * 60 * 60);
+      foreach ($it as $fileInfo) {
+        if ($fileInfo->isFile() && $fileInfo->getMTime() < $cutoff) {
+          @unlink($fileInfo->getPathname());
+        }
+      }
+    }
+
+    $filename = 'backup-' . date('Y-m-d_H-i-s') . '.xls';
+    $absPath = $absDir . '/' . $filename;
+    $relPath = $subdir . '/' . $filename;
+
+    $generatedAt = date('Y-m-d H:i:s');
+    $rows = $summary['rows'];
+    $t = $summary['totals'];
+
+    $html = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    $html .= '<head><meta charset="UTF-8"><style>';
+    $html .= 'table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f2f2f2;font-weight:bold;}.number{text-align:right;}.text{mso-number-format:"\@";}';
+    $html .= '</style></head><body><table>';
+    $html .= '<tr><th colspan="7">All Donations Backup (WhatsApp)</th></tr>';
+    $html .= '<tr><td colspan="7"><strong>Generated at:</strong> ' . htmlspecialchars($generatedAt, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+    $html .= '<tr><td colspan="7">&nbsp;</td></tr>';
+    $html .= '<tr><th>#</th><th>Reference</th><th>Name</th><th>Phone</th><th class="number">Pledge (' . htmlspecialchars($currency, ENT_QUOTES, 'UTF-8') . ')</th><th class="number">Paid (' . htmlspecialchars($currency, ENT_QUOTES, 'UTF-8') . ')</th><th class="number">Balance (' . htmlspecialchars($currency, ENT_QUOTES, 'UTF-8') . ')</th></tr>';
+    $idx = 1;
+    foreach ($rows as $r) {
+      $ref = str_pad((string)($r['ref'] ?? ''), 4, '0', STR_PAD_LEFT);
+      $pledge = (float)($r['pledge'] ?? 0);
+      $paid = (float)($r['paid'] ?? 0);
+      $balance = max($pledge - $paid, 0);
+      $html .= '<tr>';
+      $html .= '<td>' . $idx++ . '</td>';
+      $html .= '<td class="text">' . htmlspecialchars($ref, ENT_QUOTES, 'UTF-8') . '</td>';
+      $html .= '<td>' . htmlspecialchars((string)($r['name'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+      $html .= '<td>' . htmlspecialchars((string)($r['phone'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+      $html .= '<td class="number">' . number_format($pledge, 2) . '</td>';
+      $html .= '<td class="number">' . number_format($paid, 2) . '</td>';
+      $html .= '<td class="number">' . number_format($balance, 2) . '</td>';
+      $html .= '</tr>';
+    }
+    $html .= '<tr style="background-color:#f8f9fa;font-weight:bold;">';
+    $html .= '<td colspan="4" style="text-align:right;"><strong>Totals:</strong></td>';
+    $html .= '<td class="number"><strong>' . number_format((float)$t['pledge'], 2) . '</strong></td>';
+    $html .= '<td class="number"><strong>' . number_format((float)$t['paid'], 2) . '</strong></td>';
+    $html .= '<td class="number"><strong>' . number_format((float)$t['balance'], 2) . '</strong></td>';
+    $html .= '</tr>';
+    $html .= '<tr style="background-color:#eef2ff;font-weight:bold;">';
+    $html .= '<td colspan="7" style="text-align:right;"><strong>Grand Total (Pledge + Paid):</strong> ' . number_format((float)$t['grand'], 2) . '</td>';
+    $html .= '</tr>';
+    $html .= '</table></body></html>';
+
+    file_put_contents($absPath, $html);
+
+    // Build public URL (UltraMsg fetches via URL)
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : ($_SERVER['REQUEST_SCHEME'] ?? 'https');
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if ($host === '') {
+      http_response_code(500);
+      header('Content-Type: text/plain; charset=utf-8');
+      echo "Cannot determine host for public URL\n";
+      exit;
+    }
+    $publicUrl = $protocol . '://' . $host . url_for($relPath);
+
+    $to = '07360436171';
+    $caption = 'Daily fundraising backup - ' . date('Y-m-d') . ' (Pledge/Paid/Balance)';
+    $sendResult = $service->sendDocument($to, $publicUrl, $filename, $caption, ['log' => true, 'source_type' => 'daily_backup']);
+
+    if (!($sendResult['success'] ?? false)) {
+      http_response_code(500);
+      header('Content-Type: text/plain; charset=utf-8');
+      echo "WhatsApp send failed\n";
+      exit;
+    }
+
+    if ($isCron) {
+      header('Content-Type: text/plain; charset=utf-8');
+      echo "OK\n";
+      exit;
+    }
+
+    header('Location: index.php?backup=sent');
+    exit;
+  }
   
   // Donor report should be "all donors" by default (no date param = all time)
   if ($report === 'donors' && !isset($_GET['date'])) {
