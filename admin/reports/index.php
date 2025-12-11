@@ -1048,6 +1048,9 @@ if (isset($_GET['report'])) {
             <?php include '../includes/topbar.php'; ?>
             <main class="main-content">
                 <div class="container-fluid">
+                    <?php if (isset($_GET['backup']) && $_GET['backup'] === 'sent'): ?>
+                        <div class="alert alert-success">WhatsApp backup sent successfully.</div>
+                    <?php endif; ?>
                     <!-- Page Header (actions only) -->
                     <div class="d-flex justify-content-end mb-4">
                         <button class="btn btn-outline-primary" onclick="refreshData()">
@@ -1279,6 +1282,49 @@ if (isset($_GET['report'])) {
                                             <button class="btn btn-outline-warning" onclick="showCustomDateModal('all_donations')">
                                                 <i class="fas fa-calendar me-2"></i>Custom Range
                                             </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
+                                            <div class="icon-circle bg-success mx-auto" style="width: 60px; height: 60px;">
+                                                <i class="fab fa-whatsapp text-white fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <h5 class="card-title">WhatsApp Daily Backup</h5>
+                                        <p class="card-text text-muted">Automatically send the donor summary Excel to WhatsApp (07360436171)</p>
+                                        <div class="d-grid gap-2">
+                                            <form method="POST" action="?report=whatsapp_backup">
+                                                <?php echo csrf_input(); ?>
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="fas fa-paper-plane me-2"></i>Send Report Now
+                                                </button>
+                                            </form>
+                                            <?php
+                                                $cronKey = '';
+                                                if (defined('FUNDRAISING_CRON_KEY')) {
+                                                    $cronKey = (string)FUNDRAISING_CRON_KEY;
+                                                } elseif (getenv('FUNDRAISING_CRON_KEY')) {
+                                                    $cronKey = (string)getenv('FUNDRAISING_CRON_KEY');
+                                                }
+                                                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : ($_SERVER['REQUEST_SCHEME'] ?? 'https');
+                                                $host = $_SERVER['HTTP_HOST'] ?? '';
+                                                $cronUrl = ($cronKey !== '' && $host !== '')
+                                                    ? ($protocol . '://' . $host . url_for('admin/reports/index.php') . '?report=whatsapp_backup&cron_key=' . urlencode($cronKey))
+                                                    : '';
+                                            ?>
+                                            <?php if ($cronUrl !== ''): ?>
+                                                <small class="text-muted">cPanel Cron URL (run daily):</small>
+                                                <code style="display:block; white-space:normal;"><?php echo htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8'); ?></code>
+                                            <?php else: ?>
+                                                <small class="text-muted">
+                                                    To enable automatic daily sending, set <code>FUNDRAISING_CRON_KEY</code>
+                                                    (recommended in <code>config/env.local.php</code>), then this page will show a cron URL.
+                                                </small>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
