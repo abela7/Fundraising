@@ -208,6 +208,9 @@ if ($table_exists) {
         FROM security_fixes";
     $stats_result = $db->query($stats_query);
     $stats = $stats_result->fetch_assoc();
+    $completionPct = ($stats['total'] ?? 0) > 0
+        ? round(((float)$stats['completed'] / (float)$stats['total']) * 100, 1)
+        : 0.0;
 
     // Group fixes by section
     $fixes_by_section = [];
@@ -260,6 +263,39 @@ if ($table_exists) {
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
+        .guide-card {
+            border-left: 4px solid #0d6efd;
+        }
+        .step-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #0d6efd;
+            color: #fff;
+            font-weight: 700;
+            margin-right: 10px;
+            font-size: 0.9rem;
+        }
+        .sticky-filters {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #f8fafc;
+            border: 1px solid #e9ecef;
+        }
+        .mini-progress {
+            height: 10px;
+            border-radius: 999px;
+            background: #e9ecef;
+            overflow: hidden;
+        }
+        .mini-progress .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0d6efd, #37b24d);
+        }
     </style>
 </head>
 <body>
@@ -296,6 +332,39 @@ if ($table_exists) {
                                 Setup Database First
                             </a>
                         <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Guided Steps + Progress -->
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-8">
+                        <div class="card guide-card">
+                            <div class="card-body">
+                                <h5 class="mb-3"><i class="fas fa-route me-2 text-primary"></i>Step-by-step guide to clear every issue</h5>
+                                <div class="d-flex flex-column gap-2">
+                                    <div><span class="step-badge">1</span><strong>Pick a section</strong> — filter by section/priority to focus.</div>
+                                    <div><span class="step-badge">2</span><strong>Open the file</strong> — use the file path shown on the card.</div>
+                                    <div><span class="step-badge">3</span><strong>Apply the fix</strong> — implement the described change.</div>
+                                    <div><span class="step-badge">4</span><strong>Update status</strong> — set to In Progress or Completed.</div>
+                                    <div><span class="step-badge">5</span><strong>Add notes & owner</strong> — capture what changed and who did it.</div>
+                                    <div><span class="step-badge">6</span><strong>Repeat next</strong> — move to the next issue in the list.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Completion Progress</h6>
+                                    <span class="badge bg-primary"><?php echo $completionPct; ?>%</span>
+                                </div>
+                                <div class="mini-progress mb-2">
+                                    <div class="fill" style="width: <?php echo $completionPct; ?>%;"></div>
+                                </div>
+                                <small class="text-muted">Completed <?php echo $stats['completed']; ?> of <?php echo $stats['total']; ?> issues</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -364,7 +433,7 @@ if ($table_exists) {
                 </div>
 
                 <!-- Filters -->
-                <div class="card mb-4">
+                <div class="card mb-4 sticky-filters">
                     <div class="card-header">
                         <h5 class="mb-0">Filters</h5>
                     </div>
@@ -532,12 +601,13 @@ if ($table_exists) {
                                                                     </div>
 
                                                                     <div class="d-flex justify-content-between align-items-center">
-                                                                        <small class="text-muted">
+                                                                        <div class="small text-muted">
                                                                             Created: <?php echo date('M j, Y', strtotime($fix['created_at'])); ?>
                                                                             <?php if ($fix['completed_at']): ?>
                                                                                 | Completed: <?php echo date('M j, Y', strtotime($fix['completed_at'])); ?>
                                                                             <?php endif; ?>
-                                                                        </small>
+                                                                            | <span class="updated-at" data-fix-id="<?php echo $fix['id']; ?>">Updated: <?php echo date('M j, Y', strtotime($fix['updated_at'] ?? $fix['created_at'])); ?></span>
+                                                                        </div>
                                                                         <button type="button" class="btn btn-sm btn-outline-primary save-btn"
                                                                                 data-fix-id="<?php echo $fix['id']; ?>" style="display: none;">
                                                                             <i class="fas fa-save me-1"></i>
@@ -639,6 +709,10 @@ function saveFix(fixId) {
             saveBtn.style.display = 'none';
             // Show success message
             showToast('Fix updated successfully!', 'success');
+            const updatedText = document.querySelector(`.updated-at[data-fix-id="${fixId}"]`);
+            if (updatedText) {
+                updatedText.textContent = 'Updated: just now';
+            }
         } else {
             showToast('Error: ' + data.message, 'danger');
         }
