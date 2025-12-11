@@ -129,6 +129,102 @@ if (isset($_GET['report'])) {
     }
     fclose($out); exit;
   }
+  if ($report === 'donors' && $format === 'excel') {
+    // Set headers for Excel download
+    header('Content-Type: application/vnd.ms-excel');
+    header('Content-Disposition: attachment; filename="donor_report_' . date('Y-m-d_H-i-s') . '.xls"');
+    header('Cache-Control: max-age=0');
+    
+    // Start Excel content
+    echo '<!DOCTYPE html>';
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    echo '<head>';
+    echo '<meta charset="UTF-8">';
+    echo '<style>';
+    echo 'table { border-collapse: collapse; width: 100%; }';
+    echo 'th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }';
+    echo 'th { background-color: #f2f2f2; font-weight: bold; }';
+    echo '.number { text-align: right; }';
+    echo '</style>';
+    echo '</head><body>';
+    
+    echo '<table>';
+    echo '<tr>';
+    echo '<th>Name</th>';
+    echo '<th>Phone</th>';
+    echo '<th>Pledge Amount</th>';
+    echo '<th>Paid</th>';
+    echo '<th>Balance</th>';
+    echo '</tr>';
+    
+    // Build donor aggregates by grouping on name/phone/email across pledges and payments
+    // Note: $hasPledgePayments already set from FinancialCalculator at top of file
+    $sql = "SELECT donor_name, donor_phone, donor_email,
+                   SUM(CASE WHEN src='pledge' THEN amount ELSE 0 END) AS total_pledged,
+                   SUM(CASE WHEN src='payment' THEN amount ELSE 0 END) AS total_paid,
+                   MAX(last_seen_at) AS last_seen_at
+            FROM (
+              SELECT donor_name, donor_phone, donor_email, amount, created_at AS last_seen_at, 'pledge' AS src
+              FROM pledges
+              WHERE status='approved' AND created_at BETWEEN ? AND ?
+              UNION ALL
+              SELECT donor_name, donor_phone, donor_email, amount, received_at AS last_seen_at, 'payment' AS src
+              FROM payments
+              WHERE status='approved' AND received_at BETWEEN ? AND ?
+              " . ($hasPledgePayments ? "
+              UNION ALL
+              SELECT d.name AS donor_name, d.phone AS donor_phone, d.email AS donor_email, pp.amount, pp.created_at AS last_seen_at, 'payment' AS src
+              FROM pledge_payments pp
+              LEFT JOIN donors d ON pp.donor_id = d.id
+              WHERE pp.status='confirmed' AND pp.created_at BETWEEN ? AND ?
+              " : "") . "
+            ) c
+            GROUP BY donor_name, donor_phone, donor_email
+            ORDER BY total_paid DESC";
+    
+    $stmt = $db->prepare($sql);
+    if ($hasPledgePayments) {
+        $stmt->bind_param('ssssss', $fromDate, $toDate, $fromDate, $toDate, $fromDate, $toDate);
+    } else {
+        $stmt->bind_param('ssss', $fromDate, $toDate, $fromDate, $toDate);
+    }
+    $stmt->execute();
+    $res = $stmt->get_result();
+    
+    $totalPledgedAll = 0;
+    $totalPaidAll = 0;
+    $totalBalanceAll = 0;
+    
+    while($r = $res->fetch_assoc()){
+      $totalPledged = (float)($r['total_pledged'] ?? 0);
+      $totalPaid    = (float)($r['total_paid'] ?? 0);
+      $balance      = max($totalPledged - $totalPaid, 0);
+      
+      $totalPledgedAll += $totalPledged;
+      $totalPaidAll += $totalPaid;
+      $totalBalanceAll += $balance;
+      
+      echo '<tr>';
+      echo '<td>' . htmlspecialchars($r['donor_name'] !== '' ? $r['donor_name'] : 'Anonymous') . '</td>';
+      echo '<td>' . htmlspecialchars($r['donor_phone'] ?? '') . '</td>';
+      echo '<td class="number">' . number_format($totalPledged, 2) . '</td>';
+      echo '<td class="number">' . number_format($totalPaid, 2) . '</td>';
+      echo '<td class="number">' . number_format($balance, 2) . '</td>';
+      echo '</tr>';
+    }
+    
+    // Add summary row
+    echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
+    echo '<td colspan="2" style="text-align: right;"><strong>Total:</strong></td>';
+    echo '<td class="number"><strong>' . number_format($totalPledgedAll, 2) . '</strong></td>';
+    echo '<td class="number"><strong>' . number_format($totalPaidAll, 2) . '</strong></td>';
+    echo '<td class="number"><strong>' . number_format($totalBalanceAll, 2) . '</strong></td>';
+    echo '</tr>';
+    
+    echo '</table>';
+    echo '</body></html>';
+    exit;
+  }
   if ($report === 'financial' && $format === 'csv') {
     header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="financial_report.csv"');
     $out=fopen('php://output','w'); fputcsv($out,['Payment ID','Donor','Phone','Amount','Method','Reference','Status','Package','Received By','Received At']);
@@ -600,7 +696,10 @@ if (isset($_GET['report'])) {
                                         <h5 class="card-title">Donor Report</h5>
                                         <p class="card-text text-muted">Detailed list of all donors with their contributions and contact info</p>
                                         <div class="d-grid gap-2">
-                                            <a href="?report=donors&format=csv" class="btn btn-success">
+                                            <a href="?report=donors&format=excel" class="btn btn-success">
+                                                <i class="fas fa-file-excel me-2"></i>Download Excel
+                                            </a>
+                                            <a href="?report=donors&format=csv" class="btn btn-outline-success">
                                                 <i class="fas fa-download me-2"></i>Download CSV
                                             </a>
                                             <button class="btn btn-outline-success" onclick="showCustomDateModal('donors')">

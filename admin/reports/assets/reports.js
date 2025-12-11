@@ -119,7 +119,7 @@ function generateCustomReport() {
     
     // Build URL with custom parameters
     let format = 'csv';
-    if (reportType === 'all_donations') {
+    if (reportType === 'all_donations' || reportType === 'donors') {
         format = 'excel';
     }
     const url = `?report=${reportType}&format=${format}&date=custom&from=${fromDate}&to=${toDate}`;
