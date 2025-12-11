@@ -492,109 +492,269 @@ function formatDateTime($date) {
             --success-color: #10b981;
         }
         
+        /* Profile Header - Modern Mobile-First Design */
         .profile-header {
             background: linear-gradient(135deg, var(--primary-color) 0%, #075985 100%);
             color: white;
-            padding: 2rem;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(10, 98, 134, 0.2);
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(10, 98, 134, 0.25);
+        }
+        
+        .profile-top {
+            text-align: center;
+            margin-bottom: 1.25rem;
         }
         
         .avatar-circle {
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
             background: rgba(255,255,255,0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
+            font-size: 1.75rem;
             font-weight: bold;
-            margin-right: 1.5rem;
-            border: 2px solid rgba(255,255,255,0.3);
+            margin: 0 auto 0.75rem;
+            border: 3px solid rgba(255,255,255,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
         }
         
-        /* Financial Stats - Enhanced Design */
-        .financial-stats-container {
+        .profile-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 0 0.75rem;
+            line-height: 1.2;
+        }
+        
+        /* Donor Info Pills */
+        .donor-info-pills {
             display: flex;
             flex-wrap: wrap;
+            justify-content: center;
             gap: 0.5rem;
-            align-items: center;
+            margin-bottom: 0.75rem;
         }
         
-        .financial-stat {
-            display: flex;
+        .info-pill {
+            display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 10px;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
             background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 50px;
+            font-size: 0.8125rem;
+            text-decoration: none;
+            color: white;
+            transition: background 0.2s;
         }
         
-        .financial-stat:hover {
+        .info-pill:hover {
+            background: rgba(255,255,255,0.25);
+            color: white;
+        }
+        
+        .info-pill i {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        
+        /* Donor Badges */
+        .donor-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .donor-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.625rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .donor-badge.ref {
+            background: rgba(255,255,255,0.9);
+            color: var(--primary-color);
+        }
+        
+        .donor-badge.baptism {
+            background: #38bdf8;
+            color: white;
+        }
+        
+        /* Financial Grid - Compact 3-Column */
+        .financial-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            position: relative;
+        }
+        
+        .fin-card {
+            background: rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: transform 0.2s, background 0.2s;
+        }
+        
+        .fin-card:hover {
+            background: rgba(255,255,255,0.18);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         
-        .financial-icon {
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
-            min-height: 32px;
-            border-radius: 8px;
+        .fin-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.875rem;
-            flex-shrink: 0;
+            margin: 0 auto 0.5rem;
+            font-size: 1rem;
         }
         
-        .financial-stat.pledged .financial-icon {
+        .fin-card.pledged .fin-icon {
             background: linear-gradient(135deg, #f59e0b, #d97706);
             color: white;
         }
         
-        .financial-stat.paid .financial-icon {
+        .fin-card.paid .fin-icon {
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
         }
         
-        .financial-stat.balance .financial-icon {
+        .fin-card.balance .fin-icon {
             background: linear-gradient(135deg, #ef4444, #dc2626);
             color: white;
         }
         
-        .financial-info {
-            display: flex;
-            flex-direction: column;
-            line-height: 1.2;
-        }
-        
-        .financial-amount {
-            font-size: 1rem;
+        .fin-amount {
+            font-size: 1.125rem;
             font-weight: 700;
-            color: white;
+            line-height: 1.2;
+            margin-bottom: 0.125rem;
         }
         
-        .financial-label {
-            font-size: 0.65rem;
+        .fin-label {
+            font-size: 0.625rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            opacity: 0.8;
+            opacity: 0.75;
         }
         
-        .financial-edit-btn {
-            padding: 0.375rem 0.5rem;
-            border-radius: 8px;
-            opacity: 0.8;
+        .fin-edit-btn {
+            position: absolute;
+            top: -0.5rem;
+            right: -0.5rem;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
         }
         
-        .financial-edit-btn:hover {
-            opacity: 1;
+        .fin-edit-btn:hover {
+            background: rgba(255,255,255,0.35);
+        }
+        
+        /* Desktop Enhancements */
+        @media (min-width: 768px) {
+            .profile-header {
+                padding: 2rem;
+            }
+            
+            .profile-top {
+                display: flex;
+                align-items: center;
+                text-align: left;
+                gap: 1.25rem;
+            }
+            
+            .avatar-circle {
+                width: 80px;
+                height: 80px;
+                font-size: 2rem;
+                margin: 0;
+                flex-shrink: 0;
+            }
+            
+            .profile-name {
+                font-size: 1.75rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .donor-info-pills {
+                justify-content: flex-start;
+            }
+            
+            .donor-badges {
+                justify-content: flex-start;
+            }
+            
+            .financial-grid {
+                margin-top: 1.5rem;
+                gap: 0.75rem;
+            }
+            
+            .fin-card {
+                padding: 1rem;
+            }
+            
+            .fin-icon {
+                width: 42px;
+                height: 42px;
+                font-size: 1.125rem;
+            }
+            
+            .fin-amount {
+                font-size: 1.375rem;
+            }
+            
+            .fin-label {
+                font-size: 0.7rem;
+            }
+            
+            .fin-edit-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.875rem;
+            }
+        }
+        
+        /* Large Desktop - Side by Side Layout */
+        @media (min-width: 992px) {
+            .profile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 2rem;
+            }
+            
+            .profile-top {
+                flex: 1;
+                margin-bottom: 0;
+            }
+            
+            .financial-grid {
+                margin-top: 0;
+                min-width: 320px;
+            }
         }
         
         .accordion-button:not(.collapsed) {
@@ -656,64 +816,6 @@ function formatDateTime($date) {
 
         /* Mobile Responsive Optimizations */
         @media (max-width: 768px) {
-            .profile-header {
-                padding: 1.5rem;
-                text-align: center;
-            }
-            .profile-header .d-flex.align-items-center {
-                flex-direction: column;
-                width: 100%;
-            }
-            .avatar-circle {
-                margin-right: 0;
-                margin-bottom: 1rem;
-            }
-            .profile-header .d-flex.gap-3 {
-                width: 100%;
-                justify-content: center;
-                margin-top: 1rem;
-            }
-            /* Financial stats on mobile */
-            .financial-stats-container {
-                width: 100%;
-                justify-content: center;
-                margin-top: 1rem;
-            }
-            
-            .financial-stat {
-                flex: 1 1 calc(33% - 0.5rem);
-                min-width: 90px;
-                padding: 0.375rem 0.5rem;
-            }
-            
-            .financial-icon {
-                width: 28px;
-                height: 28px;
-                min-width: 28px;
-                min-height: 28px;
-                font-size: 0.75rem;
-            }
-            
-            .financial-amount {
-                font-size: 0.875rem;
-            }
-            
-            .financial-label {
-                font-size: 0.6rem;
-            }
-            
-            .financial-edit-btn {
-                position: absolute;
-                top: 0.5rem;
-                right: 0.5rem;
-            }
-            
-            /* Financial edit button on mobile */
-            .profile-header .btn-outline-light {
-                order: -1;
-                width: 100%;
-                margin-bottom: 0.5rem;
-            }
             /* Financial modal mobile improvements */
             #editFinancialsModal .alert .d-flex {
                 flex-direction: column;
@@ -874,60 +976,61 @@ function formatDateTime($date) {
                     </a>
                 </div>
 
-                <!-- Top Summary Card -->
-                <div class="profile-header d-flex flex-wrap align-items-center justify-content-between gap-3">
-                    <div class="d-flex align-items-center">
+                <!-- Top Summary Card - Mobile Optimized -->
+                <div class="profile-header">
+                    <!-- Top Section: Avatar + Name -->
+                    <div class="profile-top">
                         <div class="avatar-circle">
                             <?php echo strtoupper(substr($donor['name'], 0, 1)); ?>
                         </div>
-                        <div>
-                            <h1 class="mb-1 fw-bold"><?php echo htmlspecialchars($donor['name']); ?></h1>
-                            <div class="opacity-75 mb-2">
-                                <i class="fas fa-map-marker-alt me-1"></i> <?php echo htmlspecialchars($donor['city'] ?? 'Unknown City'); ?> • 
-                                <i class="fas fa-phone me-1"></i> <?php echo htmlspecialchars($donor['phone']); ?>
-                            </div>
-                            <span class="badge bg-light text-dark border-0">
-                                Ref: #<?php echo htmlspecialchars($donor_reference); ?>
+                        <h1 class="profile-name"><?php echo htmlspecialchars($donor['name']); ?></h1>
+                        
+                        <!-- Donor Info Pills -->
+                        <div class="donor-info-pills">
+                            <a href="tel:<?php echo htmlspecialchars($donor['phone']); ?>" class="info-pill">
+                                <i class="fas fa-phone"></i>
+                                <span><?php echo htmlspecialchars($donor['phone']); ?></span>
+                            </a>
+                            <?php if (!empty($donor['city'])): ?>
+                            <span class="info-pill">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span><?php echo htmlspecialchars($donor['city']); ?></span>
+                            </span>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- Badges Row -->
+                        <div class="donor-badges">
+                            <span class="donor-badge ref">
+                                <i class="fas fa-hashtag"></i> <?php echo htmlspecialchars($donor_reference); ?>
                             </span>
                             <?php if($donor['baptism_name']): ?>
-                            <span class="badge bg-info border-0 ms-2">
-                                <i class="fas fa-water me-1"></i> <?php echo htmlspecialchars($donor['baptism_name']); ?>
+                            <span class="donor-badge baptism">
+                                <i class="fas fa-water"></i> <?php echo htmlspecialchars($donor['baptism_name']); ?>
                             </span>
                             <?php endif; ?>
                         </div>
                     </div>
                     
-                    <!-- Financial Stats Cards -->
-                    <div class="financial-stats-container">
-                        <div class="financial-stat pledged">
-                            <div class="financial-icon">
-                                <i class="fas fa-hand-holding-usd"></i>
-                            </div>
-                            <div class="financial-info">
-                                <span class="financial-amount"><?php echo formatMoney($donor['total_pledged']); ?></span>
-                                <span class="financial-label">Pledged</span>
-                            </div>
+                    <!-- Financial Stats Grid -->
+                    <div class="financial-grid">
+                        <div class="fin-card pledged">
+                            <div class="fin-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                            <div class="fin-amount"><?php echo formatMoney($donor['total_pledged']); ?></div>
+                            <div class="fin-label">Pledged</div>
                         </div>
-                        <div class="financial-stat paid">
-                            <div class="financial-icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="financial-info">
-                                <span class="financial-amount"><?php echo formatMoney($donor['total_paid']); ?></span>
-                                <span class="financial-label">Paid</span>
-                            </div>
+                        <div class="fin-card paid">
+                            <div class="fin-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="fin-amount"><?php echo formatMoney($donor['total_paid']); ?></div>
+                            <div class="fin-label">Paid</div>
                         </div>
-                        <div class="financial-stat balance">
-                            <div class="financial-icon">
-                                <i class="fas fa-balance-scale"></i>
-                            </div>
-                            <div class="financial-info">
-                                <span class="financial-amount"><?php echo formatMoney($donor['balance']); ?></span>
-                                <span class="financial-label">Balance</span>
-                            </div>
+                        <div class="fin-card balance">
+                            <div class="fin-icon"><i class="fas fa-coins"></i></div>
+                            <div class="fin-amount"><?php echo formatMoney($donor['balance']); ?></div>
+                            <div class="fin-label">Balance</div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-light financial-edit-btn" data-bs-toggle="modal" data-bs-target="#editFinancialsModal" title="Edit Financial Summary">
-                            <i class="fas fa-edit"></i>
+                        <button type="button" class="fin-edit-btn" data-bs-toggle="modal" data-bs-target="#editFinancialsModal" title="Edit">
+                            <i class="fas fa-pen"></i>
                         </button>
                     </div>
                 </div>
