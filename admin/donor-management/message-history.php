@@ -1022,6 +1022,67 @@ if ($donorId && $donor && isset($db) && $db) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
+<script>
+// Fallback for sidebar toggle if admin.js doesn't load
+if (typeof window.toggleSidebar !== 'function') {
+    window.toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.classList.toggle('active');
+        }
+    };
+}
+
+// Ensure sidebar toggle works
+document.addEventListener('DOMContentLoaded', function() {
+    // #region agent log
+    console.log('=== Sidebar Toggle Debug ===');
+    console.log('toggleSidebar function exists:', typeof toggleSidebar !== 'undefined');
+    console.log('Sidebar element:', document.getElementById('sidebar'));
+    console.log('Sidebar overlay:', document.querySelector('.sidebar-overlay'));
+    console.log('Window width:', window.innerWidth);
+    // #endregion
+    
+    // Find all sidebar toggle buttons
+    const sidebarToggleButtons = document.querySelectorAll('.sidebar-toggle, [onclick*="toggleSidebar"], .sidebar-close');
+    console.log('Found toggle buttons:', sidebarToggleButtons.length);
+    
+    sidebarToggleButtons.forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Toggle button clicked');
+            if (typeof toggleSidebar === 'function') {
+                toggleSidebar();
+            } else {
+                console.error('toggleSidebar function not found!');
+                // Fallback manual toggle
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                if (sidebar) {
+                    sidebar.classList.toggle('active');
+                    if (overlay) overlay.classList.toggle('active');
+                    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+                }
+            }
+        });
+    });
+    
+    // Also handle hamburger menu if it exists
+    const hamburger = document.querySelector('.hamburger, [data-bs-toggle="sidebar"]');
+    if (hamburger) {
+        hamburger.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof toggleSidebar === 'function') {
+                toggleSidebar();
+            }
+        });
+    }
+    
+    console.log('Sidebar toggle initialization complete');
+});
+</script>
 <?php 
 // #region agent log
 debug_log_msg('message-history.php:end', 'Page render completed', [
