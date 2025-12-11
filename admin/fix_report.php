@@ -335,23 +335,8 @@ if ($table_exists) {
                     </div>
                 </div>
 
-                <!-- Guided Steps + Progress -->
+                <!-- Progress -->
                 <div class="row g-4 mb-4">
-                    <div class="col-lg-8">
-                        <div class="card guide-card">
-                            <div class="card-body">
-                                <h5 class="mb-3"><i class="fas fa-route me-2 text-primary"></i>Step-by-step guide to clear every issue</h5>
-                                <div class="d-flex flex-column gap-2">
-                                    <div><span class="step-badge">1</span><strong>Pick a section</strong> — filter by section/priority to focus.</div>
-                                    <div><span class="step-badge">2</span><strong>Open the file</strong> — use the file path shown on the card.</div>
-                                    <div><span class="step-badge">3</span><strong>Apply the fix</strong> — implement the described change.</div>
-                                    <div><span class="step-badge">4</span><strong>Update status</strong> — set to In Progress or Completed.</div>
-                                    <div><span class="step-badge">5</span><strong>Add notes & owner</strong> — capture what changed and who did it.</div>
-                                    <div><span class="step-badge">6</span><strong>Repeat next</strong> — move to the next issue in the list.</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <div class="col-lg-4">
                         <div class="card h-100">
                             <div class="card-body">
