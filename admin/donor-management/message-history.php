@@ -446,50 +446,13 @@ if ($donorId && $donor && isset($db) && $db) {
 </head>
 <body>
 <div class="admin-wrapper">
-    <?php 
-    // #region agent log
-    debug_log_msg('message-history.php:390', 'Including sidebar.php', ['path' => __DIR__ . '/../includes/sidebar.php', 'file_exists' => file_exists(__DIR__ . '/../includes/sidebar.php')], 'J');
-    // #endregion
-    $sidebar_path = __DIR__ . '/../includes/sidebar.php';
-    if (file_exists($sidebar_path)) {
-        include $sidebar_path;
-        // #region agent log
-        debug_log_msg('message-history.php:395', 'Sidebar included successfully', [], 'J');
-        // #endregion
-    } else {
-        // #region agent log
-        debug_log_msg('message-history.php:398', 'Sidebar file not found', ['path' => $sidebar_path], 'J');
-        // #endregion
-        echo '<!-- Sidebar file not found: ' . htmlspecialchars($sidebar_path) . ' -->';
-    }
-    ?>
+    <?php include '../includes/sidebar.php'; ?>
     
     <div class="admin-content">
-        <?php 
-        // #region agent log
-        debug_log_msg('message-history.php:405', 'Including topbar.php', ['path' => __DIR__ . '/../includes/topbar.php', 'file_exists' => file_exists(__DIR__ . '/../includes/topbar.php')], 'J');
-        // #endregion
-        $topbar_path = __DIR__ . '/../includes/topbar.php';
-        if (file_exists($topbar_path)) {
-            include $topbar_path;
-            // #region agent log
-            debug_log_msg('message-history.php:410', 'Topbar included successfully', [], 'J');
-            // #endregion
-        } else {
-            // #region agent log
-            debug_log_msg('message-history.php:413', 'Topbar file not found', ['path' => $topbar_path], 'J');
-            // #endregion
-            echo '<!-- Topbar file not found: ' . htmlspecialchars($topbar_path) . ' -->';
-        }
-        ?>
+        <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
-                <?php 
-                // #region agent log
-                debug_log_msg('message-history.php:422', 'Starting main content render', ['has_errors' => !empty($errors), 'has_donor' => isset($donor), 'has_messages' => isset($messages)], 'K');
-                // #endregion
-                ?>
                 
                 <!-- Debug Panel - Show errors if any -->
                 <?php 
@@ -1024,78 +987,21 @@ if ($donorId && $donor && isset($db) && $db) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
-// Fallback for sidebar toggle if admin.js doesn't load
+// Fallback for sidebar toggle (same as donors.php)
 if (typeof window.toggleSidebar !== 'function') {
-    window.toggleSidebar = function() {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) {
-            sidebar.classList.toggle('active');
-        }
-    };
-}
-
-// Ensure sidebar toggle works
-document.addEventListener('DOMContentLoaded', function() {
-    // #region agent log
-    console.log('=== Sidebar Toggle Debug ===');
-    console.log('toggleSidebar function exists:', typeof toggleSidebar !== 'undefined');
-    console.log('Sidebar element:', document.getElementById('sidebar'));
-    console.log('Sidebar overlay:', document.querySelector('.sidebar-overlay'));
-    console.log('Window width:', window.innerWidth);
-    // #endregion
-    
-    // Find all sidebar toggle buttons (including topbar-toggle)
-    const sidebarToggleButtons = document.querySelectorAll('.sidebar-toggle, .topbar-toggle, [onclick*="toggleSidebar"], .sidebar-close');
-    console.log('Found toggle buttons:', sidebarToggleButtons.length);
-    sidebarToggleButtons.forEach((btn, idx) => {
-        console.log('Toggle button ' + idx + ':', btn.className, btn.tagName);
-    });
-    
-    sidebarToggleButtons.forEach(function(button) {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Toggle button clicked');
-            if (typeof toggleSidebar === 'function') {
-                toggleSidebar();
-            } else {
-                console.error('toggleSidebar function not found!');
-                // Fallback manual toggle
-                const sidebar = document.getElementById('sidebar');
-                const overlay = document.querySelector('.sidebar-overlay');
-                if (sidebar) {
-                    sidebar.classList.toggle('active');
-                    if (overlay) overlay.classList.toggle('active');
-                    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-                }
-            }
-        });
-    });
-    
-    // Also handle hamburger menu if it exists
-    const hamburger = document.querySelector('.hamburger, [data-bs-toggle="sidebar"]');
-    if (hamburger) {
-        hamburger.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (typeof toggleSidebar === 'function') {
-                toggleSidebar();
-            }
-        });
+  window.toggleSidebar = function() {
+    var body = document.body;
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.querySelector('.sidebar-overlay');
+    if (window.innerWidth <= 991.98) {
+      if (sidebar) sidebar.classList.toggle('active');
+      if (overlay) overlay.classList.toggle('active');
+      body.style.overflow = (sidebar && sidebar.classList.contains('active')) ? 'hidden' : '';
+    } else {
+      body.classList.toggle('sidebar-collapsed');
     }
-    
-    console.log('Sidebar toggle initialization complete');
-});
+  };
+}
 </script>
-<?php 
-// #region agent log
-debug_log_msg('message-history.php:end', 'Page render completed', [
-    'has_errors' => !empty($errors),
-    'has_donor' => isset($donor) && $donor !== null,
-    'has_messages' => isset($messages),
-    'messages_count' => isset($messages) ? count($messages) : 0,
-    'search_results_count' => isset($search_results) ? count($search_results) : 0
-], 'M');
-// #endregion
-?>
 </body>
 </html>
