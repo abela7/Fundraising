@@ -1384,6 +1384,24 @@ if (isset($_GET['report'])) {
                                 <div class="card border-0 shadow-sm h-100 report-card">
                                     <div class="card-body text-center p-4">
                                         <div class="mb-3">
+                                            <div class="icon-circle bg-info mx-auto" style="width: 60px; height: 60px;">
+                                                <i class="fas fa-face-smile text-white fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <h5 class="card-title">Easy Charts (Mobile)</h5>
+                                        <p class="card-text text-muted">Very simple charts designed to be easy to understand on a phone</p>
+                                        <div class="d-grid gap-2">
+                                            <a href="kids-dashboard.php" class="btn btn-info">
+                                                <i class="fas fa-mobile-screen-button me-2"></i>Open Easy Charts
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
                                             <div class="icon-circle bg-success mx-auto" style="width: 60px; height: 60px;">
                                                 <i class="fas fa-users text-white fs-4"></i>
                                             </div>
