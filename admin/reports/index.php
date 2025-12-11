@@ -103,6 +103,8 @@ if (isset($_GET['report'])) {
       echo 'th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }';
       echo 'th { background-color: #f2f2f2; font-weight: bold; }';
       echo '.number { text-align: right; }';
+      // Force Excel to treat as text (preserves leading zeros like 0012)
+      echo '.text { mso-number-format:"\@"; }';
       echo '</style>';
       echo '</head><body>';
       echo '<table>';
@@ -589,7 +591,11 @@ if (isset($_GET['report'])) {
 
         echo '<tr>';
         echo '<td>' . $i++ . '</td>';
-        echo '<td>' . $esc($row['ref'] ?? '') . '</td>';
+        $refOut = (string)($row['ref'] ?? '');
+        if ($refOut !== '') {
+          $refOut = str_pad($refOut, 4, '0', STR_PAD_LEFT);
+        }
+        echo '<td class="text">' . $esc($refOut) . '</td>';
         echo '<td>' . $esc($row['name'] ?? '') . '</td>';
         echo '<td>' . $esc($row['phone'] ?? '') . '</td>';
         echo '<td class="number">' . number_format($pledge, 2) . '</td>';
@@ -598,7 +604,8 @@ if (isset($_GET['report'])) {
         echo '</tr>';
       }
 
-      $grandTotalForBackup = $totalPaid + $totalBalance;
+      // Grand total = pledged commitments + money already paid
+      $grandTotalForBackup = $totalPledge + $totalPaid;
       echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
       echo '<td colspan="4" style="text-align:right;"><strong>Totals:</strong></td>';
       echo '<td class="number"><strong>' . number_format($totalPledge, 2) . '</strong></td>';
@@ -606,7 +613,7 @@ if (isset($_GET['report'])) {
       echo '<td class="number"><strong>' . number_format($totalBalance, 2) . '</strong></td>';
       echo '</tr>';
       echo '<tr style="background-color: #eef2ff; font-weight: bold;">';
-      echo '<td colspan="7" style="text-align:right;"><strong>Grand Total (Paid + Balance):</strong> ' . number_format($grandTotalForBackup, 2) . '</td>';
+      echo '<td colspan="7" style="text-align:right;"><strong>Grand Total (Pledge + Paid):</strong> ' . number_format($grandTotalForBackup, 2) . '</td>';
       echo '</tr>';
 
       echo '</table>';
