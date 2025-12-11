@@ -24,22 +24,51 @@ try {
         $message = 'Security fixes table already exists!';
         $message_type = 'warning';
     } else {
-        // Read and execute the SQL file
-        $sql_file = __DIR__ . '/create_fix_tracker_table.sql';
-        if (!file_exists($sql_file)) {
-            throw new Exception('SQL file not found: ' . $sql_file);
+        // Execute the SQL directly (more reliable than reading from file)
+        $sql = "
+-- Create table to track security fixes from report.md
+CREATE TABLE IF NOT EXISTS `security_fixes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `section` varchar(100) NOT NULL COMMENT 'Section from report (Admin, Donor, Registrar, etc.)',
+  `file_path` varchar(255) NOT NULL COMMENT 'File path being fixed',
+  `issue_type` enum('critical','enhancement') NOT NULL DEFAULT 'enhancement',
+  `title` varchar(500) NOT NULL COMMENT 'Brief title of the issue',
+  `description` text NOT NULL COMMENT 'Full description of the issue/fix needed',
+  `status` enum('pending','in_progress','completed','cancelled') NOT NULL DEFAULT 'pending',
+  `priority` enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+  `assigned_to` varchar(100) DEFAULT NULL COMMENT 'Who is working on this fix',
+  `notes` text COMMENT 'Additional notes about the fix',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_section` (`section`),
+  KEY `idx_status` (`status`),
+  KEY `idx_priority` (`priority`),
+  KEY `idx_file_path` (`file_path`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tracks security fixes from the security review report';
+        ";
+
+        try {
+            $db->multi_query($sql);
+
+            // Clear any remaining results
+            while ($db->next_result()) {
+                if (!$db->more_results()) break;
+            }
+
+            $message = 'Security fixes table created successfully!';
+            $message_type = 'success';
+        } catch (Exception $sql_error) {
+            // Try alternative approach - check if table was created despite error
+            $check_result = $db->query("SHOW TABLES LIKE 'security_fixes'");
+            if ($check_result && $check_result->num_rows > 0) {
+                $message = 'Security fixes table created successfully (despite minor SQL warning)!';
+                $message_type = 'success';
+            } else {
+                throw $sql_error;
+            }
         }
-
-        $sql = file_get_contents($sql_file);
-        $db->multi_query($sql);
-
-        // Clear any remaining results
-        while ($db->next_result()) {
-            if (!$db->more_results()) break;
-        }
-
-        $message = 'Security fixes table created successfully!';
-        $message_type = 'success';
     }
 
 } catch (Exception $e) {

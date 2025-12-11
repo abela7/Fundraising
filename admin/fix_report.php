@@ -58,6 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         if ($action === 'populate_from_report') {
+            // Check if table exists
+            $table_check = $db->query("SHOW TABLES LIKE 'security_fixes'");
+            if (!$table_check || $table_check->num_rows === 0) {
+                echo json_encode(['success' => false, 'message' => 'Security fixes table does not exist. Please run database setup first.']);
+                exit;
+            }
+
             // Check if table is already populated
             $count_result = $db->query("SELECT COUNT(*) as count FROM security_fixes");
             $count = $count_result->fetch_assoc()['count'];
@@ -69,6 +76,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             $parser = new ReportParser();
             $inserts = $parser->getDatabaseInserts();
+
+            if (empty($inserts)) {
+                echo json_encode(['success' => false, 'message' => 'No fixes found in report.md. Please check the file exists and is readable.']);
+                exit;
+            }
 
             $inserted = 0;
             $stmt = $db->prepare("INSERT INTO security_fixes (section, file_path, issue_type, title, description, priority, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -92,6 +104,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         if ($action === 'clear_all') {
+            // Check if table exists
+            $table_check = $db->query("SHOW TABLES LIKE 'security_fixes'");
+            if (!$table_check || $table_check->num_rows === 0) {
+                echo json_encode(['success' => false, 'message' => 'Security fixes table does not exist.']);
+                exit;
+            }
+
             $db->query("TRUNCATE TABLE security_fixes");
             echo json_encode(['success' => true, 'message' => 'All fixes cleared']);
             exit;
@@ -103,87 +122,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
-// Get filter parameters
-$section_filter = $_GET['section'] ?? '';
-$status_filter = $_GET['status'] ?? '';
-$priority_filter = $_GET['priority'] ?? '';
-$search = $_GET['search'] ?? '';
-
-// Build query
-$query = "SELECT * FROM security_fixes WHERE 1=1";
-$params = [];
-$types = '';
-
-if (!empty($section_filter)) {
-    $query .= " AND section = ?";
-    $params[] = $section_filter;
-    $types .= 's';
+// Check if security_fixes table exists
+$table_exists = false;
+try {
+    $check_result = $db->query("SHOW TABLES LIKE 'security_fixes'");
+    $table_exists = $check_result && $check_result->num_rows > 0;
+} catch (Exception $e) {
+    $table_exists = false;
 }
 
-if (!empty($status_filter)) {
-    $query .= " AND status = ?";
-    $params[] = $status_filter;
-    $types .= 's';
-}
-
-if (!empty($priority_filter)) {
-    $query .= " AND priority = ?";
-    $params[] = $priority_filter;
-    $types .= 's';
-}
-
-if (!empty($search)) {
-    $query .= " AND (title LIKE ? OR description LIKE ? OR file_path LIKE ?)";
-    $search_param = "%$search%";
-    $params[] = $search_param;
-    $params[] = $search_param;
-    $params[] = $search_param;
-    $types .= 'sss';
-}
-
-$query .= " ORDER BY
-    CASE priority
-        WHEN 'critical' THEN 1
-        WHEN 'high' THEN 2
-        WHEN 'medium' THEN 3
-        WHEN 'low' THEN 4
-    END,
-    CASE status
-        WHEN 'pending' THEN 1
-        WHEN 'in_progress' THEN 2
-        WHEN 'completed' THEN 3
-        WHEN 'cancelled' THEN 4
-    END,
-    section, file_path";
-
-$stmt = $db->prepare($query);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
-}
-$stmt->execute();
-$result = $stmt->get_result();
-$fixes = $result->fetch_all(MYSQLI_ASSOC);
-
-// Get summary statistics
-$stats_query = "SELECT
-    COUNT(*) as total,
-    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-    SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
-    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-    SUM(CASE WHEN priority = 'critical' THEN 1 ELSE 0 END) as critical_count,
-    SUM(CASE WHEN issue_type = 'critical' THEN 1 ELSE 0 END) as critical_issues
-    FROM security_fixes";
-$stats_result = $db->query($stats_query);
-$stats = $stats_result->fetch_assoc();
-
-// Group fixes by section
+$fixes = [];
+$stats = ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'critical_count' => 0, 'critical_issues' => 0];
 $fixes_by_section = [];
-foreach ($fixes as $fix) {
-    $section = $fix['section'];
-    if (!isset($fixes_by_section[$section])) {
-        $fixes_by_section[$section] = [];
+
+if ($table_exists) {
+    // Get filter parameters
+    $section_filter = $_GET['section'] ?? '';
+    $status_filter = $_GET['status'] ?? '';
+    $priority_filter = $_GET['priority'] ?? '';
+    $search = $_GET['search'] ?? '';
+
+    // Build query
+    $query = "SELECT * FROM security_fixes WHERE 1=1";
+    $params = [];
+    $types = '';
+
+    if (!empty($section_filter)) {
+        $query .= " AND section = ?";
+        $params[] = $section_filter;
+        $types .= 's';
     }
-    $fixes_by_section[$section][] = $fix;
+
+    if (!empty($status_filter)) {
+        $query .= " AND status = ?";
+        $params[] = $status_filter;
+        $types .= 's';
+    }
+
+    if (!empty($priority_filter)) {
+        $query .= " AND priority = ?";
+        $params[] = $priority_filter;
+        $types .= 's';
+    }
+
+    if (!empty($search)) {
+        $query .= " AND (title LIKE ? OR description LIKE ? OR file_path LIKE ?)";
+        $search_param = "%$search%";
+        $params[] = $search_param;
+        $params[] = $search_param;
+        $params[] = $search_param;
+        $types .= 'sss';
+    }
+
+    $query .= " ORDER BY
+        CASE priority
+            WHEN 'critical' THEN 1
+            WHEN 'high' THEN 2
+            WHEN 'medium' THEN 3
+            WHEN 'low' THEN 4
+        END,
+        CASE status
+            WHEN 'pending' THEN 1
+            WHEN 'in_progress' THEN 2
+            WHEN 'completed' THEN 3
+            WHEN 'cancelled' THEN 4
+        END,
+        section, file_path";
+
+    $stmt = $db->prepare($query);
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $fixes = $result->fetch_all(MYSQLI_ASSOC);
+
+    // Get summary statistics
+    $stats_query = "SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN priority = 'critical' THEN 1 ELSE 0 END) as critical_count,
+        SUM(CASE WHEN issue_type = 'critical' THEN 1 ELSE 0 END) as critical_issues
+        FROM security_fixes";
+    $stats_result = $db->query($stats_query);
+    $stats = $stats_result->fetch_assoc();
+
+    // Group fixes by section
+    $fixes_by_section = [];
+    foreach ($fixes as $fix) {
+        $section = $fix['section'];
+        if (!isset($fixes_by_section[$section])) {
+            $fixes_by_section[$section] = [];
+        }
+        $fixes_by_section[$section][] = $fix;
+    }
 }
 ?>
 
@@ -247,14 +281,21 @@ foreach ($fixes as $fix) {
                         <p class="text-muted mb-0">Track and manage security fixes from the review report</p>
                     </div>
                     <div>
-                        <button type="button" class="btn btn-outline-primary" onclick="populateFromReport()">
-                            <i class="fas fa-upload me-2"></i>
-                            Import from Report
-                        </button>
-                        <button type="button" class="btn btn-outline-danger" onclick="clearAllFixes()">
-                            <i class="fas fa-trash me-2"></i>
-                            Clear All
-                        </button>
+                        <?php if ($table_exists): ?>
+                            <button type="button" class="btn btn-outline-primary" onclick="populateFromReport()">
+                                <i class="fas fa-upload me-2"></i>
+                                Import from Report
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="clearAllFixes()">
+                                <i class="fas fa-trash me-2"></i>
+                                Clear All
+                            </button>
+                        <?php else: ?>
+                            <a href="tools/setup_fix_tracker.php" class="btn btn-outline-primary">
+                                <i class="fas fa-cog me-2"></i>
+                                Setup Database First
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -381,7 +422,19 @@ foreach ($fixes as $fix) {
                 </div>
 
                 <!-- Fixes by Section -->
-                <?php if (empty($fixes)): ?>
+                <?php if (!$table_exists): ?>
+                    <div class="card">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                            <h5>Database Setup Required</h5>
+                            <p class="text-muted">The security fixes tracking table hasn't been created yet.</p>
+                            <a href="tools/setup_fix_tracker.php" class="btn btn-primary">
+                                <i class="fas fa-cog me-2"></i>
+                                Setup Database
+                            </a>
+                        </div>
+                    </div>
+                <?php elseif (empty($fixes)): ?>
                     <div class="card">
                         <div class="card-body text-center py-5">
                             <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
