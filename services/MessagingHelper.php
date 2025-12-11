@@ -175,42 +175,8 @@ class MessagingHelper
         if ($channel === self::CHANNEL_WHATSAPP) {
             return $this->sendWhatsAppFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
         } else {
-            // Send via SMS and log to unified table
+            // Send via SMS - SMSHelper logs via VoodooSMSService
             $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
-            
-            // Log to unified message_log table
-            if ($smsResult['success'] || isset($smsResult['error'])) {
-                $template = $this->smsHelper->getTemplate($templateKey);
-                $donor = $this->getDonor($donorId);
-                $language = $donor['preferred_language'] ?? 'en';
-                $messageContent = $template ? ($template["message_$language"] ?? $template['message_en'] ?? '') : '';
-                if ($messageContent && !empty($variables)) {
-                    $messageContent = VoodooSMSService::processTemplate($messageContent, $variables);
-                }
-                
-                $this->logMessage([
-                    'donor_id' => $donorId,
-                    'phone_number' => $donor['phone'] ?? '',
-                    'recipient_name' => $donor['name'] ?? null,
-                    'channel' => 'sms',
-                    'message_content' => $messageContent,
-                    'message_language' => $language,
-                    'template_id' => $template['id'] ?? null,
-                    'template_key' => $templateKey,
-                    'template_variables' => $variables,
-                    'sent_by_user_id' => $this->currentUserId,
-                    'sent_by_name' => $this->currentUser['name'] ?? null,
-                    'sent_by_role' => $this->currentUser['role'] ?? null,
-                    'source_type' => $sourceType,
-                    'status' => $smsResult['success'] ? 'sent' : 'failed',
-                    'sent_at' => date('Y-m-d H:i:s'),
-                    'failed_at' => $smsResult['success'] ? null : date('Y-m-d H:i:s'),
-                    'error_message' => $smsResult['error'] ?? null,
-                    'segments' => $smsResult['credits_used'] ?? 1,
-                    'cost_pence' => ($smsResult['credits_used'] ?? 1) * 3.5 // Approximate cost
-                ]);
-            }
-            
             return $smsResult;
         }
     }
@@ -255,37 +221,8 @@ class MessagingHelper
         } elseif ($channel === self::CHANNEL_WHATSAPP) {
             return $this->sendWhatsAppDirect($phoneNumber, $message, $donorId, $sourceType);
         } else {
-            // Send via SMS and log to unified table
+            // Send via SMS - SMSHelper logs via VoodooSMSService
             $smsResult = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
-            
-            // Log to unified message_log table
-            if ($smsResult['success'] || isset($smsResult['error'])) {
-                $donorName = null;
-                if ($donorId) {
-                    $donor = $this->getDonor($donorId);
-                    $donorName = $donor['name'] ?? null;
-                }
-                
-                $this->logMessage([
-                    'donor_id' => $donorId,
-                    'phone_number' => $phoneNumber,
-                    'recipient_name' => $donorName,
-                    'channel' => 'sms',
-                    'message_content' => $message,
-                    'message_language' => 'en',
-                    'sent_by_user_id' => $this->currentUserId,
-                    'sent_by_name' => $this->currentUser['name'] ?? null,
-                    'sent_by_role' => $this->currentUser['role'] ?? null,
-                    'source_type' => $sourceType,
-                    'status' => $smsResult['success'] ? 'sent' : 'failed',
-                    'sent_at' => date('Y-m-d H:i:s'),
-                    'failed_at' => $smsResult['success'] ? null : date('Y-m-d H:i:s'),
-                    'error_message' => $smsResult['error'] ?? null,
-                    'segments' => $smsResult['credits_used'] ?? 1,
-                    'cost_pence' => ($smsResult['credits_used'] ?? 1) * 3.5
-                ]);
-            }
-            
             return $smsResult;
         }
     }
@@ -517,32 +454,7 @@ class MessagingHelper
             'donor_id' => $donorId,
             'template_id' => $template['id'],
             'source_type' => $sourceType,
-            'log' => false // We'll log it ourselves in unified table
-        ]);
-        
-        // Log to unified message_log table
-        $logId = $this->logMessage([
-            'donor_id' => $donorId,
-            'phone_number' => $phoneNumber,
-            'recipient_name' => $donor['name'] ?? null,
-            'channel' => 'whatsapp',
-            'message_content' => $message,
-            'message_language' => $language,
-            'template_id' => $template['id'],
-            'template_key' => $templateKey,
-            'template_variables' => $variables,
-            'sent_by_user_id' => $this->currentUserId,
-            'sent_by_name' => $this->currentUser['name'] ?? null,
-            'sent_by_role' => $this->currentUser['role'] ?? null,
-            'source_type' => $sourceType,
-            'provider_message_id' => $result['message_id'] ?? null,
-            'provider_response' => $result['raw_response'] ?? null,
-            'status' => $result['success'] ? 'sent' : 'failed',
-            'sent_at' => date('Y-m-d H:i:s'),
-            'failed_at' => $result['success'] ? null : date('Y-m-d H:i:s'),
-            'error_message' => $result['error'] ?? null,
-            'error_code' => $result['error_code'] ?? null,
-            'is_fallback' => 0
+            'log' => true // Provider logs to whatsapp_log table
         ]);
         
         if ($result['success']) {
@@ -550,33 +462,11 @@ class MessagingHelper
                 'success' => true,
                 'channel' => 'whatsapp',
                 'message' => 'WhatsApp message sent successfully',
-                'message_id' => $result['message_id'] ?? null,
-                'log_id' => $logId
+                'message_id' => $result['message_id'] ?? null
             ];
         } else {
-            // Fallback to SMS on failure
+            // Fallback to SMS on failure - SMSHelper logs via VoodooSMSService
             $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
-            
-            // Log fallback SMS
-            if ($smsResult['success']) {
-                $this->logMessage([
-                    'donor_id' => $donorId,
-                    'phone_number' => $phoneNumber,
-                    'recipient_name' => $donor['name'] ?? null,
-                    'channel' => 'sms',
-                    'message_content' => $message, // Same message content
-                    'message_language' => $language,
-                    'template_id' => $template['id'],
-                    'template_key' => $templateKey,
-                    'template_variables' => $variables,
-                    'sent_by_user_id' => $this->currentUserId,
-                    'source_type' => $sourceType,
-                    'status' => 'sent',
-                    'is_fallback' => 1, // Mark as fallback
-                    'error_message' => 'WhatsApp failed, sent via SMS'
-                ]);
-            }
-            
             return $smsResult;
         }
     }
@@ -591,43 +481,14 @@ class MessagingHelper
         string $sourceType
     ): array {
         if (!$this->whatsappService) {
-            // Fallback to SMS
+            // Fallback to SMS - SMSHelper logs via VoodooSMSService
             return $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
         }
         
         $result = $this->whatsappService->send($phoneNumber, $message, [
             'donor_id' => $donorId,
             'source_type' => $sourceType,
-            'log' => false // We'll log it ourselves in unified table
-        ]);
-        
-        // Get donor name if available
-        $donorName = null;
-        if ($donorId) {
-            $donor = $this->getDonor($donorId);
-            $donorName = $donor['name'] ?? null;
-        }
-        
-        // Log to unified message_log table
-        $logId = $this->logMessage([
-            'donor_id' => $donorId,
-            'phone_number' => $phoneNumber,
-            'recipient_name' => $donorName,
-            'channel' => 'whatsapp',
-            'message_content' => $message,
-            'message_language' => 'en',
-            'sent_by_user_id' => $this->currentUserId,
-            'sent_by_name' => $this->currentUser['name'] ?? null,
-            'sent_by_role' => $this->currentUser['role'] ?? null,
-            'source_type' => $sourceType,
-            'provider_message_id' => $result['message_id'] ?? null,
-            'provider_response' => $result['raw_response'] ?? null,
-            'status' => $result['success'] ? 'sent' : 'failed',
-            'sent_at' => date('Y-m-d H:i:s'),
-            'failed_at' => $result['success'] ? null : date('Y-m-d H:i:s'),
-            'error_message' => $result['error'] ?? null,
-            'error_code' => $result['error_code'] ?? null,
-            'is_fallback' => 0
+            'log' => true // Provider logs to whatsapp_log table
         ]);
         
         if ($result['success']) {
@@ -635,29 +496,11 @@ class MessagingHelper
                 'success' => true,
                 'channel' => 'whatsapp',
                 'message' => 'WhatsApp message sent successfully',
-                'message_id' => $result['message_id'] ?? null,
-                'log_id' => $logId
+                'message_id' => $result['message_id'] ?? null
             ];
         } else {
-            // Fallback to SMS
+            // Fallback to SMS - SMSHelper logs via VoodooSMSService
             $smsResult = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
-            
-            // Log fallback SMS
-            if ($smsResult['success']) {
-                $this->logMessage([
-                    'donor_id' => $donorId,
-                    'phone_number' => $phoneNumber,
-                    'recipient_name' => $donorName,
-                    'channel' => 'sms',
-                    'message_content' => $message,
-                    'sent_by_user_id' => $this->currentUserId,
-                    'source_type' => $sourceType,
-                    'status' => 'sent',
-                    'is_fallback' => 1,
-                    'error_message' => 'WhatsApp failed, sent via SMS'
-                ]);
-            }
-            
             return $smsResult;
         }
     }
@@ -680,47 +523,14 @@ class MessagingHelper
             'whatsapp' => null
         ];
         
-        // Get donor and template info for logging
-        $donor = $this->getDonor($donorId);
-        $template = $this->smsHelper->getTemplate($templateKey);
-        $language = $donor['preferred_language'] ?? 'en';
-        $messageContent = $template ? ($template["message_$language"] ?? $template['message_en'] ?? '') : '';
-        if ($messageContent && !empty($variables)) {
-            $messageContent = VoodooSMSService::processTemplate($messageContent, $variables);
-        }
-        
-        // Send SMS
+        // Send SMS - SMSHelper logs via VoodooSMSService
         if ($this->isSMSAvailable()) {
             $results['sms'] = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
-            
-            // Log SMS to unified table
-            if ($results['sms']) {
-                $this->logMessage([
-                    'donor_id' => $donorId,
-                    'phone_number' => $donor['phone'] ?? '',
-                    'recipient_name' => $donor['name'] ?? null,
-                    'channel' => 'sms',
-                    'message_content' => $messageContent,
-                    'message_language' => $language,
-                    'template_id' => $template['id'] ?? null,
-                    'template_key' => $templateKey,
-                    'template_variables' => $variables,
-                    'sent_by_user_id' => $this->currentUserId,
-                    'sent_by_name' => $this->currentUser['name'] ?? null,
-                    'sent_by_role' => $this->currentUser['role'] ?? null,
-                    'source_type' => $sourceType,
-                    'status' => $results['sms']['success'] ? 'sent' : 'failed',
-                    'sent_at' => date('Y-m-d H:i:s'),
-                    'error_message' => $results['sms']['error'] ?? null,
-                    'segments' => $results['sms']['credits_used'] ?? 1
-                ]);
-            }
         }
         
-        // Send WhatsApp
+        // Send WhatsApp - logs via UltraMsgService
         if ($this->isWhatsAppAvailable()) {
             $results['whatsapp'] = $this->sendWhatsAppFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
-            // WhatsApp logging is handled in sendWhatsAppFromTemplate
         }
         
         // Success if at least one succeeded
@@ -747,42 +557,14 @@ class MessagingHelper
             'whatsapp' => null
         ];
         
-        // Get donor name if available
-        $donorName = null;
-        if ($donorId) {
-            $donor = $this->getDonor($donorId);
-            $donorName = $donor['name'] ?? null;
-        }
-        
-        // Send SMS
+        // Send SMS - SMSHelper logs via VoodooSMSService
         if ($this->isSMSAvailable()) {
             $results['sms'] = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
-            
-            // Log SMS to unified table
-            if ($results['sms']) {
-                $this->logMessage([
-                    'donor_id' => $donorId,
-                    'phone_number' => $phoneNumber,
-                    'recipient_name' => $donorName,
-                    'channel' => 'sms',
-                    'message_content' => $message,
-                    'message_language' => 'en',
-                    'sent_by_user_id' => $this->currentUserId,
-                    'sent_by_name' => $this->currentUser['name'] ?? null,
-                    'sent_by_role' => $this->currentUser['role'] ?? null,
-                    'source_type' => $sourceType,
-                    'status' => $results['sms']['success'] ? 'sent' : 'failed',
-                    'sent_at' => date('Y-m-d H:i:s'),
-                    'error_message' => $results['sms']['error'] ?? null,
-                    'segments' => $results['sms']['credits_used'] ?? 1
-                ]);
-            }
         }
         
-        // Send WhatsApp
+        // Send WhatsApp - logs via UltraMsgService
         if ($this->isWhatsAppAvailable()) {
             $results['whatsapp'] = $this->sendWhatsAppDirect($phoneNumber, $message, $donorId, $sourceType);
-            // WhatsApp logging is handled in sendWhatsAppDirect
         }
         
         // Success if at least one succeeded

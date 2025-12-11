@@ -57,26 +57,20 @@ try {
         throw new Exception('WhatsApp provider not configured. Please set up UltraMsg first.');
     }
     
-    // Send message via UltraMsg
-    $result = $service->send($phone, $message, [
-        'log' => false // We'll log it ourselves
-    ]);
+    // Get or create conversation if not provided - do this FIRST to get donor_id
+    $donorId = null;
+    $normalizedPhone = normalizePhoneForDb($phone);
     
-    if (!$result['success']) {
-        throw new Exception($result['error'] ?? 'Failed to send message');
-    }
-    
-    // Get or create conversation if not provided
     if ($conversationId === 0) {
         // Find conversation by phone
-        $normalizedPhone = normalizePhoneForDb($phone);
-        $stmt = $db->prepare("SELECT id FROM whatsapp_conversations WHERE phone_number = ?");
+        $stmt = $db->prepare("SELECT id, donor_id FROM whatsapp_conversations WHERE phone_number = ?");
         $stmt->bind_param('s', $normalizedPhone);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
         
         if ($row) {
             $conversationId = (int)$row['id'];
+            $donorId = $row['donor_id'] ? (int)$row['donor_id'] : null;
         } else {
             // Create new conversation
             $stmt = $db->prepare("
@@ -87,6 +81,38 @@ try {
             $stmt->execute();
             $conversationId = (int)$db->insert_id;
         }
+    } else {
+        // Get donor_id from existing conversation
+        $stmt = $db->prepare("SELECT donor_id FROM whatsapp_conversations WHERE id = ?");
+        $stmt->bind_param('i', $conversationId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) {
+            $donorId = $row['donor_id'] ? (int)$row['donor_id'] : null;
+        }
+    }
+    
+    // If no donor_id from conversation, try to find by phone
+    if (!$donorId) {
+        $stmt = $db->prepare("SELECT id FROM donors WHERE phone = ? OR phone = ? LIMIT 1");
+        $phoneWithoutPlus = ltrim($normalizedPhone, '+');
+        $stmt->bind_param('ss', $normalizedPhone, $phoneWithoutPlus);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) {
+            $donorId = (int)$row['id'];
+        }
+    }
+    
+    // Send message via UltraMsg - log to whatsapp_log for message history tracking
+    $result = $service->send($phone, $message, [
+        'donor_id' => $donorId,
+        'source_type' => 'whatsapp_inbox',
+        'log' => true // Log to whatsapp_log table for message history
+    ]);
+    
+    if (!$result['success']) {
+        throw new Exception($result['error'] ?? 'Failed to send message');
     }
     
     // Save message to database
