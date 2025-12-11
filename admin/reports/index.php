@@ -232,258 +232,252 @@ if (isset($_GET['report'])) {
       echo '</style>';
       echo '</head><body>';
       
-      // Disaster-recovery friendly export:
-      // - Includes stable IDs (transaction id + donor_id when available)
-      // - Includes linkage fields (pledge_id for pledge payments)
-      // - Includes method/reference/date fields for pledge payments
-      // - Works with any date range (all time by default)
+      // Donor-based disaster recovery export:
+      // 1 row per donor (combines donors + pledges + payments + pledge_payments)
+      // - If donor has only paid: show Paid, Pledge=0, Balance=0
+      // - If donor has pledged: show Pledge, Paid, Balance
+      // - Include totals: Total Pledge, Total Paid, Grand Total (Paid + Balance)
       $esc = static function ($v): string {
         return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
       };
 
-      // Detect optional columns for compatibility across deployments
-      $pledgesHasDonorId = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'")->num_rows > 0;
-      $paymentsHasDonorId = $db->query("SHOW COLUMNS FROM payments LIKE 'donor_id'")->num_rows > 0;
-      $paymentsHasNotes = $db->query("SHOW COLUMNS FROM payments LIKE 'notes'")->num_rows > 0;
-      $paymentsHasReceivedAt = $db->query("SHOW COLUMNS FROM payments LIKE 'received_at'")->num_rows > 0;
-
-      $ppHasPledgeId = $hasPledgePayments ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'pledge_id'")->num_rows > 0) : false;
-      $ppHasPaymentMethod = $hasPledgePayments ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_method'")->num_rows > 0) : false;
-      $ppHasReferenceNumber = $hasPledgePayments ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'reference_number'")->num_rows > 0) : false;
-      $ppHasPaymentDate = $hasPledgePayments ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_date'")->num_rows > 0) : false;
-
-      $ppHasApprovedBy = $hasPledgePayments ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'approved_by_user_id'")->num_rows > 0) : false;
-      $ppHasVoidedBy = $hasPledgePayments ? ($db->query("SHOW COLUMNS FROM pledge_payments LIKE 'voided_by_user_id'")->num_rows > 0) : false;
-
-      $reportCurrency = $currency; // already escaped above
+      $reportCurrency = $currency;
       $generatedAt = date('Y-m-d H:i:s');
       
+      // Detect optional columns for compatibility across deployments
+      $hasDonorsTable = $db->query("SHOW TABLES LIKE 'donors'")->num_rows > 0;
+      $pledgesHasDonorId = $db->query("SHOW COLUMNS FROM pledges LIKE 'donor_id'")->num_rows > 0;
+      $paymentsHasDonorId = $db->query("SHOW COLUMNS FROM payments LIKE 'donor_id'")->num_rows > 0;
+      $paymentsHasReceivedAt = $db->query("SHOW COLUMNS FROM payments LIKE 'received_at'")->num_rows > 0;
+
+      // 1) Load donors (base list)
+      $donors = [];
+      if ($hasDonorsTable) {
+        $donorRes = $db->query("SELECT id, name, phone, email FROM donors ORDER BY name ASC, id ASC");
+        while ($d = $donorRes->fetch_assoc()) {
+          $id = (int)$d['id'];
+          $donors[$id] = [
+            'donor_id' => $id,
+            'name' => $d['name'] ?? '',
+            'phone' => $d['phone'] ?? '',
+            'email' => $d['email'] ?? '',
+            'pledge' => 0.0,
+            'paid' => 0.0,
+          ];
+        }
+      }
+
+      // 2) Aggregate pledges by donor_id (approved only)
+      if ($pledgesHasDonorId) {
+        $plStmt = $db->prepare("
+          SELECT donor_id, COALESCE(SUM(amount),0) AS total
+          FROM pledges
+          WHERE status='approved' AND donor_id IS NOT NULL AND donor_id <> 0
+            AND created_at BETWEEN ? AND ?
+          GROUP BY donor_id
+        ");
+        $plStmt->bind_param('ss', $fromDate, $toDate);
+        $plStmt->execute();
+        $plRes = $plStmt->get_result();
+        while ($r = $plRes->fetch_assoc()) {
+          $did = (int)$r['donor_id'];
+          $amt = (float)$r['total'];
+          if (!isset($donors[$did])) {
+            $donors[$did] = ['donor_id'=>$did,'name'=>'','phone'=>'','email'=>'','pledge'=>0.0,'paid'=>0.0];
+          }
+          $donors[$did]['pledge'] += $amt;
+        }
+        $plStmt->close();
+      }
+
+      // 3) Aggregate payments by donor_id (approved only)
+      if ($paymentsHasDonorId) {
+        $dateCol = $paymentsHasReceivedAt ? 'received_at' : 'created_at';
+        $payStmt = $db->prepare("
+          SELECT donor_id, COALESCE(SUM(amount),0) AS total
+          FROM payments
+          WHERE status='approved' AND donor_id IS NOT NULL AND donor_id <> 0
+            AND {$dateCol} BETWEEN ? AND ?
+          GROUP BY donor_id
+        ");
+        $payStmt->bind_param('ss', $fromDate, $toDate);
+        $payStmt->execute();
+        $payRes = $payStmt->get_result();
+        while ($r = $payRes->fetch_assoc()) {
+          $did = (int)$r['donor_id'];
+          $amt = (float)$r['total'];
+          if (!isset($donors[$did])) {
+            $donors[$did] = ['donor_id'=>$did,'name'=>'','phone'=>'','email'=>'','pledge'=>0.0,'paid'=>0.0];
+          }
+          $donors[$did]['paid'] += $amt;
+        }
+        $payStmt->close();
+      }
+
+      // 4) Aggregate pledge_payments by donor_id (confirmed only)
+      if ($hasPledgePayments) {
+        $ppStmt = $db->prepare("
+          SELECT donor_id, COALESCE(SUM(amount),0) AS total
+          FROM pledge_payments
+          WHERE status='confirmed' AND donor_id IS NOT NULL AND donor_id <> 0
+            AND created_at BETWEEN ? AND ?
+          GROUP BY donor_id
+        ");
+        $ppStmt->bind_param('ss', $fromDate, $toDate);
+        $ppStmt->execute();
+        $ppRes = $ppStmt->get_result();
+        while ($r = $ppRes->fetch_assoc()) {
+          $did = (int)$r['donor_id'];
+          $amt = (float)$r['total'];
+          if (!isset($donors[$did])) {
+            $donors[$did] = ['donor_id'=>$did,'name'=>'','phone'=>'','email'=>'','pledge'=>0.0,'paid'=>0.0];
+          }
+          $donors[$did]['paid'] += $amt;
+        }
+        $ppStmt->close();
+      }
+
+      // 5) Add "unlinked donors" from pledges/payments where donor_id isn't stored (group by name/phone/email)
+      $unlinked = [];
+      $makeKey = static function ($name, $phone, $email): string {
+        return trim((string)$name) . '|' . trim((string)$phone) . '|' . trim((string)$email);
+      };
+
+      if (!$pledgesHasDonorId) {
+        // still capture pledges by donor fields
+        $uplStmt = $db->prepare("
+          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          FROM pledges
+          WHERE status='approved' AND created_at BETWEEN ? AND ?
+          GROUP BY donor_name, donor_phone, donor_email
+        ");
+      } else {
+        $uplStmt = $db->prepare("
+          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          FROM pledges
+          WHERE status='approved' AND (donor_id IS NULL OR donor_id = 0)
+            AND created_at BETWEEN ? AND ?
+          GROUP BY donor_name, donor_phone, donor_email
+        ");
+      }
+      $uplStmt->bind_param('ss', $fromDate, $toDate);
+      $uplStmt->execute();
+      $uplRes = $uplStmt->get_result();
+      while ($r = $uplRes->fetch_assoc()) {
+        $key = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '', $r['donor_email'] ?? '');
+        if (!isset($unlinked[$key])) {
+          $unlinked[$key] = ['donor_id'=>'','name'=>$r['donor_name'] ?? '','phone'=>$r['donor_phone'] ?? '','email'=>$r['donor_email'] ?? '','pledge'=>0.0,'paid'=>0.0];
+        }
+        $unlinked[$key]['pledge'] += (float)($r['total'] ?? 0);
+      }
+      $uplStmt->close();
+
+      $payDateCol = $paymentsHasReceivedAt ? 'received_at' : 'created_at';
+      if (!$paymentsHasDonorId) {
+        $upayStmt = $db->prepare("
+          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          FROM payments
+          WHERE status='approved' AND {$payDateCol} BETWEEN ? AND ?
+          GROUP BY donor_name, donor_phone, donor_email
+        ");
+      } else {
+        $upayStmt = $db->prepare("
+          SELECT donor_name, donor_phone, donor_email, COALESCE(SUM(amount),0) AS total
+          FROM payments
+          WHERE status='approved' AND (donor_id IS NULL OR donor_id = 0)
+            AND {$payDateCol} BETWEEN ? AND ?
+          GROUP BY donor_name, donor_phone, donor_email
+        ");
+      }
+      $upayStmt->bind_param('ss', $fromDate, $toDate);
+      $upayStmt->execute();
+      $upayRes = $upayStmt->get_result();
+      while ($r = $upayRes->fetch_assoc()) {
+        $key = $makeKey($r['donor_name'] ?? '', $r['donor_phone'] ?? '', $r['donor_email'] ?? '');
+        if (!isset($unlinked[$key])) {
+          $unlinked[$key] = ['donor_id'=>'','name'=>$r['donor_name'] ?? '','phone'=>$r['donor_phone'] ?? '','email'=>$r['donor_email'] ?? '','pledge'=>0.0,'paid'=>0.0];
+        }
+        $unlinked[$key]['paid'] += (float)($r['total'] ?? 0);
+      }
+      $upayStmt->close();
+
+      // Merge donors + unlinked into one list, then output
+      $rows = array_values($donors);
+      foreach ($unlinked as $u) {
+        // Skip rows that are truly empty
+        if (($u['name'] ?? '') === '' && ($u['phone'] ?? '') === '' && ($u['email'] ?? '') === '') {
+          continue;
+        }
+        $rows[] = $u;
+      }
+
+      // Sort: pledged donors first, then by name/phone
+      usort($rows, static function ($a, $b) {
+        $ap = (float)($a['pledge'] ?? 0);
+        $bp = (float)($b['pledge'] ?? 0);
+        if (($ap > 0) !== ($bp > 0)) {
+          return ($ap > 0) ? -1 : 1;
+        }
+        $an = strtolower(trim((string)($a['name'] ?? '')));
+        $bn = strtolower(trim((string)($b['name'] ?? '')));
+        if ($an !== $bn) return $an <=> $bn;
+        $aph = strtolower(trim((string)($a['phone'] ?? '')));
+        $bph = strtolower(trim((string)($b['phone'] ?? '')));
+        return $aph <=> $bph;
+      });
+
+      $totalPledge = 0.0;
+      $totalPaid = 0.0;
+      $totalBalance = 0.0;
+
       echo '<table>';
-      echo '<tr><th colspan="18">All Donations Backup Export</th></tr>';
-      echo '<tr><td colspan="18"><strong>Generated at:</strong> ' . $esc($generatedAt) . ' | <strong>Range:</strong> ' . $esc($fromDate) . ' → ' . $esc($toDate) . '</td></tr>';
-      echo '<tr><td colspan="18">&nbsp;</td></tr>';
+      echo '<tr><th colspan="7">All Donations Backup (Donor Summary)</th></tr>';
+      echo '<tr><td colspan="7"><strong>Generated at:</strong> ' . $esc($generatedAt) . ' | <strong>Range:</strong> ' . $esc($fromDate) . ' → ' . $esc($toDate) . '</td></tr>';
+      echo '<tr><td colspan="7">&nbsp;</td></tr>';
       echo '<tr>';
       echo '<th>#</th>';
-      echo '<th>Source Table</th>';
-      echo '<th>Donation Type</th>';
-      echo '<th>Transaction ID</th>';
-      echo '<th>Related Pledge ID</th>';
       echo '<th>Donor ID</th>';
-      echo '<th>Donor Name</th>';
+      echo '<th>Name</th>';
       echo '<th>Phone</th>';
       echo '<th>Email</th>';
-      echo '<th class="number">Amount (' . $esc($reportCurrency) . ')</th>';
-      echo '<th>Status</th>';
-      echo '<th>Method</th>';
-      echo '<th>Reference</th>';
-      echo '<th>Notes</th>';
-      echo '<th>Package</th>';
-      echo '<th>Transaction Date</th>';
-      echo '<th>Recorded By</th>';
-      echo '<th>Recorded By User ID</th>';
+      echo '<th class="number">Pledge (' . $esc($reportCurrency) . ')</th>';
+      echo '<th class="number">Paid (' . $esc($reportCurrency) . ')</th>';
+      echo '<th class="number">Balance (' . $esc($reportCurrency) . ')</th>';
       echo '</tr>';
-      
-      $rowNumber = 1;
-      $countPledges = 0;
-      $countPayments = 0;
-      $countPledgePayments = 0;
-      
-      // Pledges
-      $pledgeDonorIdSelect = $pledgesHasDonorId ? "p.donor_id" : "NULL";
-      $pledgesStmt = $db->prepare("
-        SELECT
-          p.id,
-          {$pledgeDonorIdSelect} AS donor_id,
-          p.donor_name,
-          p.donor_phone,
-          p.donor_email,
-          p.amount,
-          p.status,
-          p.notes,
-          dp.label AS package_label,
-          p.created_at AS transaction_date,
-          u.name AS recorded_by,
-          p.created_by_user_id AS recorded_by_user_id,
-          p.anonymous
-        FROM pledges p
-        LEFT JOIN donation_packages dp ON dp.id = p.package_id
-        LEFT JOIN users u ON u.id = p.created_by_user_id
-        WHERE p.created_at BETWEEN ? AND ?
-        ORDER BY p.created_at DESC
-      ");
-      $pledgesStmt->bind_param('ss', $fromDate, $toDate);
-      $pledgesStmt->execute();
-      $pledgesResult = $pledgesStmt->get_result();
-      while ($pledge = $pledgesResult->fetch_assoc()) {
-        $countPledges++;
-        $donorName = ($pledge['anonymous'] ?? 0) ? 'Anonymous' : ($pledge['donor_name'] ?: 'Anonymous');
+
+      $i = 1;
+      foreach ($rows as $row) {
+        $pledge = (float)($row['pledge'] ?? 0);
+        $paid = (float)($row['paid'] ?? 0);
+        $balance = max($pledge - $paid, 0);
+
+        $totalPledge += $pledge;
+        $totalPaid += $paid;
+        $totalBalance += $balance;
+
         echo '<tr>';
-        echo '<td>' . $rowNumber++ . '</td>';
-        echo '<td>pledges</td>';
-        echo '<td>Pledge</td>';
-        echo '<td>' . $esc($pledge['id']) . '</td>';
-        echo '<td></td>';
-        echo '<td>' . $esc($pledge['donor_id'] ?? '') . '</td>';
-        echo '<td>' . $esc($donorName) . '</td>';
-        echo '<td>' . $esc($pledge['donor_phone'] ?? '') . '</td>';
-        echo '<td>' . $esc($pledge['donor_email'] ?? '') . '</td>';
-        echo '<td class="number">' . number_format((float)($pledge['amount'] ?? 0), 2) . '</td>';
-        echo '<td>' . $esc($pledge['status'] ?? '') . '</td>';
-        echo '<td></td>';
-        echo '<td></td>';
-        echo '<td>' . $esc($pledge['notes'] ?? '') . '</td>';
-        echo '<td>' . $esc($pledge['package_label'] ?: 'Custom') . '</td>';
-        echo '<td>' . $esc($pledge['transaction_date'] ?? '') . '</td>';
-        echo '<td>' . $esc($pledge['recorded_by'] ?: 'Self Pledged') . '</td>';
-        echo '<td>' . $esc($pledge['recorded_by_user_id'] ?? '') . '</td>';
+        echo '<td>' . $i++ . '</td>';
+        echo '<td>' . $esc($row['donor_id'] ?? '') . '</td>';
+        echo '<td>' . $esc($row['name'] ?? '') . '</td>';
+        echo '<td>' . $esc($row['phone'] ?? '') . '</td>';
+        echo '<td>' . $esc($row['email'] ?? '') . '</td>';
+        echo '<td class="number">' . number_format($pledge, 2) . '</td>';
+        echo '<td class="number">' . number_format($paid, 2) . '</td>';
+        echo '<td class="number">' . number_format($balance, 2) . '</td>';
         echo '</tr>';
       }
-      $pledgesStmt->close();
-      
-      // Payments
-      $paymentDonorIdSelect = $paymentsHasDonorId ? "p.donor_id" : "NULL";
-      $paymentNotesSelect = $paymentsHasNotes ? "p.notes" : "''";
-      $paymentDateCol = $paymentsHasReceivedAt ? "p.received_at" : "p.created_at";
-      $paymentsStmt = $db->prepare("
-        SELECT
-          p.id,
-          {$paymentDonorIdSelect} AS donor_id,
-          p.donor_name,
-          p.donor_phone,
-          p.donor_email,
-          p.amount,
-          p.status,
-          p.method,
-          p.reference,
-          {$paymentNotesSelect} AS notes,
-          dp.label AS package_label,
-          {$paymentDateCol} AS transaction_date,
-          u.name AS recorded_by,
-          p.received_by_user_id AS recorded_by_user_id
-        FROM payments p
-        LEFT JOIN donation_packages dp ON dp.id = p.package_id
-        LEFT JOIN users u ON u.id = p.received_by_user_id
-        WHERE {$paymentDateCol} BETWEEN ? AND ?
-        ORDER BY {$paymentDateCol} DESC
-      ");
-      $paymentsStmt->bind_param('ss', $fromDate, $toDate);
-      $paymentsStmt->execute();
-      $paymentsResult = $paymentsStmt->get_result();
-      while ($payment = $paymentsResult->fetch_assoc()) {
-        $countPayments++;
-        echo '<tr>';
-        echo '<td>' . $rowNumber++ . '</td>';
-        echo '<td>payments</td>';
-        echo '<td>Payment</td>';
-        echo '<td>' . $esc($payment['id']) . '</td>';
-        echo '<td></td>';
-        echo '<td>' . $esc($payment['donor_id'] ?? '') . '</td>';
-        echo '<td>' . $esc($payment['donor_name'] ?: 'Anonymous') . '</td>';
-        echo '<td>' . $esc($payment['donor_phone'] ?? '') . '</td>';
-        echo '<td>' . $esc($payment['donor_email'] ?? '') . '</td>';
-        echo '<td class="number">' . number_format((float)($payment['amount'] ?? 0), 2) . '</td>';
-        echo '<td>' . $esc($payment['status'] ?? '') . '</td>';
-        echo '<td>' . $esc($payment['method'] ?? '') . '</td>';
-        echo '<td>' . $esc($payment['reference'] ?? '') . '</td>';
-        echo '<td>' . $esc($payment['notes'] ?? '') . '</td>';
-        echo '<td>' . $esc($payment['package_label'] ?: 'Custom') . '</td>';
-        echo '<td>' . $esc($payment['transaction_date'] ?? '') . '</td>';
-        echo '<td>' . $esc($payment['recorded_by'] ?: 'Direct') . '</td>';
-        echo '<td>' . $esc($payment['recorded_by_user_id'] ?? '') . '</td>';
-        echo '</tr>';
-      }
-      $paymentsStmt->close();
 
-      // Get pledge payments
-      // Note: $hasPledgePayments already set from FinancialCalculator at top of file
-      if ($hasPledgePayments) {
-          $ppPledgeIdSelect = $ppHasPledgeId ? "pp.pledge_id" : "NULL";
-          $ppMethodSelect = $ppHasPaymentMethod ? "pp.payment_method" : "''";
-          $ppRefSelect = $ppHasReferenceNumber ? "pp.reference_number" : "''";
-          $ppDateSelect = $ppHasPaymentDate ? "COALESCE(pp.payment_date, pp.created_at)" : "pp.created_at";
+      $grandTotalForBackup = $totalPaid + $totalBalance;
+      echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
+      echo '<td colspan="5" style="text-align:right;"><strong>Totals:</strong></td>';
+      echo '<td class="number"><strong>' . number_format($totalPledge, 2) . '</strong></td>';
+      echo '<td class="number"><strong>' . number_format($totalPaid, 2) . '</strong></td>';
+      echo '<td class="number"><strong>' . number_format($totalBalance, 2) . '</strong></td>';
+      echo '</tr>';
+      echo '<tr style="background-color: #eef2ff; font-weight: bold;">';
+      echo '<td colspan="7" style="text-align:right;"><strong>Grand Total (Paid + Balance):</strong> ' . number_format($grandTotalForBackup, 2) . '</td>';
+      echo '</tr>';
 
-          $ppApprovedJoin = $ppHasApprovedBy ? "LEFT JOIN users approver ON pp.approved_by_user_id = approver.id" : "";
-          $ppApprovedSelect = $ppHasApprovedBy ? "approver.name AS approved_by" : "'' AS approved_by";
-          $ppVoidedJoin = $ppHasVoidedBy ? "LEFT JOIN users voider ON pp.voided_by_user_id = voider.id" : "";
-          $ppVoidedSelect = $ppHasVoidedBy ? "voider.name AS voided_by" : "'' AS voided_by";
-
-          $ppStmt = $db->prepare("
-            SELECT
-              pp.id,
-              {$ppPledgeIdSelect} AS pledge_id,
-              pp.donor_id,
-              COALESCE(d.name, 'Unknown') AS donor_name,
-              COALESCE(d.phone, '') AS donor_phone,
-              COALESCE(d.email, '') AS donor_email,
-              pp.amount,
-              pp.status,
-              pp.notes,
-              {$ppMethodSelect} AS method,
-              {$ppRefSelect} AS reference,
-              {$ppDateSelect} AS transaction_date,
-              COALESCE(u.name, 'Admin') AS recorded_by,
-              pp.processed_by_user_id AS recorded_by_user_id,
-              {$ppApprovedSelect},
-              {$ppVoidedSelect}
-            FROM pledge_payments pp
-            LEFT JOIN donors d ON d.id = pp.donor_id
-            LEFT JOIN users u ON u.id = pp.processed_by_user_id
-            {$ppApprovedJoin}
-            {$ppVoidedJoin}
-            WHERE {$ppDateSelect} BETWEEN ? AND ?
-            ORDER BY {$ppDateSelect} DESC
-          ");
-          $ppStmt->bind_param('ss', $fromDate, $toDate);
-          $ppStmt->execute();
-          $ppResult = $ppStmt->get_result();
-          while ($pp = $ppResult->fetch_assoc()) {
-            $countPledgePayments++;
-            echo '<tr>';
-            echo '<td>' . $rowNumber++ . '</td>';
-            echo '<td>pledge_payments</td>';
-            echo '<td>Pledge Payment</td>';
-            echo '<td>' . $esc($pp['id']) . '</td>';
-            echo '<td>' . $esc($pp['pledge_id'] ?? '') . '</td>';
-            echo '<td>' . $esc($pp['donor_id'] ?? '') . '</td>';
-            echo '<td>' . $esc($pp['donor_name'] ?? 'Unknown') . '</td>';
-            echo '<td>' . $esc($pp['donor_phone'] ?? '') . '</td>';
-            echo '<td>' . $esc($pp['donor_email'] ?? '') . '</td>';
-            echo '<td class="number">' . number_format((float)($pp['amount'] ?? 0), 2) . '</td>';
-            echo '<td>' . $esc($pp['status'] ?? '') . '</td>';
-            echo '<td>' . $esc($pp['method'] ?? '') . '</td>';
-            echo '<td>' . $esc($pp['reference'] ?? '') . '</td>';
-            // Include additional recovery hints in Notes if available (approved/voided by)
-            $noteBits = [];
-            $rawNotes = $pp['notes'] ?? '';
-            if ($rawNotes !== '') {
-              $noteBits[] = $rawNotes;
-            }
-            if (!empty($pp['approved_by'])) {
-              $noteBits[] = 'Approved by: ' . $pp['approved_by'];
-            }
-            if (!empty($pp['voided_by'])) {
-              $noteBits[] = 'Voided by: ' . $pp['voided_by'];
-            }
-            echo '<td>' . $esc(implode(' | ', $noteBits)) . '</td>';
-            echo '<td>Pledge Fulfillment</td>';
-            echo '<td>' . $esc($pp['transaction_date'] ?? '') . '</td>';
-            echo '<td>' . $esc($pp['recorded_by'] ?? 'Admin') . '</td>';
-            echo '<td>' . $esc($pp['recorded_by_user_id'] ?? '') . '</td>';
-            echo '</tr>';
-          }
-          $ppStmt->close();
-      }
-      
-      echo '</table>';
-
-      // Summary (counts only, to avoid mixing pledges + payments totals)
-      echo '<br>';
-      echo '<table>';
-      echo '<tr><th colspan="2">Export Summary</th></tr>';
-      echo '<tr><td>Pledges rows</td><td class="number">' . number_format($countPledges) . '</td></tr>';
-      echo '<tr><td>Payments rows</td><td class="number">' . number_format($countPayments) . '</td></tr>';
-      echo '<tr><td>Pledge payments rows</td><td class="number">' . number_format($countPledgePayments) . '</td></tr>';
-      echo '<tr><td><strong>Total rows</strong></td><td class="number"><strong>' . number_format($countPledges + $countPayments + $countPledgePayments) . '</strong></td></tr>';
       echo '</table>';
 
       echo '</body></html>';
