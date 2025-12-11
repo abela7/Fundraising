@@ -150,27 +150,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $selected_ids = array_map('intval', $selected_ids);
             $count = 0;
             $errors = [];
+            $skipped = 0;
             
             $db->begin_transaction();
             try {
                 foreach ($selected_ids as $id) {
+                    // Check validation first, skip if invalid
+                    $validation_error = null;
+                    
                     // Prevent self-deletion or self-deactivation
                     if ($id === (int)($_SESSION['user']['id'] ?? 0) && in_array($bulk_action, ['delete', 'activate', 'deactivate'])) {
-                        $errors[] = "Cannot modify your own account";
+                        $validation_error = 'Your own account';
+                    }
+                    
+                    if ($validation_error === null) {
+                        // Get before data for audit
+                        $before_stmt = $db->prepare('SELECT name, role, active FROM users WHERE id = ?');
+                        $before_stmt->bind_param('i', $id);
+                        $before_stmt->execute();
+                        $beforeData = $before_stmt->get_result()->fetch_assoc();
+                        $before_stmt->close();
+                        
+                        if (!$beforeData) {
+                            $validation_error = "ID #{$id} not found";
+                        }
+                    }
+                    
+                    // Skip to next iteration if validation failed
+                    if ($validation_error !== null) {
+                        $errors[] = $validation_error;
+                        $skipped++;
                         continue;
                     }
                     
-                    // Get before data for audit
-                    $before_stmt = $db->prepare('SELECT name, role, active FROM users WHERE id = ?');
-                    $before_stmt->bind_param('i', $id);
-                    $before_stmt->execute();
-                    $beforeData = $before_stmt->get_result()->fetch_assoc();
-                    $before_stmt->close();
-                    
-                    if (!$beforeData) {
-                        continue;
-                    }
-                    
+                    // Perform action
                     switch ($bulk_action) {
                         case 'activate':
                             $db->query("UPDATE users SET active=1 WHERE id=$id");
@@ -204,8 +217,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $result = $check_stmt->get_result()->fetch_assoc();
                             
                             if ($result['count'] > 0) {
-                                $errors[] = "Cannot delete {$beforeData['name']}: Has associated pledge approvals";
-                                continue;
+                                $errors[] = "{$beforeData['name']}: {$result['count']} pledge approval(s)";
+                                $skipped++;
+                                break;
                             }
                             
                             $check_stmt = $db->prepare('SELECT COUNT(*) as count FROM payments WHERE received_by_user_id = ?');
@@ -214,8 +228,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $result = $check_stmt->get_result()->fetch_assoc();
                             
                             if ($result['count'] > 0) {
-                                $errors[] = "Cannot delete {$beforeData['name']}: Has associated payment records";
-                                continue;
+                                $errors[] = "{$beforeData['name']}: {$result['count']} payment record(s)";
+                                $skipped++;
+                                break;
                             }
                             
                             // Delete registrar application if exists
@@ -240,7 +255,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                $db->commit();
+                // Commit only if we processed something
+                if ($count > 0 || $skipped > 0) {
+                    $db->commit();
+                } else {
+                    $db->rollback();
+                }
                 
                 $action_names = [
                     'activate' => 'activated',
@@ -250,13 +270,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'delete' => 'deleted'
                 ];
                 
+                // Build result message
                 $msg = "$count member(s) " . ($action_names[$bulk_action] ?? 'updated');
+                if ($skipped > 0) {
+                    $msg .= " ($skipped skipped)";
+                }
                 if (!empty($errors)) {
-                    $msg .= '. ' . implode('. ', array_slice($errors, 0, 3));
+                    $msg .= '. Failed: ' . implode('; ', array_slice($errors, 0, 5));
                 }
             } catch (Exception $e) {
                 $db->rollback();
-                $msg = 'Error: ' . $e->getMessage();
+                $msg = 'Error: Transaction rolled back. ' . $e->getMessage();
             }
         }
     } elseif ($action === 'permanent_delete') {
