@@ -721,8 +721,13 @@ function formatDateTime($date) {
                     <a href="donors.php" class="btn btn-outline-secondary btn-lg">
                         <i class="fas fa-arrow-left me-2"></i>Back to Donor List
                     </a>
-                    <div class="text-muted small">
-                        <i class="fas fa-info-circle me-1"></i>Reference: #<?php echo htmlspecialchars($donor_reference); ?>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="message-history.php?donor_id=<?= $donor_id ?>" class="btn btn-info btn-lg">
+                            <i class="fas fa-envelope me-2"></i>Message History
+                        </a>
+                        <div class="text-muted small">
+                            <i class="fas fa-info-circle me-1"></i>Reference: #<?php echo htmlspecialchars($donor_reference); ?>
+                        </div>
                     </div>
                 </div>
 
