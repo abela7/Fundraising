@@ -13,25 +13,46 @@ require_once __DIR__ . '/../../services/MessagingHelper.php';
 
 require_admin();
 
+// #region agent log
+file_put_contents('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', json_encode(['sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'A','location'=>'message-history.php:14','message'=>'Page load started','data'=>['hasGetSearch'=>isset($_GET['search']),'hasGetDonorId'=>isset($_GET['donor_id'])],'timestamp'=>time()*1000])."\n", FILE_APPEND);
+// #endregion
+
 $db = db();
 $msg = new MessagingHelper($db);
+
+// #region agent log
+file_put_contents('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', json_encode(['sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'B','location'=>'message-history.php:18','message'=>'DB and MessagingHelper initialized','data'=>['dbConnected'=>($db!==null),'msgHelperCreated'=>($msg!==null)],'timestamp'=>time()*1000])."\n", FILE_APPEND);
+// #endregion
 
 // Get search term
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 $donorId = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
 
+// #region agent log
+file_put_contents('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', json_encode(['sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'C','location'=>'message-history.php:22','message'=>'Search params parsed','data'=>['search_term'=>$search_term,'donorId'=>$donorId],'timestamp'=>time()*1000])."\n", FILE_APPEND);
+// #endregion
+
 // Get donor info if ID provided
 $donor = null;
 if ($donorId) {
+    // #region agent log
+    file_put_contents('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', json_encode(['sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'D','location'=>'message-history.php:26','message'=>'Fetching donor by ID','data'=>['donorId'=>$donorId],'timestamp'=>time()*1000])."\n", FILE_APPEND);
+    // #endregion
     $stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ?");
     $stmt->bind_param('i', $donorId);
     $stmt->execute();
     $donor = $stmt->get_result()->fetch_assoc();
+    // #region agent log
+    file_put_contents('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', json_encode(['sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'D','location'=>'message-history.php:30','message'=>'Donor fetched','data'=>['donorFound'=>($donor!==null),'donorName'=>$donor['name']??'null'],'timestamp'=>time()*1000])."\n", FILE_APPEND);
+    // #endregion
 }
 
 // Search for donors if search term provided
 $search_results = [];
 if (!empty($search_term) && !$donorId) {
+    // #region agent log
+    file_put_contents('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', json_encode(['sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'E','location'=>'message-history.php:35','message'=>'Starting donor search','data'=>['search_term'=>$search_term],'timestamp'=>time()*1000])."\n", FILE_APPEND);
+    // #endregion
     $search_param = "%{$search_term}%";
     
     // Check payment table columns for reference field
@@ -155,6 +176,7 @@ if ($donorId && $donor) {
     <title>Message History<?= $donor ? ' - ' . htmlspecialchars($donor['name']) : '' ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../assets/admin.css">
     <style>
         body {
             background-color: #f8f9fa;
@@ -700,5 +722,10 @@ if ($donorId && $donor) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<?php
+// #region agent log
+file_put_contents('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', json_encode(['sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'F','location'=>'message-history.php:end','message'=>'Page render completed','data'=>['hasDonor'=>($donor!==null),'hasMessages'=>!empty($messages),'searchResultsCount'=>count($search_results)],'timestamp'=>time()*1000])."\n", FILE_APPEND);
+// #endregion
+?>
 </body>
 </html>
