@@ -22,19 +22,28 @@ $dateFrom= trim((string)($_GET['from'] ?? ''));
 $dateTo  = trim((string)($_GET['to'] ?? ''));
 $q       = trim((string)($_GET['q'] ?? ''));
 
+// Validate & sanitize search query
+$q_valid = false;
+if ($q !== '') {
+  $q = substr($q, 0, 100); // Limit length to prevent DoS
+  if (strlen($q) >= 2) { // Require at least 2 chars
+    $q_valid = true;
+  }
+}
+
 $wheres = [];$params=[];$types='';
 if ($action !== '') { $wheres[] = 'al.action = ?'; $params[] = $action; $types.='s'; }
 if ($userId > 0)   { $wheres[] = 'al.user_id = ?'; $params[] = $userId; $types.='i'; }
 if ($dateFrom !== '') { $wheres[] = 'al.created_at >= ?'; $params[] = $dateFrom.' 00:00:00'; $types.='s'; }
 if ($dateTo   !== '') { $wheres[] = 'al.created_at <= ?'; $params[] = $dateTo.' 23:59:59'; $types.='s'; }
-if ($q !== '') {
-  $wheres[] = '(
-    al.entity_type LIKE CONCAT("%", ?, "%") OR
-    al.action      LIKE CONCAT("%", ?, "%") OR
-    CAST(al.before_json AS CHAR) LIKE CONCAT("%", ?, "%") OR
-    CAST(al.after_json  AS CHAR) LIKE CONCAT("%", ?, "%")
-  )';
-  for ($i=0;$i<4;$i++){ $params[]=$q; $types.='s'; }
+
+// Only search indexed fields (entity_type, action) - avoid expensive JSON casting
+if ($q_valid) {
+  $wheres[] = '(al.entity_type LIKE ? OR al.action LIKE ?)';
+  $searchTerm = '%' . $q . '%';
+  $params[] = $searchTerm;
+  $params[] = $searchTerm;
+  $types.='ss';
 }
 $whereSql = $wheres ? ('WHERE '.implode(' AND ',$wheres)) : '';
 
@@ -238,7 +247,7 @@ $statLogins = $db->query("SELECT COUNT(*) AS c FROM audit_logs WHERE action='log
                                     </div>
                                     <div class="col-lg-2 col-md-6">
                                         <label class="form-label fw-bold">From Date</label>
-                                        <input type="date" class="form-control" name="from" id="dateFrom" value="<?php echo h($dateFrom ?: date('Y-m-d', strtotime('-7 days'))); ?>" onchange="document.getElementById('auditFilterForm').submit();">
+                                        <input type="date" class="form-control" name="from" id="dateFrom" value="<?php echo h($dateFrom ?: date('Y-m-d', strtotime('-30 days'))); ?>" onchange="document.getElementById('auditFilterForm').submit();">
                                     </div>
                                     <div class="col-lg-2 col-md-6">
                                         <label class="form-label fw-bold">To Date</label>
@@ -255,14 +264,17 @@ $statLogins = $db->query("SELECT COUNT(*) AS c FROM audit_logs WHERE action='log
                                 </div>
                                 <div class="row mt-3">
                                     <div class="col-md-8">
-                                        <label class="form-label fw-bold">Search</label>
+                                        <label class="form-label fw-bold">Search <small class="text-muted">(min 2 chars, searches action &amp; entity type)</small></label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="fas fa-search"></i></span>
-                                            <input type="text" class="form-control" name="q" id="searchLogs" placeholder="Search actions, entities, or JSON data..." value="<?php echo h($q); ?>">
-                                            <button type="submit" class="btn btn-primary">
+                                            <input type="text" class="form-control" name="q" id="searchLogs" placeholder="Search actions or entity type..." value="<?php echo h($q); ?>" maxlength="100">
+                                            <button type="submit" class="btn btn-primary" <?php echo strlen($q) > 0 && strlen($q) < 2 ? 'disabled' : ''; ?>>
                                                 <i class="fas fa-search"></i>
                                             </button>
                                         </div>
+                                        <?php if ($q && !$q_valid): ?>
+                                            <small class="text-warning d-block mt-1"><i class="fas fa-exclamation-triangle me-1"></i>Search requires at least 2 characters</small>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Quick Filters</label>
