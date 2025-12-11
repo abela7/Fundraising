@@ -12,7 +12,7 @@ require_once __DIR__ . '/../../shared/csrf.php';
 
 require_admin();
 
-$db = get_db_connection();
+$db = db();
 $executionLog = [];
 $hasErrors = false;
 

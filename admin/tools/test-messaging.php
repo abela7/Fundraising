@@ -6,18 +6,84 @@
  * Run this from admin panel: /admin/tools/test-messaging.php
  */
 
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../services/MessagingHelper.php';
 
+// #region agent log
+file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => 'run1',
+    'hypothesisId' => 'A',
+    'location' => 'test-messaging.php:17',
+    'message' => 'File loaded, checking auth',
+    'data' => ['script' => __FILE__],
+    'timestamp' => time() * 1000
+]) . "\n", FILE_APPEND);
+// #endregion
+
 // Check authentication
-$current_user = get_current_user();
-if (!$current_user || $current_user['role'] !== 'admin') {
-    die('Access denied. Admin only.');
+require_admin();
+
+// #region agent log
+file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => 'run1',
+    'hypothesisId' => 'B',
+    'location' => 'test-messaging.php:25',
+    'message' => 'Auth passed, getting DB connection',
+    'data' => [],
+    'timestamp' => time() * 1000
+]) . "\n", FILE_APPEND);
+// #endregion
+
+$db = db();
+
+// #region agent log
+file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => 'run1',
+    'hypothesisId' => 'C',
+    'location' => 'test-messaging.php:30',
+    'message' => 'DB connection obtained, creating MessagingHelper',
+    'data' => ['db_connected' => $db !== null],
+    'timestamp' => time() * 1000
+]) . "\n", FILE_APPEND);
+// #endregion
+
+try {
+    $msg = new MessagingHelper($db);
+    
+    // #region agent log
+    file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+        'sessionId' => 'debug-session',
+        'runId' => 'run1',
+        'hypothesisId' => 'D',
+        'location' => 'test-messaging.php:38',
+        'message' => 'MessagingHelper created successfully',
+        'data' => ['initialized' => true],
+        'timestamp' => time() * 1000
+    ]) . "\n", FILE_APPEND);
+    // #endregion
+} catch (Exception $e) {
+    // #region agent log
+    file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+        'sessionId' => 'debug-session',
+        'runId' => 'run1',
+        'hypothesisId' => 'E',
+        'location' => 'test-messaging.php:45',
+        'message' => 'MessagingHelper creation failed',
+        'data' => ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()],
+        'timestamp' => time() * 1000
+    ]) . "\n", FILE_APPEND);
+    // #endregion
+    
+    die('Error initializing messaging system: ' . htmlspecialchars($e->getMessage()));
 }
 
-$db = get_db_connection();
-$msg = new MessagingHelper($db);
+$current_user = current_user();
 
 ?>
 <!DOCTYPE html>
@@ -40,7 +106,47 @@ $msg = new MessagingHelper($db);
                     </div>
                     <div class="card-body">
                         <?php
-                        $status = $msg->getStatus();
+                        // #region agent log
+                        file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+                            'sessionId' => 'debug-session',
+                            'runId' => 'run1',
+                            'hypothesisId' => 'F',
+                            'location' => 'test-messaging.php:50',
+                            'message' => 'Calling getStatus()',
+                            'data' => [],
+                            'timestamp' => time() * 1000
+                        ]) . "\n", FILE_APPEND);
+                        // #endregion
+                        
+                        try {
+                            $status = $msg->getStatus();
+                            
+                            // #region agent log
+                            file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+                                'sessionId' => 'debug-session',
+                                'runId' => 'run1',
+                                'hypothesisId' => 'F',
+                                'location' => 'test-messaging.php:58',
+                                'message' => 'getStatus() succeeded',
+                                'data' => ['status' => $status],
+                                'timestamp' => time() * 1000
+                            ]) . "\n", FILE_APPEND);
+                            // #endregion
+                        } catch (Exception $e) {
+                            // #region agent log
+                            file_put_contents(__DIR__ . '/../../.cursor/debug.log', json_encode([
+                                'sessionId' => 'debug-session',
+                                'runId' => 'run1',
+                                'hypothesisId' => 'F',
+                                'location' => 'test-messaging.php:66',
+                                'message' => 'getStatus() failed',
+                                'data' => ['error' => $e->getMessage()],
+                                'timestamp' => time() * 1000
+                            ]) . "\n", FILE_APPEND);
+                            // #endregion
+                            
+                            $status = ['error' => $e->getMessage()];
+                        }
                         ?>
                         <table class="table table-sm">
                             <tr>
