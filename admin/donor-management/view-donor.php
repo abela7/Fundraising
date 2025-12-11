@@ -543,11 +543,14 @@ function formatDateTime($date) {
         .financial-icon {
             width: 32px;
             height: 32px;
+            min-width: 32px;
+            min-height: 32px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 0.875rem;
+            flex-shrink: 0;
         }
         
         .financial-stat.pledged .financial-icon {
@@ -686,6 +689,8 @@ function formatDateTime($date) {
             .financial-icon {
                 width: 28px;
                 height: 28px;
+                min-width: 28px;
+                min-height: 28px;
                 font-size: 0.75rem;
             }
             
@@ -1027,8 +1032,8 @@ function formatDateTime($date) {
                                         <span class="fw-semibold">WhatsApp</span>
                                     </a>
                                     
-                                    <!-- Call Button -->
-                                    <a href="tel:<?php echo htmlspecialchars($donor['phone']); ?>" 
+                                    <!-- Call Button (Twilio) -->
+                                    <a href="../call-center/make-call.php?donor_id=<?php echo $donor_id; ?>" 
                                        class="btn d-inline-flex align-items-center gap-2 px-3 py-2 text-decoration-none" 
                                        style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;">
                                         <i class="fas fa-phone-alt"></i>
