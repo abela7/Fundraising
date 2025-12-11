@@ -162,94 +162,615 @@ if ($donorId && $donor) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        body {
-            background-color: #f8f9fa;
+        :root {
+            --msg-primary: #0d6efd;
+            --msg-info: #0dcaf0;
+            --msg-success: #198754;
+            --msg-warning: #ffc107;
+            --msg-danger: #dc3545;
+            --msg-secondary: #6c757d;
+            --msg-light: #f8f9fa;
+            --msg-dark: #212529;
         }
+        
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+        }
+        
         .admin-wrapper {
             min-height: 100vh;
         }
-        .search-card {
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--msg-primary) 0%, #0a58ca 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 16px;
             margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(13, 110, 253, 0.3);
         }
-        .donor-card {
-            cursor: pointer;
+        
+        .page-header h2 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        .page-header p {
+            margin: 0.5rem 0 0;
+            opacity: 0.9;
+            font-size: 0.875rem;
+        }
+        
+        .page-header .btn-back {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .page-header .btn-back:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+        
+        /* Search Section */
+        .search-section {
+            background: white;
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        
+        .search-input {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 0.875rem 1rem;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .search-input:focus {
+            border-color: var(--msg-primary);
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
+        }
+        
+        .search-btn {
+            background: linear-gradient(135deg, var(--msg-primary) 0%, #0a58ca 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 0.875rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        }
+        
+        /* Donor Profile Card */
+        .donor-profile {
+            background: white;
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        
+        .donor-avatar {
+            width: 56px;
+            height: 56px;
+            min-width: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--msg-primary) 0%, #0a58ca 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        }
+        
+        .donor-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--msg-dark);
+            margin: 0;
+        }
+        
+        .donor-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        
+        .donor-meta-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            background: var(--msg-light);
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8125rem;
+            color: var(--msg-secondary);
+        }
+        
+        .donor-meta-item i {
+            color: var(--msg-primary);
+            font-size: 0.75rem;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: all 0.2s;
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .stat-card.total .stat-icon {
+            background: rgba(13, 110, 253, 0.1);
+            color: var(--msg-primary);
+        }
+        
+        .stat-card.sms .stat-icon {
+            background: rgba(13, 202, 240, 0.15);
+            color: var(--msg-info);
+        }
+        
+        .stat-card.whatsapp .stat-icon {
+            background: rgba(25, 135, 84, 0.1);
+            color: var(--msg-success);
+        }
+        
+        .stat-card.delivered .stat-icon {
+            background: rgba(25, 135, 84, 0.1);
+            color: var(--msg-success);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-card.total .stat-value { color: var(--msg-primary); }
+        .stat-card.sms .stat-value { color: var(--msg-info); }
+        .stat-card.whatsapp .stat-value { color: var(--msg-success); }
+        .stat-card.delivered .stat-value { color: var(--msg-success); }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--msg-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .filter-section .form-select,
+        .filter-section .btn {
+            border-radius: 10px;
+        }
+        
+        /* Message Cards (Mobile First) */
+        .message-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .message-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .message-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        
+        .message-card.sms {
+            border-left-color: var(--msg-info);
+        }
+        
+        .message-card.whatsapp {
+            border-left-color: var(--msg-success);
+        }
+        
+        .message-card.failed {
+            border-left-color: var(--msg-danger);
+            background: #fff5f5;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .message-time {
+            font-size: 0.8125rem;
+            color: var(--msg-secondary);
+        }
+        
+        .message-badges {
+            display: flex;
+            gap: 0.375rem;
+            flex-wrap: wrap;
+        }
+        
+        .channel-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.625rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .channel-badge.sms {
+            background: rgba(13, 202, 240, 0.15);
+            color: #0aa2c0;
+        }
+        
+        .channel-badge.whatsapp {
+            background: rgba(37, 211, 102, 0.15);
+            color: #128C7E;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.625rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-badge.sent { background: rgba(13, 110, 253, 0.1); color: var(--msg-primary); }
+        .status-badge.delivered { background: rgba(25, 135, 84, 0.1); color: var(--msg-success); }
+        .status-badge.read { background: rgba(25, 135, 84, 0.15); color: var(--msg-success); }
+        .status-badge.failed { background: rgba(220, 53, 69, 0.1); color: var(--msg-danger); }
+        .status-badge.pending { background: rgba(255, 193, 7, 0.15); color: #997404; }
+        
+        .message-content {
+            background: var(--msg-light);
+            padding: 0.875rem;
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            line-height: 1.5;
+            color: var(--msg-dark);
+            word-wrap: break-word;
+            margin-bottom: 0.75rem;
+        }
+        
+        .message-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.8125rem;
+            color: var(--msg-secondary);
+        }
+        
+        .message-footer-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        
+        .message-footer-item i {
+            font-size: 0.75rem;
+        }
+        
+        /* Search Results */
+        .search-results {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+        
+        .search-result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-decoration: none;
+            color: inherit;
             transition: all 0.2s;
             border: 2px solid transparent;
         }
-        .donor-card:hover {
-            border-color: #0d6efd;
+        
+        .search-result-card:hover {
+            border-color: var(--msg-primary);
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            color: inherit;
         }
-        .donor-card.active {
-            border-color: #0d6efd;
-            background-color: #e7f1ff;
+        
+        .result-avatar {
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--msg-primary) 0%, #0a58ca 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.125rem;
         }
-        .stat-card {
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
+        
+        .result-info {
+            flex: 1;
+            min-width: 0;
         }
-        .stat-card:hover {
-            transform: translateY(-2px);
+        
+        .result-name {
+            font-weight: 600;
+            color: var(--msg-dark);
+            margin-bottom: 0.25rem;
         }
-        .channel-badge { 
-            font-size: 0.75rem; 
-            padding: 0.25rem 0.5rem;
+        
+        .result-meta {
+            font-size: 0.8125rem;
+            color: var(--msg-secondary);
         }
-        .status-badge { 
-            font-size: 0.75rem; 
-            padding: 0.25rem 0.5rem;
+        
+        .result-arrow {
+            color: var(--msg-secondary);
+            opacity: 0.5;
         }
-        .message-content {
-            word-wrap: break-word;
-            word-break: break-word;
-        }
-        .message-row {
-            border-left: 3px solid transparent;
-            transition: all 0.2s;
-        }
-        .message-row:hover {
-            background-color: #f8f9fa;
-            border-left-color: #0d6efd;
-        }
-        .message-row.sms {
-            border-left-color: #17a2b8;
-        }
-        .message-row.whatsapp {
-            border-left-color: #28a745;
-        }
-        .message-row.failed {
-            border-left-color: #dc3545;
-        }
-        .mobile-message-card {
-            display: none;
-        }
-        @media (max-width: 768px) {
-            .desktop-table {
-                display: none;
-            }
-            .mobile-message-card {
-                display: block;
-            }
-            .stat-card {
-                margin-bottom: 1rem;
-            }
-            .donor-card {
-                margin-bottom: 1rem;
-            }
-        }
+        
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 3rem 1rem;
-            color: #6c757d;
+            padding: 3rem 1.5rem;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
+        
+        .empty-state-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--msg-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .empty-state-icon i {
+            font-size: 2rem;
+            color: var(--msg-secondary);
+        }
+        
+        .empty-state h5 {
+            font-weight: 700;
+            color: var(--msg-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .empty-state p {
+            color: var(--msg-secondary);
+            margin: 0;
+        }
+        
+        /* View Profile Button */
+        .btn-view-profile {
+            background: linear-gradient(135deg, var(--msg-primary) 0%, #0a58ca 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .btn-view-profile:hover {
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        }
+        
+        /* Desktop Table */
+        .desktop-table {
+            display: none;
+        }
+        
+        /* Responsive Adjustments */
+        @media (min-width: 576px) {
+            .search-results {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .page-header {
+                padding: 2rem;
+            }
+            
+            .page-header h2 {
+                font-size: 1.75rem;
+            }
+            
+            .stats-grid {
+                gap: 1rem;
+            }
+            
+            .stat-card {
+                padding: 1.25rem;
+            }
+            
+            .stat-value {
+                font-size: 1.75rem;
+            }
+            
+            .donor-avatar {
+                width: 64px;
+                height: 64px;
+                min-width: 64px;
+                font-size: 1.75rem;
+            }
+            
+            .desktop-table {
+                display: block;
+            }
+            
+            .message-list {
+                display: none;
+            }
+            
+            .search-results {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 575px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .stat-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 0.875rem;
+            }
+            
+            .stat-value {
+                font-size: 1.25rem;
+            }
+            
+            .donor-profile {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .donor-meta {
+                justify-content: center;
+            }
+            
+            .page-header {
+                text-align: center;
+            }
+            
+            .page-header .btn-back {
+                margin-top: 1rem;
+            }
+            
+            .filter-section .row {
+                gap: 0.75rem;
+            }
+            
+            .filter-section .btn {
+                width: 100%;
+            }
+        }
+        
+        /* Table Styling for Desktop */
+        .table-wrapper {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .table-wrapper .table {
+            margin: 0;
+        }
+        
+        .table-wrapper .table th {
+            background: var(--msg-light);
+            font-weight: 600;
+            font-size: 0.8125rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--msg-secondary);
+            padding: 1rem;
+            border: none;
+        }
+        
+        .table-wrapper .table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-color: #f0f0f0;
+        }
+        
+        .table-wrapper .table tbody tr {
+            transition: background 0.2s;
+        }
+        
+        .table-wrapper .table tbody tr:hover {
+            background: rgba(13, 110, 253, 0.02);
+        }
+        
+        .table-wrapper .table tbody tr.sms {
+            border-left: 4px solid var(--msg-info);
+        }
+        
+        .table-wrapper .table tbody tr.whatsapp {
+            border-left: 4px solid var(--msg-success);
+        }
+        
+        .table-wrapper .table tbody tr.failed {
+            background: #fff8f8;
+            border-left: 4px solid var(--msg-danger);
         }
     </style>
 </head>
@@ -264,440 +785,316 @@ if ($donorId && $donor) {
             <div class="container-fluid p-3 p-md-4">
                 
                 <!-- Page Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-                    <div>
-                        <h2 class="mb-1">
-                            <i class="fas fa-envelope me-2"></i>Message History
-                        </h2>
-                        <p class="text-muted mb-0">Search for donors and view their message history</p>
+                <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-center">
+                    <div class="text-center text-md-start">
+                        <h2><i class="fas fa-envelope me-2"></i>Message History</h2>
+                        <p>Search for donors and view their communication history</p>
                     </div>
-                    <a href="donors.php" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-1"></i>Back to Donors
+                    <a href="donors.php" class="btn btn-back mt-3 mt-md-0">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Donors
                     </a>
                 </div>
                 
-                <!-- Search Card -->
-                <div class="card search-card">
-                    <div class="card-body">
-                        <form method="GET" action="" class="row g-3">
-                            <div class="col-12 col-md-8">
-                                <label class="form-label fw-bold">
-                                    <i class="fas fa-search me-1"></i>Search Donor
-                                </label>
-                                <input 
-                                    type="text" 
-                                    class="form-control form-control-lg" 
-                                    name="search" 
-                                    value="<?= htmlspecialchars($search_term) ?>" 
-                                    placeholder="Search by name, phone number, or reference number..."
-                                    autofocus
-                                >
-                                <small class="text-muted">Enter donor name, phone number, or 4-digit reference number</small>
+                <!-- Search Section -->
+                <div class="search-section">
+                    <form method="GET" action="">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-9">
+                                <div class="position-relative">
+                                    <input 
+                                        type="text" 
+                                        class="form-control search-input" 
+                                        name="search" 
+                                        value="<?= htmlspecialchars($search_term) ?>" 
+                                        placeholder="Search by name, phone, or reference #..."
+                                        autofocus
+                                    >
+                                </div>
                             </div>
-                            <div class="col-12 col-md-4 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <div class="col-12 col-md-3">
+                                <button type="submit" class="btn btn-primary search-btn w-100">
                                     <i class="fas fa-search me-2"></i>Search
                                 </button>
                             </div>
-                            <?php if ($donorId): ?>
-                                <input type="hidden" name="donor_id" value="<?= $donorId ?>">
-                            <?php endif; ?>
-                        </form>
-                    </div>
+                        </div>
+                        <?php if ($donorId): ?>
+                            <input type="hidden" name="donor_id" value="<?= $donorId ?>">
+                        <?php endif; ?>
+                    </form>
                 </div>
                 
                 <!-- Search Results -->
                 <?php if (!empty($search_term) && empty($donorId) && !empty($search_results)): ?>
-                    <div class="card mb-4">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">
-                                <i class="fas fa-users me-2"></i>Search Results (<?= count($search_results) ?>)
-                            </h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="row g-2 p-3">
-                                <?php foreach ($search_results as $result): ?>
-                                    <div class="col-12 col-md-6 col-lg-4">
-                                        <a href="?donor_id=<?= $result['id'] ?>&search=<?= urlencode($search_term) ?>" 
-                                           class="text-decoration-none">
-                                            <div class="card donor-card h-100">
-                                                <div class="card-body">
-                                                    <div class="d-flex align-items-start">
-                                                        <div class="avatar-circle bg-primary text-white me-3" style="width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">
-                                                            <?= strtoupper(substr($result['name'], 0, 1)) ?>
-                                                        </div>
-                                                        <div class="flex-grow-1">
-                                                            <h6 class="mb-1 fw-bold"><?= htmlspecialchars($result['name']) ?></h6>
-                                                            <p class="text-muted mb-1 small">
-                                                                <i class="fas fa-phone me-1"></i><?= htmlspecialchars($result['phone']) ?>
-                                                            </p>
-                                                            <span class="badge bg-light text-dark">
-                                                                Ref: #<?= htmlspecialchars($result['reference_number']) ?>
-                                                            </span>
-                                                        </div>
-                                                        <i class="fas fa-chevron-right text-muted"></i>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
+                    <div class="mb-4">
+                        <h5 class="mb-3 fw-bold">
+                            <i class="fas fa-users me-2 text-primary"></i>
+                            Found <?= count($search_results) ?> donor<?= count($search_results) !== 1 ? 's' : '' ?>
+                        </h5>
+                        <div class="search-results">
+                            <?php foreach ($search_results as $result): ?>
+                                <a href="?donor_id=<?= $result['id'] ?>&search=<?= urlencode($search_term) ?>" 
+                                   class="search-result-card">
+                                    <div class="result-avatar">
+                                        <?= strtoupper(substr($result['name'], 0, 1)) ?>
                                     </div>
-                                <?php endforeach; ?>
-                            </div>
+                                    <div class="result-info">
+                                        <div class="result-name"><?= htmlspecialchars($result['name']) ?></div>
+                                        <div class="result-meta">
+                                            <i class="fas fa-phone me-1"></i><?= htmlspecialchars($result['phone']) ?>
+                                            <span class="mx-2">•</span>
+                                            <i class="fas fa-hashtag me-1"></i><?= htmlspecialchars($result['reference_number']) ?>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-chevron-right result-arrow"></i>
+                                </a>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 <?php elseif (!empty($search_term) && empty($donorId) && empty($search_results)): ?>
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="empty-state">
-                                <i class="fas fa-search"></i>
-                                <h5>No donors found</h5>
-                                <p>Try searching with a different term</p>
-                            </div>
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-search"></i>
                         </div>
+                        <h5>No donors found</h5>
+                        <p>Try a different search term</p>
                     </div>
                 <?php endif; ?>
                 
                 <!-- Donor Message History -->
                 <?php if ($donorId && $donor): ?>
-                    <!-- Selected Donor Info -->
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-circle bg-primary text-white me-3" style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.5rem;">
-                                        <?= strtoupper(substr($donor['name'], 0, 1)) ?>
-                                    </div>
-                                    <div>
-                                        <h4 class="mb-1"><?= htmlspecialchars($donor['name']) ?></h4>
-                                        <p class="text-muted mb-0">
-                                            <i class="fas fa-phone me-1"></i><?= htmlspecialchars($donor['phone']) ?>
-                                            <span class="ms-3">
-                                                <i class="fas fa-hashtag me-1"></i>Ref: #<?= htmlspecialchars($donor_reference) ?>
-                                            </span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <a href="view-donor.php?id=<?= $donorId ?>" class="btn btn-outline-primary">
-                                    <i class="fas fa-user me-1"></i>View Profile
+                    <!-- Donor Profile Card -->
+                    <div class="donor-profile d-flex flex-column flex-md-row align-items-center gap-3">
+                        <div class="donor-avatar">
+                            <?= strtoupper(substr($donor['name'], 0, 1)) ?>
+                        </div>
+                        <div class="flex-grow-1 text-center text-md-start">
+                            <h4 class="donor-name"><?= htmlspecialchars($donor['name']) ?></h4>
+                            <div class="donor-meta">
+                                <span class="donor-meta-item">
+                                    <i class="fas fa-phone"></i>
+                                    <?= htmlspecialchars($donor['phone']) ?>
+                                </span>
+                                <span class="donor-meta-item">
+                                    <i class="fas fa-hashtag"></i>
+                                    Ref: <?= htmlspecialchars($donor_reference) ?>
+                                </span>
+                            </div>
+                        </div>
+                        <a href="view-donor.php?id=<?= $donorId ?>" class="btn btn-view-profile">
+                            <i class="fas fa-user me-1"></i>View Profile
+                        </a>
+                    </div>
+                    
+                    <!-- Statistics Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card total">
+                            <div class="stat-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="stat-value"><?= number_format($stats['total_messages'] ?? 0) ?></div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-card sms">
+                            <div class="stat-icon">
+                                <i class="fas fa-sms"></i>
+                            </div>
+                            <div class="stat-value"><?= number_format($stats['sms_count'] ?? 0) ?></div>
+                            <div class="stat-label">SMS</div>
+                        </div>
+                        <div class="stat-card whatsapp">
+                            <div class="stat-icon">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <div class="stat-value"><?= number_format($stats['whatsapp_count'] ?? 0) ?></div>
+                            <div class="stat-label">WhatsApp</div>
+                        </div>
+                        <div class="stat-card delivered">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-double"></i>
+                            </div>
+                            <div class="stat-value"><?= number_format($stats['delivered_count'] ?? 0) ?></div>
+                            <div class="stat-label">Delivered</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <form method="GET" class="row g-2 g-md-3 align-items-end">
+                            <input type="hidden" name="donor_id" value="<?= $donorId ?>">
+                            <?php if (!empty($search_term)): ?>
+                                <input type="hidden" name="search" value="<?= htmlspecialchars($search_term) ?>">
+                            <?php endif; ?>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label small fw-bold text-muted">Channel</label>
+                                <select name="channel" class="form-select">
+                                    <option value="">All</option>
+                                    <option value="sms" <?= ($_GET['channel'] ?? '') === 'sms' ? 'selected' : '' ?>>SMS</option>
+                                    <option value="whatsapp" <?= ($_GET['channel'] ?? '') === 'whatsapp' ? 'selected' : '' ?>>WhatsApp</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label small fw-bold text-muted">Show</label>
+                                <select name="limit" class="form-select">
+                                    <option value="25" <?= ($_GET['limit'] ?? 50) == 25 ? 'selected' : '' ?>>25</option>
+                                    <option value="50" <?= ($_GET['limit'] ?? 50) == 50 ? 'selected' : '' ?>>50</option>
+                                    <option value="100" <?= ($_GET['limit'] ?? 50) == 100 ? 'selected' : '' ?>>100</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                                <a href="?donor_id=<?= $donorId ?>" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
                                 </a>
                             </div>
-                        </div>
+                        </form>
                     </div>
                     
-                    <!-- Statistics Cards -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-6 col-md-3">
-                            <div class="card stat-card text-center">
-                                <div class="card-body">
-                                    <h6 class="text-muted mb-2">Total</h6>
-                                    <h3 class="mb-0"><?= number_format($stats['total_messages'] ?? 0) ?></h3>
-                                </div>
+                    <?php if (empty($messages)): ?>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-inbox"></i>
                             </div>
+                            <h5>No messages found</h5>
+                            <p>This donor hasn't received any messages yet</p>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <div class="card stat-card text-center">
-                                <div class="card-body">
-                                    <h6 class="text-muted mb-2">SMS</h6>
-                                    <h3 class="mb-0 text-info"><?= number_format($stats['sms_count'] ?? 0) ?></h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <div class="card stat-card text-center">
-                                <div class="card-body">
-                                    <h6 class="text-muted mb-2">WhatsApp</h6>
-                                    <h3 class="mb-0 text-success"><?= number_format($stats['whatsapp_count'] ?? 0) ?></h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <div class="card stat-card text-center">
-                                <div class="card-body">
-                                    <h6 class="text-muted mb-2">Delivered</h6>
-                                    <h3 class="mb-0 text-success"><?= number_format($stats['delivered_count'] ?? 0) ?></h3>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Filters -->
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <form method="GET" class="row g-3">
-                                <input type="hidden" name="donor_id" value="<?= $donorId ?>">
-                                <?php if (!empty($search_term)): ?>
-                                    <input type="hidden" name="search" value="<?= htmlspecialchars($search_term) ?>">
-                                <?php endif; ?>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label">Channel</label>
-                                    <select name="channel" class="form-select">
-                                        <option value="">All Channels</option>
-                                        <option value="sms" <?= ($_GET['channel'] ?? '') === 'sms' ? 'selected' : '' ?>>SMS Only</option>
-                                        <option value="whatsapp" <?= ($_GET['channel'] ?? '') === 'whatsapp' ? 'selected' : '' ?>>WhatsApp Only</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label">Limit</label>
-                                    <select name="limit" class="form-select">
-                                        <option value="25" <?= ($_GET['limit'] ?? 50) == 25 ? 'selected' : '' ?>>25</option>
-                                        <option value="50" <?= ($_GET['limit'] ?? 50) == 50 ? 'selected' : '' ?>>50</option>
-                                        <option value="100" <?= ($_GET['limit'] ?? 50) == 100 ? 'selected' : '' ?>>100</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-4 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary me-2">
-                                        <i class="fas fa-filter me-1"></i>Filter
-                                    </button>
-                                    <a href="?donor_id=<?= $donorId ?>" class="btn btn-outline-secondary">
-                                        <i class="fas fa-times me-1"></i>Clear
-                                    </a>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    
-                    <!-- Message List - Desktop Table -->
-                    <div class="card desktop-table">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-list me-2"></i>Message History
-                            </h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <?php if (empty($messages)): ?>
-                                <div class="empty-state">
-                                    <i class="fas fa-inbox"></i>
-                                    <h5>No messages found</h5>
-                                    <p>This donor hasn't received any messages yet.</p>
-                                </div>
-                            <?php else: ?>
-                                <div class="table-responsive">
-                                    <table class="table table-hover mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Date & Time</th>
-                                                <th>Channel</th>
-                                                <th>Message</th>
-                                                <th>Template</th>
-                                                <th>Sent By</th>
-                                                <th>Status</th>
-                                                <th>Delivery</th>
-                                                <th>Cost</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($messages as $message): ?>
-                                                <?php
-                                                $rowClass = 'message-row';
-                                                if ($message['channel'] === 'sms') $rowClass .= ' sms';
-                                                if ($message['channel'] === 'whatsapp') $rowClass .= ' whatsapp';
-                                                if ($message['status'] === 'failed') $rowClass .= ' failed';
-                                                ?>
-                                                <tr class="<?= $rowClass ?>">
-                                                    <td>
-                                                        <small>
-                                                            <?= date('d M Y', strtotime($message['sent_at'])) ?><br>
-                                                            <span class="text-muted"><?= date('H:i', strtotime($message['sent_at'])) ?></span>
-                                                        </small>
-                                                    </td>
-                                                    <td>
-                                                        <?php if ($message['channel'] === 'sms'): ?>
-                                                            <span class="badge bg-info channel-badge">
-                                                                <i class="fas fa-sms me-1"></i>SMS
-                                                            </span>
-                                                        <?php elseif ($message['channel'] === 'whatsapp'): ?>
-                                                            <span class="badge bg-success channel-badge">
-                                                                <i class="fab fa-whatsapp me-1"></i>WhatsApp
-                                                            </span>
-                                                        <?php else: ?>
-                                                            <span class="badge bg-secondary channel-badge">Both</span>
-                                                        <?php endif; ?>
-                                                        <?php if ($message['is_fallback'] ?? 0): ?>
-                                                            <br><small class="text-muted">(Fallback)</small>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td>
-                                                        <div class="message-content" style="max-width: 300px;">
-                                                            <?= htmlspecialchars(mb_substr($message['message_content'], 0, 80)) ?>
-                                                            <?= mb_strlen($message['message_content']) > 80 ? '...' : '' ?>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <?php if ($message['template_key']): ?>
-                                                            <code class="small"><?= htmlspecialchars($message['template_key']) ?></code>
-                                                        <?php else: ?>
-                                                            <span class="text-muted small">Direct</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td>
-                                                        <?php if ($message['sent_by_name']): ?>
-                                                            <strong class="small"><?= htmlspecialchars($message['sent_by_name']) ?></strong>
-                                                            <br><small class="text-muted"><?= htmlspecialchars($message['sent_by_role'] ?? 'system') ?></small>
-                                                        <?php else: ?>
-                                                            <span class="text-muted small">System</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td>
-                                                        <?php
-                                                        $status = $message['status'] ?? 'unknown';
-                                                        $badgeClass = match($status) {
-                                                            'sent' => 'bg-primary',
-                                                            'delivered' => 'bg-success',
-                                                            'read' => 'bg-success',
-                                                            'failed' => 'bg-danger',
-                                                            'pending' => 'bg-warning',
-                                                            default => 'bg-secondary'
-                                                        };
-                                                        ?>
-                                                        <span class="badge <?= $badgeClass ?> status-badge">
-                                                            <?= ucfirst($status) ?>
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <?php if ($message['delivered_at']): ?>
-                                                            <small class="text-success">
-                                                                <i class="fas fa-check-circle me-1"></i>Delivered<br>
-                                                                <?php if ($message['delivery_time_seconds']): ?>
-                                                                    <span class="text-muted"><?= round($message['delivery_time_seconds'] / 60, 1) ?>m</span>
-                                                                <?php endif; ?>
-                                                            </small>
-                                                        <?php elseif ($message['read_at']): ?>
-                                                            <small class="text-success">
-                                                                <i class="fas fa-eye me-1"></i>Read<br>
-                                                                <?php if ($message['read_time_seconds']): ?>
-                                                                    <span class="text-muted"><?= round($message['read_time_seconds'] / 60, 1) ?>m</span>
-                                                                <?php endif; ?>
-                                                            </small>
-                                                        <?php elseif ($message['failed_at']): ?>
-                                                            <small class="text-danger">
-                                                                <i class="fas fa-times-circle me-1"></i>Failed
-                                                            </small>
-                                                        <?php else: ?>
-                                                            <small class="text-muted">Pending</small>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td>
-                                                        <?php if ($message['cost_pence']): ?>
-                                                            <small>£<?= number_format($message['cost_pence'] / 100, 2) ?></small>
-                                                        <?php else: ?>
-                                                            <span class="text-muted small">-</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    
-                    <!-- Message List - Mobile Cards -->
-                    <div class="mobile-message-card">
-                        <?php if (empty($messages)): ?>
-                            <div class="card">
-                                <div class="card-body">
-                                    <div class="empty-state">
-                                        <i class="fas fa-inbox"></i>
-                                        <h5>No messages found</h5>
-                                        <p>This donor hasn't received any messages yet.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php else: ?>
+                    <?php else: ?>
+                        <!-- Mobile Message Cards -->
+                        <div class="message-list">
                             <?php foreach ($messages as $message): ?>
                                 <?php
-                                $cardClass = 'mb-3';
-                                if ($message['channel'] === 'sms') $cardClass .= ' border-start border-info border-3';
-                                if ($message['channel'] === 'whatsapp') $cardClass .= ' border-start border-success border-3';
-                                if ($message['status'] === 'failed') $cardClass .= ' border-start border-danger border-3';
+                                $cardClass = 'message-card';
+                                if ($message['channel'] === 'sms') $cardClass .= ' sms';
+                                if ($message['channel'] === 'whatsapp') $cardClass .= ' whatsapp';
+                                if ($message['status'] === 'failed') $cardClass .= ' failed';
                                 
-                                $status = $message['status'] ?? 'unknown';
-                                $badgeClass = match($status) {
-                                    'sent' => 'bg-primary',
-                                    'delivered' => 'bg-success',
-                                    'read' => 'bg-success',
-                                    'failed' => 'bg-danger',
-                                    'pending' => 'bg-warning',
-                                    default => 'bg-secondary'
-                                };
+                                $status = $message['status'] ?? 'sent';
                                 ?>
-                                <div class="card <?= $cardClass ?>">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <div>
-                                                <small class="text-muted">
-                                                    <?= date('d M Y H:i', strtotime($message['sent_at'])) ?>
-                                                </small>
-                                            </div>
-                                            <div>
-                                                <?php if ($message['channel'] === 'sms'): ?>
-                                                    <span class="badge bg-info channel-badge">
-                                                        <i class="fas fa-sms me-1"></i>SMS
-                                                    </span>
-                                                <?php elseif ($message['channel'] === 'whatsapp'): ?>
-                                                    <span class="badge bg-success channel-badge">
-                                                        <i class="fab fa-whatsapp me-1"></i>WhatsApp
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-secondary channel-badge">Both</span>
-                                                <?php endif; ?>
-                                                <span class="badge <?= $badgeClass ?> status-badge ms-1">
-                                                    <?= ucfirst($status) ?>
+                                <div class="<?= $cardClass ?>">
+                                    <div class="message-header">
+                                        <span class="message-time">
+                                            <i class="far fa-clock me-1"></i>
+                                            <?= date('d M Y, H:i', strtotime($message['sent_at'])) ?>
+                                        </span>
+                                        <div class="message-badges">
+                                            <?php if ($message['channel'] === 'sms'): ?>
+                                                <span class="channel-badge sms">
+                                                    <i class="fas fa-sms"></i>SMS
                                                 </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="message-content mb-2">
-                                            <?= nl2br(htmlspecialchars($message['message_content'])) ?>
-                                        </div>
-                                        
-                                        <div class="row g-2 small text-muted">
-                                            <div class="col-6">
-                                                <i class="fas fa-user me-1"></i>
-                                                <?= $message['sent_by_name'] ? htmlspecialchars($message['sent_by_name']) : 'System' ?>
-                                            </div>
-                                            <div class="col-6 text-end">
-                                                <?php if ($message['template_key']): ?>
-                                                    <code><?= htmlspecialchars($message['template_key']) ?></code>
-                                                <?php else: ?>
-                                                    Direct
-                                                <?php endif; ?>
-                                            </div>
-                                            <?php if ($message['delivered_at']): ?>
-                                                <div class="col-12">
-                                                    <i class="fas fa-check-circle text-success me-1"></i>
-                                                    Delivered
-                                                    <?php if ($message['delivery_time_seconds']): ?>
-                                                        (<?= round($message['delivery_time_seconds'] / 60, 1) ?> min)
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php elseif ($message['read_at']): ?>
-                                                <div class="col-12">
-                                                    <i class="fas fa-eye text-success me-1"></i>
-                                                    Read
-                                                    <?php if ($message['read_time_seconds']): ?>
-                                                        (<?= round($message['read_time_seconds'] / 60, 1) ?> min)
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php elseif ($message['failed_at']): ?>
-                                                <div class="col-12">
-                                                    <i class="fas fa-times-circle text-danger me-1"></i>
-                                                    Failed
-                                                </div>
+                                            <?php elseif ($message['channel'] === 'whatsapp'): ?>
+                                                <span class="channel-badge whatsapp">
+                                                    <i class="fab fa-whatsapp"></i>WhatsApp
+                                                </span>
                                             <?php endif; ?>
-                                            <?php if ($message['cost_pence']): ?>
-                                                <div class="col-12">
-                                                    <i class="fas fa-pound-sign me-1"></i>
-                                                    Cost: £<?= number_format($message['cost_pence'] / 100, 2) ?>
-                                                </div>
-                                            <?php endif; ?>
+                                            <span class="status-badge <?= $status ?>">
+                                                <?= ucfirst($status) ?>
+                                            </span>
                                         </div>
+                                    </div>
+                                    
+                                    <div class="message-content">
+                                        <?= nl2br(htmlspecialchars($message['message_content'] ?? '')) ?>
+                                    </div>
+                                    
+                                    <div class="message-footer">
+                                        <div class="message-footer-item">
+                                            <i class="fas fa-user"></i>
+                                            <?= $message['sent_by_name'] ? htmlspecialchars($message['sent_by_name']) : 'System' ?>
+                                        </div>
+                                        <?php if ($message['template_key']): ?>
+                                            <div class="message-footer-item">
+                                                <i class="fas fa-file-alt"></i>
+                                                <?= htmlspecialchars($message['template_key']) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($message['cost_pence']): ?>
+                                            <div class="message-footer-item">
+                                                <i class="fas fa-pound-sign"></i>
+                                                £<?= number_format($message['cost_pence'] / 100, 2) ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
+                        </div>
+                        
+                        <!-- Desktop Table -->
+                        <div class="desktop-table">
+                            <div class="table-wrapper">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date & Time</th>
+                                            <th>Channel</th>
+                                            <th>Message</th>
+                                            <th>Template</th>
+                                            <th>Sent By</th>
+                                            <th>Status</th>
+                                            <th>Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($messages as $message): ?>
+                                            <?php
+                                            $rowClass = '';
+                                            if ($message['channel'] === 'sms') $rowClass = 'sms';
+                                            if ($message['channel'] === 'whatsapp') $rowClass = 'whatsapp';
+                                            if ($message['status'] === 'failed') $rowClass = 'failed';
+                                            
+                                            $status = $message['status'] ?? 'sent';
+                                            ?>
+                                            <tr class="<?= $rowClass ?>">
+                                                <td>
+                                                    <div class="fw-medium"><?= date('d M Y', strtotime($message['sent_at'])) ?></div>
+                                                    <small class="text-muted"><?= date('H:i', strtotime($message['sent_at'])) ?></small>
+                                                </td>
+                                                <td>
+                                                    <?php if ($message['channel'] === 'sms'): ?>
+                                                        <span class="channel-badge sms">
+                                                            <i class="fas fa-sms"></i>SMS
+                                                        </span>
+                                                    <?php elseif ($message['channel'] === 'whatsapp'): ?>
+                                                        <span class="channel-badge whatsapp">
+                                                            <i class="fab fa-whatsapp"></i>WhatsApp
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td style="max-width: 300px;">
+                                                    <div class="text-truncate" title="<?= htmlspecialchars($message['message_content'] ?? '') ?>">
+                                                        <?= htmlspecialchars(mb_substr($message['message_content'] ?? '', 0, 80)) ?>
+                                                        <?= mb_strlen($message['message_content'] ?? '') > 80 ? '...' : '' ?>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <?php if ($message['template_key']): ?>
+                                                        <code class="small bg-light px-2 py-1 rounded"><?= htmlspecialchars($message['template_key']) ?></code>
+                                                    <?php else: ?>
+                                                        <span class="text-muted small">Direct</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <?= $message['sent_by_name'] ? htmlspecialchars($message['sent_by_name']) : '<span class="text-muted">System</span>' ?>
+                                                </td>
+                                                <td>
+                                                    <span class="status-badge <?= $status ?>">
+                                                        <?= ucfirst($status) ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <?php if ($message['cost_pence']): ?>
+                                                        £<?= number_format($message['cost_pence'] / 100, 2) ?>
+                                                    <?php else: ?>
+                                                        <span class="text-muted">-</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
                 
             </div>
