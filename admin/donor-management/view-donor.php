@@ -900,12 +900,12 @@ function formatDateTime($date) {
                                     
                                     <!-- WhatsApp Button -->
                                     <div class="col-12 col-sm-4">
-                                        <a href="../messaging/whatsapp/inbox.php?phone=<?php echo urlencode($donor['phone']); ?>&donor_id=<?php echo $donor_id; ?>" 
+                                        <a href="../messaging/whatsapp/new-chat.php?phone=<?php echo urlencode($donor['phone']); ?>&donor_id=<?php echo $donor_id; ?>" 
                                            class="btn btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-2 py-4 text-decoration-none" 
                                            style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border: none; border-radius: 12px; min-height: 120px;">
                                             <i class="fab fa-whatsapp fa-2x"></i>
                                             <span class="fw-bold">WhatsApp</span>
-                                            <small class="opacity-75">Open conversation</small>
+                                            <small class="opacity-75">Start conversation</small>
                                         </a>
                                     </div>
                                     

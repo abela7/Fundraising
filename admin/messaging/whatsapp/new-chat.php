@@ -242,12 +242,14 @@ function normalizePhone(string $phone): string
                         <div id="donorResults" style="background:#ffffff;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;border:1px solid #e9edef;border-top:none;"></div>
                     </div>
                     
-                    <input type="hidden" name="donor_id" id="donorId">
+                    <input type="hidden" name="donor_id" id="donorId" value="<?php echo isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : ''; ?>">
                     
                     <div class="mb-3">
                         <label class="form-label">Phone Number <span class="text-danger">*</span></label>
                         <input type="tel" name="phone" id="phoneNumber" class="form-control" 
-                               placeholder="07123 456789" required>
+                               placeholder="07123 456789" 
+                               value="<?php echo htmlspecialchars($_GET['phone'] ?? ''); ?>"
+                               required>
                     </div>
                     
                     <div class="mb-4">
@@ -271,6 +273,25 @@ const donorSearch = document.getElementById('donorSearch');
 const donorResults = document.getElementById('donorResults');
 const donorId = document.getElementById('donorId');
 const phoneNumber = document.getElementById('phoneNumber');
+
+// Pre-fill donor search if donor_id is provided
+<?php 
+if (isset($_GET['donor_id']) && !empty($_GET['donor_id'])): 
+    $prefill_donor_id = (int)$_GET['donor_id'];
+    // Fetch donor info
+    $prefill_stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ?");
+    $prefill_stmt->bind_param('i', $prefill_donor_id);
+    $prefill_stmt->execute();
+    $prefill_donor = $prefill_stmt->get_result()->fetch_assoc();
+    $prefill_stmt->close();
+?>
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($prefill_donor): ?>
+    donorSearch.value = <?php echo json_encode($prefill_donor['name']); ?>;
+    donorId.value = <?php echo $prefill_donor['id']; ?>;
+    <?php endif; ?>
+});
+<?php endif; ?>
 
 let searchTimeout;
 
