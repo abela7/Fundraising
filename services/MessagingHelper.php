@@ -1031,50 +1031,115 @@ class MessagingHelper
         ?string $channel = null
     ): array {
         try {
-            $check = $this->db->query("SHOW TABLES LIKE 'message_log'");
-            if (!$check || $check->num_rows === 0) {
-                return [];
-            }
-            
-            $sql = "
-                SELECT 
-                    id, donor_id, phone_number, recipient_name, channel,
-                    message_content, message_language, template_key,
-                    sent_by_user_id, sent_by_name, sent_by_role,
-                    source_type, status, sent_at, delivered_at, read_at,
-                    failed_at, error_message, cost_pence, is_fallback,
-                    TIMESTAMPDIFF(SECOND, sent_at, delivered_at) as delivery_time_seconds,
-                    TIMESTAMPDIFF(SECOND, sent_at, read_at) as read_time_seconds
-                FROM message_log
-                WHERE donor_id = ?
-            ";
-            
-            $params = [$donorId];
-            $types = 'i';
-            
-            if ($channel) {
-                $sql .= " AND channel = ?";
-                $params[] = $channel;
-                $types .= 's';
-            }
-            
-            $sql .= " ORDER BY sent_at DESC LIMIT ? OFFSET ?";
-            $params[] = $limit;
-            $params[] = $offset;
-            $types .= 'ii';
-            
-            $stmt = $this->db->prepare($sql);
-            if (!$stmt) {
-                return [];
-            }
-            
-            $stmt->bind_param($types, ...$params);
-            $stmt->execute();
-            
-            $result = $stmt->get_result();
             $messages = [];
             
+            // Check which tables exist
+            $smsLogExists = false;
+            $whatsappLogExists = false;
+            
+            $check = $this->db->query("SHOW TABLES LIKE 'sms_log'");
+            if ($check && $check->num_rows > 0) {
+                $smsLogExists = true;
+            }
+            
+            $check = $this->db->query("SHOW TABLES LIKE 'whatsapp_log'");
+            if ($check && $check->num_rows > 0) {
+                $whatsappLogExists = true;
+            }
+            
+            if (!$smsLogExists && !$whatsappLogExists) {
+                return [];
+            }
+            
+            // Get donor phone for matching
+            $donorStmt = $this->db->prepare("SELECT phone FROM donors WHERE id = ?");
+            $donorStmt->bind_param('i', $donorId);
+            $donorStmt->execute();
+            $donorResult = $donorStmt->get_result();
+            $donorPhone = $donorResult->fetch_assoc()['phone'] ?? '';
+            $donorStmt->close();
+            
+            // Build UNION query for both tables
+            $unions = [];
+            
+            // SMS log query (source_type = 'sms' or 'voodoo' or similar)
+            if ($smsLogExists && ($channel === null || $channel === 'sms')) {
+                $unions[] = "
+                    SELECT 
+                        l.id,
+                        l.donor_id,
+                        l.phone_number,
+                        d.name as recipient_name,
+                        CASE WHEN l.source_type IN ('whatsapp', 'ultramsg') THEN 'whatsapp' ELSE 'sms' END as channel,
+                        l.message_content,
+                        l.message_language,
+                        t.name as template_key,
+                        NULL as sent_by_user_id,
+                        NULL as sent_by_name,
+                        NULL as sent_by_role,
+                        l.source_type,
+                        l.status,
+                        l.sent_at,
+                        NULL as delivered_at,
+                        NULL as read_at,
+                        NULL as failed_at,
+                        l.error_message,
+                        l.cost_pence,
+                        0 as is_fallback
+                    FROM sms_log l
+                    LEFT JOIN donors d ON l.donor_id = d.id
+                    LEFT JOIN sms_templates t ON l.template_id = t.id
+                    WHERE (l.donor_id = {$donorId} OR l.phone_number = '{$this->db->real_escape_string($donorPhone)}')
+                    " . ($channel === 'sms' ? " AND l.source_type NOT IN ('whatsapp', 'ultramsg')" : "");
+            }
+            
+            // WhatsApp log query
+            if ($whatsappLogExists && ($channel === null || $channel === 'whatsapp')) {
+                $unions[] = "
+                    SELECT 
+                        l.id,
+                        l.donor_id,
+                        l.phone_number,
+                        d.name as recipient_name,
+                        'whatsapp' as channel,
+                        l.message_content,
+                        l.message_language,
+                        t.name as template_key,
+                        NULL as sent_by_user_id,
+                        NULL as sent_by_name,
+                        NULL as sent_by_role,
+                        l.source_type,
+                        l.status,
+                        l.sent_at,
+                        NULL as delivered_at,
+                        NULL as read_at,
+                        NULL as failed_at,
+                        l.error_message,
+                        0 as cost_pence,
+                        0 as is_fallback
+                    FROM whatsapp_log l
+                    LEFT JOIN donors d ON l.donor_id = d.id
+                    LEFT JOIN sms_templates t ON l.template_id = t.id
+                    WHERE (l.donor_id = {$donorId} OR l.phone_number = '{$this->db->real_escape_string($donorPhone)}')
+                ";
+            }
+            
+            if (empty($unions)) {
+                return [];
+            }
+            
+            $sql = "SELECT * FROM (\n" . implode("\nUNION ALL\n", $unions) . "\n) as combined ORDER BY sent_at DESC LIMIT {$limit} OFFSET {$offset}";
+            
+            $result = $this->db->query($sql);
+            if (!$result) {
+                error_log("MessagingHelper: Query error: " . $this->db->error);
+                return [];
+            }
+            
             while ($row = $result->fetch_assoc()) {
+                // Add computed fields
+                $row['delivery_time_seconds'] = null;
+                $row['read_time_seconds'] = null;
                 $messages[] = $row;
             }
             
@@ -1095,51 +1160,84 @@ class MessagingHelper
     public function getDonorMessageStats(int $donorId): array
     {
         try {
-            $check = $this->db->query("SHOW TABLES LIKE 'message_log'");
-            if (!$check || $check->num_rows === 0) {
-                return [
-                    'total_messages' => 0,
-                    'sms_count' => 0,
-                    'whatsapp_count' => 0,
-                    'delivered_count' => 0,
-                    'failed_count' => 0,
-                    'total_cost_pence' => 0,
-                    'last_message_at' => null
-                ];
+            $stats = [
+                'total_messages' => 0,
+                'sms_count' => 0,
+                'whatsapp_count' => 0,
+                'both_count' => 0,
+                'delivered_count' => 0,
+                'failed_count' => 0,
+                'total_cost_pence' => 0,
+                'last_message_at' => null
+            ];
+            
+            // Get donor phone for matching
+            $donorStmt = $this->db->prepare("SELECT phone FROM donors WHERE id = ?");
+            $donorStmt->bind_param('i', $donorId);
+            $donorStmt->execute();
+            $donorResult = $donorStmt->get_result();
+            $donorPhone = $donorResult->fetch_assoc()['phone'] ?? '';
+            $donorStmt->close();
+            
+            $escapedPhone = $this->db->real_escape_string($donorPhone);
+            
+            // Check and query sms_log
+            $check = $this->db->query("SHOW TABLES LIKE 'sms_log'");
+            if ($check && $check->num_rows > 0) {
+                $sql = "
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN source_type NOT IN ('whatsapp', 'ultramsg') THEN 1 ELSE 0 END) as sms_count,
+                        SUM(CASE WHEN source_type IN ('whatsapp', 'ultramsg') THEN 1 ELSE 0 END) as whatsapp_count,
+                        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
+                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+                        SUM(COALESCE(cost_pence, 0)) as total_cost,
+                        MAX(sent_at) as last_sent
+                    FROM sms_log
+                    WHERE donor_id = {$donorId} OR phone_number = '{$escapedPhone}'
+                ";
+                
+                $result = $this->db->query($sql);
+                if ($result) {
+                    $row = $result->fetch_assoc();
+                    $stats['total_messages'] += (int)($row['total'] ?? 0);
+                    $stats['sms_count'] += (int)($row['sms_count'] ?? 0);
+                    $stats['whatsapp_count'] += (int)($row['whatsapp_count'] ?? 0);
+                    $stats['delivered_count'] += (int)($row['delivered_count'] ?? 0);
+                    $stats['failed_count'] += (int)($row['failed_count'] ?? 0);
+                    $stats['total_cost_pence'] += (float)($row['total_cost'] ?? 0);
+                    if ($row['last_sent'] && (!$stats['last_message_at'] || $row['last_sent'] > $stats['last_message_at'])) {
+                        $stats['last_message_at'] = $row['last_sent'];
+                    }
+                }
             }
             
-            $stmt = $this->db->prepare("
-                SELECT 
-                    COUNT(*) as total_messages,
-                    SUM(CASE WHEN channel = 'sms' THEN 1 ELSE 0 END) as sms_count,
-                    SUM(CASE WHEN channel = 'whatsapp' THEN 1 ELSE 0 END) as whatsapp_count,
-                    SUM(CASE WHEN channel = 'both' THEN 1 ELSE 0 END) as both_count,
-                    SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
-                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
-                    SUM(cost_pence) as total_cost_pence,
-                    MAX(sent_at) as last_message_at
-                FROM message_log
-                WHERE donor_id = ?
-            ");
-            
-            if (!$stmt) {
-                return [];
+            // Check and query whatsapp_log
+            $check = $this->db->query("SHOW TABLES LIKE 'whatsapp_log'");
+            if ($check && $check->num_rows > 0) {
+                $sql = "
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
+                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+                        MAX(sent_at) as last_sent
+                    FROM whatsapp_log
+                    WHERE donor_id = {$donorId} OR phone_number = '{$escapedPhone}'
+                ";
+                
+                $result = $this->db->query($sql);
+                if ($result) {
+                    $row = $result->fetch_assoc();
+                    $waTotal = (int)($row['total'] ?? 0);
+                    $stats['total_messages'] += $waTotal;
+                    $stats['whatsapp_count'] += $waTotal; // All entries in whatsapp_log are WhatsApp
+                    $stats['delivered_count'] += (int)($row['delivered_count'] ?? 0);
+                    $stats['failed_count'] += (int)($row['failed_count'] ?? 0);
+                    if ($row['last_sent'] && (!$stats['last_message_at'] || $row['last_sent'] > $stats['last_message_at'])) {
+                        $stats['last_message_at'] = $row['last_sent'];
+                    }
+                }
             }
-            
-            $stmt->bind_param('i', $donorId);
-            $stmt->execute();
-            
-            $result = $stmt->get_result();
-            $stats = $result->fetch_assoc() ?: [];
-            
-            // Ensure numeric values
-            $stats['total_messages'] = (int)($stats['total_messages'] ?? 0);
-            $stats['sms_count'] = (int)($stats['sms_count'] ?? 0);
-            $stats['whatsapp_count'] = (int)($stats['whatsapp_count'] ?? 0);
-            $stats['both_count'] = (int)($stats['both_count'] ?? 0);
-            $stats['delivered_count'] = (int)($stats['delivered_count'] ?? 0);
-            $stats['failed_count'] = (int)($stats['failed_count'] ?? 0);
-            $stats['total_cost_pence'] = (float)($stats['total_cost_pence'] ?? 0);
             
             return $stats;
             
