@@ -33,8 +33,8 @@ class ReportParser
         foreach ($lines as $lineNumber => $line) {
             $line = trim($line);
 
-            // Detect main section headers (e.g., "# Admin Section")
-            if (preg_match('/^#+\s+(.+)\s+Section$/', $line, $matches)) {
+            // Detect main section headers (e.g., "# Admin Section" or "# Root Level")
+            if (preg_match('/^#\s+(Root Level|Admin Section|Donor Section|Registrar Section|Public Section|API Section|Reports Section)$/', $line, $matches)) {
                 $currentSection = $this->normalizeSectionName($matches[1]);
                 $sections[$currentSection] = [
                     'name' => $matches[1],
@@ -44,17 +44,15 @@ class ReportParser
                 continue;
             }
 
-            // Detect file headers (e.g., "## admin/index.php")
-            if (preg_match('/^##\s+(.+\.php)$/', $line, $matches)) {
-                if ($currentSection) {
-                    $filePath = $matches[1];
-                    $currentFile = $filePath;
-                    $sections[$currentSection]['files'][$filePath] = [
-                        'path' => $filePath,
-                        'issues' => [],
-                        'enhancements' => []
-                    ];
-                }
+            // Detect file headers (e.g., "## admin/index.php") — allow any extension
+            if ($currentSection && preg_match('/^##\s+(.+)$/', $line, $matches)) {
+                $filePath = $matches[1];
+                $currentFile = $filePath;
+                $sections[$currentSection]['files'][$filePath] = [
+                    'path' => $filePath,
+                    'issues' => [],
+                    'enhancements' => []
+                ];
                 continue;
             }
 
@@ -87,9 +85,19 @@ class ReportParser
         for ($i = $startLine; $i < count($lines); $i++) {
             $line = trim($lines[$i]);
 
-            // Stop at next section header
-            if (preg_match('/^#{2,3}\s+/', $line) || empty($line)) {
+            // Stop at next section header or file header or separator
+            if (preg_match('/^#{2,3}\s+/', $line) || $line === '---') {
                 break;
+            }
+
+            // Skip empty lines quietly
+            if ($line === '') {
+                continue;
+            }
+
+            // If section explicitly says NONE, exit with empty list
+            if (stripos($line, 'none') === 0 || preg_match('/^-\s+\*\*NONE\*\*/i', $line)) {
+                return [];
             }
 
             // Detect numbered list items (1. Issue description)
@@ -108,14 +116,27 @@ class ReportParser
                 continue;
             }
 
-            // Continue accumulating description for current issue
-            if ($currentIssue && !empty($line) && !preg_match('/^[-*+]\s+/', $line)) {
-                $currentIssue['description'] .= ' ' . $line;
+            // Detect bullet list items as new issues when no numbering
+            if (preg_match('/^[-*+]\s+(.+)$/', $line, $matches)) {
+                $text = $matches[1];
+                // If we are already in an issue, treat bullet as sub-detail
+                if ($currentIssue) {
+                    $currentIssue['description'] .= "\n• " . $text;
+                } else {
+                    $currentIssue = [
+                        'number' => null,
+                        'title' => $text,
+                        'description' => $text,
+                        'type' => $type,
+                        'priority' => $this->determinePriority($text, $type)
+                    ];
+                }
+                continue;
             }
 
-            // Handle bullet points as sub-details
-            if ($currentIssue && preg_match('/^[-*+]\s+(.+)$/', $line, $matches)) {
-                $currentIssue['description'] .= "\n• " . $matches[1];
+            // Continue accumulating description for current issue
+            if ($currentIssue) {
+                $currentIssue['description'] .= ' ' . $line;
             }
         }
 
@@ -134,12 +155,12 @@ class ReportParser
     {
         $mapping = [
             'Root Level' => 'root',
-            'Admin' => 'admin',
-            'Donor' => 'donor',
-            'Registrar' => 'registrar',
-            'Public' => 'public',
-            'API' => 'api',
-            'Reports' => 'reports'
+            'Admin Section' => 'admin',
+            'Donor Section' => 'donor',
+            'Registrar Section' => 'registrar',
+            'Public Section' => 'public',
+            'API Section' => 'api',
+            'Reports Section' => 'reports'
         ];
 
         return $mapping[$name] ?? strtolower(str_replace(' ', '_', $name));
