@@ -7,131 +7,32 @@
 
 declare(strict_types=1);
 
-// #region agent log - Debug logging function
-function debug_log_msg($location, $message, $data = [], $hypothesisId = '') {
-    // Write to root directory (web-accessible)
-    $log_file = __DIR__ . '/../../debug_message_history.txt';
-    $log_entry = [
-        'timestamp' => date('Y-m-d H:i:s'),
-        'location' => $location,
-        'message' => $message,
-        'data' => $data,
-        'hypothesisId' => $hypothesisId,
-        'sessionId' => 'debug-session'
-    ];
-    @file_put_contents($log_file, json_encode($log_entry) . "\n", FILE_APPEND);
-    
-    // Also write to .cursor directory for local debugging
-    $local_log = __DIR__ . '/../../.cursor/debug.log';
-    @file_put_contents($local_log, json_encode($log_entry) . "\n", FILE_APPEND);
-}
-// #endregion
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../services/MessagingHelper.php';
 
-// #region agent log
-debug_log_msg('message-history.php:1', 'Page load started', ['get_params' => $_GET, 'post_params' => $_POST], 'A');
-// #endregion
+require_admin();
 
-$errors = [];
-$debug_info = [];
-
-try {
-    // #region agent log
-    debug_log_msg('message-history.php:10', 'Loading config/db.php', [], 'B');
-    // #endregion
-    require_once __DIR__ . '/../../config/db.php';
-    
-    // #region agent log
-    debug_log_msg('message-history.php:13', 'Loading shared/auth.php', [], 'B');
-    // #endregion
-    require_once __DIR__ . '/../../shared/auth.php';
-    
-    // #region agent log
-    debug_log_msg('message-history.php:16', 'Loading services/MessagingHelper.php', [], 'B');
-    // #endregion
-    require_once __DIR__ . '/../../services/MessagingHelper.php';
-    
-    // #region agent log
-    debug_log_msg('message-history.php:19', 'Calling require_admin()', ['session_user' => isset($_SESSION['user'])], 'C');
-    // #endregion
-    require_admin();
-    
-    // #region agent log
-    debug_log_msg('message-history.php:22', 'require_admin() passed, initializing db()', [], 'D');
-    // #endregion
-    $db = db();
-    
-    // #region agent log
-    debug_log_msg('message-history.php:24', 'db() completed', ['db_connected' => ($db !== null)], 'D');
-    // #endregion
-    
-    // #region agent log
-    debug_log_msg('message-history.php:26', 'Creating MessagingHelper', [], 'D');
-    // #endregion
-    $msg = new MessagingHelper($db);
-    
-    // #region agent log
-    debug_log_msg('message-history.php:28', 'MessagingHelper created', ['msg_helper' => ($msg !== null)], 'D');
-    // #endregion
-    
-} catch (Exception $e) {
-    // #region agent log
-    debug_log_msg('message-history.php:30', 'Exception caught', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()], 'E');
-    // #endregion
-    $errors[] = 'Fatal Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
-    $debug_info[] = ['step' => 'Initialization', 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()];
-}
+$db = db();
+$msg = new MessagingHelper($db);
 
 // Get search term
-// #region agent log
-debug_log_msg('message-history.php:35', 'Parsing GET parameters', ['has_search' => isset($_GET['search']), 'has_donor_id' => isset($_GET['donor_id'])], 'F');
-// #endregion
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 $donorId = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
 
 // Get donor info if ID provided
 $donor = null;
-if ($donorId && isset($db) && $db) {
-    try {
-        // #region agent log
-        debug_log_msg('message-history.php:88', 'Fetching donor by ID', ['donorId' => $donorId, 'db_error' => $db->error], 'G');
-        // #endregion
-        $stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ?");
-        if (!$stmt) {
-            // #region agent log
-            debug_log_msg('message-history.php:91', 'Prepare failed', ['error' => $db->error, 'errno' => $db->errno], 'G');
-            // #endregion
-            $errors[] = 'Database prepare error: ' . $db->error;
-        } else {
-            $stmt->bind_param('i', $donorId);
-            $stmt->execute();
-            if ($stmt->error) {
-                // #region agent log
-                debug_log_msg('message-history.php:97', 'Execute failed', ['error' => $stmt->error], 'G');
-                // #endregion
-                $errors[] = 'Database execute error: ' . $stmt->error;
-            } else {
-                $donor = $stmt->get_result()->fetch_assoc();
-                // #region agent log
-                debug_log_msg('message-history.php:102', 'Donor fetched', ['donor_found' => ($donor !== null), 'donor_data' => $donor], 'G');
-                // #endregion
-            }
-            $stmt->close();
-        }
-    } catch (Exception $e) {
-        // #region agent log
-        debug_log_msg('message-history.php:108', 'Exception fetching donor', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()], 'G');
-        // #endregion
-        $errors[] = 'Error fetching donor: ' . $e->getMessage();
-    }
+if ($donorId) {
+    $stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ?");
+    $stmt->bind_param('i', $donorId);
+    $stmt->execute();
+    $donor = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 }
 
 // Search for donors if search term provided
 $search_results = [];
-if (!empty($search_term) && !$donorId && isset($db) && $db) {
-    try {
-        // #region agent log
-        debug_log_msg('message-history.php:105', 'Starting donor search', ['search_term' => $search_term], 'H');
-        // #endregion
+if (!empty($search_term) && !$donorId) {
     $search_param = "%{$search_term}%";
     
     // Check payment table columns for reference field
@@ -176,141 +77,75 @@ if (!empty($search_term) && !$donorId && isset($db) && $db) {
         LIMIT 50
     ";
     
-    // #region agent log
-    debug_log_msg('message-history.php:145', 'Preparing search query', ['query_length' => strlen($search_query), 'payment_ref_col' => $payment_ref_col], 'H');
-    // #endregion
     $stmt = $db->prepare($search_query);
-    if (!$stmt) {
-        // #region agent log
-        debug_log_msg('message-history.php:148', 'Search prepare failed', ['error' => $db->error, 'errno' => $db->errno], 'H');
-        // #endregion
-        $errors[] = 'Search query prepare error: ' . $db->error;
-    } else {
+    if ($stmt) {
         $stmt->bind_param('ssss', $search_param, $search_param, $search_param, $search_param);
         $stmt->execute();
-        if ($stmt->error) {
-            // #region agent log
-            debug_log_msg('message-history.php:154', 'Search execute failed', ['error' => $stmt->error], 'H');
-            // #endregion
-            $errors[] = 'Search query execute error: ' . $stmt->error;
-        } else {
-            $result = $stmt->get_result();
-            // #region agent log
-            debug_log_msg('message-history.php:159', 'Search query executed', ['result_rows' => $result->num_rows], 'H');
-            // #endregion
-    
-    while ($row = $result->fetch_assoc()) {
-        // Extract 4-digit reference if not already extracted
-        if (empty($row['reference_number'])) {
-            $pledge_stmt = $db->prepare("
-                SELECT notes FROM pledges 
-                WHERE (donor_id = ? OR donor_phone = ?) 
-                AND notes REGEXP '[0-9]{4}'
-                ORDER BY created_at DESC LIMIT 1
-            ");
-            $pledge_stmt->bind_param('is', $row['id'], $row['phone']);
-            $pledge_stmt->execute();
-            $pledge_result = $pledge_stmt->get_result();
-            if ($pledge_row = $pledge_result->fetch_assoc()) {
-                if (preg_match('/\b(\d{4})\b/', $pledge_row['notes'], $matches)) {
-                    $row['reference_number'] = $matches[1];
+        $result = $stmt->get_result();
+        
+        while ($row = $result->fetch_assoc()) {
+            // Extract 4-digit reference if not already extracted
+            if (empty($row['reference_number'])) {
+                $pledge_stmt = $db->prepare("
+                    SELECT notes FROM pledges 
+                    WHERE (donor_id = ? OR donor_phone = ?) 
+                    AND notes REGEXP '[0-9]{4}'
+                    ORDER BY created_at DESC LIMIT 1
+                ");
+                $pledge_stmt->bind_param('is', $row['id'], $row['phone']);
+                $pledge_stmt->execute();
+                $pledge_result = $pledge_stmt->get_result();
+                if ($pledge_row = $pledge_result->fetch_assoc()) {
+                    if (preg_match('/\b(\d{4})\b/', $pledge_row['notes'], $matches)) {
+                        $row['reference_number'] = $matches[1];
+                    }
+                }
+                // Fallback to padded donor ID
+                if (empty($row['reference_number'])) {
+                    $row['reference_number'] = str_pad((string)$row['id'], 4, '0', STR_PAD_LEFT);
+                }
+            } else {
+                // Fallback to padded donor ID if still empty
+                if (empty($row['reference_number'])) {
+                    $row['reference_number'] = str_pad((string)$row['id'], 4, '0', STR_PAD_LEFT);
                 }
             }
-            // Fallback to padded donor ID
-            if (empty($row['reference_number'])) {
-                $row['reference_number'] = str_pad((string)$row['id'], 4, '0', STR_PAD_LEFT);
-            }
-        } else {
-            // Fallback to padded donor ID if still empty
-            if (empty($row['reference_number'])) {
-                $row['reference_number'] = str_pad((string)$row['id'], 4, '0', STR_PAD_LEFT);
-            }
+            
+            $search_results[] = $row;
         }
-        
-        $search_results[] = $row;
-    }
-            $stmt->close();
-        }
-    }
-    // #region agent log
-    debug_log_msg('message-history.php:175', 'Search completed', ['results_count' => count($search_results)], 'H');
-    // #endregion
-    } catch (Exception $e) {
-        // #region agent log
-        debug_log_msg('message-history.php:178', 'Search error', ['error' => $e->getMessage()], 'H');
-        // #endregion
-        $errors[] = 'Search error: ' . $e->getMessage();
+        $stmt->close();
     }
 }
 
 // Get message history if donor selected
 $messages = [];
 $stats = [];
-if ($donorId && $donor && isset($msg) && $msg) {
-    try {
-        // #region agent log
-        debug_log_msg('message-history.php:185', 'Getting message history', ['donorId' => $donorId], 'I');
-        // #endregion
-        
-        // Check if message_log table exists
-        if (isset($db) && $db) {
-            $table_check = $db->query("SHOW TABLES LIKE 'message_log'");
-            $table_exists = $table_check && $table_check->num_rows > 0;
-            // #region agent log
-            debug_log_msg('message-history.php:191', 'Checking message_log table', ['table_exists' => $table_exists], 'I');
-            // #endregion
-            if (!$table_exists) {
-                $errors[] = 'The message_log table does not exist. Please run the migration: database/unified_message_logging.sql';
-            }
-        }
-        
-        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
-        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-        $channelFilter = $_GET['channel'] ?? null;
-        
-        // #region agent log
-        debug_log_msg('message-history.php:201', 'Calling getDonorMessageHistory', ['donorId' => $donorId, 'limit' => $limit, 'offset' => $offset, 'channelFilter' => $channelFilter], 'I');
-        // #endregion
-        $messages = $msg->getDonorMessageHistory($donorId, $limit, $offset, $channelFilter);
-        // #region agent log
-        debug_log_msg('message-history.php:204', 'getDonorMessageHistory returned', ['messages_count' => count($messages), 'messages_sample' => array_slice($messages, 0, 2)], 'I');
-        // #endregion
-        // #region agent log
-        debug_log_msg('message-history.php:207', 'Calling getDonorMessageStats', ['donorId' => $donorId], 'I');
-        // #endregion
-        $stats = $msg->getDonorMessageStats($donorId);
-        // #region agent log
-        debug_log_msg('message-history.php:210', 'getDonorMessageStats returned', ['stats' => $stats], 'I');
-        // #endregion
-    } catch (Exception $e) {
-        // #region agent log
-        debug_log_msg('message-history.php:213', 'Error getting message history', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()], 'I');
-        // #endregion
-        $errors[] = 'Error loading message history: ' . $e->getMessage();
-    }
+if ($donorId && $donor) {
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
+    $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+    $channelFilter = $_GET['channel'] ?? null;
+    
+    $messages = $msg->getDonorMessageHistory($donorId, $limit, $offset, $channelFilter);
+    $stats = $msg->getDonorMessageStats($donorId);
 }
 
 // Get reference number for selected donor
 $donor_reference = null;
-if ($donorId && $donor && isset($db) && $db) {
-    try {
-        $pledge_stmt = $db->prepare("
-            SELECT notes FROM pledges 
-            WHERE (donor_id = ? OR donor_phone = ?) 
-            ORDER BY created_at DESC LIMIT 1
-        ");
-        $pledge_stmt->bind_param('is', $donorId, $donor['phone']);
-        $pledge_stmt->execute();
-        $pledge_result = $pledge_stmt->get_result();
-        if ($pledge_row = $pledge_result->fetch_assoc()) {
-            if (preg_match('/\b(\d{4})\b/', $pledge_row['notes'], $matches)) {
-                $donor_reference = $matches[1];
-            }
+if ($donorId && $donor) {
+    $pledge_stmt = $db->prepare("
+        SELECT notes FROM pledges 
+        WHERE (donor_id = ? OR donor_phone = ?) 
+        ORDER BY created_at DESC LIMIT 1
+    ");
+    $pledge_stmt->bind_param('is', $donorId, $donor['phone']);
+    $pledge_stmt->execute();
+    $pledge_result = $pledge_stmt->get_result();
+    if ($pledge_row = $pledge_result->fetch_assoc()) {
+        if (preg_match('/\b(\d{4})\b/', $pledge_row['notes'], $matches)) {
+            $donor_reference = $matches[1];
         }
-        if (!$donor_reference) {
-            $donor_reference = str_pad((string)$donorId, 4, '0', STR_PAD_LEFT);
-        }
-    } catch (Exception $e) {
+    }
+    if (!$donor_reference) {
         $donor_reference = str_pad((string)$donorId, 4, '0', STR_PAD_LEFT);
     }
 }
@@ -325,33 +160,6 @@ if ($donorId && $donor && isset($db) && $db) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
-    <style>
-        .debug-panel {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 5px;
-        }
-        .debug-panel h5 {
-            color: #856404;
-            margin-bottom: 10px;
-        }
-        .debug-panel pre {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 3px;
-            overflow-x: auto;
-            font-size: 12px;
-        }
-        .error-panel {
-            background: #f8d7da;
-            border: 2px solid #dc3545;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 5px;
-        }
-    </style>
     <style>
         body {
             background-color: #f8f9fa;
@@ -454,65 +262,7 @@ if ($donorId && $donor && isset($db) && $db) {
         <main class="main-content">
             <div class="container-fluid p-3 p-md-4">
                 
-                <!-- Debug Panel - Show errors if any -->
-                <?php 
-                // #region agent log
-                debug_log_msg('message-history.php:430', 'Checking for errors', ['errors_count' => count($errors), 'errors' => $errors], 'L');
-                // #endregion
-                if (!empty($errors)): 
-                // #region agent log
-                debug_log_msg('message-history.php:433', 'Rendering error panel', [], 'L');
-                // #endregion
-                ?>
-                    <div class="error-panel">
-                        <h5><i class="fas fa-exclamation-triangle me-2"></i>Errors Detected</h5>
-                        <ul>
-                            <?php foreach ($errors as $error): ?>
-                                <li><?= htmlspecialchars($error) ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                        <p class="mb-0 mt-2">
-                            <strong>Debug Log:</strong> 
-                            <a href="../../debug_message_history.txt" target="_blank" class="btn btn-sm btn-warning me-2">
-                                View Debug Log (Web)
-                            </a>
-                            <small class="text-muted">Or access via cPanel File Manager: <code>debug_message_history.txt</code> in root directory</small>
-                        </p>
-                    </div>
-                <?php endif; ?>
-                
-                <!-- Debug Info Panel -->
-                <?php 
-                // #region agent log
-                debug_log_msg('message-history.php:450', 'Rendering debug info panel', [], 'L');
-                // #endregion
-                ?>
-                <div class="debug-panel">
-                    <h5><i class="fas fa-bug me-2"></i>Debug Information</h5>
-                    <p><strong>PHP Version:</strong> <?= PHP_VERSION ?></p>
-                    <p><strong>Session Status:</strong> <?= session_status() === PHP_SESSION_ACTIVE ? 'Active' : 'Inactive' ?></p>
-                    <p><strong>User Logged In:</strong> <?= isset($_SESSION['user']) ? 'Yes' : 'No' ?></p>
-                    <?php if (isset($_SESSION['user'])): ?>
-                        <p><strong>User Role:</strong> <?= htmlspecialchars($_SESSION['user']['role'] ?? 'unknown') ?></p>
-                    <?php endif; ?>
-                    <p><strong>DB Connection:</strong> <?= isset($db) && $db ? 'Connected' : 'Not Connected' ?></p>
-                    <p><strong>MessagingHelper:</strong> <?= isset($msg) && $msg ? 'Initialized' : 'Not Initialized' ?></p>
-                    <p><strong>GET Params:</strong> <code><?= htmlspecialchars(json_encode($_GET)) ?></code></p>
-                    <p class="mb-0">
-                        <strong>View Debug Log:</strong> 
-                        <a href="../../debug_message_history.txt" target="_blank" class="btn btn-sm btn-info me-2">
-                            Open Debug Log (Web)
-                        </a>
-                        <small class="text-muted">Or access via cPanel File Manager: <code>debug_message_history.txt</code> in root directory</small>
-                    </p>
-                </div>
-                
                 <!-- Page Header -->
-                <?php 
-                // #region agent log
-                debug_log_msg('message-history.php:470', 'Rendering page header', [], 'L');
-                // #endregion
-                ?>
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
                     <div>
                         <h2 class="mb-1">
@@ -526,11 +276,6 @@ if ($donorId && $donor && isset($db) && $db) {
                 </div>
                 
                 <!-- Search Card -->
-                <?php 
-                // #region agent log
-                debug_log_msg('message-history.php:485', 'Rendering search card', ['search_term' => $search_term, 'donorId' => $donorId], 'L');
-                // #endregion
-                ?>
                 <div class="card search-card">
                     <div class="card-body">
                         <form method="GET" action="" class="row g-3">
@@ -561,19 +306,7 @@ if ($donorId && $donor && isset($db) && $db) {
                 </div>
                 
                 <!-- Search Results -->
-                <?php 
-                // #region agent log
-                debug_log_msg('message-history.php:510', 'Checking search results', [
-                    'has_search_term' => !empty($search_term),
-                    'has_donorId' => !empty($donorId),
-                    'search_results_count' => count($search_results)
-                ], 'L');
-                // #endregion
-                if (!empty($search_term) && empty($donorId) && !empty($search_results)): 
-                // #region agent log
-                debug_log_msg('message-history.php:518', 'Rendering search results', ['count' => count($search_results)], 'L');
-                // #endregion
-                ?>
+                <?php if (!empty($search_term) && empty($donorId) && !empty($search_results)): ?>
                     <div class="card mb-4">
                         <div class="card-header bg-primary text-white">
                             <h5 class="mb-0">
@@ -624,20 +357,7 @@ if ($donorId && $donor && isset($db) && $db) {
                 <?php endif; ?>
                 
                 <!-- Donor Message History -->
-                <?php 
-                // #region agent log
-                debug_log_msg('message-history.php:560', 'Checking donor message history', [
-                    'has_donorId' => !empty($donorId),
-                    'has_donor' => isset($donor) && $donor !== null,
-                    'has_messages' => isset($messages),
-                    'messages_count' => isset($messages) ? count($messages) : 0
-                ], 'L');
-                // #endregion
-                if ($donorId && $donor): 
-                // #region agent log
-                debug_log_msg('message-history.php:570', 'Rendering donor message history', [], 'L');
-                // #endregion
-                ?>
+                <?php if ($donorId && $donor): ?>
                     <!-- Selected Donor Info -->
                     <div class="card mb-4">
                         <div class="card-body">
