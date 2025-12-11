@@ -306,14 +306,21 @@ try {
       <div class="nav-section-title">
         <span>System</span>
       </div>
-      <a href="<?php echo url_for('admin/tools/'); ?>" 
+      <a href="<?php echo url_for('admin/tools/'); ?>"
          class="nav-link <?php echo $current_dir === 'tools' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-wrench"></i>
         </span>
         <span class="nav-label">Developer Tools</span>
       </a>
-      <a href="<?php echo url_for('admin/settings/'); ?>" 
+      <a href="<?php echo url_for('admin/fix_report.php'); ?>"
+         class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'fix_report.php' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-shield-alt"></i>
+        </span>
+        <span class="nav-label">Security Fixes</span>
+      </a>
+      <a href="<?php echo url_for('admin/settings/'); ?>"
          class="nav-link <?php echo $current_dir === 'settings' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-cog"></i>
