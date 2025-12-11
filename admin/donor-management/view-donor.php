@@ -705,15 +705,16 @@ function formatDateTime($date) {
             }
         }
         
-        /* Contact accordion mobile styles */
-        @media (max-width: 575px) {
-            #collapseContact .col-sm-4 {
-                width: 100%;
-            }
-            #collapseContact .btn {
-                min-height: 100px !important;
-                margin-bottom: 0;
-            }
+        /* Contact accordion styles */
+        #collapseContact .btn {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        #collapseContact .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        #collapseContact .btn:active {
+            transform: translateY(0);
         }
         
         /* SMS Modal mobile styles */
@@ -752,13 +753,8 @@ function formatDateTime($date) {
                     <a href="donors.php" class="btn btn-outline-secondary btn-lg">
                         <i class="fas fa-arrow-left me-2"></i>Back to Donor List
                     </a>
-                    <div class="d-flex align-items-center gap-2">
-                        <a href="message-history.php?donor_id=<?= $donor_id ?>" class="btn btn-info btn-lg">
-                            <i class="fas fa-envelope me-2"></i>Message History
-                        </a>
-                        <div class="text-muted small">
-                            <i class="fas fa-info-circle me-1"></i>Reference: #<?php echo htmlspecialchars($donor_reference); ?>
-                        </div>
+                    <div class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>Reference: #<?php echo htmlspecialchars($donor_reference); ?>
                     </div>
                 </div>
 
@@ -885,58 +881,47 @@ function formatDateTime($date) {
                             </button>
                         </h2>
                         <div id="collapseContact" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
-                            <div class="accordion-body">
-                                <div class="row g-3">
+                            <div class="accordion-body py-3">
+                                <!-- Contact Buttons - Compact Design -->
+                                <div class="d-flex flex-wrap gap-2 mb-3">
                                     <!-- SMS Button -->
-                                    <div class="col-12 col-sm-4">
-                                        <button type="button" class="btn btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-2 py-4" 
-                                                style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; border: none; border-radius: 12px; min-height: 120px;"
-                                                data-bs-toggle="modal" data-bs-target="#sendSmsModal">
-                                            <i class="fas fa-sms fa-2x"></i>
-                                            <span class="fw-bold">Send SMS</span>
-                                            <small class="opacity-75">Text message</small>
-                                        </button>
-                                    </div>
+                                    <button type="button" class="btn d-inline-flex align-items-center gap-2 px-3 py-2" 
+                                            style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;"
+                                            data-bs-toggle="modal" data-bs-target="#sendSmsModal">
+                                        <i class="fas fa-sms"></i>
+                                        <span class="fw-semibold">SMS</span>
+                                    </button>
                                     
                                     <!-- WhatsApp Button -->
-                                    <div class="col-12 col-sm-4">
-                                        <a href="../messaging/whatsapp/new-chat.php?phone=<?php echo urlencode($donor['phone']); ?>&donor_id=<?php echo $donor_id; ?>" 
-                                           class="btn btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-2 py-4 text-decoration-none" 
-                                           style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border: none; border-radius: 12px; min-height: 120px;">
-                                            <i class="fab fa-whatsapp fa-2x"></i>
-                                            <span class="fw-bold">WhatsApp</span>
-                                            <small class="opacity-75">Start conversation</small>
-                                        </a>
-                                    </div>
+                                    <a href="../messaging/whatsapp/new-chat.php?phone=<?php echo urlencode($donor['phone']); ?>&donor_id=<?php echo $donor_id; ?>" 
+                                       class="btn d-inline-flex align-items-center gap-2 px-3 py-2 text-decoration-none" 
+                                       style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;">
+                                        <i class="fab fa-whatsapp"></i>
+                                        <span class="fw-semibold">WhatsApp</span>
+                                    </a>
                                     
                                     <!-- Call Button -->
-                                    <div class="col-12 col-sm-4">
-                                        <a href="tel:<?php echo htmlspecialchars($donor['phone']); ?>" 
-                                           class="btn btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-2 py-4 text-decoration-none" 
-                                           style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 12px; min-height: 120px;">
-                                            <i class="fas fa-phone-alt fa-2x"></i>
-                                            <span class="fw-bold">Call</span>
-                                            <small class="opacity-75"><?php echo htmlspecialchars($donor['phone']); ?></small>
-                                        </a>
-                                    </div>
+                                    <a href="tel:<?php echo htmlspecialchars($donor['phone']); ?>" 
+                                       class="btn d-inline-flex align-items-center gap-2 px-3 py-2 text-decoration-none" 
+                                       style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;">
+                                        <i class="fas fa-phone-alt"></i>
+                                        <span class="fw-semibold">Call</span>
+                                    </a>
+                                    
+                                    <!-- Message History Button -->
+                                    <a href="message-history.php?donor_id=<?= $donor_id ?>" 
+                                       class="btn d-inline-flex align-items-center gap-2 px-3 py-2 text-decoration-none"
+                                       style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; border-radius: 8px; font-size: 0.875rem;">
+                                        <i class="fas fa-history"></i>
+                                        <span class="fw-semibold">History</span>
+                                    </a>
                                 </div>
                                 
-                                <!-- Quick Info -->
-                                <div class="mt-3 p-3 rounded" style="background: #f8fafc; border: 1px solid #e5e7eb;">
-                                    <div class="row g-2 text-center">
-                                        <div class="col-4">
-                                            <small class="text-muted d-block">Phone</small>
-                                            <strong><?php echo htmlspecialchars($donor['phone']); ?></strong>
-                                        </div>
-                                        <div class="col-4">
-                                            <small class="text-muted d-block">Language</small>
-                                            <strong><?php echo strtoupper($donor['preferred_language'] ?? 'EN'); ?></strong>
-                                        </div>
-                                        <div class="col-4">
-                                            <small class="text-muted d-block">Reference</small>
-                                            <strong>#<?php echo htmlspecialchars($donor_reference); ?></strong>
-                                        </div>
-                                    </div>
+                                <!-- Quick Info - Compact -->
+                                <div class="d-flex flex-wrap gap-3 small text-muted">
+                                    <span><i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor['phone']); ?></span>
+                                    <span><i class="fas fa-language me-1"></i><?php echo strtoupper($donor['preferred_language'] ?? 'EN'); ?></span>
+                                    <span><i class="fas fa-hashtag me-1"></i><?php echo htmlspecialchars($donor_reference); ?></span>
                                 </div>
                             </div>
                         </div>
