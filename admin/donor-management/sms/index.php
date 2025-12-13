@@ -669,6 +669,17 @@ $month_cost_display = '£' . number_format($stats['month_cost'] / 100, 2);
                                     <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
                                 
+                                <a href="bulk-message.php" class="action-item" style="background: linear-gradient(135deg, rgba(10, 98, 134, 0.08), rgba(14, 165, 233, 0.08)); border-radius: 8px;">
+                                    <div class="action-icon" style="background: linear-gradient(135deg, #0a6286, #0ea5e9); color: white;">
+                                        <i class="fas fa-bullhorn"></i>
+                                    </div>
+                                    <div class="action-content">
+                                        <p class="action-name">Bulk Messaging</p>
+                                        <p class="action-desc">Send to multiple donors with filters</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </a>
+                                
                                 <a href="templates.php" class="action-item">
                                     <div class="action-icon bg-blue-light">
                                         <i class="fas fa-file-alt"></i>
