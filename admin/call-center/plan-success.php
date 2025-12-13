@@ -151,16 +151,16 @@ try {
         
         if ($unit === 'day') {
             $frequency_display = $num === 1 ? 'Daily' : "Every {$num} days";
-            $frequency_sms = $num === 1 ? 'daily' : "every {$num} days";
+            $frequency_sms = $num === 1 ? 'per day' : "every {$num} days";
         } elseif ($unit === 'week') {
             $frequency_display = $num === 1 ? 'Weekly' : "Every {$num} weeks";
-            $frequency_sms = $num === 1 ? 'weekly' : "every {$num} weeks";
+            $frequency_sms = $num === 1 ? 'per week' : "every {$num} weeks";
         } elseif ($unit === 'month') {
             $frequency_display = $num === 1 ? 'Monthly' : "Every {$num} months";
-            $frequency_sms = $num === 1 ? 'monthly' : "every {$num} months";
+            $frequency_sms = $num === 1 ? 'per month' : "every {$num} months";
         } elseif ($unit === 'year') {
             $frequency_display = $num === 1 ? 'Annually' : "Every {$num} years";
-            $frequency_sms = $num === 1 ? 'annually' : "every {$num} years";
+            $frequency_sms = $num === 1 ? 'per year' : "every {$num} years";
         }
     }
     
