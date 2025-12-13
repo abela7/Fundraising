@@ -8,7 +8,7 @@ require_login();
 require_admin();
 
 $page_title = 'Bulk Message History';
-$db = db();
+ $db = db();
 
 function tableExists(mysqli $db, string $table): bool
 {
@@ -19,49 +19,10 @@ function tableExists(mysqli $db, string $table): bool
     return $res && $res->num_rows > 0;
 }
 
-function buildUnionSql(mysqli $db, string $filterSql): array
+function ensureBulkTables(mysqli $db): void
 {
-    $parts = [];
-
-    if (tableExists($db, 'sms_log')) {
-        $parts[] = "
-            SELECT
-                'sms' AS channel,
-                donor_id,
-                phone_number AS phone,
-                template_id,
-                message_content,
-                status,
-                error_message,
-                source_type,
-                sent_at
-            FROM sms_log
-            WHERE {$filterSql}
-        ";
-    }
-
-    if (tableExists($db, 'whatsapp_log')) {
-        $parts[] = "
-            SELECT
-                'whatsapp' AS channel,
-                donor_id,
-                phone_number AS phone,
-                template_id,
-                message_content,
-                status,
-                error_message,
-                source_type,
-                sent_at
-            FROM whatsapp_log
-            WHERE {$filterSql}
-        ";
-    }
-
-    if (empty($parts)) {
-        return ['', []];
-    }
-
-    return [implode(' UNION ALL ', $parts), []];
+    // If these tables don't exist yet, history should show empty (they'll be created on first send).
+    // Do not auto-create here to avoid surprises.
 }
 
 // AJAX endpoints
@@ -78,53 +39,25 @@ if (isset($_GET['ajax']) && $_GET['ajax'] !== '') {
             if ($limit > 50) $limit = 50;
             if ($offset < 0) $offset = 0;
 
-            // Only bulk source types
-            $filterSql = "source_type LIKE 'bulk_%'";
-            [$unionSql] = buildUnionSql($db, $filterSql);
-
-            if ($unionSql === '') {
+            if (!tableExists($db, 'bulk_message_runs')) {
                 echo json_encode(['success' => true, 'runs' => [], 'has_more' => false, 'next_offset' => 0]);
                 exit;
             }
 
             $sql = "
                 SELECT
-                    run_token,
-                    kind,
+                    run_id AS run_token,
+                    channel_preference AS kind,
                     started_at,
                     finished_at,
-                    total_count,
+                    total_recipients AS total_count,
                     sent_count,
                     failed_count,
-                    whatsapp_count,
-                    sms_count,
+                    whatsapp_sent AS whatsapp_count,
+                    sms_sent AS sms_count,
                     template_id,
-                    message_preview
-                FROM (
-                    SELECT
-                        -- If source_type already contains a run id (bulk_xxx:bm_...), use it as token
-                        CASE
-                            WHEN INSTR(source_type, ':') > 0 THEN source_type
-                            ELSE CONCAT(source_type, ':legacy-', DATE_FORMAT(sent_at, '%Y%m%d%H%i'))
-                        END AS run_token,
-                        CASE
-                            WHEN INSTR(source_type, ':') > 0 THEN SUBSTRING_INDEX(source_type, ':', 1)
-                            ELSE source_type
-                        END AS kind,
-                        MIN(sent_at) AS started_at,
-                        MAX(sent_at) AS finished_at,
-                        COUNT(*) AS total_count,
-                        SUM(CASE WHEN status IN ('sent','delivered') THEN 1 ELSE 0 END) AS sent_count,
-                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
-                        SUM(CASE WHEN channel = 'whatsapp' THEN 1 ELSE 0 END) AS whatsapp_count,
-                        SUM(CASE WHEN channel = 'sms' THEN 1 ELSE 0 END) AS sms_count,
-                        MAX(template_id) AS template_id,
-                        LEFT(MIN(message_content), 140) AS message_preview
-                    FROM (
-                        {$unionSql}
-                    ) x
-                    GROUP BY run_token, kind
-                ) grouped
+                    LEFT(message_text, 140) AS message_preview
+                FROM bulk_message_runs
                 ORDER BY started_at DESC
                 LIMIT ? OFFSET ?
             ";
@@ -164,74 +97,31 @@ if (isset($_GET['ajax']) && $_GET['ajax'] !== '') {
                 throw new Exception('Missing run token');
             }
 
-            // Legacy token: kind:legacy-YYYYMMDDHHMM
-            $filterSql = '';
-            $params = [];
-            $types = '';
-
-            if (strpos($runToken, ':legacy-') !== false) {
-                [$kind, $legacyPart] = explode(':legacy-', $runToken, 2);
-                $legacyMinute = preg_replace('/[^0-9]/', '', $legacyPart);
-                if (strlen($legacyMinute) !== 12) {
-                    throw new Exception('Invalid legacy token');
-                }
-
-                $start = DateTime::createFromFormat('YmdHi', $legacyMinute);
-                if (!$start) {
-                    throw new Exception('Invalid legacy token');
-                }
-                $end = clone $start;
-                $end->modify('+59 seconds');
-
-                $filterSql = "source_type = ? AND sent_at BETWEEN ? AND ?";
-                $params = [$kind, $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')];
-                $types = 'sss';
-            } else {
-                $filterSql = "source_type = ?";
-                $params = [$runToken];
-                $types = 's';
-            }
-
-            [$unionSql] = buildUnionSql($db, $filterSql);
-            if ($unionSql === '') {
+            if (!tableExists($db, 'bulk_message_recipients')) {
                 echo json_encode(['success' => true, 'items' => [], 'has_more' => false, 'next_offset' => 0]);
                 exit;
             }
 
             $sql = "
                 SELECT
-                    x.channel,
-                    x.donor_id,
-                    x.phone,
-                    x.template_id,
-                    x.status,
-                    x.error_message,
-                    x.sent_at,
+                    r.channel_used AS channel,
+                    r.donor_id,
+                    r.phone,
+                    NULL AS template_id,
+                    r.status,
+                    r.error_message,
+                    r.sent_at,
                     d.name AS donor_name
-                FROM (
-                    {$unionSql}
-                ) x
-                LEFT JOIN donors d ON x.donor_id = d.id
-                ORDER BY x.sent_at DESC
+                FROM bulk_message_recipients r
+                LEFT JOIN donors d ON r.donor_id = d.id
+                WHERE r.run_id = ?
+                ORDER BY r.sent_at DESC
                 LIMIT ? OFFSET ?
             ";
 
             $stmt = $db->prepare($sql);
             $fetchLimit = $limit + 1;
-
-            // Bind params + limit/offset
-            $bindParams = [$types . 'ii'];
-            $refs = [];
-            foreach ($params as $k => $v) {
-                $refs[$k] = $v;
-                $bindParams[] = &$refs[$k];
-            }
-            $refs[] = $fetchLimit;
-            $refs[] = $offset;
-            $bindParams[] = &$refs[count($refs) - 2];
-            $bindParams[] = &$refs[count($refs) - 1];
-
-            call_user_func_array([$stmt, 'bind_param'], $bindParams);
+            $stmt->bind_param('sii', $runToken, $fetchLimit, $offset);
             $stmt->execute();
             $res = $stmt->get_result();
 

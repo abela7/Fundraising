@@ -1034,6 +1034,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const donorIds = data.ids;
             const total = donorIds.length;
+
+            // Create bulk run record (robust history)
+            const filtersObj = Object.fromEntries(new FormData(filterForm).entries());
+            const createRunData = new FormData();
+            createRunData.append('action', 'create_run');
+            createRunData.append('bulk_run_id', bulkRunId);
+            createRunData.append('template_id', templateSelect.value);
+            createRunData.append('channel', document.querySelector('input[name="channel"]:checked').value);
+            createRunData.append('message', messageContent.value);
+            createRunData.append('total_recipients', String(total));
+            createRunData.append('filters_json', JSON.stringify(filtersObj));
+            await fetch('bulk-send-process.php', { method: 'POST', body: createRunData });
             
             // 2. Process in Batches
             const progressBar = document.getElementById('progressBar');
@@ -1098,6 +1110,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressBar.setAttribute('aria-valuenow', percent);
             }
             
+            // Finalize run
+            const finalizeData = new FormData();
+            finalizeData.append('action', 'finalize_run');
+            finalizeData.append('bulk_run_id', bulkRunId);
+            await fetch('bulk-send-process.php', { method: 'POST', body: finalizeData });
+
             progressText.textContent = 'Completed!';
             progressBar.classList.remove('progress-bar-animated');
             progressBar.classList.add('bg-success');

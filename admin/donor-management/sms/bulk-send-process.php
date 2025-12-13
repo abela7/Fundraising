@@ -18,6 +18,94 @@ try {
     $db = db();
     $action = $_REQUEST['action'] ?? '';
 
+    /**
+     * Ensure bulk history tables exist (idempotent).
+     */
+    function ensureBulkTables(mysqli $db): void
+    {
+        $db->query("
+            CREATE TABLE IF NOT EXISTS bulk_message_runs (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                run_id VARCHAR(64) NOT NULL,
+                created_by_user_id INT NULL,
+                created_by_name VARCHAR(255) NULL,
+                template_id INT UNSIGNED NULL,
+                channel_preference VARCHAR(20) NOT NULL DEFAULT 'whatsapp',
+                message_text TEXT NOT NULL,
+                filters_json TEXT NULL,
+                total_recipients INT NOT NULL DEFAULT 0,
+                sent_count INT NOT NULL DEFAULT 0,
+                failed_count INT NOT NULL DEFAULT 0,
+                whatsapp_sent INT NOT NULL DEFAULT 0,
+                sms_sent INT NOT NULL DEFAULT 0,
+                sms_fallback_count INT NOT NULL DEFAULT 0,
+                started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                finished_at DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_run_id (run_id),
+                KEY idx_created_at (created_at),
+                KEY idx_template_id (template_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        $db->query("
+            CREATE TABLE IF NOT EXISTS bulk_message_recipients (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                run_id VARCHAR(64) NOT NULL,
+                donor_id INT NULL,
+                phone VARCHAR(20) NOT NULL,
+                channel_used VARCHAR(20) NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                is_fallback TINYINT(1) NOT NULL DEFAULT 0,
+                error_message TEXT NULL,
+                provider_message_id VARCHAR(100) NULL,
+                sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_run_donor (run_id, donor_id),
+                KEY idx_run (run_id),
+                KEY idx_status (status),
+                KEY idx_channel (channel_used),
+                KEY idx_sent_at (sent_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+
+    /**
+     * Recalculate aggregate stats for a run.
+     */
+    function recalcRunStats(mysqli $db, string $runId): void
+    {
+        $stmt = $db->prepare("
+            UPDATE bulk_message_runs r
+            JOIN (
+                SELECT
+                    run_id,
+                    COUNT(*) AS total_recipients,
+                    SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) AS sent_count,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
+                    SUM(CASE WHEN channel_used = 'whatsapp' AND status = 'sent' THEN 1 ELSE 0 END) AS whatsapp_sent,
+                    SUM(CASE WHEN channel_used = 'sms' AND status = 'sent' THEN 1 ELSE 0 END) AS sms_sent,
+                    SUM(CASE WHEN is_fallback = 1 AND status = 'sent' THEN 1 ELSE 0 END) AS sms_fallback_count
+                FROM bulk_message_recipients
+                WHERE run_id = ?
+                GROUP BY run_id
+            ) agg ON agg.run_id = r.run_id
+            SET
+                r.total_recipients = agg.total_recipients,
+                r.sent_count = agg.sent_count,
+                r.failed_count = agg.failed_count,
+                r.whatsapp_sent = agg.whatsapp_sent,
+                r.sms_sent = agg.sms_sent,
+                r.sms_fallback_count = agg.sms_fallback_count
+            WHERE r.run_id = ?
+        ");
+        if ($stmt) {
+            $stmt->bind_param('ss', $runId, $runId);
+            $stmt->execute();
+        }
+    }
+
     // --- Helper: Build Query from Filters ---
     function buildDonorQuery($db) {
         $conditions = ["1=1"];
@@ -139,6 +227,63 @@ try {
         
         echo json_encode(['success' => true, 'ids' => $ids]);
 
+    } elseif ($action === 'create_run') {
+        ensureBulkTables($db);
+
+        $bulk_run_id = isset($_POST['bulk_run_id']) ? trim((string)$_POST['bulk_run_id']) : '';
+        $bulk_run_id = preg_replace('/[^a-zA-Z0-9_\\-]/', '', $bulk_run_id);
+        if ($bulk_run_id === '') {
+            throw new Exception('Missing bulk_run_id');
+        }
+
+        $template_id = isset($_POST['template_id']) && $_POST['template_id'] !== '' ? (int)$_POST['template_id'] : null;
+        $channel = isset($_POST['channel']) ? (string)$_POST['channel'] : 'whatsapp';
+        $message_text = trim((string)($_POST['message'] ?? ''));
+        $filters_json = isset($_POST['filters_json']) ? (string)$_POST['filters_json'] : null;
+
+        $total_recipients = isset($_POST['total_recipients']) ? (int)$_POST['total_recipients'] : 0;
+        if ($total_recipients < 0) $total_recipients = 0;
+
+        $user = function_exists('current_user') ? current_user() : null;
+        $userId = $user['id'] ?? null;
+        $userName = $user['name'] ?? null;
+
+        // Upsert run
+        $stmt = $db->prepare("
+            INSERT INTO bulk_message_runs
+                (run_id, created_by_user_id, created_by_name, template_id, channel_preference, message_text, filters_json, total_recipients, started_at)
+            VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+                template_id = VALUES(template_id),
+                channel_preference = VALUES(channel_preference),
+                message_text = VALUES(message_text),
+                filters_json = VALUES(filters_json),
+                total_recipients = GREATEST(total_recipients, VALUES(total_recipients)),
+                updated_at = NOW()
+        ");
+        if (!$stmt) {
+            throw new Exception('Failed to create run');
+        }
+
+        // Bind nullable ints carefully
+        $tpl = $template_id;
+        $uid = $userId;
+        $stmt->bind_param(
+            'sisssssi',
+            $bulk_run_id,
+            $uid,
+            $userName,
+            $tpl,
+            $channel,
+            $message_text,
+            $filters_json,
+            $total_recipients
+        );
+        $stmt->execute();
+
+        echo json_encode(['success' => true]);
+
     } elseif ($action === 'send_batch') {
         $ids_json = $_POST['ids'] ?? '[]';
         $ids = json_decode($ids_json, true);
@@ -151,6 +296,10 @@ try {
         if (empty($ids)) {
             echo json_encode(['success' => true, 'results' => []]);
             exit;
+        }
+
+        if ($bulk_run_id !== '') {
+            ensureBulkTables($db);
         }
 
         $msgHelper = new MessagingHelper($db);
@@ -310,10 +459,68 @@ try {
                 $resultEntry['error'] = $e->getMessage();
             }
 
+            // Persist recipient row for bulk history
+            if ($bulk_run_id !== '') {
+                $channelUsed = 'sms';
+                if ($template_id) {
+                    // MessagingHelper returns 'channel' only for WhatsApp success in this system
+                    $channelUsed = ($resultEntry['status'] === 'sent' && !$resultEntry['fallback'] && $channel === 'whatsapp') ? 'whatsapp' : 'sms';
+                } else {
+                    // Custom path sets fallback flag; prefer whatsapp when sent and not fallback and preferred was whatsapp
+                    $channelUsed = ($resultEntry['status'] === 'sent' && !$resultEntry['fallback'] && $channel === 'whatsapp') ? 'whatsapp' : 'sms';
+                }
+
+                $statusVal = $resultEntry['status'] === 'sent' ? 'sent' : 'failed';
+                $isFallback = $resultEntry['fallback'] ? 1 : 0;
+                $errMsg = $resultEntry['error'] !== '' ? $resultEntry['error'] : null;
+
+                $stmt = $db->prepare("
+                    INSERT INTO bulk_message_recipients
+                        (run_id, donor_id, phone, channel_used, status, is_fallback, error_message, sent_at)
+                    VALUES
+                        (?, ?, ?, ?, ?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        phone = VALUES(phone),
+                        channel_used = VALUES(channel_used),
+                        status = VALUES(status),
+                        is_fallback = VALUES(is_fallback),
+                        error_message = VALUES(error_message),
+                        updated_at = NOW()
+                ");
+                if ($stmt) {
+                    $donorId = (int)$resultEntry['donor_id'];
+                    $phone = (string)$resultEntry['phone'];
+                    $stmt->bind_param('sisssis', $bulk_run_id, $donorId, $phone, $channelUsed, $statusVal, $isFallback, $errMsg);
+                    $stmt->execute();
+                }
+            }
+
             $results[] = $resultEntry;
+        }
+
+        if ($bulk_run_id !== '') {
+            recalcRunStats($db, $bulk_run_id);
         }
         
         echo json_encode(['success' => true, 'results' => $results]);
+
+    } elseif ($action === 'finalize_run') {
+        ensureBulkTables($db);
+
+        $bulk_run_id = isset($_POST['bulk_run_id']) ? trim((string)$_POST['bulk_run_id']) : '';
+        $bulk_run_id = preg_replace('/[^a-zA-Z0-9_\\-]/', '', $bulk_run_id);
+        if ($bulk_run_id === '') {
+            throw new Exception('Missing bulk_run_id');
+        }
+
+        recalcRunStats($db, $bulk_run_id);
+        $stmt = $db->prepare("UPDATE bulk_message_runs SET finished_at = NOW(), updated_at = NOW() WHERE run_id = ?");
+        if ($stmt) {
+            $stmt->bind_param('s', $bulk_run_id);
+            $stmt->execute();
+        }
+
+        echo json_encode(['success' => true]);
 
     } else {
         throw new Exception('Invalid action');
