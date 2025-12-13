@@ -381,6 +381,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_device') {
+    require_once __DIR__ . '/../../shared/csrf.php';
+    verify_csrf();
+    
+    try {
+        $device_id = (int)($_POST['device_id'] ?? 0);
+        if ($device_id <= 0) {
+            throw new Exception("Invalid device ID");
+        }
+        
+        // Verify device belongs to this donor and get full device data for audit
+        $check = $db->prepare("SELECT id, device_token, donor_id, device_name, ip_address, is_active, created_at, expires_at, last_used_at FROM donor_trusted_devices WHERE id = ? AND donor_id = ?");
+        $check->bind_param('ii', $device_id, $donor_id);
+        $check->execute();
+        $device = $check->get_result()->fetch_assoc();
+        $check->close();
+        
+        if (!$device) {
+            throw new Exception("Device not found or doesn't belong to this donor");
+        }
+        
+        // Prepare device data for audit (before deletion)
+        $beforeData = [
+            'device_token' => substr($device['device_token'], 0, 8) . '...',
+            'donor_id' => $device['donor_id'],
+            'device_name' => $device['device_name'] ?? null,
+            'ip_address' => $device['ip_address'] ?? null,
+            'is_active' => (bool)$device['is_active'],
+            'created_at' => $device['created_at'],
+            'expires_at' => $device['expires_at'],
+            'last_used_at' => $device['last_used_at'] ?? null,
+        ];
+        
+        // Delete the device
+        $delete = $db->prepare("DELETE FROM donor_trusted_devices WHERE id = ?");
+        $delete->bind_param('i', $device_id);
+        $delete->execute();
+        $delete->close();
+        
+        // Audit log
+        log_audit(
+            $db,
+            'delete',
+            'donor_trusted_device',
+            $device_id,
+            $beforeData,
+            null,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
+        header('Location: view-donor.php?id=' . $donor_id . '&success=' . urlencode('Device deleted successfully'));
+        exit;
+        
+    } catch (Exception $e) {
+        header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Error: ' . $e->getMessage()));
+        exit;
+    }
+}
+
 $page_title = 'Donor Profile';
 
 // --- FETCH DATA ---
@@ -2034,16 +2094,26 @@ function formatDateTime($date) {
                                                             <span class="badge bg-<?php echo $status_class; ?>"><?php echo $status_text; ?></span>
                                                         </td>
                                                         <td>
-                                                            <?php if ($is_active || $is_expired): ?>
-                                                            <form method="POST" class="d-inline" onsubmit="return confirm('Revoke this device? The donor will need to log in again with SMS verification.');">
-                                                                <?php echo csrf_input(); ?>
-                                                                <input type="hidden" name="action" value="revoke_device">
-                                                                <input type="hidden" name="device_id" value="<?php echo $device['id']; ?>">
-                                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                    <i class="fas fa-ban"></i>
-                                                                </button>
-                                                            </form>
-                                                            <?php endif; ?>
+                                                            <div class="d-flex gap-1">
+                                                                <?php if ($is_active || $is_expired): ?>
+                                                                <form method="POST" class="d-inline" onsubmit="return confirm('Revoke this device? The donor will need to log in again with SMS verification.');">
+                                                                    <?php echo csrf_input(); ?>
+                                                                    <input type="hidden" name="action" value="revoke_device">
+                                                                    <input type="hidden" name="device_id" value="<?php echo $device['id']; ?>">
+                                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Revoke Device">
+                                                                        <i class="fas fa-ban"></i>
+                                                                    </button>
+                                                                </form>
+                                                                <?php endif; ?>
+                                                                <form method="POST" class="d-inline" onsubmit="return confirm('Delete this trusted device record? This action cannot be undone. The record will be permanently removed but will remain in audit logs.');">
+                                                                    <?php echo csrf_input(); ?>
+                                                                    <input type="hidden" name="action" value="delete_device">
+                                                                    <input type="hidden" name="device_id" value="<?php echo $device['id']; ?>">
+                                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Device Record">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                </form>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                     <?php endforeach; ?>
