@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
+require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../services/TwilioErrorCodes.php';
 require_login();
@@ -9,6 +11,72 @@ $db = db();
 $user_id = (int)($_SESSION['user']['id'] ?? 0);
 $user_role = $_SESSION['user']['role'] ?? 'registrar';
 $is_registrar = ($user_role === 'registrar');
+$is_admin = ($user_role === 'admin');
+
+$msg = '';
+$msg_type = '';
+
+// Handle Bulk Actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'bulk_delete') {
+    verify_csrf();
+    
+    if (!$is_admin) {
+        $msg = 'Permission denied. Only admins can delete call records.';
+        $msg_type = 'danger';
+    } else {
+        $selected_ids = $_POST['selected_ids'] ?? [];
+        
+        if (empty($selected_ids) || !is_array($selected_ids)) {
+            $msg = 'No records selected for deletion.';
+            $msg_type = 'warning';
+        } else {
+            $selected_ids = array_map('intval', $selected_ids);
+            $count = 0;
+            $failed = 0;
+            
+            $db->begin_transaction();
+            try {
+                // Prepare delete statement
+                $stmt = $db->prepare("DELETE FROM call_center_sessions WHERE id = ?");
+                
+                foreach ($selected_ids as $id) {
+                    $stmt->bind_param('i', $id);
+                    if ($stmt->execute()) {
+                        $count++;
+                        
+                        // Audit log
+                        log_audit(
+                            $db, 
+                            'delete', 
+                            'call_center_session', 
+                            $id, 
+                            ['id' => $id], 
+                            null, 
+                            'call_center_history', 
+                            $user_id
+                        );
+                    } else {
+                        $failed++;
+                    }
+                }
+                
+                $db->commit();
+                $msg = "$count call record(s) deleted successfully.";
+                $msg_type = 'success';
+                
+                if ($failed > 0) {
+                    $msg .= " ($failed failed)";
+                    $msg_type = 'warning';
+                }
+                
+            } catch (Exception $e) {
+                $db->rollback();
+                $msg = 'Error deleting records: ' . $e->getMessage();
+                $msg_type = 'danger';
+            }
+        }
+    }
+}
 
 // Filter parameters
 $donor_id = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : null;
@@ -145,6 +213,14 @@ $page_title = 'Call History';
         <?php include '../includes/topbar.php'; ?>
         
         <main class="main-content">
+            <?php if ($msg): ?>
+                <div class="alert alert-<?php echo $msg_type; ?> alert-dismissible fade show animate-fade-in" role="alert">
+                    <i class="fas fa-<?php echo $msg_type === 'success' ? 'check-circle' : 'exclamation-triangle'; ?> me-2"></i>
+                    <?php echo htmlspecialchars($msg); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
             <div class="content-header">
                 <div>
                     <h1 class="content-title">
@@ -157,6 +233,29 @@ $page_title = 'Call History';
                     <a href="index.php" class="btn btn-outline-primary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
                     </a>
+                </div>
+            </div>
+
+            <!-- Bulk Actions Bar -->
+            <div id="bulkActionsBar" class="card mb-3" style="display: none;">
+                <div class="card-body py-2">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted"><span id="selectedCount">0</span> selected</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <select id="bulkActionSelect" class="form-select form-select-sm" style="width: auto;">
+                                <option value="">Choose action...</option>
+                                <option value="delete">Delete Selected</option>
+                            </select>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="executeBulkAction()">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -225,6 +324,11 @@ $page_title = 'Call History';
                             <table class="table table-hover mb-0">
                                 <thead>
                                     <tr>
+                                        <?php if ($is_admin): ?>
+                                        <th width="40">
+                                            <input type="checkbox" id="selectAll" class="form-check-input" onchange="toggleSelectAll()">
+                                        </th>
+                                        <?php endif; ?>
                                         <th>Date & Time</th>
                                         <th>Donor</th>
                                         <th>Outcome</th>
@@ -256,6 +360,13 @@ $page_title = 'Call History';
                                             $agent_name = htmlspecialchars($call->agent_name ?? 'Unknown');
                                         ?>
                                         <tr onclick="window.location.href='call-details.php?id=<?php echo $call->id; ?>'" style="cursor: pointer;" class="call-history-row">
+                                            <?php if ($is_admin): ?>
+                                            <td onclick="event.stopPropagation();">
+                                                <input type="checkbox" class="form-check-input call-checkbox" 
+                                                       value="<?php echo $call->id; ?>" 
+                                                       onchange="updateBulkActionsBar()">
+                                            </td>
+                                            <?php endif; ?>
                                             <td>
                                                 <div><?php echo $call_date; ?></div>
                                                 <small class="text-muted"><?php echo $call_time; ?></small>
@@ -324,5 +435,87 @@ $page_title = 'Call History';
     cursor: pointer;
 }
 </style>
+<script>
+// Bulk Actions Functions
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.call-checkbox');
+  checkboxes.forEach(cb => cb.checked = selectAll.checked);
+  updateBulkActionsBar();
+}
+
+function updateBulkActionsBar() {
+  const checkboxes = document.querySelectorAll('.call-checkbox:checked');
+  const count = checkboxes.length;
+  const bulkBar = document.getElementById('bulkActionsBar');
+  const selectedCount = document.getElementById('selectedCount');
+  
+  if (count > 0) {
+    bulkBar.style.display = 'block';
+    selectedCount.textContent = count;
+  } else {
+    bulkBar.style.display = 'none';
+  }
+  
+  // Update select all checkbox
+  const allCheckboxes = document.querySelectorAll('.call-checkbox');
+  const selectAll = document.getElementById('selectAll');
+  if (selectAll && allCheckboxes.length > 0) {
+      selectAll.checked = checkboxes.length === allCheckboxes.length;
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.call-checkbox').forEach(cb => cb.checked = false);
+  const selectAll = document.getElementById('selectAll');
+  if (selectAll) selectAll.checked = false;
+  updateBulkActionsBar();
+}
+
+function executeBulkAction() {
+  const checkboxes = document.querySelectorAll('.call-checkbox:checked');
+  const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+  const action = document.getElementById('bulkActionSelect').value;
+  
+  if (selectedIds.length === 0) {
+    alert('Please select at least one record');
+    return;
+  }
+  
+  if (!action) {
+    alert('Please select an action');
+    return;
+  }
+  
+  if (action === 'delete') {
+    if (!confirm(`⚠️ WARNING ⚠️\n\nAre you sure you want to delete ${selectedIds.length} call record(s)?\n\nThis action CANNOT be undone!`)) {
+      return;
+    }
+    
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.innerHTML = '<?php echo csrf_input(); ?>';
+    
+    form.appendChild(createHiddenInput('action', 'bulk_delete'));
+    
+    selectedIds.forEach(id => {
+        const input = createHiddenInput('selected_ids[]', id);
+        form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+
+function createHiddenInput(name, value) {
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = name;
+  input.value = value;
+  return input;
+}
+</script>
 </body>
 </html>
