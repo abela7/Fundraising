@@ -214,7 +214,7 @@ $badge_labels = [
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/css/shepherd.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css">
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
@@ -244,7 +244,7 @@ $badge_labels = [
 
                 <!-- Progress Bar Toward Pledge Goal -->
                 <?php if ($donor['total_pledged'] > 0): ?>
-                <div class="card pledge-progress-card">
+                <div class="card pledge-progress-card" data-tour-step="progress">
                     <div class="card-body">
                         <!-- Header -->
                         <div class="pledge-header">
@@ -314,7 +314,7 @@ $badge_labels = [
                 </div>
 
                 <!-- Quick Stats -->
-                <div class="stats-grid">
+                <div class="stats-grid" data-tour-step="stats">
                     <div class="stat-card">
                         <p class="stat-label">Total Pledged</p>
                         <div class="stat-value">£<?php echo number_format($donor['total_pledged'], 2); ?></div>
@@ -531,8 +531,8 @@ $badge_labels = [
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/js/shepherd.min.js"></script>
-<script src="assets/donor.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+<script src="assets/donor.js?v=<?php echo @filemtime(__DIR__ . '/assets/donor.js'); ?>"></script>
 <?php 
 // Check if this is the donor's first login (login_count == 1)
 $is_first_login = isset($donor['login_count']) && (int)$donor['login_count'] === 1;
@@ -543,6 +543,7 @@ if ($is_first_login):
     if (!localStorage.getItem('donor-portal-tour-completed')) {
         // Tour will be initialized by donor.js after DOM is ready
         window.showDonorTour = true;
+        console.log('First time login detected - tour will start');
     }
 </script>
 <?php endif; ?>

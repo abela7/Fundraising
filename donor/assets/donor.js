@@ -84,238 +84,165 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Initialize Donor Portal Tour
+// Initialize Donor Portal Tour - Modern & Mobile-Friendly
 function initDonorTour() {
-    // Check if Shepherd.js is available
-    if (typeof Shepherd === 'undefined') {
-        console.warn('Shepherd.js not loaded. Tour cannot be initialized.');
+    // Check if Driver.js is available
+    if (typeof driver === 'undefined') {
+        console.error('Driver.js not loaded. Tour cannot be initialized.');
+        // Try again after a delay
+        setTimeout(function() {
+            if (typeof driver !== 'undefined') {
+                initDonorTour();
+            } else {
+                console.error('Driver.js still not available after retry');
+            }
+        }, 1000);
         return;
     }
 
-    const tour = new Shepherd.Tour({
-        useModalOverlay: true,
-        defaultStepOptions: {
-            cancelIcon: {
-                enabled: true
-            },
-            classes: 'shepherd-theme-custom',
-            scrollTo: {
-                behavior: 'smooth',
-                block: 'center'
-            },
-            buttons: [
-                {
-                    text: 'Skip Tour',
-                    action: function() {
-                        return this.cancel();
-                    },
-                    classes: 'shepherd-button-secondary'
-                }
-            ]
+    console.log('✅ Initializing donor portal tour...');
+    
+    // Show a brief loading message
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'tour-loading';
+    loadingMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #0a6286 0%, #0a8fb5 100%); color: white; padding: 12px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 10001; font-family: Inter, sans-serif; font-size: 14px; animation: slideInRight 0.3s ease-out;';
+    loadingMsg.innerHTML = '<i class="fas fa-rocket" style="margin-right: 8px;"></i> Starting your tour...';
+    document.body.appendChild(loadingMsg);
+    
+    // Add animation
+    const style = document.createElement('style');
+    style.textContent = '@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';
+    document.head.appendChild(style);
+    
+    setTimeout(() => {
+        if (loadingMsg && loadingMsg.parentNode) {
+            loadingMsg.style.animation = 'slideOutRight 0.3s ease-out forwards';
+            setTimeout(() => loadingMsg.remove(), 300);
+        }
+    }, 1500);
+    
+    console.log('📍 Checking tour elements...');
+
+    // Build tour steps dynamically
+    const steps = [];
+
+    // Step 1: Welcome
+    steps.push({
+        element: '[data-tour-step="welcome"]',
+        popover: {
+            title: '👋 Welcome to Your Donor Portal!',
+            description: 'This quick interactive tour will guide you through all the features. Take just 2 minutes to discover how easy it is to manage your giving!',
+            side: 'bottom',
+            align: 'center'
         }
     });
 
-    // Step 1: Welcome
-    tour.addStep({
-        id: 'welcome',
-        text: '<h3>Welcome to Your Donor Portal! 👋</h3><p>This quick tour will help you navigate your dashboard and make the most of your giving experience.</p>',
-        attachTo: {
-            element: '[data-tour-step="welcome"]',
-            on: 'bottom'
-        },
-        buttons: [
-            {
-                text: 'Skip Tour',
-                action: function() {
-                    return this.cancel();
-                },
-                classes: 'shepherd-button-secondary'
-            },
-            {
-                text: 'Get Started',
-                action: function() {
-                    return this.next();
-                },
-                classes: 'shepherd-button-primary'
-            }
-        ]
-    });
-
     // Step 2: Progress Bar (if exists)
-    const progressElement = document.querySelector('[data-tour-step="progress"]');
-    if (progressElement) {
-        tour.addStep({
-            id: 'progress',
-            text: '<h3>Track Your Pledge Progress 📊</h3><p>Here you can see how much you\'ve paid towards your pledge goal. The progress bar shows your completion percentage, and you can see your remaining balance at a glance.</p>',
-            attachTo: {
-                element: '[data-tour-step="progress"]',
-                on: 'top'
-            },
-            buttons: [
-                {
-                    text: 'Previous',
-                    action: function() {
-                        return this.back();
-                    },
-                    classes: 'shepherd-button-secondary'
-                },
-                {
-                    text: 'Next',
-                    action: function() {
-                        return this.next();
-                    },
-                    classes: 'shepherd-button-primary'
-                }
-            ]
+    if (document.querySelector('[data-tour-step="progress"]')) {
+        steps.push({
+            element: '[data-tour-step="progress"]',
+            popover: {
+                title: '📊 Track Your Progress',
+                description: 'See exactly how much you\'ve paid towards your pledge goal. The visual progress bar makes it easy to stay on track!',
+                side: 'bottom',
+                align: 'start'
+            }
         });
     }
 
     // Step 3: Quick Actions
-    tour.addStep({
-        id: 'quick-actions',
-        text: '<h3>Quick Actions ⚡</h3><p>These buttons give you quick access to the most important features:</p><ul style="text-align: left; margin-top: 10px;"><li><strong>Make Payment</strong> - Submit a new payment</li><li><strong>Payment History</strong> - View all your past payments</li><li><strong>My Plan</strong> - See your payment schedule</li><li><strong>Increase Pledge</strong> - Update your pledge amount</li><li><strong>Contact Us</strong> - Get help or ask questions</li><li><strong>My Profile</strong> - Update your preferences</li></ul>',
-        attachTo: {
-            element: '[data-tour-step="quick-actions"]',
-            on: 'top'
-        },
-        buttons: [
-            {
-                text: 'Previous',
-                action: function() {
-                    return this.back();
-                },
-                classes: 'shepherd-button-secondary'
-            },
-            {
-                text: 'Next',
-                action: function() {
-                    return this.next();
-                },
-                classes: 'shepherd-button-primary'
-            }
-        ]
+    steps.push({
+        element: '[data-tour-step="quick-actions"]',
+        popover: {
+            title: '⚡ Quick Actions',
+            description: '<div style="text-align: left;"><p><strong>Everything you need in one place:</strong></p><ul style="margin: 10px 0; padding-left: 20px;"><li><strong>Make Payment</strong> - Submit a payment instantly</li><li><strong>Payment History</strong> - View all past payments</li><li><strong>My Plan</strong> - Check your payment schedule</li><li><strong>Update Pledge</strong> - Increase your commitment</li><li><strong>Contact Us</strong> - Get help anytime</li></ul></div>',
+            side: 'top',
+            align: 'center'
+        }
     });
 
     // Step 4: Quick Stats
-    tour.addStep({
-        id: 'stats',
-        text: '<h3>Your Financial Summary 💰</h3><p>These cards show your key financial information at a glance:</p><ul style="text-align: left; margin-top: 10px;"><li><strong>Total Pledged</strong> - Your commitment amount</li><li><strong>Total Paid</strong> - Amount you\'ve contributed so far</li><li><strong>Remaining Balance</strong> - What\'s left to pay</li><li><strong>Payments Made</strong> - Number of payments completed</li></ul>',
-        attachTo: {
-            element: '[data-tour-step="stats"]',
-            on: 'top'
-        },
-        buttons: [
-            {
-                text: 'Previous',
-                action: function() {
-                    return this.back();
-                },
-                classes: 'shepherd-button-secondary'
-            },
-            {
-                text: 'Next',
-                action: function() {
-                    return this.next();
-                },
-                classes: 'shepherd-button-primary'
-            }
-        ]
+    steps.push({
+        element: '[data-tour-step="stats"]',
+        popover: {
+            title: '💰 Your Financial Summary',
+            description: '<div style="text-align: left;"><p>All your important numbers at a glance:</p><ul style="margin: 10px 0; padding-left: 20px;"><li><strong>Total Pledged</strong> - Your commitment</li><li><strong>Total Paid</strong> - What you\'ve given</li><li><strong>Balance</strong> - What remains</li><li><strong>Payments Made</strong> - Your progress</li></ul></div>',
+            side: 'top',
+            align: 'center'
+        }
     });
 
     // Step 5: Payment Plan (if exists)
-    const paymentPlanElement = document.querySelector('[data-tour-step="payment-plan"]');
-    if (paymentPlanElement) {
-        tour.addStep({
-            id: 'payment-plan',
-            text: '<h3>Your Payment Plan 📅</h3><p>If you have an active payment plan, you\'ll see details here including your monthly amount, next payment due date, and progress. You can view the full schedule or make a payment directly from this card.</p>',
-            attachTo: {
-                element: '[data-tour-step="payment-plan"]',
-                on: 'top'
-            },
-            buttons: [
-                {
-                    text: 'Previous',
-                    action: function() {
-                        return this.back();
-                    },
-                    classes: 'shepherd-button-secondary'
-                },
-                {
-                    text: 'Next',
-                    action: function() {
-                        return this.next();
-                    },
-                    classes: 'shepherd-button-primary'
-                }
-            ]
+    if (document.querySelector('[data-tour-step="payment-plan"]')) {
+        steps.push({
+            element: '[data-tour-step="payment-plan"]',
+            popover: {
+                title: '📅 Your Payment Plan',
+                description: 'Your active payment plan shows monthly amounts, next due dates, and progress. Click to view the full schedule or make a payment!',
+                side: 'top',
+                align: 'center'
+            }
         });
     }
 
-    // Step 6: Navigation Sidebar
+    // Step 6: Navigation Menu
     const sidebarToggle = document.getElementById('sidebarToggle');
     if (sidebarToggle) {
-        tour.addStep({
-            id: 'navigation',
-            text: '<h3>Navigation Menu 📱</h3><p>Use the menu button (☰) in the top-left corner to access all portal features. The sidebar contains organized sections for payments, your account, and more. You can always come back here to navigate between different pages.</p>',
-            attachTo: {
-                element: sidebarToggle,
-                on: 'bottom'
-            },
-            buttons: [
-                {
-                    text: 'Previous',
-                    action: function() {
-                        return this.back();
-                    },
-                    classes: 'shepherd-button-secondary'
-                },
-                {
-                    text: 'Finish',
-                    action: function() {
-                        localStorage.setItem('donor-portal-tour-completed', 'true');
-                        return this.complete();
-                    },
-                    classes: 'shepherd-button-primary'
-                }
-            ]
-        });
-    } else {
-        // Fallback if sidebar toggle doesn't exist
-        tour.addStep({
-            id: 'navigation',
-            text: '<h3>You\'re All Set! 🎉</h3><p>You now know how to navigate your donor portal. Use the menu to access all features, track your progress, and manage your payments. Thank you for your generosity!</p>',
-            buttons: [
-                {
-                    text: 'Previous',
-                    action: function() {
-                        return this.back();
-                    },
-                    classes: 'shepherd-button-secondary'
-                },
-                {
-                    text: 'Finish',
-                    action: function() {
-                        localStorage.setItem('donor-portal-tour-completed', 'true');
-                        return this.complete();
-                    },
-                    classes: 'shepherd-button-primary'
-                }
-            ]
+        steps.push({
+            element: '#sidebarToggle',
+            popover: {
+                title: '📱 Navigation Menu',
+                description: 'Tap this menu button anytime to access all features. Everything is organized into easy-to-find sections!',
+                side: 'bottom',
+                align: 'start'
+            }
         });
     }
 
-    // Start the tour after a short delay to ensure page is fully loaded
+    // Final step
+    steps.push({
+        popover: {
+            title: '🎉 You\'re All Set!',
+            description: '<div style="text-align: center;"><p style="font-size: 1.1em; margin: 15px 0;">You now know how to navigate your donor portal!</p><p>Feel free to explore and reach out if you need any help.</p><p style="margin-top: 15px;"><strong>Thank you for your generosity! ❤️</strong></p></div>',
+        }
+    });
+
+    // Initialize Driver.js with modern, mobile-friendly settings
+    const driverObj = driver({
+        showProgress: true,
+        showButtons: ['next', 'previous', 'close'],
+        steps: steps,
+        nextBtnText: 'Next →',
+        prevBtnText: '← Back',
+        doneBtnText: 'Get Started! 🚀',
+        closeBtnText: 'Skip',
+        progressText: '{{current}} of {{total}}',
+        overlayColor: 'rgba(0, 0, 0, 0.7)',
+        smoothScroll: true,
+        allowClose: true,
+        disableActiveInteraction: false,
+        popoverClass: 'donor-tour-popover',
+        onDestroyStarted: () => {
+            // Mark tour as completed when user closes it
+            localStorage.setItem('donor-portal-tour-completed', 'true');
+            driverObj.destroy();
+        },
+        onDestroyed: () => {
+            // Mark tour as completed
+            localStorage.setItem('donor-portal-tour-completed', 'true');
+            console.log('Tour completed!');
+        }
+    });
+
+    // Start the tour after ensuring page is fully loaded
     setTimeout(() => {
-        tour.start();
-    }, 500);
-
-    // Handle tour cancellation
-    tour.on('cancel', () => {
-        localStorage.setItem('donor-portal-tour-completed', 'true');
-    });
-
-    // Handle tour completion
-    tour.on('complete', () => {
-        localStorage.setItem('donor-portal-tour-completed', 'true');
-    });
+        console.log('🚀 Starting tour with ' + steps.length + ' steps');
+        try {
+            driverObj.drive();
+        } catch (error) {
+            console.error('Error starting tour:', error);
+            // Mark as completed to prevent retry loops
+            localStorage.setItem('donor-portal-tour-completed', 'true');
+        }
+    }, 1800);
 }
