@@ -49,7 +49,7 @@ if ($donor && $db_connection_ok) {
         // Build SELECT query with or without email and email_opt_in
         $select_fields = "id, name, phone, total_pledged, total_paid, balance, 
                    has_active_plan, active_payment_plan_id,
-                   payment_status, preferred_payment_method, preferred_language";
+                   payment_status, preferred_payment_method, preferred_language, login_count";
         if ($has_email) {
             $select_fields .= ", email";
         }
@@ -214,6 +214,7 @@ $badge_labels = [
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/css/shepherd.css">
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
@@ -226,7 +227,7 @@ $badge_labels = [
         
         <main class="main-content">
                 <!-- Page Header -->
-                <div class="page-header">
+                <div class="page-header" data-tour-step="welcome">
                     <div class="welcome-header">
                         <div class="welcome-content">
                             <p class="welcome-greeting">Welcome back,</p>
@@ -285,7 +286,7 @@ $badge_labels = [
                 <?php endif; ?>
 
                 <!-- Quick Actions -->
-                <div class="quick-actions-grid">
+                <div class="quick-actions-grid" data-tour-step="quick-actions">
                     <a href="<?php echo htmlspecialchars(url_for('donor/make-payment.php')); ?>" class="action-btn">
                         <i class="fas fa-credit-card"></i>
                         <span>Make Payment</span>
@@ -347,7 +348,7 @@ $badge_labels = [
 
                 <!-- Current Payment Plan Summary -->
                 <?php if ($payment_plan): ?>
-                <div class="card">
+                <div class="card" data-tour-step="payment-plan">
                     <div class="card-header">
                         <h5 class="card-title">
                             <i class="fas fa-calendar-alt text-primary"></i>Current Payment Plan
@@ -530,7 +531,21 @@ $badge_labels = [
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/js/shepherd.min.js"></script>
 <script src="assets/donor.js"></script>
+<?php 
+// Check if this is the donor's first login (login_count == 1)
+$is_first_login = isset($donor['login_count']) && (int)$donor['login_count'] === 1;
+if ($is_first_login): 
+?>
+<script>
+    // Check if tour was already completed (stored in localStorage)
+    if (!localStorage.getItem('donor-portal-tour-completed')) {
+        // Tour will be initialized by donor.js after DOM is ready
+        window.showDonorTour = true;
+    }
+</script>
+<?php endif; ?>
 </body>
 </html>
 

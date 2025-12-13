@@ -1127,3 +1127,144 @@ body {
 .hover-bg:hover {
   background-color: var(--gray-100, #f1f5f9);
 }
+
+/* Shepherd Tour Custom Styling */
+.shepherd-theme-custom {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.shepherd-theme-custom .shepherd-header {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-gold) 100%);
+  padding: 1.25rem;
+  border-radius: 12px 12px 0 0;
+  border: none;
+}
+
+.shepherd-theme-custom .shepherd-title {
+  color: white;
+  font-weight: 700;
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+.shepherd-theme-custom .shepherd-cancel-icon {
+  color: white;
+  font-size: 1.25rem;
+  opacity: 0.9;
+  font-weight: 600;
+}
+
+.shepherd-theme-custom .shepherd-cancel-icon:hover {
+  opacity: 1;
+}
+
+.shepherd-theme-custom .shepherd-content {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 0 0 12px 12px;
+}
+
+.shepherd-theme-custom .shepherd-text {
+  color: var(--gray-700);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.shepherd-theme-custom .shepherd-text h3 {
+  color: var(--primary-blue);
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem 0;
+}
+
+.shepherd-theme-custom .shepherd-text ul {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.shepherd-theme-custom .shepherd-text li {
+  margin: 0.5rem 0;
+  color: var(--gray-600);
+}
+
+.shepherd-theme-custom .shepherd-text strong {
+  color: var(--gray-900);
+  font-weight: 600;
+}
+
+.shepherd-theme-custom .shepherd-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+  border-radius: 0 0 12px 12px;
+}
+
+.shepherd-theme-custom .shepherd-button {
+  border-radius: 8px;
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.shepherd-theme-custom .shepherd-button-primary {
+  background: var(--primary-blue);
+  color: white;
+}
+
+.shepherd-theme-custom .shepherd-button-primary:hover {
+  background: #084d6a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(10, 98, 134, 0.3);
+}
+
+.shepherd-theme-custom .shepherd-button-secondary {
+  background: white;
+  color: var(--gray-700);
+  border: 1px solid var(--gray-300);
+}
+
+.shepherd-theme-custom .shepherd-button-secondary:hover {
+  background: var(--gray-50);
+  color: var(--gray-900);
+}
+
+/* Mobile responsive tour */
+@media (max-width: 767px) {
+  .shepherd-theme-custom {
+    max-width: calc(100vw - 2rem);
+    margin: 0 1rem;
+  }
+  
+  .shepherd-theme-custom .shepherd-content {
+    padding: 1.25rem;
+  }
+  
+  .shepherd-theme-custom .shepherd-text {
+    font-size: 0.875rem;
+  }
+  
+  .shepherd-theme-custom .shepherd-footer {
+    padding: 0.875rem 1.25rem;
+  }
+  
+  .shepherd-theme-custom .shepherd-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* Tour overlay styling */
+.shepherd-modal-overlay-container {
+  z-index: 9998;
+}
+
+.shepherd-element.shepherd-enabled {
+  z-index: 9999;
+}
