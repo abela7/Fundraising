@@ -332,6 +332,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Handle Trusted Device Revocation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'revoke_device') {
+    require_once __DIR__ . '/../../shared/csrf.php';
+    verify_csrf();
+    
+    try {
+        $device_id = (int)($_POST['device_id'] ?? 0);
+        if ($device_id <= 0) {
+            throw new Exception("Invalid device ID");
+        }
+        
+        // Verify device belongs to this donor
+        $check = $db->prepare("SELECT id, device_token, donor_id FROM donor_trusted_devices WHERE id = ? AND donor_id = ?");
+        $check->bind_param('ii', $device_id, $donor_id);
+        $check->execute();
+        $device = $check->get_result()->fetch_assoc();
+        $check->close();
+        
+        if (!$device) {
+            throw new Exception("Device not found or doesn't belong to this donor");
+        }
+        
+        // Revoke the device
+        $revoke = $db->prepare("UPDATE donor_trusted_devices SET is_active = 0 WHERE id = ?");
+        $revoke->bind_param('i', $device_id);
+        $revoke->execute();
+        $revoke->close();
+        
+        // Audit log
+        log_audit(
+            $db,
+            'revoke_device',
+            'donor_trusted_device',
+            $device_id,
+            ['device_token' => substr($device['device_token'], 0, 8) . '...', 'donor_id' => $donor_id],
+            null,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
+        header('Location: view-donor.php?id=' . $donor_id . '&success=' . urlencode('Device revoked successfully'));
+        exit;
+        
+    } catch (Exception $e) {
+        header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Error: ' . $e->getMessage()));
+        exit;
+    }
+}
+
 $page_title = 'Donor Profile';
 
 // --- FETCH DATA ---
@@ -550,7 +599,29 @@ try {
         }
     }
 
-    // 6. Assignment Info (Church, Representative & Agent)
+    // 6. Trusted Devices
+    $trusted_devices = [];
+    $device_table_exists = $db->query("SHOW TABLES LIKE 'donor_trusted_devices'")->num_rows > 0;
+    if ($device_table_exists) {
+        $device_query = "
+            SELECT td.*
+            FROM donor_trusted_devices td
+            WHERE td.donor_id = ?
+            ORDER BY td.created_at DESC
+        ";
+        $stmt = $db->prepare($device_query);
+        if ($stmt) {
+            $stmt->bind_param('i', $donor_id);
+            $stmt->execute();
+            $device_result = $stmt->get_result();
+            while ($device = $device_result->fetch_assoc()) {
+                $trusted_devices[] = $device;
+            }
+            $stmt->close();
+        }
+    }
+
+    // 7. Assignment Info (Church, Representative & Agent)
     $assignment = [
         'church_id' => $donor['church_id'] ?? null,
         'church_name' => $donor['church_name'] ?? null,
@@ -611,6 +682,63 @@ function formatMoney($amount) {
 function formatDate($date) {
     return $date ? date('M j, Y', strtotime($date)) : '-';
 }
+/**
+ * Parse user agent to get friendly device name
+ */
+function parseDeviceName(string $userAgent): array {
+    $browser = 'Unknown Browser';
+    $os = 'Unknown Device';
+    $icon = 'fa-desktop';
+    
+    // Detect browser
+    if (preg_match('/Chrome\/[\d.]+/', $userAgent) && !preg_match('/Edg/', $userAgent)) {
+        $browser = 'Chrome';
+    } elseif (preg_match('/Firefox\/[\d.]+/', $userAgent)) {
+        $browser = 'Firefox';
+    } elseif (preg_match('/Safari\/[\d.]+/', $userAgent) && !preg_match('/Chrome/', $userAgent)) {
+        $browser = 'Safari';
+    } elseif (preg_match('/Edg\/[\d.]+/', $userAgent)) {
+        $browser = 'Edge';
+    } elseif (preg_match('/MSIE|Trident/', $userAgent)) {
+        $browser = 'Internet Explorer';
+    } elseif (preg_match('/Opera|OPR/', $userAgent)) {
+        $browser = 'Opera';
+    }
+    
+    // Detect OS
+    if (preg_match('/iPhone/', $userAgent)) {
+        $os = 'iPhone';
+        $icon = 'fa-mobile-alt';
+    } elseif (preg_match('/iPad/', $userAgent)) {
+        $os = 'iPad';
+        $icon = 'fa-tablet-alt';
+    } elseif (preg_match('/Android/', $userAgent)) {
+        if (preg_match('/Mobile/', $userAgent)) {
+            $os = 'Android Phone';
+            $icon = 'fa-mobile-alt';
+        } else {
+            $os = 'Android Tablet';
+            $icon = 'fa-tablet-alt';
+        }
+    } elseif (preg_match('/Windows/', $userAgent)) {
+        $os = 'Windows';
+        $icon = 'fa-desktop';
+    } elseif (preg_match('/Macintosh/', $userAgent)) {
+        $os = 'Mac';
+        $icon = 'fa-laptop';
+    } elseif (preg_match('/Linux/', $userAgent)) {
+        $os = 'Linux';
+        $icon = 'fa-desktop';
+    }
+    
+    return [
+        'browser' => $browser,
+        'os' => $os,
+        'icon' => $icon,
+        'display' => "$browser on $os"
+    ];
+}
+
 function formatDateTime($date) {
     if (empty($date) || $date === null) {
         return '-';
@@ -1831,6 +1959,99 @@ function formatDateTime($date) {
                                         </div>
                                     </div>
                                     <?php endif; ?>
+                                    
+                                    <!-- Trusted Devices -->
+                                    <div class="col-12 mt-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-mobile-alt me-2 text-primary"></i>
+                                                Trusted Devices (<?php echo count($trusted_devices); ?>)
+                                            </h6>
+                                        </div>
+                                        
+                                        <?php if (empty($trusted_devices)): ?>
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fas fa-mobile-alt fa-2x opacity-25 mb-2"></i>
+                                            <p class="mb-0">No trusted devices found</p>
+                                        </div>
+                                        <?php else: ?>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Device</th>
+                                                        <th>IP Address</th>
+                                                        <th>Last Used</th>
+                                                        <th>Created</th>
+                                                        <th>Expires</th>
+                                                        <th>Status</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php foreach ($trusted_devices as $device): 
+                                                        $is_active = $device['is_active'] && strtotime($device['expires_at']) > time();
+                                                        $is_expired = $device['is_active'] && strtotime($device['expires_at']) <= time();
+                                                        $is_revoked = !$device['is_active'];
+                                                        
+                                                        $status_class = 'success';
+                                                        $status_text = 'Active';
+                                                        if ($is_expired) {
+                                                            $status_class = 'warning';
+                                                            $status_text = 'Expired';
+                                                        } elseif ($is_revoked) {
+                                                            $status_class = 'secondary';
+                                                            $status_text = 'Revoked';
+                                                        }
+                                                        
+                                                        $device_info = parseDeviceName($device['device_name'] ?? '');
+                                                    ?>
+                                                    <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="fas <?php echo $device_info['icon']; ?> me-2 text-muted"></i>
+                                                                <div>
+                                                                    <div class="fw-semibold small"><?php echo htmlspecialchars($device_info['display']); ?></div>
+                                                                    <div class="text-muted small font-monospace" style="font-size: 0.7rem;">
+                                                                        <?php echo htmlspecialchars(substr($device['device_token'], 0, 16)) . '...'; ?>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span class="small"><?php echo htmlspecialchars($device['ip_address'] ?? '-'); ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="small"><?php echo formatDateTime($device['last_used_at']); ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="small"><?php echo formatDate($device['created_at']); ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="small"><?php echo formatDate($device['expires_at']); ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-<?php echo $status_class; ?>"><?php echo $status_text; ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <?php if ($is_active || $is_expired): ?>
+                                                            <form method="POST" class="d-inline" onsubmit="return confirm('Revoke this device? The donor will need to log in again with SMS verification.');">
+                                                                <?php echo csrf_input(); ?>
+                                                                <input type="hidden" name="action" value="revoke_device">
+                                                                <input type="hidden" name="device_id" value="<?php echo $device['id']; ?>">
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                    <i class="fas fa-ban"></i>
+                                                                </button>
+                                                            </form>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    </tr>
+                                                    <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>

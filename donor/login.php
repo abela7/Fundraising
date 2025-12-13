@@ -159,7 +159,7 @@ function sendOTP($db, string $phone): array {
         require_once __DIR__ . '/../services/SMSHelper.php';
         $smsHelper = new SMSHelper($db);
         
-        $message = "Your Church Fundraising verification code is: {$otp}\n\nThis code expires in " . OTP_EXPIRY_MINUTES . " minutes.\n\nDo not share this code with anyone.";
+        $message = "Your donor portal verification code is: {$otp}\n\nThis code expires in " . OTP_EXPIRY_MINUTES . " minutes.\n\nDo not share this code with anyone.";
         
         $result = $smsHelper->sendDirect($normalized_phone, $message, null, 'donor_otp');
         
