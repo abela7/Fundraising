@@ -197,6 +197,141 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Handle System Information Update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_system_info') {
+    require_once __DIR__ . '/../../shared/csrf.php';
+    verify_csrf();
+    
+    try {
+        $db->begin_transaction();
+        
+        // Get current donor data for audit
+        $current_stmt = $db->prepare("SELECT login_count, portal_token, last_login_at, token_expires_at, token_generated_at FROM donors WHERE id = ?");
+        $current_stmt->bind_param('i', $donor_id);
+        $current_stmt->execute();
+        $current_data = $current_stmt->get_result()->fetch_assoc();
+        $current_stmt->close();
+        
+        if (!$current_data) {
+            throw new Exception("Donor not found");
+        }
+        
+        // Prepare update fields
+        $updates = [];
+        $params = [];
+        $types = '';
+        
+        // Login Count
+        if (isset($_POST['login_count']) && $_POST['login_count'] !== '') {
+            $login_count = (int)$_POST['login_count'];
+            if ($login_count >= 0) {
+                $updates[] = "login_count = ?";
+                $params[] = $login_count;
+                $types .= 'i';
+            }
+        }
+        
+        // Portal Token
+        if (isset($_POST['portal_token'])) {
+            $portal_token = trim($_POST['portal_token']);
+            if ($portal_token === '') {
+                $portal_token = null;
+            }
+            $updates[] = "portal_token = ?";
+            $params[] = $portal_token;
+            $types .= 's';
+        }
+        
+        // Helper function to convert datetime-local format to MySQL datetime
+        $convertDateTime = function($value) {
+            if (empty(trim($value))) {
+                return null;
+            }
+            // Convert "YYYY-MM-DDTHH:mm" to "YYYY-MM-DD HH:mm:00"
+            return str_replace('T', ' ', $value) . ':00';
+        };
+        
+        // Last Login At
+        if (isset($_POST['last_login_at'])) {
+            $last_login_at = $convertDateTime($_POST['last_login_at']);
+            $updates[] = "last_login_at = ?";
+            $params[] = $last_login_at;
+            $types .= 's';
+        }
+        
+        // Token Expires At
+        if (isset($_POST['token_expires_at'])) {
+            $token_expires_at = $convertDateTime($_POST['token_expires_at']);
+            $updates[] = "token_expires_at = ?";
+            $params[] = $token_expires_at;
+            $types .= 's';
+        }
+        
+        // Token Generated At
+        if (isset($_POST['token_generated_at'])) {
+            $token_generated_at = $convertDateTime($_POST['token_generated_at']);
+            $updates[] = "token_generated_at = ?";
+            $params[] = $token_generated_at;
+            $types .= 's';
+        }
+        
+        if (empty($updates)) {
+            throw new Exception("No fields to update");
+        }
+        
+        // Add updated_at
+        $updates[] = "updated_at = NOW()";
+        
+        // Add donor_id to params
+        $params[] = $donor_id;
+        $types .= 'i';
+        
+        // Build and execute update query
+        $update_query = "UPDATE donors SET " . implode(', ', $updates) . " WHERE id = ?";
+        $update_stmt = $db->prepare($update_query);
+        
+        if (!$update_stmt) {
+            throw new Exception("Failed to prepare update statement: " . $db->error);
+        }
+        
+        $update_stmt->bind_param($types, ...$params);
+        
+        if (!$update_stmt->execute()) {
+            throw new Exception("Failed to update donor: " . $update_stmt->error);
+        }
+        $update_stmt->close();
+        
+        // Audit log
+        $new_data = [];
+        if (isset($login_count)) $new_data['login_count'] = $login_count;
+        if (isset($portal_token)) $new_data['portal_token'] = $portal_token;
+        if (isset($last_login_at)) $new_data['last_login_at'] = $last_login_at;
+        if (isset($token_expires_at)) $new_data['token_expires_at'] = $token_expires_at;
+        if (isset($token_generated_at)) $new_data['token_generated_at'] = $token_generated_at;
+        
+        log_audit(
+            $db,
+            'update_system_info',
+            'donor',
+            $donor_id,
+            $current_data,
+            $new_data,
+            'admin_portal',
+            (int)($_SESSION['user']['id'] ?? 0)
+        );
+        
+        $db->commit();
+        
+        header('Location: view-donor.php?id=' . $donor_id . '&success=' . urlencode('System information updated successfully'));
+        exit;
+        
+    } catch (Exception $e) {
+        $db->rollback();
+        header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode('Error: ' . $e->getMessage()));
+        exit;
+    }
+}
+
 $page_title = 'Donor Profile';
 
 // --- FETCH DATA ---
@@ -1622,11 +1757,17 @@ function formatDateTime($date) {
                         </h2>
                         <div id="collapseSystem" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
                             <div class="accordion-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0 text-muted">System & Portal Information</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editSystemInfoModal">
+                                        <i class="fas fa-edit me-1"></i>Edit
+                                    </button>
+                                </div>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="info-row">
                                             <span class="info-label">Registration Source</span>
-                                            <span class="info-value"><?php echo ucfirst($donor['source']); ?></span>
+                                            <span class="info-value"><?php echo ucfirst($donor['source'] ?? 'N/A'); ?></span>
                                         </div>
                                         <div class="info-row">
                                             <span class="info-label">Registered By</span>
@@ -1636,16 +1777,47 @@ function formatDateTime($date) {
                                             <span class="info-label">Created Date</span>
                                             <span class="info-value"><?php echo formatDateTime($donor['created_at']); ?></span>
                                         </div>
-                                    </div>
-                                    <div class="col-md-6">
                                         <div class="info-row">
                                             <span class="info-label">Last Updated</span>
                                             <span class="info-value"><?php echo formatDateTime($donor['updated_at']); ?></span>
                                         </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-row">
+                                            <span class="info-label">Login Count</span>
+                                            <span class="info-value">
+                                                <span class="badge bg-primary"><?php echo (int)($donor['login_count'] ?? 0); ?></span>
+                                            </span>
+                                        </div>
+                                        <div class="info-row">
+                                            <span class="info-label">Last Login</span>
+                                            <span class="info-value"><?php echo formatDateTime($donor['last_login_at']); ?></span>
+                                        </div>
                                         <div class="info-row">
                                             <span class="info-label">Portal Token</span>
-                                            <span class="info-value font-monospace"><?php echo $donor['portal_token'] ? 'Active' : 'None'; ?></span>
+                                            <span class="info-value font-monospace small">
+                                                <?php 
+                                                if (!empty($donor['portal_token'])) {
+                                                    echo '<span class="badge bg-success">Active</span>';
+                                                    echo '<br><small class="text-muted">' . htmlspecialchars(substr($donor['portal_token'], 0, 20)) . '...</small>';
+                                                } else {
+                                                    echo '<span class="badge bg-secondary">None</span>';
+                                                }
+                                                ?>
+                                            </span>
                                         </div>
+                                        <?php if (!empty($donor['token_expires_at'])): ?>
+                                        <div class="info-row">
+                                            <span class="info-label">Token Expires</span>
+                                            <span class="info-value"><?php echo formatDateTime($donor['token_expires_at']); ?></span>
+                                        </div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($donor['token_generated_at'])): ?>
+                                        <div class="info-row">
+                                            <span class="info-label">Token Generated</span>
+                                            <span class="info-value"><?php echo formatDateTime($donor['token_generated_at']); ?></span>
+                                        </div>
+                                        <?php endif; ?>
                                         <div class="info-row">
                                             <span class="info-label">Last SMS Sent</span>
                                             <span class="info-value"><?php echo formatDateTime($donor['last_sms_sent_at']); ?></span>
@@ -2180,6 +2352,69 @@ function formatDateTime($date) {
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit System Information Modal -->
+<div class="modal fade" id="editSystemInfoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-server me-2"></i>Edit System Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="view-donor.php?id=<?php echo $donor_id; ?>" id="editSystemInfoForm">
+                <?php echo csrf_input(); ?>
+                <input type="hidden" name="action" value="update_system_info">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Login Count</label>
+                            <input type="number" class="form-control" name="login_count" id="editLoginCount" 
+                                   value="<?php echo (int)($donor['login_count'] ?? 0); ?>" min="0" step="1">
+                            <small class="text-muted">Total number of portal logins</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Login At</label>
+                            <input type="datetime-local" class="form-control" name="last_login_at" id="editLastLoginAt" 
+                                   value="<?php echo $donor['last_login_at'] ? date('Y-m-d\TH:i', strtotime($donor['last_login_at'])) : ''; ?>">
+                            <small class="text-muted">Last portal login timestamp</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Portal Token</label>
+                            <input type="text" class="form-control font-monospace" name="portal_token" id="editPortalToken" 
+                                   value="<?php echo htmlspecialchars($donor['portal_token'] ?? ''); ?>" 
+                                   placeholder="Leave empty to clear token">
+                            <small class="text-muted">Secure token for portal access. Leave empty to remove.</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Token Generated At</label>
+                            <input type="datetime-local" class="form-control" name="token_generated_at" id="editTokenGeneratedAt" 
+                                   value="<?php echo $donor['token_generated_at'] ? date('Y-m-d\TH:i', strtotime($donor['token_generated_at'])) : ''; ?>">
+                            <small class="text-muted">When the portal token was created</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Token Expires At</label>
+                            <input type="datetime-local" class="form-control" name="token_expires_at" id="editTokenExpiresAt" 
+                                   value="<?php echo $donor['token_expires_at'] ? date('Y-m-d\TH:i', strtotime($donor['token_expires_at'])) : ''; ?>">
+                            <small class="text-muted">When the portal token expires</small>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Changes to system information will be logged in the audit trail.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
                 </div>
             </form>
         </div>
