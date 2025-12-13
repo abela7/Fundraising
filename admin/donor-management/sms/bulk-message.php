@@ -364,6 +364,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'donor_list') {
                         <h1 class="h3 mb-1">Bulk Messaging</h1>
                         <p class="text-muted mb-0">Send SMS or WhatsApp messages to multiple donors</p>
                     </div>
+                    <div class="d-flex gap-2">
+                        <a href="bulk-message-history.php" class="btn btn-outline-primary">
+                            <i class="fas fa-history me-2"></i>Bulk History
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Step Indicator -->
@@ -998,6 +1003,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         showStep(3);
         isSending = true;
+
+        // Unique bulk run id for history grouping
+        const bulkRunId = generateBulkRunId();
         
         // Reset stats
         document.getElementById('statTotal').textContent = totalDonors;
@@ -1013,6 +1021,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 1. Get List of Donor IDs
         formData.append('action', 'get_ids');
+        formData.append('bulk_run_id', bulkRunId);
         
         try {
             const response = await fetch('bulk-send-process.php', {
@@ -1044,6 +1053,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 batchFormData.append('message', messageContent.value);
                 batchFormData.append('channel', document.querySelector('input[name="channel"]:checked').value);
                 batchFormData.append('template_id', templateSelect.value);
+                batchFormData.append('bulk_run_id', bulkRunId);
                 
                 const batchResponse = await fetch('bulk-send-process.php', {
                     method: 'POST',
@@ -1100,6 +1110,22 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Error during sending: ' + e.message);
             console.error(e);
         }
+    }
+
+    function generateBulkRunId() {
+        // format: bm_YYYYMMDDHHMMSS_random
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const ts =
+            d.getFullYear().toString() +
+            pad(d.getMonth() + 1) +
+            pad(d.getDate()) +
+            pad(d.getHours()) +
+            pad(d.getMinutes()) +
+            pad(d.getSeconds());
+
+        const rand = Math.random().toString(36).slice(2, 8);
+        return `bm_${ts}_${rand}`;
     }
 });
 </script>

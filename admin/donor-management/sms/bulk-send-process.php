@@ -145,6 +145,8 @@ try {
         $message_raw = $_POST['message'] ?? '';
         $channel = $_POST['channel'] ?? 'whatsapp';
         $template_id = !empty($_POST['template_id']) ? (int)$_POST['template_id'] : null;
+        $bulk_run_id = isset($_POST['bulk_run_id']) ? trim((string)$_POST['bulk_run_id']) : '';
+        $bulk_run_id = preg_replace('/[^a-zA-Z0-9_\\-]/', '', $bulk_run_id);
 
         if (empty($ids)) {
             echo json_encode(['success' => true, 'results' => []]);
@@ -210,12 +212,13 @@ try {
                     $templateKey = $tRes['template_key'] ?? null;
 
                     if ($templateKey) {
+                        $sourceType = $bulk_run_id ? ('bulk_manual:' . $bulk_run_id) : 'bulk_manual';
                         $sendRes = $msgHelper->sendFromTemplate(
                             $templateKey,
                             (int)$donor['id'],
                             $variables,
                             $channel,
-                            'bulk_manual',
+                            $sourceType,
                             false
                         );
                         
@@ -246,7 +249,8 @@ try {
                         if ($msgHelper->isWhatsAppAvailable()) {
                             $whatsapp = UltraMsgService::fromDatabase($db);
                             if ($whatsapp) {
-                                $waRes = $whatsapp->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => 'bulk_custom']);
+                                $waSource = $bulk_run_id ? ('bulk_custom:' . $bulk_run_id) : 'bulk_custom';
+                                $waRes = $whatsapp->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => $waSource]);
                                 
                                 if ($waRes['success']) {
                                     $resultEntry['status'] = 'sent';
@@ -256,7 +260,8 @@ try {
                                     // Fallback to SMS
                                     $sms = VoodooSMSService::fromDatabase($db);
                                     if ($sms) {
-                                        $smsRes = $sms->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => 'bulk_custom_fallback']);
+                                        $smsSource = $bulk_run_id ? ('bulk_custom_fallback:' . $bulk_run_id) : 'bulk_custom_fallback';
+                                        $smsRes = $sms->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => $smsSource]);
                                         if ($smsRes['success']) {
                                             $resultEntry['status'] = 'sent';
                                             $resultEntry['fallback'] = true;
@@ -273,7 +278,8 @@ try {
                             // SMS Fallback immediately if WhatsApp not configured
                             $sms = VoodooSMSService::fromDatabase($db);
                             if ($sms) {
-                                $smsRes = $sms->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => 'bulk_custom']);
+                                $smsSource = $bulk_run_id ? ('bulk_custom:' . $bulk_run_id) : 'bulk_custom';
+                                $smsRes = $sms->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => $smsSource]);
                                 if ($smsRes['success']) {
                                     $resultEntry['status'] = 'sent';
                                     $resultEntry['fallback'] = true; 
@@ -288,7 +294,8 @@ try {
                         // SMS Only
                         $sms = VoodooSMSService::fromDatabase($db);
                         if ($sms) {
-                            $smsRes = $sms->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => 'bulk_custom']);
+                            $smsSource = $bulk_run_id ? ('bulk_custom:' . $bulk_run_id) : 'bulk_custom';
+                            $smsRes = $sms->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => $smsSource]);
                             if ($smsRes['success']) {
                                 $resultEntry['status'] = 'sent';
                             } else {
