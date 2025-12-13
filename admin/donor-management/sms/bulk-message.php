@@ -885,27 +885,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const city = d.city ? `<span class="badge bg-light text-dark border me-1"><i class="fas fa-map-marker-alt me-1"></i>${escapeHtml(d.city)}</span>` : '';
         const langBadge = `<span class="badge bg-info-subtle text-dark border"><i class="fas fa-language me-1"></i>${escapeHtml(lang)}</span>`;
 
-        const callLink = `../call-center/make-call.php?donor_id=${encodeURIComponent(d.id)}`;
         const profileLink = `../view-donor.php?id=${encodeURIComponent(d.id)}`;
 
         return `
             <div class="donor-list-item p-3 bg-white">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="min-width-0">
-                        <a href="${profileLink}" class="fw-semibold text-truncate text-decoration-none text-primary" style="display: block; cursor: pointer;">
-                            ${escapeHtml(d.name || 'Unknown')}
-                        </a>
-                        <div class="small text-muted" style="word-break: break-all;">
-                            <i class="fas fa-phone me-1"></i>${escapeHtml(d.phone || '')}
-                        </div>
-                        <div class="mt-2 d-flex flex-wrap gap-1">
-                            ${agent}${city}${langBadge}
-                        </div>
+                <div class="min-width-0">
+                    <a href="${profileLink}" class="fw-semibold text-truncate text-decoration-none text-primary" style="display: block; cursor: pointer;">
+                        ${escapeHtml(d.name || 'Unknown')}
+                    </a>
+                    <div class="small text-muted" style="word-break: break-all;">
+                        <i class="fas fa-phone me-1"></i>${escapeHtml(d.phone || '')}
                     </div>
-                    <div class="d-flex flex-column gap-2 flex-shrink-0">
-                        <a class="btn btn-sm btn-outline-primary" href="${callLink}" title="Call">
-                            <i class="fas fa-phone"></i>
-                        </a>
+                    <div class="mt-2 d-flex flex-wrap gap-1">
+                        ${agent}${city}${langBadge}
                     </div>
                 </div>
             </div>
