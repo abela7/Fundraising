@@ -29,6 +29,7 @@ try {
             a.*,
             d.name as donor_name,
             d.phone as donor_phone,
+            d.preferred_language as donor_language,
             u.name as agent_name
         FROM call_center_appointments a
         JOIN donors d ON a.donor_id = d.id
@@ -425,10 +426,22 @@ $page_title = 'Callback Scheduled';
                 $firstName = getFirstName($appointment->donor_name);
                 $callbackDate = date('D, M j', strtotime($appointment->appointment_date));
                 $callbackTime = date('g:i A', strtotime($appointment->appointment_time));
+                
+                // Use donor's preferred language for preview (fallback to English)
+                $donorLang = $appointment->donor_language ?? 'en';
+                $langField = "message_{$donorLang}";
+                $templateMessage = !empty($sms_template[$langField]) ? $sms_template[$langField] : $sms_template['message_en'];
+                
+                // Language display labels
+                $langLabels = ['en' => '🇬🇧 English', 'am' => '🇪🇹 Amharic', 'ti' => '🇪🇷 Tigrinya'];
+                $previewLangLabel = $langLabels[$donorLang] ?? $langLabels['en'];
+                // Check if we're showing fallback
+                $usingFallback = empty($sms_template[$langField]) && $donorLang !== 'en';
+                
                 $previewMessage = str_replace(
                     ['{name}', '{callback_date}', '{callback_time}'],
                     [$firstName, $callbackDate, $callbackTime],
-                    $sms_template['message_en']
+                    $templateMessage
                 );
                 
                 // Button text based on status
@@ -445,7 +458,14 @@ $page_title = 'Callback Scheduled';
                         <i class="fas fa-sms me-2"></i>
                         <strong><?php echo $use_sms_only ? 'Send SMS Notification?' : 'Send Notification?'; ?></strong>
                         <span class="badge bg-secondary ms-2"><?php echo htmlspecialchars($sms_template['name'] ?? $template_key); ?></span>
+                        <span class="badge bg-info ms-1"><?php echo $previewLangLabel; ?></span>
                     </div>
+                    <?php if ($usingFallback): ?>
+                    <div class="alert alert-warning py-2 px-3 mb-2" style="font-size: 0.8125rem;">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        No <?php echo $langLabels[$donorLang] ?? $donorLang; ?> translation available — using English fallback.
+                    </div>
+                    <?php endif; ?>
                     <div class="sms-preview">
                         <?php echo htmlspecialchars($previewMessage); ?>
                     </div>

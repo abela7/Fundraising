@@ -34,6 +34,7 @@ try {
             d.city as donor_city,
             d.balance as donor_balance,
             d.payment_status as donor_payment_status,
+            d.preferred_language as donor_language,
             
             -- Church Details
             c.name as church_name,
@@ -684,10 +685,21 @@ $page_title = 'Payment Plan Summary';
                     $paymentMethodText = "Cash (Rep: {$repFirstName})";
                 }
                 
+                // Use donor's preferred language for preview (fallback to English)
+                $donorLang = $summary->donor_language ?? 'en';
+                $langField = "message_{$donorLang}";
+                $templateMessage = !empty($sms_template[$langField]) ? $sms_template[$langField] : $sms_template['message_en'];
+                
+                // Language display labels
+                $langLabels = ['en' => '🇬🇧 English', 'am' => '🇪🇹 Amharic', 'ti' => '🇪🇷 Tigrinya'];
+                $previewLangLabel = $langLabels[$donorLang] ?? $langLabels['en'];
+                // Check if we're showing fallback
+                $usingFallback = empty($sms_template[$langField]) && $donorLang !== 'en';
+                
                 $previewMessage = str_replace(
                     ['{name}', '{amount}', '{frequency}', '{total_payments}', '{start_date}', '{payment_method}', '{portal_link}'],
                     [$firstName, $amount, $frequency_sms, $summary->total_payments, $startDate, $paymentMethodText, 'https://bit.ly/4p0J1gf'],
-                    $sms_template['message_en']
+                    $templateMessage
                 );
                 // Remove unused variables
                 $previewMessage = preg_replace('/\{[a-z_]+\}/', '', $previewMessage);
@@ -698,7 +710,14 @@ $page_title = 'Payment Plan Summary';
                         <i class="fas fa-sms me-2"></i>
                         <strong>Send Confirmation Message?</strong>
                         <span class="badge bg-success ms-2">Recommended</span>
+                        <span class="badge bg-info ms-1"><?php echo $previewLangLabel; ?></span>
                     </div>
+                    <?php if ($usingFallback): ?>
+                    <div class="alert alert-warning py-2 px-3 mb-2" style="font-size: 0.8125rem;">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        No <?php echo $langLabels[$donorLang] ?? $donorLang; ?> translation available — using English fallback.
+                    </div>
+                    <?php endif; ?>
                     <div class="sms-preview">
                         <?php echo htmlspecialchars($previewMessage); ?>
                     </div>
