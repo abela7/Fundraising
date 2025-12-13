@@ -212,7 +212,8 @@ try {
             if ($sms_available && $sms_template) {
                 $firstName = getFirstName($summary->donor_name);
                 $amount = '£' . number_format((float)$summary->plan_monthly_amount, 0);
-                $startDate = date('M j', strtotime($summary->plan_start_date));
+                $startDate = date('M j, Y', strtotime($summary->plan_start_date));
+                $nextPaymentDate = $summary->next_payment_due ? date('M j, Y', strtotime($summary->next_payment_due)) : $startDate;
                 
                 // Build payment method text
                 $paymentMethodText = ucfirst(str_replace('_', ' ', $summary->payment_method ?? 'bank transfer'));
@@ -228,6 +229,7 @@ try {
                     'total_payments' => $summary->total_payments,
                     'start_date' => $startDate,
                     'payment_method' => $paymentMethodText,
+                    'next_payment_due' => $nextPaymentDate,
                     'representative' => $representative_name ? getFirstName($representative_name) : '',
                     'portal_link' => 'https://bit.ly/4p0J1gf'
                 ];
@@ -676,7 +678,8 @@ $page_title = 'Payment Plan Summary';
                 <?php
                 $firstName = getFirstName($summary->donor_name);
                 $amount = '£' . number_format((float)$summary->plan_monthly_amount, 0);
-                $startDate = date('M j', strtotime($summary->plan_start_date));
+                $startDate = date('M j, Y', strtotime($summary->plan_start_date));
+                $nextPaymentDate = $summary->next_payment_due ? date('M j, Y', strtotime($summary->next_payment_due)) : $startDate;
                 
                 // Build payment method text for preview
                 $paymentMethodText = ucfirst(str_replace('_', ' ', $summary->payment_method ?? 'bank transfer'));
@@ -697,8 +700,8 @@ $page_title = 'Payment Plan Summary';
                 $usingFallback = empty($sms_template[$langField]) && $donorLang !== 'en';
                 
                 $previewMessage = str_replace(
-                    ['{name}', '{amount}', '{frequency}', '{total_payments}', '{start_date}', '{payment_method}', '{portal_link}'],
-                    [$firstName, $amount, $frequency_sms, $summary->total_payments, $startDate, $paymentMethodText, 'https://bit.ly/4p0J1gf'],
+                    ['{name}', '{amount}', '{frequency}', '{total_payments}', '{start_date}', '{payment_method}', '{next_payment_due}', '{portal_link}'],
+                    [$firstName, $amount, $frequency_sms, $summary->total_payments, $startDate, $paymentMethodText, $nextPaymentDate, 'https://bit.ly/4p0J1gf'],
                     $templateMessage
                 );
                 // Remove unused variables
