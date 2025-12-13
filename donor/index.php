@@ -531,11 +531,12 @@ $badge_labels = [
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.iife.js"></script>
 <script>
     // Verify Driver.js loaded
-    console.log('Driver.js loaded:', typeof driver !== 'undefined');
-    if (typeof driver === 'undefined') {
+    console.log('Driver.js loaded:', typeof window.driver !== 'undefined');
+    console.log('Driver object:', window.driver);
+    if (typeof window.driver === 'undefined') {
         console.error('❌ Driver.js failed to load from CDN!');
     } else {
         console.log('✅ Driver.js loaded successfully');

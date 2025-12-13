@@ -102,11 +102,11 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize Donor Portal Tour - Modern & Mobile-Friendly
 function initDonorTour() {
     // Check if Driver.js is available
-    if (typeof driver === 'undefined') {
+    if (typeof window.driver === 'undefined') {
         console.error('Driver.js not loaded. Tour cannot be initialized.');
         // Try again after a delay
         setTimeout(function() {
-            if (typeof driver !== 'undefined') {
+            if (typeof window.driver !== 'undefined') {
                 initDonorTour();
             } else {
                 console.error('Driver.js still not available after retry');
@@ -255,9 +255,10 @@ function initDonorTour() {
 
     // Initialize Driver.js with modern, mobile-friendly settings
     console.log('Initializing Driver.js object...');
+    console.log('Driver type:', typeof window.driver);
     let driverObj;
     try {
-        driverObj = driver({
+        driverObj = window.driver({
             showProgress: true,
             showButtons: ['next', 'previous', 'close'],
             steps: steps,
