@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.startDonorTour = function() {
         console.log('🔧 Manual tour trigger');
         localStorage.removeItem('donor-portal-tour-completed');
+        localStorage.removeItem('donor-portal-tour-started');
         initDonorTour();
     };
     
@@ -100,13 +101,23 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Initialize Donor Portal Tour - Modern & Mobile-Friendly
+function getDriverFactory() {
+    // Different Driver.js builds expose different globals.
+    // We support the common IIFE exports here.
+    if (typeof window.driver === 'function') return window.driver;
+    if (window.driverjs && typeof window.driverjs.driver === 'function') return window.driverjs.driver;
+    if (window.driver && typeof window.driver === 'object' && typeof window.driver.driver === 'function') return window.driver.driver;
+
+    return null;
+}
+
 function initDonorTour() {
     // Check if Driver.js is available
-    if (typeof window.driver === 'undefined') {
-        console.error('Driver.js not loaded. Tour cannot be initialized.');
+    if (!getDriverFactory()) {
+        console.error('Driver.js not loaded (no driver() factory). Tour cannot be initialized.');
         // Try again after a delay
         setTimeout(function() {
-            if (typeof window.driver !== 'undefined') {
+            if (getDriverFactory()) {
                 initDonorTour();
             } else {
                 console.error('Driver.js still not available after retry');
@@ -255,10 +266,11 @@ function initDonorTour() {
 
     // Initialize Driver.js with modern, mobile-friendly settings
     console.log('Initializing Driver.js object...');
-    console.log('Driver type:', typeof window.driver);
+    const driverFactory = getDriverFactory();
+    console.log('Driver factory type:', typeof driverFactory);
     let driverObj;
     try {
-        driverObj = window.driver({
+        driverObj = driverFactory({
             showProgress: true,
             showButtons: ['next', 'previous', 'close'],
             steps: steps,
@@ -273,8 +285,6 @@ function initDonorTour() {
             disableActiveInteraction: false,
             popoverClass: 'donor-tour-popover',
             onDestroyStarted: () => {
-                // Mark tour as completed when user closes it
-                localStorage.setItem('donor-portal-tour-completed', 'true');
                 if (driverObj) driverObj.destroy();
             },
             onDestroyed: () => {
@@ -300,14 +310,14 @@ function initDonorTour() {
                 return;
             }
             console.log('Driver object ready, calling drive()...');
+            localStorage.setItem('donor-portal-tour-started', 'true');
             driverObj.drive();
             console.log('Tour started successfully!');
         } catch (error) {
             console.error('Error starting tour:', error);
             console.error('Error stack:', error.stack);
             alert('Tour error: ' + error.message + '\n\nPlease refresh the page and try again.');
-            // Mark as completed to prevent retry loops
-            localStorage.setItem('donor-portal-tour-completed', 'true');
+            localStorage.removeItem('donor-portal-tour-started');
         }
     }, 1800);
 }

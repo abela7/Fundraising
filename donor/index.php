@@ -531,38 +531,79 @@ $badge_labels = [
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
 <script>
-    // Verify Driver.js loaded
-    console.log('Driver.js loaded:', typeof window.driver !== 'undefined');
-    console.log('Driver object:', window.driver);
-    if (typeof window.driver === 'undefined') {
-        console.error('❌ Driver.js failed to load from CDN!');
-    } else {
-        console.log('✅ Driver.js loaded successfully');
-    }
+    // Verify Driver.js loaded (different builds expose different globals)
+    (function () {
+        const globals = {
+            driverType: typeof window.driver,
+            driver: window.driver,
+            driverjsType: typeof window.driverjs,
+            driverjs: window.driverjs,
+            driverjsDriverType: window.driverjs ? typeof window.driverjs.driver : 'n/a',
+            DriverType: typeof window.Driver,
+            Driver: window.Driver,
+        };
+
+        console.log('Driver.js globals:', globals);
+
+        const driverFactory =
+            (typeof window.driver === 'function' && window.driver) ||
+            (window.driverjs && typeof window.driverjs.driver === 'function' && window.driverjs.driver) ||
+            (window.driver &&
+                typeof window.driver === 'object' &&
+                typeof window.driver.driver === 'function' &&
+                window.driver.driver);
+
+        if (!driverFactory) {
+            console.error('❌ Driver.js loaded, but no usable driver() factory was found.');
+        } else {
+            console.log('✅ Driver.js driver() factory is available');
+        }
+    })();
 </script>
 <script src="assets/donor.js?v=<?php echo @filemtime(__DIR__ . '/assets/donor.js'); ?>"></script>
-<?php 
-// Check if this is the donor's first login (login_count == 1)
-$is_first_login = isset($donor['login_count']) && (int)$donor['login_count'] === 1;
-if ($is_first_login): 
-?>
 <script>
-    // Check if tour was already completed (stored in localStorage)
-    console.log('Checking tour status...');
-    console.log('Login count:', <?php echo (int)$donor['login_count']; ?>);
-    console.log('Tour completed?:', localStorage.getItem('donor-portal-tour-completed'));
-    
-    if (!localStorage.getItem('donor-portal-tour-completed')) {
-        // Tour will be initialized by donor.js after DOM is ready
-        window.showDonorTour = true;
-        console.log('✅ First time login detected - tour will start');
-    } else {
-        console.log('ℹ️ Tour already completed, skipping');
-    }
+    // Decide whether the dashboard tour should run.
+    // We gate by localStorage (per-device) so users who missed the tour due to
+    // a transient JS/CDN issue can still see it later.
+    (function () {
+        const loginCount = <?php echo isset($donor['login_count']) ? (int)$donor['login_count'] : 0; ?>;
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const forceTour = params.get('tour') === '1';
+
+            if (forceTour) {
+                localStorage.removeItem('donor-portal-tour-completed');
+                localStorage.removeItem('donor-portal-tour-started');
+            }
+
+            const completed = localStorage.getItem('donor-portal-tour-completed');
+            const started = localStorage.getItem('donor-portal-tour-started');
+
+            // If "completed" was set without the tour ever starting (older bug),
+            // clear it so the tour can run.
+            if (completed && !started) {
+                localStorage.removeItem('donor-portal-tour-completed');
+            }
+
+            if (!localStorage.getItem('donor-portal-tour-completed')) {
+                window.showDonorTour = true;
+                console.log('✅ Donor tour will start', { loginCount, forceTour });
+            } else {
+                console.log('ℹ️ Donor tour already completed, skipping', {
+                    loginCount,
+                    forceTour,
+                });
+            }
+        } catch (error) {
+            console.warn('Tour status check failed; defaulting to showing tour.', error);
+            window.showDonorTour = true;
+            console.log('✅ Donor tour will start', { loginCount, forceTour: false });
+        }
+    })();
 </script>
-<?php endif; ?>
 </body>
 </html>
 
