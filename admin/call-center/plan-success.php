@@ -145,22 +145,27 @@ try {
     // Format frequency
     $frequency_display = 'One-time';
     $frequency_sms = 'once';
+    $frequency_am = 'አንድ ጊዜ'; // Amharic: once
     if ($summary->plan_frequency_unit) {
         $unit = $summary->plan_frequency_unit;
         $num = (int)($summary->plan_frequency_number ?? 1);
         
         if ($unit === 'day') {
             $frequency_display = $num === 1 ? 'Daily' : "Every {$num} days";
-            $frequency_sms = $num === 1 ? 'day' : "every {$num} days";
+            $frequency_sms = $num === 1 ? 'per day' : "every {$num} days";
+            $frequency_am = $num === 1 ? 'በቀን' : "በ{$num} ቀናት";
         } elseif ($unit === 'week') {
             $frequency_display = $num === 1 ? 'Weekly' : "Every {$num} weeks";
-            $frequency_sms = $num === 1 ? 'week' : "every {$num} weeks";
+            $frequency_sms = $num === 1 ? 'per week' : "every {$num} weeks";
+            $frequency_am = $num === 1 ? 'በሳምንት' : "በ{$num} ሳምንታት";
         } elseif ($unit === 'month') {
             $frequency_display = $num === 1 ? 'Monthly' : "Every {$num} months";
-            $frequency_sms = $num === 1 ? 'month' : "every {$num} months";
+            $frequency_sms = $num === 1 ? 'per month' : "every {$num} months";
+            $frequency_am = $num === 1 ? 'በወር' : "በ{$num} ወራት";
         } elseif ($unit === 'year') {
             $frequency_display = $num === 1 ? 'Annually' : "Every {$num} years";
-            $frequency_sms = $num === 1 ? 'year' : "every {$num} years";
+            $frequency_sms = $num === 1 ? 'per year' : "every {$num} years";
+            $frequency_am = $num === 1 ? 'በአመት' : "በ{$num} ዓመታት";
         }
     }
     
@@ -226,6 +231,7 @@ try {
                     'name' => $firstName,
                     'amount' => $amount,
                     'frequency' => $frequency_sms,
+                    'frequency_am' => $frequency_am,
                     'total_payments' => $summary->total_payments,
                     'start_date' => $startDate,
                     'payment_method' => $paymentMethodText,
@@ -700,8 +706,8 @@ $page_title = 'Payment Plan Summary';
                 $usingFallback = empty($sms_template[$langField]) && $donorLang !== 'en';
                 
                 $previewMessage = str_replace(
-                    ['{name}', '{amount}', '{frequency}', '{total_payments}', '{start_date}', '{payment_method}', '{next_payment_due}', '{portal_link}'],
-                    [$firstName, $amount, $frequency_sms, $summary->total_payments, $startDate, $paymentMethodText, $nextPaymentDate, 'https://bit.ly/4p0J1gf'],
+                    ['{name}', '{amount}', '{frequency}', '{frequency_am}', '{total_payments}', '{start_date}', '{payment_method}', '{next_payment_due}', '{portal_link}'],
+                    [$firstName, $amount, $frequency_sms, $frequency_am, $summary->total_payments, $startDate, $paymentMethodText, $nextPaymentDate, 'https://bit.ly/4p0J1gf'],
                     $templateMessage
                 );
                 // Remove unused variables
