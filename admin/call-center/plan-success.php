@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../services/SMSHelper.php';
+require_once __DIR__ . '/../../services/MessagingHelper.php';
 require_login();
 
 // Set timezone
@@ -180,6 +181,8 @@ try {
     // SMS System
     $sms_status = $_GET['sms'] ?? null;
     $sms_error = isset($_GET['sms_error']) ? urldecode($_GET['sms_error']) : null;
+    $sent_channel = $_GET['channel'] ?? null; // 'whatsapp' or 'sms'
+    $fallback_used = isset($_GET['fallback']) ? (int)$_GET['fallback'] : 0;
     
     // Check if SMS is available
     $sms_available = false;
@@ -216,24 +219,43 @@ try {
                     $repFirstName = getFirstName($representative_name);
                     $paymentMethodText = "Cash (Rep: {$repFirstName})";
                 }
-                
-                $result = $sms_helper->sendFromTemplate(
+
+                $variables = [
+                    'name' => $firstName,
+                    'amount' => $amount,
+                    'frequency' => $frequency_sms,
+                    'total_payments' => $summary->total_payments,
+                    'start_date' => $startDate,
+                    'payment_method' => $paymentMethodText,
+                    'representative' => $representative_name ? getFirstName($representative_name) : '',
+                    'portal_link' => 'https://bit.ly/4p0J1gf'
+                ];
+
+                // Successful outcome → WhatsApp first, fallback to SMS automatically
+                $msg_helper = new MessagingHelper($db);
+
+                // Check if WhatsApp is actually available BEFORE sending
+                // so we can distinguish between "fallback" vs "WhatsApp wasn't an option"
+                $whatsapp_was_available = $msg_helper->isWhatsAppAvailable();
+
+                $result = $msg_helper->sendFromTemplate(
                     'payment_plan_created',
                     $donor_id,
-                    [
-                        'name' => $firstName,
-                        'amount' => $amount,
-                        'frequency' => $frequency_sms,
-                        'total_payments' => $summary->total_payments,
-                        'start_date' => $startDate,
-                        'payment_method' => $paymentMethodText,
-                        'representative' => $representative_name ? getFirstName($representative_name) : '',
-                        'portal_link' => 'https://bit.ly/4p0J1gf'
-                    ],
+                    $variables,
+                    'whatsapp',
                     'call_center',
-                    false,  // queue = false
-                    true    // forceImmediate = true
+                    false, // queue
+                    true   // forceImmediate
                 );
+
+                // MessagingHelper returns 'channel' only for WhatsApp success.
+                // If it falls back to SMS, it returns the SMSHelper response (no channel).
+                $sent_channel = $result['channel'] ?? 'sms';
+
+                // Only flag as fallback if WhatsApp WAS available but we ended up using SMS
+                // (i.e., WhatsApp was tried and failed). If WhatsApp wasn't available,
+                // SMS was the determined channel, not a fallback.
+                $fallback_used = ($whatsapp_was_available && $sent_channel === 'sms') ? 1 : 0;
                 
                 if ($result['success']) {
                     $sms_status = 'sent';
@@ -251,6 +273,12 @@ try {
         $redirect = "plan-success.php?plan_id=$plan_id&donor_id=$donor_id&sms=$sms_status";
         if ($sms_error) {
             $redirect .= '&sms_error=' . urlencode($sms_error);
+        }
+        if ($sent_channel) {
+            $redirect .= '&channel=' . urlencode((string)$sent_channel);
+        }
+        if ($fallback_used) {
+            $redirect .= '&fallback=1';
         }
         header("Location: $redirect");
         exit;
@@ -625,15 +653,20 @@ $page_title = 'Payment Plan Summary';
                 <div class="alert alert-success d-flex align-items-center mb-4">
                     <i class="fas fa-check-circle me-3 fa-lg"></i>
                     <div>
-                        <strong>SMS Confirmation Sent!</strong><br>
-                        <small class="text-muted">The donor has received their payment plan summary.</small>
+                        <strong>Confirmation Sent!</strong><br>
+                        <small class="text-muted">
+                            <?php
+                                $channelLabel = $sent_channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+                                echo htmlspecialchars("Sent via {$channelLabel}" . ($fallback_used ? ' — SMS fallback used' : '') . '.');
+                            ?>
+                        </small>
                     </div>
                 </div>
                 <?php elseif ($sms_status === 'failed'): ?>
                 <div class="alert alert-warning d-flex align-items-center mb-4">
                     <i class="fas fa-exclamation-triangle me-3 fa-lg"></i>
                     <div>
-                        <strong>SMS Failed to Send</strong><br>
+                        <strong>Message Failed to Send</strong><br>
                         <small><?php echo htmlspecialchars($sms_error ?? 'Unknown error'); ?></small>
                     </div>
                 </div>
@@ -663,7 +696,7 @@ $page_title = 'Payment Plan Summary';
                 <div class="sms-option-card mb-4">
                     <div class="sms-option-header">
                         <i class="fas fa-sms me-2"></i>
-                        <strong>Send Confirmation SMS?</strong>
+                        <strong>Send Confirmation Message?</strong>
                         <span class="badge bg-success ms-2">Recommended</span>
                     </div>
                     <div class="sms-preview">
@@ -680,7 +713,7 @@ $page_title = 'Payment Plan Summary';
                         <?php echo csrf_input(); ?>
                         <input type="hidden" name="send_sms" value="1">
                         <button type="submit" class="btn btn-info w-100">
-                            <i class="fas fa-paper-plane me-2"></i>Send Plan Confirmation SMS
+                            <i class="fas fa-paper-plane me-2"></i>Send Plan Confirmation (WhatsApp → SMS)
                         </button>
                     </form>
                 </div>

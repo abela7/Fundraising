@@ -4,7 +4,7 @@
  * 
  * Cron script to process pending SMS messages in the queue.
  * Run every 5 minutes via cPanel cron:
- * */5 * * * * /usr/local/bin/php /home/YOUR_USER/public_html/Fundraising/cron/process-sms-queue.php
+ * *\/5 * * * * /usr/local/bin/php /home/YOUR_USER/public_html/Fundraising/cron/process-sms-queue.php
  * 
  * @author Fundraising System
  */
@@ -12,16 +12,23 @@
 declare(strict_types=1);
 
 // Prevent web access
-if (php_sapi_name() !== 'cli' && !isset($_GET['cron_key'])) {
-    http_response_code(403);
-    die('Access denied. CLI only.');
-}
+$isCli = php_sapi_name() === 'cli';
+if (!$isCli) {
+    // Never hardcode cron keys in version control.
+    // Configure this in your server environment instead:
+    // - Windows/IIS/Apache: set env var FUNDRAISING_CRON_KEY
+    // - Linux/cPanel: export FUNDRAISING_CRON_KEY=... (or set in cron environment)
+    $expectedCronKey = (string)getenv('FUNDRAISING_CRON_KEY');
+    if ($expectedCronKey === '') {
+        http_response_code(403);
+        die('Cron key not configured.');
+    }
 
-// Optional: Verify cron key for web-based cron (cPanel)
-$valid_cron_key = 'your-secure-cron-key-here'; // Change this!
-if (isset($_GET['cron_key']) && $_GET['cron_key'] !== $valid_cron_key) {
-    http_response_code(403);
-    die('Invalid cron key.');
+    $providedCronKey = (string)($_GET['cron_key'] ?? '');
+    if ($providedCronKey === '' || !hash_equals($expectedCronKey, $providedCronKey)) {
+        http_response_code(403);
+        die('Invalid cron key.');
+    }
 }
 
 require_once __DIR__ . '/../config/db.php';

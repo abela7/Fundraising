@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../services/SMSHelper.php';
+require_once __DIR__ . '/../../services/MessagingHelper.php';
 require_login();
 
 // Set timezone to London
@@ -50,9 +51,17 @@ try {
     // Check SMS status from GET (after redirect) or handle POST
     $sms_status = $_GET['sms'] ?? null;
     $sms_error = isset($_GET['sms_error']) ? urldecode($_GET['sms_error']) : null;
+    $sent_channel = $_GET['channel'] ?? null; // 'sms' or 'whatsapp'
+    $fallback_used = isset($_GET['fallback']) ? (int)$_GET['fallback'] : 0;
     
     // Get the call status to determine which template to use
     $call_status = $_GET['status'] ?? 'not_picked_up';
+
+    // Channel strategy:
+    // - Missed call / phone busy: SMS only
+    // - Other follow-ups / outcomes: WhatsApp first, then fallback to SMS if needed
+    $sms_only_statuses = ['not_picked_up', 'busy'];
+    $use_sms_only = in_array($call_status, $sms_only_statuses, true);
     
     // Map status to template key
     $template_map = [
@@ -91,22 +100,55 @@ try {
                 $firstName = getFirstName($appointment->donor_name);
                 $callbackDate = date('D, M j', strtotime($appointment->appointment_date));
                 $callbackTime = date('g:i A', strtotime($appointment->appointment_time));
+
+                $variables = [
+                    'name' => $firstName,
+                    'callback_date' => $callbackDate,
+                    'callback_time' => $callbackTime
+                ];
+
+                if ($use_sms_only) {
+                    // SMS-only (missed call / line busy)
+                    // forceImmediate = true → Send NOW, don't queue even during quiet hours
+                    $result = $sms_helper->sendFromTemplate(
+                        $template_key,
+                        $donor_id,
+                        $variables,
+                        'call_center',
+                        false,  // queue = false
+                        true    // forceImmediate = true (bypass quiet hours!)
+                    );
+                    $sent_channel = 'sms';
+                    $fallback_used = 0;
+                } else {
+                    // WhatsApp first, fallback to SMS automatically if not sent/delivered
+                    $msg_helper = new MessagingHelper($db);
+
+                    // Check if WhatsApp is actually available BEFORE sending
+                    // so we can distinguish between "fallback" vs "WhatsApp wasn't an option"
+                    $whatsapp_was_available = $msg_helper->isWhatsAppAvailable();
+
+                    $result = $msg_helper->sendFromTemplate(
+                        $template_key,
+                        $donor_id,
+                        $variables,
+                        'whatsapp',
+                        'call_center',
+                        false, // queue
+                        true   // forceImmediate
+                    );
+
+                    // MessagingHelper returns 'channel' only for WhatsApp success.
+                    // If it falls back to SMS, it returns the SMSHelper response (no channel).
+                    $sent_channel = $result['channel'] ?? 'sms';
+
+                    // Only flag as fallback if WhatsApp WAS available but we ended up using SMS
+                    // (i.e., WhatsApp was tried and failed). If WhatsApp wasn't available,
+                    // SMS was the determined channel, not a fallback.
+                    $fallback_used = ($whatsapp_was_available && $sent_channel === 'sms') ? 1 : 0;
+                }
                 
-                // forceImmediate = true → Send NOW, don't queue even during quiet hours
-                $result = $sms_helper->sendFromTemplate(
-                    $template_key,  // Use the correct template based on status
-                    $donor_id,
-                    [
-                        'name' => $firstName,
-                        'callback_date' => $callbackDate,
-                        'callback_time' => $callbackTime
-                    ],
-                    'call_center',
-                    false,  // queue = false
-                    true    // forceImmediate = true (bypass quiet hours!)
-                );
-                
-                if ($result['success']) {
+                if (!empty($result['success'])) {
                     $sms_status = 'sent';
                 } else {
                     $sms_status = 'failed';
@@ -122,6 +164,12 @@ try {
         $redirect = "callback-scheduled.php?appointment_id=$appointment_id&donor_id=$donor_id&status=" . urlencode($call_status) . "&sms=$sms_status";
         if ($sms_error) {
             $redirect .= '&sms_error=' . urlencode($sms_error);
+        }
+        if ($sent_channel) {
+            $redirect .= '&channel=' . urlencode((string)$sent_channel);
+        }
+        if ($fallback_used) {
+            $redirect .= '&fallback=1';
         }
         header("Location: $redirect");
         exit;
@@ -354,15 +402,20 @@ $page_title = 'Callback Scheduled';
                 <div class="alert alert-success d-flex align-items-center mb-3">
                     <i class="fas fa-check-circle me-3 fa-lg"></i>
                     <div>
-                        <strong>SMS Sent Successfully!</strong><br>
-                        <small class="text-muted"><?php echo htmlspecialchars($sms_success_msg); ?></small>
+                        <strong>Notification Sent Successfully!</strong><br>
+                        <small class="text-muted">
+                            <?php
+                                $channelLabel = $sent_channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+                                echo htmlspecialchars($sms_success_msg . " (Sent via {$channelLabel}" . ($fallback_used ? ' — SMS fallback used' : '') . ')');
+                            ?>
+                        </small>
                     </div>
                 </div>
                 <?php elseif ($sms_status === 'failed'): ?>
                 <div class="alert alert-warning d-flex align-items-center mb-3">
                     <i class="fas fa-exclamation-triangle me-3 fa-lg"></i>
                     <div>
-                        <strong>SMS Failed to Send</strong><br>
+                        <strong>Notification Failed to Send</strong><br>
                         <small><?php echo htmlspecialchars($sms_error ?? 'Unknown error'); ?></small>
                     </div>
                 </div>
@@ -382,15 +435,15 @@ $page_title = 'Callback Scheduled';
                 $button_labels = [
                     'not_picked_up' => 'Send "Missed Call" SMS',
                     'busy' => 'Send "Line Busy" SMS',
-                    'busy_cant_talk' => 'Send Callback SMS',
-                    'not_ready_to_pay' => 'Send Follow-up SMS'
+                    'busy_cant_talk' => 'Send Callback Message (WhatsApp → SMS)',
+                    'not_ready_to_pay' => 'Send Follow-up Message (WhatsApp → SMS)'
                 ];
                 $button_label = $button_labels[$call_status] ?? 'Send SMS Now';
                 ?>
                 <div class="sms-option-card mb-3">
                     <div class="sms-option-header">
                         <i class="fas fa-sms me-2"></i>
-                        <strong>Send SMS Notification?</strong>
+                        <strong><?php echo $use_sms_only ? 'Send SMS Notification?' : 'Send Notification?'; ?></strong>
                         <span class="badge bg-secondary ms-2"><?php echo htmlspecialchars($sms_template['name'] ?? $template_key); ?></span>
                     </div>
                     <div class="sms-preview">
