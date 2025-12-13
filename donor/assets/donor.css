@@ -302,7 +302,7 @@ body {
 }
 
 .user-menu-toggle:hover {
-  background: var(--gray-200);
+  background: var(--gray-300);
 }
 
 .user-avatar {

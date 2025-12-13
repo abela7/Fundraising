@@ -532,6 +532,15 @@ $badge_labels = [
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+<script>
+    // Verify Driver.js loaded
+    console.log('Driver.js loaded:', typeof driver !== 'undefined');
+    if (typeof driver === 'undefined') {
+        console.error('❌ Driver.js failed to load from CDN!');
+    } else {
+        console.log('✅ Driver.js loaded successfully');
+    }
+</script>
 <script src="assets/donor.js?v=<?php echo @filemtime(__DIR__ . '/assets/donor.js'); ?>"></script>
 <?php 
 // Check if this is the donor's first login (login_count == 1)
@@ -540,10 +549,16 @@ if ($is_first_login):
 ?>
 <script>
     // Check if tour was already completed (stored in localStorage)
+    console.log('Checking tour status...');
+    console.log('Login count:', <?php echo (int)$donor['login_count']; ?>);
+    console.log('Tour completed?:', localStorage.getItem('donor-portal-tour-completed'));
+    
     if (!localStorage.getItem('donor-portal-tour-completed')) {
         // Tour will be initialized by donor.js after DOM is ready
         window.showDonorTour = true;
-        console.log('First time login detected - tour will start');
+        console.log('✅ First time login detected - tour will start');
+    } else {
+        console.log('ℹ️ Tour already completed, skipping');
     }
 </script>
 <?php endif; ?>

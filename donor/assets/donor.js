@@ -2,14 +2,29 @@
 
 // DOM ready
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM loaded');
+    
     // Initialize components
     initSidebar();
     initTooltips();
     
     // Initialize tour if this is first login
     if (window.showDonorTour) {
+        console.log('🎯 showDonorTour flag is true, initializing tour...');
         initDonorTour();
+    } else {
+        console.log('ℹ️ showDonorTour flag is false, skipping tour');
     }
+    
+    // Add helper function to window for manual tour trigger (testing)
+    window.startDonorTour = function() {
+        console.log('🔧 Manual tour trigger');
+        localStorage.removeItem('donor-portal-tour-completed');
+        initDonorTour();
+    };
+    
+    // Log for debugging
+    console.log('💡 To manually start tour, run: startDonorTour()');
 });
 
 // Sidebar functionality
@@ -126,6 +141,16 @@ function initDonorTour() {
     // Build tour steps dynamically
     const steps = [];
 
+    // Validate element exists
+    const welcomeEl = document.querySelector('[data-tour-step="welcome"]');
+    console.log('Welcome element found:', !!welcomeEl);
+    
+    if (!welcomeEl) {
+        console.error('❌ Welcome element not found! Tour cannot start.');
+        alert('Tour setup error: Welcome element not found. Please refresh the page.');
+        return;
+    }
+
     // Step 1: Welcome
     steps.push({
         element: '[data-tour-step="welcome"]',
@@ -138,7 +163,9 @@ function initDonorTour() {
     });
 
     // Step 2: Progress Bar (if exists)
-    if (document.querySelector('[data-tour-step="progress"]')) {
+    const progressEl = document.querySelector('[data-tour-step="progress"]');
+    console.log('Progress element found:', !!progressEl);
+    if (progressEl) {
         steps.push({
             element: '[data-tour-step="progress"]',
             popover: {
@@ -151,29 +178,39 @@ function initDonorTour() {
     }
 
     // Step 3: Quick Actions
-    steps.push({
-        element: '[data-tour-step="quick-actions"]',
-        popover: {
-            title: '⚡ Quick Actions',
-            description: '<div style="text-align: left;"><p><strong>Everything you need in one place:</strong></p><ul style="margin: 10px 0; padding-left: 20px;"><li><strong>Make Payment</strong> - Submit a payment instantly</li><li><strong>Payment History</strong> - View all past payments</li><li><strong>My Plan</strong> - Check your payment schedule</li><li><strong>Update Pledge</strong> - Increase your commitment</li><li><strong>Contact Us</strong> - Get help anytime</li></ul></div>',
-            side: 'top',
-            align: 'center'
-        }
-    });
+    const quickActionsEl = document.querySelector('[data-tour-step="quick-actions"]');
+    console.log('Quick Actions element found:', !!quickActionsEl);
+    if (quickActionsEl) {
+        steps.push({
+            element: '[data-tour-step="quick-actions"]',
+            popover: {
+                title: '⚡ Quick Actions',
+                description: '<div style="text-align: left;"><p><strong>Everything you need in one place:</strong></p><ul style="margin: 10px 0; padding-left: 20px;"><li><strong>Make Payment</strong> - Submit a payment instantly</li><li><strong>Payment History</strong> - View all past payments</li><li><strong>My Plan</strong> - Check your payment schedule</li><li><strong>Update Pledge</strong> - Increase your commitment</li><li><strong>Contact Us</strong> - Get help anytime</li></ul></div>',
+                side: 'top',
+                align: 'center'
+            }
+        });
+    }
 
     // Step 4: Quick Stats
-    steps.push({
-        element: '[data-tour-step="stats"]',
-        popover: {
-            title: '💰 Your Financial Summary',
-            description: '<div style="text-align: left;"><p>All your important numbers at a glance:</p><ul style="margin: 10px 0; padding-left: 20px;"><li><strong>Total Pledged</strong> - Your commitment</li><li><strong>Total Paid</strong> - What you\'ve given</li><li><strong>Balance</strong> - What remains</li><li><strong>Payments Made</strong> - Your progress</li></ul></div>',
-            side: 'top',
-            align: 'center'
-        }
-    });
+    const statsEl = document.querySelector('[data-tour-step="stats"]');
+    console.log('Stats element found:', !!statsEl);
+    if (statsEl) {
+        steps.push({
+            element: '[data-tour-step="stats"]',
+            popover: {
+                title: '💰 Your Financial Summary',
+                description: '<div style="text-align: left;"><p>All your important numbers at a glance:</p><ul style="margin: 10px 0; padding-left: 20px;"><li><strong>Total Pledged</strong> - Your commitment</li><li><strong>Total Paid</strong> - What you\'ve given</li><li><strong>Balance</strong> - What remains</li><li><strong>Payments Made</strong> - Your progress</li></ul></div>',
+                side: 'top',
+                align: 'center'
+            }
+        });
+    }
 
     // Step 5: Payment Plan (if exists)
-    if (document.querySelector('[data-tour-step="payment-plan"]')) {
+    const paymentPlanEl = document.querySelector('[data-tour-step="payment-plan"]');
+    console.log('Payment Plan element found:', !!paymentPlanEl);
+    if (paymentPlanEl) {
         steps.push({
             element: '[data-tour-step="payment-plan"]',
             popover: {
@@ -187,6 +224,7 @@ function initDonorTour() {
 
     // Step 6: Navigation Menu
     const sidebarToggle = document.getElementById('sidebarToggle');
+    console.log('Sidebar toggle element found:', !!sidebarToggle);
     if (sidebarToggle) {
         steps.push({
             element: '#sidebarToggle',
@@ -207,40 +245,66 @@ function initDonorTour() {
         }
     });
 
+    console.log('✅ Total tour steps prepared:', steps.length);
+    
+    if (steps.length < 2) {
+        console.error('❌ Not enough tour steps! Need at least 2, found:', steps.length);
+        alert('Tour setup incomplete. Please refresh the page.');
+        return;
+    }
+
     // Initialize Driver.js with modern, mobile-friendly settings
-    const driverObj = driver({
-        showProgress: true,
-        showButtons: ['next', 'previous', 'close'],
-        steps: steps,
-        nextBtnText: 'Next →',
-        prevBtnText: '← Back',
-        doneBtnText: 'Get Started! 🚀',
-        closeBtnText: 'Skip',
-        progressText: '{{current}} of {{total}}',
-        overlayColor: 'rgba(0, 0, 0, 0.7)',
-        smoothScroll: true,
-        allowClose: true,
-        disableActiveInteraction: false,
-        popoverClass: 'donor-tour-popover',
-        onDestroyStarted: () => {
-            // Mark tour as completed when user closes it
-            localStorage.setItem('donor-portal-tour-completed', 'true');
-            driverObj.destroy();
-        },
-        onDestroyed: () => {
-            // Mark tour as completed
-            localStorage.setItem('donor-portal-tour-completed', 'true');
-            console.log('Tour completed!');
-        }
-    });
+    console.log('Initializing Driver.js object...');
+    let driverObj;
+    try {
+        driverObj = driver({
+            showProgress: true,
+            showButtons: ['next', 'previous', 'close'],
+            steps: steps,
+            nextBtnText: 'Next →',
+            prevBtnText: '← Back',
+            doneBtnText: 'Get Started! 🚀',
+            closeBtnText: 'Skip',
+            progressText: '{{current}} of {{total}}',
+            overlayColor: 'rgba(0, 0, 0, 0.7)',
+            smoothScroll: true,
+            allowClose: true,
+            disableActiveInteraction: false,
+            popoverClass: 'donor-tour-popover',
+            onDestroyStarted: () => {
+                // Mark tour as completed when user closes it
+                localStorage.setItem('donor-portal-tour-completed', 'true');
+                if (driverObj) driverObj.destroy();
+            },
+            onDestroyed: () => {
+                // Mark tour as completed
+                localStorage.setItem('donor-portal-tour-completed', 'true');
+                console.log('✅ Tour completed!');
+            }
+        });
+        console.log('✅ Driver.js object created successfully');
+    } catch (error) {
+        console.error('❌ Error creating Driver.js object:', error);
+        alert('Failed to initialize tour: ' + error.message);
+        return;
+    }
 
     // Start the tour after ensuring page is fully loaded
     setTimeout(() => {
         console.log('🚀 Starting tour with ' + steps.length + ' steps');
+        console.log('Tour steps:', steps);
         try {
+            if (!driverObj) {
+                console.error('Driver object not created!');
+                return;
+            }
+            console.log('Driver object ready, calling drive()...');
             driverObj.drive();
+            console.log('Tour started successfully!');
         } catch (error) {
             console.error('Error starting tour:', error);
+            console.error('Error stack:', error.stack);
+            alert('Tour error: ' + error.message + '\n\nPlease refresh the page and try again.');
             // Mark as completed to prevent retry loops
             localStorage.setItem('donor-portal-tour-completed', 'true');
         }
