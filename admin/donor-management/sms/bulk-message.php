@@ -256,6 +256,13 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'donor_list') {
         .donor-list-item + .donor-list-item {
             margin-top: 0.5rem;
         }
+        .donor-list-item a.fw-semibold {
+            transition: color 0.2s;
+        }
+        .donor-list-item a.fw-semibold:hover {
+            color: var(--brand2) !important;
+            text-decoration: underline !important;
+        }
         .step-indicator {
             display: flex;
             align-items: center;
@@ -879,12 +886,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const langBadge = `<span class="badge bg-info-subtle text-dark border"><i class="fas fa-language me-1"></i>${escapeHtml(lang)}</span>`;
 
         const callLink = `../call-center/make-call.php?donor_id=${encodeURIComponent(d.id)}`;
+        const profileLink = `../view-donor.php?id=${encodeURIComponent(d.id)}`;
 
         return `
             <div class="donor-list-item p-3 bg-white">
                 <div class="d-flex justify-content-between align-items-start gap-2">
                     <div class="min-width-0">
-                        <div class="fw-semibold text-truncate">${escapeHtml(d.name || 'Unknown')}</div>
+                        <a href="${profileLink}" class="fw-semibold text-truncate text-decoration-none text-primary" style="display: block; cursor: pointer;">
+                            ${escapeHtml(d.name || 'Unknown')}
+                        </a>
                         <div class="small text-muted" style="word-break: break-all;">
                             <i class="fas fa-phone me-1"></i>${escapeHtml(d.phone || '')}
                         </div>
