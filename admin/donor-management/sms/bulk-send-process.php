@@ -96,11 +96,17 @@ try {
         // Only donors with phones!
         $conditions[] = "d.phone IS NOT NULL AND d.phone != ''";
 
-        $sql = "SELECT d.id, d.phone, d.name, d.preferred_language FROM donors d ";
+        $sql = "SELECT d.id, d.phone, d.name, d.city, d.preferred_language, d.payment_status, 
+                pp.monthly_amount as amount 
+                FROM donors d ";
         
-        // Joins if needed
+        // Joins
+        // Always join payment plan if amounts are needed in select or filter
         if (!empty($_REQUEST['min_amount']) || !empty($_REQUEST['max_amount'])) {
-            $sql .= "JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id ";
+             $sql .= "JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id ";
+        } else {
+             // Left join just to show amount if available
+             $sql .= "LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id ";
         }
 
         $sql .= "WHERE " . implode(" AND ", $conditions);
@@ -120,6 +126,33 @@ try {
         $result = $stmt->get_result()->fetch_assoc();
         
         echo json_encode(['success' => true, 'count' => $result['cnt']]);
+
+    } elseif ($action === 'get_donors_list') {
+        $page = isset($_REQUEST['page']) ? (int)$_REQUEST['page'] : 1;
+        $limit = isset($_REQUEST['limit']) ? (int)$_REQUEST['limit'] : 20;
+        $offset = ($page - 1) * $limit;
+
+        list($sql, $params, $types) = buildDonorQuery($db);
+        
+        // Add limit
+        $sql .= " ORDER BY d.name LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        $types .= 'ii';
+
+        $stmt = $db->prepare($sql);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $donors = [];
+        while ($row = $result->fetch_assoc()) {
+            $donors[] = $row;
+        }
+        
+        echo json_encode(['success' => true, 'donors' => $donors, 'page' => $page]);
 
     } elseif ($action === 'get_ids') {
         list($sql, $params, $types) = buildDonorQuery($db);
@@ -182,19 +215,29 @@ try {
             try {
                 // Prepare variables
                 $frequency_sms = '';
+                $frequency_am = '';
                 if (!empty($donor['plan_frequency_unit'])) {
                     $unit = $donor['plan_frequency_unit'];
                     $num = (int)($donor['plan_frequency_number'] ?? 1);
+                    
+                    // English frequency
                     if ($unit === 'day') $frequency_sms = $num === 1 ? 'per day' : "every {$num} days";
                     elseif ($unit === 'week') $frequency_sms = $num === 1 ? 'per week' : "every {$num} weeks";
                     elseif ($unit === 'month') $frequency_sms = $num === 1 ? 'per month' : "every {$num} months";
                     elseif ($unit === 'year') $frequency_sms = $num === 1 ? 'per year' : "every {$num} years";
+                    
+                    // Amharic frequency
+                    if ($unit === 'day') $frequency_am = $num === 1 ? 'በቀን' : "በ{$num} ቀናት";
+                    elseif ($unit === 'week') $frequency_am = $num === 1 ? 'በሳምንት' : "በ{$num} ሳምንታት";
+                    elseif ($unit === 'month') $frequency_am = $num === 1 ? 'በወር' : "በ{$num} ወራት";
+                    elseif ($unit === 'year') $frequency_am = $num === 1 ? 'በአመት' : "በ{$num} ዓመታት";
                 }
 
                 $variables = [
                     'name' => explode(' ', trim($donor['name']))[0],
                     'amount' => $donor['monthly_amount'] ? '£' . number_format((float)$donor['monthly_amount'], 2) : '',
                     'frequency' => $frequency_sms,
+                    'frequency_am' => $frequency_am,
                     'start_date' => $donor['start_date'] ? date('M j, Y', strtotime($donor['start_date'])) : '',
                     'next_payment_due' => $donor['next_payment_due'] ? date('M j, Y', strtotime($donor['next_payment_due'])) : '',
                     'payment_method' => $donor['payment_method'] ? ucwords(str_replace('_', ' ', $donor['payment_method'])) : '',
