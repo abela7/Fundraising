@@ -759,10 +759,31 @@ $payment_where_clause = implode(' AND ', $payment_where_conditions);
 
 // Source column exists in pledges table (verified from schema)
 
+// Build batch WHERE conditions (for grid_allocation_batches)
+$batch_conditions = [];
+if ($filter_donor) {
+    $escaped_donor = mysqli_real_escape_string($db, $filter_donor);
+    $batch_conditions[] = "(b.donor_name LIKE '%" . $escaped_donor . "%' OR p.donor_name LIKE '%" . $escaped_donor . "%')";
+}
+if ($filter_amount_min !== null) {
+    $batch_conditions[] = "b.additional_amount >= " . (float)$filter_amount_min;
+}
+if ($filter_amount_max !== null) {
+    $batch_conditions[] = "b.additional_amount <= " . (float)$filter_amount_max;
+}
+if ($filter_date_from) {
+    $escaped_date_from = mysqli_real_escape_string($db, $filter_date_from);
+    $batch_conditions[] = "DATE(b.approved_at) >= '" . $escaped_date_from . "'";
+}
+if ($filter_date_to) {
+    $escaped_date_to = mysqli_real_escape_string($db, $filter_date_to);
+    $batch_conditions[] = "DATE(b.approved_at) <= '" . $escaped_date_to . "'";
+}
+$batch_where = !empty($batch_conditions) ? "AND " . implode(' AND ', $batch_conditions) : "";
+
 // Get total count for pagination (including batches)
 // Note: We count distinct pledge rows (each pledge appears once even if it has batch updates)
 // Plus separate batch rows, plus payment rows
-$batch_where = $filter_donor ? "AND (b.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%' OR p.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%')" : "";
 $count_sql = "
 SELECT COUNT(*) as total FROM (
   (SELECT p.id FROM pledges p 
@@ -920,7 +941,7 @@ UNION ALL
   WHERE b.approval_status = 'approved'
     AND b.batch_type IN ('pledge_update', 'payment_update')
     AND b.original_pledge_id IS NOT NULL
-    " . ($filter_donor ? "AND (b.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%' OR p.donor_name LIKE '%" . mysqli_real_escape_string($db, $filter_donor) . "%')" : "") . ")
+    $batch_where)
 ORDER BY $order_clause, created_at DESC
 LIMIT $per_page OFFSET $offset";
 
