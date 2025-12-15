@@ -76,7 +76,7 @@ try {
             source_type ENUM('cron', 'manual_calendar', 'bulk', 'call_center') NOT NULL DEFAULT 'manual_calendar',
             INDEX idx_donor_due (donor_id, due_date),
             INDEX idx_due_date (due_date),
-            UNIQUE KEY unique_reminder_per_day (donor_id, due_date, DATE(sent_at))
+            INDEX idx_donor_due_sent (donor_id, due_date, sent_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
     cron_log("INFO: Reminder tracking table verified");
@@ -235,9 +235,6 @@ try {
                     INSERT INTO payment_reminders_sent 
                     (donor_id, payment_plan_id, due_date, channel, message_preview, source_type, sent_by_name)
                     VALUES (?, ?, ?, ?, ?, 'cron', 'System (Cron)')
-                    ON DUPLICATE KEY UPDATE 
-                        sent_at = CURRENT_TIMESTAMP,
-                        channel = VALUES(channel)
                 ");
                 $planId = (int)$row['plan_id'];
                 $msgPreview = substr($sendResult['message'] ?? '', 0, 500);

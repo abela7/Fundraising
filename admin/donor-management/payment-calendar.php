@@ -54,7 +54,7 @@ function ensureReminderTrackingTable($db): void {
                 source_type ENUM('cron', 'manual_calendar', 'bulk', 'call_center') NOT NULL DEFAULT 'manual_calendar',
                 INDEX idx_donor_due (donor_id, due_date),
                 INDEX idx_due_date (due_date),
-                UNIQUE KEY unique_reminder_per_day (donor_id, due_date, DATE(sent_at))
+                INDEX idx_donor_due_sent (donor_id, due_date, sent_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
     }
@@ -87,14 +87,8 @@ function recordReminderSent($db, int $donorId, ?int $planId, string $dueDate, st
             INSERT INTO payment_reminders_sent 
             (donor_id, payment_plan_id, due_date, channel, message_preview, source_type, sent_by_user_id, sent_by_name)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE 
-                sent_at = CURRENT_TIMESTAMP,
-                channel = VALUES(channel),
-                message_preview = VALUES(message_preview),
-                sent_by_user_id = VALUES(sent_by_user_id),
-                sent_by_name = VALUES(sent_by_name)
         ");
-        $stmt->bind_param('iissssss', $donorId, $planId, $dueDate, $channel, $preview, $sourceType, $userId, $userName);
+        $stmt->bind_param('iissssis', $donorId, $planId, $dueDate, $channel, $preview, $sourceType, $userId, $userName);
         return $stmt->execute();
     } catch (Exception $e) {
         error_log("Failed to record reminder: " . $e->getMessage());
@@ -377,9 +371,13 @@ $query = "
     JOIN donors d ON pp.donor_id = d.id
     LEFT JOIN church_representatives cr ON d.representative_id = cr.id
     LEFT JOIN pledges pl ON pp.pledge_id = pl.id
-    LEFT JOIN payment_reminders_sent prs ON prs.donor_id = pp.donor_id 
-        AND prs.due_date = pp.next_payment_due 
-        AND DATE(prs.sent_at) = ?
+    LEFT JOIN (
+        SELECT donor_id, due_date, id, sent_at, channel, sent_by_name, source_type
+        FROM payment_reminders_sent
+        WHERE DATE(sent_at) = ?
+        GROUP BY donor_id, due_date
+        HAVING id = MAX(id)
+    ) prs ON prs.donor_id = pp.donor_id AND prs.due_date = pp.next_payment_due
     WHERE pp.next_payment_due BETWEEN ? AND ?
     AND pp.status = 'active'
     ORDER BY pp.next_payment_due ASC, d.name ASC
@@ -1571,14 +1569,22 @@ allPaymentsData = <?php
             $reminderTemplate
         );
         
+        // Check if reminder was already sent today
+        $reminderSentToday = !empty($payment['reminder_id']);
+        
         $allPayments[] = [
             'donor_id' => $payment['donor_id'],
+            'plan_id' => $payment['plan_id'],
             'donor_name' => $payment['donor_name'],
             'donor_phone' => $payment['donor_phone'],
             'amount' => $amount,
-            'due_date' => $dueDate,
+            'due_date' => $payment['next_payment_due'], // Raw Y-m-d format for API
+            'due_date_display' => $dueDate, // Formatted for display
             'payment_method' => ucwords(str_replace('_', ' ', $paymentMethod)),
-            'message' => $defaultMessage
+            'message' => $defaultMessage,
+            'reminder_sent' => $reminderSentToday,
+            'reminder_sent_at' => $payment['reminder_sent_at'] ?? null,
+            'reminder_channel' => $payment['reminder_channel'] ?? null
         ];
     }
     echo json_encode($allPayments);
@@ -1614,6 +1620,9 @@ function openReminderModal(paymentData) {
     // Show/hide already sent warning
     const warningEl = document.getElementById('alreadySentWarning');
     const sendBtn = document.getElementById('sendReminderBtn');
+    
+    // Reset button display (in case it was hidden by already_sent response)
+    sendBtn.style.display = '';
     
     if (paymentData.reminder_sent) {
         const sentTime = paymentData.reminder_sent_at ? 
