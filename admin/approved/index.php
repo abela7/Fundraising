@@ -791,11 +791,9 @@ $payment_where_clause = implode(' AND ', $payment_where_conditions);
 
 // Build batch WHERE conditions (for grid_allocation_batches)
 $batch_conditions = [];
-$batch_needs_pledge_join = false; // Only join pledges if filtering by donor name
 if ($filter_donor) {
     $escaped_donor = mysqli_real_escape_string($db, $filter_donor);
     $batch_conditions[] = "(b.donor_name LIKE '%" . $escaped_donor . "%' OR p.donor_name LIKE '%" . $escaped_donor . "%')";
-    $batch_needs_pledge_join = true;
 }
 if ($filter_amount_min !== null) {
     $batch_conditions[] = "b.additional_amount >= " . (float)$filter_amount_min;
@@ -851,10 +849,12 @@ SELECT COUNT(*) as total FROM (
    LEFT JOIN users u ON pay.received_by_user_id = u.id 
    WHERE $payment_where_clause)
   UNION ALL
-  (" . ($batch_needs_pledge_join ? 
-    "(SELECT b.id FROM grid_allocation_batches b LEFT JOIN pledges p ON b.original_pledge_id = p.id WHERE b.approval_status = 'approved' AND b.batch_type IN ('pledge_update', 'payment_update') AND b.original_pledge_id IS NOT NULL $batch_where)" :
-    "(SELECT b.id FROM grid_allocation_batches b WHERE b.approval_status = 'approved' AND b.batch_type IN ('pledge_update', 'payment_update') AND b.original_pledge_id IS NOT NULL $batch_where)"
-  ) . ")
+  (SELECT b.id FROM grid_allocation_batches b
+   LEFT JOIN pledges p ON b.original_pledge_id = p.id
+   WHERE b.approval_status = 'approved'
+     AND b.batch_type IN ('pledge_update', 'payment_update')
+     AND b.original_pledge_id IS NOT NULL
+     $batch_where)
 ) as combined_count";
 
 // Execute count query with parameters (simplified version for count)
