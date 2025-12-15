@@ -28,6 +28,12 @@ $db = db();
 
 // Handle AJAX reminder send
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_reminder') {
+    // Clean output buffer to ensure clean JSON response
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_start();
+    
     header('Content-Type: application/json');
     
     try {
@@ -68,12 +74,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // Log the message
                 $msgHelper->logMessage($donor_id, $donor['phone'], 'whatsapp', $message, 'sent', null, 'manual_calendar_reminder');
                 
+                ob_end_clean();
                 echo json_encode(['success' => true, 'channel' => 'whatsapp', 'message' => 'Reminder sent via WhatsApp']);
+                exit;
             } catch (Exception $e) {
                 // Fallback to SMS
                 $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
                 if ($smsResult['success']) {
+                    ob_end_clean();
                     echo json_encode(['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS (WhatsApp unavailable)']);
+                    exit;
                 } else {
                     throw new Exception('Failed to send: ' . ($smsResult['error'] ?? 'Unknown error'));
                 }
@@ -82,15 +92,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             // SMS only
             $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
             if ($smsResult['success']) {
+                ob_end_clean();
                 echo json_encode(['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS']);
+                exit;
             } else {
                 throw new Exception('Failed to send: ' . ($smsResult['error'] ?? 'Unknown error'));
             }
         }
     } catch (Exception $e) {
+        ob_end_clean();
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
     }
-    exit;
 }
 
 // Get view type from URL (default: week)
