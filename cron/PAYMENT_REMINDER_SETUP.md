@@ -20,17 +20,53 @@ Or via phpMyAdmin: Import > `sql/create_payment_reminder_2day_template.sql`
 
 ### 2. Set Up Cron Job
 
-#### Option A: Via cPanel Cron Jobs
-1. Go to cPanel → Cron Jobs
-2. Add new cron job:
-   - **Minute**: 0
-   - **Hour**: 8
-   - **Day**: *
-   - **Month**: *
-   - **Weekday**: *
-   - **Command**: `/usr/bin/php /home/YOUR_USER/public_html/Fundraising/cron/send-payment-reminders-2day.php`
+#### Option A: Via cPanel Cron Jobs (Recommended)
 
-#### Option B: Via Command Line (Linux/SSH)
+**Step 1: Find Your File Path**
+1. Go to **cPanel → File Manager**
+2. Navigate to your `Fundraising` folder
+3. Open the `cron` folder
+4. Right-click on `send-payment-reminders-2day.php` → **Copy Path**
+5. The path will look like: `/home/yourusername/public_html/Fundraising/cron/send-payment-reminders-2day.php`
+   - **Note**: Replace `yourusername` with your actual cPanel username
+   - If your site is in a subdomain folder, it might be: `/home/yourusername/public_html/donate.abuneteklehaymanot.org/Fundraising/cron/send-payment-reminders-2day.php`
+
+**Step 2: Set Up the Cron Job**
+1. Go to **cPanel → Cron Jobs**
+2. Under **Add New Cron Job**, choose **Standard** or **Advanced**
+3. Set the schedule:
+   - **Minute**: `0`
+   - **Hour**: `8`
+   - **Day**: `*`
+   - **Month**: `*`
+   - **Weekday**: `*`
+4. In **Command**, enter:
+   ```
+   /usr/bin/php /home/YOUR_USERNAME/public_html/Fundraising/cron/send-payment-reminders-2day.php
+   ```
+   - Replace `YOUR_USERNAME` with your actual cPanel username
+   - If your site is in a subdomain folder, use the full path from Step 1
+
+**Alternative: Find Your Username**
+- In cPanel, look at the top-right corner - your username is displayed there
+- Or check the path shown in File Manager when you're in `public_html`
+
+#### Option B: Via Web URL (Easier - No File Path Needed!)
+
+This is the **easiest method** if you don't want to deal with file paths:
+
+1. Go to **cPanel → Cron Jobs**
+2. Set the schedule (same as Option A)
+3. In **Command**, enter:
+   ```
+   curl -s "https://donate.abuneteklehaymanot.org/cron/send-payment-reminders-2day.php?cron_key=YOUR_SECRET_KEY" > /dev/null
+   ```
+4. **Important**: First, set up the cron key:
+   - Go to **cPanel → Environment Variables** (or ask your host to set it)
+   - Add: `FUNDRAISING_CRON_KEY` = `your_secret_key_here`
+   - Then use that same key in the URL above
+
+#### Option C: Via Command Line (Linux/SSH)
 ```bash
 crontab -e
 ```
@@ -40,21 +76,33 @@ Add this line:
 0 8 * * * /usr/bin/php /path/to/Fundraising/cron/send-payment-reminders-2day.php
 ```
 
-#### Option C: Via Web (with Cron Key)
-Set environment variable `FUNDRAISING_CRON_KEY` on your server, then call:
-```
-https://yourdomain.com/cron/send-payment-reminders-2day.php?cron_key=YOUR_SECRET_KEY
+### 3. Find Your Exact File Path (Helper Script)
+
+Create a temporary file `cron/find-path.php` with this content:
+
+```php
+<?php
+echo "Your file path is: " . __DIR__ . "/send-payment-reminders-2day.php\n";
+echo "Full absolute path: " . realpath(__DIR__ . "/send-payment-reminders-2day.php") . "\n";
 ```
 
-### 3. Test the Cron Job Manually
+Then visit: `https://donate.abuneteklehaymanot.org/cron/find-path.php`
+
+**Delete this file after you get the path!**
+
+### 4. Test the Cron Job Manually
+
+**Via Web Browser:**
+Visit: `https://donate.abuneteklehaymanot.org/cron/send-payment-reminders-2day.php?cron_key=YOUR_SECRET_KEY`
+
+**Via SSH/Command Line:**
 ```bash
 php /path/to/cron/send-payment-reminders-2day.php
 ```
 
-Check the log file:
-```bash
-tail -f logs/payment-reminders-2day-YYYY-MM-DD.log
-```
+**Check the log file:**
+- Via File Manager: `logs/payment-reminders-2day-YYYY-MM-DD.log`
+- Via SSH: `tail -f logs/payment-reminders-2day-YYYY-MM-DD.log`
 
 ## How It Works
 
