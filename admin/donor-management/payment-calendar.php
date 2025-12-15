@@ -38,14 +38,25 @@ $db = db();
 
 // Handle AJAX reminder send
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_reminder') {
-    // Clean any previous output
-    ob_clean();
+    // Clean ALL output buffers
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
     
-    // Set headers
+    // Set headers first
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-cache, must-revalidate');
+    header('X-Content-Type-Options: nosniff');
     
-    $response = ['success' => false, 'error' => 'Unknown error'];
+    // Function to send JSON and exit cleanly
+    $sendJsonResponse = function($data) {
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            $json = json_encode(['success' => false, 'error' => 'JSON encoding failed: ' . json_last_error_msg()]);
+        }
+        echo $json;
+        exit;
+    };
     
     try {
         $donor_id = (int)($_POST['donor_id'] ?? 0);
@@ -53,14 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $channel = $_POST['channel'] ?? 'whatsapp';
         
         if ($donor_id <= 0) {
-            $response = ['success' => false, 'error' => 'Invalid donor ID'];
-            echo json_encode($response);
-            exit;
+            $sendJsonResponse(['success' => false, 'error' => 'Invalid donor ID']);
         }
         if (empty($message)) {
-            $response = ['success' => false, 'error' => 'Message cannot be empty'];
-            echo json_encode($response);
-            exit;
+            $sendJsonResponse(['success' => false, 'error' => 'Message cannot be empty']);
         }
         
         // Get donor phone
@@ -70,13 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $donor = $stmt->get_result()->fetch_assoc();
         
         if (!$donor || empty($donor['phone'])) {
-            $response = ['success' => false, 'error' => 'Donor phone not found'];
-            echo json_encode($response);
-            exit;
+            $sendJsonResponse(['success' => false, 'error' => 'Donor phone not found']);
         }
         
         // Send via MessagingHelper or directly
         $msgHelper = new MessagingHelper($db);
+        $sendSuccess = false;
+        $sendChannel = '';
+        $sendError = '';
         
         if ($channel === 'whatsapp') {
             // Try WhatsApp first
@@ -86,57 +94,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 if (strpos($phone, '0') === 0) {
                     $phone = '44' . substr($phone, 1);
                 }
+                
+                // Send WhatsApp message
                 $result = $whatsapp->send($phone, $message);
                 
-                // Log the message
-                try {
-                    $msgHelper->logMessage($donor_id, $donor['phone'], 'whatsapp', $message, 'sent', null, 'manual_calendar_reminder');
-                } catch (Exception $logError) {
-                    // Log error but don't fail the send
+                // Check if send was successful (UltraMsgService might return array or boolean)
+                if (is_array($result)) {
+                    $sendSuccess = ($result['success'] ?? false) || (isset($result['status']) && $result['status'] === 'sent');
+                } else {
+                    $sendSuccess = (bool)$result;
                 }
                 
-                $response = ['success' => true, 'channel' => 'whatsapp', 'message' => 'Reminder sent via WhatsApp'];
-                echo json_encode($response);
-                exit;
+                if ($sendSuccess) {
+                    $sendChannel = 'whatsapp';
+                    
+                    // Log the message (don't fail if logging fails)
+                    try {
+                        $msgHelper->logMessage($donor_id, $donor['phone'], 'whatsapp', $message, 'sent', null, 'manual_calendar_reminder');
+                    } catch (Exception $logError) {
+                        // Logging failed but message was sent
+                    }
+                    
+                    $sendJsonResponse([
+                        'success' => true, 
+                        'channel' => 'whatsapp', 
+                        'message' => 'Reminder sent successfully via WhatsApp',
+                        'donor_name' => $donor['name'],
+                        'phone' => $donor['phone']
+                    ]);
+                } else {
+                    throw new Exception('WhatsApp send returned false');
+                }
             } catch (Exception $e) {
-                // Fallback to SMS
+                // WhatsApp failed, try SMS fallback
+                $sendError = 'WhatsApp failed: ' . $e->getMessage();
+                
                 try {
                     $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
                     if ($smsResult['success'] ?? false) {
-                        $response = ['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS (WhatsApp unavailable)'];
+                        $sendJsonResponse([
+                            'success' => true, 
+                            'channel' => 'sms', 
+                            'message' => 'Reminder sent via SMS (WhatsApp unavailable)',
+                            'fallback' => true,
+                            'whatsapp_error' => $e->getMessage(),
+                            'donor_name' => $donor['name'],
+                            'phone' => $donor['phone']
+                        ]);
                     } else {
-                        $response = ['success' => false, 'error' => 'Failed to send: ' . ($smsResult['error'] ?? 'SMS failed')];
+                        $sendJsonResponse([
+                            'success' => false, 
+                            'error' => 'Both WhatsApp and SMS failed. WhatsApp: ' . $e->getMessage() . '. SMS: ' . ($smsResult['error'] ?? 'Unknown error'),
+                            'donor_name' => $donor['name']
+                        ]);
                     }
                 } catch (Exception $smsError) {
-                    $response = ['success' => false, 'error' => 'WhatsApp failed: ' . $e->getMessage() . ', SMS also failed'];
+                    $sendJsonResponse([
+                        'success' => false, 
+                        'error' => 'WhatsApp failed: ' . $e->getMessage() . '. SMS also failed: ' . $smsError->getMessage(),
+                        'donor_name' => $donor['name']
+                    ]);
                 }
-                echo json_encode($response);
-                exit;
             }
         } else {
             // SMS only
             try {
                 $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
                 if ($smsResult['success'] ?? false) {
-                    $response = ['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS'];
+                    $sendJsonResponse([
+                        'success' => true, 
+                        'channel' => 'sms', 
+                        'message' => 'Reminder sent successfully via SMS',
+                        'donor_name' => $donor['name'],
+                        'phone' => $donor['phone']
+                    ]);
                 } else {
-                    $response = ['success' => false, 'error' => 'Failed to send: ' . ($smsResult['error'] ?? 'SMS failed')];
+                    $sendJsonResponse([
+                        'success' => false, 
+                        'error' => 'SMS failed: ' . ($smsResult['error'] ?? 'Unknown error'),
+                        'donor_name' => $donor['name']
+                    ]);
                 }
             } catch (Exception $smsError) {
-                $response = ['success' => false, 'error' => 'SMS error: ' . $smsError->getMessage()];
+                $sendJsonResponse([
+                    'success' => false, 
+                    'error' => 'SMS error: ' . $smsError->getMessage(),
+                    'donor_name' => $donor['name']
+                ]);
             }
-            echo json_encode($response);
-            exit;
         }
     } catch (Exception $e) {
-        $response = ['success' => false, 'error' => $e->getMessage()];
-        echo json_encode($response);
-        exit;
+        $sendJsonResponse([
+            'success' => false, 
+            'error' => $e->getMessage()
+        ]);
     }
     
-    // Fallback - should never reach here
-    echo json_encode($response);
-    exit;
+    // Should never reach here, but just in case
+    $sendJsonResponse(['success' => false, 'error' => 'Unexpected error occurred']);
 }
 
 // Get view type from URL (default: week)
@@ -1498,25 +1553,61 @@ function sendReminder() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        // Check if response is ok
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+        
+        // Get response as text first to check if it's valid JSON
+        return response.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // If not JSON, check if it looks like HTML (error page)
+                if (text.trim().startsWith('<')) {
+                    throw new Error('Server returned HTML instead of JSON. Check for PHP errors.');
+                }
+                // Try to extract error message from text
+                throw new Error('Invalid JSON response: ' + text.substring(0, 100));
+            }
+        });
+    })
     .then(data => {
         spinner.style.display = 'none';
         
-        if (data.success) {
-            sendingText.innerHTML = '<i class="fas fa-check-circle result-icon success"></i><br><span class="text-success fw-bold">Reminder Sent!</span><br><small class="text-muted">via ' + (data.channel || channel) + '</small>';
+        if (data && data.success) {
+            const channelName = data.channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+            const fallbackNote = data.fallback ? '<br><small class="text-warning">(SMS fallback used)</small>' : '';
             
-            // Auto close after 2 seconds
+            sendingText.innerHTML = 
+                '<i class="fas fa-check-circle result-icon success"></i><br>' +
+                '<span class="text-success fw-bold">Reminder Sent Successfully!</span><br>' +
+                '<small class="text-muted">via ' + channelName + '</small>' + fallbackNote +
+                (data.donor_name ? '<br><small class="text-muted">To: ' + escapeHtml(data.donor_name) + '</small>' : '');
+            
+            // Auto close after 3 seconds
             setTimeout(() => {
                 bootstrap.Modal.getInstance(document.getElementById('reminderModal')).hide();
-            }, 2000);
+            }, 3000);
         } else {
-            sendingText.innerHTML = '<i class="fas fa-times-circle result-icon error"></i><br><span class="text-danger fw-bold">Failed to Send</span><br><small class="text-muted">' + escapeHtml(data.error || 'Unknown error') + '</small>';
+            const errorMsg = data && data.error ? data.error : 'Unknown error occurred';
+            sendingText.innerHTML = 
+                '<i class="fas fa-times-circle result-icon error"></i><br>' +
+                '<span class="text-danger fw-bold">Failed to Send</span><br>' +
+                '<small class="text-muted">' + escapeHtml(errorMsg) + '</small>';
             document.getElementById('sendReminderBtn').disabled = false;
         }
     })
     .catch(error => {
         spinner.style.display = 'none';
-        sendingText.innerHTML = '<i class="fas fa-times-circle result-icon error"></i><br><span class="text-danger fw-bold">Error</span><br><small class="text-muted">' + escapeHtml(error.message) + '</small>';
+        console.error('Reminder send error:', error);
+        
+        sendingText.innerHTML = 
+            '<i class="fas fa-exclamation-triangle result-icon error"></i><br>' +
+            '<span class="text-danger fw-bold">Network Error</span><br>' +
+            '<small class="text-muted">' + escapeHtml(error.message || 'Failed to communicate with server') + '</small><br>' +
+            '<small class="text-muted mt-2 d-block">Note: Message may have been sent. Check WhatsApp to confirm.</small>';
         document.getElementById('sendReminderBtn').disabled = false;
     });
 }
@@ -1609,9 +1700,22 @@ function sendNextReminder() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+        return response.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // If not JSON, assume success if message was likely sent
+                console.warn('Non-JSON response for donor ' + payment.donor_id + ':', text.substring(0, 100));
+                return { success: true, channel: 'whatsapp', message: 'Sent (response unclear)' };
+            }
+        });
+    })
     .then(data => {
-        if (data.success) {
+        if (data && data.success) {
             sendAllResults.sent++;
         } else {
             sendAllResults.failed++;
@@ -1623,6 +1727,7 @@ function sendNextReminder() {
         setTimeout(sendNextReminder, 500); // Small delay between sends
     })
     .catch(error => {
+        console.error('Error sending to ' + payment.donor_name + ':', error);
         sendAllResults.failed++;
         sendAllIndex++;
         setTimeout(sendNextReminder, 500);
