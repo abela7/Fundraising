@@ -7,6 +7,16 @@
  */
 
 declare(strict_types=1);
+
+// Start output buffering for AJAX requests
+ob_start();
+
+// Suppress errors for AJAX (we'll handle them properly)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    error_reporting(0);
+    ini_set('display_errors', '0');
+}
+
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_login();
@@ -28,13 +38,14 @@ $db = db();
 
 // Handle AJAX reminder send
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_reminder') {
-    // Clean output buffer to ensure clean JSON response
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-    ob_start();
+    // Clean any previous output
+    ob_clean();
     
-    header('Content-Type: application/json');
+    // Set headers
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-cache, must-revalidate');
+    
+    $response = ['success' => false, 'error' => 'Unknown error'];
     
     try {
         $donor_id = (int)($_POST['donor_id'] ?? 0);
@@ -42,10 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $channel = $_POST['channel'] ?? 'whatsapp';
         
         if ($donor_id <= 0) {
-            throw new Exception('Invalid donor ID');
+            $response = ['success' => false, 'error' => 'Invalid donor ID'];
+            echo json_encode($response);
+            exit;
         }
         if (empty($message)) {
-            throw new Exception('Message cannot be empty');
+            $response = ['success' => false, 'error' => 'Message cannot be empty'];
+            echo json_encode($response);
+            exit;
         }
         
         // Get donor phone
@@ -55,7 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $donor = $stmt->get_result()->fetch_assoc();
         
         if (!$donor || empty($donor['phone'])) {
-            throw new Exception('Donor phone not found');
+            $response = ['success' => false, 'error' => 'Donor phone not found'];
+            echo json_encode($response);
+            exit;
         }
         
         // Send via MessagingHelper or directly
@@ -72,38 +89,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $result = $whatsapp->send($phone, $message);
                 
                 // Log the message
-                $msgHelper->logMessage($donor_id, $donor['phone'], 'whatsapp', $message, 'sent', null, 'manual_calendar_reminder');
+                try {
+                    $msgHelper->logMessage($donor_id, $donor['phone'], 'whatsapp', $message, 'sent', null, 'manual_calendar_reminder');
+                } catch (Exception $logError) {
+                    // Log error but don't fail the send
+                }
                 
-                ob_end_clean();
-                echo json_encode(['success' => true, 'channel' => 'whatsapp', 'message' => 'Reminder sent via WhatsApp']);
+                $response = ['success' => true, 'channel' => 'whatsapp', 'message' => 'Reminder sent via WhatsApp'];
+                echo json_encode($response);
                 exit;
             } catch (Exception $e) {
                 // Fallback to SMS
-                $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
-                if ($smsResult['success']) {
-                    ob_end_clean();
-                    echo json_encode(['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS (WhatsApp unavailable)']);
-                    exit;
-                } else {
-                    throw new Exception('Failed to send: ' . ($smsResult['error'] ?? 'Unknown error'));
+                try {
+                    $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
+                    if ($smsResult['success'] ?? false) {
+                        $response = ['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS (WhatsApp unavailable)'];
+                    } else {
+                        $response = ['success' => false, 'error' => 'Failed to send: ' . ($smsResult['error'] ?? 'SMS failed')];
+                    }
+                } catch (Exception $smsError) {
+                    $response = ['success' => false, 'error' => 'WhatsApp failed: ' . $e->getMessage() . ', SMS also failed'];
                 }
+                echo json_encode($response);
+                exit;
             }
         } else {
             // SMS only
-            $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
-            if ($smsResult['success']) {
-                ob_end_clean();
-                echo json_encode(['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS']);
-                exit;
-            } else {
-                throw new Exception('Failed to send: ' . ($smsResult['error'] ?? 'Unknown error'));
+            try {
+                $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
+                if ($smsResult['success'] ?? false) {
+                    $response = ['success' => true, 'channel' => 'sms', 'message' => 'Reminder sent via SMS'];
+                } else {
+                    $response = ['success' => false, 'error' => 'Failed to send: ' . ($smsResult['error'] ?? 'SMS failed')];
+                }
+            } catch (Exception $smsError) {
+                $response = ['success' => false, 'error' => 'SMS error: ' . $smsError->getMessage()];
             }
+            echo json_encode($response);
+            exit;
         }
     } catch (Exception $e) {
-        ob_end_clean();
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        $response = ['success' => false, 'error' => $e->getMessage()];
+        echo json_encode($response);
         exit;
     }
+    
+    // Fallback - should never reach here
+    echo json_encode($response);
+    exit;
 }
 
 // Get view type from URL (default: week)
