@@ -168,8 +168,12 @@ Please hand over the cash to [Representative Name] ([Phone])
 
 #### Bank Transfer / Card
 ```
-Bank: LMKATH, Account: 85455687, Sort Code: 53-70-44, Reference: [FirstNameDonorId]
+Bank: LMKATH, Account: 85455687, Sort Code: 53-70-44, Reference: [4-digit from pledge notes]
 ```
+
+**Reference Logic:**
+- Extracts 4-digit number from pledge notes (e.g., "1234" from "Pledge 1234")
+- Falls back to zero-padded donor ID if no 4-digit found (e.g., "0123" for donor ID 123)
 
 ### Channel Strategy
 - **WhatsApp First**: Tries WhatsApp if available
@@ -185,7 +189,7 @@ Bank: LMKATH, Account: 85455687, Sort Code: 53-70-44, Reference: [FirstNameDonor
 | `{due_date}` | Due date | "15/12/2025" |
 | `{payment_method}` | Payment method | "Bank Transfer" |
 | `{payment_instructions}` | Full instructions | "Bank: LMKATH, Account: 85455687..." |
-| `{reference}` | Payment reference | "Meseret123" |
+| `{reference}` | Payment reference (4-digit) | "1234" |
 | `{account_name}` | Bank account name | "LMKATH" |
 | `{account_number}` | Bank account number | "85455687" |
 | `{sort_code}` | Sort code | "53-70-44" |
@@ -284,4 +288,4 @@ php cron/send-payment-reminders-2day.php
 - Messages use the donor's `preferred_language` setting
 - Amharic and Tigrinya templates need translation (currently use English)
 - Representative info only shows for cash payments (if assigned)
-- Reference format: FirstNameDonorId (e.g., "Meseret123")
+- Reference format: 4-digit number from pledge notes (e.g., "1234"), falls back to zero-padded donor ID if not found

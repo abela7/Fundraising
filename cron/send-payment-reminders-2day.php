@@ -78,6 +78,7 @@ try {
         SELECT 
             pp.id as plan_id,
             pp.donor_id,
+            pp.pledge_id,
             pp.monthly_amount,
             pp.next_payment_due,
             pp.payment_method,
@@ -88,10 +89,12 @@ try {
             d.preferred_language,
             d.sms_opt_in,
             cr.name as rep_name,
-            cr.phone as rep_phone
+            cr.phone as rep_phone,
+            pl.notes as pledge_notes
         FROM donor_payment_plans pp
         JOIN donors d ON pp.donor_id = d.id
         LEFT JOIN church_representatives cr ON d.representative_id = cr.id
+        LEFT JOIN pledges pl ON pp.pledge_id = pl.id
         WHERE pp.next_payment_due = ?
         AND pp.status = 'active'
         AND d.phone IS NOT NULL
@@ -122,9 +125,20 @@ try {
             continue;
         }
         
+        // Extract 4-digit reference from pledge notes
+        $reference = '';
+        if (!empty($row['pledge_notes'])) {
+            // Extract 4-digit number from notes
+            preg_match('/\b\d{4}\b/', $row['pledge_notes'], $matches);
+            $reference = $matches[0] ?? '';
+        }
+        // Fallback to donor ID if no 4-digit found
+        if (empty($reference)) {
+            $reference = str_pad((string)$donorId, 4, '0', STR_PAD_LEFT);
+        }
+        
         // Build payment instructions based on method
         $paymentInstructions = '';
-        $reference = $firstName . $donorId; // Simple reference: FirstNameDonorId
         
         if ($paymentMethod === 'cash') {
             $repName = $row['rep_name'] ?? 'your church representative';

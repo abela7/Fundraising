@@ -171,6 +171,7 @@ $query = "
     SELECT 
         pp.id as plan_id,
         pp.donor_id,
+        pp.pledge_id,
         pp.monthly_amount,
         pp.next_payment_due,
         pp.payment_method,
@@ -182,10 +183,12 @@ $query = "
         d.payment_status as donor_status,
         d.preferred_language,
         cr.name as rep_name,
-        cr.phone as rep_phone
+        cr.phone as rep_phone,
+        pl.notes as pledge_notes
     FROM donor_payment_plans pp
     JOIN donors d ON pp.donor_id = d.id
     LEFT JOIN church_representatives cr ON d.representative_id = cr.id
+    LEFT JOIN pledges pl ON pp.pledge_id = pl.id
     WHERE pp.next_payment_due BETWEEN ? AND ?
     AND pp.status = 'active'
     ORDER BY pp.next_payment_due ASC, d.name ASC
@@ -943,7 +946,18 @@ if ($view === 'week') {
                                     $amount = '£' . number_format((float)$payment['monthly_amount'], 2);
                                     $dueDate = date('d/m/Y', strtotime($payment['next_payment_due']));
                                     $paymentMethod = $payment['payment_method'] ?? 'bank_transfer';
-                                    $reference = $firstName . $payment['donor_id'];
+                                    
+                                    // Extract 4-digit reference from pledge notes
+                                    $reference = '';
+                                    if (!empty($payment['pledge_notes'])) {
+                                        // Extract 4-digit number from notes
+                                        preg_match('/\b\d{4}\b/', $payment['pledge_notes'], $matches);
+                                        $reference = $matches[0] ?? '';
+                                    }
+                                    // Fallback to donor ID if no 4-digit found
+                                    if (empty($reference)) {
+                                        $reference = str_pad((string)$payment['donor_id'], 4, '0', STR_PAD_LEFT);
+                                    }
                                     
                                     // Build payment instructions
                                     if ($paymentMethod === 'cash') {
@@ -1289,7 +1303,17 @@ allPaymentsData = <?php
         $amount = '£' . number_format((float)$payment['monthly_amount'], 2);
         $dueDate = date('d/m/Y', strtotime($payment['next_payment_due']));
         $paymentMethod = $payment['payment_method'] ?? 'bank_transfer';
-        $reference = $firstName . $payment['donor_id'];
+        
+        // Extract 4-digit reference from pledge notes
+        $reference = '';
+        if (!empty($payment['pledge_notes'])) {
+            preg_match('/\b\d{4}\b/', $payment['pledge_notes'], $matches);
+            $reference = $matches[0] ?? '';
+        }
+        // Fallback to donor ID if no 4-digit found
+        if (empty($reference)) {
+            $reference = str_pad((string)$payment['donor_id'], 4, '0', STR_PAD_LEFT);
+        }
         
         if ($paymentMethod === 'cash') {
             $repName = $payment['rep_name'] ?? 'your church representative';
