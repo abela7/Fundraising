@@ -50,6 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     
     // Function to send JSON and exit cleanly
     $sendJsonResponse = function($data) {
+        // Clean any output again before sending
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
             $json = json_encode(['success' => false, 'error' => 'JSON encoding failed: ' . json_last_error_msg()]);
@@ -59,6 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     };
     
     try {
+        // Check database connection
+        if (!$db) {
+            $sendJsonResponse(['success' => false, 'error' => 'Database connection failed']);
+        }
         $donor_id = (int)($_POST['donor_id'] ?? 0);
         $message = trim($_POST['message'] ?? '');
         $channel = $_POST['channel'] ?? 'whatsapp';
@@ -80,113 +89,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $sendJsonResponse(['success' => false, 'error' => 'Donor phone not found']);
         }
         
-        // Send via MessagingHelper or directly
+        // Use MessagingHelper for unified sending (handles logging automatically)
         $msgHelper = new MessagingHelper($db);
-        $sendSuccess = false;
-        $sendChannel = '';
-        $sendError = '';
         
         if ($channel === 'whatsapp') {
-            // Try WhatsApp first
-            try {
-                $whatsapp = UltraMsgService::fromDatabase($db);
-                $phone = preg_replace('/[^0-9]/', '', $donor['phone']);
-                if (strpos($phone, '0') === 0) {
-                    $phone = '44' . substr($phone, 1);
-                }
+            // Try WhatsApp first, with SMS fallback
+            $result = $msgHelper->sendToDonor(
+                $donor_id,
+                $message,
+                'whatsapp', // Preferred channel
+                'manual_calendar_reminder'
+            );
+            
+            if ($result['success'] ?? false) {
+                $sendChannel = $result['channel'] ?? 'whatsapp';
+                $isFallback = ($sendChannel === 'sms' && ($result['fallback_used'] ?? false));
                 
-                // Send WhatsApp message
-                $result = $whatsapp->send($phone, $message);
-                
-                // Check if send was successful (UltraMsgService might return array or boolean)
-                if (is_array($result)) {
-                    $sendSuccess = ($result['success'] ?? false) || (isset($result['status']) && $result['status'] === 'sent');
-                } else {
-                    $sendSuccess = (bool)$result;
-                }
-                
-                if ($sendSuccess) {
-                    $sendChannel = 'whatsapp';
-                    
-                    // Log the message (don't fail if logging fails)
-                    try {
-                        $msgHelper->logMessage($donor_id, $donor['phone'], 'whatsapp', $message, 'sent', null, 'manual_calendar_reminder');
-                    } catch (Exception $logError) {
-                        // Logging failed but message was sent
-                    }
-                    
-                    $sendJsonResponse([
-                        'success' => true, 
-                        'channel' => 'whatsapp', 
-                        'message' => 'Reminder sent successfully via WhatsApp',
-                        'donor_name' => $donor['name'],
-                        'phone' => $donor['phone']
-                    ]);
-                } else {
-                    throw new Exception('WhatsApp send returned false');
-                }
-            } catch (Exception $e) {
-                // WhatsApp failed, try SMS fallback
-                $sendError = 'WhatsApp failed: ' . $e->getMessage();
-                
-                try {
-                    $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
-                    if ($smsResult['success'] ?? false) {
-                        $sendJsonResponse([
-                            'success' => true, 
-                            'channel' => 'sms', 
-                            'message' => 'Reminder sent via SMS (WhatsApp unavailable)',
-                            'fallback' => true,
-                            'whatsapp_error' => $e->getMessage(),
-                            'donor_name' => $donor['name'],
-                            'phone' => $donor['phone']
-                        ]);
-                    } else {
-                        $sendJsonResponse([
-                            'success' => false, 
-                            'error' => 'Both WhatsApp and SMS failed. WhatsApp: ' . $e->getMessage() . '. SMS: ' . ($smsResult['error'] ?? 'Unknown error'),
-                            'donor_name' => $donor['name']
-                        ]);
-                    }
-                } catch (Exception $smsError) {
-                    $sendJsonResponse([
-                        'success' => false, 
-                        'error' => 'WhatsApp failed: ' . $e->getMessage() . '. SMS also failed: ' . $smsError->getMessage(),
-                        'donor_name' => $donor['name']
-                    ]);
-                }
+                $sendJsonResponse([
+                    'success' => true, 
+                    'channel' => $sendChannel, 
+                    'message' => 'Reminder sent successfully via ' . strtoupper($sendChannel),
+                    'fallback' => $isFallback,
+                    'donor_name' => $donor['name'],
+                    'phone' => $donor['phone'],
+                    'message_id' => $result['message_id'] ?? null
+                ]);
+            } else {
+                $errorMsg = $result['error'] ?? 'Failed to send message';
+                $sendJsonResponse([
+                    'success' => false, 
+                    'error' => $errorMsg,
+                    'donor_name' => $donor['name']
+                ]);
             }
         } else {
             // SMS only
-            try {
-                $smsResult = $msgHelper->sendSMS($donor_id, $message, 'manual_calendar_reminder');
-                if ($smsResult['success'] ?? false) {
-                    $sendJsonResponse([
-                        'success' => true, 
-                        'channel' => 'sms', 
-                        'message' => 'Reminder sent successfully via SMS',
-                        'donor_name' => $donor['name'],
-                        'phone' => $donor['phone']
-                    ]);
-                } else {
-                    $sendJsonResponse([
-                        'success' => false, 
-                        'error' => 'SMS failed: ' . ($smsResult['error'] ?? 'Unknown error'),
-                        'donor_name' => $donor['name']
-                    ]);
-                }
-            } catch (Exception $smsError) {
+            $result = $msgHelper->sendToDonor(
+                $donor_id,
+                $message,
+                'sms', // SMS only
+                'manual_calendar_reminder'
+            );
+            
+            if ($result['success'] ?? false) {
+                $sendJsonResponse([
+                    'success' => true, 
+                    'channel' => 'sms', 
+                    'message' => 'Reminder sent successfully via SMS',
+                    'donor_name' => $donor['name'],
+                    'phone' => $donor['phone'],
+                    'message_id' => $result['message_id'] ?? null
+                ]);
+            } else {
+                $errorMsg = $result['error'] ?? 'SMS failed';
                 $sendJsonResponse([
                     'success' => false, 
-                    'error' => 'SMS error: ' . $smsError->getMessage(),
+                    'error' => $errorMsg,
                     'donor_name' => $donor['name']
                 ]);
             }
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        // Catch any error or exception
+        error_log('Payment Calendar Reminder Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
         $sendJsonResponse([
             'success' => false, 
-            'error' => $e->getMessage()
+            'error' => 'Server error: ' . $e->getMessage(),
+            'error_type' => get_class($e)
+        ]);
+    } catch (Exception $e) {
+        // Fallback for older PHP versions
+        error_log('Payment Calendar Reminder Error: ' . $e->getMessage());
+        $sendJsonResponse([
+            'success' => false, 
+            'error' => 'Server error: ' . $e->getMessage()
         ]);
     }
     
