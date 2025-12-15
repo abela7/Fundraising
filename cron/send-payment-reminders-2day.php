@@ -15,7 +15,11 @@
 declare(strict_types=1);
 
 // Prevent unauthorized web access
-$isCli = php_sapi_name() === 'cli';
+// Check if running from command line (supports regular PHP CLI, lsphp, php-cgi, etc.)
+$isCli = in_array(php_sapi_name(), ['cli', 'cli-server', 'cgi', 'cgi-fcgi', 'litespeed'], true) 
+         || !isset($_SERVER['HTTP_HOST']) 
+         || (isset($_SERVER['argc']) && $_SERVER['argc'] > 0);
+
 if (!$isCli) {
     $expectedCronKey = (string)getenv('FUNDRAISING_CRON_KEY');
     if ($expectedCronKey === '') {
