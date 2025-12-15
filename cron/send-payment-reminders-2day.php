@@ -1,13 +1,15 @@
 <?php
 /**
- * Send Payment Reminders (2 Days Before Due Date)
+ * Send Payment Reminders (1 Day Before Due Date)
  * 
- * Sends WhatsApp/SMS reminders to donors whose payment is due in 2 days.
+ * Sends WhatsApp/SMS reminders to donors whose payment is due tomorrow (1 day before).
  * Run daily at 8:00 AM via cron:
  * 0 8 * * * /usr/bin/php /path/to/cron/send-payment-reminders-2day.php
  * 
  * Or via web (with cron key):
  * https://yourdomain.com/cron/send-payment-reminders-2day.php?cron_key=YOUR_KEY
+ * 
+ * Note: File name kept as "2day" for backward compatibility, but sends 1 day before.
  */
 
 declare(strict_types=1);
@@ -260,7 +262,7 @@ try {
         
         // Build summary message
         $timestamp = date('d/m/Y H:i:s');
-        $dueDate = date('l, j F Y', strtotime('+2 days')); // Monday, 15 December 2025
+        $dueDate = date('l, j F Y', strtotime('+1 day')); // Tomorrow's date
         
         $adminMessage = "🔔 *Payment Reminder Cron Job Complete*\n\n";
         $adminMessage .= "📅 *Run Time:* {$timestamp}\n";

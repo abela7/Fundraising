@@ -41,15 +41,15 @@ $action = $_GET['action'] ?? 'info';
         <h1 class="mb-4">🔔 Payment Reminder Test Tool</h1>
 
         <?php if ($action === 'info'): ?>
-            <!-- Step 1: Show payments due in 2 days -->
+            <!-- Step 1: Show payments due tomorrow -->
             <div class="card">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">📅 Step 1: Payments Due in 2 Days</h5>
+                    <h5 class="mb-0">📅 Step 1: Payments Due Tomorrow (1 Day)</h5>
                 </div>
                 <div class="card-body">
                     <?php
-                    $targetDate = date('Y-m-d', strtotime('+2 days'));
-                    $formattedDate = date('l, j F Y', strtotime('+2 days'));
+                    $targetDate = date('Y-m-d', strtotime('+1 day'));
+                    $formattedDate = date('l, j F Y', strtotime('+1 day'));
                     
                     echo "<p><strong>Target Date:</strong> {$formattedDate} ({$targetDate})</p>";
                     
@@ -72,7 +72,7 @@ $action = $_GET['action'] ?? 'info';
                     $count = $result->num_rows;
                     
                     if ($count > 0) {
-                        echo "<div class='alert alert-success'><strong>✅ Found {$count} payment(s) due in 2 days</strong></div>";
+                        echo "<div class='alert alert-success'><strong>✅ Found {$count} payment(s) due tomorrow</strong></div>";
                         echo "<table class='table table-sm'>";
                         echo "<thead><tr><th>Donor</th><th>Phone</th><th>Amount</th><th>Language</th><th>SMS Opt-in</th></tr></thead><tbody>";
                         
@@ -88,7 +88,7 @@ $action = $_GET['action'] ?? 'info';
                         }
                         echo "</tbody></table>";
                     } else {
-                        echo "<div class='alert alert-warning'><strong>⚠️ No payments due in 2 days</strong><br>To test, create a payment plan with next_payment_due = '{$targetDate}'</div>";
+                        echo "<div class='alert alert-warning'><strong>⚠️ No payments due tomorrow</strong><br>To test, create a payment plan with next_payment_due = '{$targetDate}' (tomorrow's date)</div>";
                     }
                     ?>
                 </div>

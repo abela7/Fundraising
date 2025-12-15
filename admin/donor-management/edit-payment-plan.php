@@ -56,7 +56,6 @@ try {
         $values[] = $total_amount;
     }
     
-    // Handle monthly_amount - ignore plan_monthly_amount if sent (that's for donors table only)
     if (isset($_POST['monthly_amount'])) {
         $monthly_amount = (float)$_POST['monthly_amount'];
         if ($monthly_amount <= 0) {
@@ -96,16 +95,6 @@ try {
         $updates[] = "`status` = ?";
         $types .= 's';
         $values[] = $status;
-    }
-    
-    if (isset($_POST['payment_day'])) {
-        $payment_day = (int)$_POST['payment_day'];
-        if ($payment_day < 1 || $payment_day > 28) {
-            throw new Exception("Payment day must be between 1 and 28");
-        }
-        $updates[] = "`payment_day` = ?";
-        $types .= 'i';
-        $values[] = $payment_day;
     }
     
     if (empty($updates)) {

@@ -1,7 +1,7 @@
 # Payment Reminder (2 Days Before) Setup Guide
 
 ## Overview
-Automatically sends WhatsApp/SMS reminders to donors 2 days before their payment is due, with payment method-specific instructions.
+Automatically sends WhatsApp/SMS reminders to donors **1 day before** (tomorrow) their payment is due, with payment method-specific instructions.
 
 ## Files Created
 1. `cron/send-payment-reminders-2day.php` - Cron job script
@@ -108,7 +108,7 @@ php /path/to/cron/send-payment-reminders-2day.php
 
 ### Trigger Logic
 - Runs daily at 8:00 AM
-- Finds all donors with `next_payment_due` = **today + 2 days**
+- Finds all donors with `next_payment_due` = **tomorrow (today + 1 day)**
 - Only active payment plans (`status = 'active'`)
 - Only donors with phone numbers
 
@@ -255,8 +255,9 @@ To disable admin WhatsApp notifications, comment out lines 188-218:
 ```
 
 ### Change Reminder Timing
-To send reminders **3 days** before (instead of 2):
-- Edit line 74: `strtotime('+2 days')` → `strtotime('+3 days')`
+To change reminder timing (currently **1 day** before):
+- Edit line ~95: `strtotime('+1 day')` → `strtotime('+2 days')` for 2 days before
+- Or: `strtotime('+3 days')` for 3 days before
 
 ### Disable for Specific Donors
 Set `sms_opt_in = 0` in the donor's profile.
@@ -265,7 +266,7 @@ Set `sms_opt_in = 0` in the donor's profile.
 
 ### No messages sent
 - Check if template exists: `SELECT * FROM sms_templates WHERE template_key = 'payment_reminder_2day'`
-- Check if donors have payment due in 2 days: `SELECT * FROM donor_payment_plans WHERE next_payment_due = DATE_ADD(CURDATE(), INTERVAL 2 DAY)`
+- Check if donors have payment due tomorrow: `SELECT * FROM donor_payment_plans WHERE next_payment_due = DATE_ADD(CURDATE(), INTERVAL 1 DAY)`
 - Check cron log file for errors
 
 ### Messages not delivered
