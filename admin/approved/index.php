@@ -30,9 +30,33 @@ $page_title = 'Approved Items';
 $actionMsg = '';
 
 // #region agent log
-$_debug_log_path = 'C:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log';
-$_debug_start = microtime(true);
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:31','message'=>'Page load started','data'=>['GET'=>$_GET,'time'=>date('H:i:s')],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H5','sessionId'=>'debug-session'])."\n", FILE_APPEND);
+// Debug instrumentation (no PII). Writes NDJSON to .cursor/debug.log
+$_debug_log_path = __DIR__ . '/../../.cursor/debug.log';
+$_debug_run_id = 'pre-fix';
+$_debug_t0 = microtime(true);
+file_put_contents($_debug_log_path, json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => $_debug_run_id,
+    'hypothesisId' => 'H1',
+    'location' => 'admin/approved/index.php:entry',
+    'message' => 'Approved page request start',
+    'data' => [
+        'method' => (string)($_SERVER['REQUEST_METHOD'] ?? ''),
+        'has_action' => isset($_GET['action']),
+        'action' => isset($_GET['action']) ? (string)$_GET['action'] : '',
+        'page' => isset($_GET['page']) ? (int)$_GET['page'] : null,
+        'per_page' => isset($_GET['per_page']) ? (int)$_GET['per_page'] : null,
+        'amount_min' => isset($_GET['filter_amount_min']) ? (float)$_GET['filter_amount_min'] : null,
+        'amount_max' => isset($_GET['filter_amount_max']) ? (float)$_GET['filter_amount_max'] : null,
+        'date_from_set' => isset($_GET['filter_date_from']) && (string)$_GET['filter_date_from'] !== '',
+        'date_to_set' => isset($_GET['filter_date_to']) && (string)$_GET['filter_date_to'] !== '',
+        'donor_filter_set' => isset($_GET['filter_donor']) && trim((string)$_GET['filter_donor']) !== '',
+        'registrar_filter_set' => isset($_GET['filter_registrar']) && trim((string)$_GET['filter_registrar']) !== '',
+        'sort_by' => isset($_GET['sort_by']) ? (string)$_GET['sort_by'] : null,
+        'sort_order' => isset($_GET['sort_order']) ? (string)$_GET['sort_order'] : null,
+    ],
+    'timestamp' => (int)round(microtime(true) * 1000),
+]) . "\n", FILE_APPEND);
 // #endregion
 
 // Handle AJAX request for batch details (must be after auth)
@@ -788,7 +812,28 @@ if ($filter_date_to) {
 $batch_where = !empty($batch_conditions) ? "AND " . implode(' AND ', $batch_conditions) : "";
 
 // #region agent log
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:789','message'=>'Filter conditions built','data'=>['where_clause'=>$where_clause,'payment_where'=>$payment_where_clause,'batch_where'=>$batch_where,'elapsed_ms'=>round((microtime(true)-$_debug_start)*1000)],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H4','sessionId'=>'debug-session'])."\n", FILE_APPEND);
+file_put_contents($_debug_log_path, json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => $_debug_run_id,
+    'hypothesisId' => 'H2',
+    'location' => 'admin/approved/index.php:filters_built',
+    'message' => 'Filter clauses built',
+    'data' => [
+        'where_len' => strlen($where_clause),
+        'payment_where_len' => strlen($payment_where_clause),
+        'batch_where_len' => strlen($batch_where),
+        'elapsed_ms' => (int)round((microtime(true) - $_debug_t0) * 1000),
+        'flags' => [
+            'amount_min_set' => $filter_amount_min !== null,
+            'amount_max_set' => $filter_amount_max !== null,
+            'donor_set' => $filter_donor !== '',
+            'registrar_set' => $filter_registrar !== '',
+            'date_from_set' => $filter_date_from !== '',
+            'date_to_set' => $filter_date_to !== '',
+        ],
+    ],
+    'timestamp' => (int)round(microtime(true) * 1000),
+]) . "\n", FILE_APPEND);
 // #endregion
 
 // Get total count for pagination (including batches)
@@ -812,18 +857,24 @@ SELECT COUNT(*) as total FROM (
      $batch_where)
 ) as combined_count";
 
-// #region agent log
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:810','message'=>'About to execute count query','data'=>['count_sql'=>$count_sql,'elapsed_ms'=>round((microtime(true)-$_debug_start)*1000)],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H1','sessionId'=>'debug-session'])."\n", FILE_APPEND);
-$_count_start = microtime(true);
-// #endregion
-
 // Execute count query with parameters (simplified version for count)
-$count_result = $db->query($count_sql);
-
+$__t_count = microtime(true);
 // #region agent log
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:817','message'=>'Count query completed','data'=>['success'=>($count_result !== false),'error'=>$db->error,'query_ms'=>round((microtime(true)-$_count_start)*1000),'elapsed_ms'=>round((microtime(true)-$_debug_start)*1000)],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H1,H2','sessionId'=>'debug-session'])."\n", FILE_APPEND);
+file_put_contents($_debug_log_path, json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => $_debug_run_id,
+    'hypothesisId' => 'H3',
+    'location' => 'admin/approved/index.php:count_before',
+    'message' => 'About to execute count query',
+    'data' => [
+        'sql_len' => strlen($count_sql),
+        'sql_sha1' => sha1($count_sql),
+        'elapsed_ms' => (int)round((microtime(true) - $_debug_t0) * 1000),
+    ],
+    'timestamp' => (int)round(microtime(true) * 1000),
+]) . "\n", FILE_APPEND);
 // #endregion
-
+$count_result = $db->query($count_sql);
 if (!$count_result) {
     error_log("Admin Approved Page Count SQL Error: " . $db->error);
     error_log("Count SQL Query: " . $count_sql);
@@ -833,7 +884,22 @@ $total_items = (int)$count_result->fetch_assoc()['total'];
 $total_pages = (int)ceil($total_items / $per_page);
 
 // #region agent log
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:828','message'=>'Count results','data'=>['total_items'=>$total_items,'total_pages'=>$total_pages,'elapsed_ms'=>round((microtime(true)-$_debug_start)*1000)],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H3','sessionId'=>'debug-session'])."\n", FILE_APPEND);
+file_put_contents($_debug_log_path, json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => $_debug_run_id,
+    'hypothesisId' => 'H3',
+    'location' => 'admin/approved/index.php:count_after',
+    'message' => 'Count query finished',
+    'data' => [
+        'query_ms' => (int)round((microtime(true) - $__t_count) * 1000),
+        'total_items' => (int)$total_items,
+        'total_pages' => (int)$total_pages,
+        'db_errno' => (int)($db->errno ?? 0),
+        'db_error_present' => (($db->error ?? '') !== ''),
+        'elapsed_ms' => (int)round((microtime(true) - $_debug_t0) * 1000),
+    ],
+    'timestamp' => (int)round(microtime(true) * 1000),
+]) . "\n", FILE_APPEND);
 // #endregion
 
 // Map sort fields to actual columns
@@ -969,18 +1035,27 @@ UNION ALL
 ORDER BY $order_clause, created_at DESC
 LIMIT $per_page OFFSET $offset";
 
-// #region agent log
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:972','message'=>'About to execute main query','data'=>['sql_length'=>strlen($sql),'elapsed_ms'=>round((microtime(true)-$_debug_start)*1000)],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H1,H2','sessionId'=>'debug-session'])."\n", FILE_APPEND);
-$_main_start = microtime(true);
-// #endregion
-
 // Execute with error handling
-$result = $db->query($sql);
-
+$__t_main = microtime(true);
 // #region agent log
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:980','message'=>'Main query completed','data'=>['success'=>($result !== false),'error'=>$db->error,'query_ms'=>round((microtime(true)-$_main_start)*1000),'elapsed_ms'=>round((microtime(true)-$_debug_start)*1000)],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H1,H2','sessionId'=>'debug-session'])."\n", FILE_APPEND);
+file_put_contents($_debug_log_path, json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => $_debug_run_id,
+    'hypothesisId' => 'H4',
+    'location' => 'admin/approved/index.php:main_before',
+    'message' => 'About to execute main query',
+    'data' => [
+        'sql_len' => strlen($sql),
+        'sql_sha1' => sha1($sql),
+        'order_clause' => (string)$order_clause,
+        'limit' => (int)$per_page,
+        'offset' => (int)$offset,
+        'elapsed_ms' => (int)round((microtime(true) - $_debug_t0) * 1000),
+    ],
+    'timestamp' => (int)round(microtime(true) * 1000),
+]) . "\n", FILE_APPEND);
 // #endregion
-
+$result = $db->query($sql);
 if (!$result) {
     error_log("Admin Approved Page SQL Error: " . $db->error);
     error_log("SQL Query: " . $sql);
@@ -989,7 +1064,21 @@ if (!$result) {
 $approved = $result->fetch_all(MYSQLI_ASSOC);
 
 // #region agent log
-file_put_contents($_debug_log_path, json_encode(['location'=>'approved/index.php:992','message'=>'Results fetched, page ready','data'=>['result_count'=>count($approved),'elapsed_ms'=>round((microtime(true)-$_debug_start)*1000)],'timestamp'=>round(microtime(true)*1000),'hypothesisId'=>'H3','sessionId'=>'debug-session'])."\n", FILE_APPEND);
+file_put_contents($_debug_log_path, json_encode([
+    'sessionId' => 'debug-session',
+    'runId' => $_debug_run_id,
+    'hypothesisId' => 'H4',
+    'location' => 'admin/approved/index.php:main_after',
+    'message' => 'Main query finished and results fetched',
+    'data' => [
+        'query_ms' => (int)round((microtime(true) - $__t_main) * 1000),
+        'rows' => is_array($approved) ? count($approved) : null,
+        'db_errno' => (int)($db->errno ?? 0),
+        'db_error_present' => (($db->error ?? '') !== ''),
+        'elapsed_ms' => (int)round((microtime(true) - $_debug_t0) * 1000),
+    ],
+    'timestamp' => (int)round(microtime(true) * 1000),
+]) . "\n", FILE_APPEND);
 // #endregion
 
 ?>
