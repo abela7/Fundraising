@@ -135,7 +135,7 @@ try {
         $donorId = (int)$row['donor_id'];
         $firstName = explode(' ', trim($row['donor_name']))[0];
         $amount = '£' . number_format((float)$row['monthly_amount'], 2);
-        $dueDate = date('d/m/Y', strtotime($row['next_payment_due']));
+        $dueDate = date('l, j F Y', strtotime($row['next_payment_due'])); // Monday, 15 December 2025
         $paymentMethod = $row['payment_method'] ?? 'bank_transfer';
         
         // SMS opt-in check
@@ -260,7 +260,7 @@ try {
         
         // Build summary message
         $timestamp = date('d/m/Y H:i:s');
-        $dueDate = date('d/m/Y', strtotime('+2 days'));
+        $dueDate = date('l, j F Y', strtotime('+2 days')); // Monday, 15 December 2025
         
         $adminMessage = "🔔 *Payment Reminder Cron Job Complete*\n\n";
         $adminMessage .= "📅 *Run Time:* {$timestamp}\n";

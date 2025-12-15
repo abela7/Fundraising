@@ -1217,7 +1217,7 @@ if ($view === 'week') {
                                     // Build payment data for reminder
                                     $firstName = explode(' ', trim($payment['donor_name']))[0];
                                     $amount = '£' . number_format((float)$payment['monthly_amount'], 2);
-                                    $dueDate = date('d/m/Y', strtotime($payment['next_payment_due']));
+                                    $dueDate = date('l, j F Y', strtotime($payment['next_payment_due'])); // Monday, 15 December 2025
                                     $paymentMethod = $payment['payment_method'] ?? 'bank_transfer';
                                     
                                     // Extract 4-digit reference from pledge notes
@@ -1617,7 +1617,7 @@ allPaymentsData = <?php
     foreach ($payments_by_date[$date_key] as $payment) {
         $firstName = explode(' ', trim($payment['donor_name']))[0];
         $amount = '£' . number_format((float)$payment['monthly_amount'], 2);
-        $dueDate = date('d/m/Y', strtotime($payment['next_payment_due']));
+        $dueDate = date('l, j F Y', strtotime($payment['next_payment_due'])); // Monday, 15 December 2025
         $paymentMethod = $payment['payment_method'] ?? 'bank_transfer';
         
         // Extract 4-digit reference from pledge notes
