@@ -2499,6 +2499,11 @@ function formatDateTime($date) {
                             <input type="date" class="form-control" name="start_date" id="editPlanStartDate" required>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Payment Day <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="payment_day" id="editPlanPaymentDay" min="1" max="28" required>
+                            <small class="text-muted">Day of month (1-28)</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Status</label>
                             <select class="form-select" name="status" id="editPlanStatus">
                                 <option value="active">Active</option>
@@ -3014,6 +3019,7 @@ function loadPaymentPlanData(planId, donorId) {
                 document.getElementById('editPlanTotalAmount').value = data.plan.total_amount || '';
                 document.getElementById('editPlanMonthlyAmount').value = data.plan.monthly_amount || '';
                 document.getElementById('editPlanTotalPayments').value = data.plan.total_payments || '';
+                document.getElementById('editPlanPaymentDay').value = data.plan.payment_day || '1';
                 document.getElementById('editPlanStatus').value = data.plan.status || 'active';
                 const date = data.plan.start_date ? new Date(data.plan.start_date).toISOString().slice(0, 10) : '';
                 document.getElementById('editPlanStartDate').value = date;

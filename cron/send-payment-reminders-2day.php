@@ -91,8 +91,8 @@ try {
     // Initialize MessagingHelper
     $msgHelper = new MessagingHelper($db);
     
-    // Get donors whose payment is due in 2 days
-    $targetDate = date('Y-m-d', strtotime('+2 days'));
+    // Get donors whose payment is due in 1 day (tomorrow)
+    $targetDate = date('Y-m-d', strtotime('+1 day'));
     
     $query = "
         SELECT 
