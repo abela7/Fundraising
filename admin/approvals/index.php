@@ -984,7 +984,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                             $upd->bind_param('sssdsisi', $donorName, $donorPhone, $donorEmail, $amount, $method, $packageId, $notes, $paymentId);
                         } else {
                             $upd = $db->prepare("UPDATE payments SET donor_name=?, donor_phone=?, donor_email=?, amount=?, method=?, reference=? WHERE id=?");
-                            $upd->bind_param('sssds si', $donorName, $donorPhone, $donorEmail, $amount, $method, $notes, $paymentId);
+                            $upd->bind_param('sssdssi', $donorName, $donorPhone, $donorEmail, $amount, $method, $notes, $paymentId);
                         }
                         $upd->execute();
 
