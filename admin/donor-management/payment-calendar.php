@@ -390,12 +390,18 @@ $bankDetails = [
     'sort_code' => '53-70-44'
 ];
 
-// Get reminder template
-$reminderTemplate = "Dear {name}, based on your payment plan, your next payment of {amount} is due on {due_date}. Payment method: {payment_method}. {payment_instructions}. Thank you! - Liverpool Abune Teklehaymanot Church";
+// Get reminder templates in all languages
+$reminderTemplates = [
+    'en' => "Dear {name}, based on your payment plan, your next payment of {amount} is due on {due_date}. Payment method: {payment_method}. {payment_instructions}. Thank you! - Liverpool Abune Teklehaymanot Church",
+    'am' => "Dear {name}, based on your payment plan, your next payment of {amount} is due on {due_date}. Payment method: {payment_method}. {payment_instructions}. Thank you! - Liverpool Abune Teklehaymanot Church",
+    'ti' => "Dear {name}, based on your payment plan, your next payment of {amount} is due on {due_date}. Payment method: {payment_method}. {payment_instructions}. Thank you! - Liverpool Abune Teklehaymanot Church"
+];
 
-$templateQuery = $db->query("SELECT message_en FROM sms_templates WHERE template_key = 'payment_reminder_2day' AND is_active = 1 LIMIT 1");
+$templateQuery = $db->query("SELECT message_en, message_am, message_ti FROM sms_templates WHERE template_key = 'payment_reminder_2day' AND is_active = 1 LIMIT 1");
 if ($templateQuery && $row = $templateQuery->fetch_assoc()) {
-    $reminderTemplate = $row['message_en'];
+    $reminderTemplates['en'] = $row['message_en'];
+    $reminderTemplates['am'] = $row['message_am'];
+    $reminderTemplates['ti'] = $row['message_ti'];
 }
 
 // Ensure reminder tracking table exists
@@ -1235,11 +1241,17 @@ if ($view === 'week') {
                                         $paymentInstructions = "Bank: {$bankDetails['account_name']}, Account: {$bankDetails['account_number']}, Sort Code: {$bankDetails['sort_code']}, Reference: {$reference}";
                                     }
                                     
-                                    // Build default message
+                                    // Build default message in donor's preferred language
+                                    $donorLanguage = strtolower($payment['preferred_language'] ?? 'en');
+                                    if (!isset($reminderTemplates[$donorLanguage])) {
+                                        $donorLanguage = 'en'; // Fallback to English
+                                    }
+                                    $selectedTemplate = $reminderTemplates[$donorLanguage];
+                                    
                                     $defaultMessage = str_replace(
                                         ['{name}', '{amount}', '{due_date}', '{payment_method}', '{payment_instructions}', '{reference}', '{portal_link}'],
                                         [$firstName, $amount, $dueDate, ucwords(str_replace('_', ' ', $paymentMethod)), $paymentInstructions, $reference, 'https://bit.ly/4p0J1gf'],
-                                        $reminderTemplate
+                                        $selectedTemplate
                                     );
                                     
                                     // Check if reminder was already sent today
@@ -1627,10 +1639,17 @@ allPaymentsData = <?php
             $paymentInstructions = "Bank: {$bankDetails['account_name']}, Account: {$bankDetails['account_number']}, Sort Code: {$bankDetails['sort_code']}, Reference: {$reference}";
         }
         
+        // Select message in donor's preferred language
+        $donorLanguage = strtolower($payment['preferred_language'] ?? 'en');
+        if (!isset($reminderTemplates[$donorLanguage])) {
+            $donorLanguage = 'en'; // Fallback to English
+        }
+        $selectedTemplate = $reminderTemplates[$donorLanguage];
+        
         $defaultMessage = str_replace(
             ['{name}', '{amount}', '{due_date}', '{payment_method}', '{payment_instructions}', '{reference}', '{portal_link}'],
             [$firstName, $amount, $dueDate, ucwords(str_replace('_', ' ', $paymentMethod)), $paymentInstructions, $reference, 'https://bit.ly/4p0J1gf'],
-            $reminderTemplate
+            $selectedTemplate
         );
         
         // Check if reminder was already sent today
