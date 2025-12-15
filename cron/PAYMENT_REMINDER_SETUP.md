@@ -112,6 +112,45 @@ php /path/to/cron/send-payment-reminders-2day.php
 - Only active payment plans (`status = 'active'`)
 - Only donors with phone numbers
 
+### Admin Notification
+After every cron run, a WhatsApp summary is sent to **07360436171** with:
+- ✅ Number of reminders sent
+- ❌ Number of failed
+- ⏭️ Number of skipped
+- 📋 List of first 10 donors notified (name, amount, due date)
+- ⏰ Timestamp of the run
+
+**Example Admin Message:**
+```
+🔔 Payment Reminder Cron Job Complete
+
+📅 Run Time: 13/12/2025 08:00:15
+📆 Reminders for: 15/12/2025
+
+📊 Summary:
+✅ Sent: 12
+❌ Failed: 0
+⏭️ Skipped: 2
+
+📋 Donors Notified:
+1. Meseret Abebe - £50.00 (Due: 15/12/2025)
+2. Abel Tesfaye - £30.00 (Due: 15/12/2025)
+... and 10 more
+
+✅ System running smoothly!
+```
+
+**Error Notification:**
+If the cron job fails completely, you'll receive:
+```
+🚨 Payment Reminder Cron Job FAILED
+
+📅 Time: 13/12/2025 08:00:15
+❌ Error: [error message]
+
+Please check the logs immediately!
+```
+
 ### Message Personalization
 Each donor receives their own data:
 - **Name**: First name
@@ -187,7 +226,7 @@ tail -f logs/payment-reminders-2day-YYYY-MM-DD.log
 ## Customization
 
 ### Change Bank Details
-Edit `cron/send-payment-reminders-2day.php` lines 58-62:
+Edit `cron/send-payment-reminders-2day.php` lines 64-68:
 ```php
 $bankDetails = [
     'account_name' => 'YOUR_ACCOUNT_NAME',
@@ -196,9 +235,24 @@ $bankDetails = [
 ];
 ```
 
+### Change Admin Notification Number
+Edit `cron/send-payment-reminders-2day.php` line 191:
+```php
+$adminPhone = '447360436171'; // Your admin number (UK format with country code)
+```
+**Note**: Use international format (e.g., 447360436171 for UK, not 07360436171)
+
+### Disable Admin Notifications
+To disable admin WhatsApp notifications, comment out lines 188-218:
+```php
+// Send admin notification via WhatsApp
+// $adminPhone = '447360436171';
+// ... (rest of the code)
+```
+
 ### Change Reminder Timing
 To send reminders **3 days** before (instead of 2):
-- Edit line 70: `strtotime('+2 days')` → `strtotime('+3 days')`
+- Edit line 74: `strtotime('+2 days')` → `strtotime('+3 days')`
 
 ### Disable for Specific Donors
 Set `sms_opt_in = 0` in the donor's profile.

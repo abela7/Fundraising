@@ -30,6 +30,7 @@ if (!$isCli) {
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../services/MessagingHelper.php';
+require_once __DIR__ . '/../services/UltraMsgService.php';
 
 // Logging
 function cron_log(string $message): void {
@@ -105,6 +106,7 @@ try {
     $sent = 0;
     $failed = 0;
     $skipped = 0;
+    $sentDonors = []; // Track sent donors for admin notification
     
     while ($row = $result->fetch_assoc()) {
         $donorId = (int)$row['donor_id'];
@@ -173,6 +175,11 @@ try {
             if ($sendResult['success']) {
                 cron_log("SENT: Donor #{$donorId} ({$row['donor_phone']}) via " . ($sendResult['channel'] ?? 'unknown'));
                 $sent++;
+                $sentDonors[] = [
+                    'name' => $row['donor_name'],
+                    'amount' => $amount,
+                    'due_date' => $dueDate
+                ];
             } else {
                 cron_log("FAILED: Donor #{$donorId} - " . ($sendResult['error'] ?? 'Unknown error'));
                 $failed++;
@@ -185,7 +192,71 @@ try {
     
     cron_log("COMPLETE: Sent: $sent, Failed: $failed, Skipped: $skipped");
     
+    // Send admin notification via WhatsApp
+    $adminPhone = '447360436171'; // Your admin number (UK format with country code)
+    
+    try {
+        $whatsapp = UltraMsgService::fromDatabase($db);
+        
+        // Build summary message
+        $timestamp = date('d/m/Y H:i:s');
+        $dueDate = date('d/m/Y', strtotime('+2 days'));
+        
+        $adminMessage = "🔔 *Payment Reminder Cron Job Complete*\n\n";
+        $adminMessage .= "📅 *Run Time:* {$timestamp}\n";
+        $adminMessage .= "📆 *Reminders for:* {$dueDate}\n\n";
+        $adminMessage .= "📊 *Summary:*\n";
+        $adminMessage .= "✅ Sent: {$sent}\n";
+        $adminMessage .= "❌ Failed: {$failed}\n";
+        $adminMessage .= "⏭️ Skipped: {$skipped}\n\n";
+        
+        if ($sent > 0) {
+            $adminMessage .= "📋 *Donors Notified:*\n";
+            $count = 0;
+            foreach ($sentDonors as $donor) {
+                $count++;
+                if ($count <= 10) { // Limit to first 10 donors
+                    $adminMessage .= "{$count}. {$donor['name']} - {$donor['amount']} (Due: {$donor['due_date']})\n";
+                }
+            }
+            if ($sent > 10) {
+                $remaining = $sent - 10;
+                $adminMessage .= "... and {$remaining} more\n";
+            }
+        } else {
+            $adminMessage .= "ℹ️ No reminders sent today.\n";
+        }
+        
+        $adminMessage .= "\n✅ System running smoothly!";
+        
+        // Send to admin
+        $whatsapp->send($adminPhone, $adminMessage);
+        cron_log("ADMIN NOTIFICATION: Sent summary to {$adminPhone}");
+        
+    } catch (Exception $e) {
+        cron_log("ADMIN NOTIFICATION FAILED: " . $e->getMessage());
+        // Don't fail the whole job if admin notification fails
+    }
+    
 } catch (Exception $e) {
     cron_log("FATAL ERROR: " . $e->getMessage());
+    
+    // Try to notify admin about the failure
+    try {
+        $db = db();
+        $whatsapp = UltraMsgService::fromDatabase($db);
+        $adminPhone = '447360436171';
+        $timestamp = date('d/m/Y H:i:s');
+        
+        $errorMessage = "🚨 *Payment Reminder Cron Job FAILED*\n\n";
+        $errorMessage .= "📅 *Time:* {$timestamp}\n";
+        $errorMessage .= "❌ *Error:* " . $e->getMessage() . "\n\n";
+        $errorMessage .= "Please check the logs immediately!";
+        
+        $whatsapp->send($adminPhone, $errorMessage);
+    } catch (Exception $notifyError) {
+        // Silent fail - log already captured the error
+    }
+    
     exit(1);
 }
