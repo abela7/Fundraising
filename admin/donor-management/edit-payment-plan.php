@@ -141,25 +141,9 @@ try {
         (int)($_SESSION['user']['id'] ?? 0)
     );
     
-    // Update donor's cached plan data if this is the active plan
-    $active_check = $db->prepare("SELECT active_payment_plan_id FROM donors WHERE id = ?");
-    $active_check->bind_param('i', $donor_id);
-    $active_check->execute();
-    $donor = $active_check->get_result()->fetch_assoc();
-    
-    if ($donor && $donor['active_payment_plan_id'] == $plan_id) {
-        $update_donor_stmt = $db->prepare("
-            UPDATE donors 
-            SET plan_monthly_amount = (SELECT monthly_amount FROM donor_payment_plans WHERE id = ?),
-                plan_duration_months = (SELECT total_payments FROM donor_payment_plans WHERE id = ?),
-                plan_start_date = (SELECT start_date FROM donor_payment_plans WHERE id = ?)
-            WHERE id = ?
-        ");
-        $update_donor_stmt->bind_param('iiii', $plan_id, $plan_id, $plan_id, $donor_id);
-        if (!$update_donor_stmt->execute()) {
-            throw new Exception("Failed to update donor cached plan data: " . $update_donor_stmt->error);
-        }
-    }
+    // Note: Payment plan data is stored in donor_payment_plans table.
+    // The donors table only tracks has_active_plan and active_payment_plan_id,
+    // no need to sync cached plan data since those columns don't exist.
     
     $db->commit();
     

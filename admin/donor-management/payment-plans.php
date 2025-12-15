@@ -609,10 +609,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 UPDATE donors SET 
                     has_active_plan = 1,
                     active_payment_plan_id = ?,
-                    plan_monthly_amount = ?,
-                    plan_duration_months = ?,
-                    plan_start_date = ?,
-                    plan_next_due_date = ?,
                     payment_status = 'paying',
                     updated_at = NOW()
                 WHERE id = ?
@@ -620,7 +616,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
             if (!$update_donor) {
                 throw new Exception('STEP 13 FAILED: Prepare UPDATE failed - ' . $db->error);
             }
-            $update_donor->bind_param('idissi', $plan_id, $monthly_amount, $plan_duration_for_donor, $start_date, $next_payment_due, $donor_id);
+            $update_donor->bind_param('ii', $plan_id, $donor_id);
             $update_donor->execute();
             if ($update_donor->error) {
                 throw new Exception('STEP 13 FAILED: Execute UPDATE failed - ' . $update_donor->error);
@@ -711,10 +707,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 UPDATE donors SET 
                     has_active_plan = 0,
                     active_payment_plan_id = NULL,
-                    plan_monthly_amount = NULL,
-                    plan_duration_months = NULL,
-                    plan_start_date = NULL,
-                    plan_next_due_date = NULL,
                     payment_status = CASE 
                         WHEN total_paid >= total_pledged THEN 'completed'
                         WHEN total_paid > 0 THEN 'paying'
@@ -892,12 +884,11 @@ if ($db_connection_ok) {
                 d.id, d.name, d.preferred_payment_method, d.payment_status, 
                 d.total_pledged, d.total_paid, d.balance,
                 d.has_active_plan, d.active_payment_plan_id,
-                d.plan_monthly_amount as donor_plan_monthly_amount, 
-                d.plan_duration_months, d.plan_start_date, d.plan_next_due_date,
                 pp.status as plan_status, pp.total_amount as plan_total_amount,
                 pp.monthly_amount as plan_monthly_amount, pp.total_payments as plan_total_payments,
-                pp.start_date as plan_start_date_db, pp.next_payment_due as plan_next_due,
+                pp.start_date as plan_start_date, pp.next_payment_due as plan_next_due,
                 pp.payments_made as plan_payments_made, pp.amount_paid as plan_amount_paid,
+                pp.total_months as plan_duration_months,
                 t.name as template_name
             FROM donors d
             LEFT JOIN donor_payment_plans pp ON d.active_payment_plan_id = pp.id AND pp.status = 'active'
@@ -1425,10 +1416,10 @@ foreach ($templates_all as $t) {
                                         $plan_data = $has_plan ? json_encode([
                                             'plan_id' => $donor['active_payment_plan_id'],
                                             'template_name' => $donor['template_name'] ?? 'Custom Plan',
-                                            'monthly_amount' => $donor['plan_monthly_amount'] ?? $donor['donor_plan_monthly_amount'] ?? 0,
+                                            'monthly_amount' => $donor['plan_monthly_amount'] ?? 0,
                                             'duration_months' => $donor['plan_duration_months'] ?? 0,
-                                            'start_date' => $donor['plan_start_date'] ?? $donor['plan_start_date_db'] ?? '',
-                                            'next_due' => $donor['plan_next_due_date'] ?? $donor['plan_next_due'] ?? '',
+                                            'start_date' => $donor['plan_start_date'] ?? '',
+                                            'next_due' => $donor['plan_next_due'] ?? '',
                                             'total_amount' => $donor['plan_total_amount'] ?? 0,
                                             'payments_made' => $donor['plan_payments_made'] ?? 0,
                                             'total_payments' => $donor['plan_total_payments'] ?? 0,
