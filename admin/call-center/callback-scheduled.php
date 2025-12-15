@@ -101,11 +101,11 @@ try {
                 $firstName = getFirstName($appointment->donor_name);
                 $callbackDate = date('D, M j', strtotime($appointment->appointment_date));
                 $callbackTime = date('g:i A', strtotime($appointment->appointment_time));
-
+                
                 $variables = [
-                    'name' => $firstName,
-                    'callback_date' => $callbackDate,
-                    'callback_time' => $callbackTime
+                        'name' => $firstName,
+                        'callback_date' => $callbackDate,
+                        'callback_time' => $callbackTime
                 ];
 
                 if ($use_sms_only) {
@@ -115,10 +115,10 @@ try {
                         $template_key,
                         $donor_id,
                         $variables,
-                        'call_center',
-                        false,  // queue = false
-                        true    // forceImmediate = true (bypass quiet hours!)
-                    );
+                    'call_center',
+                    false,  // queue = false
+                    true    // forceImmediate = true (bypass quiet hours!)
+                );
                     $sent_channel = 'sms';
                     $fallback_used = 0;
                 } else {

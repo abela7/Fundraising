@@ -20,14 +20,14 @@ if (!$isCli) {
     // - Linux/cPanel: export FUNDRAISING_CRON_KEY=... (or set in cron environment)
     $expectedCronKey = (string)getenv('FUNDRAISING_CRON_KEY');
     if ($expectedCronKey === '') {
-        http_response_code(403);
+    http_response_code(403);
         die('Cron key not configured.');
-    }
+}
 
     $providedCronKey = (string)($_GET['cron_key'] ?? '');
     if ($providedCronKey === '' || !hash_equals($expectedCronKey, $providedCronKey)) {
-        http_response_code(403);
-        die('Invalid cron key.');
+    http_response_code(403);
+    die('Invalid cron key.');
     }
 }
 

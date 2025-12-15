@@ -226,18 +226,18 @@ try {
                     $repFirstName = getFirstName($representative_name);
                     $paymentMethodText = "Cash (Rep: {$repFirstName})";
                 }
-
+                
                 $variables = [
-                    'name' => $firstName,
-                    'amount' => $amount,
-                    'frequency' => $frequency_sms,
+                        'name' => $firstName,
+                        'amount' => $amount,
+                        'frequency' => $frequency_sms,
                     'frequency_am' => $frequency_am,
-                    'total_payments' => $summary->total_payments,
-                    'start_date' => $startDate,
-                    'payment_method' => $paymentMethodText,
+                        'total_payments' => $summary->total_payments,
+                        'start_date' => $startDate,
+                        'payment_method' => $paymentMethodText,
                     'next_payment_due' => $nextPaymentDate,
-                    'representative' => $representative_name ? getFirstName($representative_name) : '',
-                    'portal_link' => 'https://bit.ly/4p0J1gf'
+                        'representative' => $representative_name ? getFirstName($representative_name) : '',
+                        'portal_link' => 'https://bit.ly/4p0J1gf'
                 ];
 
                 // Successful outcome → WhatsApp first, fallback to SMS automatically

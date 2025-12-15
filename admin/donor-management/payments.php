@@ -953,7 +953,7 @@ if (empty($error_message)) {
                         <a href="payment-calendar.php" class="btn btn-info btn-sm">
                             <i class="fas fa-calendar-alt me-1"></i><span class="d-none d-sm-inline">Calendar</span>
                         </a>
-                        <a href="../donations/review-pledge-payments.php" class="btn btn-warning btn-sm">
+                                <a href="../donations/review-pledge-payments.php" class="btn btn-warning btn-sm">
                             <i class="fas fa-clock me-1"></i>Pending <span class="badge bg-dark ms-1"><?php echo (int)$overall_stats['pending']; ?></span>
                         </a>
                     </div>
