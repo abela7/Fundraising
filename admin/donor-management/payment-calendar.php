@@ -36,6 +36,72 @@ require_once __DIR__ . '/../../services/UltraMsgService.php';
 $page_title = 'Payment Calendar';
 $db = db();
 
+// Helper function to ensure reminder tracking table exists
+function ensureReminderTrackingTable($db): void {
+    $check = $db->query("SHOW TABLES LIKE 'payment_reminders_sent'");
+    if (!$check || $check->num_rows === 0) {
+        $db->query("
+            CREATE TABLE IF NOT EXISTS payment_reminders_sent (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                donor_id INT NOT NULL,
+                payment_plan_id INT NULL,
+                due_date DATE NOT NULL,
+                sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                sent_by_user_id INT NULL,
+                sent_by_name VARCHAR(100) NULL,
+                channel ENUM('whatsapp', 'sms', 'both') NOT NULL DEFAULT 'whatsapp',
+                message_preview VARCHAR(500) NULL,
+                source_type ENUM('cron', 'manual_calendar', 'bulk', 'call_center') NOT NULL DEFAULT 'manual_calendar',
+                INDEX idx_donor_due (donor_id, due_date),
+                INDEX idx_due_date (due_date),
+                UNIQUE KEY unique_reminder_per_day (donor_id, due_date, DATE(sent_at))
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    }
+}
+
+// Helper function to check if reminder was already sent today
+function wasReminderSentToday($db, int $donorId, string $dueDate): ?array {
+    $today = date('Y-m-d');
+    $stmt = $db->prepare("
+        SELECT id, sent_at, channel, sent_by_name, source_type
+        FROM payment_reminders_sent 
+        WHERE donor_id = ? AND due_date = ? AND DATE(sent_at) = ?
+        ORDER BY sent_at DESC LIMIT 1
+    ");
+    $stmt->bind_param('iss', $donorId, $dueDate, $today);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+    return $result ?: null;
+}
+
+// Helper function to record reminder sent
+function recordReminderSent($db, int $donorId, ?int $planId, string $dueDate, string $channel, string $message, string $sourceType = 'manual_calendar'): bool {
+    $currentUser = current_user();
+    $userId = $currentUser['id'] ?? null;
+    $userName = $currentUser['name'] ?? null;
+    $preview = mb_substr($message, 0, 500);
+    
+    try {
+        $stmt = $db->prepare("
+            INSERT INTO payment_reminders_sent 
+            (donor_id, payment_plan_id, due_date, channel, message_preview, source_type, sent_by_user_id, sent_by_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                sent_at = CURRENT_TIMESTAMP,
+                channel = VALUES(channel),
+                message_preview = VALUES(message_preview),
+                sent_by_user_id = VALUES(sent_by_user_id),
+                sent_by_name = VALUES(sent_by_name)
+        ");
+        $stmt->bind_param('iissssss', $donorId, $planId, $dueDate, $channel, $preview, $sourceType, $userId, $userName);
+        return $stmt->execute();
+    } catch (Exception $e) {
+        error_log("Failed to record reminder: " . $e->getMessage());
+        return false;
+    }
+}
+
 // Handle AJAX reminder send
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_reminder') {
     // Clean ALL output buffers
@@ -68,15 +134,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if (!$db) {
             $sendJsonResponse(['success' => false, 'error' => 'Database connection failed']);
         }
+        
+        // Ensure reminder tracking table exists
+        ensureReminderTrackingTable($db);
+        
         $donor_id = (int)($_POST['donor_id'] ?? 0);
         $message = trim($_POST['message'] ?? '');
         $channel = $_POST['channel'] ?? 'whatsapp';
+        $due_date = $_POST['due_date'] ?? '';
+        $payment_plan_id = (int)($_POST['payment_plan_id'] ?? 0) ?: null;
+        $force_resend = ($_POST['force_resend'] ?? 'false') === 'true';
         
         if ($donor_id <= 0) {
             $sendJsonResponse(['success' => false, 'error' => 'Invalid donor ID']);
         }
         if (empty($message)) {
             $sendJsonResponse(['success' => false, 'error' => 'Message cannot be empty']);
+        }
+        if (empty($due_date)) {
+            $sendJsonResponse(['success' => false, 'error' => 'Due date is required']);
+        }
+        
+        // Check if reminder already sent today (unless force resend)
+        if (!$force_resend) {
+            $existingReminder = wasReminderSentToday($db, $donor_id, $due_date);
+            if ($existingReminder) {
+                $sentTime = date('H:i', strtotime($existingReminder['sent_at']));
+                $sentBy = $existingReminder['sent_by_name'] ?? ($existingReminder['source_type'] === 'cron' ? 'System (Cron)' : 'Admin');
+                $sendJsonResponse([
+                    'success' => false,
+                    'already_sent' => true,
+                    'error' => "Reminder already sent today at {$sentTime} via " . strtoupper($existingReminder['channel']),
+                    'sent_at' => $existingReminder['sent_at'],
+                    'sent_by' => $sentBy,
+                    'channel' => $existingReminder['channel']
+                ]);
+            }
         }
         
         // Get donor phone
@@ -105,6 +198,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $sendChannel = $result['channel'] ?? 'whatsapp';
                 $isFallback = ($sendChannel === 'sms' && ($result['fallback_used'] ?? false));
                 
+                // Record that reminder was sent
+                recordReminderSent($db, $donor_id, $payment_plan_id, $due_date, $sendChannel, $message, 'manual_calendar');
+                
                 $sendJsonResponse([
                     'success' => true, 
                     'channel' => $sendChannel, 
@@ -112,7 +208,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     'fallback' => $isFallback,
                     'donor_name' => $donor['name'],
                     'phone' => $donor['phone'],
-                    'message_id' => $result['message_id'] ?? null
+                    'message_id' => $result['message_id'] ?? null,
+                    'tracked' => true
                 ]);
             } else {
                 $errorMsg = $result['error'] ?? 'Failed to send message';
@@ -132,13 +229,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             );
             
             if ($result['success'] ?? false) {
+                // Record that reminder was sent
+                recordReminderSent($db, $donor_id, $payment_plan_id, $due_date, 'sms', $message, 'manual_calendar');
+                
                 $sendJsonResponse([
                     'success' => true, 
                     'channel' => 'sms', 
                     'message' => 'Reminder sent successfully via SMS',
                     'donor_name' => $donor['name'],
                     'phone' => $donor['phone'],
-                    'message_id' => $result['message_id'] ?? null
+                    'message_id' => $result['message_id'] ?? null,
+                    'tracked' => true
                 ]);
             } else {
                 $errorMsg = $result['error'] ?? 'SMS failed';
@@ -239,10 +340,15 @@ if ($templateQuery && $row = $templateQuery->fetch_assoc()) {
     $reminderTemplate = $row['message_en'];
 }
 
-// Fetch due payments in the date range
+// Ensure reminder tracking table exists
+ensureReminderTrackingTable($db);
+
+// Fetch due payments in the date range with reminder status
 $payments_by_date = [];
 $total_due = 0;
 $total_count = 0;
+
+$today = date('Y-m-d');
 
 $query = "
     SELECT 
@@ -261,11 +367,19 @@ $query = "
         d.preferred_language,
         cr.name as rep_name,
         cr.phone as rep_phone,
-        pl.notes as pledge_notes
+        pl.notes as pledge_notes,
+        prs.id as reminder_id,
+        prs.sent_at as reminder_sent_at,
+        prs.channel as reminder_channel,
+        prs.sent_by_name as reminder_sent_by,
+        prs.source_type as reminder_source
     FROM donor_payment_plans pp
     JOIN donors d ON pp.donor_id = d.id
     LEFT JOIN church_representatives cr ON d.representative_id = cr.id
     LEFT JOIN pledges pl ON pp.pledge_id = pl.id
+    LEFT JOIN payment_reminders_sent prs ON prs.donor_id = pp.donor_id 
+        AND prs.due_date = pp.next_payment_due 
+        AND DATE(prs.sent_at) = ?
     WHERE pp.next_payment_due BETWEEN ? AND ?
     AND pp.status = 'active'
     ORDER BY pp.next_payment_due ASC, d.name ASC
@@ -274,7 +388,7 @@ $query = "
 $stmt = $db->prepare($query);
 $start_str = $start_date->format('Y-m-d');
 $end_str = $end_date->format('Y-m-d');
-$stmt->bind_param('ss', $start_str, $end_str);
+$stmt->bind_param('sss', $today, $start_str, $end_str);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -287,9 +401,6 @@ while ($row = $result->fetch_assoc()) {
     $total_due += (float)$row['monthly_amount'];
     $total_count++;
 }
-
-// Get today's date for highlighting
-$today = date('Y-m-d');
 
 // Build calendar data for month view
 $calendar_weeks = [];
@@ -800,6 +911,23 @@ if ($view === 'week') {
         .send-reminder-btn:hover {
             transform: scale(1.02);
         }
+        .send-reminder-btn.already-sent {
+            cursor: pointer;
+        }
+        
+        /* Already Sent Indicator */
+        .payment-item.reminder-sent {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .payment-item.reminder-sent:hover {
+            background: #dcfce7;
+        }
+        .payment-item .badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            font-weight: 500;
+        }
         
         /* Reminder Modal */
         .reminder-modal .modal-header {
@@ -1052,20 +1180,38 @@ if ($view === 'week') {
                                         $reminderTemplate
                                     );
                                     
+                                    // Check if reminder was already sent today
+                                    $reminderSentToday = !empty($payment['reminder_id']);
+                                    $reminderSentAt = $payment['reminder_sent_at'] ?? null;
+                                    $reminderChannel = $payment['reminder_channel'] ?? null;
+                                    $reminderSentBy = $payment['reminder_sent_by'] ?? ($payment['reminder_source'] === 'cron' ? 'Cron' : 'Admin');
+                                    
                                     $paymentData = [
                                         'donor_id' => $payment['donor_id'],
+                                        'plan_id' => $payment['plan_id'],
                                         'donor_name' => $payment['donor_name'],
                                         'donor_phone' => $payment['donor_phone'],
                                         'amount' => $amount,
-                                        'due_date' => $dueDate,
+                                        'due_date' => $payment['next_payment_due'], // Use raw date for API
+                                        'due_date_display' => $dueDate,
                                         'payment_method' => ucwords(str_replace('_', ' ', $paymentMethod)),
-                                        'message' => $defaultMessage
+                                        'message' => $defaultMessage,
+                                        'reminder_sent' => $reminderSentToday,
+                                        'reminder_sent_at' => $reminderSentAt,
+                                        'reminder_channel' => $reminderChannel
                                     ];
                                 ?>
                                     <div class="payment-item-wrapper">
-                                        <div class="payment-item d-flex justify-content-between align-items-start">
+                                        <div class="payment-item d-flex justify-content-between align-items-start <?php echo $reminderSentToday ? 'reminder-sent' : ''; ?>">
                                             <a href="view-donor.php?id=<?php echo (int)$payment['donor_id']; ?>" class="flex-grow-1 min-width-0 text-decoration-none">
-                                                <div class="payment-name"><?php echo htmlspecialchars($payment['donor_name']); ?></div>
+                                                <div class="payment-name">
+                                                    <?php echo htmlspecialchars($payment['donor_name']); ?>
+                                                    <?php if ($reminderSentToday): ?>
+                                                        <span class="badge bg-success ms-1" title="Sent at <?php echo date('H:i', strtotime($reminderSentAt)); ?> via <?php echo strtoupper($reminderChannel); ?>">
+                                                            <i class="fas fa-check-circle me-1"></i>Sent
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                                 <div class="payment-method">
                                                     <i class="fas fa-<?php echo $payment['payment_method'] === 'cash' ? 'money-bill' : ($payment['payment_method'] === 'bank_transfer' ? 'university' : 'credit-card'); ?> me-1"></i>
                                                     <?php echo ucwords(str_replace('_', ' ', $payment['payment_method'] ?? 'Unknown')); ?>
@@ -1073,14 +1219,27 @@ if ($view === 'week') {
                                                 </div>
                                                 <div class="payment-phone text-muted" style="font-size: 0.75rem;">
                                                     <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($payment['donor_phone'] ?? '-'); ?>
+                                                    <?php if ($reminderSentToday): ?>
+                                                        <span class="ms-2 text-success" style="font-size: 0.7rem;">
+                                                            <i class="fas fa-clock me-1"></i><?php echo date('H:i', strtotime($reminderSentAt)); ?>
+                                                        </span>
+                                                    <?php endif; ?>
                                                 </div>
                                             </a>
                                             <div class="text-end ms-2 d-flex flex-column align-items-end gap-2">
                                                 <div class="payment-amount">£<?php echo number_format((float)$payment['monthly_amount'], 2); ?></div>
-                                                <button type="button" class="btn btn-sm btn-warning send-reminder-btn" 
-                                                        onclick="openReminderModal(<?php echo htmlspecialchars(json_encode($paymentData), ENT_QUOTES); ?>)">
-                                                    <i class="fas fa-bell me-1"></i><span class="d-none d-sm-inline">Remind</span>
-                                                </button>
+                                                <?php if ($reminderSentToday): ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-success send-reminder-btn already-sent" 
+                                                            onclick="openReminderModal(<?php echo htmlspecialchars(json_encode($paymentData), ENT_QUOTES); ?>)"
+                                                            title="Reminder already sent at <?php echo date('H:i', strtotime($reminderSentAt)); ?> via <?php echo strtoupper($reminderChannel); ?>">
+                                                        <i class="fas fa-check me-1"></i><span class="d-none d-sm-inline">Sent</span>
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-sm btn-warning send-reminder-btn" 
+                                                            onclick="openReminderModal(<?php echo htmlspecialchars(json_encode($paymentData), ENT_QUOTES); ?>)">
+                                                        <i class="fas fa-bell me-1"></i><span class="d-none d-sm-inline">Remind</span>
+                                                    </button>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>
@@ -1223,6 +1382,12 @@ if ($view === 'week') {
                             <div class="small text-muted" id="reminderDueDate">-</div>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Already Sent Warning -->
+                <div class="alert alert-warning small py-2 mb-3" id="alreadySentWarning" style="display: none;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Reminder already sent today.
                 </div>
                 
                 <!-- Channel Selection -->
@@ -1422,12 +1587,12 @@ allPaymentsData = <?php
 
 function openReminderModal(paymentData) {
     currentReminderData = paymentData;
-    
+
     // Populate modal
     document.getElementById('reminderDonorName').textContent = paymentData.donor_name;
     document.getElementById('reminderDonorPhone').textContent = paymentData.donor_phone || '-';
     document.getElementById('reminderAmount').textContent = paymentData.amount;
-    document.getElementById('reminderDueDate').textContent = 'Due: ' + paymentData.due_date;
+    document.getElementById('reminderDueDate').textContent = 'Due: ' + paymentData.due_date_display;
     document.getElementById('reminderDonorId').value = paymentData.donor_id;
     
     // Set message
@@ -1446,6 +1611,29 @@ function openReminderModal(paymentData) {
     document.getElementById('sendingOverlay').style.display = 'none';
     document.getElementById('sendReminderBtn').disabled = false;
     
+    // Show/hide already sent warning
+    const warningEl = document.getElementById('alreadySentWarning');
+    const sendBtn = document.getElementById('sendReminderBtn');
+    
+    if (paymentData.reminder_sent) {
+        const sentTime = paymentData.reminder_sent_at ? 
+            new Date(paymentData.reminder_sent_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'earlier';
+        const channel = paymentData.reminder_channel ? paymentData.reminder_channel.toUpperCase() : 'WhatsApp';
+        warningEl.innerHTML = 
+            '<i class="fas fa-exclamation-triangle me-2"></i>' +
+            'Reminder already sent today at ' + sentTime + ' via ' + channel + '. ' +
+            '<strong>Sending again may annoy the donor.</strong>';
+        warningEl.style.display = 'block';
+        sendBtn.innerHTML = '<i class="fas fa-redo me-2"></i>Send Again';
+        sendBtn.classList.remove('btn-warning');
+        sendBtn.classList.add('btn-outline-warning');
+    } else {
+        warningEl.style.display = 'none';
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Reminder';
+        sendBtn.classList.add('btn-warning');
+        sendBtn.classList.remove('btn-outline-warning');
+    }
+    
     // Show modal
     new bootstrap.Modal(document.getElementById('reminderModal')).show();
 }
@@ -1455,6 +1643,11 @@ function selectChannel(channel) {
     
     document.getElementById('channelWhatsapp').classList.toggle('active', channel === 'whatsapp');
     document.getElementById('channelSms').classList.toggle('active', channel === 'sms');
+}
+
+function closeReminderModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('reminderModal'));
+    if (modal) modal.hide();
 }
 
 function toggleEditMode() {
@@ -1493,7 +1686,7 @@ function updateCharCount() {
     }
 }
 
-function sendReminder() {
+function sendReminder(forceResend = false) {
     const donorId = document.getElementById('reminderDonorId').value;
     const channel = document.getElementById('reminderChannel').value;
     
@@ -1518,12 +1711,15 @@ function sendReminder() {
     sendingText.innerHTML = '<span class="sending-spinner" style="width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px;"></span> Sending reminder...';
     document.getElementById('sendReminderBtn').disabled = true;
     
-    // Send AJAX request
+    // Send AJAX request with tracking data
     const formData = new FormData();
     formData.append('action', 'send_reminder');
     formData.append('donor_id', donorId);
     formData.append('message', message);
     formData.append('channel', channel);
+    formData.append('due_date', currentReminderData.due_date || '');
+    formData.append('payment_plan_id', currentReminderData.plan_id || '');
+    formData.append('force_resend', forceResend ? 'true' : 'false');
     
     fetch(window.location.href, {
         method: 'POST',
@@ -1562,10 +1758,28 @@ function sendReminder() {
                 '<small class="text-muted">via ' + channelName + '</small>' + fallbackNote +
                 (data.donor_name ? '<br><small class="text-muted">To: ' + escapeHtml(data.donor_name) + '</small>' : '');
             
-            // Auto close after 3 seconds
+            // Mark as sent in local data
+            currentReminderData.reminder_sent = true;
+            currentReminderData.reminder_channel = data.channel;
+            currentReminderData.reminder_sent_at = new Date().toISOString();
+            
+            // Auto close after 3 seconds and reload to show updated status
             setTimeout(() => {
                 bootstrap.Modal.getInstance(document.getElementById('reminderModal')).hide();
-            }, 3000);
+                location.reload();
+            }, 2500);
+        } else if (data && data.already_sent) {
+            // Reminder was already sent today - offer force resend
+            sendingText.innerHTML = 
+                '<i class="fas fa-exclamation-triangle result-icon warning"></i><br>' +
+                '<span class="text-warning fw-bold">Already Sent Today</span><br>' +
+                '<small class="text-muted">' + escapeHtml(data.error) + '</small><br>' +
+                '<small class="text-muted">By: ' + escapeHtml(data.sent_by || 'Admin') + '</small><br><br>' +
+                '<button type="button" class="btn btn-sm btn-outline-warning" onclick="sendReminder(true)">' +
+                '<i class="fas fa-redo me-1"></i>Send Anyway</button>' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="closeReminderModal()">' +
+                'Cancel</button>';
+            document.getElementById('sendReminderBtn').style.display = 'none';
         } else {
             const errorMsg = data && data.error ? data.error : 'Unknown error occurred';
             sendingText.innerHTML = 
@@ -1590,7 +1804,8 @@ function sendReminder() {
 
 // Send all reminders
 let sendAllIndex = 0;
-let sendAllResults = { sent: 0, failed: 0 };
+let sendAllResults = { sent: 0, failed: 0, skipped: 0 };
+let sendAllPayments = [];
 
 function sendAllReminders() {
     if (allPaymentsData.length === 0) {
@@ -1598,14 +1813,32 @@ function sendAllReminders() {
         return;
     }
     
-    if (!confirm('Send reminders to all ' + allPaymentsData.length + ' donors?\n\nThis will send via WhatsApp (with SMS fallback).')) {
+    // Filter out already sent reminders
+    const pendingPayments = allPaymentsData.filter(p => !p.reminder_sent);
+    const alreadySentCount = allPaymentsData.length - pendingPayments.length;
+    
+    if (pendingPayments.length === 0) {
+        alert('All reminders have already been sent today.');
         return;
     }
     
+    let confirmMsg = 'Send reminders to ' + pendingPayments.length + ' donor(s)?';
+    if (alreadySentCount > 0) {
+        confirmMsg += '\n\n(' + alreadySentCount + ' already sent today - will be skipped)';
+    }
+    confirmMsg += '\n\nThis will send via WhatsApp (with SMS fallback).';
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // Use only pending payments
+    sendAllPayments = pendingPayments;
     sendAllIndex = 0;
-    sendAllResults = { sent: 0, failed: 0 };
+    sendAllResults = { sent: 0, failed: 0, skipped: alreadySentCount };
     
     // Create progress modal
+    const totalToSend = sendAllPayments.length;
     const progressHtml = `
         <div class="modal fade" id="sendAllModal" tabindex="-1" data-bs-backdrop="static">
             <div class="modal-dialog modal-dialog-centered">
@@ -1619,9 +1852,10 @@ function sendAllReminders() {
                                 <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" id="sendAllProgress" style="width: 0%"></div>
                             </div>
                         </div>
-                        <div id="sendAllStatus" class="fw-semibold">Sending 0 / ${allPaymentsData.length}</div>
+                        <div id="sendAllStatus" class="fw-semibold">Sending 0 / ${totalToSend}</div>
                         <div id="sendAllResults" class="mt-2 small text-muted">
                             <span class="text-success">✓ 0 sent</span> • <span class="text-danger">✗ 0 failed</span>
+                            ${alreadySentCount > 0 ? ' • <span class="text-secondary">' + alreadySentCount + ' skipped</span>' : ''}
                         </div>
                     </div>
                 </div>
@@ -1642,35 +1876,44 @@ function sendAllReminders() {
 }
 
 function sendNextReminder() {
-    if (sendAllIndex >= allPaymentsData.length) {
+    if (sendAllIndex >= sendAllPayments.length) {
         // Done - show results
         const resultsEl = document.getElementById('sendAllResults');
         const statusEl = document.getElementById('sendAllStatus');
         
         statusEl.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Complete!';
-        resultsEl.innerHTML = `<span class="text-success fw-bold">✓ ${sendAllResults.sent} sent</span> • <span class="text-danger">${sendAllResults.failed > 0 ? '✗ ' + sendAllResults.failed + ' failed' : ''}</span>`;
+        let resultHtml = `<span class="text-success fw-bold">✓ ${sendAllResults.sent} sent</span>`;
+        if (sendAllResults.failed > 0) {
+            resultHtml += ` • <span class="text-danger">✗ ${sendAllResults.failed} failed</span>`;
+        }
+        if (sendAllResults.skipped > 0) {
+            resultHtml += ` • <span class="text-secondary">${sendAllResults.skipped} skipped</span>`;
+        }
+        resultsEl.innerHTML = resultHtml;
         
-        // Close after 3 seconds and reload
+        // Close after 3 seconds and reload to show updated status
         setTimeout(() => {
             bootstrap.Modal.getInstance(document.getElementById('sendAllModal')).hide();
-            // Optionally reload to update UI
+            location.reload();
         }, 3000);
         return;
     }
     
-    const payment = allPaymentsData[sendAllIndex];
+    const payment = sendAllPayments[sendAllIndex];
     
     // Update progress
-    const progress = ((sendAllIndex + 1) / allPaymentsData.length) * 100;
+    const progress = ((sendAllIndex + 1) / sendAllPayments.length) * 100;
     document.getElementById('sendAllProgress').style.width = progress + '%';
-    document.getElementById('sendAllStatus').textContent = 'Sending ' + (sendAllIndex + 1) + ' / ' + allPaymentsData.length + ': ' + payment.donor_name;
+    document.getElementById('sendAllStatus').textContent = 'Sending ' + (sendAllIndex + 1) + ' / ' + sendAllPayments.length + ': ' + payment.donor_name;
     
-    // Send request
+    // Send request with tracking data
     const formData = new FormData();
     formData.append('action', 'send_reminder');
     formData.append('donor_id', payment.donor_id);
     formData.append('message', payment.message);
     formData.append('channel', 'whatsapp');
+    formData.append('due_date', payment.due_date || '');
+    formData.append('payment_plan_id', payment.plan_id || '');
     
     fetch(window.location.href, {
         method: 'POST',
@@ -1693,11 +1936,20 @@ function sendNextReminder() {
     .then(data => {
         if (data && data.success) {
             sendAllResults.sent++;
+        } else if (data && data.already_sent) {
+            sendAllResults.skipped++;
         } else {
             sendAllResults.failed++;
         }
         
-        document.getElementById('sendAllResults').innerHTML = `<span class="text-success">✓ ${sendAllResults.sent} sent</span> • <span class="text-danger">${sendAllResults.failed > 0 ? '✗ ' + sendAllResults.failed + ' failed' : ''}</span>`;
+        let resultHtml = `<span class="text-success">✓ ${sendAllResults.sent} sent</span>`;
+        if (sendAllResults.failed > 0) {
+            resultHtml += ` • <span class="text-danger">✗ ${sendAllResults.failed} failed</span>`;
+        }
+        if (sendAllResults.skipped > 0) {
+            resultHtml += ` • <span class="text-secondary">${sendAllResults.skipped} skipped</span>`;
+        }
+        document.getElementById('sendAllResults').innerHTML = resultHtml;
         
         sendAllIndex++;
         setTimeout(sendNextReminder, 500); // Small delay between sends

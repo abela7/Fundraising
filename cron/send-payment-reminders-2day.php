@@ -61,6 +61,26 @@ try {
         exit(1);
     }
     
+    // Ensure reminder tracking table exists
+    $db->query("
+        CREATE TABLE IF NOT EXISTS payment_reminders_sent (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            donor_id INT NOT NULL,
+            payment_plan_id INT NULL,
+            due_date DATE NOT NULL,
+            sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            sent_by_user_id INT NULL,
+            sent_by_name VARCHAR(100) NULL,
+            channel ENUM('whatsapp', 'sms', 'both') NOT NULL DEFAULT 'whatsapp',
+            message_preview VARCHAR(500) NULL,
+            source_type ENUM('cron', 'manual_calendar', 'bulk', 'call_center') NOT NULL DEFAULT 'manual_calendar',
+            INDEX idx_donor_due (donor_id, due_date),
+            INDEX idx_due_date (due_date),
+            UNIQUE KEY unique_reminder_per_day (donor_id, due_date, DATE(sent_at))
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    cron_log("INFO: Reminder tracking table verified");
+    
     // Bank details (hardcoded for now, can be moved to config)
     $bankDetails = [
         'account_name' => 'LMKATH',
@@ -121,6 +141,20 @@ try {
         // SMS opt-in check
         if (!$row['sms_opt_in']) {
             cron_log("SKIP: Donor #{$donorId} - SMS opt-out");
+            $skipped++;
+            continue;
+        }
+        
+        // Check if reminder was already sent today
+        $checkStmt = $db->prepare("
+            SELECT id FROM payment_reminders_sent 
+            WHERE donor_id = ? AND due_date = ? AND DATE(sent_at) = CURDATE()
+            LIMIT 1
+        ");
+        $checkStmt->bind_param('is', $donorId, $targetDate);
+        $checkStmt->execute();
+        if ($checkStmt->get_result()->fetch_assoc()) {
+            cron_log("SKIP: Donor #{$donorId} - Reminder already sent today");
             $skipped++;
             continue;
         }
@@ -187,13 +221,28 @@ try {
             );
             
             if ($sendResult['success']) {
-                cron_log("SENT: Donor #{$donorId} ({$row['donor_phone']}) via " . ($sendResult['channel'] ?? 'unknown'));
+                $usedChannel = $sendResult['channel'] ?? 'whatsapp';
+                cron_log("SENT: Donor #{$donorId} ({$row['donor_phone']}) via {$usedChannel}");
                 $sent++;
                 $sentDonors[] = [
                     'name' => $row['donor_name'],
                     'amount' => $amount,
                     'due_date' => $dueDate
                 ];
+                
+                // Record reminder sent
+                $recordStmt = $db->prepare("
+                    INSERT INTO payment_reminders_sent 
+                    (donor_id, payment_plan_id, due_date, channel, message_preview, source_type, sent_by_name)
+                    VALUES (?, ?, ?, ?, ?, 'cron', 'System (Cron)')
+                    ON DUPLICATE KEY UPDATE 
+                        sent_at = CURRENT_TIMESTAMP,
+                        channel = VALUES(channel)
+                ");
+                $planId = (int)$row['plan_id'];
+                $msgPreview = substr($sendResult['message'] ?? '', 0, 500);
+                $recordStmt->bind_param('iisss', $donorId, $planId, $targetDate, $usedChannel, $msgPreview);
+                $recordStmt->execute();
             } else {
                 cron_log("FAILED: Donor #{$donorId} - " . ($sendResult['error'] ?? 'Unknown error'));
                 $failed++;
