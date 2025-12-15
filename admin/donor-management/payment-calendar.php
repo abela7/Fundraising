@@ -96,6 +96,70 @@ function recordReminderSent($db, int $donorId, ?int $planId, string $dueDate, st
     }
 }
 
+// Handle AJAX delete reminder
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_reminder') {
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    header('Content-Type: application/json; charset=utf-8');
+    
+    $sendJsonResponse = function($data) {
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        exit;
+    };
+    
+    try {
+        if (!$db) {
+            $sendJsonResponse(['success' => false, 'error' => 'Database connection failed']);
+        }
+        
+        $donor_id = (int)($_POST['donor_id'] ?? 0);
+        $due_date = $_POST['due_date'] ?? '';
+        
+        if ($donor_id <= 0) {
+            $sendJsonResponse(['success' => false, 'error' => 'Invalid donor ID']);
+        }
+        if (empty($due_date)) {
+            $sendJsonResponse(['success' => false, 'error' => 'Due date is required']);
+        }
+        
+        // Delete today's reminder for this donor/due_date
+        $today = date('Y-m-d');
+        $stmt = $db->prepare("
+            DELETE FROM payment_reminders_sent 
+            WHERE donor_id = ? AND due_date = ? AND DATE(sent_at) = ?
+        ");
+        $stmt->bind_param('iss', $donor_id, $due_date, $today);
+        $result = $stmt->execute();
+        $deleted = $stmt->affected_rows;
+        
+        if ($result && $deleted > 0) {
+            $sendJsonResponse([
+                'success' => true,
+                'message' => 'Reminder record deleted successfully',
+                'deleted_count' => $deleted
+            ]);
+        } else if ($result && $deleted === 0) {
+            $sendJsonResponse([
+                'success' => false,
+                'error' => 'No reminder found to delete'
+            ]);
+        } else {
+            $sendJsonResponse([
+                'success' => false,
+                'error' => 'Failed to delete reminder record'
+            ]);
+        }
+    } catch (Throwable $e) {
+        error_log('Delete Reminder Error: ' . $e->getMessage());
+        $sendJsonResponse(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+    }
+}
+
 // Handle AJAX reminder send
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_reminder') {
     // Clean ALL output buffers
@@ -1629,9 +1693,16 @@ function openReminderModal(paymentData) {
             new Date(paymentData.reminder_sent_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'earlier';
         const channel = paymentData.reminder_channel ? paymentData.reminder_channel.toUpperCase() : 'WhatsApp';
         warningEl.innerHTML = 
-            '<i class="fas fa-exclamation-triangle me-2"></i>' +
-            'Reminder already sent today at ' + sentTime + ' via ' + channel + '. ' +
-            '<strong>Sending again may annoy the donor.</strong>';
+            '<div class="d-flex justify-content-between align-items-start gap-2">' +
+                '<div>' +
+                    '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                    'Reminder already sent today at ' + sentTime + ' via ' + channel + '. ' +
+                    '<strong>Sending again may annoy the donor.</strong>' +
+                '</div>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" onclick="deleteReminderRecord()" title="Delete this reminder record (undo)">' +
+                    '<i class="fas fa-trash-alt"></i>' +
+                '</button>' +
+            '</div>';
         warningEl.style.display = 'block';
         sendBtn.innerHTML = '<i class="fas fa-redo me-2"></i>Send Again';
         sendBtn.classList.remove('btn-warning');
@@ -1657,6 +1728,85 @@ function selectChannel(channel) {
 function closeReminderModal() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('reminderModal'));
     if (modal) modal.hide();
+}
+
+function deleteReminderRecord() {
+    if (!currentReminderData || !currentReminderData.donor_id || !currentReminderData.due_date) {
+        alert('Missing reminder data');
+        return;
+    }
+    
+    if (!confirm('Delete this reminder record?\n\nThis will mark the reminder as NOT sent, allowing you to send a fresh reminder.')) {
+        return;
+    }
+    
+    const warningEl = document.getElementById('alreadySentWarning');
+    const originalContent = warningEl.innerHTML;
+    
+    // Show deleting state
+    warningEl.innerHTML = 
+        '<div class="d-flex align-items-center">' +
+            '<span class="spinner-border spinner-border-sm me-2"></span>' +
+            'Deleting reminder record...' +
+        '</div>';
+    
+    const formData = new FormData();
+    formData.append('action', 'delete_reminder');
+    formData.append('donor_id', currentReminderData.donor_id);
+    formData.append('due_date', currentReminderData.due_date);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(text => {
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error('Invalid response');
+        }
+    })
+    .then(data => {
+        if (data && data.success) {
+            // Update local data
+            currentReminderData.reminder_sent = false;
+            currentReminderData.reminder_sent_at = null;
+            currentReminderData.reminder_channel = null;
+            
+            // Hide warning and reset button
+            warningEl.style.display = 'none';
+            const sendBtn = document.getElementById('sendReminderBtn');
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Reminder';
+            sendBtn.classList.add('btn-warning');
+            sendBtn.classList.remove('btn-outline-warning');
+            sendBtn.style.display = '';
+            
+            // Show success briefly
+            warningEl.innerHTML = 
+                '<div class="text-success">' +
+                    '<i class="fas fa-check-circle me-2"></i>' +
+                    'Reminder record deleted. You can now send a fresh reminder.' +
+                '</div>';
+            warningEl.classList.remove('alert-warning');
+            warningEl.classList.add('alert-success');
+            warningEl.style.display = 'block';
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                warningEl.style.display = 'none';
+                warningEl.classList.remove('alert-success');
+                warningEl.classList.add('alert-warning');
+            }, 3000);
+        } else {
+            warningEl.innerHTML = originalContent;
+            alert('Failed to delete: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        warningEl.innerHTML = originalContent;
+        alert('Error: ' + error.message);
+    });
 }
 
 function toggleEditMode() {
