@@ -177,16 +177,19 @@ try {
             $reference = str_pad((string)$donorId, 4, '0', STR_PAD_LEFT);
         }
         
-        // Build payment instructions based on method
+        // Build payment instructions with clear formatting
         $paymentInstructions = '';
         
         if ($paymentMethod === 'cash') {
             $repName = $row['rep_name'] ?? 'your church representative';
             $repPhone = $row['rep_phone'] ?? '';
-            $paymentInstructions = "Please hand over the cash to {$repName}" . ($repPhone ? " ({$repPhone})" : '');
+            $paymentInstructions = "\n\n*Cash Payment*\nPlease hand over the cash to:\n→ Representative: {$repName}";
+            if ($repPhone) {
+                $paymentInstructions .= "\n→ Phone: {$repPhone}";
+            }
         } else {
-            // Bank transfer / Card
-            $paymentInstructions = "Bank: {$bankDetails['account_name']}, Account: {$bankDetails['account_number']}, Sort Code: {$bankDetails['sort_code']}, Reference: {$reference}";
+            // Bank transfer with clear line breaks
+            $paymentInstructions = "\n\n*Bank Details:*\n→ Bank: {$bankDetails['account_name']}\n→ Account: {$bankDetails['account_number']}\n→ Sort Code: {$bankDetails['sort_code']}\n→ Reference: {$reference}";
         }
         
         // Calculate frequency
