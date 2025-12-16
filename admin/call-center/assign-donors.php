@@ -130,17 +130,17 @@ $donors_by_agent = [];
 $unassigned_donors = [];
 
 try {
-    // Get agents
-    $agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+    // Get agents (only active ones)
+    $agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
     if ($agents_result) {
         while ($agent = $agents_result->fetch_assoc()) {
             $agents[] = $agent;
         }
     }
     
-    // Get all registrars for filter dropdown
+    // Get all registrars for filter dropdown (only active ones)
     $registrars = [];
-    $registrars_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+    $registrars_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
     if ($registrars_result) {
         while ($registrar = $registrars_result->fetch_assoc()) {
             $registrars[] = $registrar;

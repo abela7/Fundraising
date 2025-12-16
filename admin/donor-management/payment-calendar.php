@@ -1417,10 +1417,13 @@ if ($view === 'week') {
                     </div>
                 <?php endif; ?>
                 
-                <!-- Back to Payments Link -->
-                <div class="text-center mt-4 mb-4">
+                <!-- Navigation Links -->
+                <div class="text-center mt-4 mb-4 d-flex flex-wrap justify-content-center gap-2">
                     <a href="payments.php" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Payments
+                    </a>
+                    <a href="../agent-reports/daily-payments.php?date=<?php echo $current_date->format('Y-m-d'); ?>" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-bar me-2"></i>My Daily Report
                     </a>
                 </div>
             </div>
