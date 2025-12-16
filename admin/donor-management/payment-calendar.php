@@ -1868,9 +1868,9 @@ if ($view === 'week') {
                                     'days_overdue' => (int)$overdue['days_overdue'],
                                     'plan_id' => (int)$overdue['plan_id'],
                                     'preferred_language' => $overdue['preferred_language'] ?? 'en',
-                                    'reminder_sent' => $missedReminderSent ? true : false,
-                                    'reminder_sent_at' => $missedReminderSent['sent_at'] ?? null,
-                                    'reminder_channel' => $missedReminderSent['channel'] ?? null
+                                    'reminder_sent' => !empty($missedReminderSent),
+                                    'reminder_sent_at' => !empty($missedReminderSent) ? $missedReminderSent['sent_at'] : null,
+                                    'reminder_channel' => !empty($missedReminderSent) ? $missedReminderSent['channel'] : null
                                 ];
                                 
                                 // Only show reminder button if 3+ days overdue
