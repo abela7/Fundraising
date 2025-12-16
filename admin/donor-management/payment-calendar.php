@@ -516,93 +516,94 @@ if ($checkCol && $checkCol->num_rows > 0) {
 
 /**
  * Query for OVERDUE/MISSED payments
- * - Payments where next_payment_due is in the past (before today)
+ * - Only show overdue for the SPECIFIC day/week/month being viewed
+ * - Only applies to PAST dates within the selected view
  * - No payment was made for that due date
- * - Within the selected view range for context
  */
 $overdue_payments = [];
 $overdue_total = 0;
 $overdue_count = 0;
 
-// For day view: show overdue up to 30 days back
-// For week view: show overdue within the week + 30 days back
-// For month view: show overdue within the month + previous month
-if ($view === 'day') {
-    $overdue_start = date('Y-m-d', strtotime('-30 days'));
-    $overdue_end = date('Y-m-d', strtotime('-1 day')); // Yesterday and before
-} elseif ($view === 'week') {
-    $overdue_start = date('Y-m-d', strtotime('-30 days'));
-    $overdue_end = date('Y-m-d', strtotime('-1 day'));
-} else {
-    // Month view - show all overdue from start of previous month
-    $overdue_start = date('Y-m-01', strtotime('-1 month'));
-    $overdue_end = date('Y-m-d', strtotime('-1 day'));
-}
+// Determine the date range for overdue based on current view
+// Only check for overdue if the view contains past dates
+$today = date('Y-m-d');
+$view_start = $start_date->format('Y-m-d');
+$view_end = $end_date->format('Y-m-d');
 
-$overdueQuery = "
-    SELECT 
-        pp.id as plan_id,
-        pp.donor_id,
-        pp.pledge_id,
-        pp.monthly_amount,
-        pp.next_payment_due,
-        pp.payment_method,
-        pp.status as plan_status,
-        pp.payments_made,
-        pp.total_payments,
-        d.name as donor_name,
-        d.phone as donor_phone,
-        d.payment_status as donor_status,
-        d.preferred_language,
-        d.agent_id,
-        DATEDIFF(CURDATE(), pp.next_payment_due) as days_overdue
-    FROM donor_payment_plans pp
-    JOIN donors d ON pp.donor_id = d.id
-    WHERE pp.next_payment_due BETWEEN ? AND ?
-    AND pp.status = 'active'
-";
+// Calculate overdue range - only past dates within the current view
+$overdue_start = $view_start;
+$overdue_end = min($view_end, date('Y-m-d', strtotime('-1 day'))); // Can't be overdue if it's today or future
 
-// Check if payment was made - exclude those who paid
-if ($hasPlanIdCol) {
-    $overdueQuery .= "
-        AND NOT EXISTS (
-            SELECT 1 FROM pledge_payments pay 
-            WHERE pay.payment_plan_id = pp.id 
-            AND DATE(pay.payment_date) >= pp.next_payment_due
-            AND pay.status IN ('pending', 'approved')
-        )
+// Only query if there are past dates in this view
+$has_past_dates = $overdue_start <= $overdue_end && $overdue_end < $today;
+
+// Only query for overdue if there are past dates in this view
+if ($has_past_dates) {
+    $overdueQuery = "
+        SELECT 
+            pp.id as plan_id,
+            pp.donor_id,
+            pp.pledge_id,
+            pp.monthly_amount,
+            pp.next_payment_due,
+            pp.payment_method,
+            pp.status as plan_status,
+            pp.payments_made,
+            pp.total_payments,
+            d.name as donor_name,
+            d.phone as donor_phone,
+            d.payment_status as donor_status,
+            d.preferred_language,
+            d.agent_id,
+            DATEDIFF(CURDATE(), pp.next_payment_due) as days_overdue
+        FROM donor_payment_plans pp
+        JOIN donors d ON pp.donor_id = d.id
+        WHERE pp.next_payment_due BETWEEN ? AND ?
+        AND pp.status = 'active'
     ";
-} else {
-    $overdueQuery .= "
-        AND NOT EXISTS (
-            SELECT 1 FROM pledge_payments pay 
-            WHERE pay.donor_id = pp.donor_id 
-            AND DATE(pay.payment_date) >= pp.next_payment_due
-            AND pay.status IN ('pending', 'approved')
-        )
-    ";
-}
 
-// Agent filter
-if (!$isAdmin) {
-    $overdueQuery .= " AND d.agent_id = ?";
-}
+    // Check if payment was made - exclude those who paid
+    if ($hasPlanIdCol) {
+        $overdueQuery .= "
+            AND NOT EXISTS (
+                SELECT 1 FROM pledge_payments pay 
+                WHERE pay.payment_plan_id = pp.id 
+                AND DATE(pay.payment_date) >= pp.next_payment_due
+                AND pay.status IN ('pending', 'approved')
+            )
+        ";
+    } else {
+        $overdueQuery .= "
+            AND NOT EXISTS (
+                SELECT 1 FROM pledge_payments pay 
+                WHERE pay.donor_id = pp.donor_id 
+                AND DATE(pay.payment_date) >= pp.next_payment_due
+                AND pay.status IN ('pending', 'approved')
+            )
+        ";
+    }
 
-$overdueQuery .= " ORDER BY pp.next_payment_due DESC, d.name ASC LIMIT 50";
+    // Agent filter
+    if (!$isAdmin) {
+        $overdueQuery .= " AND d.agent_id = ?";
+    }
 
-$overdueStmt = $db->prepare($overdueQuery);
-if ($isAdmin) {
-    $overdueStmt->bind_param('ss', $overdue_start, $overdue_end);
-} else {
-    $overdueStmt->bind_param('ssi', $overdue_start, $overdue_end, $userId);
-}
-$overdueStmt->execute();
-$overdueResult = $overdueStmt->get_result();
+    $overdueQuery .= " ORDER BY pp.next_payment_due DESC, d.name ASC LIMIT 50";
 
-while ($row = $overdueResult->fetch_assoc()) {
-    $overdue_payments[] = $row;
-    $overdue_total += (float)$row['monthly_amount'];
-    $overdue_count++;
+    $overdueStmt = $db->prepare($overdueQuery);
+    if ($isAdmin) {
+        $overdueStmt->bind_param('ss', $overdue_start, $overdue_end);
+    } else {
+        $overdueStmt->bind_param('ssi', $overdue_start, $overdue_end, $userId);
+    }
+    $overdueStmt->execute();
+    $overdueResult = $overdueStmt->get_result();
+
+    while ($row = $overdueResult->fetch_assoc()) {
+        $overdue_payments[] = $row;
+        $overdue_total += (float)$row['monthly_amount'];
+        $overdue_count++;
+    }
 }
 
 // Build calendar data for month view
@@ -1491,14 +1492,21 @@ if ($view === 'week') {
                         <div class="stat-value" style="color: var(--success-color);">£<?php echo number_format($total_due, 0); ?></div>
                         <div class="stat-label">Total Due</div>
                     </div>
+                    <?php if ($has_past_dates): ?>
                     <div class="stat-item">
                         <div class="stat-value" style="color: <?php echo $overdue_count > 0 ? '#ef4444' : 'var(--success-color)'; ?>;"><?php echo $overdue_count; ?></div>
-                        <div class="stat-label">Overdue</div>
+                        <div class="stat-label">Missed</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" style="color: <?php echo $overdue_count > 0 ? '#ef4444' : 'var(--success-color)'; ?>;">£<?php echo number_format($overdue_total, 0); ?></div>
                         <div class="stat-label">Unpaid</div>
                     </div>
+                    <?php else: ?>
+                    <div class="stat-item">
+                        <div class="stat-value"><?php echo count($payments_by_date); ?></div>
+                        <div class="stat-label">Days</div>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Calendar Views -->
@@ -1719,12 +1727,24 @@ if ($view === 'week') {
                     </div>
                 <?php endif; ?>
                 
+                <?php 
+                // Only show overdue section if viewing past dates
+                if ($has_past_dates): 
+                    // Determine context label based on view
+                    if ($view === 'day') {
+                        $overdueLabel = 'Missed Payment' . ($overdue_count !== 1 ? 's' : '') . ' - ' . $current_date->format('j M Y');
+                    } elseif ($view === 'week') {
+                        $overdueLabel = 'Missed Payments This Week';
+                    } else {
+                        $overdueLabel = 'Missed Payments - ' . $current_date->format('F Y');
+                    }
+                ?>
                 <!-- Overdue Payments Section -->
                 <div class="overdue-section">
                     <div class="overdue-header">
                         <h3>
                             <i class="fas fa-exclamation-triangle"></i>
-                            Overdue Payments
+                            <?php echo $overdueLabel; ?>
                             <?php if ($overdue_count > 0): ?>
                                 <span class="badge"><?php echo $overdue_count; ?></span>
                             <?php endif; ?>
@@ -1733,11 +1753,11 @@ if ($view === 'week') {
                         <div class="overdue-stats">
                             <div class="stat">
                                 <i class="fas fa-users me-1"></i>
-                                <strong><?php echo $overdue_count; ?></strong> donors
+                                <strong><?php echo $overdue_count; ?></strong> donor<?php echo $overdue_count !== 1 ? 's' : ''; ?>
                             </div>
                             <div class="stat">
                                 <i class="fas fa-pound-sign me-1"></i>
-                                <strong>£<?php echo number_format($overdue_total, 2); ?></strong> unpaid
+                                <strong>£<?php echo number_format($overdue_total, 2); ?></strong>
                             </div>
                         </div>
                         <?php endif; ?>
@@ -1746,8 +1766,16 @@ if ($view === 'week') {
                         <?php if (empty($overdue_payments)): ?>
                             <div class="overdue-empty">
                                 <i class="fas fa-check-circle d-block"></i>
-                                <h4>All Caught Up!</h4>
-                                <p><?php echo $isAdmin ? 'No overdue payments found.' : 'None of your assigned donors have overdue payments.'; ?></p>
+                                <h4>All Payments Received!</h4>
+                                <p>
+                                    <?php if ($view === 'day'): ?>
+                                        No missed payments for <?php echo $current_date->format('j M Y'); ?>.
+                                    <?php elseif ($view === 'week'): ?>
+                                        No missed payments this week.
+                                    <?php else: ?>
+                                        No missed payments in <?php echo $current_date->format('F Y'); ?>.
+                                    <?php endif; ?>
+                                </p>
                             </div>
                         <?php else: ?>
                             <?php foreach ($overdue_payments as $overdue): ?>
@@ -1757,7 +1785,7 @@ if ($view === 'week') {
                                         <div class="overdue-details">
                                             <span>
                                                 <i class="fas fa-calendar-times"></i>
-                                                Due: <?php echo date('j M Y', strtotime($overdue['next_payment_due'])); ?>
+                                                Due: <?php echo date('j M', strtotime($overdue['next_payment_due'])); ?>
                                             </span>
                                             <span>
                                                 <i class="fas fa-<?php echo $overdue['payment_method'] === 'cash' ? 'money-bill' : ($overdue['payment_method'] === 'card' ? 'credit-card' : 'university'); ?>"></i>
@@ -1773,22 +1801,16 @@ if ($view === 'week') {
                                     </div>
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="days-badge">
-                                            <?php echo (int)$overdue['days_overdue']; ?> day<?php echo (int)$overdue['days_overdue'] !== 1 ? 's' : ''; ?> late
+                                            <?php echo (int)$overdue['days_overdue']; ?> day<?php echo (int)$overdue['days_overdue'] !== 1 ? 's' : ''; ?>
                                         </span>
                                         <span class="amount">£<?php echo number_format((float)$overdue['monthly_amount'], 2); ?></span>
                                     </div>
                                 </a>
                             <?php endforeach; ?>
-                            
-                            <?php if ($overdue_count >= 50): ?>
-                            <div class="text-center text-muted small mt-3">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Showing first 50 overdue payments. View daily reports for complete list.
-                            </div>
-                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php endif; ?>
                 
                 <!-- Navigation Links -->
                 <div class="text-center mt-4 mb-4 d-flex flex-wrap justify-content-center gap-2">
