@@ -338,6 +338,19 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                     </div>
                 </div>
                 
+                <!-- Additional Quick Actions -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <a href="../../call-center/inbound-callbacks.php" class="quick-action-card">
+                            <div class="quick-action-icon" style="background: #fef3c7; color: #f59e0b;">
+                                <i class="fas fa-phone-volume"></i>
+                            </div>
+                            <h6 class="mb-1">Inbound Callbacks</h6>
+                            <small class="text-muted">Donors who called back</small>
+                        </a>
+                    </div>
+                </div>
+                
                 <div class="row g-3">
                     <!-- Recent Error Summary -->
                     <div class="col-md-6">
