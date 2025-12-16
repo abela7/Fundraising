@@ -28,6 +28,10 @@ if (!in_array($user['role'] ?? '', ['admin', 'registrar'])) {
     exit;
 }
 
+// Determine if user is admin (sees all) or agent/registrar (sees only assigned donors)
+$userId = (int)$user['id'];
+$isAdmin = ($user['role'] ?? '') === 'admin';
+
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
 require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../services/MessagingHelper.php';
@@ -127,6 +131,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $sendJsonResponse(['success' => false, 'error' => 'Due date is required']);
         }
         
+        // Authorization check: registrars can only manage their assigned donors
+        if (!$isAdmin) {
+            $authCheck = $db->prepare("SELECT id FROM donors WHERE id = ? AND agent_id = ?");
+            $authCheck->bind_param('ii', $donor_id, $userId);
+            $authCheck->execute();
+            if (!$authCheck->get_result()->fetch_assoc()) {
+                $sendJsonResponse(['success' => false, 'error' => 'You can only manage reminders for your assigned donors']);
+            }
+        }
+        
         // Delete today's reminder for this donor/due_date
         $today = date('Y-m-d');
         $stmt = $db->prepare("
@@ -211,6 +225,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         if (empty($due_date)) {
             $sendJsonResponse(['success' => false, 'error' => 'Due date is required']);
+        }
+        
+        // Authorization check: registrars can only send reminders to their assigned donors
+        if (!$isAdmin) {
+            $authCheck = $db->prepare("SELECT id FROM donors WHERE id = ? AND agent_id = ?");
+            $authCheck->bind_param('ii', $donor_id, $userId);
+            $authCheck->execute();
+            if (!$authCheck->get_result()->fetch_assoc()) {
+                $sendJsonResponse(['success' => false, 'error' => 'You can only send reminders to your assigned donors']);
+            }
         }
         
         // Check if reminder already sent today (unless force resend)
@@ -414,6 +438,7 @@ $total_count = 0;
 
 $today = date('Y-m-d');
 
+// Build query - admin sees all, registrar sees only assigned donors
 $query = "
     SELECT 
         pp.id as plan_id,
@@ -429,6 +454,7 @@ $query = "
         d.phone as donor_phone,
         d.payment_status as donor_status,
         d.preferred_language,
+        d.agent_id,
         cr.name as rep_name,
         cr.phone as rep_phone,
         pl.notes as pledge_notes,
@@ -450,13 +476,24 @@ $query = "
     ) prs ON prs.donor_id = pp.donor_id AND prs.due_date = pp.next_payment_due
     WHERE pp.next_payment_due BETWEEN ? AND ?
     AND pp.status = 'active'
-    ORDER BY pp.next_payment_due ASC, d.name ASC
 ";
+
+// Registrars/agents can only see their assigned donors
+if (!$isAdmin) {
+    $query .= " AND d.agent_id = ?";
+}
+
+$query .= " ORDER BY pp.next_payment_due ASC, d.name ASC";
 
 $stmt = $db->prepare($query);
 $start_str = $start_date->format('Y-m-d');
 $end_str = $end_date->format('Y-m-d');
-$stmt->bind_param('sss', $today, $start_str, $end_str);
+
+if ($isAdmin) {
+    $stmt->bind_param('sss', $today, $start_str, $end_str);
+} else {
+    $stmt->bind_param('sssi', $today, $start_str, $end_str, $userId);
+}
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -1183,11 +1220,19 @@ if ($view === 'week') {
                     </a>
                 </div>
                 
+                <?php if (!$isAdmin): ?>
+                <!-- Agent Notice -->
+                <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center" style="border-radius: 10px; font-size: 0.85rem;">
+                    <i class="fas fa-user-circle me-2"></i>
+                    <span>Showing payments for <strong>your assigned donors only</strong></span>
+                </div>
+                <?php endif; ?>
+                
                 <!-- Stats Bar -->
                 <div class="stats-bar">
                     <div class="stat-item">
                         <div class="stat-value"><?php echo $total_count; ?></div>
-                        <div class="stat-label">Due Payments</div>
+                        <div class="stat-label"><?php echo $isAdmin ? 'Due Payments' : 'My Due Payments'; ?></div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" style="color: var(--success-color);">£<?php echo number_format($total_due, 0); ?></div>

@@ -23,7 +23,6 @@ if (!in_array($user['role'] ?? '', ['admin', 'registrar'])) {
 $db = db();
 $userId = (int)$user['id'];
 $userName = $user['name'] ?? 'Agent';
-$isAdmin = ($user['role'] ?? '') === 'admin';
 
 // Get selected date (default to today)
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
@@ -40,11 +39,9 @@ if ($checkCol && $checkCol->num_rows > 0) {
 }
 
 /**
- * Query payments due on selected date for donors assigned to this agent.
- * Admin can see all donors if they have the 'view_all' filter.
+ * Query payments due on selected date for donors assigned to this agent ONLY.
+ * Each agent can only see their own assigned donors.
  */
-$viewAll = $isAdmin && isset($_GET['view']) && $_GET['view'] === 'all';
-
 $query = "
     SELECT 
         pp.id as plan_id,
@@ -59,30 +56,18 @@ $query = "
         d.phone as donor_phone,
         d.agent_id,
         d.preferred_language,
-        u.name as agent_name,
         pl.notes as pledge_notes
     FROM donor_payment_plans pp
     JOIN donors d ON pp.donor_id = d.id
-    LEFT JOIN users u ON d.agent_id = u.id
     LEFT JOIN pledges pl ON pp.pledge_id = pl.id
     WHERE pp.next_payment_due = ?
     AND pp.status = 'active'
+    AND d.agent_id = ?
+    ORDER BY d.name ASC
 ";
 
-// Filter by agent unless admin viewing all
-if (!$viewAll) {
-    $query .= " AND d.agent_id = ?";
-}
-
-$query .= " ORDER BY d.name ASC";
-
-if ($viewAll) {
-    $stmt = $db->prepare($query);
-    $stmt->bind_param('s', $selectedDate);
-} else {
-    $stmt = $db->prepare($query);
-    $stmt->bind_param('si', $selectedDate, $userId);
-}
+$stmt = $db->prepare($query);
+$stmt->bind_param('si', $selectedDate, $userId);
 $stmt->execute();
 $duePayments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -572,59 +557,6 @@ $page_title = 'Daily Payments Report';
             margin: 0;
         }
         
-        /* View Toggle (Admin) */
-        .view-toggle {
-            display: flex;
-            background: white;
-            border-radius: 12px;
-            padding: 4px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        
-        .view-toggle-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: transparent;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: #6b7280;
-            text-decoration: none;
-            text-align: center;
-            transition: all 0.2s;
-        }
-        
-        .view-toggle-btn.active {
-            background: var(--primary-color);
-            color: white;
-        }
-        
-        .view-toggle-btn:hover:not(.active) {
-            background: #f3f4f6;
-            color: #374151;
-        }
-        
-        /* Call Button */
-        .call-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            background: var(--success-light);
-            color: var(--success-color);
-            border-radius: 50%;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        
-        .call-btn:hover {
-            background: var(--success-color);
-            color: white;
-        }
-        
         /* Floating Date Picker */
         .date-picker-trigger {
             position: fixed;
@@ -802,7 +734,7 @@ $page_title = 'Daily Payments Report';
         
         <!-- Date Navigation -->
         <div class="date-nav">
-            <a href="?date=<?php echo $prevDate; ?><?php echo $viewAll ? '&view=all' : ''; ?>" class="date-nav-btn">
+            <a href="?date=<?php echo $prevDate; ?>" class="date-nav-btn">
                 <i class="fas fa-chevron-left"></i>
             </a>
             <div class="current-date">
@@ -814,37 +746,19 @@ $page_title = 'Daily Payments Report';
                 </span>
                 <small><?php echo date('j F Y', strtotime($selectedDate)); ?></small>
             </div>
-            <a href="?date=<?php echo $nextDate; ?><?php echo $viewAll ? '&view=all' : ''; ?>" class="date-nav-btn">
+            <a href="?date=<?php echo $nextDate; ?>" class="date-nav-btn">
                 <i class="fas fa-chevron-right"></i>
             </a>
         </div>
     </header>
     
     <main class="main-content">
-        <?php if ($isAdmin): ?>
-        <!-- Admin View Toggle -->
-        <div class="view-toggle">
-            <a href="?date=<?php echo $selectedDate; ?>" class="view-toggle-btn <?php echo !$viewAll ? 'active' : ''; ?>">
-                <i class="fas fa-user me-1"></i> My Donors
-            </a>
-            <a href="?date=<?php echo $selectedDate; ?>&view=all" class="view-toggle-btn <?php echo $viewAll ? 'active' : ''; ?>">
-                <i class="fas fa-users me-1"></i> All Agents
-            </a>
-        </div>
-        <?php endif; ?>
-        
         <?php if ($totalDonors === 0): ?>
         <!-- Empty State -->
         <div class="empty-state">
             <i class="fas fa-calendar-check"></i>
             <h3>No Payments Due</h3>
-            <p>
-                <?php if ($viewAll): ?>
-                    No payments scheduled for any agent on this date.
-                <?php else: ?>
-                    None of your assigned donors have payments due on this date.
-                <?php endif; ?>
-            </p>
+            <p>None of your assigned donors have payments due on this date.</p>
         </div>
         <?php else: ?>
         
@@ -918,12 +832,6 @@ $page_title = 'Daily Payments Report';
                             <i class="fas fa-credit-card"></i>
                             <?php echo ucwords(str_replace('_', ' ', $donor['payment_method'])); ?>
                         </span>
-                        <?php if ($viewAll && $donor['agent_name']): ?>
-                        <span class="donor-detail">
-                            <i class="fas fa-user-tie"></i>
-                            <?php echo htmlspecialchars($donor['agent_name']); ?>
-                        </span>
-                        <?php endif; ?>
                     </div>
                 </a>
             </div>
@@ -952,14 +860,7 @@ $page_title = 'Daily Payments Report';
                                 <?php echo $isPast || $isToday ? 'Missed' : 'Due'; ?>
                             </span>
                         </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="donor-amount">£<?php echo number_format($donor['amount_due'], 2); ?></div>
-                            <?php if ($donor['donor_phone']): ?>
-                            <a href="tel:<?php echo htmlspecialchars($donor['donor_phone']); ?>" class="call-btn" onclick="event.stopPropagation();">
-                                <i class="fas fa-phone"></i>
-                            </a>
-                            <?php endif; ?>
-                        </div>
+                        <div class="donor-amount">£<?php echo number_format($donor['amount_due'], 2); ?></div>
                     </div>
                     <div class="donor-details">
                         <?php if ($donor['donor_phone']): ?>
@@ -972,12 +873,6 @@ $page_title = 'Daily Payments Report';
                             <i class="fas fa-credit-card"></i>
                             <?php echo ucwords(str_replace('_', ' ', $donor['payment_method'])); ?>
                         </span>
-                        <?php if ($viewAll && $donor['agent_name']): ?>
-                        <span class="donor-detail">
-                            <i class="fas fa-user-tie"></i>
-                            <?php echo htmlspecialchars($donor['agent_name']); ?>
-                        </span>
-                        <?php endif; ?>
                     </div>
                 </a>
             </div>
@@ -999,7 +894,7 @@ $page_title = 'Daily Payments Report';
             <i class="fas fa-calendar"></i>
             Calendar
         </a>
-        <a href="?date=<?php echo date('Y-m-d'); ?><?php echo $viewAll ? '&view=all' : ''; ?>" class="nav-btn primary">
+        <a href="?date=<?php echo date('Y-m-d'); ?>" class="nav-btn primary">
             <i class="fas fa-clock"></i>
             Today
         </a>
@@ -1032,8 +927,7 @@ $page_title = 'Daily Payments Report';
         function goToDate() {
             const date = document.getElementById('dateInput').value;
             if (date) {
-                const viewAll = <?php echo $viewAll ? 'true' : 'false'; ?>;
-                window.location.href = `?date=${date}${viewAll ? '&view=all' : ''}`;
+                window.location.href = `?date=${date}`;
             }
         }
         
