@@ -31,14 +31,22 @@ try {
     $db = db();
     $db->begin_transaction();
     
-    // 1. Fetch payment details
+    // 1. Fetch payment details with donor info
     // Check if payment_plan_id column exists
     $has_plan_col = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'")->num_rows > 0;
     
     $stmt = $db->prepare("
-        SELECT pp.*, p.amount AS pledge_amount
+        SELECT pp.*, 
+               p.amount AS pledge_amount,
+               d.name AS donor_name,
+               d.phone AS donor_phone,
+               d.preferred_language AS donor_language,
+               d.balance AS donor_balance,
+               d.total_paid AS donor_total_paid,
+               d.active_payment_plan_id AS donor_plan_id
         FROM pledge_payments pp
         LEFT JOIN pledges p ON pp.pledge_id = p.id
+        LEFT JOIN donors d ON pp.donor_id = d.id
         WHERE pp.id = ?
     ");
     $stmt->bind_param('i', $payment_id);
@@ -266,11 +274,50 @@ try {
         }
     }
     
+    // Fetch updated donor data for notification
+    $updatedDonorStmt = $db->prepare("
+        SELECT d.*, 
+               p.amount as pledge_amount,
+               dpp.next_payment_due as plan_next_payment,
+               dpp.monthly_amount as plan_amount,
+               dpp.status as plan_status
+        FROM donors d
+        LEFT JOIN pledges p ON d.id = p.donor_id
+        LEFT JOIN donor_payment_plans dpp ON d.active_payment_plan_id = dpp.id
+        WHERE d.id = ?
+        ORDER BY p.created_at DESC
+        LIMIT 1
+    ");
+    $updatedDonorStmt->bind_param('i', $donor_id);
+    $updatedDonorStmt->execute();
+    $updatedDonor = $updatedDonorStmt->get_result()->fetch_assoc();
+    $updatedDonorStmt->close();
+    
+    // Prepare notification data
+    $notificationData = [
+        'donor_id' => $donor_id,
+        'donor_name' => $payment['donor_name'] ?? 'Donor',
+        'donor_phone' => $payment['donor_phone'] ?? '',
+        'donor_language' => $payment['donor_language'] ?? 'en',
+        'payment_amount' => number_format((float)$payment['amount'], 2),
+        'payment_date' => date('l, j F Y'), // e.g., "Saturday, 14 December 2024"
+        'total_pledge' => number_format((float)($updatedDonor['pledge_amount'] ?? 0), 2),
+        'outstanding_balance' => number_format((float)($updatedDonor['balance'] ?? 0), 2),
+        'has_plan' => !empty($updatedDonor['plan_next_payment']) && $updatedDonor['plan_status'] === 'active',
+        'next_payment_date' => $updatedDonor['plan_next_payment'] 
+            ? date('l, j F Y', strtotime($updatedDonor['plan_next_payment'])) 
+            : null,
+        'next_payment_amount' => $updatedDonor['plan_amount'] 
+            ? number_format((float)$updatedDonor['plan_amount'], 2) 
+            : null
+    ];
+    
     echo json_encode([
         'success' => true, 
         'message' => $message,
         'payment_id' => $payment_id,
-        'plan_updated' => $plan ? true : false
+        'plan_updated' => $plan ? true : false,
+        'notification_data' => $notificationData
     ]);
     
 } catch (Exception $e) {

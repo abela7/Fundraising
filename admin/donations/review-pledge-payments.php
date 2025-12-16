@@ -700,6 +700,136 @@ function build_url($params) {
             }
         }
         
+        /* Notification Modal Styles */
+        .notification-modal .modal-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+        .notification-modal .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
+        .notification-modal .modal-content {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .notification-modal .modal-body {
+            padding: 1.5rem;
+        }
+        .notification-preview {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .notification-preview .preview-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .notification-preview .preview-header i {
+            color: #25D366;
+            font-size: 1.25rem;
+        }
+        .notification-preview .preview-header span {
+            font-weight: 600;
+            color: #334155;
+        }
+        .notification-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .notification-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: #f1f5f9;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+        .notification-info-item .label {
+            color: #64748b;
+        }
+        .notification-info-item .value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .notification-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .notification-actions .btn {
+            flex: 1;
+            padding: 0.75rem;
+            font-weight: 500;
+            border-radius: 8px;
+        }
+        .btn-send-notification {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: white;
+            border: none;
+        }
+        .btn-send-notification:hover {
+            background: linear-gradient(135deg, #128C7E 0%, #075E54 100%);
+            color: white;
+        }
+        .btn-skip-notification {
+            background: #e2e8f0;
+            color: #475569;
+            border: none;
+        }
+        .btn-skip-notification:hover {
+            background: #cbd5e1;
+            color: #1e293b;
+        }
+        .edit-message-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #6366f1;
+            cursor: pointer;
+            margin-top: 0.75rem;
+        }
+        .edit-message-toggle:hover {
+            text-decoration: underline;
+        }
+        .message-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .message-textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .sending-spinner {
+            display: none;
+        }
+        .sending-spinner.active {
+            display: inline-block;
+        }
+        
     </style>
 </head>
 <body>
@@ -1063,9 +1193,181 @@ function build_url($params) {
     </div>
 </div>
 
+<!-- Payment Confirmation Notification Modal -->
+<div class="modal fade notification-modal" id="notificationModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bell me-2"></i>Notify Donor
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    Payment approved! Would you like to send a confirmation message to the donor?
+                </p>
+                
+                <!-- Donor Info -->
+                <div class="notification-info">
+                    <div class="notification-info-item">
+                        <span class="label">Donor</span>
+                        <span class="value" id="notifyDonorName">-</span>
+                    </div>
+                    <div class="notification-info-item">
+                        <span class="label">Phone</span>
+                        <span class="value" id="notifyDonorPhone">-</span>
+                    </div>
+                    <div class="notification-info-item">
+                        <span class="label">Amount Paid</span>
+                        <span class="value text-success" id="notifyAmount">£0.00</span>
+                    </div>
+                    <div class="notification-info-item">
+                        <span class="label">Outstanding</span>
+                        <span class="value" id="notifyBalance">£0.00</span>
+                    </div>
+                </div>
+                
+                <!-- Message Preview -->
+                <div class="notification-preview" id="messagePreviewContainer">
+                    <div class="preview-header">
+                        <i class="fab fa-whatsapp"></i>
+                        <span>Message Preview</span>
+                    </div>
+                    <div id="messagePreview"></div>
+                </div>
+                
+                <!-- Edit Toggle -->
+                <div class="edit-message-toggle" onclick="toggleMessageEdit()">
+                    <i class="fas fa-edit"></i>
+                    <span id="editToggleText">Edit message</span>
+                </div>
+                
+                <!-- Editable Message (Hidden by default) -->
+                <div id="messageEditContainer" style="display: none; margin-top: 0.75rem;">
+                    <textarea id="messageTextarea" class="message-textarea"></textarea>
+                </div>
+                
+                <!-- Actions -->
+                <div class="notification-actions">
+                    <button type="button" class="btn btn-skip-notification" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Skip
+                    </button>
+                    <button type="button" class="btn btn-send-notification" onclick="sendNotification()">
+                        <span class="sending-spinner" id="sendingSpinner">
+                            <i class="fas fa-spinner fa-spin me-1"></i>
+                        </span>
+                        <i class="fab fa-whatsapp me-1" id="sendIcon"></i>
+                        <span id="sendBtnText">Send</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
+// Store current notification data
+let currentNotificationData = null;
+let notificationModal = null;
+let isEditMode = false;
+
+// Message templates by language
+const messageTemplates = {
+    en: {
+        withPlan: `Dear {name},
+
+Thank you! We have received your payment of *£{amount}* on {payment_date}.
+
+📊 *Your Pledge Summary:*
+→ Total Pledge: £{total_pledge}
+→ Outstanding Balance: £{outstanding_balance}
+
+Your next payment of £{next_payment_amount} is due on {next_payment_date}.
+
+If you have any questions, please contact us.
+
+God bless you! 🙏
+- Liverpool Abune Teklehaymanot Church`,
+        withoutPlan: `Dear {name},
+
+Thank you! We have received your payment of *£{amount}* on {payment_date}.
+
+📊 *Your Pledge Summary:*
+→ Total Pledge: £{total_pledge}
+→ Outstanding Balance: £{outstanding_balance}
+
+You can set up a payment plan to manage your remaining balance easily.
+
+If you have any questions, please contact us.
+
+God bless you! 🙏
+- Liverpool Abune Teklehaymanot Church`
+    },
+    am: {
+        withPlan: `ውድ {name}፣
+
+እናመሰግናለን! የ*£{amount}* ክፍያዎን በ{payment_date} ተቀብለናል።
+
+📊 *የቃል ኪዳንዎ ማጠቃለያ:*
+→ ጠቅላላ ቃል ኪዳን: £{total_pledge}
+→ ቀሪ ሂሳብ: £{outstanding_balance}
+
+ቀጣዩ የ£{next_payment_amount} ክፍያዎ በ{next_payment_date} ነው።
+
+ጥያቄ ካለዎት እባክዎን ያግኙን።
+
+እግዚአብሔር ይባርክዎ! 🙏
+- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን`,
+        withoutPlan: `ውድ {name}፣
+
+እናመሰግናለን! የ*£{amount}* ክፍያዎን በ{payment_date} ተቀብለናል።
+
+📊 *የቃል ኪዳንዎ ማጠቃለያ:*
+→ ጠቅላላ ቃል ኪዳን: £{total_pledge}
+→ ቀሪ ሂሳብ: £{outstanding_balance}
+
+ቀሪ ሂሳብዎን በቀላሉ ለማስተዳደር የክፍያ እቅድ ማዘጋጀት ይችላሉ።
+
+ጥያቄ ካለዎት እባክዎን ያግኙን።
+
+እግዚአብሔር ይባርክዎ! 🙏
+- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን`
+    },
+    ti: {
+        withPlan: `ክቡር {name}፣
+
+የቕንየልና! ናይ *£{amount}* ክፍሊትካ ኣብ {payment_date} ተቐቢልና።
+
+📊 *ጽሟቕ ቃልኪዳንካ:*
+→ ጠቕላላ ቃልኪዳን: £{total_pledge}
+→ ዝተረፈ ሒሳብ: £{outstanding_balance}
+
+ዝቕጽል ክፍሊትካ £{next_payment_amount} ኣብ {next_payment_date} እዩ።
+
+ሕቶ እንተሃልዩካ በጃኻ ርኸበና።
+
+ኣምላኽ ይባርኽካ! 🙏
+- ሊቨርፑል ኣቡነ ተክለሃይማኖት ቤተክርስቲያን`,
+        withoutPlan: `ክቡር {name}፣
+
+የቕንየልና! ናይ *£{amount}* ክፍሊትካ ኣብ {payment_date} ተቐቢልና።
+
+📊 *ጽሟቕ ቃልኪዳንካ:*
+→ ጠቕላላ ቃልኪዳን: £{total_pledge}
+→ ዝተረፈ ሒሳብ: £{outstanding_balance}
+
+ዝተረፈ ሒሳብካ ብቐሊሉ ንምምሕዳር መደብ ክፍሊት ከተዳልው ትኽእል።
+
+ሕቶ እንተሃልዩካ በጃኻ ርኸበና።
+
+ኣምላኽ ይባርኽካ! 🙏
+- ሊቨርፑል ኣቡነ ተክለሃይማኖት ቤተክርስቲያን`
+    }
+};
+
 function viewProof(src) {
     document.getElementById('proofImage').src = src;
     new bootstrap.Modal(document.getElementById('proofModal')).show();
@@ -1084,8 +1386,14 @@ function approvePayment(id, btn) {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            // Instant reload - no confirmation needed
-            location.reload();
+            // Check if we have notification data
+            if (res.notification_data && res.notification_data.donor_phone) {
+                // Show notification modal
+                showNotificationModal(res.notification_data);
+            } else {
+                // No phone number, just reload
+                location.reload();
+            }
         } else {
             alert('Error: ' + res.message);
             btn.disabled = false;
@@ -1097,6 +1405,143 @@ function approvePayment(id, btn) {
         console.error(err);
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> <span>Approve</span>';
+    });
+}
+
+function showNotificationModal(data) {
+    currentNotificationData = data;
+    isEditMode = false;
+    
+    // Update modal fields
+    document.getElementById('notifyDonorName').textContent = data.donor_name;
+    document.getElementById('notifyDonorPhone').textContent = data.donor_phone;
+    document.getElementById('notifyAmount').textContent = '£' + data.payment_amount;
+    document.getElementById('notifyBalance').textContent = '£' + data.outstanding_balance;
+    
+    // Generate message based on donor language and plan status
+    const lang = data.donor_language || 'en';
+    const templates = messageTemplates[lang] || messageTemplates['en'];
+    const template = data.has_plan ? templates.withPlan : templates.withoutPlan;
+    
+    // Replace variables
+    let message = template
+        .replace(/{name}/g, data.donor_name)
+        .replace(/{amount}/g, data.payment_amount)
+        .replace(/{payment_date}/g, data.payment_date)
+        .replace(/{total_pledge}/g, data.total_pledge)
+        .replace(/{outstanding_balance}/g, data.outstanding_balance);
+    
+    if (data.has_plan) {
+        message = message
+            .replace(/{next_payment_amount}/g, data.next_payment_amount || data.payment_amount)
+            .replace(/{next_payment_date}/g, data.next_payment_date || 'TBD');
+    }
+    
+    // Store the message
+    currentNotificationData.message = message;
+    
+    // Update preview
+    document.getElementById('messagePreview').textContent = message;
+    document.getElementById('messageTextarea').value = message;
+    
+    // Reset edit state
+    document.getElementById('messagePreviewContainer').style.display = '';
+    document.getElementById('messageEditContainer').style.display = 'none';
+    document.getElementById('editToggleText').textContent = 'Edit message';
+    
+    // Reset send button
+    document.getElementById('sendingSpinner').classList.remove('active');
+    document.getElementById('sendIcon').style.display = '';
+    document.getElementById('sendBtnText').textContent = 'Send';
+    document.querySelector('.btn-send-notification').disabled = false;
+    
+    // Show modal
+    if (!notificationModal) {
+        notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
+    }
+    
+    // When modal is closed, reload the page
+    document.getElementById('notificationModal').addEventListener('hidden.bs.modal', function() {
+        location.reload();
+    }, { once: true });
+    
+    notificationModal.show();
+}
+
+function toggleMessageEdit() {
+    isEditMode = !isEditMode;
+    
+    if (isEditMode) {
+        document.getElementById('messagePreviewContainer').style.display = 'none';
+        document.getElementById('messageEditContainer').style.display = '';
+        document.getElementById('editToggleText').textContent = 'Preview message';
+        document.getElementById('messageTextarea').focus();
+    } else {
+        // Update preview with edited message
+        const editedMessage = document.getElementById('messageTextarea').value;
+        document.getElementById('messagePreview').textContent = editedMessage;
+        currentNotificationData.message = editedMessage;
+        
+        document.getElementById('messagePreviewContainer').style.display = '';
+        document.getElementById('messageEditContainer').style.display = 'none';
+        document.getElementById('editToggleText').textContent = 'Edit message';
+    }
+}
+
+function sendNotification() {
+    if (!currentNotificationData) return;
+    
+    // Get the current message (might be edited)
+    const message = isEditMode 
+        ? document.getElementById('messageTextarea').value 
+        : currentNotificationData.message;
+    
+    // Show loading state
+    const btn = document.querySelector('.btn-send-notification');
+    btn.disabled = true;
+    document.getElementById('sendingSpinner').classList.add('active');
+    document.getElementById('sendIcon').style.display = 'none';
+    document.getElementById('sendBtnText').textContent = 'Sending...';
+    
+    // Send the notification
+    fetch('send-payment-notification.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            donor_id: currentNotificationData.donor_id,
+            phone: currentNotificationData.donor_phone,
+            message: message,
+            language: currentNotificationData.donor_language
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            // Show success
+            document.getElementById('sendingSpinner').classList.remove('active');
+            document.getElementById('sendIcon').className = 'fas fa-check me-1';
+            document.getElementById('sendIcon').style.display = '';
+            document.getElementById('sendBtnText').textContent = 'Sent!';
+            
+            // Close modal and reload after short delay
+            setTimeout(() => {
+                notificationModal.hide();
+            }, 1000);
+        } else {
+            alert('Failed to send notification: ' + (res.error || 'Unknown error'));
+            btn.disabled = false;
+            document.getElementById('sendingSpinner').classList.remove('active');
+            document.getElementById('sendIcon').style.display = '';
+            document.getElementById('sendBtnText').textContent = 'Retry';
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Network error. The message may or may not have been sent.');
+        btn.disabled = false;
+        document.getElementById('sendingSpinner').classList.remove('active');
+        document.getElementById('sendIcon').style.display = '';
+        document.getElementById('sendBtnText').textContent = 'Retry';
     });
 }
 
