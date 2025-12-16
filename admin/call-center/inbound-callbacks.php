@@ -6,65 +6,30 @@
 
 declare(strict_types=1);
 
-// #region agent log
-$_debug_log = function($loc, $msg, $data, $hyp) { $f = fopen('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', 'a'); fwrite($f, json_encode(['location'=>$loc,'message'=>$msg,'data'=>$data,'hypothesisId'=>$hyp,'timestamp'=>time()])."\n"); fclose($f); };
-$_debug_log('inbound-callbacks.php:10', 'Script started', [], 'A');
-// #endregion
+// Enable error reporting for debugging
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
 
 try {
     require_once __DIR__ . '/../../shared/auth.php';
-    // #region agent log
-    $_debug_log('inbound-callbacks.php:15', 'auth.php loaded', [], 'A');
-    // #endregion
-} catch (Throwable $e) {
-    // #region agent log
-    $_debug_log('inbound-callbacks.php:19', 'auth.php FAILED', ['error'=>$e->getMessage()], 'A');
-    // #endregion
-    die('Auth load error');
-}
-
-try {
     require_once __DIR__ . '/../../config/db.php';
-    // #region agent log
-    $_debug_log('inbound-callbacks.php:27', 'db.php loaded', [], 'C');
-    // #endregion
-} catch (Throwable $e) {
-    // #region agent log
-    $_debug_log('inbound-callbacks.php:31', 'db.php FAILED', ['error'=>$e->getMessage()], 'C');
-    // #endregion
-    die('DB load error');
-}
-
-require_login();
-// #region agent log
-$_debug_log('inbound-callbacks.php:38', 'require_login passed', [], 'E');
-// #endregion
-
-// #region agent log
-$_debug_log('inbound-callbacks.php:42', 'Checking if require_admin exists', ['exists'=>function_exists('require_admin')], 'A');
-// #endregion
-
-if (function_exists('require_admin')) {
+    
+    require_login();
     require_admin();
-    // #region agent log
-    $_debug_log('inbound-callbacks.php:48', 'require_admin passed', [], 'A');
-    // #endregion
-} else {
-    // #region agent log
-    $_debug_log('inbound-callbacks.php:52', 'require_admin does NOT exist - skipping', [], 'A');
-    // #endregion
+    
+    $db = db();
+    
+    if (!$db) {
+        throw new Exception('Database connection failed');
+    }
+} catch (Throwable $e) {
+    error_log('Inbound Callbacks Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    http_response_code(500);
+    die('An error occurred. Please check the error logs.');
 }
 
-$db = db();
-// #region agent log
-$_debug_log('inbound-callbacks.php:57', 'db() called', ['db_ok'=>($db !== null)], 'C');
-// #endregion
-
-$user_id = (int)$_SESSION['user']['id'];
+$user_id = (int)($_SESSION['user']['id'] ?? 0);
 $user_name = $_SESSION['user']['name'] ?? 'Agent';
-// #region agent log
-$_debug_log('inbound-callbacks.php:63', 'Session vars set', ['user_id'=>$user_id], 'E');
-// #endregion
 
 // Handle follow-up action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -112,45 +77,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 // Check if table exists, create if not
-// #region agent log
-$_debug_log('inbound-callbacks.php:68', 'About to check table exists', [], 'B');
-// #endregion
-$tableCheck = $db->query("SHOW TABLES LIKE 'twilio_inbound_calls'");
-// #region agent log
-$_debug_log('inbound-callbacks.php:73', 'Table check query result', ['tableCheck'=>($tableCheck !== false)], 'B');
-// #endregion
-$tableExists = $tableCheck ? $tableCheck->num_rows > 0 : false;
-
-if (!$tableExists) {
-    $db->query("
-        CREATE TABLE `twilio_inbound_calls` (
-            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            `call_sid` VARCHAR(100) NOT NULL,
-            `caller_phone` VARCHAR(20) NOT NULL,
-            `donor_id` INT NULL,
-            `donor_name` VARCHAR(255) NULL,
-            `is_donor` TINYINT(1) DEFAULT 0,
-            `menu_selection` VARCHAR(50) NULL,
-            `payment_method` VARCHAR(20) NULL,
-            `payment_amount` DECIMAL(10,2) NULL,
-            `payment_status` ENUM('none','pending','confirmed','failed') DEFAULT 'none',
-            `call_duration` INT NULL COMMENT 'Duration in seconds',
-            `call_status` VARCHAR(50) NULL,
-            `whatsapp_sent` TINYINT(1) DEFAULT 0,
-            `sms_sent` TINYINT(1) DEFAULT 0,
-            `agent_followed_up` TINYINT(1) DEFAULT 0,
-            `followed_up_by` INT NULL,
-            `followed_up_at` DATETIME NULL,
-            `notes` TEXT NULL,
-            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-            INDEX `idx_caller_phone` (`caller_phone`),
-            INDEX `idx_donor_id` (`donor_id`),
-            INDEX `idx_payment_status` (`payment_status`),
-            INDEX `idx_created_at` (`created_at`),
-            INDEX `idx_agent_followed_up` (`agent_followed_up`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    $tableExists = true;
+$tableExists = false;
+try {
+    $tableCheck = $db->query("SHOW TABLES LIKE 'twilio_inbound_calls'");
+    $tableExists = $tableCheck && $tableCheck->num_rows > 0;
+    
+    if (!$tableExists) {
+        $db->query("
+            CREATE TABLE IF NOT EXISTS `twilio_inbound_calls` (
+                `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `call_sid` VARCHAR(100) NOT NULL,
+                `caller_phone` VARCHAR(20) NOT NULL,
+                `donor_id` INT NULL,
+                `donor_name` VARCHAR(255) NULL,
+                `is_donor` TINYINT(1) DEFAULT 0,
+                `menu_selection` VARCHAR(50) NULL,
+                `payment_method` VARCHAR(20) NULL,
+                `payment_amount` DECIMAL(10,2) NULL,
+                `payment_status` ENUM('none','pending','confirmed','failed') DEFAULT 'none',
+                `call_duration` INT NULL COMMENT 'Duration in seconds',
+                `call_status` VARCHAR(50) NULL,
+                `whatsapp_sent` TINYINT(1) DEFAULT 0,
+                `sms_sent` TINYINT(1) DEFAULT 0,
+                `agent_followed_up` TINYINT(1) DEFAULT 0,
+                `followed_up_by` INT NULL,
+                `followed_up_at` DATETIME NULL,
+                `notes` TEXT NULL,
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX `idx_caller_phone` (`caller_phone`),
+                INDEX `idx_donor_id` (`donor_id`),
+                INDEX `idx_payment_status` (`payment_status`),
+                INDEX `idx_created_at` (`created_at`),
+                INDEX `idx_agent_followed_up` (`agent_followed_up`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $tableExists = true;
+    }
+} catch (Throwable $e) {
+    error_log('Table check/create error: ' . $e->getMessage());
+    // Continue with tableExists = false, page will show empty state
 }
 
 $callbacks = [];
@@ -184,7 +149,10 @@ if ($tableExists) {
         FROM twilio_inbound_calls
     ");
     if ($statsQuery) {
-        $stats = $statsQuery->fetch_assoc();
+        $fetchedStats = $statsQuery->fetch_assoc();
+        if ($fetchedStats) {
+            $stats = array_map(function($v) { return $v ?? 0; }, $fetchedStats);
+        }
     }
     
     // Build WHERE clause
