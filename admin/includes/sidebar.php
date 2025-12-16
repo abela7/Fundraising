@@ -79,6 +79,13 @@ if ($user_role === 'registrar') {
         </span>
         <span class="nav-label">Approve Payments</span>
       </a>
+      <a href="<?php echo url_for('admin/agent-reports/daily-payments.php'); ?>" 
+         class="nav-link <?php echo $current_dir === 'agent-reports' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-clipboard-list"></i>
+        </span>
+        <span class="nav-label">My Daily Report</span>
+      </a>
     </div>
     
     <div class="nav-section">
@@ -270,6 +277,13 @@ try {
           <i class="fas fa-hand-holding-usd"></i>
         </span>
         <span class="nav-label">Record Payment</span>
+      </a>
+      <a href="<?php echo url_for('admin/agent-reports/daily-payments.php'); ?>" 
+         class="nav-link <?php echo $current_dir === 'agent-reports' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-clipboard-list"></i>
+        </span>
+        <span class="nav-label">My Daily Report</span>
       </a>
       <a href="<?php echo url_for('admin/reports/'); ?>" 
          class="nav-link <?php echo $current_dir === 'reports' ? 'active' : ''; ?>">

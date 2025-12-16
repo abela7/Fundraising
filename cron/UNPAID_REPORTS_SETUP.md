@@ -2,7 +2,12 @@
 
 ## Overview
 
-This cron job runs at **22:00 daily** and sends WhatsApp reports to agents about their assigned donors who had payments due TODAY but did not pay.
+This system tracks unpaid payments and notifies agents at **22:00 daily** via a SHORT WhatsApp message with a link to view the full report on a dedicated mobile-friendly page.
+
+### Components
+1. **Daily Report Page**: `admin/agent-reports/daily-payments.php` - Mobile-friendly page showing paid vs missed payments
+2. **Cron Job**: `cron/send-unpaid-reports.php` - Sends short WhatsApp alerts with link to report page
+3. **Tracking Table**: `unpaid_reports_sent` - Prevents duplicate notifications
 
 ## How It Works
 
@@ -16,38 +21,37 @@ This cron job runs at **22:00 daily** and sends WhatsApp reports to agents about
 5. **Tracks sent reports** to prevent duplicate notifications
 6. Sends **admin summary** to your WhatsApp
 
-## Agent Report Example
+## Agent WhatsApp Notification (Short)
 
 ```
-⚠️ *Unpaid Payment Report*
+⚠️ *Unpaid Payment Alert*
 
-📅 *Date:* Monday, 15 December 2025
-👤 *Agent:* John Smith
+Hi John,
 
-━━━━━━━━━━━━━━━━━━
-📊 *Summary:*
-→ Unpaid Donors: 3
-→ Total Amount: £150.00
-━━━━━━━━━━━━━━━━━━
+*3 donor(s)* missed their payment today.
+💰 Total: *£150.00*
 
-*Donor List:*
+→ Mary Johnson
+→ David Williams
+→ Sarah Brown
 
-1. *Mary Johnson*
-   → Amount Due: £50.00
-   → Phone: 07123456789
-
-2. *David Williams*
-   → Amount Due: £50.00
-   → Phone: 07987654321
-
-3. *Sarah Brown*
-   → Amount Due: £50.00
-   → Phone: 07555123456
-
-━━━━━━━━━━━━━━━━━━
-Please follow up with these donors.
-🔗 View in system: https://donate.abuneteklehaymanot.org/admin/donor-management/payment-calendar.php
+📱 *View full report:*
+https://donate.abuneteklehaymanot.org/admin/agent-reports/daily-payments.php?date=2025-12-15
 ```
+
+## Daily Report Page Features
+
+The full report page (`admin/agent-reports/daily-payments.php`) provides:
+
+- ✅ **Summary Stats**: Total due, paid count, missed count, completion percentage
+- ✅ **Progress Bar**: Visual collection progress
+- ✅ **Paid Donors List**: Green cards showing who paid
+- ✅ **Missed Donors List**: Red cards showing who missed
+- ✅ **Clickable Donor Names**: Tap to view donor profile
+- ✅ **Quick Call Button**: Tap to call missed payment donors
+- ✅ **Date Navigation**: Swipe between days, jump to any date
+- ✅ **Admin View All**: Admins can see all agents' reports
+- ✅ **Fully Mobile Responsive**: Designed for phone use
 
 ## Setup Steps
 
