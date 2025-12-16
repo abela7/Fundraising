@@ -23,13 +23,35 @@ try {
         throw new Exception('Database connection failed');
     }
 } catch (Throwable $e) {
-    error_log('Inbound Callbacks Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    $msg = 'Inbound Callbacks Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
+    error_log($msg);
+    // Also log to project file so we can see production errors without server access
+    @file_put_contents(__DIR__ . '/../../logs/inbound-callbacks-error.log', '[' . date('c') . '] ' . $msg . PHP_EOL, FILE_APPEND);
     http_response_code(500);
+    if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+        die('<pre style="white-space:pre-wrap">Inbound Callbacks fatal init error: ' . htmlspecialchars($msg) . '</pre>');
+    }
     die('An error occurred. Please check the error logs.');
 }
 
 $user_id = (int)($_SESSION['user']['id'] ?? 0);
 $user_name = $_SESSION['user']['name'] ?? 'Agent';
+
+/**
+ * mysqli_stmt::bind_param requires variables passed by reference.
+ * This helper safely binds a dynamic list of params.
+ */
+function bind_params(mysqli_stmt $stmt, string $types, array $params): void
+{
+    $refs = [];
+    $refs[] = &$types;
+    foreach ($params as $k => $v) {
+        $refs[] = &$params[$k];
+    }
+    if (!@call_user_func_array([$stmt, 'bind_param'], $refs)) {
+        throw new RuntimeException('Failed to bind query parameters');
+    }
+}
 
 // Handle follow-up action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -46,6 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     notes = ?
                 WHERE id = ?
             ");
+            if (!$stmt) {
+                throw new RuntimeException('DB prepare failed: ' . ($db->error ?? 'unknown'));
+            }
             $stmt->bind_param('isi', $user_id, $notes, $callback_id);
             $stmt->execute();
             $stmt->close();
@@ -66,6 +91,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     followed_up_at = NULL
                 WHERE id = ?
             ");
+            if (!$stmt) {
+                throw new RuntimeException('DB prepare failed: ' . ($db->error ?? 'unknown'));
+            }
             $stmt->bind_param('i', $callback_id);
             $stmt->execute();
             $stmt->close();
@@ -213,7 +241,10 @@ if ($tableExists) {
     
     if (!empty($params)) {
         $stmt = $db->prepare($query);
-        $stmt->bind_param($types, ...$params);
+        if (!$stmt) {
+            throw new RuntimeException('DB prepare failed: ' . ($db->error ?? 'unknown'));
+        }
+        bind_params($stmt, $types, $params);
         $stmt->execute();
         $result = $stmt->get_result();
     } else {
