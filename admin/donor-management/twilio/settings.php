@@ -566,6 +566,20 @@ if ($db) {
                         <h6 class="mt-4 mb-3">Configure these URLs in your service console:</h6>
                         
                         <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-phone-volume text-warning me-1"></i>Inbound Call Webhook URL
+                                <span class="badge bg-warning text-dark ms-2">Required for Inbound Calls</span>
+                            </label>
+                            <div class="webhook-url position-relative">
+                                <button type="button" class="btn btn-sm btn-light copy-btn" onclick="copyToClipboard('inboundUrl')">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <span id="inboundUrl">https://donate.abuneteklehaymanot.org/admin/call-center/api/twilio-inbound-call.php</span>
+                            </div>
+                            <small class="text-muted">Configure this as the "Voice Configuration" webhook in your Twilio phone number settings (A Call Comes In → Webhook)</small>
+                        </div>
+                        
+                        <div class="mb-3">
                             <label class="form-label fw-semibold">Status Callback URL</label>
                             <div class="webhook-url position-relative">
                                 <button type="button" class="btn btn-sm btn-light copy-btn" onclick="copyToClipboard('statusUrl')">

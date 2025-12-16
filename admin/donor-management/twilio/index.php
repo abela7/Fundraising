@@ -82,6 +82,16 @@ $stmt->close();
 $settings_query = "SELECT * FROM twilio_settings WHERE is_active = 1 LIMIT 1";
 $settings = $db->query($settings_query)->fetch_assoc();
 
+// Get pending inbound callbacks count
+$pending_callbacks = 0;
+$inbound_table_check = $db->query("SHOW TABLES LIKE 'twilio_inbound_calls'");
+if ($inbound_table_check && $inbound_table_check->num_rows > 0) {
+    $pending_result = $db->query("SELECT COUNT(*) as cnt FROM twilio_inbound_calls WHERE agent_followed_up = 0");
+    if ($pending_result) {
+        $pending_callbacks = (int)$pending_result->fetch_assoc()['cnt'];
+    }
+}
+
 // Format total duration
 $hours = floor($stats['total_duration'] / 3600);
 $minutes = floor(($stats['total_duration'] % 3600) / 60);
@@ -347,6 +357,11 @@ $formatted_duration = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                             </div>
                             <h6 class="mb-1">Inbound Callbacks</h6>
                             <small class="text-muted">Donors who called back</small>
+                            <?php if ($pending_callbacks > 0): ?>
+                                <div class="mt-2">
+                                    <span class="badge bg-warning text-dark"><?php echo $pending_callbacks; ?> pending</span>
+                                </div>
+                            <?php endif; ?>
                         </a>
                     </div>
                 </div>
