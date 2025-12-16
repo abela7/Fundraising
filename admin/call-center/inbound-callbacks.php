@@ -6,15 +6,65 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../shared/auth.php';
-require_once __DIR__ . '/../../config/db.php';
+// #region agent log
+$_debug_log = function($loc, $msg, $data, $hyp) { $f = fopen('c:\\xampp\\htdocs\\Fundraising\\.cursor\\debug.log', 'a'); fwrite($f, json_encode(['location'=>$loc,'message'=>$msg,'data'=>$data,'hypothesisId'=>$hyp,'timestamp'=>time()])."\n"); fclose($f); };
+$_debug_log('inbound-callbacks.php:10', 'Script started', [], 'A');
+// #endregion
+
+try {
+    require_once __DIR__ . '/../../shared/auth.php';
+    // #region agent log
+    $_debug_log('inbound-callbacks.php:15', 'auth.php loaded', [], 'A');
+    // #endregion
+} catch (Throwable $e) {
+    // #region agent log
+    $_debug_log('inbound-callbacks.php:19', 'auth.php FAILED', ['error'=>$e->getMessage()], 'A');
+    // #endregion
+    die('Auth load error');
+}
+
+try {
+    require_once __DIR__ . '/../../config/db.php';
+    // #region agent log
+    $_debug_log('inbound-callbacks.php:27', 'db.php loaded', [], 'C');
+    // #endregion
+} catch (Throwable $e) {
+    // #region agent log
+    $_debug_log('inbound-callbacks.php:31', 'db.php FAILED', ['error'=>$e->getMessage()], 'C');
+    // #endregion
+    die('DB load error');
+}
 
 require_login();
-require_admin();
+// #region agent log
+$_debug_log('inbound-callbacks.php:38', 'require_login passed', [], 'E');
+// #endregion
+
+// #region agent log
+$_debug_log('inbound-callbacks.php:42', 'Checking if require_admin exists', ['exists'=>function_exists('require_admin')], 'A');
+// #endregion
+
+if (function_exists('require_admin')) {
+    require_admin();
+    // #region agent log
+    $_debug_log('inbound-callbacks.php:48', 'require_admin passed', [], 'A');
+    // #endregion
+} else {
+    // #region agent log
+    $_debug_log('inbound-callbacks.php:52', 'require_admin does NOT exist - skipping', [], 'A');
+    // #endregion
+}
 
 $db = db();
+// #region agent log
+$_debug_log('inbound-callbacks.php:57', 'db() called', ['db_ok'=>($db !== null)], 'C');
+// #endregion
+
 $user_id = (int)$_SESSION['user']['id'];
 $user_name = $_SESSION['user']['name'] ?? 'Agent';
+// #region agent log
+$_debug_log('inbound-callbacks.php:63', 'Session vars set', ['user_id'=>$user_id], 'E');
+// #endregion
 
 // Handle follow-up action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -62,7 +112,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 // Check if table exists, create if not
-$tableExists = $db->query("SHOW TABLES LIKE 'twilio_inbound_calls'")->num_rows > 0;
+// #region agent log
+$_debug_log('inbound-callbacks.php:68', 'About to check table exists', [], 'B');
+// #endregion
+$tableCheck = $db->query("SHOW TABLES LIKE 'twilio_inbound_calls'");
+// #region agent log
+$_debug_log('inbound-callbacks.php:73', 'Table check query result', ['tableCheck'=>($tableCheck !== false)], 'B');
+// #endregion
+$tableExists = $tableCheck ? $tableCheck->num_rows > 0 : false;
 
 if (!$tableExists) {
     $db->query("
