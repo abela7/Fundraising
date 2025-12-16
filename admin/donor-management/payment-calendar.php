@@ -550,14 +550,18 @@ if ($has_past_dates) {
             pp.status as plan_status,
             pp.payments_made,
             pp.total_payments,
+            pp.plan_frequency_unit,
+            pp.plan_frequency_number,
             d.name as donor_name,
             d.phone as donor_phone,
             d.payment_status as donor_status,
             d.preferred_language,
             d.agent_id,
+            pl.notes as pledge_notes,
             DATEDIFF(CURDATE(), pp.next_payment_due) as days_overdue
         FROM donor_payment_plans pp
         JOIN donors d ON pp.donor_id = d.id
+        LEFT JOIN pledges pl ON pp.pledge_id = pl.id
         WHERE pp.next_payment_due BETWEEN ? AND ?
         AND pp.status = 'active'
     ";
@@ -1266,6 +1270,55 @@ if ($view === 'week') {
             color: #6b7280;
         }
         
+        /* Overdue Item Wrapper */
+        .overdue-item-wrapper {
+            margin-bottom: 10px;
+        }
+        .overdue-item-wrapper:last-child {
+            margin-bottom: 0;
+        }
+        .overdue-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: #fef2f2;
+            border-radius: 10px;
+            border-left: 4px solid #ef4444;
+            transition: all 0.2s;
+        }
+        .overdue-item:hover {
+            background: #fee2e2;
+        }
+        .overdue-item .donor-info {
+            flex: 1;
+            min-width: 0;
+            color: inherit;
+        }
+        .overdue-item .donor-info:hover {
+            color: inherit;
+        }
+        
+        /* Missed Reminder Button */
+        .missed-remind-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+        .missed-remind-btn.btn-danger {
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        }
+        
         /* Overdue Section Mobile */
         @media (max-width: 576px) {
             .overdue-header {
@@ -1278,13 +1331,15 @@ if ($view === 'week') {
                 justify-content: space-between;
             }
             .overdue-item {
-                flex-direction: column;
-                align-items: flex-start;
+                flex-wrap: wrap;
                 gap: 8px;
             }
-            .overdue-item .amount {
-                margin-left: 0;
-                align-self: flex-end;
+            .overdue-item .donor-info {
+                width: 100%;
+            }
+            .overdue-item > div:last-child {
+                width: 100%;
+                justify-content: flex-end;
             }
         }
 
@@ -1778,34 +1833,87 @@ if ($view === 'week') {
                                 </p>
                             </div>
                         <?php else: ?>
-                            <?php foreach ($overdue_payments as $overdue): ?>
-                                <a href="view-donor.php?id=<?php echo (int)$overdue['donor_id']; ?>" class="overdue-item">
-                                    <div class="donor-info">
-                                        <div class="donor-name"><?php echo htmlspecialchars($overdue['donor_name']); ?></div>
-                                        <div class="overdue-details">
-                                            <span>
-                                                <i class="fas fa-calendar-times"></i>
-                                                Due: <?php echo date('j M', strtotime($overdue['next_payment_due'])); ?>
-                                            </span>
-                                            <span>
-                                                <i class="fas fa-<?php echo $overdue['payment_method'] === 'cash' ? 'money-bill' : ($overdue['payment_method'] === 'card' ? 'credit-card' : 'university'); ?>"></i>
-                                                <?php echo ucwords(str_replace('_', ' ', $overdue['payment_method'])); ?>
-                                            </span>
-                                            <?php if ($overdue['donor_phone']): ?>
-                                            <span>
-                                                <i class="fas fa-phone"></i>
-                                                <?php echo htmlspecialchars($overdue['donor_phone']); ?>
-                                            </span>
+                            <?php foreach ($overdue_payments as $overdue): 
+                                // Calculate next payment date based on frequency
+                                $missedDate = $overdue['next_payment_due'];
+                                $freqUnit = $overdue['plan_frequency_unit'] ?? 'month';
+                                $freqNum = (int)($overdue['plan_frequency_number'] ?? 1);
+                                
+                                if ($freqUnit === 'week') {
+                                    $nextPaymentDate = date('Y-m-d', strtotime($missedDate . " +{$freqNum} weeks"));
+                                } elseif ($freqUnit === 'year') {
+                                    $nextPaymentDate = date('Y-m-d', strtotime($missedDate . " +{$freqNum} years"));
+                                } else {
+                                    $nextPaymentDate = date('Y-m-d', strtotime($missedDate . " +{$freqNum} months"));
+                                }
+                                
+                                // Format dates for display
+                                $missedDateFormatted = date('l, j F Y', strtotime($missedDate));
+                                $nextPaymentDateFormatted = date('l, j F Y', strtotime($nextPaymentDate));
+                                
+                                // Check if reminder was already sent for this missed payment
+                                $missedReminderSent = wasReminderSentToday($db, (int)$overdue['donor_id'], $missedDate);
+                                
+                                // Build data for JavaScript
+                                $overdueData = [
+                                    'donor_id' => (int)$overdue['donor_id'],
+                                    'donor_name' => $overdue['donor_name'],
+                                    'donor_phone' => $overdue['donor_phone'] ?? '',
+                                    'amount' => (float)$overdue['monthly_amount'],
+                                    'missed_date' => $missedDate,
+                                    'missed_date_formatted' => $missedDateFormatted,
+                                    'next_payment_date' => $nextPaymentDate,
+                                    'next_payment_date_formatted' => $nextPaymentDateFormatted,
+                                    'payment_method' => $overdue['payment_method'] ?? 'bank_transfer',
+                                    'days_overdue' => (int)$overdue['days_overdue'],
+                                    'plan_id' => (int)$overdue['plan_id'],
+                                    'preferred_language' => $overdue['preferred_language'] ?? 'en',
+                                    'reminder_sent' => $missedReminderSent ? true : false,
+                                    'reminder_sent_at' => $missedReminderSent['sent_at'] ?? null,
+                                    'reminder_channel' => $missedReminderSent['channel'] ?? null
+                                ];
+                                
+                                // Only show reminder button if 3+ days overdue
+                                $canSendReminder = (int)$overdue['days_overdue'] >= 3;
+                            ?>
+                                <div class="overdue-item-wrapper">
+                                    <div class="overdue-item">
+                                        <a href="view-donor.php?id=<?php echo (int)$overdue['donor_id']; ?>" class="donor-info text-decoration-none">
+                                            <div class="donor-name"><?php echo htmlspecialchars($overdue['donor_name']); ?></div>
+                                            <div class="overdue-details">
+                                                <span>
+                                                    <i class="fas fa-calendar-times"></i>
+                                                    Due: <?php echo date('j M', strtotime($overdue['next_payment_due'])); ?>
+                                                </span>
+                                                <span>
+                                                    <i class="fas fa-<?php echo $overdue['payment_method'] === 'cash' ? 'money-bill' : ($overdue['payment_method'] === 'card' ? 'credit-card' : 'university'); ?>"></i>
+                                                    <?php echo ucwords(str_replace('_', ' ', $overdue['payment_method'])); ?>
+                                                </span>
+                                            </div>
+                                        </a>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <?php if ($canSendReminder): ?>
+                                                <?php if ($missedReminderSent): ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-success missed-remind-btn" 
+                                                            onclick="event.stopPropagation(); openMissedReminderModal(<?php echo htmlspecialchars(json_encode($overdueData), ENT_QUOTES); ?>)"
+                                                            title="Reminder sent at <?php echo date('H:i', strtotime($missedReminderSent['sent_at'])); ?>">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-sm btn-danger missed-remind-btn" 
+                                                            onclick="event.stopPropagation(); openMissedReminderModal(<?php echo htmlspecialchars(json_encode($overdueData), ENT_QUOTES); ?>)"
+                                                            title="Send missed payment reminder">
+                                                        <i class="fas fa-bell"></i>
+                                                    </button>
+                                                <?php endif; ?>
                                             <?php endif; ?>
+                                            <span class="days-badge">
+                                                <?php echo (int)$overdue['days_overdue']; ?>d
+                                            </span>
+                                            <span class="amount">£<?php echo number_format((float)$overdue['monthly_amount'], 2); ?></span>
                                         </div>
                                     </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="days-badge">
-                                            <?php echo (int)$overdue['days_overdue']; ?> day<?php echo (int)$overdue['days_overdue'] !== 1 ? 's' : ''; ?>
-                                        </span>
-                                        <span class="amount">£<?php echo number_format((float)$overdue['monthly_amount'], 2); ?></span>
-                                    </div>
-                                </a>
+                                </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
@@ -2011,6 +2119,26 @@ if (typeof window.toggleSidebar !== 'function') {
 
 let currentReminderData = null;
 let allPaymentsData = [];
+let isMissedReminder = false; // Flag to track if it's a missed payment reminder
+
+// Missed payment reminder templates (from database or fallback)
+<?php
+// Fetch missed payment reminder template
+$missedTemplates = [
+    'en' => "Hi {name},\n\nWe noticed you missed your payment of {amount} that was due on {missed_date}.\n\nPlease make your payment as soon as possible to keep your payment plan on track.\n{payment_instructions}\n\nYour next payment of {amount} is due on {next_payment_date}.\n\nIf you have any questions, please contact us.\n\nGod bless you! 🙏\n- Liverpool Abune Teklehaymanot Church",
+    'am' => "Hi {name},\n\nWe noticed you missed your payment of {amount} that was due on {missed_date}.\n\nPlease make your payment as soon as possible.\n{payment_instructions}\n\nYour next payment of {amount} is due on {next_payment_date}.\n\nGod bless you! 🙏",
+    'ti' => "Hi {name},\n\nWe noticed you missed your payment of {amount} that was due on {missed_date}.\n\nPlease make your payment as soon as possible.\n{payment_instructions}\n\nYour next payment of {amount} is due on {next_payment_date}.\n\nGod bless you! 🙏"
+];
+
+$missedTemplateQuery = $db->query("SELECT message_en, message_am, message_ti FROM sms_templates WHERE template_key = 'missed_payment_reminder' AND is_active = 1 LIMIT 1");
+if ($missedTemplateQuery && $row = $missedTemplateQuery->fetch_assoc()) {
+    if (!empty($row['message_en'])) $missedTemplates['en'] = $row['message_en'];
+    if (!empty($row['message_am'])) $missedTemplates['am'] = $row['message_am'];
+    if (!empty($row['message_ti'])) $missedTemplates['ti'] = $row['message_ti'];
+}
+?>
+const missedPaymentTemplates = <?php echo json_encode($missedTemplates); ?>;
+const missedPaymentTemplate = missedPaymentTemplates.en; // Default to English
 
 // Store all payments for "Send All" functionality
 <?php if ($view === 'day' && isset($payments_by_date[$date_key]) && count($payments_by_date[$date_key]) > 0): ?>
@@ -2083,12 +2211,19 @@ allPaymentsData = <?php
 
 function openReminderModal(paymentData) {
     currentReminderData = paymentData;
+    isMissedReminder = false;
+    
+    // Reset modal title and header for regular reminder
+    document.querySelector('#reminderModal .modal-title').innerHTML = 
+        '<i class="fas fa-bell me-2"></i>Send Payment Reminder';
+    document.querySelector('#reminderModal .modal-header').style.background = 
+        'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
 
     // Populate modal
     document.getElementById('reminderDonorName').textContent = paymentData.donor_name;
     document.getElementById('reminderDonorPhone').textContent = paymentData.donor_phone || '-';
     document.getElementById('reminderAmount').textContent = paymentData.amount;
-    document.getElementById('reminderDueDate').textContent = 'Due: ' + paymentData.due_date_display;
+    document.getElementById('reminderDueDate').innerHTML = 'Due: ' + paymentData.due_date_display;
     document.getElementById('reminderDonorId').value = paymentData.donor_id;
     
     // Set message
@@ -2139,6 +2274,126 @@ function openReminderModal(paymentData) {
         sendBtn.classList.add('btn-warning');
         sendBtn.classList.remove('btn-outline-warning');
     }
+    
+    // Show modal
+    isMissedReminder = false;
+    new bootstrap.Modal(document.getElementById('reminderModal')).show();
+}
+
+/**
+ * Open modal for MISSED payment reminder
+ * This uses a different template focused on the missed payment
+ */
+function openMissedReminderModal(overdueData) {
+    isMissedReminder = true;
+    
+    // Build data similar to regular reminder
+    const firstName = overdueData.donor_name.split(' ')[0];
+    const amount = '£' + parseFloat(overdueData.amount).toFixed(2);
+    const paymentMethod = overdueData.payment_method || 'bank_transfer';
+    
+    // Build payment instructions
+    let paymentInstructions = '';
+    if (paymentMethod === 'cash') {
+        paymentInstructions = '\n\n*Cash Payment*\nPlease hand over the cash to your church representative.';
+    } else {
+        paymentInstructions = '\n\n*Bank Details:*\n→ Bank: LMKATH\n→ Account: 85455687\n→ Sort Code: 53-70-44\n→ Reference: ' + String(overdueData.donor_id).padStart(4, '0');
+    }
+    
+    // Select template based on donor's preferred language
+    const lang = (overdueData.preferred_language || 'en').toLowerCase();
+    const template = missedPaymentTemplates[lang] || missedPaymentTemplates.en;
+    
+    // Build message from template
+    let message = template
+        .replace(/{name}/g, firstName)
+        .replace(/{amount}/g, amount)
+        .replace(/{missed_date}/g, overdueData.missed_date_formatted)
+        .replace(/{next_payment_date}/g, overdueData.next_payment_date_formatted)
+        .replace(/{payment_instructions}/g, paymentInstructions);
+    
+    // Store as currentReminderData for send function
+    currentReminderData = {
+        donor_id: overdueData.donor_id,
+        plan_id: overdueData.plan_id,
+        donor_name: overdueData.donor_name,
+        donor_phone: overdueData.donor_phone,
+        amount: amount,
+        due_date: overdueData.missed_date, // Use missed date as the due_date for tracking
+        due_date_display: overdueData.missed_date_formatted,
+        payment_method: paymentMethod.replace('_', ' '),
+        message: message,
+        reminder_sent: overdueData.reminder_sent,
+        reminder_sent_at: overdueData.reminder_sent_at,
+        reminder_channel: overdueData.reminder_channel,
+        is_missed_reminder: true
+    };
+    
+    // Update modal title
+    document.querySelector('#reminderModal .modal-title').innerHTML = 
+        '<i class="fas fa-exclamation-circle me-2"></i>Missed Payment Reminder';
+    
+    // Populate modal
+    document.getElementById('reminderDonorName').textContent = overdueData.donor_name;
+    document.getElementById('reminderDonorPhone').textContent = overdueData.donor_phone || '-';
+    document.getElementById('reminderAmount').textContent = amount;
+    document.getElementById('reminderDueDate').innerHTML = 
+        '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Missed: ' + overdueData.missed_date_formatted + '</span>' +
+        '<br><small class="text-muted">(' + overdueData.days_overdue + ' days overdue)</small>';
+    document.getElementById('reminderDonorId').value = overdueData.donor_id;
+    
+    // Set message
+    document.getElementById('messagePreview').textContent = message;
+    document.getElementById('messageEdit').value = message;
+    updateCharCount();
+    
+    // Reset to preview mode
+    document.getElementById('previewSection').style.display = 'block';
+    document.getElementById('editSection').style.display = 'none';
+    
+    // Reset channel to WhatsApp
+    selectChannel('whatsapp');
+    
+    // Reset overlay
+    document.getElementById('sendingOverlay').style.display = 'none';
+    document.getElementById('sendReminderBtn').disabled = false;
+    
+    // Show/hide already sent warning
+    const warningEl = document.getElementById('alreadySentWarning');
+    const sendBtn = document.getElementById('sendReminderBtn');
+    
+    sendBtn.style.display = '';
+    
+    if (overdueData.reminder_sent) {
+        const sentTime = overdueData.reminder_sent_at ? 
+            new Date(overdueData.reminder_sent_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'earlier';
+        const channel = overdueData.reminder_channel ? overdueData.reminder_channel.toUpperCase() : 'WhatsApp';
+        warningEl.innerHTML = 
+            '<div class="d-flex justify-content-between align-items-start gap-2">' +
+                '<div>' +
+                    '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                    'Reminder already sent today at ' + sentTime + ' via ' + channel + '. ' +
+                    '<strong>Sending again may annoy the donor.</strong>' +
+                '</div>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" onclick="deleteReminderRecord()" title="Delete reminder record">' +
+                    '<i class="fas fa-trash-alt"></i>' +
+                '</button>' +
+            '</div>';
+        warningEl.style.display = 'block';
+        
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Again';
+        sendBtn.classList.remove('btn-warning');
+        sendBtn.classList.add('btn-outline-warning');
+    } else {
+        warningEl.style.display = 'none';
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Reminder';
+        sendBtn.classList.add('btn-warning');
+        sendBtn.classList.remove('btn-outline-warning');
+    }
+    
+    // Update modal header color to red for missed
+    document.querySelector('#reminderModal .modal-header').style.background = 
+        'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
     
     // Show modal
     new bootstrap.Modal(document.getElementById('reminderModal')).show();
