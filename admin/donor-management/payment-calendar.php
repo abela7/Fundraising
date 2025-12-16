@@ -507,6 +507,104 @@ while ($row = $result->fetch_assoc()) {
     $total_count++;
 }
 
+// Check if pledge_payments has payment_plan_id column
+$hasPlanIdCol = false;
+$checkCol = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'");
+if ($checkCol && $checkCol->num_rows > 0) {
+    $hasPlanIdCol = true;
+}
+
+/**
+ * Query for OVERDUE/MISSED payments
+ * - Payments where next_payment_due is in the past (before today)
+ * - No payment was made for that due date
+ * - Within the selected view range for context
+ */
+$overdue_payments = [];
+$overdue_total = 0;
+$overdue_count = 0;
+
+// For day view: show overdue up to 30 days back
+// For week view: show overdue within the week + 30 days back
+// For month view: show overdue within the month + previous month
+if ($view === 'day') {
+    $overdue_start = date('Y-m-d', strtotime('-30 days'));
+    $overdue_end = date('Y-m-d', strtotime('-1 day')); // Yesterday and before
+} elseif ($view === 'week') {
+    $overdue_start = date('Y-m-d', strtotime('-30 days'));
+    $overdue_end = date('Y-m-d', strtotime('-1 day'));
+} else {
+    // Month view - show all overdue from start of previous month
+    $overdue_start = date('Y-m-01', strtotime('-1 month'));
+    $overdue_end = date('Y-m-d', strtotime('-1 day'));
+}
+
+$overdueQuery = "
+    SELECT 
+        pp.id as plan_id,
+        pp.donor_id,
+        pp.pledge_id,
+        pp.monthly_amount,
+        pp.next_payment_due,
+        pp.payment_method,
+        pp.status as plan_status,
+        pp.payments_made,
+        pp.total_payments,
+        d.name as donor_name,
+        d.phone as donor_phone,
+        d.payment_status as donor_status,
+        d.preferred_language,
+        d.agent_id,
+        DATEDIFF(CURDATE(), pp.next_payment_due) as days_overdue
+    FROM donor_payment_plans pp
+    JOIN donors d ON pp.donor_id = d.id
+    WHERE pp.next_payment_due BETWEEN ? AND ?
+    AND pp.status = 'active'
+";
+
+// Check if payment was made - exclude those who paid
+if ($hasPlanIdCol) {
+    $overdueQuery .= "
+        AND NOT EXISTS (
+            SELECT 1 FROM pledge_payments pay 
+            WHERE pay.payment_plan_id = pp.id 
+            AND DATE(pay.payment_date) >= pp.next_payment_due
+            AND pay.status IN ('pending', 'approved')
+        )
+    ";
+} else {
+    $overdueQuery .= "
+        AND NOT EXISTS (
+            SELECT 1 FROM pledge_payments pay 
+            WHERE pay.donor_id = pp.donor_id 
+            AND DATE(pay.payment_date) >= pp.next_payment_due
+            AND pay.status IN ('pending', 'approved')
+        )
+    ";
+}
+
+// Agent filter
+if (!$isAdmin) {
+    $overdueQuery .= " AND d.agent_id = ?";
+}
+
+$overdueQuery .= " ORDER BY pp.next_payment_due DESC, d.name ASC LIMIT 50";
+
+$overdueStmt = $db->prepare($overdueQuery);
+if ($isAdmin) {
+    $overdueStmt->bind_param('ss', $overdue_start, $overdue_end);
+} else {
+    $overdueStmt->bind_param('ssi', $overdue_start, $overdue_end, $userId);
+}
+$overdueStmt->execute();
+$overdueResult = $overdueStmt->get_result();
+
+while ($row = $overdueResult->fetch_assoc()) {
+    $overdue_payments[] = $row;
+    $overdue_total += (float)$row['monthly_amount'];
+    $overdue_count++;
+}
+
 // Build calendar data for month view
 $calendar_weeks = [];
 if ($view === 'month') {
@@ -976,17 +1074,19 @@ if ($view === 'week') {
                 font-size: 0.8rem;
             }
             .stats-bar {
-                gap: 8px;
+                gap: 6px;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
             }
             .stat-item {
-                min-width: 80px;
-                padding: 12px 8px;
+                min-width: unset;
+                padding: 10px 6px;
             }
             .stat-value {
-                font-size: 1.2rem;
+                font-size: 1.1rem;
             }
             .stat-label {
-                font-size: 0.65rem;
+                font-size: 0.6rem;
             }
             .day-date {
                 font-size: 2rem;
@@ -1034,6 +1134,159 @@ if ($view === 'week') {
             font-weight: 500;
         }
         
+        /* Overdue Section */
+        .overdue-section {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            margin-top: 24px;
+            border-top: 4px solid #ef4444;
+        }
+        .overdue-header {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #fecaca;
+        }
+        .overdue-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #991b1b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .overdue-header .badge {
+            background: #ef4444;
+            color: white;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+        .overdue-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+        }
+        .overdue-stats .stat {
+            color: #991b1b;
+        }
+        .overdue-stats .stat strong {
+            font-weight: 700;
+        }
+        .overdue-body {
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .overdue-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: #fef2f2;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ef4444;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+        }
+        .overdue-item:hover {
+            background: #fee2e2;
+            transform: translateX(3px);
+            color: inherit;
+        }
+        .overdue-item:last-child {
+            margin-bottom: 0;
+        }
+        .overdue-item .donor-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .overdue-item .donor-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .overdue-item .overdue-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        .overdue-item .overdue-details span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .overdue-item .days-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .overdue-item .amount {
+            font-weight: 700;
+            color: #dc2626;
+            font-size: 1rem;
+            margin-left: 12px;
+            white-space: nowrap;
+        }
+        .overdue-empty {
+            text-align: center;
+            padding: 30px 20px;
+            color: #10b981;
+        }
+        .overdue-empty i {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            opacity: 0.6;
+        }
+        .overdue-empty h4 {
+            font-size: 1rem;
+            margin: 0 0 4px;
+            color: #059669;
+        }
+        .overdue-empty p {
+            font-size: 0.85rem;
+            margin: 0;
+            color: #6b7280;
+        }
+        
+        /* Overdue Section Mobile */
+        @media (max-width: 576px) {
+            .overdue-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .overdue-stats {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .overdue-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .overdue-item .amount {
+                margin-left: 0;
+                align-self: flex-end;
+            }
+        }
+
         /* Reminder Modal */
         .reminder-modal .modal-header {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
@@ -1239,8 +1492,12 @@ if ($view === 'week') {
                         <div class="stat-label">Total Due</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value"><?php echo count($payments_by_date); ?></div>
-                        <div class="stat-label">Days with Payments</div>
+                        <div class="stat-value" style="color: <?php echo $overdue_count > 0 ? '#ef4444' : 'var(--success-color)'; ?>;"><?php echo $overdue_count; ?></div>
+                        <div class="stat-label">Overdue</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: <?php echo $overdue_count > 0 ? '#ef4444' : 'var(--success-color)'; ?>;">£<?php echo number_format($overdue_total, 0); ?></div>
+                        <div class="stat-label">Unpaid</div>
                     </div>
                 </div>
                 
@@ -1461,6 +1718,77 @@ if ($view === 'week') {
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+                
+                <!-- Overdue Payments Section -->
+                <div class="overdue-section">
+                    <div class="overdue-header">
+                        <h3>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Overdue Payments
+                            <?php if ($overdue_count > 0): ?>
+                                <span class="badge"><?php echo $overdue_count; ?></span>
+                            <?php endif; ?>
+                        </h3>
+                        <?php if ($overdue_count > 0): ?>
+                        <div class="overdue-stats">
+                            <div class="stat">
+                                <i class="fas fa-users me-1"></i>
+                                <strong><?php echo $overdue_count; ?></strong> donors
+                            </div>
+                            <div class="stat">
+                                <i class="fas fa-pound-sign me-1"></i>
+                                <strong>£<?php echo number_format($overdue_total, 2); ?></strong> unpaid
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="overdue-body">
+                        <?php if (empty($overdue_payments)): ?>
+                            <div class="overdue-empty">
+                                <i class="fas fa-check-circle d-block"></i>
+                                <h4>All Caught Up!</h4>
+                                <p><?php echo $isAdmin ? 'No overdue payments found.' : 'None of your assigned donors have overdue payments.'; ?></p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($overdue_payments as $overdue): ?>
+                                <a href="view-donor.php?id=<?php echo (int)$overdue['donor_id']; ?>" class="overdue-item">
+                                    <div class="donor-info">
+                                        <div class="donor-name"><?php echo htmlspecialchars($overdue['donor_name']); ?></div>
+                                        <div class="overdue-details">
+                                            <span>
+                                                <i class="fas fa-calendar-times"></i>
+                                                Due: <?php echo date('j M Y', strtotime($overdue['next_payment_due'])); ?>
+                                            </span>
+                                            <span>
+                                                <i class="fas fa-<?php echo $overdue['payment_method'] === 'cash' ? 'money-bill' : ($overdue['payment_method'] === 'card' ? 'credit-card' : 'university'); ?>"></i>
+                                                <?php echo ucwords(str_replace('_', ' ', $overdue['payment_method'])); ?>
+                                            </span>
+                                            <?php if ($overdue['donor_phone']): ?>
+                                            <span>
+                                                <i class="fas fa-phone"></i>
+                                                <?php echo htmlspecialchars($overdue['donor_phone']); ?>
+                                            </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="days-badge">
+                                            <?php echo (int)$overdue['days_overdue']; ?> day<?php echo (int)$overdue['days_overdue'] !== 1 ? 's' : ''; ?> late
+                                        </span>
+                                        <span class="amount">£<?php echo number_format((float)$overdue['monthly_amount'], 2); ?></span>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                            
+                            <?php if ($overdue_count >= 50): ?>
+                            <div class="text-center text-muted small mt-3">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Showing first 50 overdue payments. View daily reports for complete list.
+                            </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
                 
                 <!-- Navigation Links -->
                 <div class="text-center mt-4 mb-4 d-flex flex-wrap justify-content-center gap-2">
