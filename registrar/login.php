@@ -103,6 +103,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn btn-primary btn-login w-100">
                         <i class="fas fa-sign-in-alt me-2"></i>Login
                     </button>
+                    
+                    <div class="text-center mt-3">
+                        <a href="forgot-password.php" class="text-decoration-none small">
+                            <i class="fas fa-key me-1"></i>Forgot Password?
+                        </a>
+                    </div>
                 </form>
 
                 <div class="auth-footer">
