@@ -142,30 +142,67 @@ try {
             exit;
         }
         
-        // Find verified reset code
+        // Debug: Log the incoming token
+        error_log("Reset password attempt - User ID: {$user['id']}, Token length: " . strlen($token));
+        
+        // Find verified reset code - use a simpler query first
         $stmt = $db->prepare("
-            SELECT id 
+            SELECT id, verified, verified_at 
             FROM password_reset_codes 
-            WHERE user_id = ? AND token = ? AND verified = 1 AND verified_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+            WHERE user_id = ? AND token = ?
             LIMIT 1
         ");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'error' => 'DB prepare failed: ' . $db->error]);
+            exit;
+        }
         $stmt->bind_param('is', $user['id'], $token);
         $stmt->execute();
         $resetCode = $stmt->get_result()->fetch_assoc();
         $stmt->close();
         
         if (!$resetCode) {
-            echo json_encode(['success' => false, 'error' => 'Invalid or expired session. Please start over.']);
+            error_log("Reset code not found for user {$user['id']} with token");
+            echo json_encode(['success' => false, 'error' => 'Session not found. Please start over.']);
+            exit;
+        }
+        
+        if (!$resetCode['verified']) {
+            echo json_encode(['success' => false, 'error' => 'Code not verified. Please verify your code first.']);
+            exit;
+        }
+        
+        // Check if verified within last 15 minutes
+        $verifiedAt = strtotime($resetCode['verified_at']);
+        $fifteenMinutesAgo = time() - (15 * 60);
+        if ($verifiedAt < $fifteenMinutesAgo) {
+            echo json_encode(['success' => false, 'error' => 'Session expired. Please start over.']);
             exit;
         }
         
         // Hash the new password
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         
+        // Check if updated_at column exists
+        $hasUpdatedAt = false;
+        $colCheck = $db->query("SHOW COLUMNS FROM users LIKE 'updated_at'");
+        if ($colCheck && $colCheck->num_rows > 0) {
+            $hasUpdatedAt = true;
+        }
+        
         // Update user password
-        $stmt = $db->prepare("UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?");
+        if ($hasUpdatedAt) {
+            $stmt = $db->prepare("UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?");
+        } else {
+            $stmt = $db->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+        }
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'error' => 'DB prepare failed for update: ' . $db->error]);
+            exit;
+        }
         $stmt->bind_param('si', $passwordHash, $user['id']);
         $success = $stmt->execute();
+        $updateError = $stmt->error;
         $stmt->close();
         
         if ($success) {
@@ -175,12 +212,15 @@ try {
             $stmt->execute();
             $stmt->close();
             
+            error_log("Password reset successful for user {$user['id']}");
+            
             echo json_encode([
                 'success' => true,
                 'message' => 'Password reset successfully'
             ]);
         } else {
-            echo json_encode(['success' => false, 'error' => 'Failed to update password']);
+            error_log("Password update failed for user {$user['id']}: " . $updateError);
+            echo json_encode(['success' => false, 'error' => 'Failed to update password: ' . $updateError]);
         }
         
     } else {
@@ -188,7 +228,7 @@ try {
     }
     
 } catch (Exception $e) {
-    error_log("Password reset verification error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'An error occurred. Please try again.']);
+    error_log("Password reset verification error: " . $e->getMessage() . " | Trace: " . $e->getTraceAsString());
+    echo json_encode(['success' => false, 'error' => 'An error occurred: ' . $e->getMessage()]);
 }
 

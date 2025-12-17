@@ -639,6 +639,8 @@ $page_title = 'Reset Password';
             setLoading('setPasswordBtn', true);
             
             try {
+                console.log('Sending reset request with token:', resetToken ? resetToken.substring(0, 10) + '...' : 'EMPTY');
+                
                 const response = await fetch('api/verify-reset-code.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -651,6 +653,7 @@ $page_title = 'Reset Password';
                 });
                 
                 const result = await response.json();
+                console.log('Reset response:', result);
                 
                 if (result.success) {
                     goToStep(4);
@@ -658,7 +661,8 @@ $page_title = 'Reset Password';
                     showAlert('danger', result.error || 'Failed to reset password');
                 }
             } catch (err) {
-                showAlert('danger', 'Connection error');
+                console.error('Reset error:', err);
+                showAlert('danger', 'Connection error: ' + err.message);
             }
             
             setLoading('setPasswordBtn', false);
