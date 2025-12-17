@@ -59,16 +59,38 @@ if ($is_messages) { $current_page = 'messages'; }
             </div>
         </div>
         
+        <!-- Call Center Section -->
+        <div class="nav-section">
+            <div class="nav-section-title">Call Center</div>
+            <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('admin/call-center/')); ?>" class="nav-link">
+                    <i class="fas fa-headset"></i>
+                    <span class="nav-link-text">Call Center</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('admin/call-center/my-schedule.php')); ?>" class="nav-link">
+                    <i class="fas fa-calendar-check"></i>
+                    <span class="nav-link-text">My Schedule</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('admin/donations/record-pledge-payment.php')); ?>" class="nav-link">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span class="nav-link-text">Record Payment</span>
+                </a>
+            </div>
+        </div>
+        
         <!-- Quick Links -->
-			<div class="nav-section">
+        <div class="nav-section">
             <div class="nav-section-title">Quick Links</div>
-			<div class="nav-item">
-				<a href="<?php echo htmlspecialchars(url_for('public/projector/')); ?>" target="_blank" class="nav-link">
+            <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('public/projector/')); ?>" target="_blank" class="nav-link">
                     <i class="fas fa-tv"></i>
                     <span class="nav-link-text">Projector View</span>
                 </a>
             </div>
-            
         </div>
     </nav>
 </aside>
