@@ -58,6 +58,13 @@ if ($user_role === 'registrar') {
         </span>
         <span class="nav-label">Call History</span>
       </a>
+      <a href="<?php echo url_for('admin/messaging/whatsapp/inbox.php'); ?>" 
+         class="nav-link <?php echo strpos($_SERVER['PHP_SELF'], '/messaging/whatsapp/') !== false ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+        </span>
+        <span class="nav-label">WhatsApp Chat</span>
+      </a>
       <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" 
          class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'record-pledge-payment') ? 'active' : ''; ?>">
         <span class="nav-icon">

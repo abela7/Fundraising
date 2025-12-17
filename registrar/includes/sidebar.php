@@ -75,6 +75,12 @@ if ($is_messages) { $current_page = 'messages'; }
                 </a>
             </div>
             <div class="nav-item">
+                <a href="<?php echo htmlspecialchars(url_for('admin/messaging/whatsapp/inbox.php')); ?>" class="nav-link">
+                    <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+                    <span class="nav-link-text">WhatsApp Chat</span>
+                </a>
+            </div>
+            <div class="nav-item">
                 <a href="<?php echo htmlspecialchars(url_for('admin/donations/record-pledge-payment.php')); ?>" class="nav-link">
                     <i class="fas fa-hand-holding-usd"></i>
                     <span class="nav-link-text">Record Payment</span>
