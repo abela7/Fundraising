@@ -486,6 +486,60 @@ $categoryColors = [
             color: #475569;
             margin-top: 0.5rem;
         }
+        
+        .tts-preview {
+            background: #f8fafc;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            border-left: 3px solid #f59e0b;
+        }
+        
+        .recording-item .form-check-input {
+            width: 2.5rem;
+            height: 1.25rem;
+            cursor: pointer;
+        }
+        
+        .recording-item .form-check-input:checked {
+            background-color: var(--success);
+            border-color: var(--success);
+        }
+        
+        .recording-item .form-check-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        
+        .custom-toast {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .custom-toast.success {
+            border-left: 4px solid var(--success);
+        }
+        
+        .custom-toast.error {
+            border-left: 4px solid var(--danger);
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -545,37 +599,69 @@ $categoryColors = [
             </div>
             <div class="recording-list" id="list-<?php echo $category; ?>">
                 <?php foreach ($items as $recording): ?>
-                <div class="recording-item">
+                <div class="recording-item" id="recording-item-<?php echo $recording['id']; ?>">
                     <div class="recording-info">
                         <h4><?php echo htmlspecialchars($recording['title']); ?></h4>
                         <p><?php echo htmlspecialchars($recording['description']); ?></p>
-                        <div class="recording-status">
-                            <?php if ($recording['file_path'] && $recording['use_recording']): ?>
-                                <span class="status-badge status-recorded">
-                                    <i class="fas fa-microphone me-1"></i> Using Recording
-                                </span>
-                                <?php if ($recording['duration_seconds']): ?>
-                                <span class="text-muted">
-                                    <?php echo number_format($recording['duration_seconds'], 1); ?>s
-                                </span>
-                                <?php endif; ?>
-                            <?php else: ?>
-                                <span class="status-badge status-tts">
-                                    <i class="fas fa-robot me-1"></i> Using TTS
-                                </span>
+                        
+                        <!-- Status & Toggle -->
+                        <div class="recording-status d-flex align-items-center gap-3 flex-wrap">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" 
+                                       id="toggle-<?php echo $recording['id']; ?>" 
+                                       <?php echo ($recording['file_path'] && $recording['use_recording']) ? 'checked' : ''; ?>
+                                       <?php echo !$recording['file_path'] ? 'disabled' : ''; ?>
+                                       onchange="toggleUseRecording(<?php echo $recording['id']; ?>, this.checked)">
+                                <label class="form-check-label small" for="toggle-<?php echo $recording['id']; ?>">
+                                    <?php if ($recording['file_path'] && $recording['use_recording']): ?>
+                                        <span class="status-badge status-recorded">
+                                            <i class="fas fa-microphone me-1"></i> Using Recording
+                                        </span>
+                                    <?php elseif ($recording['file_path']): ?>
+                                        <span class="status-badge status-tts">
+                                            <i class="fas fa-robot me-1"></i> Using TTS (has recording)
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="status-badge status-tts">
+                                            <i class="fas fa-robot me-1"></i> Using TTS
+                                        </span>
+                                    <?php endif; ?>
+                                </label>
+                            </div>
+                            <?php if ($recording['file_path'] && $recording['duration_seconds']): ?>
+                            <span class="text-muted small">
+                                <i class="fas fa-clock me-1"></i><?php echo number_format($recording['duration_seconds'], 1); ?>s
+                            </span>
                             <?php endif; ?>
                         </div>
+                        
+                        <!-- TTS Fallback Text Preview -->
+                        <?php if ($recording['fallback_text']): ?>
+                        <div class="tts-preview mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-comment-alt me-1"></i>
+                                <em>"<?php echo htmlspecialchars(substr($recording['fallback_text'], 0, 100)); ?><?php echo strlen($recording['fallback_text']) > 100 ? '...' : ''; ?>"</em>
+                            </small>
+                        </div>
+                        <?php else: ?>
+                        <div class="tts-preview mt-2">
+                            <small class="text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <em>No TTS fallback text set</em>
+                            </small>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <div class="recording-actions">
                         <?php if ($recording['file_path']): ?>
-                        <button class="btn-action btn-play" onclick="playRecording(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars($recording['file_url']); ?>')" title="Play">
+                        <button class="btn-action btn-play" onclick="playRecording(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars($recording['file_url']); ?>')" title="Play Recording">
                             <i class="fas fa-play"></i>
                         </button>
                         <?php endif; ?>
-                        <button class="btn-action btn-record" onclick="openRecordModal(<?php echo htmlspecialchars(json_encode($recording)); ?>)" title="Record">
+                        <button class="btn-action btn-record" onclick="openRecordModal(<?php echo htmlspecialchars(json_encode($recording)); ?>)" title="Record New">
                             <i class="fas fa-microphone"></i>
                         </button>
-                        <button class="btn-action btn-edit" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($recording)); ?>)" title="Settings">
+                        <button class="btn-action btn-edit" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($recording)); ?>)" title="Edit Settings">
                             <i class="fas fa-cog"></i>
                         </button>
                     </div>
@@ -635,6 +721,14 @@ $categoryColors = [
                         </button>
                     </div>
                     
+                    <!-- Always visible save button for settings -->
+                    <div class="mt-3 text-center" id="saveSettingsBtn">
+                        <button class="btn btn-primary btn-lg" onclick="saveSettings()">
+                            <i class="fas fa-save me-2"></i> Save Settings
+                        </button>
+                        <p class="text-muted small mt-2">Saves the toggle and fallback text settings</p>
+                    </div>
+                    
                     <div class="upload-section mt-4 p-3 bg-light rounded">
                         <h6 class="mb-3"><i class="fas fa-upload me-2"></i> Or Upload MP3 File</h6>
                         <p class="text-muted small mb-2">For best quality, upload a pre-recorded MP3 file (recommended)</p>
@@ -653,6 +747,9 @@ $categoryColors = [
     
     <!-- Audio Player (hidden) -->
     <audio id="globalAudioPlayer" style="display: none;"></audio>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -716,10 +813,65 @@ $categoryColors = [
             new bootstrap.Modal(document.getElementById('recordModal')).show();
         }
         
-        // Toggle recording mode display
+        // Toggle recording mode display in modal
         function toggleRecordingMode() {
             const useRec = document.getElementById('useRecording').checked;
             document.getElementById('modeLabel').textContent = useRec ? 'Using your recording' : 'Using TTS voice';
+        }
+        
+        // Toggle use_recording via AJAX (instant save)
+        async function toggleUseRecording(recordingId, useRecording) {
+            const toggle = document.getElementById('toggle-' + recordingId);
+            const originalState = !useRecording;
+            
+            try {
+                const formData = new FormData();
+                formData.append('recording_id', recordingId);
+                formData.append('use_recording', useRecording ? '1' : '0');
+                formData.append('toggle_only', '1');
+                
+                const response = await fetch('api/save-ivr-recording.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('success', useRecording ? 'Now using recording' : 'Now using TTS voice');
+                    
+                    // Update the label
+                    const label = toggle.nextElementSibling;
+                    if (useRecording) {
+                        label.innerHTML = '<span class="status-badge status-recorded"><i class="fas fa-microphone me-1"></i> Using Recording</span>';
+                    } else {
+                        label.innerHTML = '<span class="status-badge status-tts"><i class="fas fa-robot me-1"></i> Using TTS (has recording)</span>';
+                    }
+                } else {
+                    toggle.checked = originalState;
+                    showToast('error', 'Error: ' + result.error);
+                }
+            } catch (err) {
+                toggle.checked = originalState;
+                showToast('error', 'Failed to save: ' + err.message);
+            }
+        }
+        
+        // Show toast notification
+        function showToast(type, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast ' + type;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle text-success' : 'exclamation-circle text-danger'}"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
         
         // Toggle recording
@@ -873,6 +1025,11 @@ $categoryColors = [
         
         // Save just settings (no new recording)
         async function saveSettings() {
+            const btn = document.querySelector('#saveSettingsBtn button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Saving...';
+            btn.disabled = true;
+            
             const formData = new FormData();
             formData.append('recording_id', currentRecordingId);
             formData.append('use_recording', document.getElementById('useRecording').checked ? '1' : '0');
@@ -887,13 +1044,17 @@ $categoryColors = [
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert('Settings saved!');
-                    location.reload();
+                    showToast('success', 'Settings saved successfully!');
+                    setTimeout(() => location.reload(), 1000);
                 } else {
-                    alert('Error: ' + result.error);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    showToast('error', 'Error: ' + result.error);
                 }
             } catch (err) {
-                alert('Error: ' + err.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showToast('error', 'Error: ' + err.message);
             }
         }
         

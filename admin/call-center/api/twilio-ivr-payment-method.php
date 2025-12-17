@@ -30,6 +30,9 @@ try {
     
     // Update call record
     updateCallSelection($db, $callSid, 'payment_method_' . $digits);
+    if ($digits === '1' || $digits === '2') {
+        updatePaymentMethod($db, $callSid, $digits === '1' ? 'bank_transfer' : 'cash');
+    }
     
     $baseUrl = getBaseUrl();
     
@@ -312,11 +315,23 @@ function updateCallSelection($db, string $callSid, string $selection): void
     }
 }
 
+function updatePaymentMethod($db, string $callSid, string $method): void
+{
+    try {
+        $stmt = $db->prepare("UPDATE twilio_inbound_calls SET payment_method = ? WHERE call_sid = ?");
+        $stmt->bind_param('ss', $method, $callSid);
+        $stmt->execute();
+        $stmt->close();
+    } catch (Exception $e) {
+        error_log("Update payment method error: " . $e->getMessage());
+    }
+}
+
 function updatePaymentRequest($db, string $callSid, string $method, float $amount): void
 {
     try {
-        $stmt = $db->prepare("UPDATE twilio_inbound_calls SET payment_amount = ?, payment_status = 'pending' WHERE call_sid = ?");
-        $stmt->bind_param('ds', $amount, $callSid);
+        $stmt = $db->prepare("UPDATE twilio_inbound_calls SET payment_method = ?, payment_amount = ?, payment_status = 'pending' WHERE call_sid = ?");
+        $stmt->bind_param('sds', $method, $amount, $callSid);
         $stmt->execute();
         $stmt->close();
     } catch (Exception $e) {

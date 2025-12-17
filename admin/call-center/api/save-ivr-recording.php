@@ -24,7 +24,8 @@ try {
     // Get parameters
     $recordingId = (int)($_POST['recording_id'] ?? 0);
     $useRecording = (int)($_POST['use_recording'] ?? 0);
-    $fallbackText = $_POST['fallback_text'] ?? '';
+    $fallbackText = $_POST['fallback_text'] ?? null;
+    $toggleOnly = ($_POST['toggle_only'] ?? '0') === '1';
     
     if ($recordingId <= 0) {
         throw new Exception('Invalid recording ID');
@@ -43,9 +44,30 @@ try {
     
     $updateFields = [
         'use_recording' => $useRecording,
-        'fallback_text' => $fallbackText,
         'updated_at' => date('Y-m-d H:i:s')
     ];
+    
+    // Only update fallback_text if it was provided (not null)
+    if ($fallbackText !== null) {
+        $updateFields['fallback_text'] = $fallbackText;
+    }
+    
+    // For toggle-only requests, just update use_recording and return early
+    if ($toggleOnly) {
+        $stmt = $db->prepare("UPDATE ivr_voice_recordings SET use_recording = ?, updated_at = NOW() WHERE id = ?");
+        $stmt->bind_param('ii', $useRecording, $recordingId);
+        
+        if (!$stmt->execute()) {
+            throw new Exception('Failed to update: ' . $stmt->error);
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Toggle updated',
+            'use_recording' => $useRecording
+        ]);
+        exit;
+    }
     
     // Handle audio file upload
     $formatNote = '';
