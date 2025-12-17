@@ -328,24 +328,50 @@ $page_title = 'Inbound Calls';
         }
         .stat-card {
             border-radius: 12px;
-            padding: 1.25rem;
+            padding: 1rem;
             text-align: center;
             transition: all 0.2s;
             cursor: pointer;
             text-decoration: none;
             display: block;
+            background: white;
+            border: 2px solid #e2e8f0;
         }
         .stat-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-decoration: none;
+        }
+        .stat-card .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
         }
         .stat-card .stat-number {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
+            color: #1e293b;
+        }
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
         }
         .stat-card.active {
-            box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.3);
+            border-color: #0a6286;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
         }
+        .stat-card.stat-total { border-left: 4px solid #3b82f6; }
+        .stat-card.stat-total .stat-icon { color: #3b82f6; }
+        .stat-card.stat-pending { border-left: 4px solid #f59e0b; }
+        .stat-card.stat-pending .stat-icon { color: #f59e0b; }
+        .stat-card.stat-done { border-left: 4px solid #22c55e; }
+        .stat-card.stat-done .stat-icon { color: #22c55e; }
+        .stat-card.stat-today { border-left: 4px solid #06b6d4; }
+        .stat-card.stat-today .stat-icon { color: #06b6d4; }
+        .stat-card.stat-donors { border-left: 4px solid #10b981; }
+        .stat-card.stat-donors .stat-icon { color: #10b981; }
+        .stat-card.stat-new { border-left: 4px solid #8b5cf6; }
+        .stat-card.stat-new .stat-icon { color: #8b5cf6; }
         .whatsapp-badge {
             background: #25D366;
             color: white;
@@ -438,39 +464,45 @@ $page_title = 'Inbound Calls';
                 <!-- Stats -->
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-md-4 col-lg-2">
-                        <a href="?filter=all" class="stat-card bg-light text-decoration-none <?php echo $filter === 'all' ? 'active' : ''; ?>">
-                            <div class="stat-number text-primary"><?php echo (int)$stats['total']; ?></div>
-                            <div class="text-muted small">Total Calls</div>
+                        <a href="?filter=all" class="stat-card stat-total <?php echo $filter === 'all' ? 'active' : ''; ?>">
+                            <div class="stat-icon"><i class="fas fa-phone-alt"></i></div>
+                            <div class="stat-number"><?php echo (int)$stats['total']; ?></div>
+                            <div class="stat-label">Total Calls</div>
                         </a>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <a href="?filter=pending" class="stat-card bg-warning bg-opacity-10 text-decoration-none <?php echo $filter === 'pending' ? 'active' : ''; ?>">
-                            <div class="stat-number text-warning"><?php echo (int)$stats['pending']; ?></div>
-                            <div class="text-muted small">Pending</div>
+                        <a href="?filter=pending" class="stat-card stat-pending <?php echo $filter === 'pending' ? 'active' : ''; ?>">
+                            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                            <div class="stat-number"><?php echo (int)$stats['pending']; ?></div>
+                            <div class="stat-label">Pending</div>
                         </a>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <a href="?filter=followed_up" class="stat-card bg-success bg-opacity-10 text-decoration-none <?php echo $filter === 'followed_up' ? 'active' : ''; ?>">
-                            <div class="stat-number text-success"><?php echo (int)$stats['followed_up']; ?></div>
-                            <div class="text-muted small">Followed Up</div>
+                        <a href="?filter=followed_up" class="stat-card stat-done <?php echo $filter === 'followed_up' ? 'active' : ''; ?>">
+                            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="stat-number"><?php echo (int)$stats['followed_up']; ?></div>
+                            <div class="stat-label">Followed Up</div>
                         </a>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <a href="?filter=today" class="stat-card bg-info bg-opacity-10 text-decoration-none <?php echo $filter === 'today' ? 'active' : ''; ?>">
-                            <div class="stat-number text-info"><?php echo (int)$stats['today']; ?></div>
-                            <div class="text-muted small">Today</div>
+                        <a href="?filter=today" class="stat-card stat-today <?php echo $filter === 'today' ? 'active' : ''; ?>">
+                            <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+                            <div class="stat-number"><?php echo (int)$stats['today']; ?></div>
+                            <div class="stat-label">Today</div>
                         </a>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <a href="?filter=donors" class="stat-card bg-success bg-opacity-10 text-decoration-none <?php echo $filter === 'donors' ? 'active' : ''; ?>">
-                            <div class="stat-number text-success"><?php echo (int)$stats['donors']; ?></div>
-                            <div class="text-muted small">From Donors</div>
+                        <a href="?filter=donors" class="stat-card stat-donors <?php echo $filter === 'donors' ? 'active' : ''; ?>">
+                            <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+                            <div class="stat-number"><?php echo (int)$stats['donors']; ?></div>
+                            <div class="stat-label">From Donors</div>
                         </a>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <a href="?filter=non_donors" class="stat-card text-decoration-none <?php echo $filter === 'non_donors' ? 'active' : ''; ?>" style="background: rgba(99, 102, 241, 0.1);">
-                            <div class="stat-number" style="color: #6366f1;"><?php echo (int)$stats['non_donors']; ?></div>
-                            <div class="text-muted small">New Callers</div>
+                        <a href="?filter=non_donors" class="stat-card stat-new <?php echo $filter === 'non_donors' ? 'active' : ''; ?>">
+                            <div class="stat-icon"><i class="fas fa-user-plus"></i></div>
+                            <div class="stat-number"><?php echo (int)$stats['non_donors']; ?></div>
+                            <div class="stat-label">New Callers</div>
                         </a>
                     </div>
                 </div>
