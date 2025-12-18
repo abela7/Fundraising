@@ -56,6 +56,194 @@ $kpiData = $kpiResult->fetch_assoc();
         'collection_rate' => ((float)$kpiData['total_pledged'] > 0) ? round(($totalPaid / (float)$kpiData['total_pledged']) * 100, 1) : 0
     ];
 
+    // 1b. Pledge Payments Tab (pledges + pledge_payments only)
+    // This focuses on pledge donors who are paying or have completed.
+    $pledgeTotals = [
+        'total_pledged' => (float)$kpiData['total_pledged'],
+        'paid_towards_pledges' => (float)$kpiData['total_paid_pledge'],
+        'outstanding_pledged' => (float)$outstandingPledged,
+        'collection_rate' => ((float)$kpiData['total_pledged'] > 0) ? round((((float)$kpiData['total_paid_pledge']) / (float)$kpiData['total_pledged']) * 100, 1) : 0,
+    ];
+
+    // Donor status breakdown (from donors table if available)
+    $hasPaymentStatusCol = false;
+    $paymentStatusColCheck = $db->query("SHOW COLUMNS FROM donors LIKE 'payment_status'");
+    if ($paymentStatusColCheck && $paymentStatusColCheck->num_rows > 0) {
+        $hasPaymentStatusCol = true;
+    }
+
+    $donorCounts = [
+        'with_pledge' => 0,
+        'paying' => 0,
+        'completed' => 0,
+    ];
+
+    $donorStatus = [];
+    $pledgeDonors = [];
+    $topOutstanding = [];
+
+    // Only build donor pledge tab if donors table has pledge tracking columns
+    $donorColsOk = true;
+    foreach (['total_pledged', 'total_paid', 'balance'] as $col) {
+        $colCheck = $db->query("SHOW COLUMNS FROM donors LIKE '" . $db->real_escape_string($col) . "'");
+        if (!$colCheck || $colCheck->num_rows === 0) {
+            $donorColsOk = false;
+            break;
+        }
+    }
+
+    if ($donorColsOk) {
+        if ($hasPaymentStatusCol) {
+            $row = $db->query("
+                SELECT
+                    SUM(CASE WHEN total_pledged > 0 THEN 1 ELSE 0 END) AS with_pledge,
+                    SUM(CASE WHEN total_pledged > 0 AND payment_status = 'paying' THEN 1 ELSE 0 END) AS paying,
+                    SUM(CASE WHEN total_pledged > 0 AND payment_status = 'completed' THEN 1 ELSE 0 END) AS completed
+                FROM donors
+            ")->fetch_assoc() ?: [];
+
+            $donorCounts['with_pledge'] = (int)($row['with_pledge'] ?? 0);
+            $donorCounts['paying'] = (int)($row['paying'] ?? 0);
+            $donorCounts['completed'] = (int)($row['completed'] ?? 0);
+
+            $statusRes = $db->query("
+                SELECT payment_status AS status, COUNT(*) AS count
+                FROM donors
+                WHERE total_pledged > 0
+                GROUP BY payment_status
+            ");
+            while ($r = $statusRes->fetch_assoc()) {
+                $label = ucfirst((string)($r['status'] ?? 'unknown'));
+                $donorStatus[] = [
+                    'status' => $label,
+                    'count' => (int)($r['count'] ?? 0),
+                ];
+            }
+        } else {
+            // Fallback: infer status from totals
+            $row = $db->query("
+                SELECT
+                    SUM(CASE WHEN total_pledged > 0 THEN 1 ELSE 0 END) AS with_pledge,
+                    SUM(CASE WHEN total_pledged > 0 AND total_paid > 0 AND balance > 0.01 THEN 1 ELSE 0 END) AS paying,
+                    SUM(CASE WHEN total_pledged > 0 AND balance <= 0.01 THEN 1 ELSE 0 END) AS completed,
+                    SUM(CASE WHEN total_pledged > 0 AND total_paid = 0 AND balance > 0.01 THEN 1 ELSE 0 END) AS not_started
+                FROM donors
+            ")->fetch_assoc() ?: [];
+
+            $donorCounts['with_pledge'] = (int)($row['with_pledge'] ?? 0);
+            $donorCounts['paying'] = (int)($row['paying'] ?? 0);
+            $donorCounts['completed'] = (int)($row['completed'] ?? 0);
+
+            $donorStatus = [
+                ['status' => 'Not_started', 'count' => (int)($row['not_started'] ?? 0)],
+                ['status' => 'Paying', 'count' => (int)($row['paying'] ?? 0)],
+                ['status' => 'Completed', 'count' => (int)($row['completed'] ?? 0)],
+            ];
+        }
+
+        // Donors who pledged and are paying or completed (tab focus)
+        if ($hasPaymentStatusCol) {
+            $listRes = $db->query("
+                SELECT name, phone, total_pledged, total_paid, balance, payment_status
+                FROM donors
+                WHERE total_pledged > 0
+                  AND payment_status IN ('paying', 'completed')
+                ORDER BY
+                    (payment_status = 'paying') DESC,
+                    balance DESC,
+                    total_paid DESC,
+                    total_pledged DESC,
+                    name ASC
+                LIMIT 50
+            ");
+        } else {
+            $listRes = $db->query("
+                SELECT name, phone, total_pledged, total_paid, balance, NULL AS payment_status
+                FROM donors
+                WHERE total_pledged > 0
+                  AND (balance <= 0.01 OR (total_paid > 0 AND balance > 0.01))
+                ORDER BY
+                    balance DESC,
+                    total_paid DESC,
+                    total_pledged DESC,
+                    name ASC
+                LIMIT 50
+            ");
+        }
+
+        while ($r = $listRes->fetch_assoc()) {
+            $pledgeDonors[] = [
+                'name' => (string)($r['name'] ?? ''),
+                'phone' => (string)($r['phone'] ?? ''),
+                'pledged' => (float)($r['total_pledged'] ?? 0),
+                'paid' => (float)($r['total_paid'] ?? 0),
+                'balance' => (float)($r['balance'] ?? 0),
+                'status' => $hasPaymentStatusCol ? ucfirst((string)($r['payment_status'] ?? '')) : (($r['balance'] ?? 0) <= 0.01 ? 'Completed' : 'Paying'),
+            ];
+        }
+
+        // Top outstanding (paying only) for bar chart
+        if ($hasPaymentStatusCol) {
+            $topRes = $db->query("
+                SELECT name, balance
+                FROM donors
+                WHERE total_pledged > 0
+                  AND payment_status = 'paying'
+                ORDER BY balance DESC, total_pledged DESC, name ASC
+                LIMIT 10
+            ");
+        } else {
+            $topRes = $db->query("
+                SELECT name, balance
+                FROM donors
+                WHERE total_pledged > 0
+                  AND total_paid > 0
+                  AND balance > 0.01
+                ORDER BY balance DESC, total_pledged DESC, name ASC
+                LIMIT 10
+            ");
+        }
+
+        while ($r = $topRes->fetch_assoc()) {
+            $topOutstanding[] = [
+                'name' => (string)($r['name'] ?? ''),
+                'balance' => (float)($r['balance'] ?? 0),
+            ];
+        }
+    }
+
+    // Monthly pledge-payments collection (last 12 months)
+    $pledgeMonthly = [];
+    for ($i = 11; $i >= 0; $i--) {
+        $key = date('Y-m', strtotime("-$i months"));
+        $pledgeMonthly[$key] = ['label' => date('M Y', strtotime("-$i months")), 'paid' => 0.0];
+    }
+    if ($hasPledgePayments) {
+        $ppMonthlyRes = $db->query("
+            SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month, COALESCE(SUM(amount),0) AS total
+            FROM pledge_payments
+            WHERE status = 'confirmed' AND payment_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+            GROUP BY month
+            ORDER BY month ASC
+        ");
+        while ($r = $ppMonthlyRes->fetch_assoc()) {
+            $m = (string)($r['month'] ?? '');
+            if ($m !== '' && isset($pledgeMonthly[$m])) {
+                $pledgeMonthly[$m]['paid'] = (float)($r['total'] ?? 0);
+            }
+        }
+    }
+
+    $response['pledge_payments'] = [
+        'enabled' => $hasPledgePayments,
+        'totals' => $pledgeTotals,
+        'donors' => $donorCounts,
+        'donor_status' => $donorStatus,
+        'monthly' => array_values($pledgeMonthly),
+        'donors_list' => $pledgeDonors,
+        'top_outstanding' => $topOutstanding,
+    ];
+
 // 2. Monthly Trends (Last 12 Months)
 // Pledges
 $trendPledges = $db->query("
@@ -68,21 +256,31 @@ $trendPledges = $db->query("
 
 // Payments (Direct + Pledge Payments)
 // We need to combine them for the chart
-$trendPayments = $db->query("
-    SELECT month, SUM(total) as total FROM (
-        SELECT DATE_FORMAT(received_at, '%Y-%m') as month, SUM(amount) as total 
-        FROM payments 
-        WHERE status = 'approved' AND received_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-        GROUP BY month
-        UNION ALL
-        SELECT DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(amount) as total 
-        FROM pledge_payments 
-        WHERE status = 'confirmed' AND payment_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-        GROUP BY month
-    ) as combined
-    GROUP BY month
-    ORDER BY month ASC
-");
+$trendPayments = $db->query(
+    $hasPledgePayments
+        ? "
+            SELECT month, SUM(total) as total FROM (
+                SELECT DATE_FORMAT(received_at, '%Y-%m') as month, SUM(amount) as total 
+                FROM payments 
+                WHERE status = 'approved' AND received_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                GROUP BY month
+                UNION ALL
+                SELECT DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(amount) as total 
+                FROM pledge_payments 
+                WHERE status = 'confirmed' AND payment_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                GROUP BY month
+            ) as combined
+            GROUP BY month
+            ORDER BY month ASC
+        "
+        : "
+            SELECT DATE_FORMAT(received_at, '%Y-%m') as month, SUM(amount) as total 
+            FROM payments 
+            WHERE status = 'approved' AND received_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+            GROUP BY month
+            ORDER BY month ASC
+        "
+);
 
 $months = [];
 $pledgeData = [];
@@ -109,24 +307,31 @@ $response['trends'] = array_values($months);
 
 // 3. Payment Methods (All time)
 // Combine methods from both tables - normalize method names
-$methodsQuery = "
-    SELECT method, COUNT(*) as count, SUM(amount) as total FROM (
-        SELECT method, amount FROM payments WHERE status = 'approved'
-        UNION ALL
-        SELECT 
-            CASE 
-                WHEN payment_method = 'bank_transfer' THEN 'bank'
-                WHEN payment_method = 'card' THEN 'card'
-                WHEN payment_method = 'cash' THEN 'cash'
-                WHEN payment_method = 'cheque' THEN 'other'
-                ELSE 'other'
-            END as method, 
-            amount 
-        FROM pledge_payments 
-        WHERE status = 'confirmed'
-    ) as combined
-    GROUP BY method
-";
+$methodsQuery = $hasPledgePayments
+    ? "
+        SELECT method, COUNT(*) as count, SUM(amount) as total FROM (
+            SELECT method, amount FROM payments WHERE status = 'approved'
+            UNION ALL
+            SELECT 
+                CASE 
+                    WHEN payment_method = 'bank_transfer' THEN 'bank'
+                    WHEN payment_method = 'card' THEN 'card'
+                    WHEN payment_method = 'cash' THEN 'cash'
+                    WHEN payment_method = 'cheque' THEN 'other'
+                    ELSE 'other'
+                END as method, 
+                amount 
+            FROM pledge_payments 
+            WHERE status = 'confirmed'
+        ) as combined
+        GROUP BY method
+    "
+    : "
+        SELECT method, COUNT(*) as count, SUM(amount) as total
+        FROM payments
+        WHERE status = 'approved'
+        GROUP BY method
+    ";
 $methodsResult = $db->query($methodsQuery);
 $methodsData = [];
 while ($row = $methodsResult->fetch_assoc()) {
@@ -177,32 +382,42 @@ while ($row = $topDonorsResult->fetch_assoc()) {
 $response['top_donors'] = $topDonors;
 
 // 6. Recent Transactions (Last 10)
-// Union of direct payments and pledge payments
-$recentQuery = "
-    SELECT * FROM (
-        SELECT 'Direct' as type, donor_name, amount, method, status, received_at as date 
-        FROM payments 
-        WHERE status = 'approved'
-        UNION ALL
-        SELECT 
-            'Pledge' as type, 
-            COALESCE(d.name, 'Unknown') as donor_name, 
-            pp.amount, 
-            CASE 
-                WHEN pp.payment_method = 'bank_transfer' THEN 'bank'
-                WHEN pp.payment_method = 'card' THEN 'card'
-                WHEN pp.payment_method = 'cash' THEN 'cash'
-                ELSE 'other'
-            END as method, 
-            pp.status, 
-            pp.created_at as date
-        FROM pledge_payments pp
-        LEFT JOIN donors d ON pp.donor_id = d.id
-        WHERE pp.status = 'confirmed'
-    ) as combined
-    ORDER BY date DESC
-    LIMIT 10
-";
+// Union of direct payments and pledge payments (if available)
+$recentQuery = $hasPledgePayments
+    ? "
+        SELECT * FROM (
+            SELECT 'Direct' as type, donor_name, amount, method, status, received_at as date 
+            FROM payments 
+            WHERE status = 'approved'
+            UNION ALL
+            SELECT 
+                'Pledge' as type, 
+                COALESCE(d.name, 'Unknown') as donor_name, 
+                pp.amount, 
+                CASE 
+                    WHEN pp.payment_method = 'bank_transfer' THEN 'bank'
+                    WHEN pp.payment_method = 'card' THEN 'card'
+                    WHEN pp.payment_method = 'cash' THEN 'cash'
+                    ELSE 'other'
+                END as method, 
+                pp.status, 
+                pp.created_at as date
+            FROM pledge_payments pp
+            LEFT JOIN donors d ON pp.donor_id = d.id
+            WHERE pp.status = 'confirmed'
+        ) as combined
+        ORDER BY date DESC
+        LIMIT 10
+    "
+    : "
+        SELECT * FROM (
+            SELECT 'Direct' as type, donor_name, amount, method, status, received_at as date 
+            FROM payments 
+            WHERE status = 'approved'
+        ) as combined
+        ORDER BY date DESC
+        LIMIT 10
+    ";
 $recentResult = $db->query($recentQuery);
 $recentTransactions = [];
 while ($row = $recentResult->fetch_assoc()) {
