@@ -252,96 +252,77 @@
 </div>
 
 <script>
-// PWA Install functionality
-let deferredPrompt = null;
+(function() {
+    // PWA Install functionality - wrapped in IIFE to avoid conflicts
+    var fabDeferredPrompt = null;
 
-// Check if app is already installed (standalone mode)
-function isAppInstalled() {
-    return window.matchMedia('(display-mode: standalone)').matches || 
-           window.navigator.standalone === true;
-}
-
-// Show/hide install button based on availability
-function updateInstallButton() {
-    const installItem = document.getElementById('installAppItem');
-    if (!installItem) return;
-    
-    if (isAppInstalled()) {
-        installItem.style.display = 'none';
-    } else if (deferredPrompt) {
-        installItem.style.display = 'flex';
-    } else {
-        // Show button anyway for manual install instructions
-        installItem.style.display = 'flex';
+    function isAppInstalled() {
+        return window.matchMedia('(display-mode: standalone)').matches || 
+               window.navigator.standalone === true;
     }
-}
 
-// Handle install button click
-async function installPWA() {
-    if (deferredPrompt) {
-        // Use browser's install prompt
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
+    function updateInstallButton() {
+        var installItem = document.getElementById('installAppItem');
+        if (!installItem) return;
         
-        if (outcome === 'accepted') {
-            showToast('App installed successfully!', 'success');
+        if (isAppInstalled()) {
+            installItem.style.display = 'none';
+        } else {
+            installItem.style.display = 'flex';
         }
-        deferredPrompt = null;
-        updateInstallButton();
-    } else if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-        // iOS - show manual instructions
-        alert('To install this app on iOS:\n\n1. Tap the Share button (⬆️) at the bottom of Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" in the top right');
-    } else {
-        // Other browsers - show manual instructions
-        alert('To install this app:\n\n1. Open your browser menu (⋮ or ⋯)\n2. Look for "Install App" or "Add to Home Screen"\n3. Follow the prompts');
     }
-}
 
-// Helper to show toast (uses existing admin toast if available)
-function showToast(message, type) {
-    if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
-    } else {
-        alert(message);
-    }
-}
-
-// Listen for install prompt
-window.addEventListener('beforeinstallprompt', function(e) {
-    e.preventDefault();
-    deferredPrompt = e;
-    console.log('[PWA] Install prompt available');
-    updateInstallButton();
-});
-
-// Listen for app installed
-window.addEventListener('appinstalled', function() {
-    console.log('[PWA] App installed!');
-    deferredPrompt = null;
-    updateInstallButton();
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-    const fabContainer = document.getElementById('fabContainer');
-    const fabMain = document.getElementById('fabMain');
-    
-    if (fabMain && fabContainer) {
-        fabMain.addEventListener('click', function(e) {
-            e.stopPropagation();
-            fabContainer.classList.toggle('active');
-            fabMain.classList.toggle('active');
-        });
-
-        // Close when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!fabContainer.contains(e.target)) {
-                fabContainer.classList.remove('active');
-                fabMain.classList.remove('active');
+    // Expose install function globally
+    window.installPWA = async function() {
+        if (fabDeferredPrompt) {
+            fabDeferredPrompt.prompt();
+            var result = await fabDeferredPrompt.userChoice;
+            
+            if (result.outcome === 'accepted') {
+                alert('App installed successfully!');
             }
-        });
-    }
-    
-    // Check install button visibility on load
-    updateInstallButton();
-});
+            fabDeferredPrompt = null;
+            updateInstallButton();
+        } else if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            alert('To install on iOS:\n\n1. Tap Share (⬆️)\n2. Tap "Add to Home Screen"\n3. Tap "Add"');
+        } else {
+            alert('To install:\n\n1. Open browser menu (⋮)\n2. Tap "Install App" or "Add to Home Screen"');
+        }
+    };
+
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        fabDeferredPrompt = e;
+        console.log('[FAB] Install prompt captured');
+        updateInstallButton();
+    });
+
+    window.addEventListener('appinstalled', function() {
+        console.log('[FAB] App installed');
+        fabDeferredPrompt = null;
+        updateInstallButton();
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var fabContainer = document.getElementById('fabContainer');
+        var fabMain = document.getElementById('fabMain');
+        
+        if (fabMain && fabContainer) {
+            fabMain.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fabContainer.classList.toggle('active');
+                fabMain.classList.toggle('active');
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!fabContainer.contains(e.target)) {
+                    fabContainer.classList.remove('active');
+                    fabMain.classList.remove('active');
+                }
+            });
+        }
+        
+        updateInstallButton();
+    });
+})();
 </script>
