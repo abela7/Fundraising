@@ -39,17 +39,15 @@ async function init() {
     document.getElementById('welcomeText').textContent = `Welcome, ${user.name}`;
   }
   
-  // Show install banner if applicable
-  if (shouldShowInstallBanner() && installTracker.canInstall()) {
-    showInstallBanner(installTracker);
-  }
-  
-  // Set up install prompt callback
-  installTracker.setOnInstallAvailable(() => {
-    if (shouldShowInstallBanner()) {
-      showInstallBanner(installTracker);
+  // Check if just logged in - show install prompt
+  if (sessionStorage.getItem('just_logged_in') === 'true') {
+    sessionStorage.removeItem('just_logged_in');
+    
+    // Show install prompt modal if not already installed
+    if (typeof installPrompt !== 'undefined' && !installPrompt.isInstalled) {
+      installPrompt.showAfterLogin('Donor Portal');
     }
-  });
+  }
   
   // Handle hash navigation
   handleHashChange();
