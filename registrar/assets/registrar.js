@@ -1,6 +1,6 @@
 // Registrar Panel JavaScript - Mobile First
 
-// ============ PWA Support ============
+// ============ PWA Support - Force Install ============
 (function() {
   // Add manifest link
   if (!document.querySelector('link[rel="manifest"]')) {
@@ -10,7 +10,7 @@
     document.head.appendChild(link);
   }
   
-  // Add theme-color
+  // Add meta tags
   if (!document.querySelector('meta[name="theme-color"]')) {
     const meta = document.createElement('meta');
     meta.name = 'theme-color';
@@ -18,7 +18,6 @@
     document.head.appendChild(meta);
   }
   
-  // Add apple meta tags
   if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
     const meta = document.createElement('meta');
     meta.name = 'apple-mobile-web-app-capable';
@@ -28,119 +27,311 @@
   
   // Register Service Worker
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/registrar/sw.js')
-        .then(function(reg) { console.log('[PWA] Registrar SW registered'); })
-        .catch(function(err) { console.log('[PWA] SW failed:', err); });
-    });
+    navigator.serviceWorker.register('/registrar/sw.js')
+      .then(function(reg) { console.log('[PWA] SW registered'); })
+      .catch(function(err) { console.log('[PWA] SW failed:', err); });
   }
   
-  // PWA Install handling
+  // PWA Install State
   let deferredPrompt = null;
+  let installModalShown = false;
   
-  window.addEventListener('beforeinstallprompt', function(e) {
-    e.preventDefault();
-    deferredPrompt = e;
-    console.log('[PWA] Install prompt available');
-    showInstallButton();
-  });
-  
-  window.addEventListener('appinstalled', function() {
-    console.log('[PWA] App installed!');
-    hideInstallButton();
-  });
-  
+  // Check if installed
   function isAppInstalled() {
     return window.matchMedia('(display-mode: standalone)').matches || 
            window.navigator.standalone === true;
   }
   
-  function showInstallButton() {
-    let btn = document.getElementById('pwaInstallBtn');
-    if (!btn && !isAppInstalled()) {
-      createInstallButton();
+  // Check if install was dismissed today
+  function wasDismissedToday() {
+    const dismissed = localStorage.getItem('pwa_install_dismissed');
+    if (!dismissed) return false;
+    const today = new Date().toDateString();
+    return dismissed === today;
+  }
+  
+  // Capture the install prompt
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log('[PWA] ✅ Install prompt captured!');
+    
+    // Show modal immediately when prompt is available
+    if (!isAppInstalled() && !installModalShown && !wasDismissedToday()) {
+      showInstallModal();
     }
-  }
+  });
   
-  function hideInstallButton() {
-    const btn = document.getElementById('pwaInstallBtn');
-    if (btn) btn.style.display = 'none';
-  }
+  window.addEventListener('appinstalled', function() {
+    console.log('[PWA] ✅ App installed successfully!');
+    hideInstallModal();
+    localStorage.removeItem('pwa_install_dismissed');
+  });
   
-  function createInstallButton() {
-    if (isAppInstalled()) return;
+  // Create and show the blocking install modal
+  function showInstallModal() {
+    if (isAppInstalled() || document.getElementById('pwaInstallModal')) return;
+    installModalShown = true;
     
-    const btn = document.createElement('button');
-    btn.id = 'pwaInstallBtn';
-    btn.className = 'pwa-install-fab';
-    btn.innerHTML = '<i class="fas fa-download"></i> Install App';
-    btn.title = 'Install App';
-    btn.onclick = installPWA;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const hasPrompt = deferredPrompt !== null;
     
-    // Add styles
-    btn.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 9999;
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #28a745 0%, #1e7b34 100%);
-      color: white;
-      border: none;
-      border-radius: 50px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      animation: pulse 2s infinite;
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'pwaInstallModal';
+    modal.innerHTML = `
+      <div class="pwa-modal-backdrop"></div>
+      <div class="pwa-modal-content">
+        <div class="pwa-modal-icon">📱</div>
+        <h2 class="pwa-modal-title">Install Registrar App</h2>
+        <p class="pwa-modal-text">
+          For the best experience, please install this app on your device.
+        </p>
+        
+        <ul class="pwa-benefits">
+          <li>✓ Quick access from home screen</li>
+          <li>✓ Works offline</li>
+          <li>✓ Faster loading</li>
+          <li>✓ Full screen experience</li>
+        </ul>
+        
+        ${isIOS ? `
+          <div class="pwa-ios-steps">
+            <p><strong>To install on your iPhone/iPad:</strong></p>
+            <div class="pwa-step">
+              <span class="pwa-step-num">1</span>
+              <span>Tap the <strong>Share</strong> button <span class="share-icon">⬆️</span> at the bottom</span>
+            </div>
+            <div class="pwa-step">
+              <span class="pwa-step-num">2</span>
+              <span>Scroll and tap <strong>"Add to Home Screen"</strong></span>
+            </div>
+            <div class="pwa-step">
+              <span class="pwa-step-num">3</span>
+              <span>Tap <strong>"Add"</strong> in the top right</span>
+            </div>
+          </div>
+          <button class="pwa-btn pwa-btn-primary" onclick="dismissInstallModal()">
+            I'll do it now
+          </button>
+        ` : hasPrompt ? `
+          <button class="pwa-btn pwa-btn-primary" onclick="triggerInstall()">
+            <i class="fas fa-download"></i> Install Now
+          </button>
+        ` : `
+          <div class="pwa-error-box">
+            <p><strong>⚠️ Install not available</strong></p>
+            <p>This could be because:</p>
+            <ul>
+              <li>Site is not on HTTPS</li>
+              <li>Browser doesn't support installation</li>
+              <li>App is already installed</li>
+            </ul>
+            <p>Try using <strong>Chrome</strong> or <strong>Edge</strong> browser.</p>
+          </div>
+          <button class="pwa-btn pwa-btn-secondary" onclick="dismissInstallModal()">
+            Continue anyway
+          </button>
+        `}
+        
+        <button class="pwa-btn pwa-btn-text" onclick="dismissInstallModal()">
+          Remind me later
+        </button>
+      </div>
     `;
     
-    // Add animation
-    if (!document.getElementById('pwa-fab-styles')) {
-      const style = document.createElement('style');
-      style.id = 'pwa-fab-styles';
-      style.textContent = `
-        @keyframes pulse {
-          0%, 100% { box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4); }
-          50% { box-shadow: 0 4px 25px rgba(40, 167, 69, 0.6); }
-        }
-        .pwa-install-fab:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5) !important;
-        }
-        @media (display-mode: standalone) {
-          .pwa-install-fab { display: none !important; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    // Add styles
+    const styles = document.createElement('style');
+    styles.id = 'pwaModalStyles';
+    styles.textContent = `
+      .pwa-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 99998;
+        backdrop-filter: blur(4px);
+      }
+      .pwa-modal-content {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        max-width: 380px;
+        width: 90%;
+        z-index: 99999;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: modalSlideIn 0.3s ease;
+      }
+      @keyframes modalSlideIn {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      }
+      .pwa-modal-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+      }
+      .pwa-modal-title {
+        margin: 0 0 0.5rem;
+        font-size: 1.5rem;
+        color: #28a745;
+      }
+      .pwa-modal-text {
+        color: #666;
+        margin-bottom: 1rem;
+      }
+      .pwa-benefits {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 1.5rem;
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: left;
+      }
+      .pwa-benefits li {
+        padding: 0.5rem 0;
+        color: #333;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .pwa-benefits li:last-child { border-bottom: none; }
+      .pwa-ios-steps {
+        background: #e8f5e9;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        text-align: left;
+      }
+      .pwa-ios-steps p { margin: 0 0 0.75rem; color: #2e7d32; }
+      .pwa-step {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+      }
+      .pwa-step-num {
+        width: 28px;
+        height: 28px;
+        background: #28a745;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .share-icon {
+        display: inline-block;
+        background: #007AFF;
+        color: white;
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        text-align: center;
+        line-height: 22px;
+        font-size: 12px;
+      }
+      .pwa-error-box {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        text-align: left;
+        font-size: 0.9rem;
+      }
+      .pwa-error-box p { margin: 0 0 0.5rem; }
+      .pwa-error-box ul { margin: 0.5rem 0; padding-left: 1.25rem; }
+      .pwa-btn {
+        display: block;
+        width: 100%;
+        padding: 1rem;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+      }
+      .pwa-btn-primary {
+        background: linear-gradient(135deg, #28a745 0%, #1e7b34 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+      }
+      .pwa-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5);
+      }
+      .pwa-btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+      .pwa-btn-text {
+        background: transparent;
+        color: #6c757d;
+        padding: 0.5rem;
+      }
+      @media (display-mode: standalone) {
+        #pwaInstallModal { display: none !important; }
+      }
+    `;
     
-    document.body.appendChild(btn);
+    document.head.appendChild(styles);
+    document.body.appendChild(modal);
   }
   
-  window.installPWA = async function() {
-    if (deferredPrompt) {
+  // Trigger native install
+  window.triggerInstall = async function() {
+    if (!deferredPrompt) {
+      alert('Install prompt not available. Please try refreshing the page.');
+      return;
+    }
+    
+    try {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
+      
       if (outcome === 'accepted') {
-        alert('App installed successfully! You can now access it from your home screen.');
+        console.log('[PWA] User accepted install');
+        hideInstallModal();
+      } else {
+        console.log('[PWA] User dismissed install');
       }
       deferredPrompt = null;
-      hideInstallButton();
-    } else if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-      alert('To install on iOS:\n\n1. Tap the Share button (⬆️)\n2. Tap "Add to Home Screen"\n3. Tap "Add"');
-    } else {
-      alert('To install:\n\n1. Open browser menu (⋮)\n2. Tap "Install App" or "Add to Home Screen"');
+    } catch (err) {
+      console.error('[PWA] Install error:', err);
+      alert('Installation failed. Please try again.');
     }
   };
   
-  // Show button on load if prompt already available or for manual install
+  // Dismiss modal
+  window.dismissInstallModal = function() {
+    localStorage.setItem('pwa_install_dismissed', new Date().toDateString());
+    hideInstallModal();
+  };
+  
+  // Hide modal
+  function hideInstallModal() {
+    const modal = document.getElementById('pwaInstallModal');
+    if (modal) modal.remove();
+    const styles = document.getElementById('pwaModalStyles');
+    if (styles) styles.remove();
+  }
+  
+  // Show modal on page load if not installed
   document.addEventListener('DOMContentLoaded', function() {
-    if (!isAppInstalled()) {
-      setTimeout(createInstallButton, 2000); // Show after 2 seconds
+    if (!isAppInstalled() && !wasDismissedToday()) {
+      // Wait for beforeinstallprompt, then show modal
+      setTimeout(function() {
+        if (!installModalShown) {
+          showInstallModal();
+        }
+      }, 1500);
     }
   });
 })();
