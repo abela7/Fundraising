@@ -1062,8 +1062,17 @@ function formatDateTime($date) {
         @media (max-width: 767.98px) {
             .profile-header.golden-premium {
                 padding: 1.5rem 1.25rem;
+                padding-top: 3.5rem; /* Space for share icon */
                 border-radius: 20px;
                 text-align: center;
+            }
+            
+            .golden-share-icon {
+                top: 10px;
+                right: 10px;
+                width: 36px;
+                height: 36px;
+                font-size: 0.9rem;
             }
             
             .golden-church-name {
@@ -1083,13 +1092,6 @@ function formatDateTime($date) {
             .golden-message {
                 font-size: 0.75rem !important;
                 padding: 0 1rem;
-            }
-            
-            .golden-share-btn {
-                width: 100%;
-                justify-content: center;
-                padding: 0.875rem 1.5rem;
-                font-size: 0.9rem;
             }
             
             .golden-premium .financial-grid {
