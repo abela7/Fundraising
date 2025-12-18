@@ -181,6 +181,14 @@
 
 <div class="fab-container" id="fabContainer">
     <ul class="fab-options">
+        <!-- Install App Button (hidden when installed) -->
+        <li class="fab-item" id="installAppItem" style="display: none;">
+            <span class="fab-label">Install App</span>
+            <button type="button" class="fab-btn bg-warning text-dark" id="installAppBtn" onclick="installPWA()">
+                <i class="fas fa-download"></i>
+            </button>
+        </li>
+        
         <!-- 8. WhatsApp Inbox -->
         <li class="fab-item">
             <span class="fab-label">WhatsApp Inbox</span>
@@ -244,6 +252,75 @@
 </div>
 
 <script>
+// PWA Install functionality
+let deferredPrompt = null;
+
+// Check if app is already installed (standalone mode)
+function isAppInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           window.navigator.standalone === true;
+}
+
+// Show/hide install button based on availability
+function updateInstallButton() {
+    const installItem = document.getElementById('installAppItem');
+    if (!installItem) return;
+    
+    if (isAppInstalled()) {
+        installItem.style.display = 'none';
+    } else if (deferredPrompt) {
+        installItem.style.display = 'flex';
+    } else {
+        // Show button anyway for manual install instructions
+        installItem.style.display = 'flex';
+    }
+}
+
+// Handle install button click
+async function installPWA() {
+    if (deferredPrompt) {
+        // Use browser's install prompt
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+            showToast('App installed successfully!', 'success');
+        }
+        deferredPrompt = null;
+        updateInstallButton();
+    } else if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        // iOS - show manual instructions
+        alert('To install this app on iOS:\n\n1. Tap the Share button (⬆️) at the bottom of Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" in the top right');
+    } else {
+        // Other browsers - show manual instructions
+        alert('To install this app:\n\n1. Open your browser menu (⋮ or ⋯)\n2. Look for "Install App" or "Add to Home Screen"\n3. Follow the prompts');
+    }
+}
+
+// Helper to show toast (uses existing admin toast if available)
+function showToast(message, type) {
+    if (typeof window.showToast === 'function') {
+        window.showToast(message, type);
+    } else {
+        alert(message);
+    }
+}
+
+// Listen for install prompt
+window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log('[PWA] Install prompt available');
+    updateInstallButton();
+});
+
+// Listen for app installed
+window.addEventListener('appinstalled', function() {
+    console.log('[PWA] App installed!');
+    deferredPrompt = null;
+    updateInstallButton();
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     const fabContainer = document.getElementById('fabContainer');
     const fabMain = document.getElementById('fabMain');
@@ -263,5 +340,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Check install button visibility on load
+    updateInstallButton();
 });
 </script>

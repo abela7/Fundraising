@@ -58,6 +58,7 @@ $page_title = 'Dashboard';
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="../assets/admin.css">
   <link rel="stylesheet" href="assets/dashboard.css">
+  <?php include __DIR__ . '/../includes/pwa.php'; ?>
 </head>
 <body>
 <div class="admin-wrapper">

@@ -1,0 +1,48 @@
+{
+  "name": "Church Fundraising Admin",
+  "short_name": "Fundraising",
+  "description": "Liverpool Abune Teklehaymanot EOTC - Fundraising Management System",
+  "start_url": "/admin/dashboard/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8f9fa",
+  "theme_color": "#0a6286",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/admin/dashboard/",
+      "description": "View dashboard"
+    },
+    {
+      "name": "Add Donation",
+      "short_name": "Donate",
+      "url": "/registrar/",
+      "description": "Add new donation"
+    }
+  ],
+  "prefer_related_applications": false
+}
+

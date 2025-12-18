@@ -1,4 +1,45 @@
 // Modern Admin Dashboard JavaScript
+
+// PWA Support
+(function() {
+  // Add manifest link if not already present
+  if (!document.querySelector('link[rel="manifest"]')) {
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = '/admin/manifest.json';
+    document.head.appendChild(manifestLink);
+  }
+  
+  // Add theme-color meta if not present
+  if (!document.querySelector('meta[name="theme-color"]')) {
+    const themeMeta = document.createElement('meta');
+    themeMeta.name = 'theme-color';
+    themeMeta.content = '#0a6286';
+    document.head.appendChild(themeMeta);
+  }
+  
+  // Add apple-mobile-web-app-capable
+  if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+    const appleMeta = document.createElement('meta');
+    appleMeta.name = 'apple-mobile-web-app-capable';
+    appleMeta.content = 'yes';
+    document.head.appendChild(appleMeta);
+  }
+  
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/admin/sw.js')
+        .then(function(reg) {
+          console.log('[PWA] Service Worker registered');
+        })
+        .catch(function(err) {
+          console.log('[PWA] SW registration failed:', err);
+        });
+    });
+  }
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
   // Initialize Bootstrap dropdowns
   if (typeof bootstrap !== 'undefined') {
