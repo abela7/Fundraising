@@ -6,26 +6,40 @@
 
 /* CSS Variables - Theme */
 :root {
+  /* Primary Blue */
   --pwa-primary: #0a6286;
   --pwa-primary-dark: #084a66;
+  --pwa-primary-darker: #063a50;
   --pwa-primary-light: #e6f3f8;
+  
+  /* Accent Gold */
+  --pwa-accent: #e2ca18;
+  --pwa-accent-dark: #c9b415;
+  --pwa-accent-light: #f0dc4a;
+  
+  /* Secondary */
   --pwa-secondary: #6c757d;
+  
+  /* Status Colors */
   --pwa-success: #28a745;
   --pwa-warning: #ffc107;
   --pwa-danger: #dc3545;
   --pwa-info: #17a2b8;
   
+  /* Backgrounds */
   --pwa-bg: #f8f9fa;
   --pwa-surface: #ffffff;
   --pwa-text: #212529;
   --pwa-text-muted: #6c757d;
   --pwa-border: #dee2e6;
   
+  /* Design Tokens */
   --pwa-radius: 12px;
   --pwa-radius-sm: 8px;
   --pwa-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --pwa-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
   
+  /* Safe Areas */
   --pwa-safe-top: env(safe-area-inset-top);
   --pwa-safe-bottom: env(safe-area-inset-bottom);
   --pwa-safe-left: env(safe-area-inset-left);
