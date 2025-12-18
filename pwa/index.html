@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0a6286">
-  <meta name="description" content="Church Fundraising Mobile Apps - Install the app for your role">
+  <meta name="msapplication-TileColor" content="#0a6286">
+  <meta name="description" content="Liverpool Abune Teklehaymanot EOTC - Church Fundraising Mobile Apps">
   
   <title>Church Fundraising Apps</title>
   
@@ -18,24 +19,51 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 1rem;
+      padding: 1.5rem;
       text-align: center;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      background: linear-gradient(135deg, var(--pwa-primary) 0%, var(--pwa-primary-dark) 100%);
+      position: relative;
+    }
+    
+    /* Gold accent bar at top */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--pwa-accent);
+      z-index: 10;
     }
     
     .logo {
-      width: 80px;
-      height: 80px;
+      width: 100px;
+      height: 100px;
       margin-bottom: 1.5rem;
+      filter: brightness(0) invert(1);
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 12px;
     }
     
     h1 {
-      color: var(--pwa-text);
+      color: #fff;
+      margin-bottom: 0.25rem;
+      font-size: 1.75rem;
+    }
+    
+    .church-name {
+      color: var(--pwa-accent);
+      font-weight: 600;
+      font-size: 0.875rem;
       margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     
     .subtitle {
-      color: var(--pwa-text-muted);
+      color: rgba(255, 255, 255, 0.85);
       margin-bottom: 2rem;
     }
     
@@ -53,31 +81,36 @@
       padding: 1.25rem;
       background: var(--pwa-surface);
       border-radius: var(--pwa-radius);
-      box-shadow: var(--pwa-shadow);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       text-decoration: none;
       color: var(--pwa-text);
       transition: transform 0.2s, box-shadow 0.2s;
+      border: 1px solid rgba(10, 98, 134, 0.1);
     }
     
     .app-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--pwa-shadow-lg);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
     }
     
     .app-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.5rem;
+      background: linear-gradient(135deg, var(--pwa-primary) 0%, var(--pwa-primary-dark) 100%);
       color: white;
+      flex-shrink: 0;
     }
     
-    .app-icon.donor { background: linear-gradient(135deg, #0a6286 0%, #084a66 100%); }
-    .app-icon.registrar { background: linear-gradient(135deg, #28a745 0%, #1e7b34 100%); }
-    .app-icon.admin { background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); }
+    /* Gold accent for donor */
+    .app-card.donor .app-icon {
+      background: linear-gradient(135deg, var(--pwa-accent) 0%, var(--pwa-accent-dark) 100%);
+      color: var(--pwa-primary-darker);
+    }
     
     .app-info {
       flex: 1;
@@ -87,68 +120,100 @@
     .app-name {
       font-weight: 600;
       margin-bottom: 0.25rem;
+      color: var(--pwa-primary-dark);
     }
     
     .app-description {
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       color: var(--pwa-text-muted);
+      line-height: 1.4;
     }
     
     .app-arrow {
-      color: var(--pwa-text-muted);
+      color: var(--pwa-primary);
       font-size: 1.25rem;
+      font-weight: bold;
     }
     
     .footer {
       margin-top: 2rem;
-      color: var(--pwa-text-muted);
+      color: rgba(255, 255, 255, 0.7);
       font-size: 0.875rem;
     }
     
+    .footer p {
+      margin: 0.5rem 0;
+    }
+    
     .footer a {
-      color: var(--pwa-primary);
+      color: var(--pwa-accent);
+      font-weight: 500;
+    }
+    
+    .footer a:hover {
+      color: var(--pwa-accent-light);
+    }
+    
+    .install-hint {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.75rem 1rem;
+      border-radius: var(--pwa-radius-sm);
+      margin-bottom: 1rem;
+    }
+    
+    .install-hint-icon {
+      font-size: 1.25rem;
     }
   </style>
 </head>
 <body>
   <img src="/assets/favicon.svg" alt="Logo" class="logo">
   
+  <p class="church-name">Liverpool Abune Teklehaymanot EOTC</p>
   <h1>Church Fundraising</h1>
   <p class="subtitle">Choose your app to continue</p>
   
+  <div class="install-hint">
+    <span class="install-hint-icon">📱</span>
+    <span>Install the app for the best experience!</span>
+  </div>
+  
   <div class="apps-grid">
-    <a href="donor/" class="app-card">
-      <div class="app-icon donor">👤</div>
+    <a href="donor/" class="app-card donor">
+      <div class="app-icon">👤</div>
       <div class="app-info">
         <div class="app-name">Donor Portal</div>
-        <div class="app-description">View pledges, make payments, track progress</div>
+        <div class="app-description">View pledges, make payments, track your giving progress</div>
       </div>
       <span class="app-arrow">→</span>
     </a>
     
     <a href="registrar/" class="app-card">
-      <div class="app-icon registrar">📋</div>
+      <div class="app-icon">📋</div>
       <div class="app-info">
         <div class="app-name">Registrar Portal</div>
-        <div class="app-description">Register donors, manage pledges, view stats</div>
+        <div class="app-description">Register donors, manage pledges, view your statistics</div>
       </div>
       <span class="app-arrow">→</span>
     </a>
     
     <a href="admin/" class="app-card">
-      <div class="app-icon admin">⚙️</div>
+      <div class="app-icon">⚙️</div>
       <div class="app-info">
         <div class="app-name">Admin Portal</div>
-        <div class="app-description">Dashboard, reports, donor management</div>
+        <div class="app-description">Dashboard, reports, donor management, settings</div>
       </div>
       <span class="app-arrow">→</span>
     </a>
   </div>
   
   <div class="footer">
-    <p>Install the app on your device for the best experience</p>
+    <p>Install the app to your home screen for offline access</p>
     <p><a href="/">← Back to Website</a></p>
   </div>
 </body>
 </html>
-

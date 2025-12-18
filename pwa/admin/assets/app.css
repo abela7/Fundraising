@@ -1,13 +1,9 @@
 /**
  * Admin PWA Styles
+ * 
+ * Liverpool Abune Teklehaymanot EOTC Branding
+ * Primary: #0a6286 | Accent: #e2ca18 | White: #ffffff
  */
-
-/* Theme override */
-.admin-theme {
-  --pwa-primary: #6f42c1;
-  --pwa-primary-dark: #5a32a3;
-  --pwa-primary-light: #e9e0f5;
-}
 
 /* Header */
 .pwa-header {
@@ -37,8 +33,9 @@
 
 /* Pending Alert */
 .pending-alert {
-  background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
-  border-left: 4px solid #ffc107;
+  background: linear-gradient(135deg, var(--pwa-accent-lighter) 0%, var(--pwa-warning-light) 100%);
+  border-left: 4px solid var(--pwa-accent);
+  position: relative;
 }
 
 .pending-content {
@@ -49,11 +46,23 @@
 
 .pending-icon {
   font-size: 1.5rem;
+  background: var(--pwa-accent);
+  color: var(--pwa-primary-darker);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pending-text strong {
+  color: var(--pwa-primary-dark);
 }
 
 .pending-text small {
   display: block;
-  color: #856404;
+  color: var(--pwa-primary);
 }
 
 /* Today's Activity */
@@ -66,6 +75,10 @@
 
 .today-item {
   text-align: center;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, var(--pwa-primary-lighter) 0%, var(--pwa-bg) 100%);
+  border-radius: var(--pwa-radius-sm);
+  border: 1px solid rgba(10, 98, 134, 0.1);
 }
 
 .today-value {
@@ -77,8 +90,9 @@
 
 .today-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--pwa-text-muted);
+  text-transform: uppercase;
 }
 
 /* Install Stats */
@@ -92,7 +106,7 @@
 .install-total {
   text-align: center;
   padding: 1rem;
-  background: var(--pwa-primary-light);
+  background: linear-gradient(135deg, var(--pwa-primary) 0%, var(--pwa-primary-dark) 100%);
   border-radius: var(--pwa-radius-sm);
   min-width: 80px;
 }
@@ -101,13 +115,13 @@
   display: block;
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--pwa-primary);
+  color: var(--pwa-accent);
 }
 
 .install-label {
   display: block;
-  font-size: 0.7rem;
-  color: var(--pwa-text-muted);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.85);
   text-transform: uppercase;
 }
 
@@ -119,8 +133,9 @@
 .install-item {
   display: flex;
   justify-content: space-between;
-  padding: 0.25rem 0;
+  padding: 0.35rem 0;
   border-bottom: 1px dashed var(--pwa-border);
+  color: var(--pwa-text-muted);
 }
 
 .install-item:last-child {
@@ -132,10 +147,19 @@
   margin-bottom: 1rem;
 }
 
+.search-bar .pwa-input {
+  border-color: var(--pwa-primary-lighter);
+}
+
+.search-bar .pwa-input:focus {
+  border-color: var(--pwa-accent);
+}
+
 /* View All Link */
 .view-all-link {
   font-size: 0.875rem;
-  color: var(--pwa-primary);
+  color: var(--pwa-accent-dark);
+  font-weight: 500;
 }
 
 /* Empty State */
@@ -143,6 +167,7 @@
   justify-content: center;
   color: var(--pwa-text-muted);
   padding: 2rem 1rem;
+  text-align: center;
 }
 
 /* Month Stats */
@@ -155,9 +180,10 @@
 
 .month-stat {
   text-align: center;
-  padding: 1rem;
-  background: var(--pwa-bg);
+  padding: 1.25rem;
+  background: linear-gradient(135deg, var(--pwa-primary-lighter) 0%, var(--pwa-bg) 100%);
   border-radius: var(--pwa-radius-sm);
+  border: 1px solid rgba(10, 98, 134, 0.1);
 }
 
 .month-value {
@@ -172,6 +198,7 @@
   font-size: 0.75rem;
   color: var(--pwa-text-muted);
   margin-top: 0.25rem;
+  text-transform: uppercase;
 }
 
 /* Profile */
@@ -196,17 +223,29 @@
 }
 
 .profile-value {
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--pwa-primary);
 }
 
 /* Login Page */
 .login-page {
-  background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+  background: linear-gradient(135deg, var(--pwa-primary) 0%, var(--pwa-primary-dark) 100%);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  position: relative;
+}
+
+.login-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--pwa-accent);
 }
 
 .login-container {
@@ -224,21 +263,27 @@
   width: 80px;
   height: 80px;
   filter: brightness(0) invert(1);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 8px;
 }
 
 .login-title {
   font-size: 1.75rem;
   font-weight: 700;
   margin: 1rem 0 0;
+  color: #fff;
 }
 
 .login-subtitle {
-  opacity: 0.85;
+  color: var(--pwa-accent);
   margin: 0.5rem 0 0;
+  font-weight: 500;
 }
 
 .login-card {
   animation: slideUp 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes slideUp {
@@ -248,6 +293,7 @@
 
 .step-title {
   margin-bottom: 0.5rem;
+  color: var(--pwa-primary);
 }
 
 .step-description {
@@ -265,6 +311,10 @@
   font-size: 0.875rem;
 }
 
+.back-link:hover {
+  color: var(--pwa-accent);
+}
+
 /* Pagination */
 .pagination-controls {
   display: flex;
@@ -279,4 +329,3 @@
   font-size: 0.875rem;
   color: var(--pwa-text-muted);
 }
-

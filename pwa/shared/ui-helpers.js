@@ -220,7 +220,7 @@ function showInstallBanner(installTracker) {
     </div>
     <div class="pwa-install-actions">
       <button class="pwa-btn pwa-btn-text" data-action="dismiss">Not now</button>
-      <button class="pwa-btn pwa-btn-primary" data-action="install">Install</button>
+      <button class="pwa-btn pwa-btn-accent" data-action="install">Install</button>
     </div>
   `;
 

@@ -1,13 +1,9 @@
 /**
  * Registrar PWA Styles
+ * 
+ * Liverpool Abune Teklehaymanot EOTC Branding
+ * Primary: #0a6286 | Accent: #e2ca18 | White: #ffffff
  */
-
-/* Theme override */
-.registrar-theme {
-  --pwa-primary: #28a745;
-  --pwa-primary-dark: #1e7b34;
-  --pwa-primary-light: #d4edda;
-}
 
 /* Header */
 .pwa-header {
@@ -37,16 +33,25 @@
 
 /* Filter */
 .status-filter {
-  padding: 0.5rem;
-  border: 1px solid var(--pwa-border);
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--pwa-border);
   border-radius: var(--pwa-radius-sm);
   font-size: 0.875rem;
+  background: var(--pwa-surface);
+  color: var(--pwa-text);
+  cursor: pointer;
+}
+
+.status-filter:focus {
+  border-color: var(--pwa-primary);
+  outline: none;
 }
 
 /* View All Link */
 .view-all-link {
   font-size: 0.875rem;
-  color: var(--pwa-primary);
+  color: var(--pwa-accent-dark);
+  font-weight: 500;
 }
 
 /* Empty State */
@@ -54,19 +59,39 @@
   justify-content: center;
   color: var(--pwa-text-muted);
   padding: 2rem 1rem;
+  text-align: center;
 }
 
 /* Statistics */
 .stats-section {
   margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--pwa-border);
+}
+
+.stats-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .stats-section h4 {
   margin-bottom: 0.75rem;
-  color: var(--pwa-text-muted);
+  color: var(--pwa-primary);
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stats-section h4::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  background: var(--pwa-accent);
+  border-radius: 2px;
 }
 
 .stats-grid {
@@ -76,10 +101,11 @@
 }
 
 .stat-item {
-  background: var(--pwa-bg);
+  background: linear-gradient(135deg, var(--pwa-primary-lighter) 0%, var(--pwa-bg) 100%);
   padding: 0.75rem;
   border-radius: var(--pwa-radius-sm);
   text-align: center;
+  border: 1px solid rgba(10, 98, 134, 0.1);
 }
 
 .stat-value {
@@ -91,9 +117,10 @@
 
 .stat-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--pwa-text-muted);
   margin-top: 0.25rem;
+  text-transform: uppercase;
 }
 
 /* Profile */
@@ -118,17 +145,29 @@
 }
 
 .profile-value {
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--pwa-primary);
 }
 
 /* Login Page */
 .login-page {
-  background: linear-gradient(135deg, #28a745 0%, #1e7b34 100%);
+  background: linear-gradient(135deg, var(--pwa-primary) 0%, var(--pwa-primary-dark) 100%);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  position: relative;
+}
+
+.login-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--pwa-accent);
 }
 
 .login-container {
@@ -146,21 +185,27 @@
   width: 80px;
   height: 80px;
   filter: brightness(0) invert(1);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 8px;
 }
 
 .login-title {
   font-size: 1.75rem;
   font-weight: 700;
   margin: 1rem 0 0;
+  color: #fff;
 }
 
 .login-subtitle {
-  opacity: 0.85;
+  color: var(--pwa-accent);
   margin: 0.5rem 0 0;
+  font-weight: 500;
 }
 
 .login-card {
   animation: slideUp 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes slideUp {
@@ -170,6 +215,7 @@
 
 .step-title {
   margin-bottom: 0.5rem;
+  color: var(--pwa-primary);
 }
 
 .step-description {
@@ -187,6 +233,10 @@
   font-size: 0.875rem;
 }
 
+.back-link:hover {
+  color: var(--pwa-accent);
+}
+
 /* Pagination */
 .pagination-controls {
   display: flex;
@@ -201,4 +251,3 @@
   font-size: 0.875rem;
   color: var(--pwa-text-muted);
 }
-

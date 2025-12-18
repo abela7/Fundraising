@@ -1,5 +1,8 @@
 /**
  * Donor PWA Custom Styles
+ * 
+ * Liverpool Abune Teklehaymanot EOTC Branding
+ * Primary: #0a6286 | Accent: #e2ca18 | White: #ffffff
  */
 
 /* Header */
@@ -14,17 +17,18 @@
 }
 
 .header-menu-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.15);
   border: none;
   color: #fff;
-  font-size: 1.5rem;
-  padding: 0.5rem;
+  font-size: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--pwa-radius-sm);
   cursor: pointer;
-  opacity: 0.9;
+  transition: background 0.2s;
 }
 
 .header-menu-btn:hover {
-  opacity: 1;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Views */
@@ -42,9 +46,20 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Summary Cards */
+/* Summary Cards with brand colors */
 .pwa-summary-card {
-  box-shadow: var(--pwa-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.pwa-summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--pwa-primary) 0%, var(--pwa-accent) 100%);
 }
 
 /* Payment Plan Card */
@@ -52,11 +67,32 @@
   margin: 0.5rem 0;
   display: flex;
   justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--pwa-border);
+}
+
+.plan-details p:last-child {
+  border-bottom: none;
+}
+
+.plan-details strong {
+  color: var(--pwa-text-muted);
+  font-weight: 500;
+}
+
+.plan-details span {
+  color: var(--pwa-primary);
+  font-weight: 600;
 }
 
 /* View All Link */
 .view-all-link {
   font-size: 0.875rem;
+  color: var(--pwa-accent-dark);
+  font-weight: 500;
+}
+
+.view-all-link:hover {
   color: var(--pwa-primary);
 }
 
@@ -65,6 +101,7 @@
   justify-content: center;
   color: var(--pwa-text-muted);
   padding: 2rem 1rem;
+  text-align: center;
 }
 
 /* Payment Form */
@@ -99,17 +136,30 @@
 }
 
 .profile-value {
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--pwa-primary);
 }
 
 /* Login Page */
 .login-page {
-  background: linear-gradient(135deg, #0a6286 0%, #084a66 100%);
+  background: linear-gradient(135deg, var(--pwa-primary) 0%, var(--pwa-primary-dark) 100%);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  position: relative;
+}
+
+/* Decorative gold accent */
+.login-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--pwa-accent);
 }
 
 .login-container {
@@ -131,21 +181,28 @@
   width: 80px;
   height: 80px;
   filter: brightness(0) invert(1);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 8px;
 }
 
 .login-title {
   font-size: 1.75rem;
   font-weight: 700;
   margin: 0;
+  color: #fff;
 }
 
 .login-subtitle {
-  opacity: 0.85;
+  color: var(--pwa-accent);
   margin: 0.5rem 0 0;
+  font-weight: 500;
 }
 
 .login-card {
   animation: slideUp 0.3s ease;
+  border: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes slideUp {
@@ -155,6 +212,7 @@
 
 .step-title {
   margin-bottom: 0.5rem;
+  color: var(--pwa-primary);
 }
 
 .step-description {
@@ -167,10 +225,20 @@
   font-weight: 700;
   text-align: center;
   letter-spacing: 0.5rem;
+  border-color: var(--pwa-primary);
+}
+
+.otp-input:focus {
+  border-color: var(--pwa-accent);
+  box-shadow: 0 0 0 3px var(--pwa-accent-lighter);
 }
 
 .remember-device {
   margin-bottom: 1.5rem;
+  background: var(--pwa-primary-lighter);
+  padding: 1rem;
+  border-radius: var(--pwa-radius-sm);
+  border-left: 3px solid var(--pwa-accent);
 }
 
 .checkbox-label {
@@ -178,12 +246,14 @@
   align-items: center;
   gap: 0.75rem;
   cursor: pointer;
+  color: var(--pwa-primary-dark);
 }
 
 .checkbox-label input {
   width: 20px;
   height: 20px;
   cursor: pointer;
+  accent-color: var(--pwa-primary);
 }
 
 .otp-actions {
@@ -205,7 +275,7 @@
 }
 
 .back-link:hover {
-  color: #fff;
+  color: var(--pwa-accent);
 }
 
 /* Pagination */
@@ -229,4 +299,3 @@
     max-width: 420px;
   }
 }
-
