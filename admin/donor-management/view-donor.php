@@ -1023,22 +1023,40 @@ function formatDateTime($date) {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: transparent;
-            border: 2px solid rgba(212, 175, 55, 0.5);
-            color: var(--gold-light);
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-main));
+            border: none;
+            color: #1a1a2e;
             border-radius: 50px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.875rem;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 0.75rem;
+            margin-top: 1rem;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .golden-share-btn:hover {
-            background: rgba(212, 175, 55, 0.2);
-            border-color: var(--gold-main);
+            background: linear-gradient(135deg, var(--gold-main), var(--gold-dark));
             transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(212, 175, 55, 0.6);
+        }
+        
+        /* Hide elements in golden premium mode */
+        .golden-premium .fin-card.balance,
+        .golden-premium .fin-edit-btn,
+        .golden-premium .info-pill[href^="tel:"],
+        .golden-premium .donor-badge.ref {
+            display: none !important;
+        }
+        
+        /* Adjust financial grid for 2 columns in golden mode */
+        .golden-premium .financial-grid {
+            grid-template-columns: repeat(2, 1fr);
+            max-width: 320px;
+            margin: 0 auto;
         }
         
         /* Confetti animation on load for golden */
@@ -1050,22 +1068,44 @@ function formatDateTime($date) {
         /* Mobile optimizations for golden */
         @media (max-width: 767.98px) {
             .profile-header.golden-premium {
-                padding: 1.25rem;
+                padding: 1.5rem 1.25rem;
                 border-radius: 20px;
+                text-align: center;
+            }
+            
+            .golden-church-name {
+                font-size: 0.6rem !important;
+                letter-spacing: 1.5px !important;
             }
             
             .fully-paid-badge {
                 font-size: 0.7rem;
-                padding: 0.4rem 0.875rem;
+                padding: 0.5rem 1rem;
             }
             
             .golden-premium .profile-name {
-                font-size: 1.4rem;
+                font-size: 1.5rem;
+            }
+            
+            .golden-message {
+                font-size: 0.75rem !important;
+                padding: 0 1rem;
             }
             
             .golden-share-btn {
                 width: 100%;
                 justify-content: center;
+                padding: 0.875rem 1.5rem;
+                font-size: 0.9rem;
+            }
+            
+            .golden-premium .financial-grid {
+                max-width: 280px;
+                gap: 0.75rem;
+            }
+            
+            .golden-premium .fin-amount {
+                font-size: 1.25rem;
             }
         }
         
@@ -1585,6 +1625,11 @@ function formatDateTime($date) {
                         </div>
                         
                         <?php if ($is_fully_paid): ?>
+                        <!-- Church Name -->
+                        <div class="golden-church-name" style="color: rgba(255,215,0,0.6); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem;">
+                            Liverpool Abune Teklehaymanot EOTC
+                        </div>
+                        
                         <!-- FULLY PAID Premium Badge -->
                         <div class="fully-paid-badge">
                             <i class="fas fa-trophy"></i>
@@ -1622,10 +1667,15 @@ function formatDateTime($date) {
                         </div>
                         
                         <?php if ($is_fully_paid): ?>
+                        <!-- Motivational message -->
+                        <div class="golden-message" style="color: rgba(255,215,0,0.8); font-size: 0.8rem; margin-top: 0.75rem; text-align: center; font-style: italic;">
+                            "የበረከት ተካፋይ" — You are part of the blessing!
+                        </div>
+                        
                         <!-- Share button for golden profile -->
                         <button type="button" class="golden-share-btn" onclick="shareGoldenProfile()">
                             <i class="fas fa-share-alt"></i>
-                            <span>Share Achievement</span>
+                            <span>Share & Invite Others</span>
                         </button>
                         <?php endif; ?>
                     </div>
@@ -3496,31 +3546,98 @@ document.addEventListener('DOMContentLoaded', function() {
 // Golden Profile Share Function (for fully paid donors)
 function shareGoldenProfile() {
     const donorName = <?php echo json_encode($donor['name'] ?? 'Donor'); ?>;
-    const donorRef = <?php echo json_encode($donor_reference ?? ''); ?>;
     const totalPaid = <?php echo json_encode(formatMoney($donor['total_paid'] ?? 0)); ?>;
+    const donateUrl = 'https://donate.abuneteklehaymanot.org/';
     
-    const shareTitle = '🏆 ' + donorName + ' - Fully Paid Donor';
-    const shareText = '✨ ' + donorName + ' has fully completed their pledge!\n\n' +
-                      '💰 Total Contributed: ' + totalPaid + '\n' +
-                      '🎉 Thank you for your generous support!\n\n' +
-                      '#FullyPaid #Generosity #ThankYou';
+    const shareTitle = '🏆 I Fully Paid My Pledge! - Liverpool Abune Teklehaymanot EOTC';
+    const shareText = '✨ በረከት ተካፋይ ሁኑ! ✨\n\n' +
+                      '🙏 I pledged to support Liverpool Mekane Kidusan Abune Teklehaymanot Church and I have now FULLY PAID my pledge of ' + totalPaid + '!\n\n' +
+                      '🏛️ You can also be part of this blessing by pledging any amount and paying as you wish.\n\n' +
+                      '💡 You are NOT asked to pay fully at once!\n' +
+                      '📌 Pledge → Pay in your own way → Be blessed!\n\n' +
+                      '🤝 Join me and be part of this historic blessing!\n\n' +
+                      '👉 ' + donateUrl + '\n\n' +
+                      '#AbuneTekelHaymanot #FullyPaid #BePartOfTheBlessing #EOTC #Liverpool';
     
+    // Try to capture profile as image first
+    captureAndShare(shareTitle, shareText, donateUrl);
+}
+
+// Capture profile card as image and share
+async function captureAndShare(title, text, donateUrl) {
+    const profileCard = document.getElementById('donorProfileCard');
+    
+    // Check if html2canvas is available, if not load it
+    if (typeof html2canvas === 'undefined') {
+        // Load html2canvas dynamically
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = () => captureAndShareWithCanvas(profileCard, title, text, donateUrl);
+        script.onerror = () => shareWithoutImage(title, text, donateUrl);
+        document.head.appendChild(script);
+    } else {
+        captureAndShareWithCanvas(profileCard, title, text, donateUrl);
+    }
+}
+
+async function captureAndShareWithCanvas(element, title, text, donateUrl) {
+    try {
+        // Show loading state
+        showShareToast('Preparing your achievement...');
+        
+        const canvas = await html2canvas(element, {
+            backgroundColor: '#1a1a2e',
+            scale: 2, // Higher quality
+            useCORS: true,
+            logging: false
+        });
+        
+        // Convert to blob
+        canvas.toBlob(async (blob) => {
+            if (blob && navigator.canShare && navigator.canShare({ files: [new File([blob], 'achievement.png', { type: 'image/png' })] })) {
+                // Share with image (mobile)
+                const file = new File([blob], 'my-pledge-achievement.png', { type: 'image/png' });
+                
+                try {
+                    await navigator.share({
+                        title: title,
+                        text: text,
+                        files: [file]
+                    });
+                    console.log('Shared with image successfully');
+                } catch (shareError) {
+                    console.log('Share with image failed, trying without:', shareError);
+                    shareWithoutImage(title, text, donateUrl);
+                }
+            } else {
+                // Can't share files, try regular share or copy
+                shareWithoutImage(title, text, donateUrl);
+            }
+        }, 'image/png', 0.95);
+        
+    } catch (error) {
+        console.log('Canvas capture failed:', error);
+        shareWithoutImage(title, text, donateUrl);
+    }
+}
+
+function shareWithoutImage(title, text, donateUrl) {
     // Use Web Share API if available (mobile devices)
     if (navigator.share) {
         navigator.share({
-            title: shareTitle,
-            text: shareText,
-            url: window.location.href
+            title: title,
+            text: text,
+            url: donateUrl
         }).then(() => {
             console.log('Shared successfully');
         }).catch((error) => {
             console.log('Share cancelled or failed:', error);
             // Fallback to copy
-            copyProfileToClipboard(shareText);
+            copyProfileToClipboard(text);
         });
     } else {
         // Fallback: copy to clipboard
-        copyProfileToClipboard(shareText);
+        copyProfileToClipboard(text);
     }
 }
 
