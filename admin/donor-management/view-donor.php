@@ -845,7 +845,12 @@ function formatDateTime($date) {
            GOLDEN PREMIUM STYLE - FULLY PAID DONORS
            ======================================== */
         .profile-header.golden-premium {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            background: 
+                linear-gradient(135deg, rgba(26, 26, 46, 0.92) 0%, rgba(22, 33, 62, 0.88) 50%, rgba(15, 15, 35, 0.92) 100%),
+                url('../../New_Church.png');
+            background-size: cover, cover;
+            background-position: center, center;
+            background-repeat: no-repeat, no-repeat;
             position: relative;
             overflow: hidden;
             box-shadow: 
@@ -866,9 +871,9 @@ function formatDateTime($date) {
             background: linear-gradient(
                 45deg,
                 transparent 30%,
-                rgba(255, 215, 0, 0.08) 40%,
-                rgba(255, 215, 0, 0.15) 50%,
-                rgba(255, 215, 0, 0.08) 60%,
+                rgba(255, 215, 0, 0.06) 40%,
+                rgba(255, 215, 0, 0.12) 50%,
+                rgba(255, 215, 0, 0.06) 60%,
                 transparent 70%
             );
             animation: goldenShimmer 4s ease-in-out infinite;
@@ -880,20 +885,34 @@ function formatDateTime($date) {
             50% { transform: translateX(100%) rotate(45deg); }
         }
         
-        /* Golden sparkle particles */
-        .profile-header.golden-premium::after {
-            content: '✨';
+        /* Share button at top right */
+        .golden-share-icon {
             position: absolute;
-            top: 10px;
-            right: 15px;
-            font-size: 1.5rem;
-            animation: sparkle 2s ease-in-out infinite;
-            pointer-events: none;
+            top: 12px;
+            right: 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-main));
+            border: none;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.5);
+            transition: all 0.3s ease;
+            z-index: 10;
         }
         
-        @keyframes sparkle {
-            0%, 100% { opacity: 0.5; transform: scale(1) rotate(0deg); }
-            50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+        .golden-share-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(212, 175, 55, 0.7);
+        }
+        
+        .golden-share-icon:active {
+            transform: scale(0.95);
         }
         
         /* Golden Avatar */
@@ -1614,6 +1633,13 @@ function formatDateTime($date) {
                 
                 <!-- Top Summary Card - Mobile Optimized -->
                 <div class="profile-header<?php echo $is_fully_paid ? ' golden-premium' : ''; ?>" id="donorProfileCard">
+                    <?php if ($is_fully_paid): ?>
+                    <!-- Share Icon Button - Top Right -->
+                    <button type="button" class="golden-share-icon" onclick="shareGoldenProfile()" title="Invite Others to Help">
+                        <i class="fas fa-share-alt"></i>
+                    </button>
+                    <?php endif; ?>
+                    
                     <!-- Top Section: Avatar + Name -->
                     <div class="profile-top">
                         <div class="avatar-circle">
@@ -3554,7 +3580,7 @@ function shareGoldenProfile() {
                       '💡 You can help by:\n' +
                       '✅ Contributing what you can today\n' +
                       '✅ Or pledge now and pay later with a flexible payment plan\n\n' +
-                      '📌 No pressure to pay everything at once — pledge today, pay in your own way!\n\n' +
+                      '📌 No pressure to pay everything at once! pledge today, pay in your own way.\n\n' +
                       '🤝 Be part of this historic blessing!\n\n' +
                       '👉 ' + donateUrl + '\n\n' +
                       '#AbuneTekelHaymanot #EOTC #Liverpool #BePartOfTheBlessing #EthiopianOrthodox';
