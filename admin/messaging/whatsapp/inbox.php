@@ -2927,9 +2927,11 @@ if ($selected_id && $tables_exist) {
                             <a href="templates.php" class="btn btn-sm btn-light" title="Templates">
                                 <i class="fas fa-file-alt"></i>
                             </a>
+                            <?php if ($is_admin): ?>
                             <a href="../../donor-management/sms/whatsapp-settings.php" class="btn btn-sm btn-light" title="Settings">
                                 <i class="fas fa-cog"></i>
                             </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                     
