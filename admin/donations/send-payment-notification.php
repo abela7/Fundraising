@@ -56,6 +56,8 @@ try {
     $phone = trim($input['phone'] ?? '');
     $message = trim($input['message'] ?? '');
     $language = $input['language'] ?? 'en';
+    $routedViaAgent = $input['routed_via_agent'] ?? false;
+    $agentName = $input['agent_name'] ?? null;
 
     if ($donorId <= 0) {
         sendJsonResponse(['success' => false, 'error' => 'Invalid donor ID']);
@@ -107,7 +109,7 @@ try {
             $tableCheck = $db->query("SHOW TABLES LIKE 'payment_notifications_log'");
             
             if ($tableCheck->num_rows === 0) {
-                // Create the table if it doesn't exist
+                // Create the table if it doesn't exist (with routed_via_agent column)
                 $db->query("
                     CREATE TABLE IF NOT EXISTS payment_notifications_log (
                         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -119,23 +121,40 @@ try {
                         sent_by_user_id INT NULL,
                         sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         status VARCHAR(20) NOT NULL DEFAULT 'sent',
+                        routed_via_agent TINYINT(1) NOT NULL DEFAULT 0,
+                        agent_name VARCHAR(100) NULL,
                         INDEX idx_donor (donor_id),
                         INDEX idx_type (notification_type),
                         INDEX idx_sent_at (sent_at)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
+            } else {
+                // Check and add each column independently to handle partial failures
+                $routedColCheck = $db->query("SHOW COLUMNS FROM payment_notifications_log LIKE 'routed_via_agent'");
+                if ($routedColCheck->num_rows === 0) {
+                    $db->query("ALTER TABLE payment_notifications_log ADD COLUMN routed_via_agent TINYINT(1) NOT NULL DEFAULT 0 AFTER status");
+                }
+                
+                $agentNameColCheck = $db->query("SHOW COLUMNS FROM payment_notifications_log LIKE 'agent_name'");
+                if ($agentNameColCheck->num_rows === 0) {
+                    // Add after routed_via_agent if it exists, otherwise after status
+                    $hasRoutedCol = $db->query("SHOW COLUMNS FROM payment_notifications_log LIKE 'routed_via_agent'")->num_rows > 0;
+                    $afterColumn = $hasRoutedCol ? 'routed_via_agent' : 'status';
+                    $db->query("ALTER TABLE payment_notifications_log ADD COLUMN agent_name VARCHAR(100) NULL AFTER $afterColumn");
+                }
             }
 
             $userId = (int)($current_user['id'] ?? 0);
             $channel = $result['channel'] ?? 'whatsapp';
             $preview = mb_substr($message, 0, 500);
+            $routedFlag = $routedViaAgent ? 1 : 0;
             
             $logStmt = $db->prepare("
                 INSERT INTO payment_notifications_log 
-                (donor_id, notification_type, channel, phone_number, message_preview, sent_by_user_id)
-                VALUES (?, 'payment_confirmed', ?, ?, ?, ?)
+                (donor_id, notification_type, channel, phone_number, message_preview, sent_by_user_id, routed_via_agent, agent_name)
+                VALUES (?, 'payment_confirmed', ?, ?, ?, ?, ?, ?)
             ");
-            $logStmt->bind_param('isssi', $donorId, $channel, $phone, $preview, $userId);
+            $logStmt->bind_param('isssiis', $donorId, $channel, $phone, $preview, $userId, $routedFlag, $agentName);
             $logStmt->execute();
             $logStmt->close();
         } catch (Exception $logError) {
@@ -143,10 +162,15 @@ try {
             error_log("Payment notification log error: " . $logError->getMessage());
         }
 
+        $responseMessage = $routedViaAgent 
+            ? 'Notification sent to agent (' . ($agentName ?? 'Unknown') . ')' 
+            : 'Notification sent successfully';
+
         sendJsonResponse([
             'success' => true,
-            'message' => 'Notification sent successfully',
-            'channel' => $result['channel'] ?? 'whatsapp'
+            'message' => $responseMessage,
+            'channel' => $result['channel'] ?? 'whatsapp',
+            'routed_via_agent' => $routedViaAgent
         ]);
     } else {
         sendJsonResponse([

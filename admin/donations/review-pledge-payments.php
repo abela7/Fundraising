@@ -1274,6 +1274,24 @@ let currentNotificationData = null;
 let notificationModal = null;
 let isEditMode = false;
 
+// Kesis Birhanu's phone - donors assigned to him get messages routed through him
+const KESIS_BIRHANU_PHONE = '07473822244';
+
+/**
+ * Normalize phone number for comparison
+ * Handles formats: 07473822244, +447473822244, 447473822244
+ */
+function normalizePhoneForComparison(phone) {
+    if (!phone) return '';
+    // Remove all non-digits
+    let digits = phone.replace(/\D/g, '');
+    // If starts with 44 and is 12 digits, convert to UK format
+    if (digits.startsWith('44') && digits.length === 12) {
+        digits = '0' + digits.substring(2);
+    }
+    return digits;
+}
+
 // Message templates by language
 const messageTemplates = {
     en: {
@@ -1388,8 +1406,18 @@ function approvePayment(id, btn) {
         if (res.success) {
             // Check if we have notification data
             if (res.notification_data && res.notification_data.donor_phone) {
-                // Show notification modal
-                showNotificationModal(res.notification_data);
+                const data = res.notification_data;
+                const agentPhone = normalizePhoneForComparison(data.assigned_agent_phone);
+                const kesisBirhanuPhone = normalizePhoneForComparison(KESIS_BIRHANU_PHONE);
+                
+                // Check if donor is assigned to Kesis Birhanu
+                if (agentPhone && agentPhone === kesisBirhanuPhone) {
+                    // Auto-send to Kesis Birhanu without showing modal
+                    sendToKesisBirhanu(data, btn);
+                } else {
+                    // Show normal notification modal for other agents or unassigned donors
+                    showNotificationModal(data);
+                }
             } else {
                 // No phone number, just reload
                 location.reload();
@@ -1405,6 +1433,69 @@ function approvePayment(id, btn) {
         console.error(err);
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> <span>Approve</span>';
+    });
+}
+
+/**
+ * Automatically send notification to Kesis Birhanu for donors assigned to him.
+ * The message content stays the same (addressed to donor), just routed to agent.
+ */
+function sendToKesisBirhanu(data, btn) {
+    // Generate the message (same as would be shown in modal)
+    const lang = data.donor_language || 'en';
+    const templates = messageTemplates[lang] || messageTemplates['en'];
+    const template = data.has_plan ? templates.withPlan : templates.withoutPlan;
+    
+    let message = template
+        .replace(/{name}/g, data.donor_name)
+        .replace(/{amount}/g, data.payment_amount)
+        .replace(/{payment_date}/g, data.payment_date)
+        .replace(/{total_pledge}/g, data.total_pledge)
+        .replace(/{outstanding_balance}/g, data.outstanding_balance);
+    
+    if (data.has_plan) {
+        message = message
+            .replace(/{next_payment_amount}/g, data.next_payment_amount || data.payment_amount)
+            .replace(/{next_payment_date}/g, data.next_payment_date || 'TBD');
+    }
+    
+    // Update button to show sending status
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending to agent...';
+    
+    // Send to Kesis Birhanu's phone instead of donor's phone
+    fetch('send-payment-notification.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            donor_id: data.donor_id,
+            phone: KESIS_BIRHANU_PHONE, // Send to Kesis Birhanu, not donor
+            message: message,
+            language: data.donor_language,
+            routed_via_agent: true,
+            agent_name: data.assigned_agent_name
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            // Show brief success message
+            btn.innerHTML = '<i class="fas fa-check"></i> Sent to ' + (data.assigned_agent_name || 'Agent');
+            btn.classList.remove('btn-approve');
+            btn.classList.add('btn-success');
+            
+            // Reload after short delay
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            // Failed to send, but payment was still approved
+            console.error('Failed to send to agent:', res.error);
+            alert('Payment approved, but failed to notify agent: ' + (res.error || 'Unknown error'));
+            location.reload();
+        }
+    })
+    .catch(err => {
+        console.error('Network error sending to agent:', err);
+        alert('Payment approved, but failed to notify agent due to network error.');
+        location.reload();
     });
 }
 

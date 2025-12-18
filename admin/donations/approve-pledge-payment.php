@@ -274,16 +274,20 @@ try {
         }
     }
     
-    // Fetch updated donor data for notification
+    // Fetch updated donor data for notification (including assigned agent info)
     $updatedDonorStmt = $db->prepare("
         SELECT d.*, 
                p.amount as pledge_amount,
                dpp.next_payment_due as plan_next_payment,
                dpp.monthly_amount as plan_amount,
-               dpp.status as plan_status
+               dpp.status as plan_status,
+               agent.id as assigned_agent_id,
+               agent.name as assigned_agent_name,
+               agent.phone as assigned_agent_phone
         FROM donors d
         LEFT JOIN pledges p ON d.id = p.donor_id
         LEFT JOIN donor_payment_plans dpp ON d.active_payment_plan_id = dpp.id
+        LEFT JOIN users agent ON d.agent_id = agent.id
         WHERE d.id = ?
         ORDER BY p.created_at DESC
         LIMIT 1
@@ -293,7 +297,7 @@ try {
     $updatedDonor = $updatedDonorStmt->get_result()->fetch_assoc();
     $updatedDonorStmt->close();
     
-    // Prepare notification data
+    // Prepare notification data (including assigned agent for routing)
     $notificationData = [
         'donor_id' => $donor_id,
         'donor_name' => $payment['donor_name'] ?? 'Donor',
@@ -309,7 +313,11 @@ try {
             : null,
         'next_payment_amount' => $updatedDonor['plan_amount'] 
             ? number_format((float)$updatedDonor['plan_amount'], 2) 
-            : null
+            : null,
+        // Assigned agent info for message routing
+        'assigned_agent_id' => $updatedDonor['assigned_agent_id'] ?? null,
+        'assigned_agent_name' => $updatedDonor['assigned_agent_name'] ?? null,
+        'assigned_agent_phone' => $updatedDonor['assigned_agent_phone'] ?? null
     ];
     
     echo json_encode([
