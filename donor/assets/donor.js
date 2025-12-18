@@ -60,6 +60,7 @@
     console.log('[PWA] ✅ App installed!');
     hideInstallModal();
     localStorage.removeItem('pwa_install_dismissed_donor');
+    trackInstallation('browser_prompt');
   });
   
   function showInstallModal() {
@@ -158,8 +159,67 @@
     if (styles) styles.remove();
   }
   
+  // Track installation to server
+  function trackInstallation(method) {
+    let userId = 0;
+    let userType = 'donor';
+    
+    if (window.currentUserId) userId = window.currentUserId;
+    else if (window.currentDonorId) userId = window.currentDonorId;
+    else if (document.body.dataset.donorId) userId = parseInt(document.body.dataset.donorId);
+    
+    if (userId <= 0) {
+      console.log('[PWA] No user ID found, skipping tracking');
+      return;
+    }
+    
+    fetch('/api/pwa-track.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'install',
+        user_type: userType,
+        user_id: userId,
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        install_method: method
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      console.log('[PWA] Installation tracked:', res);
+      localStorage.setItem('pwa_tracked_donor', 'true');
+    })
+    .catch(err => console.log('[PWA] Track error:', err));
+  }
+  
+  function trackHeartbeat() {
+    let userId = window.currentDonorId || 0;
+    if (document.body.dataset.donorId) userId = parseInt(document.body.dataset.donorId);
+    if (userId <= 0) return;
+    
+    fetch('/api/pwa-track.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'heartbeat',
+        user_type: 'donor',
+        user_id: userId
+      })
+    }).catch(() => {});
+  }
+  
   document.addEventListener('DOMContentLoaded', function() {
-    if (!isAppInstalled() && !wasDismissedToday()) {
+    if (isAppInstalled()) {
+      if (!localStorage.getItem('pwa_tracked_donor')) {
+        trackInstallation('standalone_detected');
+      } else {
+        trackHeartbeat();
+      }
+      return;
+    }
+    
+    if (!wasDismissedToday()) {
       setTimeout(function() { if (!installModalShown) showInstallModal(); }, 1500);
     }
   });

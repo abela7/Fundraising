@@ -334,7 +334,15 @@ try {
         </span>
         <span class="nav-label">Developer Tools</span>
       </a>
-      <a href="<?php echo url_for('admin/settings/'); ?>"
+<a href="<?php echo url_for('admin/pwa-installations/'); ?>" 
+         class="nav-link <?php echo $current_dir === 'pwa-installations' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-mobile-alt"></i>
+        </span>
+        <span class="nav-label">PWA Installs</span>
+      </a>
+      
+      <a href="<?php echo url_for('admin/settings/'); ?>" 
          class="nav-link <?php echo $current_dir === 'settings' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-cog"></i>
@@ -342,7 +350,7 @@ try {
         <span class="nav-label">Settings</span>
       </a>
       
-      <a href="<?php echo url_for('admin/profile/'); ?>" 
+      <a href="<?php echo url_for('admin/profile/'); ?>"
          class="nav-link <?php echo $current_dir === 'profile' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-user-circle"></i>

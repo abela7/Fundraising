@@ -385,7 +385,8 @@ if (isset($_SESSION['success_message'])) {
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/registrar.css?v=<?php echo @filemtime(__DIR__ . '/assets/registrar.css'); ?>">
 </head>
-<body>
+<body data-user-id="<?php echo (int)($user['id'] ?? 0); ?>" data-user-type="registrar">
+    <script>window.currentUserId = <?php echo (int)($user['id'] ?? 0); ?>;</script>
     <div class="app-wrapper">
         <?php include 'includes/sidebar.php'; ?>
         

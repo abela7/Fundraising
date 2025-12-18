@@ -218,7 +218,8 @@ $badge_labels = [
     <link rel="stylesheet" href="../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../assets/theme.css'); ?>">
     <link rel="stylesheet" href="assets/donor.css?v=<?php echo @filemtime(__DIR__ . '/assets/donor.css'); ?>">
 </head>
-<body>
+<body data-donor-id="<?php echo (int)($donor['id'] ?? 0); ?>" data-user-type="donor">
+<script>window.currentDonorId = <?php echo (int)($donor['id'] ?? 0); ?>;</script>
 <div class="app-wrapper">
     <?php include 'includes/sidebar.php'; ?>
     

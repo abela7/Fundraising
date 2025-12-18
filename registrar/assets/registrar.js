@@ -66,6 +66,7 @@
     console.log('[PWA] ✅ App installed successfully!');
     hideInstallModal();
     localStorage.removeItem('pwa_install_dismissed');
+    trackInstallation('browser_prompt');
   });
   
   // Create and show the blocking install modal
@@ -323,9 +324,81 @@
     if (styles) styles.remove();
   }
   
+  // Track installation to server
+  function trackInstallation(method) {
+    // Get user info from page (look for user data)
+    let userId = 0;
+    let userType = 'registrar';
+    
+    // Try to get user ID from various sources
+    if (window.currentUserId) userId = window.currentUserId;
+    else if (document.body.dataset.userId) userId = parseInt(document.body.dataset.userId);
+    else {
+      // Try to extract from any visible element
+      const userIdEl = document.querySelector('[data-user-id]');
+      if (userIdEl) userId = parseInt(userIdEl.dataset.userId);
+    }
+    
+    if (userId <= 0) {
+      console.log('[PWA] No user ID found, skipping tracking');
+      return;
+    }
+    
+    const data = {
+      action: 'install',
+      user_type: userType,
+      user_id: userId,
+      screen_width: window.screen.width,
+      screen_height: window.screen.height,
+      install_method: method
+    };
+    
+    fetch('/api/pwa-track.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+      console.log('[PWA] Installation tracked:', res);
+      localStorage.setItem('pwa_tracked', 'true');
+    })
+    .catch(err => console.log('[PWA] Track error:', err));
+  }
+  
+  // Track heartbeat (app opened in standalone mode)
+  function trackHeartbeat() {
+    let userId = window.currentUserId || 0;
+    if (document.body.dataset.userId) userId = parseInt(document.body.dataset.userId);
+    
+    if (userId <= 0) return;
+    
+    fetch('/api/pwa-track.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'heartbeat',
+        user_type: 'registrar',
+        user_id: userId
+      })
+    }).catch(() => {});
+  }
+  
   // Show modal on page load if not installed
   document.addEventListener('DOMContentLoaded', function() {
-    if (!isAppInstalled() && !wasDismissedToday()) {
+    // If running in standalone mode (installed), track it
+    if (isAppInstalled()) {
+      // Check if we've already tracked this installation
+      if (!localStorage.getItem('pwa_tracked')) {
+        trackInstallation('standalone_detected');
+      } else {
+        // Just send heartbeat
+        trackHeartbeat();
+      }
+      return; // Don't show install modal
+    }
+    
+    if (!wasDismissedToday()) {
       // Wait for beforeinstallprompt, then show modal
       setTimeout(function() {
         if (!installModalShown) {
