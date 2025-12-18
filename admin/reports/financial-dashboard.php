@@ -54,6 +54,25 @@ $page_title = 'Financial Dashboard';
         .skeleton { background: linear-gradient(90deg, #f1f3f5 25%, #e9ecef 37%, #f1f3f5 63%); background-size: 400% 100%; animation: skeleton 1.2s ease-in-out infinite; border-radius: 8px; }
         @keyframes skeleton { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
         .table-sm td, .table-sm th { padding: .4rem .5rem; }
+        
+        /* Tab switcher visibility fixes */
+        #financialDashboardTabs .nav-link {
+            color: #495057 !important;
+            font-weight: 500;
+        }
+        #financialDashboardTabs .nav-link:hover {
+            color: #212529 !important;
+            background-color: #f8f9fa;
+        }
+        #financialDashboardTabs .nav-link.active {
+            color: #0d6efd !important;
+            font-weight: 600;
+            background-color: #fff;
+            border-bottom-color: #fff;
+        }
+        #financialDashboardTabs .nav-link i {
+            color: inherit;
+        }
     </style>
 </head>
 <body>
