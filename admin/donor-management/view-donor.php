@@ -1675,7 +1675,7 @@ function formatDateTime($date) {
                         <!-- Share button for golden profile -->
                         <button type="button" class="golden-share-btn" onclick="shareGoldenProfile()">
                             <i class="fas fa-share-alt"></i>
-                            <span>Share & Invite Others</span>
+                            <span>Invite Others to Help</span>
                         </button>
                         <?php endif; ?>
                     </div>
@@ -3543,30 +3543,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Golden Profile Share Function (for fully paid donors)
+// Golden Profile Share Function - General Invitation (humble approach)
 function shareGoldenProfile() {
-    const donorName = <?php echo json_encode($donor['name'] ?? 'Donor'); ?>;
-    const totalPaid = <?php echo json_encode(formatMoney($donor['total_paid'] ?? 0)); ?>;
     const donateUrl = 'https://donate.abuneteklehaymanot.org/';
     
-    const shareTitle = '🏆 I Fully Paid My Pledge! - Liverpool Abune Teklehaymanot EOTC';
-    const shareText = '✨ በረከት ተካፋይ ሁኑ! ✨\n\n' +
-                      '🙏 I pledged to support Liverpool Mekane Kidusan Abune Teklehaymanot Church and I have now FULLY PAID my pledge of ' + totalPaid + '!\n\n' +
-                      '🏛️ You can also be part of this blessing by pledging any amount and paying as you wish.\n\n' +
-                      '💡 You are NOT asked to pay fully at once!\n' +
-                      '📌 Pledge → Pay in your own way → Be blessed!\n\n' +
-                      '🤝 Join me and be part of this historic blessing!\n\n' +
+    const shareTitle = '⛪ Help Build Our Church - Liverpool Abune Teklehaymanot EOTC';
+    const shareText = '⛪ የበረከት ተካፋይ ይሁኑ! ⛪\n\n' +
+                      '🙏 Liverpool Abune Teklehaymanot Ethiopian Orthodox Tewahedo Church needs your help!\n\n' +
+                      '🏛️ We are on our way to buy a new church building and every contribution makes a difference.\n\n' +
+                      '💡 You can help by:\n' +
+                      '✅ Contributing what you can today\n' +
+                      '✅ Or pledge now and pay later with a flexible payment plan\n\n' +
+                      '📌 No pressure to pay everything at once — pledge today, pay in your own way!\n\n' +
+                      '🤝 Be part of this historic blessing!\n\n' +
                       '👉 ' + donateUrl + '\n\n' +
-                      '#AbuneTekelHaymanot #FullyPaid #BePartOfTheBlessing #EOTC #Liverpool';
+                      '#AbuneTekelHaymanot #EOTC #Liverpool #BePartOfTheBlessing #EthiopianOrthodox';
     
-    // Share text only (no image)
+    // Share text only
     if (navigator.share) {
         navigator.share({
             title: shareTitle,
             text: shareText,
             url: donateUrl
         }).then(() => {
-            showShareToast('Shared successfully!');
+            showShareToast('Invitation shared!');
         }).catch((error) => {
             if (error.name === 'AbortError') {
                 console.log('Share cancelled by user');
