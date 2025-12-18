@@ -1697,12 +1697,6 @@ function formatDateTime($date) {
                         <div class="golden-message" style="color: rgba(255,215,0,0.8); font-size: 0.8rem; margin-top: 0.75rem; text-align: center; font-style: italic;">
                             "የበረከት ተካፋይ" — Part of this historic achievement!
                         </div>
-                        
-                        <!-- Share button for golden profile -->
-                        <button type="button" class="golden-share-btn" onclick="shareGoldenProfile()">
-                            <i class="fas fa-share-alt"></i>
-                            <span>Invite Others to Help</span>
-                        </button>
                         <?php endif; ?>
                     </div>
                     
