@@ -112,8 +112,8 @@
               <span>Tap <strong>"Add"</strong> in the top right</span>
             </div>
           </div>
-          <button class="pwa-btn pwa-btn-primary" onclick="dismissInstallModal()">
-            I'll do it now
+          <button class="pwa-btn pwa-btn-primary" onclick="confirmIOSInstall()">
+            ✓ I've added it to Home Screen
           </button>
         ` : hasPrompt ? `
           <button class="pwa-btn pwa-btn-primary" onclick="triggerInstall()">
@@ -310,6 +310,13 @@
     }
   };
   
+  // iOS manual confirmation
+  window.confirmIOSInstall = function() {
+    trackInstallation('ios_manual');
+    hideInstallModal();
+    alert('Great! Now open the app from your Home Screen for the best experience.');
+  };
+  
   // Dismiss modal
   window.dismissInstallModal = function() {
     localStorage.setItem('pwa_install_dismissed', new Date().toDateString());
@@ -326,21 +333,30 @@
   
   // Track installation to server
   function trackInstallation(method) {
-    // Get user info from page (look for user data)
     let userId = 0;
     let userType = 'registrar';
     
-    // Try to get user ID from various sources
-    if (window.currentUserId) userId = window.currentUserId;
-    else if (document.body.dataset.userId) userId = parseInt(document.body.dataset.userId);
-    else {
-      // Try to extract from any visible element
-      const userIdEl = document.querySelector('[data-user-id]');
-      if (userIdEl) userId = parseInt(userIdEl.dataset.userId);
+    // Try multiple ways to get user ID
+    if (window.currentUserId) {
+      userId = window.currentUserId;
+      console.log('[PWA] Got ID from window.currentUserId:', userId);
+    } else if (document.body && document.body.dataset.userId) {
+      userId = parseInt(document.body.dataset.userId);
+      console.log('[PWA] Got ID from body data-user-id:', userId);
+    } else {
+      const el = document.querySelector('[data-user-id]');
+      if (el) {
+        userId = parseInt(el.dataset.userId);
+        console.log('[PWA] Got ID from element:', userId);
+      }
     }
     
+    console.log('[PWA] Final user ID:', userId, 'Method:', method);
+    
     if (userId <= 0) {
-      console.log('[PWA] No user ID found, skipping tracking');
+      console.log('[PWA] ❌ No user ID found, skipping tracking');
+      console.log('[PWA] window.currentUserId:', window.currentUserId);
+      console.log('[PWA] document.body.dataset:', document.body ? document.body.dataset : 'no body');
       return;
     }
     

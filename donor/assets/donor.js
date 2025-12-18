@@ -93,7 +93,7 @@
             <div class="pwa-step"><span class="pwa-step-num">2</span><span>Tap <strong>"Add to Home Screen"</strong></span></div>
             <div class="pwa-step"><span class="pwa-step-num">3</span><span>Tap <strong>"Add"</strong></span></div>
           </div>
-          <button class="pwa-btn pwa-btn-primary" onclick="dismissInstallModal()">I'll do it now</button>
+          <button class="pwa-btn pwa-btn-primary" onclick="confirmIOSInstall()">✓ I've added it to Home Screen</button>
         ` : hasPrompt ? `
           <button class="pwa-btn pwa-btn-primary" onclick="triggerInstall()"><i class="fas fa-download"></i> Install Now</button>
         ` : `
@@ -147,6 +147,13 @@
     } catch (err) { alert('Installation failed.'); }
   };
   
+  window.confirmIOSInstall = function() {
+    // User confirms they've added to home screen on iOS
+    trackInstallation('ios_manual');
+    hideInstallModal();
+    alert('Great! Now open the app from your Home Screen for the best experience.');
+  };
+  
   window.dismissInstallModal = function() {
     localStorage.setItem('pwa_install_dismissed_donor', new Date().toDateString());
     hideInstallModal();
@@ -164,12 +171,31 @@
     let userId = 0;
     let userType = 'donor';
     
-    if (window.currentUserId) userId = window.currentUserId;
-    else if (window.currentDonorId) userId = window.currentDonorId;
-    else if (document.body.dataset.donorId) userId = parseInt(document.body.dataset.donorId);
+    // Try multiple ways to get user ID
+    if (window.currentDonorId) {
+      userId = window.currentDonorId;
+      console.log('[PWA] Got ID from window.currentDonorId:', userId);
+    } else if (window.currentUserId) {
+      userId = window.currentUserId;
+      console.log('[PWA] Got ID from window.currentUserId:', userId);
+    } else if (document.body && document.body.dataset.donorId) {
+      userId = parseInt(document.body.dataset.donorId);
+      console.log('[PWA] Got ID from body data-donor-id:', userId);
+    } else {
+      // Last resort: check for any element with donor ID
+      const el = document.querySelector('[data-donor-id]');
+      if (el) {
+        userId = parseInt(el.dataset.donorId);
+        console.log('[PWA] Got ID from element:', userId);
+      }
+    }
+    
+    console.log('[PWA] Final user ID:', userId, 'Method:', method);
     
     if (userId <= 0) {
-      console.log('[PWA] No user ID found, skipping tracking');
+      console.log('[PWA] ❌ No user ID found, skipping tracking');
+      console.log('[PWA] window.currentDonorId:', window.currentDonorId);
+      console.log('[PWA] document.body.dataset:', document.body ? document.body.dataset : 'no body');
       return;
     }
     
