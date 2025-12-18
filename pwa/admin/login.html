@@ -83,6 +83,8 @@
         }
         
         showToast('Login successful!', 'success');
+        // Flag to show install prompt on main page
+        sessionStorage.setItem('just_logged_in', 'true');
         setTimeout(() => {
           window.location.href = 'index.html';
         }, 500);

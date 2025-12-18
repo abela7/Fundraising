@@ -85,6 +85,21 @@ $page_title = 'Financial Dashboard';
                     </div>
                 </div>
 
+                <ul class="nav nav-tabs mb-3" id="financialDashboardTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-overview-btn" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button" role="tab" aria-controls="tab-overview" aria-selected="true">
+                            <i class="fas fa-chart-line me-1"></i>Overview
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-pledge-btn" data-bs-toggle="tab" data-bs-target="#tab-pledge" type="button" role="tab" aria-controls="tab-pledge" aria-selected="false">
+                            <i class="fas fa-hand-holding-usd me-1"></i>Pledge Payments
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="financialDashboardTabsContent">
+                    <div class="tab-pane fade show active" id="tab-overview" role="tabpanel" aria-labelledby="tab-overview-btn" tabindex="0">
                 <!-- KPI cards -->
                 <div class="row g-3 mb-3" id="kpiRow">
                     <div class="col-xl-3 col-md-6">
@@ -275,6 +290,177 @@ $page_title = 'Financial Dashboard';
                     </div>
                 </div>
 
+                    </div><!-- /tab-overview -->
+
+                    <div class="tab-pane fade" id="tab-pledge" role="tabpanel" aria-labelledby="tab-pledge-btn" tabindex="0">
+                        <div class="alert alert-warning d-none" id="pledgePaymentsDisabled">
+                            <strong><i class="fas fa-triangle-exclamation me-2"></i>Pledge payments are not enabled</strong><br>
+                            This installation does not have the <code>pledge_payments</code> table, so pledge-payment analytics can’t be displayed.
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
+                            <div>
+                                <h5 class="mb-0"><i class="fas fa-hand-holding-usd text-success me-2"></i>Pledge Payments</h5>
+                                <div class="text-muted small">
+                                    This tab focuses only on pledges and pledge payments: who is paying, who is completed, and how collection is trending.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 kpi-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-circle bg-primary text-white"><i class="fas fa-hand-holding-heart"></i></div>
+                                            <div class="ms-3 flex-grow-1">
+                                                <div class="kpi-label text-primary fw-bold">Total Pledged (approved)</div>
+                                                <div class="kpi-value" id="pledgeTotalPledged">—</div>
+                                                <div class="kpi-sub">Approved pledges</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 kpi-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-circle bg-success text-white"><i class="fas fa-money-bill-transfer"></i></div>
+                                            <div class="ms-3 flex-grow-1">
+                                                <div class="kpi-label text-success fw-bold">Paid Towards Pledges</div>
+                                                <div class="kpi-value" id="pledgePaidTowards">—</div>
+                                                <div class="kpi-sub">Confirmed pledge payments</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 kpi-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-circle bg-warning text-white"><i class="fas fa-hourglass-half"></i></div>
+                                            <div class="ms-3 flex-grow-1">
+                                                <div class="kpi-label text-warning fw-bold">Outstanding Pledged</div>
+                                                <div class="kpi-value" id="pledgeOutstanding">—</div>
+                                                <div class="kpi-sub">Approved pledges − confirmed pledge payments</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 kpi-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-circle bg-info text-white"><i class="fas fa-percentage"></i></div>
+                                            <div class="ms-3 flex-grow-1">
+                                                <div class="kpi-label text-info fw-bold">Pledge Collection Rate</div>
+                                                <div class="kpi-value" id="pledgeCollectionRate">—</div>
+                                                <div class="kpi-sub">Pledge payments ÷ pledges</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 kpi-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-circle bg-dark text-white"><i class="fas fa-person-walking"></i></div>
+                                            <div class="ms-3 flex-grow-1">
+                                                <div class="kpi-label fw-bold">Donors Paying</div>
+                                                <div class="kpi-value" id="pledgeDonorsPaying">—</div>
+                                                <div class="kpi-sub">Pledge donors currently paying</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 kpi-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-circle bg-secondary text-white"><i class="fas fa-flag-checkered"></i></div>
+                                            <div class="ms-3 flex-grow-1">
+                                                <div class="kpi-label fw-bold">Donors Completed</div>
+                                                <div class="kpi-value" id="pledgeDonorsCompleted">—</div>
+                                                <div class="kpi-sub">Pledge donors paid in full</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <h6 class="mb-2"><i class="fas fa-chart-line me-2 text-success"></i>Pledge Payments Collected (Last 12 Months)</h6>
+                                        <div id="chartPledgeMonthly" class="chart-box"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <h6 class="mb-2"><i class="fas fa-chart-pie me-2 text-primary"></i>Pledge Donor Status</h6>
+                                        <div id="chartPledgeDonorStatus" class="chart-box"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <h6 class="mb-2"><i class="fas fa-chart-bar me-2 text-warning"></i>Top Outstanding Balances (Paying)</h6>
+                                        <div id="chartPledgeTopOutstanding" class="chart-box"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0"><i class="fas fa-users me-2 text-dark"></i>Pledge Donors (Paying / Completed)</h6>
+                                            <small class="text-muted">Top 50 by balance / paid</small>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Donor</th>
+                                                        <th class="text-end">Pledged</th>
+                                                        <th class="text-end">Paid</th>
+                                                        <th class="text-end">Outstanding</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="pledgeDonorsBody">
+                                                    <tr>
+                                                        <td colspan="5">
+                                                            <div class="skeleton" style="height: 26px;"></div>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div><!-- /tab-pledge -->
+                </div><!-- /tab-content -->
+
             </div>
         </main>
     </div>
@@ -289,6 +475,7 @@ $page_title = 'Financial Dashboard';
   const CURRENCY = <?php echo json_encode($currency); ?>;
   const CHARTS = {};
   let resizeBound = false;
+  let LAST_DATA = null;
 
   const el = (id) => document.getElementById(id);
 
@@ -368,6 +555,8 @@ $page_title = 'Financial Dashboard';
     function init(id) {
       const node = el(id);
       if (!node) return null;
+      // Avoid initializing charts in hidden tabs (0x0 size)
+      if (node.offsetWidth === 0 || node.offsetHeight === 0) return null;
       let chart = echarts.getInstanceByDom(node);
       if (!chart) {
         chart = echarts.init(node);
@@ -468,10 +657,126 @@ $page_title = 'Financial Dashboard';
       });
     }
 
+    // --- Pledge Payments Tab Charts ---
+    const pledgeBlock = data && data.pledge_payments ? data.pledge_payments : {};
+
+    const pledgeMonthly = init('chartPledgeMonthly');
+    if (pledgeMonthly) {
+      const items = Array.isArray(pledgeBlock.monthly) ? pledgeBlock.monthly : [];
+      const labels = items.map(x => x.label);
+      const paid = items.map(x => Number(x.paid || 0));
+
+      pledgeMonthly.setOption({
+        tooltip: { trigger: 'axis', valueFormatter: (v) => fmtMoney(v) },
+        grid: { left: 24, right: 24, top: 20, bottom: 24, containLabel: true },
+        xAxis: { type: 'category', data: labels },
+        yAxis: { type: 'value' },
+        series: [
+          { name: 'Paid Towards Pledges', type: 'line', smooth: true, data: paid, areaStyle: { opacity: 0.10 } }
+        ]
+      });
+    }
+
+    const pledgeDonorStatus = init('chartPledgeDonorStatus');
+    if (pledgeDonorStatus) {
+      const items = Array.isArray(pledgeBlock.donor_status) ? pledgeBlock.donor_status : [];
+      const seriesData = items.map(x => ({ name: String(x.status || 'Unknown'), value: Number(x.count || 0) }));
+
+      pledgeDonorStatus.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { top: 'bottom' },
+        series: [{
+          name: 'Pledge Donor Status',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+          label: { show: false },
+          emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+          labelLine: { show: false },
+          data: seriesData
+        }]
+      });
+    }
+
+    const pledgeTopOutstanding = init('chartPledgeTopOutstanding');
+    if (pledgeTopOutstanding) {
+      const items = Array.isArray(pledgeBlock.top_outstanding) ? pledgeBlock.top_outstanding : [];
+      const names = items.map(x => String(x.name || '')).reverse();
+      const values = items.map(x => Number(x.balance || 0)).reverse();
+
+      pledgeTopOutstanding.setOption({
+        tooltip: { trigger: 'axis', valueFormatter: (v) => fmtMoney(v) },
+        grid: { left: 24, right: 24, top: 20, bottom: 24, containLabel: true },
+        xAxis: { type: 'value' },
+        yAxis: { type: 'category', data: names },
+        series: [{ name: 'Outstanding', type: 'bar', data: values, itemStyle: { borderRadius: [0, 6, 6, 0] } }]
+      });
+    }
+
     if (!resizeBound) {
       resizeBound = true;
       window.addEventListener('resize', () => {
         Object.values(CHARTS).forEach(c => { try { c.resize(); } catch (_) {} });
+      });
+    }
+  }
+
+  function renderPledgeTab(data) {
+    const p = data && data.pledge_payments ? data.pledge_payments : {};
+
+    const enabled = !!p.enabled;
+    const disabledAlert = el('pledgePaymentsDisabled');
+    if (disabledAlert) {
+      disabledAlert.classList.toggle('d-none', enabled);
+    }
+
+    const t = p.totals || {};
+    const d = p.donors || {};
+
+    if (el('pledgeTotalPledged')) el('pledgeTotalPledged').textContent = fmtMoney(t.total_pledged);
+    if (el('pledgePaidTowards')) el('pledgePaidTowards').textContent = fmtMoney(t.paid_towards_pledges);
+    if (el('pledgeOutstanding')) el('pledgeOutstanding').textContent = fmtMoney(t.outstanding_pledged);
+    if (el('pledgeCollectionRate')) el('pledgeCollectionRate').textContent = (Number(t.collection_rate || 0).toFixed(1)) + '%';
+
+    if (el('pledgeDonorsPaying')) el('pledgeDonorsPaying').textContent = fmtInt(d.paying);
+    if (el('pledgeDonorsCompleted')) el('pledgeDonorsCompleted').textContent = fmtInt(d.completed);
+
+    const body = el('pledgeDonorsBody');
+    if (body) {
+      const rows = Array.isArray(p.donors_list) ? p.donors_list : [];
+      body.innerHTML = '';
+
+      if (!enabled) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" class="text-muted">Pledge payments are not enabled on this system.</td>';
+        body.appendChild(tr);
+        return;
+      }
+
+      if (rows.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" class="text-muted">No pledge donors (paying/completed) found.</td>';
+        body.appendChild(tr);
+        return;
+      }
+
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        const name = String(r.name || 'Anonymous');
+        const pledged = fmtMoney(r.pledged);
+        const paid = fmtMoney(r.paid);
+        const bal = fmtMoney(r.balance);
+        const status = String(r.status || '');
+
+        const badgeClass = status.toLowerCase() === 'completed' ? 'bg-success' : 'bg-warning text-dark';
+        tr.innerHTML = `
+          <td>${escapeHtml(name)}</td>
+          <td class="text-end">${escapeHtml(pledged)}</td>
+          <td class="text-end">${escapeHtml(paid)}</td>
+          <td class="text-end fw-semibold">${escapeHtml(bal)}</td>
+          <td><span class="badge ${badgeClass}">${escapeHtml(status)}</span></td>
+        `;
+        body.appendChild(tr);
       });
     }
   }
@@ -486,6 +791,7 @@ $page_title = 'Financial Dashboard';
     el('kpiActivePlans').textContent = fmtInt(k.active_plans);
 
     renderRecent(data.recent_transactions);
+    renderPledgeTab(data);
     buildCharts(data);
   }
 
@@ -515,6 +821,7 @@ $page_title = 'Financial Dashboard';
         throw new Error(msg);
       }
 
+      LAST_DATA = data;
       render(data);
       setStatus(true, 'Loaded');
       setTimestamp('Updated: ' + new Date().toLocaleString());
@@ -532,6 +839,15 @@ $page_title = 'Financial Dashboard';
 
   const refreshBtn = el('refreshBtn');
   if (refreshBtn) refreshBtn.addEventListener('click', load);
+
+  // Re-render charts when switching tabs (ECharts needs a visible container)
+  document.querySelectorAll('#financialDashboardTabs button[data-bs-toggle="tab"]').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', () => {
+      if (!LAST_DATA) return;
+      buildCharts(LAST_DATA);
+      Object.values(CHARTS).forEach(c => { try { c.resize(); } catch (_) {} });
+    });
+  });
 
   load();
 })();
