@@ -290,17 +290,18 @@ if ($tableExists) {
           <?php else: ?>
             <div class="table-responsive">
               <table class="table table-hover mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>User</th>
-                    <th>Type</th>
-                    <th>Device</th>
-                    <th>Browser</th>
-                    <th>Installed</th>
-                    <th>Last Seen</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
+<thead class="table-light">
+                                  <tr>
+                                    <th>User</th>
+                                    <th>Type</th>
+                                    <th>Device</th>
+                                    <th>Browser</th>
+                                    <th>Installed</th>
+                                    <th>Opens</th>
+                                    <th>Last Seen</th>
+                                    <th>Status</th>
+                                  </tr>
+                                </thead>
                 <tbody>
                   <?php foreach ($installations as $i): ?>
                     <tr>
@@ -329,11 +330,14 @@ if ($tableExists) {
                         </span>
                       </td>
                       <td><?php echo htmlspecialchars($i['browser'] ?? '-'); ?></td>
-                      <td>
-                        <?php echo date('M j, Y', strtotime($i['installed_at'])); ?>
-                        <br><small class="text-muted"><?php echo date('g:i A', strtotime($i['installed_at'])); ?></small>
-                      </td>
-                      <td>
+<td>
+                                        <?php echo date('M j, Y', strtotime($i['installed_at'])); ?>
+                                        <br><small class="text-muted"><?php echo date('g:i A', strtotime($i['installed_at'])); ?></small>
+                                      </td>
+                                      <td>
+                                        <span class="badge bg-primary"><?php echo (int)($i['open_count'] ?? 1); ?></span>
+                                      </td>
+                                      <td>
                         <?php if (!empty($i['last_opened_at'])): ?>
                           <?php 
                             $lastSeen = strtotime($i['last_opened_at']);

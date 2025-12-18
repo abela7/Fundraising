@@ -1,256 +1,131 @@
 // Donor Portal JavaScript - Mobile First - Matching Registrar Portal
 
-// ============ PWA Support - Force Install ============
+// ============ PWA Support - Simple Version ============
 (function() {
-  // Add manifest link
+  // Add manifest
   if (!document.querySelector('link[rel="manifest"]')) {
-    const link = document.createElement('link');
+    var link = document.createElement('link');
     link.rel = 'manifest';
     link.href = '/donor/manifest.json';
     document.head.appendChild(link);
   }
   
   // Add meta tags
-  if (!document.querySelector('meta[name="theme-color"]')) {
-    const meta = document.createElement('meta');
-    meta.name = 'theme-color';
-    meta.content = '#0a6286';
-    document.head.appendChild(meta);
-  }
+  var meta1 = document.createElement('meta');
+  meta1.name = 'theme-color';
+  meta1.content = '#0a6286';
+  document.head.appendChild(meta1);
   
-  if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
-    const meta = document.createElement('meta');
-    meta.name = 'apple-mobile-web-app-capable';
-    meta.content = 'yes';
-    document.head.appendChild(meta);
-  }
+  var meta2 = document.createElement('meta');
+  meta2.name = 'apple-mobile-web-app-capable';
+  meta2.content = 'yes';
+  document.head.appendChild(meta2);
   
   // Register Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/donor/sw.js')
-      .then(function(reg) { console.log('[PWA] SW registered'); })
-      .catch(function(err) { console.log('[PWA] SW failed:', err); });
+    navigator.serviceWorker.register('/donor/sw.js').catch(function() {});
   }
   
-  // PWA Install State
-  let deferredPrompt = null;
-  let installModalShown = false;
-  
-  function isAppInstalled() {
+  // Check if running as installed app (standalone mode)
+  function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches || 
            window.navigator.standalone === true;
   }
   
-  function wasDismissedToday() {
-    const dismissed = localStorage.getItem('pwa_install_dismissed_donor');
-    if (!dismissed) return false;
-    return dismissed === new Date().toDateString();
+  // SIMPLE TRACKING: Only when opened from home screen
+  function trackPWAOpen() {
+    var userId = window.currentDonorId || 0;
+    if (document.body && document.body.dataset.donorId) {
+      userId = parseInt(document.body.dataset.donorId);
+    }
+    
+    if (userId <= 0) {
+      console.log('[PWA] No donor ID, cannot track');
+      return;
+    }
+    
+    console.log('[PWA] Tracking standalone open for donor:', userId);
+    
+    fetch('/api/pwa-track.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_type: 'donor',
+        user_id: userId,
+        screen_width: window.screen.width,
+        screen_height: window.screen.height
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      console.log('[PWA] ✅ Tracked:', res);
+    })
+    .catch(function(err) {
+      console.log('[PWA] ❌ Track error:', err);
+    });
   }
+  
+  // Install prompt handling
+  var deferredPrompt = null;
   
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     deferredPrompt = e;
-    console.log('[PWA] ✅ Install prompt captured!');
-    if (!isAppInstalled() && !installModalShown && !wasDismissedToday()) {
-      showInstallModal();
-    }
-  });
-  
-  window.addEventListener('appinstalled', function() {
-    console.log('[PWA] ✅ App installed!');
-    hideInstallModal();
-    localStorage.removeItem('pwa_install_dismissed_donor');
-    trackInstallation('browser_prompt');
+    showInstallModal();
   });
   
   function showInstallModal() {
-    if (isAppInstalled() || document.getElementById('pwaInstallModal')) return;
-    installModalShown = true;
+    if (isStandalone() || document.getElementById('pwaInstallModal')) return;
+    if (localStorage.getItem('pwa_dismissed') === new Date().toDateString()) return;
     
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const hasPrompt = deferredPrompt !== null;
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     
-    const modal = document.createElement('div');
+    var modal = document.createElement('div');
     modal.id = 'pwaInstallModal';
-    modal.innerHTML = `
-      <div class="pwa-modal-backdrop"></div>
-      <div class="pwa-modal-content">
-        <div class="pwa-modal-icon">📱</div>
-        <h2 class="pwa-modal-title">Install Donor App</h2>
-        <p class="pwa-modal-text">Install this app for a better experience.</p>
-        
-        <ul class="pwa-benefits">
-          <li>✓ Quick access from home screen</li>
-          <li>✓ Works offline</li>
-          <li>✓ Faster loading</li>
-          <li>✓ Full screen experience</li>
-        </ul>
-        
-        ${isIOS ? `
-          <div class="pwa-ios-steps">
-            <p><strong>To install on iPhone/iPad:</strong></p>
-            <div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap <strong>Share</strong> <span class="share-icon">⬆️</span></span></div>
-            <div class="pwa-step"><span class="pwa-step-num">2</span><span>Tap <strong>"Add to Home Screen"</strong></span></div>
-            <div class="pwa-step"><span class="pwa-step-num">3</span><span>Tap <strong>"Add"</strong></span></div>
-          </div>
-          <button class="pwa-btn pwa-btn-primary" onclick="confirmIOSInstall()">✓ I've added it to Home Screen</button>
-        ` : hasPrompt ? `
-          <button class="pwa-btn pwa-btn-primary" onclick="triggerInstall()"><i class="fas fa-download"></i> Install Now</button>
-        ` : `
-          <div class="pwa-error-box">
-            <p><strong>⚠️ Install not available</strong></p>
-            <p>Use <strong>Chrome</strong> or <strong>Edge</strong> browser, and make sure the site is on HTTPS.</p>
-          </div>
-          <button class="pwa-btn pwa-btn-secondary" onclick="dismissInstallModal()">Continue anyway</button>
-        `}
-        <button class="pwa-btn pwa-btn-text" onclick="dismissInstallModal()">Remind me later</button>
-      </div>
-    `;
+    modal.innerHTML = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99998"></div>' +
+      '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:20px;padding:2rem;max-width:350px;width:90%;z-index:99999;text-align:center">' +
+      '<div style="font-size:3rem;margin-bottom:1rem">📱</div>' +
+      '<h2 style="margin:0 0 0.5rem;color:#0a6286">Install Donor App</h2>' +
+      '<p style="color:#666;margin-bottom:1.5rem">Add to your home screen for quick access</p>' +
+      (isIOS ? 
+        '<div style="background:#e6f3f8;border-radius:12px;padding:1rem;margin-bottom:1rem;text-align:left;font-size:0.9rem">' +
+        '<p style="margin:0 0 0.5rem;font-weight:600">On iPhone/iPad:</p>' +
+        '<p style="margin:0">1. Tap Share ⬆️<br>2. Tap "Add to Home Screen"<br>3. Tap "Add"</p></div>' +
+        '<button onclick="document.getElementById(\'pwaInstallModal\').remove()" style="width:100%;padding:1rem;background:#0a6286;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer">OK, Got it</button>'
+      : deferredPrompt ?
+        '<button onclick="window.doInstall()" style="width:100%;padding:1rem;background:#0a6286;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem">Install Now</button>'
+      :
+        '<p style="color:#999;font-size:0.9rem">Use Chrome browser for best experience</p>'
+      ) +
+      '<button onclick="localStorage.setItem(\'pwa_dismissed\',new Date().toDateString());document.getElementById(\'pwaInstallModal\').remove()" style="width:100%;padding:0.75rem;background:transparent;color:#666;border:none;font-size:0.9rem;cursor:pointer">Not now</button>' +
+      '</div>';
     
-    const styles = document.createElement('style');
-    styles.id = 'pwaModalStyles';
-    styles.textContent = `
-      .pwa-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 99998; backdrop-filter: blur(4px); }
-      .pwa-modal-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 20px; padding: 2rem; max-width: 380px; width: 90%; z-index: 99999; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease; }
-      @keyframes modalSlideIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-      .pwa-modal-icon { font-size: 4rem; margin-bottom: 1rem; }
-      .pwa-modal-title { margin: 0 0 0.5rem; font-size: 1.5rem; color: #0a6286; }
-      .pwa-modal-text { color: #666; margin-bottom: 1rem; }
-      .pwa-benefits { list-style: none; padding: 1rem; margin: 0 0 1.5rem; background: #f8f9fa; border-radius: 12px; text-align: left; }
-      .pwa-benefits li { padding: 0.5rem 0; color: #333; border-bottom: 1px solid #e9ecef; }
-      .pwa-benefits li:last-child { border-bottom: none; }
-      .pwa-ios-steps { background: #e6f3f8; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; text-align: left; }
-      .pwa-ios-steps p { margin: 0 0 0.75rem; color: #0a6286; }
-      .pwa-step { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
-      .pwa-step-num { width: 28px; height: 28px; background: #0a6286; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
-      .share-icon { display: inline-block; background: #007AFF; color: white; width: 22px; height: 22px; border-radius: 4px; text-align: center; line-height: 22px; font-size: 12px; }
-      .pwa-error-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; text-align: left; font-size: 0.9rem; }
-      .pwa-btn { display: block; width: 100%; padding: 1rem; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 0.75rem; transition: all 0.2s; }
-      .pwa-btn-primary { background: linear-gradient(135deg, #0a6286 0%, #084a66 100%); color: white; box-shadow: 0 4px 15px rgba(10, 98, 134, 0.4); }
-      .pwa-btn-primary:hover { transform: translateY(-2px); }
-      .pwa-btn-secondary { background: #6c757d; color: white; }
-      .pwa-btn-text { background: transparent; color: #6c757d; padding: 0.5rem; }
-      @media (display-mode: standalone) { #pwaInstallModal { display: none !important; } }
-    `;
-    
-    document.head.appendChild(styles);
     document.body.appendChild(modal);
   }
   
-  window.triggerInstall = async function() {
-    if (!deferredPrompt) { alert('Install prompt not available.'); return; }
-    try {
+  window.doInstall = async function() {
+    if (deferredPrompt) {
       deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') hideInstallModal();
+      await deferredPrompt.userChoice;
       deferredPrompt = null;
-    } catch (err) { alert('Installation failed.'); }
-  };
-  
-  window.confirmIOSInstall = function() {
-    // User confirms they've added to home screen on iOS
-    trackInstallation('ios_manual');
-    hideInstallModal();
-    alert('Great! Now open the app from your Home Screen for the best experience.');
-  };
-  
-  window.dismissInstallModal = function() {
-    localStorage.setItem('pwa_install_dismissed_donor', new Date().toDateString());
-    hideInstallModal();
-  };
-  
-  function hideInstallModal() {
-    const modal = document.getElementById('pwaInstallModal');
-    if (modal) modal.remove();
-    const styles = document.getElementById('pwaModalStyles');
-    if (styles) styles.remove();
-  }
-  
-  // Track installation to server
-  function trackInstallation(method) {
-    let userId = 0;
-    let userType = 'donor';
-    
-    // Try multiple ways to get user ID
-    if (window.currentDonorId) {
-      userId = window.currentDonorId;
-      console.log('[PWA] Got ID from window.currentDonorId:', userId);
-    } else if (window.currentUserId) {
-      userId = window.currentUserId;
-      console.log('[PWA] Got ID from window.currentUserId:', userId);
-    } else if (document.body && document.body.dataset.donorId) {
-      userId = parseInt(document.body.dataset.donorId);
-      console.log('[PWA] Got ID from body data-donor-id:', userId);
-    } else {
-      // Last resort: check for any element with donor ID
-      const el = document.querySelector('[data-donor-id]');
-      if (el) {
-        userId = parseInt(el.dataset.donorId);
-        console.log('[PWA] Got ID from element:', userId);
-      }
+      var m = document.getElementById('pwaInstallModal');
+      if (m) m.remove();
     }
-    
-    console.log('[PWA] Final user ID:', userId, 'Method:', method);
-    
-    if (userId <= 0) {
-      console.log('[PWA] ❌ No user ID found, skipping tracking');
-      console.log('[PWA] window.currentDonorId:', window.currentDonorId);
-      console.log('[PWA] document.body.dataset:', document.body ? document.body.dataset : 'no body');
-      return;
-    }
-    
-    fetch('/api/pwa-track.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'install',
-        user_type: userType,
-        user_id: userId,
-        screen_width: window.screen.width,
-        screen_height: window.screen.height,
-        install_method: method
-      })
-    })
-    .then(r => r.json())
-    .then(res => {
-      console.log('[PWA] Installation tracked:', res);
-      localStorage.setItem('pwa_tracked_donor', 'true');
-    })
-    .catch(err => console.log('[PWA] Track error:', err));
-  }
+  };
   
-  function trackHeartbeat() {
-    let userId = window.currentDonorId || 0;
-    if (document.body.dataset.donorId) userId = parseInt(document.body.dataset.donorId);
-    if (userId <= 0) return;
-    
-    fetch('/api/pwa-track.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'heartbeat',
-        user_type: 'donor',
-        user_id: userId
-      })
-    }).catch(() => {});
-  }
-  
+  // On page load
   document.addEventListener('DOMContentLoaded', function() {
-    if (isAppInstalled()) {
-      if (!localStorage.getItem('pwa_tracked_donor')) {
-        trackInstallation('standalone_detected');
-      } else {
-        trackHeartbeat();
-      }
-      return;
-    }
-    
-    if (!wasDismissedToday()) {
-      setTimeout(function() { if (!installModalShown) showInstallModal(); }, 1500);
+    // If opened as standalone app - TRACK IT!
+    if (isStandalone()) {
+      console.log('[PWA] 🎉 Running in standalone mode - tracking!');
+      trackPWAOpen();
+    } else {
+      // Show install modal after delay
+      setTimeout(showInstallModal, 2000);
     }
   });
 })();
-// ============ End PWA Support ============
+// ============ End PWA ============
 
 // DOM ready
 document.addEventListener('DOMContentLoaded', function() {
