@@ -1037,32 +1037,6 @@ function formatDateTime($date) {
             background: rgba(212, 175, 55, 0.5);
         }
         
-        /* Share button for golden profile */
-        .golden-share-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, var(--gold-light), var(--gold-main));
-            border: none;
-            color: #1a1a2e;
-            border-radius: 50px;
-            font-size: 0.875rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
-            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .golden-share-btn:hover {
-            background: linear-gradient(135deg, var(--gold-main), var(--gold-dark));
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(212, 175, 55, 0.6);
-        }
-        
         /* Hide elements in golden premium mode */
         .golden-premium .fin-card.balance,
         .golden-premium .fin-edit-btn,
