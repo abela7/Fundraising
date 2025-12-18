@@ -3559,100 +3559,25 @@ function shareGoldenProfile() {
                       '👉 ' + donateUrl + '\n\n' +
                       '#AbuneTekelHaymanot #FullyPaid #BePartOfTheBlessing #EOTC #Liverpool';
     
-    // Try to capture profile as image first
-    captureAndShare(shareTitle, shareText, donateUrl);
-}
-
-// Capture profile card as image and share
-async function captureAndShare(title, text, donateUrl) {
-    const profileCard = document.getElementById('donorProfileCard');
-    
-    // Check if html2canvas is available, if not load it
-    if (typeof html2canvas === 'undefined') {
-        // Load html2canvas dynamically
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = () => captureAndShareWithCanvas(profileCard, title, text, donateUrl);
-        script.onerror = () => shareWithoutImage(title, text, donateUrl);
-        document.head.appendChild(script);
-    } else {
-        captureAndShareWithCanvas(profileCard, title, text, donateUrl);
-    }
-}
-
-async function captureAndShareWithCanvas(element, title, text, donateUrl) {
-    try {
-        // Show loading state
-        showShareToast('Preparing your achievement...');
-        
-        const canvas = await html2canvas(element, {
-            backgroundColor: '#1a1a2e',
-            scale: 2, // Higher quality
-            useCORS: true,
-            logging: false
-        });
-        
-        // Convert to blob
-        canvas.toBlob(async (blob) => {
-            if (blob && navigator.canShare) {
-                // Create file from blob
-                const file = new File([blob], 'my-pledge-achievement.png', { type: 'image/png' });
-                
-                // Check if we can share with files
-                const shareData = {
-                    title: title,
-                    text: text,
-                    url: donateUrl,
-                    files: [file]
-                };
-                
-                if (navigator.canShare(shareData)) {
-                    try {
-                        // Share with image + text + URL (all together)
-                        await navigator.share(shareData);
-                        console.log('Shared with image + text successfully');
-                    } catch (shareError) {
-                        if (shareError.name === 'AbortError') {
-                            console.log('Share cancelled by user');
-                        } else {
-                            console.log('Share with image failed, trying text only:', shareError);
-                            shareWithoutImage(title, text, donateUrl);
-                        }
-                    }
-                } else {
-                    // Can't share with files, try just text + url
-                    console.log('Cannot share files, trying text only');
-                    shareWithoutImage(title, text, donateUrl);
-                }
-            } else {
-                // No canShare support, try regular share or copy
-                shareWithoutImage(title, text, donateUrl);
-            }
-        }, 'image/png', 0.95);
-        
-    } catch (error) {
-        console.log('Canvas capture failed:', error);
-        shareWithoutImage(title, text, donateUrl);
-    }
-}
-
-function shareWithoutImage(title, text, donateUrl) {
-    // Use Web Share API if available (mobile devices)
+    // Share text only (no image)
     if (navigator.share) {
         navigator.share({
-            title: title,
-            text: text,
+            title: shareTitle,
+            text: shareText,
             url: donateUrl
         }).then(() => {
-            console.log('Shared successfully');
+            showShareToast('Shared successfully!');
         }).catch((error) => {
-            console.log('Share cancelled or failed:', error);
-            // Fallback to copy
-            copyProfileToClipboard(text);
+            if (error.name === 'AbortError') {
+                console.log('Share cancelled by user');
+            } else {
+                console.log('Share failed, copying to clipboard:', error);
+                copyProfileToClipboard(shareText);
+            }
         });
     } else {
         // Fallback: copy to clipboard
-        copyProfileToClipboard(text);
+        copyProfileToClipboard(shareText);
     }
 }
 
