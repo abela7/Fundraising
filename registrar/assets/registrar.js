@@ -1,5 +1,151 @@
 // Registrar Panel JavaScript - Mobile First
 
+// ============ PWA Support ============
+(function() {
+  // Add manifest link
+  if (!document.querySelector('link[rel="manifest"]')) {
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = '/registrar/manifest.json';
+    document.head.appendChild(link);
+  }
+  
+  // Add theme-color
+  if (!document.querySelector('meta[name="theme-color"]')) {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    meta.content = '#28a745';
+    document.head.appendChild(meta);
+  }
+  
+  // Add apple meta tags
+  if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+    const meta = document.createElement('meta');
+    meta.name = 'apple-mobile-web-app-capable';
+    meta.content = 'yes';
+    document.head.appendChild(meta);
+  }
+  
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/registrar/sw.js')
+        .then(function(reg) { console.log('[PWA] Registrar SW registered'); })
+        .catch(function(err) { console.log('[PWA] SW failed:', err); });
+    });
+  }
+  
+  // PWA Install handling
+  let deferredPrompt = null;
+  
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log('[PWA] Install prompt available');
+    showInstallButton();
+  });
+  
+  window.addEventListener('appinstalled', function() {
+    console.log('[PWA] App installed!');
+    hideInstallButton();
+  });
+  
+  function isAppInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           window.navigator.standalone === true;
+  }
+  
+  function showInstallButton() {
+    let btn = document.getElementById('pwaInstallBtn');
+    if (!btn && !isAppInstalled()) {
+      createInstallButton();
+    }
+  }
+  
+  function hideInstallButton() {
+    const btn = document.getElementById('pwaInstallBtn');
+    if (btn) btn.style.display = 'none';
+  }
+  
+  function createInstallButton() {
+    if (isAppInstalled()) return;
+    
+    const btn = document.createElement('button');
+    btn.id = 'pwaInstallBtn';
+    btn.className = 'pwa-install-fab';
+    btn.innerHTML = '<i class="fas fa-download"></i> Install App';
+    btn.title = 'Install App';
+    btn.onclick = installPWA;
+    
+    // Add styles
+    btn.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #28a745 0%, #1e7b34 100%);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: pulse 2s infinite;
+    `;
+    
+    // Add animation
+    if (!document.getElementById('pwa-fab-styles')) {
+      const style = document.createElement('style');
+      style.id = 'pwa-fab-styles';
+      style.textContent = `
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4); }
+          50% { box-shadow: 0 4px 25px rgba(40, 167, 69, 0.6); }
+        }
+        .pwa-install-fab:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5) !important;
+        }
+        @media (display-mode: standalone) {
+          .pwa-install-fab { display: none !important; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(btn);
+  }
+  
+  window.installPWA = async function() {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        alert('App installed successfully! You can now access it from your home screen.');
+      }
+      deferredPrompt = null;
+      hideInstallButton();
+    } else if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      alert('To install on iOS:\n\n1. Tap the Share button (⬆️)\n2. Tap "Add to Home Screen"\n3. Tap "Add"');
+    } else {
+      alert('To install:\n\n1. Open browser menu (⋮)\n2. Tap "Install App" or "Add to Home Screen"');
+    }
+  };
+  
+  // Show button on load if prompt already available or for manual install
+  document.addEventListener('DOMContentLoaded', function() {
+    if (!isAppInstalled()) {
+      setTimeout(createInstallButton, 2000); // Show after 2 seconds
+    }
+  });
+})();
+// ============ End PWA Support ============
+
 // Utility function for phone normalization (used in real-time validation)
 function normalizeUkPhone(phone) {
     let digits = phone.replace(/[^0-9+]/g, '');

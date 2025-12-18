@@ -1,0 +1,48 @@
+{
+  "name": "Church Fundraising - Registrar",
+  "short_name": "Registrar",
+  "description": "Liverpool Abune Teklehaymanot EOTC - Registrar Portal",
+  "start_url": "/registrar/",
+  "scope": "/registrar/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8f9fa",
+  "theme_color": "#28a745",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Registration",
+      "short_name": "Register",
+      "url": "/registrar/",
+      "description": "Add new donor registration"
+    },
+    {
+      "name": "My Registrations",
+      "short_name": "List",
+      "url": "/registrar/my-registrations.php",
+      "description": "View my registrations"
+    }
+  ],
+  "prefer_related_applications": false
+}
+

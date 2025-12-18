@@ -1,0 +1,48 @@
+{
+  "name": "Church Fundraising - Donor",
+  "short_name": "Donor",
+  "description": "Liverpool Abune Teklehaymanot EOTC - Donor Portal",
+  "start_url": "/donor/",
+  "scope": "/donor/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8f9fa",
+  "theme_color": "#0a6286",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Pledge",
+      "short_name": "Pledge",
+      "url": "/donor/",
+      "description": "View my pledge"
+    },
+    {
+      "name": "Make Payment",
+      "short_name": "Pay",
+      "url": "/donor/make-payment.php",
+      "description": "Make a payment"
+    }
+  ],
+  "prefer_related_applications": false
+}
+
