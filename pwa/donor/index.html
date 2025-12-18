@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a6286">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Donor Portal">
+  <meta name="description" content="Manage your pledges and payments for church fundraising">
+  
+  <title>Donor Portal</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="pwa-app pwa-has-nav">
+  <!-- Header -->
+  <header class="pwa-header" id="header">
+    <div class="header-content">
+      <h1 class="pwa-header-title">Donor Portal</h1>
+      <p class="pwa-header-subtitle" id="welcomeText">Welcome back</p>
+    </div>
+    <button class="header-menu-btn" id="menuBtn" aria-label="Menu">
+      <span class="menu-icon">☰</span>
+    </button>
+  </header>
+
+  <!-- Main Content -->
+  <main class="pwa-main" id="mainContent">
+    <!-- Dashboard View -->
+    <section id="dashboardView" class="view active">
+      <!-- Summary Cards -->
+      <div class="pwa-summary-grid" id="summaryCards">
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="totalPledged">£0</div>
+          <div class="pwa-summary-label">Pledged</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="totalPaid">£0</div>
+          <div class="pwa-summary-label">Paid</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="balance">£0</div>
+          <div class="pwa-summary-label">Balance</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="progress">0%</div>
+          <div class="pwa-summary-label">Progress</div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="pwa-card" style="margin-top: 1rem;">
+        <h3 class="pwa-card-title">Payment Progress</h3>
+        <div class="pwa-progress" style="margin-top: 0.75rem;">
+          <div class="pwa-progress-bar" id="progressBar" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Payment Plan -->
+      <div class="pwa-card" id="paymentPlanCard" style="margin-top: 1rem; display: none;">
+        <div class="pwa-card-header">
+          <h3 class="pwa-card-title">Payment Plan</h3>
+          <span class="pwa-badge pwa-badge-success" id="planStatus">Active</span>
+        </div>
+        <div class="plan-details">
+          <p><strong>Next Payment:</strong> <span id="nextPaymentDate">-</span></p>
+          <p><strong>Amount:</strong> <span id="installmentAmount">£0</span></p>
+          <p><strong>Progress:</strong> <span id="planProgress">0 of 0</span></p>
+        </div>
+      </div>
+
+      <!-- Recent Payments -->
+      <div class="pwa-card" style="margin-top: 1rem;">
+        <div class="pwa-card-header">
+          <h3 class="pwa-card-title">Recent Payments</h3>
+          <a href="#history" class="view-all-link">View All</a>
+        </div>
+        <ul class="pwa-list" id="recentPaymentsList">
+          <li class="pwa-list-item empty-state">
+            <span class="pwa-text-muted">No recent payments</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Payments View -->
+    <section id="paymentsView" class="view">
+      <div class="pwa-card">
+        <h2 class="pwa-card-title">Make a Payment</h2>
+        <p class="pwa-text-muted">Record your payment for admin approval</p>
+        
+        <form id="paymentForm" class="payment-form">
+          <div class="pwa-form-group">
+            <label class="pwa-label" for="paymentAmount">Amount (£)</label>
+            <input type="number" class="pwa-input" id="paymentAmount" 
+                   placeholder="0.00" step="0.01" min="0.01" required>
+          </div>
+          
+          <div class="pwa-form-group">
+            <label class="pwa-label" for="paymentMethod">Payment Method</label>
+            <select class="pwa-input" id="paymentMethod" required>
+              <option value="">Select method...</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div class="pwa-form-group">
+            <label class="pwa-label" for="paymentDate">Date</label>
+            <input type="date" class="pwa-input" id="paymentDate" required>
+          </div>
+          
+          <div class="pwa-form-group">
+            <label class="pwa-label" for="referenceNumber">Reference (optional)</label>
+            <input type="text" class="pwa-input" id="referenceNumber" 
+                   placeholder="Transaction reference">
+          </div>
+          
+          <div class="pwa-form-group">
+            <label class="pwa-label" for="paymentNotes">Notes (optional)</label>
+            <textarea class="pwa-input" id="paymentNotes" rows="2" 
+                      placeholder="Any additional notes"></textarea>
+          </div>
+          
+          <button type="submit" class="pwa-btn pwa-btn-primary pwa-btn-block">
+            Submit Payment
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- History View -->
+    <section id="historyView" class="view">
+      <div class="pwa-card">
+        <h2 class="pwa-card-title">Payment History</h2>
+        <ul class="pwa-list" id="historyList">
+          <li class="pwa-list-item empty-state">
+            <span class="pwa-text-muted">Loading...</span>
+          </li>
+        </ul>
+        <div id="historyPagination" class="pagination"></div>
+      </div>
+    </section>
+
+    <!-- Profile View -->
+    <section id="profileView" class="view">
+      <div class="pwa-card">
+        <h2 class="pwa-card-title">My Profile</h2>
+        
+        <div class="profile-info" id="profileInfo">
+          <div class="profile-field">
+            <span class="profile-label">Name</span>
+            <span class="profile-value" id="profileName">-</span>
+          </div>
+          <div class="profile-field">
+            <span class="profile-label">Phone</span>
+            <span class="profile-value" id="profilePhone">-</span>
+          </div>
+          <div class="profile-field">
+            <span class="profile-label">Member Since</span>
+            <span class="profile-value" id="profileMemberSince">-</span>
+          </div>
+        </div>
+        
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--pwa-border);">
+        
+        <h3 style="margin-bottom: 1rem;">Preferences</h3>
+        
+        <form id="preferencesForm">
+          <div class="pwa-form-group">
+            <label class="pwa-label" for="prefPaymentMethod">Preferred Payment Method</label>
+            <select class="pwa-input" id="prefPaymentMethod">
+              <option value="">No preference</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div class="pwa-form-group">
+            <label class="pwa-label" for="prefLanguage">Language</label>
+            <select class="pwa-input" id="prefLanguage">
+              <option value="en">English</option>
+              <option value="am">አማርኛ (Amharic)</option>
+              <option value="ti">ትግርኛ (Tigrinya)</option>
+            </select>
+          </div>
+          
+          <button type="submit" class="pwa-btn pwa-btn-primary pwa-btn-block">
+            Save Preferences
+          </button>
+        </form>
+        
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--pwa-border);">
+        
+        <button id="logoutBtn" class="pwa-btn pwa-btn-outline pwa-btn-block">
+          Logout
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="pwa-nav">
+    <a href="#dashboard" class="pwa-nav-item active" data-view="dashboard">
+      <span class="pwa-nav-icon">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="#payments" class="pwa-nav-item" data-view="payments">
+      <span class="pwa-nav-icon">💳</span>
+      <span>Pay</span>
+    </a>
+    <a href="#history" class="pwa-nav-item" data-view="history">
+      <span class="pwa-nav-icon">📋</span>
+      <span>History</span>
+    </a>
+    <a href="#profile" class="pwa-nav-item" data-view="profile">
+      <span class="pwa-nav-icon">👤</span>
+      <span>Profile</span>
+    </a>
+  </nav>
+
+  <!-- Scripts -->
+  <script src="../shared/api-client.js"></script>
+  <script src="../shared/auth.js"></script>
+  <script src="../shared/install-tracker.js"></script>
+  <script src="../shared/ui-helpers.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
+

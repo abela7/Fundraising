@@ -320,6 +320,13 @@ try {
       <div class="nav-section-title">
         <span>System</span>
       </div>
+      <a href="<?php echo url_for('admin/pwa-analytics/'); ?>"
+         class="nav-link <?php echo $current_dir === 'pwa-analytics' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-mobile-alt"></i>
+        </span>
+        <span class="nav-label">PWA Analytics</span>
+      </a>
       <a href="<?php echo url_for('admin/tools/'); ?>"
          class="nav-link <?php echo $current_dir === 'tools' ? 'active' : ''; ?>">
         <span class="nav-icon">

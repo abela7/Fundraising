@@ -1,0 +1,49 @@
+{
+  "name": "Church Fundraising - Donor Portal",
+  "short_name": "Donor Portal",
+  "description": "Manage your pledges and payments for church fundraising",
+  "start_url": "/pwa/donor/",
+  "scope": "/pwa/donor/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0a6286",
+  "categories": ["finance", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Make Payment",
+      "short_name": "Pay",
+      "url": "/pwa/donor/#payments",
+      "description": "Record a new payment"
+    },
+    {
+      "name": "View History",
+      "short_name": "History",
+      "url": "/pwa/donor/#history",
+      "description": "View payment history"
+    }
+  ],
+  "prefer_related_applications": false
+}

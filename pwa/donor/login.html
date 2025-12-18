@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a6286">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Donor Portal">
+  <meta name="description" content="Login to your donor account">
+  
+  <title>Login - Donor Portal</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="pwa-app login-page">
+  <main class="login-container">
+    <div class="login-header">
+      <div class="login-logo">
+        <img src="/assets/favicon.svg" alt="Logo" width="64" height="64">
+      </div>
+      <h1 class="login-title">Donor Portal</h1>
+      <p class="login-subtitle">Church Fundraising</p>
+    </div>
+
+    <!-- Step 1: Phone Number -->
+    <div class="pwa-card login-card" id="phoneStep">
+      <h2 class="step-title">Welcome</h2>
+      <p class="step-description">Enter your phone number to receive a verification code.</p>
+      
+      <form id="phoneForm">
+        <div class="pwa-form-group">
+          <label class="pwa-label" for="phone">Phone Number</label>
+          <input type="tel" class="pwa-input" id="phone" 
+                 placeholder="07123 456789" 
+                 pattern="[0-9\s\-\+]+"
+                 autocomplete="tel"
+                 required>
+          <small class="pwa-text-muted">UK mobile number (e.g., 07123456789)</small>
+        </div>
+        
+        <button type="submit" class="pwa-btn pwa-btn-primary pwa-btn-block" id="sendOtpBtn">
+          Send Verification Code
+        </button>
+      </form>
+    </div>
+
+    <!-- Step 2: OTP Verification -->
+    <div class="pwa-card login-card" id="otpStep" style="display: none;">
+      <h2 class="step-title">Verify</h2>
+      <p class="step-description">
+        Enter the 6-digit code sent to <strong id="displayPhone"></strong>
+      </p>
+      
+      <form id="otpForm">
+        <div class="pwa-form-group">
+          <label class="pwa-label" for="otpCode">Verification Code</label>
+          <input type="text" class="pwa-input otp-input" id="otpCode" 
+                 placeholder="000000" 
+                 maxlength="6"
+                 inputmode="numeric"
+                 pattern="[0-9]{6}"
+                 autocomplete="one-time-code"
+                 required>
+        </div>
+        
+        <div class="remember-device">
+          <label class="checkbox-label">
+            <input type="checkbox" id="rememberDevice" checked>
+            <span>Remember this device for 90 days</span>
+          </label>
+        </div>
+        
+        <button type="submit" class="pwa-btn pwa-btn-primary pwa-btn-block" id="verifyBtn">
+          Verify & Login
+        </button>
+      </form>
+      
+      <div class="otp-actions">
+        <button type="button" class="pwa-btn pwa-btn-text" id="resendBtn" disabled>
+          Resend code (<span id="countdown">60</span>s)
+        </button>
+        <button type="button" class="pwa-btn pwa-btn-text" id="changePhoneBtn">
+          Change number
+        </button>
+      </div>
+    </div>
+
+    <div class="login-footer">
+      <a href="/" class="back-link">← Back to Home</a>
+    </div>
+  </main>
+
+  <!-- Scripts -->
+  <script src="../shared/api-client.js"></script>
+  <script src="../shared/auth.js"></script>
+  <script src="../shared/ui-helpers.js"></script>
+  <script>
+    // Login page logic
+    const auth = new AuthManager(api, 'donor');
+    let currentPhone = '';
+    let countdownInterval = null;
+
+    // Check if already logged in
+    if (api.isAuthenticated()) {
+      window.location.href = 'index.html';
+    }
+
+    // DOM elements
+    const phoneStep = document.getElementById('phoneStep');
+    const otpStep = document.getElementById('otpStep');
+    const phoneForm = document.getElementById('phoneForm');
+    const otpForm = document.getElementById('otpForm');
+    const phoneInput = document.getElementById('phone');
+    const otpInput = document.getElementById('otpCode');
+    const displayPhone = document.getElementById('displayPhone');
+    const resendBtn = document.getElementById('resendBtn');
+    const countdownEl = document.getElementById('countdown');
+    const changePhoneBtn = document.getElementById('changePhoneBtn');
+
+    // Phone form submission
+    phoneForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const phone = phoneInput.value.replace(/\D/g, '');
+      
+      if (phone.length !== 11 || !phone.startsWith('07')) {
+        showToast('Please enter a valid UK mobile number', 'error');
+        return;
+      }
+
+      showLoading('Sending verification code...');
+      
+      try {
+        await auth.requestOtp(phone);
+        currentPhone = phone;
+        displayPhone.textContent = formatPhone(phone);
+        
+        phoneStep.style.display = 'none';
+        otpStep.style.display = 'block';
+        otpInput.focus();
+        
+        startCountdown();
+        showToast('Verification code sent!', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    });
+
+    // OTP form submission
+    otpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const code = otpInput.value.replace(/\D/g, '');
+      
+      if (code.length !== 6) {
+        showToast('Please enter the 6-digit code', 'error');
+        return;
+      }
+
+      showLoading('Verifying...');
+      
+      try {
+        await auth.loginDonor(currentPhone, code);
+        showToast('Login successful!', 'success');
+        
+        // Redirect to main app
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
+      } catch (error) {
+        showToast(error.message, 'error');
+        otpInput.value = '';
+        otpInput.focus();
+      } finally {
+        hideLoading();
+      }
+    });
+
+    // Resend OTP
+    resendBtn.addEventListener('click', async () => {
+      showLoading('Resending code...');
+      
+      try {
+        await auth.requestOtp(currentPhone);
+        startCountdown();
+        showToast('New code sent!', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    });
+
+    // Change phone number
+    changePhoneBtn.addEventListener('click', () => {
+      otpStep.style.display = 'none';
+      phoneStep.style.display = 'block';
+      otpInput.value = '';
+      phoneInput.focus();
+      
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
+    });
+
+    // Format OTP input
+    otpInput.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    // Format phone for display
+    function formatPhone(phone) {
+      if (phone.length === 11) {
+        return phone.slice(0, 5) + ' ' + phone.slice(5);
+      }
+      return phone;
+    }
+
+    // Countdown timer for resend
+    function startCountdown() {
+      let seconds = 60;
+      resendBtn.disabled = true;
+      countdownEl.textContent = seconds;
+      
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
+      
+      countdownInterval = setInterval(() => {
+        seconds--;
+        countdownEl.textContent = seconds;
+        
+        if (seconds <= 0) {
+          clearInterval(countdownInterval);
+          resendBtn.disabled = false;
+          resendBtn.innerHTML = 'Resend code';
+        }
+      }, 1000);
+    }
+
+    // Phone input formatting
+    phoneInput.addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      
+      // Convert +44 to 0
+      if (value.startsWith('44') && value.length === 12) {
+        value = '0' + value.slice(2);
+      }
+      
+      // Limit to 11 digits
+      value = value.slice(0, 11);
+      
+      // Format with space
+      if (value.length > 5) {
+        value = value.slice(0, 5) + ' ' + value.slice(5);
+      }
+      
+      e.target.value = value;
+    });
+  </script>
+</body>
+</html>
+

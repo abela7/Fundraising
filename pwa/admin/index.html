@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6f42c1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Admin">
+  
+  <title>Admin Portal</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="pwa-app pwa-has-nav admin-theme">
+  <!-- Header -->
+  <header class="pwa-header">
+    <div class="header-content">
+      <h1 class="pwa-header-title">Admin Portal</h1>
+      <p class="pwa-header-subtitle" id="welcomeText">Administrator</p>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="pwa-main" id="mainContent">
+    <!-- Dashboard View -->
+    <section id="dashboardView" class="view active">
+      <div class="pwa-summary-grid">
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="totalDonors">0</div>
+          <div class="pwa-summary-label">Donors</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="totalPledged">£0</div>
+          <div class="pwa-summary-label">Pledged</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="totalCollected">£0</div>
+          <div class="pwa-summary-label">Collected</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="collectionRate">0%</div>
+          <div class="pwa-summary-label">Rate</div>
+        </div>
+      </div>
+
+      <!-- Pending Approvals Alert -->
+      <div class="pwa-card pending-alert" id="pendingAlert" style="margin-top: 1rem; display: none;">
+        <div class="pending-content">
+          <span class="pending-icon">⏳</span>
+          <div class="pending-text">
+            <strong><span id="pendingCount">0</span> Pending Approvals</strong>
+            <small><span id="pendingPledges">0</span> pledges, <span id="pendingPayments">0</span> payments</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Today's Activity -->
+      <div class="pwa-card" style="margin-top: 1rem;">
+        <h3 class="pwa-card-title">Today's Activity</h3>
+        <div class="today-grid">
+          <div class="today-item">
+            <span class="today-value" id="todayPledges">0</span>
+            <span class="today-label">Pledges</span>
+          </div>
+          <div class="today-item">
+            <span class="today-value" id="todayPayments">0</span>
+            <span class="today-label">Payments</span>
+          </div>
+          <div class="today-item">
+            <span class="today-value" id="todayCollected">£0</span>
+            <span class="today-label">Collected</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PWA Installations -->
+      <div class="pwa-card" style="margin-top: 1rem;">
+        <h3 class="pwa-card-title">App Installations</h3>
+        <div class="install-stats">
+          <div class="install-total">
+            <span class="install-value" id="pwaTotal">0</span>
+            <span class="install-label">Total Installs</span>
+          </div>
+          <div class="install-breakdown" id="pwaBreakdown">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Registrations -->
+      <div class="pwa-card" style="margin-top: 1rem;">
+        <div class="pwa-card-header">
+          <h3 class="pwa-card-title">Recent Registrations</h3>
+          <a href="#donors" class="view-all-link">View All</a>
+        </div>
+        <ul class="pwa-list" id="recentList">
+          <li class="pwa-list-item empty-state">Loading...</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Donors View -->
+    <section id="donorsView" class="view">
+      <div class="pwa-card">
+        <div class="pwa-card-header">
+          <h2 class="pwa-card-title">Donors</h2>
+        </div>
+        
+        <div class="search-bar">
+          <input type="text" class="pwa-input" id="donorSearch" placeholder="Search by name or phone...">
+        </div>
+        
+        <ul class="pwa-list" id="donorsList">
+          <li class="pwa-list-item empty-state">Loading...</li>
+        </ul>
+        <div id="donorsPagination" class="pagination"></div>
+      </div>
+    </section>
+
+    <!-- Stats View -->
+    <section id="statsView" class="view">
+      <div class="pwa-card">
+        <h2 class="pwa-card-title">This Month</h2>
+        <div class="month-stats">
+          <div class="month-stat">
+            <span class="month-value" id="monthPledged">£0</span>
+            <span class="month-label">Pledged</span>
+          </div>
+          <div class="month-stat">
+            <span class="month-value" id="monthCollected">£0</span>
+            <span class="month-label">Collected</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile View -->
+    <section id="profileView" class="view">
+      <div class="pwa-card">
+        <h2 class="pwa-card-title">Admin Profile</h2>
+        
+        <div class="profile-info">
+          <div class="profile-field">
+            <span class="profile-label">Name</span>
+            <span class="profile-value" id="profileName">-</span>
+          </div>
+          <div class="profile-field">
+            <span class="profile-label">Phone</span>
+            <span class="profile-value" id="profilePhone">-</span>
+          </div>
+          <div class="profile-field">
+            <span class="profile-label">Role</span>
+            <span class="profile-value" id="profileRole">-</span>
+          </div>
+        </div>
+        
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--pwa-border);">
+        
+        <p class="pwa-text-muted" style="margin-bottom: 1rem;">
+          For full admin features, please use the desktop admin panel.
+        </p>
+        
+        <a href="/admin/" class="pwa-btn pwa-btn-outline pwa-btn-block" style="margin-bottom: 1rem;">
+          Open Full Admin Panel
+        </a>
+        
+        <button id="logoutBtn" class="pwa-btn pwa-btn-secondary pwa-btn-block">
+          Logout
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="pwa-nav">
+    <a href="#dashboard" class="pwa-nav-item active" data-view="dashboard">
+      <span class="pwa-nav-icon">📊</span>
+      <span>Dashboard</span>
+    </a>
+    <a href="#donors" class="pwa-nav-item" data-view="donors">
+      <span class="pwa-nav-icon">👥</span>
+      <span>Donors</span>
+    </a>
+    <a href="#stats" class="pwa-nav-item" data-view="stats">
+      <span class="pwa-nav-icon">📈</span>
+      <span>Stats</span>
+    </a>
+    <a href="#profile" class="pwa-nav-item" data-view="profile">
+      <span class="pwa-nav-icon">⚙️</span>
+      <span>Settings</span>
+    </a>
+  </nav>
+
+  <script src="../shared/api-client.js"></script>
+  <script src="../shared/auth.js"></script>
+  <script src="../shared/install-tracker.js"></script>
+  <script src="../shared/ui-helpers.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
+

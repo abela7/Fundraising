@@ -123,9 +123,9 @@ $page_title = 'Financial Dashboard';
                                 <div class="d-flex align-items-center">
                                     <div class="icon-circle bg-warning text-white"><i class="fas fa-hourglass-half"></i></div>
                                     <div class="ms-3 flex-grow-1">
-                                        <div class="kpi-label text-warning fw-bold">Outstanding</div>
+                                        <div class="kpi-label text-warning fw-bold">Outstanding (approved)</div>
                                         <div class="kpi-value" id="kpiOutstanding">—</div>
-                                        <div class="kpi-sub">Sum of donor balances</div>
+                                        <div class="kpi-sub">Approved pledges − confirmed pledge payments</div>
                                     </div>
                                 </div>
                             </div>

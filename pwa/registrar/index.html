@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#28a745">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Registrar">
+  
+  <title>Registrar Portal</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="pwa-app pwa-has-nav registrar-theme">
+  <!-- Header -->
+  <header class="pwa-header">
+    <div class="header-content">
+      <h1 class="pwa-header-title">Registrar Portal</h1>
+      <p class="pwa-header-subtitle" id="welcomeText">Welcome</p>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="pwa-main" id="mainContent">
+    <!-- Dashboard View -->
+    <section id="dashboardView" class="view active">
+      <div class="pwa-summary-grid">
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="totalRegistrations">0</div>
+          <div class="pwa-summary-label">Registrations</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="totalAmount">£0</div>
+          <div class="pwa-summary-label">Total Amount</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="pendingCount">0</div>
+          <div class="pwa-summary-label">Pending</div>
+        </div>
+        <div class="pwa-summary-card">
+          <div class="pwa-summary-value" id="thisMonth">0</div>
+          <div class="pwa-summary-label">This Month</div>
+        </div>
+      </div>
+
+      <div class="pwa-card" style="margin-top: 1rem;">
+        <div class="pwa-card-header">
+          <h3 class="pwa-card-title">Recent Registrations</h3>
+          <a href="#registrations" class="view-all-link">View All</a>
+        </div>
+        <ul class="pwa-list" id="recentList">
+          <li class="pwa-list-item empty-state">
+            <span class="pwa-text-muted">No recent registrations</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Registrations View -->
+    <section id="registrationsView" class="view">
+      <div class="pwa-card">
+        <div class="pwa-card-header">
+          <h2 class="pwa-card-title">My Registrations</h2>
+          <select class="status-filter" id="statusFilter">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <ul class="pwa-list" id="registrationsList">
+          <li class="pwa-list-item empty-state">Loading...</li>
+        </ul>
+        <div id="registrationsPagination" class="pagination"></div>
+      </div>
+    </section>
+
+    <!-- Statistics View -->
+    <section id="statsView" class="view">
+      <div class="pwa-card">
+        <h2 class="pwa-card-title">My Statistics</h2>
+        
+        <div class="stats-section">
+          <h4>Pledges</h4>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value" id="statPledgesTotal">0</span>
+              <span class="stat-label">Total</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statPledgesApproved">0</span>
+              <span class="stat-label">Approved</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statPledgesPending">0</span>
+              <span class="stat-label">Pending</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statPledgesAmount">£0</span>
+              <span class="stat-label">Amount</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stats-section">
+          <h4>Payments</h4>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value" id="statPaymentsTotal">0</span>
+              <span class="stat-label">Total</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statPaymentsApproved">0</span>
+              <span class="stat-label">Approved</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statPaymentsCollected">£0</span>
+              <span class="stat-label">Collected</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stats-section">
+          <h4>This Month</h4>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value" id="statMonthPledges">0</span>
+              <span class="stat-label">Pledges</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statMonthAmount">£0</span>
+              <span class="stat-label">Amount</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statUniqueDonors">0</span>
+              <span class="stat-label">Donors</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile View -->
+    <section id="profileView" class="view">
+      <div class="pwa-card">
+        <h2 class="pwa-card-title">My Profile</h2>
+        
+        <div class="profile-info">
+          <div class="profile-field">
+            <span class="profile-label">Name</span>
+            <span class="profile-value" id="profileName">-</span>
+          </div>
+          <div class="profile-field">
+            <span class="profile-label">Phone</span>
+            <span class="profile-value" id="profilePhone">-</span>
+          </div>
+          <div class="profile-field">
+            <span class="profile-label">Role</span>
+            <span class="profile-value" id="profileRole">-</span>
+          </div>
+        </div>
+        
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--pwa-border);">
+        
+        <button id="logoutBtn" class="pwa-btn pwa-btn-outline pwa-btn-block">
+          Logout
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="pwa-nav">
+    <a href="#dashboard" class="pwa-nav-item active" data-view="dashboard">
+      <span class="pwa-nav-icon">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="#registrations" class="pwa-nav-item" data-view="registrations">
+      <span class="pwa-nav-icon">📋</span>
+      <span>List</span>
+    </a>
+    <a href="#stats" class="pwa-nav-item" data-view="stats">
+      <span class="pwa-nav-icon">📊</span>
+      <span>Stats</span>
+    </a>
+    <a href="#profile" class="pwa-nav-item" data-view="profile">
+      <span class="pwa-nav-icon">👤</span>
+      <span>Profile</span>
+    </a>
+  </nav>
+
+  <script src="../shared/api-client.js"></script>
+  <script src="../shared/auth.js"></script>
+  <script src="../shared/install-tracker.js"></script>
+  <script src="../shared/ui-helpers.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
+

@@ -738,7 +738,9 @@ $progress = ($settings['target_amount'] ?? 0) > 0 ? round((($metrics['paid_total
                                         <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
                                             <div class="icon-circle bg-warning text-white"><i class="fas fa-hand-holding-usd"></i></div>
                                             <div class="ms-3">
-                                                <div class="small fw-bold text-warning mb-1">Pledged (approved)</div>
+                                                <div class="small fw-bold text-warning mb-1">
+                                                    <?php echo (($_GET['date'] ?? 'month') === 'all') ? 'Outstanding (approved)' : 'Pledged (approved)'; ?>
+                                                </div>
                                                 <div class="h5 mb-0"><?php echo $currency.' '.number_format($metrics['pledged_total'], 2); ?></div>
                                                 <div class="small text-muted">Pledges: <?php echo number_format($metrics['pledges_count']); ?></div>
                                             </div>

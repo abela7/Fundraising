@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a6286">
+  <meta name="description" content="Church Fundraising Mobile Apps - Install the app for your role">
+  
+  <title>Church Fundraising Apps</title>
+  
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="shared/styles.css">
+  
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      text-align: center;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.5rem;
+    }
+    
+    h1 {
+      color: var(--pwa-text);
+      margin-bottom: 0.5rem;
+    }
+    
+    .subtitle {
+      color: var(--pwa-text-muted);
+      margin-bottom: 2rem;
+    }
+    
+    .apps-grid {
+      display: grid;
+      gap: 1rem;
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .app-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--pwa-surface);
+      border-radius: var(--pwa-radius);
+      box-shadow: var(--pwa-shadow);
+      text-decoration: none;
+      color: var(--pwa-text);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .app-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--pwa-shadow-lg);
+    }
+    
+    .app-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+    }
+    
+    .app-icon.donor { background: linear-gradient(135deg, #0a6286 0%, #084a66 100%); }
+    .app-icon.registrar { background: linear-gradient(135deg, #28a745 0%, #1e7b34 100%); }
+    .app-icon.admin { background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); }
+    
+    .app-info {
+      flex: 1;
+      text-align: left;
+    }
+    
+    .app-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    .app-description {
+      font-size: 0.875rem;
+      color: var(--pwa-text-muted);
+    }
+    
+    .app-arrow {
+      color: var(--pwa-text-muted);
+      font-size: 1.25rem;
+    }
+    
+    .footer {
+      margin-top: 2rem;
+      color: var(--pwa-text-muted);
+      font-size: 0.875rem;
+    }
+    
+    .footer a {
+      color: var(--pwa-primary);
+    }
+  </style>
+</head>
+<body>
+  <img src="/assets/favicon.svg" alt="Logo" class="logo">
+  
+  <h1>Church Fundraising</h1>
+  <p class="subtitle">Choose your app to continue</p>
+  
+  <div class="apps-grid">
+    <a href="donor/" class="app-card">
+      <div class="app-icon donor">👤</div>
+      <div class="app-info">
+        <div class="app-name">Donor Portal</div>
+        <div class="app-description">View pledges, make payments, track progress</div>
+      </div>
+      <span class="app-arrow">→</span>
+    </a>
+    
+    <a href="registrar/" class="app-card">
+      <div class="app-icon registrar">📋</div>
+      <div class="app-info">
+        <div class="app-name">Registrar Portal</div>
+        <div class="app-description">Register donors, manage pledges, view stats</div>
+      </div>
+      <span class="app-arrow">→</span>
+    </a>
+    
+    <a href="admin/" class="app-card">
+      <div class="app-icon admin">⚙️</div>
+      <div class="app-info">
+        <div class="app-name">Admin Portal</div>
+        <div class="app-description">Dashboard, reports, donor management</div>
+      </div>
+      <span class="app-arrow">→</span>
+    </a>
+  </div>
+  
+  <div class="footer">
+    <p>Install the app on your device for the best experience</p>
+    <p><a href="/">← Back to Website</a></p>
+  </div>
+</body>
+</html>
+

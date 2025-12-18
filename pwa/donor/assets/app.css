@@ -1,0 +1,232 @@
+/**
+ * Donor PWA Custom Styles
+ */
+
+/* Header */
+.pwa-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-content {
+  flex: 1;
+}
+
+.header-menu-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.header-menu-btn:hover {
+  opacity: 1;
+}
+
+/* Views */
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Summary Cards */
+.pwa-summary-card {
+  box-shadow: var(--pwa-shadow);
+}
+
+/* Payment Plan Card */
+.plan-details p {
+  margin: 0.5rem 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* View All Link */
+.view-all-link {
+  font-size: 0.875rem;
+  color: var(--pwa-primary);
+}
+
+/* Empty State */
+.empty-state {
+  justify-content: center;
+  color: var(--pwa-text-muted);
+  padding: 2rem 1rem;
+}
+
+/* Payment Form */
+.payment-form {
+  margin-top: 1.5rem;
+}
+
+.payment-form textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Profile */
+.profile-info {
+  margin-bottom: 1rem;
+}
+
+.profile-field {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--pwa-border);
+}
+
+.profile-field:last-child {
+  border-bottom: none;
+}
+
+.profile-label {
+  color: var(--pwa-text-muted);
+  font-size: 0.875rem;
+}
+
+.profile-value {
+  font-weight: 500;
+}
+
+/* Login Page */
+.login-page {
+  background: linear-gradient(135deg, #0a6286 0%, #084a66 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #fff;
+}
+
+.login-logo {
+  margin-bottom: 1rem;
+}
+
+.login-logo img {
+  width: 80px;
+  height: 80px;
+  filter: brightness(0) invert(1);
+}
+
+.login-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.login-subtitle {
+  opacity: 0.85;
+  margin: 0.5rem 0 0;
+}
+
+.login-card {
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-title {
+  margin-bottom: 0.5rem;
+}
+
+.step-description {
+  color: var(--pwa-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.otp-input {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.5rem;
+}
+
+.remember-device {
+  margin-bottom: 1.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.otp-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pwa-border);
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.back-link {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.875rem;
+}
+
+.back-link:hover {
+  color: #fff;
+}
+
+/* Pagination */
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pwa-border);
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: var(--pwa-text-muted);
+}
+
+/* Responsive */
+@media (min-width: 768px) {
+  .login-container {
+    max-width: 420px;
+  }
+}
+

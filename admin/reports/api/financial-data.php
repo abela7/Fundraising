@@ -20,36 +20,41 @@ try {
     // We will implement basic totals first.
 
     // 1. KPI Cards Data
-// We use the efficient counters table for totals where possible, but dynamic queries for specific filters.
-// Here we will run dynamic queries to ensure accuracy with the dashboard filters if we add them later.
-// For now, global totals.
+    // Keep dashboard consistent with FinancialCalculator semantics:
+    // - Total Paid = payments (approved) + pledge_payments (confirmed)
+    // - Outstanding Pledged = approved pledges - confirmed pledge_payments
+    //   (i.e. promises remaining, not "sum of donor balances")
 
-$kpiQuery = "SELECT 
-    (SELECT IFNULL(SUM(amount),0) FROM pledges WHERE status = 'approved') as total_pledged,
-    (SELECT IFNULL(SUM(amount),0) FROM payments WHERE status = 'approved') as total_paid_direct,
-    (SELECT IFNULL(SUM(amount),0) FROM pledge_payments WHERE status = 'confirmed') as total_paid_pledge,
-    (SELECT COUNT(*) FROM donors) as total_donors,
-    (SELECT COUNT(*) FROM donor_payment_plans WHERE status = 'active') as active_plans";
+    $hasPledgePayments = false;
+    $ppCheck = $db->query("SHOW TABLES LIKE 'pledge_payments'");
+    if ($ppCheck && $ppCheck->num_rows > 0) {
+        $hasPledgePayments = true;
+    }
+
+    $kpiQuery = "SELECT 
+        (SELECT IFNULL(SUM(amount),0) FROM pledges WHERE status = 'approved') as total_pledged,
+        (SELECT IFNULL(SUM(amount),0) FROM payments WHERE status = 'approved') as total_paid_direct,
+        " . ($hasPledgePayments ? "(SELECT IFNULL(SUM(amount),0) FROM pledge_payments WHERE status = 'confirmed')" : "0") . " as total_paid_pledge,
+        (SELECT COUNT(*) FROM donors) as total_donors,
+        (SELECT COUNT(*) FROM donor_payment_plans WHERE status = 'active') as active_plans";
 
 $kpiResult = $db->query($kpiQuery);
 $kpiData = $kpiResult->fetch_assoc();
 
-// Calculate true total paid (Direct + Pledge Payments)
-$totalPaid = $kpiData['total_paid_direct'] + $kpiData['total_paid_pledge'];
-// Outstanding is Pledged - Pledge Payments (roughly)
-// Or we can use the donor balances sum
-$balanceQuery = "SELECT SUM(balance) as total_balance FROM donors";
-$balanceResult = $db->query($balanceQuery);
-$balanceData = $balanceResult->fetch_assoc();
+    // Calculate true total paid (Direct + Pledge Payments)
+    $totalPaid = (float)$kpiData['total_paid_direct'] + (float)$kpiData['total_paid_pledge'];
 
-$response['kpi'] = [
-    'total_pledged' => (float)$kpiData['total_pledged'],
-    'total_paid' => (float)$totalPaid,
-    'outstanding' => (float)$balanceData['total_balance'],
-    'total_donors' => (int)$kpiData['total_donors'],
-    'active_plans' => (int)$kpiData['active_plans'],
-    'collection_rate' => ($kpiData['total_pledged'] > 0) ? round(($totalPaid / $kpiData['total_pledged']) * 100, 1) : 0
-];
+    // Outstanding pledged (promises remaining)
+    $outstandingPledged = max(0.0, (float)$kpiData['total_pledged'] - (float)$kpiData['total_paid_pledge']);
+
+    $response['kpi'] = [
+        'total_pledged' => (float)$kpiData['total_pledged'],
+        'total_paid' => (float)$totalPaid,
+        'outstanding' => (float)$outstandingPledged,
+        'total_donors' => (int)$kpiData['total_donors'],
+        'active_plans' => (int)$kpiData['active_plans'],
+        'collection_rate' => ((float)$kpiData['total_pledged'] > 0) ? round(($totalPaid / (float)$kpiData['total_pledged']) * 100, 1) : 0
+    ];
 
 // 2. Monthly Trends (Last 12 Months)
 // Pledges

@@ -1,0 +1,49 @@
+{
+  "name": "Church Fundraising - Registrar Portal",
+  "short_name": "Registrar",
+  "description": "Register donors and manage pledges for church fundraising",
+  "start_url": "/pwa/registrar/",
+  "scope": "/pwa/registrar/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0a6286",
+  "categories": ["business", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Registrations",
+      "short_name": "List",
+      "url": "/pwa/registrar/#registrations",
+      "description": "View my registrations"
+    },
+    {
+      "name": "My Stats",
+      "short_name": "Stats",
+      "url": "/pwa/registrar/#stats",
+      "description": "View your statistics"
+    }
+  ],
+  "prefer_related_applications": false
+}
