@@ -39,19 +39,25 @@ async function init() {
     document.getElementById('welcomeText').textContent = `Welcome, ${user.name}`;
   }
   
-  // Check if just logged in - show install prompt
-  if (sessionStorage.getItem('just_logged_in') === 'true') {
-    sessionStorage.removeItem('just_logged_in');
-    
-    // Show install prompt modal if not already installed
-    if (typeof installPrompt !== 'undefined' && !installPrompt.isInstalled) {
-      installPrompt.showAfterLogin('Donor Portal');
-    }
-  }
+  // Hide install FAB if already installed
+  hideInstallFabIfInstalled();
   
   // Handle hash navigation
   handleHashChange();
   window.addEventListener('hashchange', handleHashChange);
+}
+
+/**
+ * Hide the install FAB if app is already installed
+ */
+function hideInstallFabIfInstalled() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                       window.navigator.standalone === true;
+  
+  if (isStandalone) {
+    const fab = document.getElementById('installFab');
+    if (fab) fab.style.display = 'none';
+  }
 }
 
 /**

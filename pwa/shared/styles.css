@@ -559,3 +559,69 @@ a {
   }
 }
 
+/* Install FAB (Floating Action Button) */
+.install-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(80px + var(--pwa-safe-bottom) + 1rem);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  background: linear-gradient(135deg, var(--pwa-primary) 0%, var(--pwa-primary-dark) 100%);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 50px;
+  box-shadow: 0 4px 16px rgba(10, 98, 134, 0.4);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  animation: fab-pulse 2s ease-in-out infinite;
+}
+
+.install-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(10, 98, 134, 0.5);
+}
+
+.install-fab:active {
+  transform: translateY(0);
+}
+
+.install-fab-icon {
+  font-size: 1.25rem;
+}
+
+.install-fab-text {
+  white-space: nowrap;
+}
+
+@keyframes fab-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 16px rgba(10, 98, 134, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 24px rgba(10, 98, 134, 0.6);
+  }
+}
+
+/* Hide FAB when app is installed (standalone mode) */
+@media (display-mode: standalone) {
+  .install-fab {
+    display: none !important;
+  }
+}
+
+/* Smaller screens - icon only */
+@media (max-width: 360px) {
+  .install-fab {
+    padding: 1rem;
+    border-radius: 50%;
+  }
+  
+  .install-fab-text {
+    display: none;
+  }
+}
+
