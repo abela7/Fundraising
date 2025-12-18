@@ -824,6 +824,11 @@ function formatDateTime($date) {
             --accent-color: #e2ca18;
             --danger-color: #ef4444;
             --success-color: #10b981;
+            /* Golden theme for completed donors */
+            --gold-light: #ffd700;
+            --gold-main: #d4af37;
+            --gold-dark: #b8860b;
+            --gold-shine: #fff8dc;
         }
         
         /* Profile Header - Modern Mobile-First Design */
@@ -835,6 +840,244 @@ function formatDateTime($date) {
             margin-bottom: 1.5rem;
             box-shadow: 0 4px 20px rgba(10, 98, 134, 0.25);
         }
+        
+        /* ========================================
+           GOLDEN PREMIUM STYLE - FULLY PAID DONORS
+           ======================================== */
+        .profile-header.golden-premium {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 4px 30px rgba(212, 175, 55, 0.4),
+                0 0 60px rgba(255, 215, 0, 0.15),
+                inset 0 1px 0 rgba(255, 215, 0, 0.2);
+            border: 2px solid rgba(212, 175, 55, 0.4);
+        }
+        
+        /* Animated shimmer effect */
+        .profile-header.golden-premium::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(255, 215, 0, 0.08) 40%,
+                rgba(255, 215, 0, 0.15) 50%,
+                rgba(255, 215, 0, 0.08) 60%,
+                transparent 70%
+            );
+            animation: goldenShimmer 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes goldenShimmer {
+            0%, 100% { transform: translateX(-100%) rotate(45deg); }
+            50% { transform: translateX(100%) rotate(45deg); }
+        }
+        
+        /* Golden sparkle particles */
+        .profile-header.golden-premium::after {
+            content: '✨';
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            animation: sparkle 2s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.5; transform: scale(1) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+        }
+        
+        /* Golden Avatar */
+        .golden-premium .avatar-circle {
+            background: linear-gradient(145deg, var(--gold-light), var(--gold-dark));
+            border: 3px solid var(--gold-main);
+            box-shadow: 
+                0 0 25px rgba(255, 215, 0, 0.5),
+                0 0 50px rgba(212, 175, 55, 0.3),
+                inset 0 2px 4px rgba(255, 255, 255, 0.4);
+            color: #1a1a2e;
+            animation: goldenGlow 3s ease-in-out infinite;
+        }
+        
+        @keyframes goldenGlow {
+            0%, 100% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.5), 0 0 50px rgba(212, 175, 55, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4); }
+            50% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.7), 0 0 70px rgba(212, 175, 55, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4); }
+        }
+        
+        /* Golden Name with gradient */
+        .golden-premium .profile-name {
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-main), var(--gold-light));
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: goldenTextShine 3s linear infinite;
+            text-shadow: none;
+            font-weight: 800;
+        }
+        
+        @keyframes goldenTextShine {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+        
+        /* Golden pills and badges */
+        .golden-premium .info-pill {
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            color: var(--gold-light);
+        }
+        
+        .golden-premium .info-pill:hover {
+            background: rgba(212, 175, 55, 0.35);
+            color: var(--gold-light);
+        }
+        
+        .golden-premium .donor-badge.ref {
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-main));
+            color: #1a1a2e;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(212, 175, 55, 0.4);
+        }
+        
+        /* FULLY PAID Premium Badge */
+        .fully-paid-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-main), var(--gold-dark));
+            color: #1a1a2e;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.75rem;
+            box-shadow: 
+                0 4px 15px rgba(212, 175, 55, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+        
+        .fully-paid-badge i {
+            font-size: 0.875rem;
+        }
+        
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(212, 175, 55, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+            50% { transform: scale(1.02); box-shadow: 0 6px 25px rgba(212, 175, 55, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+        }
+        
+        /* Golden Financial Grid */
+        .golden-premium .financial-grid .fin-card {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+        
+        .golden-premium .financial-grid .fin-card:hover {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+        
+        .golden-premium .fin-card.paid .fin-icon {
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-main));
+            color: #1a1a2e;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.5);
+        }
+        
+        .golden-premium .fin-card.balance .fin-icon {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+        
+        .golden-premium .fin-amount {
+            color: var(--gold-light);
+        }
+        
+        .golden-premium .fin-label {
+            color: rgba(255, 215, 0, 0.7);
+        }
+        
+        .golden-premium .fin-edit-btn {
+            background: rgba(212, 175, 55, 0.3);
+            border-color: rgba(212, 175, 55, 0.5);
+            color: var(--gold-light);
+        }
+        
+        .golden-premium .fin-edit-btn:hover {
+            background: rgba(212, 175, 55, 0.5);
+        }
+        
+        /* Share button for golden profile */
+        .golden-share-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            color: var(--gold-light);
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 0.75rem;
+        }
+        
+        .golden-share-btn:hover {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: var(--gold-main);
+            transform: translateY(-2px);
+        }
+        
+        /* Confetti animation on load for golden */
+        @keyframes confettiFall {
+            0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        /* Mobile optimizations for golden */
+        @media (max-width: 767.98px) {
+            .profile-header.golden-premium {
+                padding: 1.25rem;
+                border-radius: 20px;
+            }
+            
+            .fully-paid-badge {
+                font-size: 0.7rem;
+                padding: 0.4rem 0.875rem;
+            }
+            
+            .golden-premium .profile-name {
+                font-size: 1.4rem;
+            }
+            
+            .golden-share-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* Print styles for sharing */
+        @media print {
+            .profile-header.golden-premium {
+                background: #1a1a2e !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+        /* END GOLDEN PREMIUM STYLES */
         
         .profile-top {
             text-align: center;
@@ -1321,13 +1564,35 @@ function formatDateTime($date) {
                     </a>
                 </div>
 
+                <?php 
+                // Check if donor is fully paid (completed status)
+                $is_fully_paid = (
+                    ($donor['payment_status'] ?? '') === 'completed' || 
+                    ((float)($donor['total_pledged'] ?? 0) > 0 && (float)($donor['balance'] ?? 0) <= 0.01)
+                );
+                ?>
+                
                 <!-- Top Summary Card - Mobile Optimized -->
-                <div class="profile-header">
+                <div class="profile-header<?php echo $is_fully_paid ? ' golden-premium' : ''; ?>" id="donorProfileCard">
                     <!-- Top Section: Avatar + Name -->
                     <div class="profile-top">
                         <div class="avatar-circle">
-                            <?php echo strtoupper(substr($donor['name'], 0, 1)); ?>
+                            <?php if ($is_fully_paid): ?>
+                                <i class="fas fa-crown" style="font-size: 1.5rem;"></i>
+                            <?php else: ?>
+                                <?php echo strtoupper(substr($donor['name'], 0, 1)); ?>
+                            <?php endif; ?>
                         </div>
+                        
+                        <?php if ($is_fully_paid): ?>
+                        <!-- FULLY PAID Premium Badge -->
+                        <div class="fully-paid-badge">
+                            <i class="fas fa-trophy"></i>
+                            <span>Fully Paid</span>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <?php endif; ?>
+                        
                         <h1 class="profile-name"><?php echo htmlspecialchars($donor['name']); ?></h1>
                         
                         <!-- Donor Info Pills -->
@@ -1355,6 +1620,14 @@ function formatDateTime($date) {
                             </span>
                             <?php endif; ?>
                         </div>
+                        
+                        <?php if ($is_fully_paid): ?>
+                        <!-- Share button for golden profile -->
+                        <button type="button" class="golden-share-btn" onclick="shareGoldenProfile()">
+                            <i class="fas fa-share-alt"></i>
+                            <span>Share Achievement</span>
+                        </button>
+                        <?php endif; ?>
                     </div>
                     
                     <!-- Financial Stats Grid -->
@@ -3219,6 +3492,92 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Golden Profile Share Function (for fully paid donors)
+function shareGoldenProfile() {
+    const donorName = <?php echo json_encode($donor['name'] ?? 'Donor'); ?>;
+    const donorRef = <?php echo json_encode($donor_reference ?? ''); ?>;
+    const totalPaid = <?php echo json_encode(formatMoney($donor['total_paid'] ?? 0)); ?>;
+    
+    const shareTitle = '🏆 ' + donorName + ' - Fully Paid Donor';
+    const shareText = '✨ ' + donorName + ' has fully completed their pledge!\n\n' +
+                      '💰 Total Contributed: ' + totalPaid + '\n' +
+                      '🎉 Thank you for your generous support!\n\n' +
+                      '#FullyPaid #Generosity #ThankYou';
+    
+    // Use Web Share API if available (mobile devices)
+    if (navigator.share) {
+        navigator.share({
+            title: shareTitle,
+            text: shareText,
+            url: window.location.href
+        }).then(() => {
+            console.log('Shared successfully');
+        }).catch((error) => {
+            console.log('Share cancelled or failed:', error);
+            // Fallback to copy
+            copyProfileToClipboard(shareText);
+        });
+    } else {
+        // Fallback: copy to clipboard
+        copyProfileToClipboard(shareText);
+    }
+}
+
+function copyProfileToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text + '\n\n' + window.location.href)
+            .then(() => {
+                showShareToast('Profile info copied to clipboard!');
+            })
+            .catch(() => {
+                fallbackCopyToClipboard(text);
+            });
+    } else {
+        fallbackCopyToClipboard(text);
+    }
+}
+
+function fallbackCopyToClipboard(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text + '\n\n' + window.location.href;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        showShareToast('Profile info copied to clipboard!');
+    } catch (e) {
+        showShareToast('Could not copy. Please copy manually.');
+    }
+    document.body.removeChild(textarea);
+}
+
+function showShareToast(message) {
+    // Create toast notification
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); ' +
+                          'background: linear-gradient(135deg, #d4af37, #b8860b); color: #1a1a2e; ' +
+                          'padding: 12px 24px; border-radius: 50px; font-weight: 600; z-index: 9999; ' +
+                          'box-shadow: 0 4px 20px rgba(212, 175, 55, 0.5); animation: toastSlide 0.3s ease;';
+    toast.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + message;
+    
+    // Add animation style
+    const style = document.createElement('style');
+    style.textContent = '@keyframes toastSlide { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }';
+    document.head.appendChild(style);
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'toastSlide 0.3s ease reverse';
+        setTimeout(() => {
+            toast.remove();
+            style.remove();
+        }, 300);
+    }, 2500);
+}
 </script>
 <script>
 // Wait for Bootstrap to load, then initialize
