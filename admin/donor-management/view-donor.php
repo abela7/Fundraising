@@ -1669,7 +1669,7 @@ function formatDateTime($date) {
                         <?php if ($is_fully_paid): ?>
                         <!-- Motivational message -->
                         <div class="golden-message" style="color: rgba(255,215,0,0.8); font-size: 0.8rem; margin-top: 0.75rem; text-align: center; font-style: italic;">
-                            "የበረከት ተካፋይ" — You are part of the blessing!
+                            "የበረከት ተካፋይ" — Part of this historic achievement!
                         </div>
                         
                         <!-- Share button for golden profile -->
@@ -3594,23 +3594,38 @@ async function captureAndShareWithCanvas(element, title, text, donateUrl) {
         
         // Convert to blob
         canvas.toBlob(async (blob) => {
-            if (blob && navigator.canShare && navigator.canShare({ files: [new File([blob], 'achievement.png', { type: 'image/png' })] })) {
-                // Share with image (mobile)
+            if (blob && navigator.canShare) {
+                // Create file from blob
                 const file = new File([blob], 'my-pledge-achievement.png', { type: 'image/png' });
                 
-                try {
-                    await navigator.share({
-                        title: title,
-                        text: text,
-                        files: [file]
-                    });
-                    console.log('Shared with image successfully');
-                } catch (shareError) {
-                    console.log('Share with image failed, trying without:', shareError);
+                // Check if we can share with files
+                const shareData = {
+                    title: title,
+                    text: text,
+                    url: donateUrl,
+                    files: [file]
+                };
+                
+                if (navigator.canShare(shareData)) {
+                    try {
+                        // Share with image + text + URL (all together)
+                        await navigator.share(shareData);
+                        console.log('Shared with image + text successfully');
+                    } catch (shareError) {
+                        if (shareError.name === 'AbortError') {
+                            console.log('Share cancelled by user');
+                        } else {
+                            console.log('Share with image failed, trying text only:', shareError);
+                            shareWithoutImage(title, text, donateUrl);
+                        }
+                    }
+                } else {
+                    // Can't share with files, try just text + url
+                    console.log('Cannot share files, trying text only');
                     shareWithoutImage(title, text, donateUrl);
                 }
             } else {
-                // Can't share files, try regular share or copy
+                // No canShare support, try regular share or copy
                 shareWithoutImage(title, text, donateUrl);
             }
         }, 'image/png', 0.95);
