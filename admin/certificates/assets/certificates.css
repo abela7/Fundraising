@@ -221,6 +221,16 @@
     text-shadow: none;
 }
 
+.reference-number {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    margin-top: 8px;
+    text-align: center;
+    letter-spacing: 2px;
+    font-family: 'Courier New', monospace;
+}
+
 /* Responsive scaling for smaller screens */
 @media (max-width: 1400px) {
     .certificate {

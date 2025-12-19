@@ -210,6 +210,16 @@ function printCertificate() {
                     font-weight: 900;
                     color: #333;
                 }
+                
+                .reference-number {
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: #fff;
+                    margin-top: 8px;
+                    text-align: center;
+                    letter-spacing: 2px;
+                    font-family: 'Courier New', monospace;
+                }
             </style>
         </head>
         <body>
