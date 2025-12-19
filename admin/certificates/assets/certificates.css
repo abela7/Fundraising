@@ -8,22 +8,26 @@
 /* Certificate Preview Container */
 .certificate-preview-container {
     background: #1a1a1a;
-    padding: 30px;
-    border-radius: 12px;
+    padding: 2rem;
+    border-radius: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    position: relative;
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 #cert-scaler {
-    transform-origin: center center;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Fixed size canvas */
+/* Fixed size canvas with responsive scaling */
 .certificate {
     width: 1200px;
     height: 750px;
@@ -34,10 +38,142 @@
     position: relative;
     color: white;
     flex-shrink: 0;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
-    transform: scale(0.6);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.8);
     transform-origin: center center;
     font-family: 'Montserrat', sans-serif;
+    aspect-ratio: 1200 / 750;
+}
+
+/* This is the magic for responsive scaling without media query hell */
+.cert-responsive-wrapper {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.cert-ratio-container {
+    position: relative;
+    width: 100%;
+    padding-top: 62.5%; /* 750 / 1200 = 0.625 */
+}
+
+.cert-ratio-container .certificate {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* The scale will be calculated via JS or we can use a CSS trick */
+    transform: translate(-50%, -50%);
+}
+
+/* Modern Card Styling */
+.donor-stat-card {
+    background: var(--white);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    box-shadow: var(--shadow);
+    transition: all 0.3s var(--transition);
+    border: 1px solid var(--gray-100);
+}
+
+.donor-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.donor-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.donor-stat-content {
+    flex: 1;
+}
+
+.donor-stat-label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    margin-bottom: 0.25rem;
+}
+
+.donor-stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+/* Search Results Cards (Mobile) */
+.donor-result-card {
+    background: var(--white);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-100);
+}
+
+.donor-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.donor-result-info h6 {
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+}
+
+/* Section Header Modernization */
+.page-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.page-section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Certificate Actions */
+.cert-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+@media (max-width: 575.98px) {
+    .cert-actions {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 1.5rem;
+        right: 1.5rem;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        padding: 1rem;
+        border-radius: 1rem;
+        box-shadow: var(--shadow-xl);
+    }
+    
+    .cert-actions .btn {
+        flex: 1;
+    }
 }
 
 /* ===== CHURCH IMAGE OVERLAY ===== */
@@ -225,23 +361,109 @@
     vertical-align: bottom;
 }
 
-/* Responsive scaling for smaller screens */
-@media (max-width: 1400px) {
-    .certificate {
-        transform: scale(0.5);
+/* Responsive scaling handled by JS for perfect fit */
+#cert-scaler {
+    width: 1200px; /* Base width */
+    height: 750px; /* Base height */
+    transition: transform 0.3s ease-out;
+}
+
+/* Glass card for search info */
+.search-info-card {
+    background: rgba(10, 98, 134, 0.05);
+    border: 1px solid rgba(10, 98, 134, 0.1);
+    border-radius: 1rem;
+    padding: 1.25rem;
+}
+
+.search-info-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary);
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.search-info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.search-info-item {
+    text-align: center;
+}
+
+.search-info-value {
+    display: block;
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: var(--primary-dark);
+}
+
+.search-info-label {
+    font-size: 0.7rem;
+    color: var(--gray-500);
+}
+
+@media (max-width: 767.98px) {
+    .search-info-grid {
+        grid-template-columns: 1fr;
     }
 }
 
-@media (max-width: 1100px) {
-    .certificate {
-        transform: scale(0.4);
-    }
+/* Custom Table Styling */
+.modern-table {
+    border-collapse: separate;
+    border-spacing: 0 0.5rem;
 }
 
-@media (max-width: 900px) {
-    .certificate {
-        transform: scale(0.35);
-    }
+.modern-table thead th {
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    padding: 1rem 1.5rem;
+}
+
+.modern-table tbody tr {
+    background: var(--white);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s;
+}
+
+.modern-table tbody tr:hover {
+    transform: scale(1.005);
+    box-shadow: var(--shadow-md);
+}
+
+.modern-table tbody td {
+    border: none;
+    padding: 1.25rem 1.5rem;
+}
+
+.modern-table tbody td:first-child {
+    border-radius: 1rem 0 0 1rem;
+}
+
+.modern-table tbody td:last-child {
+    border-radius: 0 1rem 1rem 0;
+}
+
+/* Empty state styling */
+.empty-state {
+    padding: 5rem 2rem;
+    text-align: center;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    color: var(--gray-200);
+    margin-bottom: 1.5rem;
 }
 
 /* Print styles */

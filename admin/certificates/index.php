@@ -118,73 +118,110 @@ function extractReference(string $notes): string {
             <div class="container-fluid">
                 
                 <!-- Page Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="page-section-header animate-fade-in">
                     <div>
-                        <h2><i class="fas fa-certificate text-warning"></i> Certificate Management</h2>
-                        <p class="text-muted mb-0">Search donors and generate their certificates</p>
+                        <h2 class="topbar-title">
+                            <i class="fas fa-certificate text-warning me-2"></i> 
+                            Certificate Hub
+                        </h2>
+                        <p class="text-muted mb-0">Issue and manage history-making contribution certificates</p>
                     </div>
                 </div>
                 
-                <!-- Search Card -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-search"></i> Search Donor</h5>
+                <!-- Search Section -->
+                <div class="row g-4 mb-4">
+                    <div class="col-xl-8 animate-slide-in">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body p-4">
+                                <form method="GET" action="" class="search-form">
+                                    <div class="input-group input-group-lg border rounded-3 overflow-hidden">
+                                        <span class="input-group-text bg-white border-0 ps-4">
+                                            <i class="fas fa-search text-primary"></i>
+                                        </span>
+                                        <input 
+                                            type="text" 
+                                            class="form-control border-0 py-3 shadow-none" 
+                                            name="search" 
+                                            placeholder="Search name, phone, or reference..."
+                                            value="<?= htmlspecialchars($search) ?>"
+                                            autofocus
+                                        >
+                                        <button class="btn btn-primary px-5 fw-bold" type="submit">
+                                            Search
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 text-muted small ps-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Tip: Try searching by the last 4 digits of the reference number.
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <form method="GET" action="" class="row g-3">
-                            <div class="col-md-8">
-                                <div class="input-group input-group-lg">
-                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                                    <input 
-                                        type="text" 
-                                        class="form-control" 
-                                        name="search" 
-                                        placeholder="Search by name, phone, or 4-digit reference number..."
-                                        value="<?= htmlspecialchars($search) ?>"
-                                        autofocus
-                                    >
-                                    <button class="btn btn-primary" type="submit">
-                                        <i class="fas fa-search"></i> Search
-                                    </button>
+                    <div class="col-xl-4 animate-slide-in" style="animation-delay: 0.1s">
+                        <div class="search-info-card h-100">
+                            <span class="search-info-title">Value Conversion</span>
+                            <div class="search-info-grid">
+                                <div class="search-info-item">
+                                    <span class="search-info-value">£400</span>
+                                    <span class="search-info-label">1.0 m²</span>
+                                </div>
+                                <div class="search-info-item">
+                                    <span class="search-info-value">£200</span>
+                                    <span class="search-info-label">0.5 m²</span>
+                                </div>
+                                <div class="search-info-item">
+                                    <span class="search-info-value">£100</span>
+                                    <span class="search-info-label">0.25 m²</span>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="bg-light p-2 rounded text-center">
-                                    <small class="text-muted">
-                                        <strong>Sq.m Calculation:</strong><br>
-                                        £400 = 1m² | £200 = 0.5m² | £100 = 0.25m²
-                                    </small>
-                                </div>
-                            </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
+                
+                <?php if (empty($search) && !$selectedDonor): ?>
+                    <!-- Welcome Empty State -->
+                    <div class="empty-state animate-fade-in">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-search-dollar"></i>
+                        </div>
+                        <h3>Ready to generate?</h3>
+                        <p class="text-muted mx-auto" style="max-width: 400px;">
+                            Enter a donor's name or reference number above to find their contribution and preview their certificate.
+                        </p>
+                    </div>
+                <?php endif; ?>
                 
                 <?php if (!empty($search)): ?>
-                <!-- Search Results -->
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-users"></i> Search Results (<?= count($donors) ?>)</h5>
-                        <?php if (!empty($donors)): ?>
-                            <span class="badge bg-secondary">Showing up to 50 results</span>
-                        <?php endif; ?>
+                <!-- Search Results Section -->
+                <div class="animate-fade-in">
+                    <div class="page-section-header">
+                        <h5 class="page-section-title">
+                            <i class="fas fa-users-viewfinder text-primary"></i>
+                            Found Donors
+                            <span class="badge bg-primary-light text-primary ms-2 rounded-pill fs-6"><?= count($donors) ?></span>
+                        </h5>
                     </div>
-                    <div class="card-body">
-                        <?php if (empty($donors)): ?>
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-info-circle"></i> No donors found matching "<strong><?= htmlspecialchars($search) ?></strong>"
+
+                    <?php if (empty($donors)): ?>
+                        <div class="alert alert-info border-0 shadow-sm rounded-4 p-4 d-flex align-items-center">
+                            <i class="fas fa-info-circle fs-3 me-3 text-primary"></i>
+                            <div>
+                                <h6 class="mb-1 fw-bold">No matches found</h6>
+                                <p class="mb-0 text-muted">We couldn't find any donors matching "<strong><?= htmlspecialchars($search) ?></strong>". Try a different name or phone number.</p>
                             </div>
-                        <?php else: ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="d-none d-md-block">
                             <div class="table-responsive">
-                                <table class="table table-hover align-middle">
-                                    <thead class="table-light">
+                                <table class="table modern-table align-middle">
+                                    <thead>
                                         <tr>
-                                            <th>Donor</th>
-                                            <th>Phone</th>
+                                            <th>Donor Profile</th>
+                                            <th>Contact</th>
                                             <th>Reference</th>
-                                            <th class="text-end">Total Paid</th>
-                                            <th class="text-end">Sq.m</th>
-                                            <th>Status</th>
+                                            <th class="text-end">Paid Amount</th>
+                                            <th class="text-end">Allocation</th>
                                             <th class="text-center">Action</th>
                                         </tr>
                                     </thead>
@@ -192,48 +229,40 @@ function extractReference(string $notes): string {
                                         <?php foreach ($donors as $donor): 
                                             $ref = extractReference($donor['pledge_notes'] ?? '');
                                             $sqm = calculateSqm((float)$donor['total_paid']);
+                                            $isSelected = isset($_GET['donor_id']) && (int)$_GET['donor_id'] === (int)$donor['id'];
                                         ?>
-                                            <tr class="<?= isset($_GET['donor_id']) && (int)$_GET['donor_id'] === (int)$donor['id'] ? 'table-primary' : '' ?>">
+                                            <tr class="<?= $isSelected ? 'glow-primary' : '' ?>" style="<?= $isSelected ? 'border-left: 4px solid var(--primary);' : '' ?>">
                                                 <td>
-                                                    <strong><?= htmlspecialchars($donor['name']) ?></strong>
-                                                    <?php if ($donor['email']): ?>
-                                                        <br><small class="text-muted"><?= htmlspecialchars($donor['email']) ?></small>
-                                                    <?php endif; ?>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="user-avatar me-3">
+                                                            <?= strtoupper(substr($donor['name'], 0, 1)) ?>
+                                                        </div>
+                                                        <div>
+                                                            <div class="fw-bold text-dark"><?= htmlspecialchars($donor['name']) ?></div>
+                                                            <div class="text-muted small"><?= htmlspecialchars($donor['email'] ?: 'No email') ?></div>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td><?= htmlspecialchars($donor['phone']) ?></td>
                                                 <td>
                                                     <?php if ($ref): ?>
-                                                        <span class="badge bg-dark font-monospace"><?= $ref ?></span>
+                                                        <span class="badge bg-dark font-monospace px-3 py-2"><?= $ref ?></span>
                                                     <?php else: ?>
-                                                        <span class="text-muted">-</span>
+                                                        <span class="text-muted small">N/A</span>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td class="text-end">
-                                                    <strong class="text-success"><?= $currency . number_format((float)$donor['total_paid'], 2) ?></strong>
+                                                    <span class="fw-bold text-success"><?= $currency . number_format((float)$donor['total_paid'], 2) ?></span>
                                                 </td>
                                                 <td class="text-end">
-                                                    <?php if ($sqm > 0): ?>
-                                                        <span class="badge bg-warning text-dark fs-6"><?= $sqm ?> m²</span>
-                                                    <?php else: ?>
-                                                        <span class="text-muted">0 m²</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <?php 
-                                                    $statusClass = match($donor['payment_status']) {
-                                                        'completed' => 'success',
-                                                        'partial' => 'warning',
-                                                        default => 'secondary'
-                                                    };
-                                                    ?>
-                                                    <span class="badge bg-<?= $statusClass ?>">
-                                                        <?= ucfirst($donor['payment_status']) ?>
+                                                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">
+                                                        <?= $sqm ?> m²
                                                     </span>
                                                 </td>
                                                 <td class="text-center">
                                                     <a href="?search=<?= urlencode($search) ?>&donor_id=<?= $donor['id'] ?>" 
-                                                       class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-certificate"></i> View Certificate
+                                                       class="btn <?= $isSelected ? 'btn-primary' : 'btn-outline-primary' ?> btn-sm rounded-pill px-4 shadow-sm">
+                                                        <i class="fas fa-certificate me-1"></i> Preview
                                                     </a>
                                                 </td>
                                             </tr>
@@ -241,105 +270,160 @@ function extractReference(string $notes): string {
                                     </tbody>
                                 </table>
                             </div>
-                        <?php endif; ?>
-                    </div>
+                        </div>
+
+                        <!-- Mobile Cards -->
+                        <div class="d-md-none">
+                            <?php foreach ($donors as $donor): 
+                                $ref = extractReference($donor['pledge_notes'] ?? '');
+                                $sqm = calculateSqm((float)$donor['total_paid']);
+                                $isSelected = isset($_GET['donor_id']) && (int)$_GET['donor_id'] === (int)$donor['id'];
+                            ?>
+                                <div class="donor-result-card <?= $isSelected ? 'border-primary shadow' : '' ?>">
+                                    <div class="donor-result-header">
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar me-3 shadow-sm">
+                                                <?= strtoupper(substr($donor['name'], 0, 1)) ?>
+                                            </div>
+                                            <div class="donor-result-info">
+                                                <h6 class="mb-0"><?= htmlspecialchars($donor['name']) ?></h6>
+                                                <small class="text-muted"><?= htmlspecialchars($donor['phone']) ?></small>
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-warning text-dark rounded-pill"><?= $sqm ?> m²</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <div class="text-success fw-bold">
+                                            <?= $currency . number_format((float)$donor['total_paid'], 2) ?>
+                                        </div>
+                                        <a href="?search=<?= urlencode($search) ?>&donor_id=<?= $donor['id'] ?>" 
+                                           class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm">
+                                            Preview
+                                        </a>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
                 
                 <?php if ($selectedDonor): ?>
-                <!-- Certificate Preview -->
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="fas fa-certificate text-warning"></i> 
-                            Certificate for <?= htmlspecialchars($selectedDonor['name']) ?>
+                <!-- Preview Section -->
+                <div class="animate-fade-in mt-5" id="preview-section">
+                    <div class="page-section-header">
+                        <h5 class="page-section-title">
+                            <i class="fas fa-eye text-primary"></i>
+                            Certificate Preview
                         </h5>
-                        <div>
-                            <button class="btn btn-success" onclick="printCertificate()">
-                                <i class="fas fa-print"></i> Print
+                        <div class="cert-actions d-none d-sm-flex">
+                            <button class="btn btn-outline-success rounded-pill px-4 hover-lift" onclick="printCertificate()">
+                                <i class="fas fa-print me-2"></i> Print
                             </button>
-                            <button class="btn btn-info" onclick="downloadCertificate()">
-                                <i class="fas fa-download"></i> Download
+                            <button class="btn btn-success rounded-pill px-4 shadow-sm hover-lift" onclick="downloadCertificate()">
+                                <i class="fas fa-download me-2"></i> Download Image
                             </button>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <!-- Donor Info Summary -->
-                        <div class="row mb-4">
-                            <div class="col-md-3">
-                                <div class="bg-light p-3 rounded text-center">
-                                    <small class="text-muted">Reference Number</small>
-                                    <h4 class="mb-0 font-monospace"><?= $donorReference ?: 'N/A' ?></h4>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-6 col-md-3">
+                            <div class="donor-stat-card border-0 shadow-sm">
+                                <div class="donor-stat-icon bg-light text-primary">
+                                    <i class="fas fa-hashtag"></i>
                                 </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="bg-light p-3 rounded text-center">
-                                    <small class="text-muted">Total Paid</small>
-                                    <h4 class="mb-0 text-success"><?= $currency . number_format((float)$selectedDonor['total_paid'], 2) ?></h4>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="bg-light p-3 rounded text-center">
-                                    <small class="text-muted">Square Meters</small>
-                                    <h4 class="mb-0 text-warning"><?= $sqmValue ?> m²</h4>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="bg-light p-3 rounded text-center">
-                                    <small class="text-muted">Phone</small>
-                                    <h4 class="mb-0"><?= htmlspecialchars($selectedDonor['phone']) ?></h4>
+                                <div class="donor-stat-content">
+                                    <span class="donor-stat-label">Reference</span>
+                                    <span class="donor-stat-value font-monospace"><?= $donorReference ?: '----' ?></span>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Certificate Preview Container -->
-                        <div class="certificate-preview-container">
-                            <div id="cert-scaler">
-                                <div class="certificate">
-                                    <!-- Subtle church image overlay -->
-                                    <div class="church-overlay"></div>
-
-                                    <div class="top-section">
-                                        <div class="top-verse">
-                                            "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
-                                        </div>
-                                        <div class="church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+                        <div class="col-6 col-md-3">
+                            <div class="donor-stat-card border-0 shadow-sm">
+                                <div class="donor-stat-icon bg-light text-success">
+                                    <i class="fas fa-pound-sign"></i>
+                                </div>
+                                <div class="donor-stat-content">
+                                    <span class="donor-stat-label">Paid</span>
+                                    <span class="donor-stat-value"><?= $currency . number_format((float)$selectedDonor['total_paid'], 2) ?></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="donor-stat-card border-0 shadow-sm">
+                                <div class="donor-stat-icon bg-light text-warning">
+                                    <i class="fas fa-layer-group"></i>
+                                </div>
+                                <div class="donor-stat-content">
+                                    <span class="donor-stat-label">Allocation</span>
+                                    <span class="donor-stat-value"><?= $sqmValue ?> m²</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="donor-stat-card border-0 shadow-sm">
+                                <div class="donor-stat-icon bg-light text-info">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div class="donor-stat-content">
+                                    <span class="donor-stat-label">Contact</span>
+                                    <span class="donor-stat-value fs-6 text-truncate d-block" style="max-width: 100%;"><?= htmlspecialchars($selectedDonor['phone']) ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="certificate-preview-container animate-bounce-in">
+                        <div id="cert-scaler">
+                            <div class="certificate shadow-lg">
+                                <div class="church-overlay"></div>
+                                <div class="top-section">
+                                    <div class="top-verse">
+                                        "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
                                     </div>
-
-                                    <div class="center-section">
-                                        <div class="title-am">ይህ ታሪኬ ነው</div>
-                                        <div class="title-en">It is My History</div>
+                                    <div class="church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+                                </div>
+                                <div class="center-section">
+                                    <div class="title-am">ይህ ታሪኬ ነው</div>
+                                    <div class="title-en">It is My History</div>
+                                </div>
+                                <div class="bottom-section">
+                                    <div class="bank-area">
+                                        <div class="qr-code">
+                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
+                                        </div>
+                                        <div class="bank-details">
+                                            <div class="bank-row">
+                                                <span class="bank-label">Name</span>
+                                                <span class="bank-val"><?= htmlspecialchars($selectedDonor['name']) ?></span>
+                                            </div>
+                                            <div class="bank-row" style="margin-top: 15px;">
+                                                <span class="bank-label">Contribution</span>
+                                                <span class="bank-val"><?= $currency . number_format((float)$selectedDonor['total_paid'], 2) ?></span>
+                                            </div>
+                                        </div>
                                     </div>
-
-                                    <div class="bottom-section">
-                                        <div class="bank-area">
-                                            <div class="qr-code">
-                                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
-                                            </div>
-                                            <div class="bank-details">
-                                                <div class="bank-row">
-                                                    <span class="bank-label">Name</span>
-                                                    <span class="bank-val"><?= htmlspecialchars($selectedDonor['name']) ?></span>
-                                                </div>
-                                                <div class="bank-row" style="margin-top: 15px;">
-                                                    <span class="bank-label">Contribution</span>
-                                                    <span class="bank-val"><?= $currency . number_format((float)$selectedDonor['total_paid'], 2) ?></span>
-                                                </div>
-                                            </div>
+                                    <div class="right-area">
+                                        <div class="pill-box">
+                                            <span class="sqm-value"><?= $sqmValue ?>m²</span>
                                         </div>
-
-                                        <div class="right-area">
-                                            <div class="pill-box">
-                                                <span class="sqm-value"><?= $sqmValue ?>m²</span>
-                                            </div>
-                                            <?php if ($donorReference): ?>
-                                                <div class="reference-number"><?= $donorReference ?></div>
-                                            <?php endif; ?>
-                                        </div>
+                                        <?php if ($donorReference): ?>
+                                            <div class="reference-number"><?= $donorReference ?></div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Mobile Bottom Actions -->
+                    <div class="d-sm-none cert-actions">
+                        <button class="btn btn-outline-success rounded-pill shadow-sm py-2" onclick="printCertificate()">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        <button class="btn btn-success rounded-pill shadow-sm flex-grow-1 py-2 fw-bold" onclick="downloadCertificate()">
+                            <i class="fas fa-download me-2"></i> Download
+                        </button>
                     </div>
                 </div>
                 <?php endif; ?>

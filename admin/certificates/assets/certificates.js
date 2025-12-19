@@ -1,7 +1,47 @@
 /**
  * Certificate Management JavaScript
- * Handles print and download functionality
+ * Handles print, download, and responsive scaling
  */
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial scaling
+    updateCertScale();
+    
+    // Update scale on window resize
+    window.addEventListener('resize', updateCertScale);
+});
+
+/**
+ * Update certificate scale to fit container
+ */
+function updateCertScale() {
+    const container = document.querySelector('.certificate-preview-container');
+    const scaler = document.getElementById('cert-scaler');
+    
+    if (!container || !scaler) return;
+    
+    const containerWidth = container.offsetWidth - 64; // Account for padding (2rem = 32px each side)
+    const containerHeight = window.innerHeight * 0.7; // Limit height to 70% of viewport
+    
+    const baseWidth = 1200;
+    const baseHeight = 750;
+    
+    let scale = containerWidth / baseWidth;
+    
+    // Check if height also fits
+    if (baseHeight * scale > containerHeight) {
+        scale = containerHeight / baseHeight;
+    }
+    
+    // Don't scale up beyond 1
+    scale = Math.min(scale, 1);
+    
+    // Apply transform
+    scaler.style.transform = `scale(${scale})`;
+    
+    // Update container height to match scaled certificate
+    container.style.height = `${(baseHeight * scale) + 64}px`;
+}
 
 /**
  * Print the certificate
