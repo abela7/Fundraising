@@ -1767,9 +1767,9 @@ function formatDateTime($date) {
         .cert-pill-box {
             width: 280px;
             height: 100px;
-            background: rgba(220, 220, 220, 0.95);
+            background: #ffffff;
             border-radius: 50px;
-            box-shadow: inset 0 3px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -4382,8 +4382,9 @@ function printDonorCertificate() {
                 .pill-box, .cert-pill-box {
                     width: 280px;
                     height: 100px;
-                    background: rgba(220, 220, 220, 0.95);
+                    background: #ffffff;
                     border-radius: 50px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -4408,14 +4409,20 @@ function printDonorCertificate() {
     };
 }
 
-// Send certificate via WhatsApp
+// Send certificate via WhatsApp - generates image first then shares
 function sendCertificateWhatsApp() {
+    const certificate = document.getElementById('donor-certificate');
+    if (!certificate) {
+        alert('Certificate not found');
+        return;
+    }
+    
     const donorPhone = '<?php echo htmlspecialchars($donor['phone'] ?? ''); ?>';
     const donorName = '<?php echo htmlspecialchars(addslashes($donor['name'] ?? '')); ?>';
     const sqmValue = '<?php echo $sqmValue; ?>';
     const totalPaid = '<?php echo $currency . number_format((float)($donor['total_paid'] ?? 0), 2); ?>';
     
-    // Format phone for WhatsApp (remove leading 0, add UK code)
+    // Format phone for WhatsApp
     let waPhone = donorPhone.replace(/\s+/g, '');
     if (waPhone.startsWith('0')) {
         waPhone = '44' + waPhone.substring(1);
@@ -4424,8 +4431,71 @@ function sendCertificateWhatsApp() {
     }
     waPhone = waPhone.replace(/^\+/, '');
     
-    // Create message
-    const message = `🎉 *Certificate of Contribution*
+    // Show loading
+    const btn = document.querySelector('button[onclick="sendCertificateWhatsApp()"]');
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Preparing...';
+        btn.disabled = true;
+    }
+    
+    // Load html2canvas if needed
+    if (typeof html2canvas === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = () => generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
+        document.head.appendChild(script);
+    } else {
+        generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
+    }
+}
+
+// Generate certificate image and share via WhatsApp
+async function generateAndShareCert(element, waPhone, donorName, sqmValue, totalPaid, btn, originalText) {
+    try {
+        // Reset transform for capture
+        const originalTransform = element.style.transform;
+        element.style.transform = 'none';
+        
+        const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            width: 1200,
+            height: 750
+        });
+        
+        // Restore transform
+        element.style.transform = originalTransform;
+        
+        // Convert to blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const file = new File([blob], `certificate_${donorName.replace(/[^a-z0-9]/gi, '_')}.png`, { type: 'image/png' });
+        
+        // Check if Web Share API with files is supported
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Use Web Share API to share the image directly
+            await navigator.share({
+                files: [file],
+                title: 'Certificate of Contribution',
+                text: `🎉 Certificate for ${donorName}\n💰 Contribution: ${totalPaid}\n📐 Allocation: ${sqmValue} m²`
+            });
+            
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        } else {
+            // Fallback: Download the image first, then open WhatsApp
+            const link = document.createElement('a');
+            link.download = `certificate_${donorName.replace(/[^a-z0-9]/gi, '_')}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            // Show instructions
+            setTimeout(() => {
+                const message = `🎉 *Certificate of Contribution*
 
 Dear ${donorName},
 
@@ -4435,14 +4505,42 @@ Thank you for your generous contribution to Liverpool Abune Teklehaymanot EOTC!
 💰 Amount: ${totalPaid}
 📐 Allocation: ${sqmValue} m²
 
-Your certificate is ready! You can download it from your donor portal or contact us for a printed copy.
-
-🙏 May God bless you abundantly!
+Please find your certificate attached. May God bless you abundantly!
 
 _Liverpool Abune Teklehaymanot EOTC_`;
-    
-    const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
-    window.open(waUrl, '_blank');
+                
+                const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+                
+                if (confirm('Certificate downloaded! Click OK to open WhatsApp. You can then attach the downloaded certificate image.')) {
+                    window.open(waUrl, '_blank');
+                }
+                
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }, 500);
+        }
+    } catch (err) {
+        console.error('Error sharing certificate:', err);
+        
+        // Fallback to simple WhatsApp message
+        const message = `🎉 *Certificate of Contribution*
+
+Dear ${donorName},
+
+Thank you for your contribution of ${totalPaid} (${sqmValue} m²) to Liverpool Abune Teklehaymanot EOTC!
+
+🙏 May God bless you abundantly!`;
+        
+        const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank');
+        
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
 }
 </script>
 </body>

@@ -277,8 +277,9 @@ function printCertificate() {
                 .pill-box {
                     width: 280px;
                     height: 100px;
-                    background: rgba(220, 220, 220, 0.95);
+                    background: #ffffff;
                     border-radius: 50px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
                     display: flex;
                     align-items: center;
                     justify-content: center;
