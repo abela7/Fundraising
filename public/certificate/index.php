@@ -63,8 +63,8 @@ declare(strict_types=1);
 
         .top-verse {
             color: #ffcc33;
-            font-size: 26px; /* Increased from 18px */
-            font-weight: 800;
+            font-size: 41px; /* Increased from 18px */
+            font-weight: 200;
             line-height: 1.3;
             font-family: "Nyala", "Segoe UI Ethiopic", serif;
             padding: 0 60px;
@@ -119,6 +119,9 @@ declare(strict_types=1);
         .bank-area {
             display: flex;
             align-items: center;
+            justify-content: center;
+            text-align: left;
+            vertical-align: middle;
             gap: 30px;
         }
 
@@ -159,11 +162,18 @@ declare(strict_types=1);
         .right-area {
             display: flex;
             flex-direction: column;
-            align-items: flex-end;
+            align-items: center;
+            justify-content: center;
             gap: 15px;
         }
 
         .sqm-label {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            text-align: center;
+            transform: rotate(360deg);
             font-size: 36px;
             font-weight: 800;
             margin-right: 15px;
