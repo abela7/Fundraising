@@ -394,7 +394,7 @@ function extractReference(string $notes): string {
                                 <div class="church-overlay"></div>
                                 <div class="top-section">
                                     <div class="top-verse">
-                                        "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
+                                        "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" ፪ ዜና ፪፡፱
                                     </div>
                                     <div class="church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
                                 </div>
