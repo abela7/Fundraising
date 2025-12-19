@@ -6,9 +6,9 @@ declare(strict_types=1);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Certificate - Universal Display</title>
+    <title>Certificate - Exact Replica</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&display=swap');
 
         * {
             margin: 0;
@@ -18,17 +18,16 @@ declare(strict_types=1);
         }
 
         body {
-            background: #000;
+            background: #1a1a1a;
             height: 100vh;
             width: 100vw;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            font-family: "Segoe UI", Arial, sans-serif;
+            font-family: 'Montserrat', sans-serif;
         }
 
-        /* Scalable Container */
         #cert-scaler {
             transform-origin: center center;
             display: flex;
@@ -36,161 +35,170 @@ declare(strict_types=1);
             justify-content: center;
         }
 
-        /* Fixed Internal Canvas (Proportional Coordinate System) */
         .certificate {
-            width: 1000px;
-            height: 625px;
-            background-color: #006070;
+            width: 1200px;
+            height: 750px;
+            background-color: #005a66; /* Exact Teal from Original */
             position: relative;
             overflow: hidden;
             color: white;
             flex-shrink: 0;
-            border-radius: 4px;
         }
 
-        /* Light Ray Effect */
-        .certificate::before {
-            content: '';
+        /* Geometric Background Shapes (Lightning Effect) */
+        .bg-shape-1 {
             position: absolute;
-            top: -50%;
-            right: -10%;
-            width: 100%;
-            height: 200%;
-            background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.08) 45%, transparent 60%);
-            transform: rotate(15deg);
+            top: 0;
+            left: 15%;
+            width: 50%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            clip-path: polygon(20% 0%, 100% 0%, 60% 100%, 0% 100%);
+            z-index: 1;
+        }
+
+        .bg-shape-2 {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 45%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.07);
+            clip-path: polygon(35% 0%, 100% 0%, 100% 100%, 0% 100%);
             z-index: 1;
         }
 
         .content {
             position: relative;
-            z-index: 5;
-            padding: 30px 50px;
+            z-index: 10;
             height: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
+            padding-top: 25px;
         }
 
         .top-verse {
-            color: #f6c445;
-            font-size: 18px;
-            font-weight: 700;
+            color: #ffcc33; /* Exact Gold */
+            font-size: 22px;
+            font-weight: 800;
             text-align: center;
-            line-height: 1.4;
-            margin-bottom: 20px;
+            line-height: 1.3;
             font-family: "Nyala", "Segoe UI Ethiopic", serif;
-            max-width: 800px;
+            margin-bottom: 35px;
+            max-width: 1000px;
         }
 
-        .org-name {
-            font-size: 38px;
+        .church-name {
+            font-size: 58px;
             font-weight: 600;
             letter-spacing: 1px;
-            margin-bottom: 40px;
             text-transform: uppercase;
             text-align: center;
+            margin-bottom: 60px;
         }
 
         .title-am {
-            font-size: 100px;
+            font-size: 175px;
             font-weight: 900;
-            line-height: 1;
-            margin-top: 10px;
+            line-height: 0.8;
+            margin-bottom: 10px;
             font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
         }
 
         .title-en {
-            font-size: 90px;
+            font-size: 155px;
             font-weight: 900;
-            margin-top: -10px;
-            font-family: 'Montserrat', sans-serif;
-            letter-spacing: -2px;
+            line-height: 0.8;
+            letter-spacing: -5px;
+            margin-bottom: 20px;
         }
 
-        .bottom-container {
+        .bottom-area {
             position: absolute;
-            bottom: 40px;
-            left: 50px;
-            right: 50px;
+            bottom: 50px;
+            width: 100%;
+            padding: 0 60px;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
         }
 
-        .bottom-left {
+        .bank-section {
             display: flex;
-            gap: 30px;
             align-items: center;
+            gap: 35px;
         }
 
-        .qr-placeholder {
-            width: 150px;
-            height: 150px;
+        .qr-code {
+            width: 175px;
+            height: 175px;
             background: white;
             padding: 10px;
-            border-radius: 2px;
+            border: 1px solid #000;
         }
 
-        .qr-placeholder img {
-            width: 100%;
-            height: 100%;
-        }
+        .qr-code img { width: 100%; height: 100%; }
 
-        .bank-info {
-            font-size: 32px;
-            font-weight: 700;
-            line-height: 1.3;
+        .bank-details {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1.2;
         }
 
         .bank-row {
-            display: flex;
-            gap: 20px;
+            display: grid;
+            grid-template-columns: 240px auto;
+            gap: 10px;
         }
 
-        .bank-label { color: #fff; min-width: 170px; }
-        .bank-val { color: #f6c445; }
+        .bank-label { color: #fff; }
+        .bank-val { color: #ffcc33; }
 
         .right-section {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 15px;
+            gap: 20px;
         }
 
         .sqm-label {
-            font-size: 32px;
-            font-weight: 700;
+            font-size: 38px;
+            font-weight: 800;
             margin-right: 15px;
+            margin-bottom: -10px;
         }
 
-        .value-box {
-            width: 260px;
-            height: 75px;
-            background: #e6e7e8;
-            border-radius: 40px;
-            box-shadow: inset 0 3px 10px rgba(0,0,0,0.2);
+        .pill-box {
+            width: 320px;
+            height: 95px;
+            background: #d9d9d9; /* Grey from Original */
+            border-radius: 50px;
         }
     </style>
 </head>
 <body>
     <div id="cert-scaler">
         <div class="certificate">
+            <div class="bg-shape-1"></div>
+            <div class="bg-shape-2"></div>
+            
             <div class="content">
                 <div class="top-verse">
                     “የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።”<br>፪ ዜና ፪፡፱
                 </div>
 
-                <div class="org-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+                <div class="church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
 
                 <div class="title-am">ይህ ታሪኬ ነው</div>
                 <div class="title-en">It is My History</div>
 
-                <div class="bottom-container">
-                    <div class="bottom-left">
-                        <div class="qr-placeholder">
+                <div class="bottom-area">
+                    <div class="bank-section">
+                        <div class="qr-code">
                             <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=LMKATH-85455687" alt="QR">
                         </div>
-                        <div class="bank-info">
+                        <div class="bank-details">
                             <div class="bank-row">
                                 <span class="bank-label">Acc.name</span>
                                 <span class="bank-val">LMKATH</span>
@@ -208,8 +216,8 @@ declare(strict_types=1);
 
                     <div class="right-section">
                         <div class="sqm-label">Sq.m</div>
-                        <div class="value-box"></div>
-                        <div class="value-box"></div>
+                        <div class="pill-box"></div>
+                        <div class="pill-box"></div>
                     </div>
                 </div>
             </div>
@@ -217,21 +225,20 @@ declare(strict_types=1);
     </div>
 
     <script>
-        function scaleCertificate() {
+        function scaleCert() {
             const scaler = document.getElementById('cert-scaler');
             const winW = window.innerWidth;
             const winH = window.innerHeight;
-            const baseW = 1000;
-            const baseH = 625;
+            const baseW = 1200;
+            const baseH = 750;
 
-            // Calculate scale to fit both width and height
-            const scale = Math.min(winW / baseW, winH / baseH) * 0.95; // 0.95 adds a small margin
+            const scale = Math.min(winW / baseW, winH / baseH) * 0.98;
             scaler.style.transform = `scale(${scale})`;
         }
 
-        window.addEventListener('resize', scaleCertificate);
-        window.addEventListener('load', scaleCertificate);
-        scaleCertificate();
+        window.addEventListener('resize', scaleCert);
+        window.addEventListener('load', scaleCert);
+        scaleCert();
     </script>
 </body>
 </html>
