@@ -1580,6 +1580,227 @@ function formatDateTime($date) {
                 width: 100%;
             }
         }
+
+        /* ===== Certificate Preview Styles ===== */
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;600;800;900&display=swap');
+
+        .cert-preview-wrapper {
+            background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 1rem;
+            overflow: hidden;
+        }
+
+        .cert-preview-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #donor-cert-scaler {
+            transform-origin: top center;
+            transition: transform 0.3s ease-out;
+        }
+
+        .donor-certificate {
+            width: 1200px;
+            height: 750px;
+            background-image: url('../certificates/assets/../../../assets/images/cert-bg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .cert-church-overlay {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 500px;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .cert-church-overlay::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -50px;
+            transform: translateY(-50%);
+            width: 450px;
+            height: 450px;
+            background-image: url('../certificates/assets/../../../assets/images/new-church.png');
+            background-size: cover;
+            background-position: center;
+            border-radius: 50%;
+            opacity: 0.15;
+            filter: saturate(0.6) brightness(1.1);
+        }
+
+        .cert-top-section {
+            position: absolute;
+            top: 25px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 1;
+        }
+
+        .cert-top-verse {
+            color: #ffcc33;
+            font-size: 41px;
+            font-weight: 200;
+            line-height: 1.3;
+            font-family: "Nyala", "Segoe UI Ethiopic", serif;
+            padding: 0 60px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .cert-church-name {
+            font-size: 48px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        .cert-center-section {
+            position: absolute;
+            top: 200px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 1;
+        }
+
+        .cert-title-am {
+            font-size: 135px;
+            font-weight: 900;
+            line-height: 1;
+            font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
+            text-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+            padding-top: 45px;
+        }
+
+        .cert-title-en {
+            font-size: 120px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -3px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            text-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .cert-bottom-section {
+            position: absolute;
+            bottom: 40px;
+            left: 50px;
+            right: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            z-index: 1;
+        }
+
+        .cert-bank-area {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .cert-qr-code {
+            width: 160px;
+            height: 160px;
+            background: white;
+            padding: 10px;
+            flex-shrink: 0;
+        }
+
+        .cert-qr-code img {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .cert-bank-details {
+            font-size: 38px;
+            font-weight: 800;
+            line-height: 1.3;
+        }
+
+        .cert-bank-row {
+            display: flex;
+            gap: 15px;
+            white-space: nowrap;
+        }
+
+        .cert-bank-label { 
+            color: #fff; 
+            min-width: 220px;
+        }
+
+        .cert-bank-val { 
+            color: #ffcc33; 
+        }
+
+        .cert-right-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .cert-pill-box {
+            width: 280px;
+            height: 100px;
+            background: rgba(220, 220, 220, 0.95);
+            border-radius: 50px;
+            box-shadow: inset 0 3px 8px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cert-sqm-value {
+            font-size: 48px;
+            font-weight: 900;
+            color: #333;
+            text-shadow: none;
+        }
+
+        .cert-reference-number {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            margin-top: 8px;
+            text-align: right;
+            letter-spacing: 2px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Responsive certificate scaling */
+        @media (max-width: 991.98px) {
+            .cert-preview-wrapper {
+                padding: 0.75rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .cert-preview-wrapper {
+                padding: 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2442,6 +2663,116 @@ function formatDateTime($date) {
                                         <?php endif; ?>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 8. Certificate -->
+                    <?php 
+                    $sqmValue = round((float)($donor['total_paid'] ?? 0) / 400, 2);
+                    $currency = '£';
+                    ?>
+                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCertificate">
+                                <i class="fas fa-certificate me-3 text-warning"></i> Certificate
+                                <?php if ($sqmValue > 0): ?>
+                                <span class="badge bg-warning text-dark ms-auto me-2"><?= $sqmValue ?> m²</span>
+                                <?php endif; ?>
+                            </button>
+                        </h2>
+                        <div id="collapseCertificate" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
+                            <div class="accordion-body p-0">
+                                <!-- Certificate Actions -->
+                                <div class="d-flex flex-wrap gap-2 p-3 border-bottom bg-light">
+                                    <button type="button" class="btn btn-success btn-sm rounded-pill px-3 flex-fill flex-sm-grow-0" onclick="downloadDonorCertificate()">
+                                        <i class="fas fa-download me-1"></i> Download
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 flex-fill flex-sm-grow-0" onclick="sendCertificateWhatsApp()">
+                                        <i class="fab fa-whatsapp me-1"></i> Send WhatsApp
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 flex-fill flex-sm-grow-0" onclick="printDonorCertificate()">
+                                        <i class="fas fa-print me-1"></i> Print
+                                    </button>
+                                    <a href="../certificates/?search=<?= urlencode($donor['phone']) ?>&donor_id=<?= $donor_id ?>" class="btn btn-outline-primary btn-sm rounded-pill px-3 flex-fill flex-sm-grow-0">
+                                        <i class="fas fa-external-link-alt me-1"></i> Full View
+                                    </a>
+                                </div>
+                                
+                                <!-- Donor Stats Row -->
+                                <div class="row g-2 p-3 border-bottom">
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="text-muted small">Reference</div>
+                                            <div class="fw-bold font-monospace"><?= htmlspecialchars($donor_reference) ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="text-muted small">Paid</div>
+                                            <div class="fw-bold text-success"><?= $currency . number_format((float)($donor['total_paid'] ?? 0), 0) ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="text-muted small">Allocation</div>
+                                            <div class="fw-bold text-warning"><?= $sqmValue ?> m²</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Certificate Preview -->
+                                <div class="cert-preview-wrapper">
+                                    <div class="cert-preview-container" id="donor-cert-container">
+                                        <div id="donor-cert-scaler">
+                                            <div class="donor-certificate" id="donor-certificate">
+                                                <div class="cert-church-overlay"></div>
+                                                <div class="cert-top-section">
+                                                    <div class="cert-top-verse">
+                                                        "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
+                                                    </div>
+                                                    <div class="cert-church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+                                                </div>
+                                                <div class="cert-center-section">
+                                                    <div class="cert-title-am">ይህ ታሪኬ ነው</div>
+                                                    <div class="cert-title-en">It is My History</div>
+                                                </div>
+                                                <div class="cert-bottom-section">
+                                                    <div class="cert-bank-area">
+                                                        <div class="cert-qr-code">
+                                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
+                                                        </div>
+                                                        <div class="cert-bank-details">
+                                                            <div class="cert-bank-row">
+                                                                <span class="cert-bank-label">Name</span>
+                                                                <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
+                                                            </div>
+                                                            <div class="cert-bank-row" style="margin-top: 15px;">
+                                                                <span class="cert-bank-label">Contribution</span>
+                                                                <span class="cert-bank-val"><?= $currency . number_format((float)($donor['total_paid'] ?? 0), 2) ?></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="cert-right-area">
+                                                        <div class="cert-pill-box">
+                                                            <span class="cert-sqm-value"><?= $sqmValue ?>m²</span>
+                                                        </div>
+                                                        <?php if ($donor_reference): ?>
+                                                        <div class="cert-reference-number"><?= htmlspecialchars($donor_reference) ?></div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <?php if ($sqmValue <= 0): ?>
+                                <div class="alert alert-info m-3 mb-0 rounded-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>No contribution recorded yet.</strong> Once the donor makes a payment, their certificate will show their allocation.
+                                </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -3833,6 +4164,294 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+</script>
+
+<!-- Certificate Functions -->
+<script>
+// Certificate scaling for donor view
+function updateDonorCertScale() {
+    const container = document.getElementById('donor-cert-container');
+    const scaler = document.getElementById('donor-cert-scaler');
+    const certificate = document.getElementById('donor-certificate');
+    
+    if (!container || !scaler || !certificate) return;
+    
+    const containerWidth = container.offsetWidth - 16; // Account for padding
+    const maxHeight = 400; // Max height for preview
+    
+    const baseWidth = 1200;
+    const baseHeight = 750;
+    
+    let scale = containerWidth / baseWidth;
+    
+    // Check height constraint
+    if (baseHeight * scale > maxHeight) {
+        scale = maxHeight / baseHeight;
+    }
+    
+    // Minimum scale for readability
+    scale = Math.max(scale, 0.15);
+    // Don't scale up beyond original
+    scale = Math.min(scale, 1);
+    
+    scaler.style.transform = `scale(${scale})`;
+    scaler.style.transformOrigin = 'top center';
+    scaler.style.width = `${baseWidth}px`;
+    scaler.style.height = `${baseHeight}px`;
+    
+    // Adjust container height
+    container.style.height = `${(baseHeight * scale) + 16}px`;
+}
+
+// Initialize certificate scaling when accordion opens
+document.addEventListener('DOMContentLoaded', function() {
+    const certAccordion = document.getElementById('collapseCertificate');
+    if (certAccordion) {
+        certAccordion.addEventListener('shown.bs.collapse', function() {
+            setTimeout(updateDonorCertScale, 100);
+        });
+    }
+    
+    // Also update on window resize
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            if (document.getElementById('collapseCertificate')?.classList.contains('show')) {
+                updateDonorCertScale();
+            }
+        }, 150);
+    });
+});
+
+// Download certificate as image
+function downloadDonorCertificate() {
+    const certificate = document.getElementById('donor-certificate');
+    if (!certificate) {
+        alert('Certificate not found');
+        return;
+    }
+    
+    // Load html2canvas if needed
+    if (typeof html2canvas === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = () => captureDonorCert(certificate);
+        document.head.appendChild(script);
+    } else {
+        captureDonorCert(certificate);
+    }
+}
+
+function captureDonorCert(element) {
+    // Show loading
+    const btn = document.querySelector('button[onclick="downloadDonorCertificate()"]');
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Generating...';
+        btn.disabled = true;
+    }
+    
+    // Get donor name for filename
+    const donorName = document.querySelector('.cert-bank-val')?.textContent || 'certificate';
+    const safeName = donorName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    
+    html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        width: 1200,
+        height: 750
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `certificate_${safeName}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }).catch(err => {
+        console.error('Error generating certificate:', err);
+        alert('Error generating certificate. Please try the full view.');
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+// Print certificate
+function printDonorCertificate() {
+    const certificate = document.getElementById('donor-certificate');
+    if (!certificate) {
+        alert('Certificate not found');
+        return;
+    }
+    
+    const printWindow = window.open('', '_blank');
+    const certHtml = certificate.outerHTML;
+    
+    // Replace class prefixes for print window
+    const printHtml = certHtml
+        .replace(/cert-/g, '')
+        .replace(/donor-certificate/g, 'certificate');
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Certificate - Print</title>
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;600;800;900&display=swap" rel="stylesheet">
+            <style>
+                @page { size: landscape; margin: 0; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                    background: white;
+                    font-family: 'Montserrat', sans-serif;
+                }
+                .certificate, .donor-certificate {
+                    width: 1200px;
+                    height: 750px;
+                    background-image: url('<?php echo htmlspecialchars((isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST']); ?>/Fundraising/assets/images/cert-bg.png');
+                    background-size: cover;
+                    background-position: center;
+                    position: relative;
+                    color: white;
+                }
+                .church-overlay, .cert-church-overlay { display: none; }
+                .top-section, .cert-top-section {
+                    position: absolute;
+                    top: 25px;
+                    left: 0;
+                    right: 0;
+                    text-align: center;
+                }
+                .top-verse, .cert-top-verse {
+                    color: #ffcc33;
+                    font-size: 41px;
+                    font-weight: 200;
+                    line-height: 1.3;
+                    font-family: "Nyala", serif;
+                    padding: 0 60px;
+                }
+                .church-name, .cert-church-name {
+                    font-size: 48px;
+                    font-weight: 600;
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                    margin-top: 15px;
+                    padding: 10px 0;
+                }
+                .center-section, .cert-center-section {
+                    position: absolute;
+                    top: 200px;
+                    left: 0;
+                    right: 0;
+                    text-align: center;
+                }
+                .title-am, .cert-title-am {
+                    font-size: 135px;
+                    font-weight: 900;
+                    line-height: 1;
+                    font-family: "Nyala", serif;
+                    padding-top: 45px;
+                }
+                .title-en, .cert-title-en {
+                    font-size: 120px;
+                    font-weight: 900;
+                    line-height: 1;
+                    letter-spacing: -3px;
+                    margin-top: 5px;
+                }
+                .bottom-section, .cert-bottom-section {
+                    position: absolute;
+                    bottom: 40px;
+                    left: 50px;
+                    right: 50px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                }
+                .bank-area, .cert-bank-area { display: flex; align-items: center; gap: 30px; }
+                .qr-code, .cert-qr-code { width: 160px; height: 160px; background: white; padding: 10px; }
+                .qr-code img, .cert-qr-code img { width: 100%; height: 100%; }
+                .bank-details, .cert-bank-details { font-size: 38px; font-weight: 800; line-height: 1.3; }
+                .bank-row, .cert-bank-row { display: flex; gap: 15px; }
+                .bank-label, .cert-bank-label { color: #fff; min-width: 220px; }
+                .bank-val, .cert-bank-val { color: #ffcc33; }
+                .right-area, .cert-right-area { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+                .pill-box, .cert-pill-box {
+                    width: 280px;
+                    height: 100px;
+                    background: rgba(220, 220, 220, 0.95);
+                    border-radius: 50px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .sqm-value, .cert-sqm-value { font-size: 48px; font-weight: 900; color: #333; }
+                .reference-number, .cert-reference-number {
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: #fff;
+                    letter-spacing: 2px;
+                    font-family: 'Courier New', monospace;
+                }
+            </style>
+        </head>
+        <body>${certHtml}</body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.onload = function() {
+        setTimeout(() => printWindow.print(), 500);
+    };
+}
+
+// Send certificate via WhatsApp
+function sendCertificateWhatsApp() {
+    const donorPhone = '<?php echo htmlspecialchars($donor['phone'] ?? ''); ?>';
+    const donorName = '<?php echo htmlspecialchars(addslashes($donor['name'] ?? '')); ?>';
+    const sqmValue = '<?php echo $sqmValue; ?>';
+    const totalPaid = '<?php echo $currency . number_format((float)($donor['total_paid'] ?? 0), 2); ?>';
+    
+    // Format phone for WhatsApp (remove leading 0, add UK code)
+    let waPhone = donorPhone.replace(/\s+/g, '');
+    if (waPhone.startsWith('0')) {
+        waPhone = '44' + waPhone.substring(1);
+    } else if (!waPhone.startsWith('44') && !waPhone.startsWith('+44')) {
+        waPhone = '44' + waPhone;
+    }
+    waPhone = waPhone.replace(/^\+/, '');
+    
+    // Create message
+    const message = `🎉 *Certificate of Contribution*
+
+Dear ${donorName},
+
+Thank you for your generous contribution to Liverpool Abune Teklehaymanot EOTC!
+
+📊 *Your Contribution:*
+💰 Amount: ${totalPaid}
+📐 Allocation: ${sqmValue} m²
+
+Your certificate is ready! You can download it from your donor portal or contact us for a printed copy.
+
+🙏 May God bless you abundantly!
+
+_Liverpool Abune Teklehaymanot EOTC_`;
+    
+    const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+}
 </script>
 </body>
 </html>
