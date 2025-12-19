@@ -2658,16 +2658,22 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- 8. Certificate -->
-                    <?php 
-                    // Calculate SQM based on pledge (intended allocation)
-                    $pledgedAmount = (float)($donor['total_pledged'] ?? 0);
-                    $paidAmount = (float)($donor['total_paid'] ?? 0);
-                    
-                    // If pledge is 0 but they paid something, use paid amount
-                    $baseAmount = ($pledgedAmount > 0) ? $pledgedAmount : $paidAmount;
-                    $sqmValue = round($baseAmount / 400, 2);
-                    
+                    <?php
                     $currency = '£';
+                    
+                    // Calculate square meters based on PLEDGE (commitment), not just paid
+                    // This shows the donor their full allocated area based on their pledge
+                    $totalPledged = (float)($donor['total_pledged'] ?? 0);
+                    $totalPaid = (float)($donor['total_paid'] ?? 0);
+                    
+                    // Use the higher of pledged or paid (in case paid exceeds pledge)
+                    $allocationBase = max($totalPledged, $totalPaid);
+                    $sqmValue = round($allocationBase / 400, 2);
+                    
+                    // Calculate payment progress
+                    $paymentProgress = $totalPledged > 0 ? min(100, round(($totalPaid / $totalPledged) * 100)) : ($totalPaid > 0 ? 100 : 0);
+                    $isFullyPaid = $totalPledged > 0 && $totalPaid >= $totalPledged;
+                    $hasPledge = $totalPledged > 0 || $totalPaid > 0;
                     ?>
                     <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
@@ -2698,26 +2704,44 @@ function formatDateTime($date) {
                                 
                                 <!-- Donor Stats Row -->
                                 <div class="row g-2 p-3 border-bottom">
-                                    <div class="col-4 border-end">
+                                    <div class="col-3">
                                         <div class="text-center">
-                                            <div class="text-muted small">Reference</div>
-                                            <div class="fw-bold font-monospace"><?= htmlspecialchars($donor_reference) ?></div>
+                                            <div class="text-muted small">Ref</div>
+                                            <div class="fw-bold font-monospace small"><?= htmlspecialchars($donor_reference) ?></div>
                                         </div>
                                     </div>
-                                    <div class="col-4 border-end">
+                                    <div class="col-3">
                                         <div class="text-center">
-                                            <div class="text-muted small">Commitment</div>
-                                            <div class="fw-bold text-primary"><?= $currency . number_format($baseAmount, 0) ?></div>
-                                            <div class="text-muted" style="font-size: 0.6rem;">(<?= $currency . number_format($paidAmount, 0) ?> Paid)</div>
+                                            <div class="text-muted small">Pledged</div>
+                                            <div class="fw-bold text-primary"><?= $currency . number_format($totalPledged, 0) ?></div>
                                         </div>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-3">
                                         <div class="text-center">
-                                            <div class="text-muted small">Allocation</div>
-                                            <div class="fw-bold text-warning"><?= $sqmValue ?> m²</div>
+                                            <div class="text-muted small">Paid</div>
+                                            <div class="fw-bold <?= $isFullyPaid ? 'text-success' : 'text-warning' ?>"><?= $currency . number_format($totalPaid, 0) ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center">
+                                            <div class="text-muted small">Area</div>
+                                            <div class="fw-bold text-success"><?= $sqmValue ?> m²</div>
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <?php if ($hasPledge && !$isFullyPaid): ?>
+                                <!-- Payment Progress Bar -->
+                                <div class="px-3 py-2 border-bottom bg-light">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted">Payment Progress</small>
+                                        <small class="fw-bold"><?= $paymentProgress ?>%</small>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?= $paymentProgress ?>%"></div>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                                 
                                 <!-- Certificate Preview - Responsive Fit -->
                                 <div class="cert-preview-wrapper">
@@ -2739,16 +2763,16 @@ function formatDateTime($date) {
                                                     <div class="cert-qr-code">
                                                         <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
                                                     </div>
-                                                    <div class="cert-bank-details">
-                                                        <div class="cert-bank-row">
-                                                            <span class="cert-bank-label">Name</span>
-                                                            <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
-                                                        </div>
-                                                        <div class="cert-bank-row" style="margin-top: 15px;">
-                                                            <span class="cert-bank-label">Contribution</span>
-                                                            <span class="cert-bank-val"><?= $currency . number_format((float)($donor['total_paid'] ?? 0), 2) ?></span>
-                                                        </div>
-                                                    </div>
+                                        <div class="cert-bank-details">
+                                            <div class="cert-bank-row">
+                                                <span class="cert-bank-label">Name</span>
+                                                <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
+                                            </div>
+                                            <div class="cert-bank-row" style="margin-top: 15px;">
+                                                <span class="cert-bank-label">Contribution</span>
+                                                <span class="cert-bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
+                                            </div>
+                                        </div>
                                                 </div>
                                                 <div class="cert-right-area">
                                                     <div class="cert-pill-box">
@@ -2763,15 +2787,22 @@ function formatDateTime($date) {
                                     </div>
                                 </div>
                                 
-                                <?php if ($sqmValue <= 0): ?>
+                                <?php if (!$hasPledge): ?>
                                 <div class="alert alert-info m-3 mb-0 rounded-3">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    <strong>No pledge or payment found.</strong> Once a pledge is recorded or a payment is made, the certificate will show the square meter allocation.
+                                    <strong>No pledge recorded.</strong> Once the donor makes a pledge, their certificate will show their allocated area.
                                 </div>
-                                <?php elseif ($paidAmount < $pledgedAmount): ?>
-                                <div class="alert alert-success m-3 mb-0 rounded-3 border-0 shadow-sm" style="background-color: rgba(16, 185, 129, 0.1);">
-                                    <i class="fas fa-heart text-success me-2"></i>
-                                    <strong>History in making!</strong> This certificate shows the <strong><?= $sqmValue ?> m²</strong> allocation based on the donor's pledge. They have already contributed <strong><?= $currency . number_format($paidAmount, 2) ?></strong> towards this goal.
+                                <?php elseif (!$isFullyPaid): ?>
+                                <div class="alert alert-warning m-3 mb-0 rounded-3 d-flex align-items-center">
+                                    <i class="fas fa-clock me-2"></i>
+                                    <div>
+                                        <strong>Payment in progress</strong> — <?= $currency . number_format($totalPaid, 0) ?> of <?= $currency . number_format($totalPledged, 0) ?> paid (<?= $paymentProgress ?>%)
+                                    </div>
+                                </div>
+                                <?php else: ?>
+                                <div class="alert alert-success m-3 mb-0 rounded-3 d-flex align-items-center">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <strong>Fully paid</strong> — Certificate ready for printing
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -4433,8 +4464,8 @@ function sendCertificateWhatsApp() {
     const donorPhone = '<?php echo htmlspecialchars($donor['phone'] ?? ''); ?>';
     const donorName = '<?php echo htmlspecialchars(addslashes($donor['name'] ?? '')); ?>';
     const sqmValue = '<?php echo $sqmValue; ?>';
-    const paidAmount = '<?php echo $currency . number_format($paidAmount, 2); ?>';
-    const totalPledged = '<?php echo $currency . number_format($pledgedAmount, 2); ?>';
+    const totalPaid = '<?php echo $currency . number_format($allocationBase, 2); ?>';
+    const paymentStatus = '<?php echo $isFullyPaid ? "Fully Paid" : ($paymentProgress . "% Paid"); ?>';
     
     // Format phone for WhatsApp
     let waPhone = donorPhone.replace(/\s+/g, '');
@@ -4457,15 +4488,15 @@ function sendCertificateWhatsApp() {
     if (typeof html2canvas === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = () => generateAndShareCert(certificate, waPhone, donorName, sqmValue, paidAmount, totalPledged, btn, originalText);
+        script.onload = () => generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
         document.head.appendChild(script);
     } else {
-        generateAndShareCert(certificate, waPhone, donorName, sqmValue, paidAmount, totalPledged, btn, originalText);
+        generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
     }
 }
 
 // Generate certificate image and share via WhatsApp
-async function generateAndShareCert(element, waPhone, donorName, sqmValue, paidAmount, totalPledged, btn, originalText) {
+async function generateAndShareCert(element, waPhone, donorName, sqmValue, totalPaid, btn, originalText) {
     try {
         // Reset transform for capture
         const originalTransform = element.style.transform;
@@ -4493,7 +4524,7 @@ async function generateAndShareCert(element, waPhone, donorName, sqmValue, paidA
             await navigator.share({
                 files: [file],
                 title: 'Certificate of Contribution',
-                text: `🎉 Certificate for ${donorName}\n📐 Allocation: ${sqmValue} m²\n💰 Progress: ${paidAmount} of ${totalPledged}`
+                text: `🎉 Certificate for ${donorName}\n💰 Contribution: ${totalPaid}\n📐 Allocation: ${sqmValue} m²`
             });
             
             if (btn) {
@@ -4507,23 +4538,17 @@ async function generateAndShareCert(element, waPhone, donorName, sqmValue, paidA
             link.href = canvas.toDataURL('image/png');
             link.click();
             
-    // Create message
-    let statusMsg = '';
-    if (parseFloat(paidAmount.replace(/[^\d.-]/g, '')) < parseFloat(totalPledged.replace(/[^\d.-]/g, ''))) {
-        statusMsg = `🙌 *Progress:* ${paidAmount} paid of ${totalPledged} pledged`;
-    } else {
-        statusMsg = `✅ *Contribution:* ${paidAmount} (Fully Paid)`;
-    }
-
-    const message = `🎉 *Certificate of Contribution*
+            // Show instructions
+            setTimeout(() => {
+                const message = `🎉 *Certificate of Contribution*
 
 Dear ${donorName},
 
-Thank you for your history-making commitment to Liverpool Abune Teklehaymanot EOTC!
+Thank you for your generous contribution to Liverpool Abune Teklehaymanot EOTC!
 
-📊 *Your Allocation:*
-📐 Space: ${sqmValue} m²
-${statusMsg}
+📊 *Your Contribution:*
+💰 Amount: ${totalPaid}
+📐 Allocation: ${sqmValue} m²
 
 Please find your certificate attached. May God bless you abundantly!
 
@@ -4549,7 +4574,7 @@ _Liverpool Abune Teklehaymanot EOTC_`;
 
 Dear ${donorName},
 
-Thank you for your commitment of ${totalPledged} (${sqmValue} m²) to Liverpool Abune Teklehaymanot EOTC!
+Thank you for your contribution of ${totalPaid} (${sqmValue} m²) to Liverpool Abune Teklehaymanot EOTC!
 
 🙏 May God bless you abundantly!`;
         

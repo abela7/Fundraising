@@ -72,17 +72,31 @@ if (isset($_GET['donor_id'])) {
             }
         }
         
-        // Calculate sq.m: £400 = 1 sq.m
-        $sqmValue = round($selectedDonor['total_paid'] / 400, 2);
+        // Calculate sq.m based on PLEDGE (commitment), not just paid
+        // Use the higher of pledged or paid (in case paid exceeds pledge)
+        $totalPledged = (float)($selectedDonor['total_pledged'] ?? 0);
+        $totalPaid = (float)($selectedDonor['total_paid'] ?? 0);
+        $allocationBase = max($totalPledged, $totalPaid);
+        $sqmValue = round($allocationBase / 400, 2);
+        
+        // Calculate payment progress
+        $paymentProgress = $totalPledged > 0 ? min(100, round(($totalPaid / $totalPledged) * 100)) : ($totalPaid > 0 ? 100 : 0);
+        $isFullyPaid = $totalPledged > 0 && $totalPaid >= $totalPledged;
     }
 }
 
 /**
- * Calculate sq.m from amount
+ * Calculate sq.m from pledge amount (not just paid)
  * £400 = 1 sq.m, £200 = 0.5 sq.m, £100 = 0.25 sq.m
+ * 
+ * @param float $pledged Total pledged amount
+ * @param float $paid Total paid amount
+ * @return float Square meters allocated
  */
-function calculateSqm(float $amount): float {
-    return round($amount / 400, 2);
+function calculateSqm(float $pledged, float $paid = 0): float {
+    // Use the higher of pledged or paid
+    $base = max($pledged, $paid);
+    return round($base / 400, 2);
 }
 
 /**
@@ -229,7 +243,7 @@ function extractReference(string $notes): string {
                                     <tbody>
                                         <?php foreach ($donors as $donor): 
                                             $ref = extractReference($donor['pledge_notes'] ?? '');
-                                            $sqm = calculateSqm((float)$donor['total_paid']);
+                                            $sqm = calculateSqm((float)($donor['total_pledged'] ?? 0), (float)($donor['total_paid'] ?? 0));
                                             $isSelected = isset($_GET['donor_id']) && (int)$_GET['donor_id'] === (int)$donor['id'];
                                         ?>
                                             <tr class="<?= $isSelected ? 'glow-primary' : '' ?>" style="<?= $isSelected ? 'border-left: 4px solid var(--primary);' : '' ?>">
@@ -277,7 +291,7 @@ function extractReference(string $notes): string {
                         <div class="d-md-none">
                             <?php foreach ($donors as $donor): 
                                 $ref = extractReference($donor['pledge_notes'] ?? '');
-                                $sqm = calculateSqm((float)$donor['total_paid']);
+                                $sqm = calculateSqm((float)($donor['total_pledged'] ?? 0), (float)($donor['total_paid'] ?? 0));
                                 $isSelected = isset($_GET['donor_id']) && (int)$_GET['donor_id'] === (int)$donor['id'];
                             ?>
                                 <div class="donor-result-card <?= $isSelected ? 'border-primary shadow' : '' ?>">
@@ -341,34 +355,34 @@ function extractReference(string $notes): string {
                         </div>
                         <div class="col-6 col-lg-3">
                             <div class="donor-stat-card">
-                                <div class="donor-stat-icon bg-light text-success">
-                                    <i class="fas fa-pound-sign"></i>
+                                <div class="donor-stat-icon bg-light text-primary">
+                                    <i class="fas fa-hand-holding-usd"></i>
                                 </div>
                                 <div class="donor-stat-content">
-                                    <span class="donor-stat-label">Paid</span>
-                                    <span class="donor-stat-value"><?= $currency . number_format((float)$selectedDonor['total_paid'], 0) ?></span>
+                                    <span class="donor-stat-label">Pledged</span>
+                                    <span class="donor-stat-value"><?= $currency . number_format($totalPledged, 0) ?></span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-lg-3">
                             <div class="donor-stat-card">
-                                <div class="donor-stat-icon bg-light text-warning">
+                                <div class="donor-stat-icon bg-light <?= $isFullyPaid ? 'text-success' : 'text-warning' ?>">
+                                    <i class="fas fa-<?= $isFullyPaid ? 'check-circle' : 'clock' ?>"></i>
+                                </div>
+                                <div class="donor-stat-content">
+                                    <span class="donor-stat-label">Paid</span>
+                                    <span class="donor-stat-value"><?= $currency . number_format($totalPaid, 0) ?> <small class="text-muted">(<?= $paymentProgress ?>%)</small></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                            <div class="donor-stat-card">
+                                <div class="donor-stat-icon bg-light text-success">
                                     <i class="fas fa-layer-group"></i>
                                 </div>
                                 <div class="donor-stat-content">
                                     <span class="donor-stat-label">Area</span>
                                     <span class="donor-stat-value"><?= $sqmValue ?>m²</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-lg-3">
-                            <div class="donor-stat-card">
-                                <div class="donor-stat-icon bg-light text-info">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="donor-stat-content">
-                                    <span class="donor-stat-label">Name</span>
-                                    <span class="donor-stat-value text-truncate"><?= htmlspecialchars(explode(' ', $selectedDonor['name'])[0]) ?></span>
                                 </div>
                             </div>
                         </div>
@@ -400,7 +414,7 @@ function extractReference(string $notes): string {
                                             </div>
                                             <div class="bank-row" style="margin-top: 15px;">
                                                 <span class="bank-label">Contribution</span>
-                                                <span class="bank-val"><?= $currency . number_format((float)$selectedDonor['total_paid'], 2) ?></span>
+                                                <span class="bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
                                             </div>
                                         </div>
                                     </div>
