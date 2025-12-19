@@ -7,12 +7,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial scaling
     updateCertScale();
     
-    // Update scale on window resize
-    window.addEventListener('resize', updateCertScale);
+    // Update scale on window resize with debouncing
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(updateCertScale, 100);
+    });
+    
+    // Smooth scroll to preview on mobile after selection
+    const previewSection = document.getElementById('preview-section');
+    if (previewSection && window.innerWidth < 768) {
+        setTimeout(() => {
+            previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+    }
 });
 
 /**
- * Update certificate scale to fit container
+ * Update certificate scale to fit container perfectly
  */
 function updateCertScale() {
     const container = document.querySelector('.certificate-preview-container');
@@ -20,27 +32,51 @@ function updateCertScale() {
     
     if (!container || !scaler) return;
     
-    const containerWidth = container.offsetWidth - 64; // Account for padding (2rem = 32px each side)
-    const containerHeight = window.innerHeight * 0.7; // Limit height to 70% of viewport
+    // Get actual container dimensions
+    const containerRect = container.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
     
+    // Base certificate dimensions
     const baseWidth = 1200;
     const baseHeight = 750;
     
-    let scale = containerWidth / baseWidth;
+    // Calculate scale based on container size with padding
+    const paddingHorizontal = window.innerWidth < 576 ? 24 : 64; // 0.75rem or 2rem padding
+    const paddingVertical = window.innerWidth < 576 ? 24 : 64;
     
-    // Check if height also fits
-    if (baseHeight * scale > containerHeight) {
-        scale = containerHeight / baseHeight;
+    const availableWidth = containerWidth - paddingHorizontal;
+    const availableHeight = containerHeight - paddingVertical;
+    
+    // Calculate scale to fit both dimensions
+    const scaleX = availableWidth / baseWidth;
+    const scaleY = availableHeight / baseHeight;
+    
+    // Use the smaller scale to ensure it fits
+    let scale = Math.min(scaleX, scaleY);
+    
+    // On mobile, be more aggressive with scaling
+    if (window.innerWidth < 576) {
+        scale = Math.min(scale, 0.35); // Cap at 35% on small phones
+    } else if (window.innerWidth < 768) {
+        scale = Math.min(scale, 0.45); // Cap at 45% on larger phones
+    } else if (window.innerWidth < 992) {
+        scale = Math.min(scale, 0.6); // Cap at 60% on tablets
+    } else {
+        scale = Math.min(scale, 1); // Don't scale beyond 100% on desktop
     }
     
-    // Don't scale up beyond 1
-    scale = Math.min(scale, 1);
+    // Ensure minimum scale
+    scale = Math.max(scale, 0.2);
     
     // Apply transform
     scaler.style.transform = `scale(${scale})`;
+    scaler.style.width = `${baseWidth}px`;
+    scaler.style.height = `${baseHeight}px`;
     
-    // Update container height to match scaled certificate
-    container.style.height = `${(baseHeight * scale) + 64}px`;
+    // Update container height to prevent overflow
+    const scaledHeight = baseHeight * scale;
+    container.style.minHeight = `${scaledHeight + paddingVertical}px`;
 }
 
 /**

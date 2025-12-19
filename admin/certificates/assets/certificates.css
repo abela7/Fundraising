@@ -17,6 +17,7 @@
     position: relative;
     box-shadow: var(--shadow-xl);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    min-height: 300px;
 }
 
 #cert-scaler {
@@ -25,6 +26,9 @@
     align-items: center;
     justify-content: center;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    animation: fadeInCert 0.6s ease-out forwards;
+    animation-delay: 0.2s;
 }
 
 /* Fixed size canvas with responsive scaling */
@@ -157,22 +161,302 @@
     gap: 0.75rem;
 }
 
+/* ========== MOBILE RESPONSIVE STYLES ========== */
+
+/* Mobile: Small phones (< 576px) */
 @media (max-width: 575.98px) {
+    /* Fixed mobile action bar */
     .cert-actions {
         position: fixed;
-        bottom: 1.5rem;
-        left: 1.5rem;
-        right: 1.5rem;
-        z-index: 1000;
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
         padding: 1rem;
-        border-radius: 1rem;
-        box-shadow: var(--shadow-xl);
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        border-radius: 0;
+        margin: 0;
     }
     
     .cert-actions .btn {
         flex: 1;
+        font-size: 0.875rem;
+        padding: 0.75rem 1rem;
+    }
+
+    /* Add bottom padding to prevent content being hidden by fixed action bar */
+    #preview-section {
+        padding-bottom: 6rem !important;
+    }
+
+    /* Certificate container mobile adjustments */
+    .certificate-preview-container {
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        margin-left: -1rem;
+        margin-right: -1rem;
+        width: calc(100% + 2rem);
+    }
+
+    /* Donor stat cards - stack vertically on mobile */
+    .donor-stat-card {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .donor-stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .donor-stat-value {
+        font-size: 1rem;
+    }
+
+    .donor-stat-label {
+        font-size: 0.75rem;
+    }
+
+    /* Page header adjustments */
+    .page-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .page-section-title {
+        font-size: 1rem;
+    }
+
+    .page-section-title i {
+        font-size: 1rem;
+    }
+
+    .page-section-title .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Search section mobile */
+    .search-form .input-group {
+        flex-direction: column;
+        border: none !important;
+    }
+
+    .search-form .input-group-text,
+    .search-form .form-control,
+    .search-form .btn {
+        border-radius: 0.75rem !important;
+        border: 1px solid var(--gray-200) !important;
+    }
+
+    .search-form .input-group-text {
+        border-bottom: none !important;
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+
+    .search-form .form-control {
+        border-radius: 0 !important;
+        border-top: none !important;
+        border-bottom: none !important;
+    }
+
+    .search-form .btn {
+        border-top: none !important;
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+        padding: 1rem !important;
+    }
+
+    /* Search info card - make grid vertical */
+    .search-info-card {
+        padding: 1rem;
+    }
+
+    .search-info-title {
+        font-size: 0.65rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .search-info-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .search-info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 0.5rem;
+    }
+
+    .search-info-value {
+        font-size: 0.875rem;
+    }
+
+    .search-info-label {
+        font-size: 0.65rem;
+    }
+
+    /* Mobile donor cards */
+    .donor-result-card {
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-radius: 0.75rem;
+    }
+
+    .donor-result-header {
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+    }
+
+    .donor-result-header .user-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.875rem;
+    }
+
+    .donor-result-info h6 {
+        font-size: 0.9rem;
+    }
+
+    .donor-result-info small {
+        font-size: 0.75rem;
+    }
+
+    /* Empty state mobile */
+    .empty-state {
+        padding: 3rem 1rem;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+    }
+
+    /* Reduce main content padding */
+    .main-content {
+        padding: 1rem !important;
+    }
+
+    /* Card body padding */
+    .card-body {
+        padding: 1rem !important;
+    }
+
+    /* Topbar title */
+    .topbar-title {
+        font-size: 1.125rem !important;
+    }
+
+    /* Alert adjustments */
+    .alert {
+        padding: 1rem !important;
+        font-size: 0.875rem;
+    }
+
+    .alert i {
+        font-size: 1.5rem !important;
+    }
+}
+
+/* Mobile: Medium phones (576px - 767px) */
+@media (min-width: 576px) and (max-width: 767.98px) {
+    .certificate-preview-container {
+        padding: 1rem;
+    }
+
+    .donor-stat-card {
+        padding: 1.25rem;
+    }
+
+    .search-info-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+}
+
+/* Tablet: (768px - 991px) */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .certificate-preview-container {
+        padding: 1.5rem;
+    }
+
+    .page-section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+}
+
+/* Additional mobile-first improvements */
+@media (max-width: 991.98px) {
+    /* Make sure certificate scales properly on all mobile/tablet sizes */
+    #cert-scaler {
+        width: 1200px;
+        height: 750px;
+    }
+
+    .certificate {
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+}
+
+/* Touch-friendly improvements for all mobile devices */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .btn {
+        min-height: 44px;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .btn-sm {
+        min-height: 38px;
+        padding: 0.5rem 1rem;
+    }
+
+    /* Prevent text selection on action buttons */
+    .cert-actions button,
+    .donor-result-card a,
+    .page-section-header button {
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Add active state feedback */
+    .btn:active,
+    .donor-result-card:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+}
+
+/* Smooth scrolling for anchor links */
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 100px;
+}
+
+/* Loading state animation */
+@keyframes fadeInCert {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
     }
 }
 
@@ -204,6 +488,19 @@
     mask-image: radial-gradient(circle, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 70%);
     -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 70%);
     filter: saturate(0.6) brightness(1.1);
+}
+
+/* Mobile adjustments for church overlay */
+@media (max-width: 575.98px) {
+    .church-overlay {
+        width: 300px;
+    }
+    
+    .church-overlay::before {
+        width: 250px;
+        height: 250px;
+        right: -30px;
+    }
 }
 
 /* ===== TOP SECTION ===== */
