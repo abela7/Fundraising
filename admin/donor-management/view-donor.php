@@ -1581,41 +1581,44 @@ function formatDateTime($date) {
             }
         }
 
-        /* ===== Certificate Preview Styles ===== */
+        /* ===== Certificate Preview Styles - Fully Responsive ===== */
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;600;800;900&display=swap');
 
+        /* Wrapper with dark background */
         .cert-preview-wrapper {
             background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%);
-            padding: 1rem;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
             overflow: hidden;
         }
 
-        .cert-preview-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* Aspect ratio container - maintains 16:10 ratio (1200:750) */
+        .cert-aspect-ratio {
+            position: relative;
+            width: 100%;
+            padding-bottom: 62.5%; /* 750/1200 = 0.625 = 62.5% */
             overflow: hidden;
+            border-radius: 0.25rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
 
-        #donor-cert-scaler {
-            transform-origin: top center;
-            transition: transform 0.3s ease-out;
-        }
-
+        /* The actual certificate - fixed size, scaled via JS transform */
         .donor-certificate {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 1200px;
             height: 750px;
-            background-image: url('../certificates/assets/../../../assets/images/cert-bg.png');
+            background-image: url('../../assets/images/cert-bg.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            position: relative;
             color: white;
-            flex-shrink: 0;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             font-family: 'Montserrat', sans-serif;
+            transform-origin: top left;
         }
 
+        /* All internal elements use fixed pixels - they scale with the transform */
         .cert-church-overlay {
             position: absolute;
             top: 0;
@@ -1635,7 +1638,7 @@ function formatDateTime($date) {
             transform: translateY(-50%);
             width: 450px;
             height: 450px;
-            background-image: url('../certificates/assets/../../../assets/images/new-church.png');
+            background-image: url('../../assets/images/new-church.png');
             background-size: cover;
             background-position: center;
             border-radius: 50%;
@@ -1787,19 +1790,6 @@ function formatDateTime($date) {
             text-align: right;
             letter-spacing: 2px;
             font-family: 'Courier New', monospace;
-        }
-
-        /* Responsive certificate scaling */
-        @media (max-width: 991.98px) {
-            .cert-preview-wrapper {
-                padding: 0.75rem;
-            }
-        }
-
-        @media (max-width: 575.98px) {
-            .cert-preview-wrapper {
-                padding: 0.5rem;
-            }
         }
     </style>
 </head>
@@ -2721,46 +2711,44 @@ function formatDateTime($date) {
                                     </div>
                                 </div>
                                 
-                                <!-- Certificate Preview -->
+                                <!-- Certificate Preview - Responsive Fit -->
                                 <div class="cert-preview-wrapper">
-                                    <div class="cert-preview-container" id="donor-cert-container">
-                                        <div id="donor-cert-scaler">
-                                            <div class="donor-certificate" id="donor-certificate">
-                                                <div class="cert-church-overlay"></div>
-                                                <div class="cert-top-section">
-                                                    <div class="cert-top-verse">
-                                                        "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
-                                                    </div>
-                                                    <div class="cert-church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+                                    <div class="cert-aspect-ratio" id="cert-aspect-container">
+                                        <div class="donor-certificate" id="donor-certificate">
+                                            <div class="cert-church-overlay"></div>
+                                            <div class="cert-top-section">
+                                                <div class="cert-top-verse">
+                                                    "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
                                                 </div>
-                                                <div class="cert-center-section">
-                                                    <div class="cert-title-am">ይህ ታሪኬ ነው</div>
-                                                    <div class="cert-title-en">It is My History</div>
+                                                <div class="cert-church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+                                            </div>
+                                            <div class="cert-center-section">
+                                                <div class="cert-title-am">ይህ ታሪኬ ነው</div>
+                                                <div class="cert-title-en">It is My History</div>
+                                            </div>
+                                            <div class="cert-bottom-section">
+                                                <div class="cert-bank-area">
+                                                    <div class="cert-qr-code">
+                                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
+                                                    </div>
+                                                    <div class="cert-bank-details">
+                                                        <div class="cert-bank-row">
+                                                            <span class="cert-bank-label">Name</span>
+                                                            <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
+                                                        </div>
+                                                        <div class="cert-bank-row" style="margin-top: 15px;">
+                                                            <span class="cert-bank-label">Contribution</span>
+                                                            <span class="cert-bank-val"><?= $currency . number_format((float)($donor['total_paid'] ?? 0), 2) ?></span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div class="cert-bottom-section">
-                                                    <div class="cert-bank-area">
-                                                        <div class="cert-qr-code">
-                                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
-                                                        </div>
-                                                        <div class="cert-bank-details">
-                                                            <div class="cert-bank-row">
-                                                                <span class="cert-bank-label">Name</span>
-                                                                <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
-                                                            </div>
-                                                            <div class="cert-bank-row" style="margin-top: 15px;">
-                                                                <span class="cert-bank-label">Contribution</span>
-                                                                <span class="cert-bank-val"><?= $currency . number_format((float)($donor['total_paid'] ?? 0), 2) ?></span>
-                                                            </div>
-                                                        </div>
+                                                <div class="cert-right-area">
+                                                    <div class="cert-pill-box">
+                                                        <span class="cert-sqm-value"><?= $sqmValue ?>m²</span>
                                                     </div>
-                                                    <div class="cert-right-area">
-                                                        <div class="cert-pill-box">
-                                                            <span class="cert-sqm-value"><?= $sqmValue ?>m²</span>
-                                                        </div>
-                                                        <?php if ($donor_reference): ?>
-                                                        <div class="cert-reference-number"><?= htmlspecialchars($donor_reference) ?></div>
-                                                        <?php endif; ?>
-                                                    </div>
+                                                    <?php if ($donor_reference): ?>
+                                                    <div class="cert-reference-number"><?= htmlspecialchars($donor_reference) ?></div>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                         </div>
@@ -4168,59 +4156,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Certificate Functions -->
 <script>
-// Certificate scaling for donor view
-function updateDonorCertScale() {
-    const container = document.getElementById('donor-cert-container');
-    const scaler = document.getElementById('donor-cert-scaler');
+// Certificate scaling for donor view - Simple and Reliable
+function scaleDonorCertificate() {
+    const container = document.getElementById('cert-aspect-container');
     const certificate = document.getElementById('donor-certificate');
     
-    if (!container || !scaler || !certificate) return;
+    if (!container || !certificate) return;
     
-    const containerWidth = container.offsetWidth - 16; // Account for padding
-    const maxHeight = 400; // Max height for preview
+    // Get container width
+    const containerWidth = container.offsetWidth;
     
-    const baseWidth = 1200;
-    const baseHeight = 750;
+    // Certificate is 1200px wide, calculate scale
+    const scale = containerWidth / 1200;
     
-    let scale = containerWidth / baseWidth;
-    
-    // Check height constraint
-    if (baseHeight * scale > maxHeight) {
-        scale = maxHeight / baseHeight;
-    }
-    
-    // Minimum scale for readability
-    scale = Math.max(scale, 0.15);
-    // Don't scale up beyond original
-    scale = Math.min(scale, 1);
-    
-    scaler.style.transform = `scale(${scale})`;
-    scaler.style.transformOrigin = 'top center';
-    scaler.style.width = `${baseWidth}px`;
-    scaler.style.height = `${baseHeight}px`;
-    
-    // Adjust container height
-    container.style.height = `${(baseHeight * scale) + 16}px`;
+    // Apply transform
+    certificate.style.transform = `scale(${scale})`;
+    certificate.style.transformOrigin = 'top left';
 }
 
-// Initialize certificate scaling when accordion opens
+// Initialize certificate scaling
 document.addEventListener('DOMContentLoaded', function() {
+    // Scale when accordion opens
     const certAccordion = document.getElementById('collapseCertificate');
     if (certAccordion) {
         certAccordion.addEventListener('shown.bs.collapse', function() {
-            setTimeout(updateDonorCertScale, 100);
+            // Small delay to ensure layout is complete
+            requestAnimationFrame(() => {
+                scaleDonorCertificate();
+            });
         });
     }
     
-    // Also update on window resize
+    // Update on window resize (debounced)
     let resizeTimer;
     window.addEventListener('resize', function() {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function() {
-            if (document.getElementById('collapseCertificate')?.classList.contains('show')) {
-                updateDonorCertScale();
-            }
-        }, 150);
+        resizeTimer = setTimeout(scaleDonorCertificate, 100);
+    });
+    
+    // Also scale on orientation change
+    window.addEventListener('orientationchange', function() {
+        setTimeout(scaleDonorCertificate, 200);
     });
 });
 
@@ -4256,14 +4232,27 @@ function captureDonorCert(element) {
     const donorName = document.querySelector('.cert-bank-val')?.textContent || 'certificate';
     const safeName = donorName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     
+    // Temporarily reset transform for capture
+    const originalTransform = element.style.transform;
+    element.style.transform = 'none';
+    
     html2canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
         width: 1200,
-        height: 750
+        height: 750,
+        onclone: function(clonedDoc) {
+            const clonedCert = clonedDoc.getElementById('donor-certificate');
+            if (clonedCert) {
+                clonedCert.style.transform = 'none';
+            }
+        }
     }).then(canvas => {
+        // Restore transform
+        element.style.transform = originalTransform;
+        
         const link = document.createElement('a');
         link.download = `certificate_${safeName}.png`;
         link.href = canvas.toDataURL('image/png');
@@ -4274,6 +4263,9 @@ function captureDonorCert(element) {
             btn.disabled = false;
         }
     }).catch(err => {
+        // Restore transform on error too
+        element.style.transform = originalTransform;
+        
         console.error('Error generating certificate:', err);
         alert('Error generating certificate. Please try the full view.');
         if (btn) {
