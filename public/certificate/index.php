@@ -187,11 +187,51 @@ declare(strict_types=1);
             border-radius: 40px;
             box-shadow: inset 0 3px 8px rgba(0,0,0,0.15);
         }
+
+        /* ===== CHURCH IMAGE OVERLAY ===== */
+        .church-overlay {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 500px;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .church-overlay::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -50px;
+            transform: translateY(-50%);
+            width: 450px;
+            height: 450px;
+            background-image: url('../../assets/images/new-church.png');
+            background-size: cover;
+            background-position: center;
+            border-radius: 50%;
+            opacity: 0.15;
+            mask-image: radial-gradient(circle, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 70%);
+            -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 70%);
+            filter: saturate(0.6) brightness(1.1);
+        }
+
+        /* Ensure all content stays above the overlay */
+        .top-section,
+        .center-section,
+        .bottom-section {
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
     <div id="cert-scaler">
         <div class="certificate">
+            <!-- Subtle church image overlay -->
+            <div class="church-overlay"></div>
+
             <div class="top-section">
                 <div class="top-verse">
                     "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
