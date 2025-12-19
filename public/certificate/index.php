@@ -207,7 +207,7 @@ declare(strict_types=1);
             <div class="bottom-section">
                 <div class="bank-area">
                     <div class="qr-code">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=LMKATH-85455687" alt="QR">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
                     </div>
                     <div class="bank-details">
                         <div class="bank-row">
