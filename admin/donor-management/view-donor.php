@@ -2659,7 +2659,14 @@ function formatDateTime($date) {
 
                     <!-- 8. Certificate -->
                     <?php 
-                    $sqmValue = round((float)($donor['total_paid'] ?? 0) / 400, 2);
+                    // Calculate SQM based on pledge (intended allocation)
+                    $pledgedAmount = (float)($donor['total_pledged'] ?? 0);
+                    $paidAmount = (float)($donor['total_paid'] ?? 0);
+                    
+                    // If pledge is 0 but they paid something, use paid amount
+                    $baseAmount = ($pledgedAmount > 0) ? $pledgedAmount : $paidAmount;
+                    $sqmValue = round($baseAmount / 400, 2);
+                    
                     $currency = '£';
                     ?>
                     <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
@@ -2691,16 +2698,17 @@ function formatDateTime($date) {
                                 
                                 <!-- Donor Stats Row -->
                                 <div class="row g-2 p-3 border-bottom">
-                                    <div class="col-4">
+                                    <div class="col-4 border-end">
                                         <div class="text-center">
                                             <div class="text-muted small">Reference</div>
                                             <div class="fw-bold font-monospace"><?= htmlspecialchars($donor_reference) ?></div>
                                         </div>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-4 border-end">
                                         <div class="text-center">
-                                            <div class="text-muted small">Paid</div>
-                                            <div class="fw-bold text-success"><?= $currency . number_format((float)($donor['total_paid'] ?? 0), 0) ?></div>
+                                            <div class="text-muted small">Commitment</div>
+                                            <div class="fw-bold text-primary"><?= $currency . number_format($baseAmount, 0) ?></div>
+                                            <div class="text-muted" style="font-size: 0.6rem;">(<?= $currency . number_format($paidAmount, 0) ?> Paid)</div>
                                         </div>
                                     </div>
                                     <div class="col-4">
@@ -2758,7 +2766,12 @@ function formatDateTime($date) {
                                 <?php if ($sqmValue <= 0): ?>
                                 <div class="alert alert-info m-3 mb-0 rounded-3">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    <strong>No contribution recorded yet.</strong> Once the donor makes a payment, their certificate will show their allocation.
+                                    <strong>No pledge or payment found.</strong> Once a pledge is recorded or a payment is made, the certificate will show the square meter allocation.
+                                </div>
+                                <?php elseif ($paidAmount < $pledgedAmount): ?>
+                                <div class="alert alert-success m-3 mb-0 rounded-3 border-0 shadow-sm" style="background-color: rgba(16, 185, 129, 0.1);">
+                                    <i class="fas fa-heart text-success me-2"></i>
+                                    <strong>History in making!</strong> This certificate shows the <strong><?= $sqmValue ?> m²</strong> allocation based on the donor's pledge. They have already contributed <strong><?= $currency . number_format($paidAmount, 2) ?></strong> towards this goal.
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -4420,7 +4433,8 @@ function sendCertificateWhatsApp() {
     const donorPhone = '<?php echo htmlspecialchars($donor['phone'] ?? ''); ?>';
     const donorName = '<?php echo htmlspecialchars(addslashes($donor['name'] ?? '')); ?>';
     const sqmValue = '<?php echo $sqmValue; ?>';
-    const totalPaid = '<?php echo $currency . number_format((float)($donor['total_paid'] ?? 0), 2); ?>';
+    const paidAmount = '<?php echo $currency . number_format($paidAmount, 2); ?>';
+    const totalPledged = '<?php echo $currency . number_format($pledgedAmount, 2); ?>';
     
     // Format phone for WhatsApp
     let waPhone = donorPhone.replace(/\s+/g, '');
@@ -4443,15 +4457,15 @@ function sendCertificateWhatsApp() {
     if (typeof html2canvas === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = () => generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
+        script.onload = () => generateAndShareCert(certificate, waPhone, donorName, sqmValue, paidAmount, totalPledged, btn, originalText);
         document.head.appendChild(script);
     } else {
-        generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
+        generateAndShareCert(certificate, waPhone, donorName, sqmValue, paidAmount, totalPledged, btn, originalText);
     }
 }
 
 // Generate certificate image and share via WhatsApp
-async function generateAndShareCert(element, waPhone, donorName, sqmValue, totalPaid, btn, originalText) {
+async function generateAndShareCert(element, waPhone, donorName, sqmValue, paidAmount, totalPledged, btn, originalText) {
     try {
         // Reset transform for capture
         const originalTransform = element.style.transform;
@@ -4479,7 +4493,7 @@ async function generateAndShareCert(element, waPhone, donorName, sqmValue, total
             await navigator.share({
                 files: [file],
                 title: 'Certificate of Contribution',
-                text: `🎉 Certificate for ${donorName}\n💰 Contribution: ${totalPaid}\n📐 Allocation: ${sqmValue} m²`
+                text: `🎉 Certificate for ${donorName}\n📐 Allocation: ${sqmValue} m²\n💰 Progress: ${paidAmount} of ${totalPledged}`
             });
             
             if (btn) {
@@ -4493,17 +4507,23 @@ async function generateAndShareCert(element, waPhone, donorName, sqmValue, total
             link.href = canvas.toDataURL('image/png');
             link.click();
             
-            // Show instructions
-            setTimeout(() => {
-                const message = `🎉 *Certificate of Contribution*
+    // Create message
+    let statusMsg = '';
+    if (parseFloat(paidAmount.replace(/[^\d.-]/g, '')) < parseFloat(totalPledged.replace(/[^\d.-]/g, ''))) {
+        statusMsg = `🙌 *Progress:* ${paidAmount} paid of ${totalPledged} pledged`;
+    } else {
+        statusMsg = `✅ *Contribution:* ${paidAmount} (Fully Paid)`;
+    }
+
+    const message = `🎉 *Certificate of Contribution*
 
 Dear ${donorName},
 
-Thank you for your generous contribution to Liverpool Abune Teklehaymanot EOTC!
+Thank you for your history-making commitment to Liverpool Abune Teklehaymanot EOTC!
 
-📊 *Your Contribution:*
-💰 Amount: ${totalPaid}
-📐 Allocation: ${sqmValue} m²
+📊 *Your Allocation:*
+📐 Space: ${sqmValue} m²
+${statusMsg}
 
 Please find your certificate attached. May God bless you abundantly!
 
@@ -4529,7 +4549,7 @@ _Liverpool Abune Teklehaymanot EOTC_`;
 
 Dear ${donorName},
 
-Thank you for your contribution of ${totalPaid} (${sqmValue} m²) to Liverpool Abune Teklehaymanot EOTC!
+Thank you for your commitment of ${totalPledged} (${sqmValue} m²) to Liverpool Abune Teklehaymanot EOTC!
 
 🙏 May God bless you abundantly!`;
         
