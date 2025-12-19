@@ -99,9 +99,7 @@ function extractReference(string $notes): string {
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Certificate Management - Fundraising Admin</title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
@@ -120,39 +118,40 @@ function extractReference(string $notes): string {
             <div class="container-fluid">
                 
                 <!-- Page Header -->
-                <div class="page-section-header animate-fade-in">
-                    <div>
-                        <h2 class="topbar-title">
-                            <i class="fas fa-certificate text-warning me-2"></i> 
-                            Certificate Hub
-                        </h2>
-                        <p class="text-muted mb-0">Issue and manage history-making contribution certificates</p>
-                    </div>
+                <div class="mb-4">
+                    <h4 class="mb-1 fw-bold d-flex align-items-center flex-wrap gap-2">
+                        <i class="fas fa-certificate text-warning"></i> 
+                        <span>Certificate Hub</span>
+                    </h4>
+                    <p class="text-muted mb-0 small">Generate contribution certificates</p>
                 </div>
                 
                 <!-- Search Section -->
-                <div class="row g-4 mb-4">
-                    <div class="col-xl-8 animate-slide-in">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body p-4">
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-lg-8">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-3 p-md-4">
                                 <form method="GET" action="" class="search-form">
-                                    <div class="input-group input-group-lg border rounded-3 overflow-hidden">
-                                        <span class="input-group-text bg-white border-0 ps-4">
-                                            <i class="fas fa-search text-primary"></i>
-                                        </span>
-                                        <input 
-                                            type="text" 
-                                            class="form-control border-0 py-3 shadow-none" 
-                                            name="search" 
-                                            placeholder="Search name, phone, or reference..."
-                                            value="<?= htmlspecialchars($search) ?>"
-                                            autofocus
-                                        >
-                                        <button class="btn btn-primary px-5 fw-bold" type="submit">
-                                            Search
+                                    <div class="d-flex flex-column flex-sm-row gap-2">
+                                        <div class="input-group flex-grow-1">
+                                            <span class="input-group-text bg-white border-end-0">
+                                                <i class="fas fa-search text-primary"></i>
+                                            </span>
+                                            <input 
+                                                type="text" 
+                                                class="form-control border-start-0 py-2 py-md-3" 
+                                                name="search" 
+                                                placeholder="Name, phone, or reference..."
+                                                value="<?= htmlspecialchars($search) ?>"
+                                                autofocus
+                                            >
+                                        </div>
+                                        <button class="btn btn-primary px-4 py-2 py-md-3 fw-bold flex-shrink-0" type="submit">
+                                            <i class="fas fa-search me-2 d-sm-none"></i>
+                                            <span>Search</span>
                                         </button>
                                     </div>
-                                    <div class="mt-2 text-muted small ps-2">
+                                    <div class="mt-2 text-muted small d-none d-md-block">
                                         <i class="fas fa-info-circle me-1"></i>
                                         Tip: Try searching by the last 4 digits of the reference number.
                                     </div>
@@ -160,7 +159,7 @@ function extractReference(string $notes): string {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-4 animate-slide-in" style="animation-delay: 0.1s">
+                    <div class="col-12 col-lg-4">
                         <div class="search-info-card h-100">
                             <span class="search-info-title">Value Conversion</span>
                             <div class="search-info-grid">
@@ -183,26 +182,26 @@ function extractReference(string $notes): string {
                 
                 <?php if (empty($search) && !$selectedDonor): ?>
                     <!-- Welcome Empty State -->
-                    <div class="empty-state animate-fade-in">
+                    <div class="empty-state">
                         <div class="empty-state-icon">
-                            <i class="fas fa-search-dollar"></i>
+                            <i class="fas fa-certificate"></i>
                         </div>
-                        <h3>Ready to generate?</h3>
-                        <p class="text-muted mx-auto" style="max-width: 400px;">
-                            Enter a donor's name or reference number above to find their contribution and preview their certificate.
+                        <h5 class="fw-bold">Search for a Donor</h5>
+                        <p class="text-muted mx-auto mb-0" style="max-width: 320px;">
+                            Enter a name or reference number to generate their certificate.
                         </p>
                     </div>
                 <?php endif; ?>
                 
                 <?php if (!empty($search)): ?>
                 <!-- Search Results Section -->
-                <div class="animate-fade-in">
-                    <div class="page-section-header">
-                        <h5 class="page-section-title">
-                            <i class="fas fa-users-viewfinder text-primary"></i>
-                            Found Donors
-                            <span class="badge bg-primary-light text-primary ms-2 rounded-pill fs-6"><?= count($donors) ?></span>
-                        </h5>
+                <div class="mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <h6 class="fw-bold mb-0">
+                            <i class="fas fa-users text-primary me-1"></i>
+                            Results
+                        </h6>
+                        <span class="badge bg-primary rounded-pill"><?= count($donors) ?></span>
                     </div>
 
                     <?php if (empty($donors)): ?>
@@ -312,64 +311,64 @@ function extractReference(string $notes): string {
                 
                 <?php if ($selectedDonor): ?>
                 <!-- Preview Section -->
-                <div class="animate-fade-in mt-5" id="preview-section">
-                    <div class="page-section-header">
-                        <h5 class="page-section-title">
+                <div class="mt-4" id="preview-section">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
+                        <h6 class="fw-bold mb-0 d-flex align-items-center gap-2">
                             <i class="fas fa-eye text-primary"></i>
-                            Certificate Preview
-                        </h5>
-                        <div class="cert-actions d-none d-sm-flex">
-                            <button class="btn btn-outline-success rounded-pill px-4 hover-lift" onclick="printCertificate()">
-                                <i class="fas fa-print me-2"></i> Print
+                            <span>Certificate Preview</span>
+                        </h6>
+                        <div class="cert-actions d-none d-md-flex">
+                            <button class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="printCertificate()">
+                                <i class="fas fa-print me-1"></i> Print
                             </button>
-                            <button class="btn btn-success rounded-pill px-4 shadow-sm hover-lift" onclick="downloadCertificate()">
-                                <i class="fas fa-download me-2"></i> Download Image
+                            <button class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" onclick="downloadCertificate()">
+                                <i class="fas fa-download me-1"></i> Download
                             </button>
                         </div>
                     </div>
 
-                    <div class="row g-4 mb-4">
-                        <div class="col-6 col-md-3">
-                            <div class="donor-stat-card border-0 shadow-sm">
+                    <div class="row g-2 g-md-3 mb-3 mb-md-4">
+                        <div class="col-6 col-lg-3">
+                            <div class="donor-stat-card">
                                 <div class="donor-stat-icon bg-light text-primary">
                                     <i class="fas fa-hashtag"></i>
                                 </div>
                                 <div class="donor-stat-content">
-                                    <span class="donor-stat-label">Reference</span>
+                                    <span class="donor-stat-label">Ref</span>
                                     <span class="donor-stat-value font-monospace"><?= $donorReference ?: '----' ?></span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <div class="donor-stat-card border-0 shadow-sm">
+                        <div class="col-6 col-lg-3">
+                            <div class="donor-stat-card">
                                 <div class="donor-stat-icon bg-light text-success">
                                     <i class="fas fa-pound-sign"></i>
                                 </div>
                                 <div class="donor-stat-content">
                                     <span class="donor-stat-label">Paid</span>
-                                    <span class="donor-stat-value"><?= $currency . number_format((float)$selectedDonor['total_paid'], 2) ?></span>
+                                    <span class="donor-stat-value"><?= $currency . number_format((float)$selectedDonor['total_paid'], 0) ?></span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <div class="donor-stat-card border-0 shadow-sm">
+                        <div class="col-6 col-lg-3">
+                            <div class="donor-stat-card">
                                 <div class="donor-stat-icon bg-light text-warning">
                                     <i class="fas fa-layer-group"></i>
                                 </div>
                                 <div class="donor-stat-content">
-                                    <span class="donor-stat-label">Allocation</span>
-                                    <span class="donor-stat-value"><?= $sqmValue ?> m²</span>
+                                    <span class="donor-stat-label">Area</span>
+                                    <span class="donor-stat-value"><?= $sqmValue ?>m²</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <div class="donor-stat-card border-0 shadow-sm">
+                        <div class="col-6 col-lg-3">
+                            <div class="donor-stat-card">
                                 <div class="donor-stat-icon bg-light text-info">
-                                    <i class="fas fa-phone"></i>
+                                    <i class="fas fa-user"></i>
                                 </div>
                                 <div class="donor-stat-content">
-                                    <span class="donor-stat-label">Contact</span>
-                                    <span class="donor-stat-value fs-6 text-truncate d-block" style="max-width: 100%;"><?= htmlspecialchars($selectedDonor['phone']) ?></span>
+                                    <span class="donor-stat-label">Name</span>
+                                    <span class="donor-stat-value text-truncate"><?= htmlspecialchars(explode(' ', $selectedDonor['name'])[0]) ?></span>
                                 </div>
                             </div>
                         </div>
@@ -418,12 +417,12 @@ function extractReference(string $notes): string {
                         </div>
                     </div>
 
-                    <!-- Mobile Bottom Actions -->
-                    <div class="d-sm-none cert-actions">
-                        <button class="btn btn-outline-success rounded-pill shadow-sm py-2" onclick="printCertificate()">
-                            <i class="fas fa-print"></i>
+                    <!-- Mobile Bottom Actions (shows on mobile only) -->
+                    <div class="d-md-none cert-actions">
+                        <button class="btn btn-outline-success rounded-pill" onclick="printCertificate()">
+                            <i class="fas fa-print me-1"></i> Print
                         </button>
-                        <button class="btn btn-success rounded-pill shadow-sm flex-grow-1 py-2 fw-bold" onclick="downloadCertificate()">
+                        <button class="btn btn-success rounded-pill flex-grow-1 fw-bold" onclick="downloadCertificate()">
                             <i class="fas fa-download me-2"></i> Download
                         </button>
                     </div>

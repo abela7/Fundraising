@@ -1,37 +1,214 @@
 /**
  * Certificate Management Styles
- * Includes certificate preview styling
+ * Mobile-First Responsive Design
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;600;800;900&display=swap');
 
+/* ========================================
+   BASE MOBILE STYLES (Default)
+   ======================================== */
+
+/* Page Header */
+.page-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.page-section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.page-section-title .badge {
+    font-size: 0.7rem !important;
+}
+
+/* Search Info Card */
+.search-info-card {
+    background: linear-gradient(135deg, rgba(10, 98, 134, 0.08) 0%, rgba(10, 98, 134, 0.03) 100%);
+    border: 1px solid rgba(10, 98, 134, 0.12);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.search-info-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary);
+    margin-bottom: 0.75rem;
+    display: block;
+    text-align: center;
+}
+
+.search-info-grid {
+    display: flex;
+    justify-content: space-around;
+    gap: 0.5rem;
+}
+
+.search-info-item {
+    text-align: center;
+    flex: 1;
+}
+
+.search-info-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--primary-dark);
+}
+
+.search-info-label {
+    font-size: 0.65rem;
+    color: var(--gray-500);
+}
+
+/* Donor Stat Cards */
+.donor-stat-card {
+    background: var(--white);
+    border-radius: 0.75rem;
+    padding: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid var(--gray-100);
+    height: 100%;
+}
+
+.donor-stat-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.donor-stat-content {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.donor-stat-label {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--gray-500);
+    margin-bottom: 0.125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.donor-stat-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Search Results Cards (Mobile) */
+.donor-result-card {
+    background: var(--white);
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid var(--gray-100);
+    transition: all 0.2s ease;
+}
+
+.donor-result-card.border-primary {
+    border-color: var(--primary) !important;
+    border-width: 2px;
+}
+
+.donor-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.donor-result-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.donor-result-info h6 {
+    margin-bottom: 0.125rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.donor-result-info small {
+    font-size: 0.75rem;
+}
+
+/* Certificate Actions - Mobile Fixed Bottom Bar */
+.cert-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    border-top: 1px solid var(--gray-200);
+}
+
+.cert-actions .btn {
+    flex: 1;
+    padding: 0.875rem 1rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
 /* Certificate Preview Container */
 .certificate-preview-container {
-    background: #1a1a1a;
-    padding: 2rem;
-    border-radius: 1.5rem;
+    background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%);
+    padding: 1rem;
+    border-radius: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     position: relative;
-    box-shadow: var(--shadow-xl);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    min-height: 300px;
+    margin-bottom: 5rem; /* Space for fixed bottom bar */
 }
 
+/* Certificate Scaler - Uses CSS Transform for responsive scaling */
 #cert-scaler {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    animation: fadeInCert 0.6s ease-out forwards;
-    animation-delay: 0.2s;
+    transform-origin: top center;
+    transition: transform 0.3s ease-out;
 }
 
-/* Fixed size canvas with responsive scaling */
+/* Fixed size canvas - will be scaled by JS */
 .certificate {
     width: 1200px;
     height: 750px;
@@ -42,422 +219,8 @@
     position: relative;
     color: white;
     flex-shrink: 0;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.8);
-    transform-origin: center center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     font-family: 'Montserrat', sans-serif;
-    aspect-ratio: 1200 / 750;
-}
-
-/* This is the magic for responsive scaling without media query hell */
-.cert-responsive-wrapper {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    position: relative;
-}
-
-.cert-ratio-container {
-    position: relative;
-    width: 100%;
-    padding-top: 62.5%; /* 750 / 1200 = 0.625 */
-}
-
-.cert-ratio-container .certificate {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    /* The scale will be calculated via JS or we can use a CSS trick */
-    transform: translate(-50%, -50%);
-}
-
-/* Modern Card Styling */
-.donor-stat-card {
-    background: var(--white);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    box-shadow: var(--shadow);
-    transition: all 0.3s var(--transition);
-    border: 1px solid var(--gray-100);
-}
-
-.donor-stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-lg);
-}
-
-.donor-stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-}
-
-.donor-stat-content {
-    flex: 1;
-}
-
-.donor-stat-label {
-    display: block;
-    font-size: 0.875rem;
-    color: var(--gray-500);
-    margin-bottom: 0.25rem;
-}
-
-.donor-stat-value {
-    display: block;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--gray-900);
-}
-
-/* Search Results Cards (Mobile) */
-.donor-result-card {
-    background: var(--white);
-    border-radius: 1rem;
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--gray-100);
-}
-
-.donor-result-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
-
-.donor-result-info h6 {
-    margin-bottom: 0.25rem;
-    font-weight: 700;
-}
-
-/* Section Header Modernization */
-.page-section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.page-section-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-/* Certificate Actions */
-.cert-actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-/* ========== MOBILE RESPONSIVE STYLES ========== */
-
-/* Mobile: Small phones (< 576px) */
-@media (max-width: 575.98px) {
-    /* Fixed mobile action bar */
-    .cert-actions {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 1050;
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(20px);
-        padding: 1rem;
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-        border-radius: 0;
-        margin: 0;
-    }
-    
-    .cert-actions .btn {
-        flex: 1;
-        font-size: 0.875rem;
-        padding: 0.75rem 1rem;
-    }
-
-    /* Add bottom padding to prevent content being hidden by fixed action bar */
-    #preview-section {
-        padding-bottom: 6rem !important;
-    }
-
-    /* Certificate container mobile adjustments */
-    .certificate-preview-container {
-        padding: 0.75rem;
-        border-radius: 0.75rem;
-        margin-left: -1rem;
-        margin-right: -1rem;
-        width: calc(100% + 2rem);
-    }
-
-    /* Donor stat cards - stack vertically on mobile */
-    .donor-stat-card {
-        padding: 1rem;
-        gap: 1rem;
-    }
-
-    .donor-stat-icon {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-    }
-
-    .donor-stat-value {
-        font-size: 1rem;
-    }
-
-    .donor-stat-label {
-        font-size: 0.75rem;
-    }
-
-    /* Page header adjustments */
-    .page-section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .page-section-title {
-        font-size: 1rem;
-    }
-
-    .page-section-title i {
-        font-size: 1rem;
-    }
-
-    .page-section-title .badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-
-    /* Search section mobile */
-    .search-form .input-group {
-        flex-direction: column;
-        border: none !important;
-    }
-
-    .search-form .input-group-text,
-    .search-form .form-control,
-    .search-form .btn {
-        border-radius: 0.75rem !important;
-        border: 1px solid var(--gray-200) !important;
-    }
-
-    .search-form .input-group-text {
-        border-bottom: none !important;
-        border-bottom-left-radius: 0 !important;
-        border-bottom-right-radius: 0 !important;
-    }
-
-    .search-form .form-control {
-        border-radius: 0 !important;
-        border-top: none !important;
-        border-bottom: none !important;
-    }
-
-    .search-form .btn {
-        border-top: none !important;
-        border-top-left-radius: 0 !important;
-        border-top-right-radius: 0 !important;
-        padding: 1rem !important;
-    }
-
-    /* Search info card - make grid vertical */
-    .search-info-card {
-        padding: 1rem;
-    }
-
-    .search-info-title {
-        font-size: 0.65rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .search-info-grid {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-    }
-
-    .search-info-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem;
-        background: rgba(255, 255, 255, 0.5);
-        border-radius: 0.5rem;
-    }
-
-    .search-info-value {
-        font-size: 0.875rem;
-    }
-
-    .search-info-label {
-        font-size: 0.65rem;
-    }
-
-    /* Mobile donor cards */
-    .donor-result-card {
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        border-radius: 0.75rem;
-    }
-
-    .donor-result-header {
-        flex-wrap: wrap;
-        margin-bottom: 0.75rem;
-    }
-
-    .donor-result-header .user-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 0.875rem;
-    }
-
-    .donor-result-info h6 {
-        font-size: 0.9rem;
-    }
-
-    .donor-result-info small {
-        font-size: 0.75rem;
-    }
-
-    /* Empty state mobile */
-    .empty-state {
-        padding: 3rem 1rem;
-    }
-
-    .empty-state-icon {
-        font-size: 3rem;
-    }
-
-    .empty-state h3 {
-        font-size: 1.25rem;
-    }
-
-    /* Reduce main content padding */
-    .main-content {
-        padding: 1rem !important;
-    }
-
-    /* Card body padding */
-    .card-body {
-        padding: 1rem !important;
-    }
-
-    /* Topbar title */
-    .topbar-title {
-        font-size: 1.125rem !important;
-    }
-
-    /* Alert adjustments */
-    .alert {
-        padding: 1rem !important;
-        font-size: 0.875rem;
-    }
-
-    .alert i {
-        font-size: 1.5rem !important;
-    }
-}
-
-/* Mobile: Medium phones (576px - 767px) */
-@media (min-width: 576px) and (max-width: 767.98px) {
-    .certificate-preview-container {
-        padding: 1rem;
-    }
-
-    .donor-stat-card {
-        padding: 1.25rem;
-    }
-
-    .search-info-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.75rem;
-    }
-}
-
-/* Tablet: (768px - 991px) */
-@media (min-width: 768px) and (max-width: 991.98px) {
-    .certificate-preview-container {
-        padding: 1.5rem;
-    }
-
-    .page-section-header {
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-}
-
-/* Additional mobile-first improvements */
-@media (max-width: 991.98px) {
-    /* Make sure certificate scales properly on all mobile/tablet sizes */
-    #cert-scaler {
-        width: 1200px;
-        height: 750px;
-    }
-
-    .certificate {
-        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-    }
-}
-
-/* Touch-friendly improvements for all mobile devices */
-@media (hover: none) and (pointer: coarse) {
-    /* Larger touch targets */
-    .btn {
-        min-height: 44px;
-        padding: 0.75rem 1.5rem;
-    }
-
-    .btn-sm {
-        min-height: 38px;
-        padding: 0.5rem 1rem;
-    }
-
-    /* Prevent text selection on action buttons */
-    .cert-actions button,
-    .donor-result-card a,
-    .page-section-header button {
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-tap-highlight-color: transparent;
-    }
-
-    /* Add active state feedback */
-    .btn:active,
-    .donor-result-card:active {
-        transform: scale(0.98);
-        transition: transform 0.1s ease;
-    }
-}
-
-/* Smooth scrolling for anchor links */
-html {
-    scroll-behavior: smooth;
-    scroll-padding-top: 100px;
-}
-
-/* Loading state animation */
-@keyframes fadeInCert {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
 }
 
 /* ===== CHURCH IMAGE OVERLAY ===== */
@@ -488,19 +251,6 @@ html {
     mask-image: radial-gradient(circle, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 70%);
     -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 70%);
     filter: saturate(0.6) brightness(1.1);
-}
-
-/* Mobile adjustments for church overlay */
-@media (max-width: 575.98px) {
-    .church-overlay {
-        width: 300px;
-    }
-    
-    .church-overlay::before {
-        width: 250px;
-        height: 250px;
-        right: -30px;
-    }
 }
 
 /* ===== TOP SECTION ===== */
@@ -658,60 +408,28 @@ html {
     vertical-align: bottom;
 }
 
-/* Responsive scaling handled by JS for perfect fit */
-#cert-scaler {
-    width: 1200px; /* Base width */
-    height: 750px; /* Base height */
-    transition: transform 0.3s ease-out;
-}
-
-/* Glass card for search info */
-.search-info-card {
-    background: rgba(10, 98, 134, 0.05);
-    border: 1px solid rgba(10, 98, 134, 0.1);
-    border-radius: 1rem;
-    padding: 1.25rem;
-}
-
-.search-info-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--primary);
-    margin-bottom: 0.75rem;
-    display: block;
-}
-
-.search-info-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-}
-
-.search-info-item {
+/* Empty state styling */
+.empty-state {
+    padding: 3rem 1.5rem;
     text-align: center;
 }
 
-.search-info-value {
-    display: block;
-    font-size: 1.125rem;
-    font-weight: 800;
-    color: var(--primary-dark);
+.empty-state-icon {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: 1rem;
 }
 
-.search-info-label {
-    font-size: 0.7rem;
-    color: var(--gray-500);
+.empty-state h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
 }
 
-@media (max-width: 767.98px) {
-    .search-info-grid {
-        grid-template-columns: 1fr;
-    }
+.empty-state p {
+    font-size: 0.875rem;
 }
 
-/* Custom Table Styling */
+/* Modern Table - Hidden on mobile by default */
 .modern-table {
     border-collapse: separate;
     border-spacing: 0 0.5rem;
@@ -719,51 +437,197 @@ html {
 
 .modern-table thead th {
     border: none;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--gray-500);
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1rem;
 }
 
 .modern-table tbody tr {
     background: var(--white);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     transition: all 0.2s;
 }
 
 .modern-table tbody tr:hover {
-    transform: scale(1.005);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .modern-table tbody td {
     border: none;
-    padding: 1.25rem 1.5rem;
+    padding: 1rem;
+    font-size: 0.875rem;
 }
 
 .modern-table tbody td:first-child {
-    border-radius: 1rem 0 0 1rem;
+    border-radius: 0.75rem 0 0 0.75rem;
 }
 
 .modern-table tbody td:last-child {
-    border-radius: 0 1rem 1rem 0;
+    border-radius: 0 0.75rem 0.75rem 0;
 }
 
-/* Empty state styling */
-.empty-state {
-    padding: 5rem 2rem;
-    text-align: center;
+/* User avatar adjustments for mobile */
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.875rem;
 }
 
-.empty-state-icon {
-    font-size: 4rem;
-    color: var(--gray-200);
-    margin-bottom: 1.5rem;
+/* ========================================
+   TABLET STYLES (768px and up)
+   ======================================== */
+@media (min-width: 768px) {
+    .page-section-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-section-title {
+        font-size: 1.125rem;
+    }
+
+    .search-info-card {
+        padding: 1.25rem;
+    }
+
+    .search-info-value {
+        font-size: 1.125rem;
+    }
+
+    .search-info-label {
+        font-size: 0.7rem;
+    }
+
+    .donor-stat-card {
+        padding: 1.25rem;
+        gap: 1rem;
+    }
+
+    .donor-stat-icon {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        font-size: 1.1rem;
+    }
+
+    .donor-stat-label {
+        font-size: 0.75rem;
+    }
+
+    .donor-stat-value {
+        font-size: 1.1rem;
+    }
+
+    .certificate-preview-container {
+        padding: 1.5rem;
+        border-radius: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Desktop actions - not fixed */
+    .cert-actions {
+        position: static;
+        background: transparent;
+        backdrop-filter: none;
+        padding: 0;
+        box-shadow: none;
+        border: none;
+        justify-content: flex-end;
+    }
+
+    .cert-actions .btn {
+        flex: none;
+        padding: 0.625rem 1.5rem;
+    }
+
+    .empty-state {
+        padding: 4rem 2rem;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.5rem;
+    }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
 }
 
-/* Print styles */
+/* ========================================
+   DESKTOP STYLES (992px and up)
+   ======================================== */
+@media (min-width: 992px) {
+    .page-section-title {
+        font-size: 1.25rem;
+    }
+
+    .donor-stat-card {
+        padding: 1.5rem;
+        gap: 1.25rem;
+    }
+
+    .donor-stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+
+    .donor-stat-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        font-size: 1.25rem;
+    }
+
+    .donor-stat-label {
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .donor-stat-value {
+        font-size: 1.25rem;
+    }
+
+    .certificate-preview-container {
+        padding: 2rem;
+        border-radius: 1.5rem;
+    }
+
+    .modern-table thead th {
+        padding: 1rem 1.25rem;
+        font-size: 0.75rem;
+    }
+
+    .modern-table tbody td {
+        padding: 1.25rem;
+    }
+
+    .modern-table tbody tr:hover {
+        transform: translateX(4px);
+    }
+}
+
+/* ========================================
+   LARGE DESKTOP STYLES (1200px and up)
+   ======================================== */
+@media (min-width: 1200px) {
+    .certificate-preview-container {
+        padding: 2.5rem;
+    }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
 @media print {
     .admin-wrapper,
     .admin-content,
@@ -784,5 +648,209 @@ html {
     .certificate {
         transform: scale(1) !important;
         box-shadow: none !important;
+    }
+
+    .cert-actions {
+        display: none !important;
+    }
+}
+
+/* ========================================
+   UTILITY OVERRIDES
+   ======================================== */
+
+/* Fix Bootstrap input group on mobile */
+@media (max-width: 575.98px) {
+    .input-group-lg .form-control {
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .input-group-lg .btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .input-group-lg .input-group-text {
+        padding: 0.75rem;
+    }
+
+    /* Stack search button below on very small screens */
+    .search-form .input-group {
+        flex-wrap: wrap;
+    }
+
+    .search-form .input-group .form-control {
+        border-radius: 0.5rem !important;
+        margin-bottom: 0.5rem;
+        flex: 1 1 100%;
+    }
+
+    .search-form .input-group .input-group-text {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        border: none;
+        background: transparent;
+        z-index: 5;
+    }
+
+    .search-form .input-group .btn {
+        border-radius: 0.5rem !important;
+        flex: 1 1 100%;
+    }
+
+    /* Hide tip on very small screens */
+    .search-form .small {
+        display: none;
+    }
+}
+
+/* Better touch targets */
+@media (max-width: 991.98px) {
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .badge {
+        padding: 0.35em 0.65em;
+    }
+}
+
+/* Smooth scrolling on certificate scroll */
+.certificate-preview-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Prevent horizontal scroll on body */
+body {
+    overflow-x: hidden;
+}
+
+/* Animation adjustments for mobile */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ========================================
+   EXTRA SMALL MOBILE (< 360px)
+   ======================================== */
+@media (max-width: 359.98px) {
+    .donor-stat-card {
+        padding: 0.625rem;
+        gap: 0.5rem;
+    }
+
+    .donor-stat-icon {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+
+    .donor-stat-label {
+        font-size: 0.55rem;
+    }
+
+    .donor-stat-value {
+        font-size: 0.75rem;
+    }
+
+    .search-info-value {
+        font-size: 0.8rem;
+    }
+
+    .search-info-label {
+        font-size: 0.55rem;
+    }
+
+    .donor-result-card {
+        padding: 0.75rem;
+    }
+
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .cert-actions {
+        padding: 0.75rem;
+    }
+
+    .cert-actions .btn {
+        padding: 0.625rem 0.75rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* ========================================
+   FIX CONTAINER OVERFLOW
+   ======================================== */
+.container-fluid {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+@media (min-width: 576px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .container-fluid {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+/* Ensure no horizontal overflow */
+.main-content {
+    max-width: 100vw;
+    overflow-x: hidden;
+}
+
+.row {
+    margin-left: -0.375rem;
+    margin-right: -0.375rem;
+}
+
+.row > * {
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+}
+
+@media (min-width: 576px) {
+    .row {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .row > * {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .row {
+        margin-left: -0.75rem;
+        margin-right: -0.75rem;
+    }
+    
+    .row > * {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
     }
 }

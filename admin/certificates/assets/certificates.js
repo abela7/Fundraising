@@ -4,22 +4,27 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initial scaling
-    updateCertScale();
+    // Initial scaling with a small delay to ensure DOM is ready
+    setTimeout(updateCertScale, 100);
     
-    // Update scale on window resize with debouncing
+    // Update scale on window resize with debounce
     let resizeTimeout;
     window.addEventListener('resize', function() {
         clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(updateCertScale, 100);
+        resizeTimeout = setTimeout(updateCertScale, 150);
     });
-    
-    // Smooth scroll to preview on mobile after selection
+
+    // Also update on orientation change (mobile)
+    window.addEventListener('orientationchange', function() {
+        setTimeout(updateCertScale, 300);
+    });
+
+    // Scroll to preview section if donor is selected
     const previewSection = document.getElementById('preview-section');
     if (previewSection && window.innerWidth < 768) {
         setTimeout(() => {
             previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 300);
+        }, 500);
     }
 });
 
@@ -29,54 +34,51 @@ document.addEventListener('DOMContentLoaded', function() {
 function updateCertScale() {
     const container = document.querySelector('.certificate-preview-container');
     const scaler = document.getElementById('cert-scaler');
+    const certificate = document.querySelector('.certificate');
     
-    if (!container || !scaler) return;
+    if (!container || !scaler || !certificate) return;
     
-    // Get actual container dimensions
-    const containerRect = container.getBoundingClientRect();
-    const containerWidth = containerRect.width;
-    const containerHeight = containerRect.height;
+    // Get container dimensions (accounting for padding)
+    const containerStyles = getComputedStyle(container);
+    const paddingX = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
+    const paddingY = parseFloat(containerStyles.paddingTop) + parseFloat(containerStyles.paddingBottom);
+    
+    const availableWidth = container.offsetWidth - paddingX;
+    const availableHeight = Math.min(
+        window.innerHeight * 0.65, // Max 65% of viewport height
+        600 // Maximum height cap
+    );
     
     // Base certificate dimensions
     const baseWidth = 1200;
     const baseHeight = 750;
     
-    // Calculate scale based on container size with padding
-    const paddingHorizontal = window.innerWidth < 576 ? 24 : 64; // 0.75rem or 2rem padding
-    const paddingVertical = window.innerWidth < 576 ? 24 : 64;
+    // Calculate scale to fit width
+    let scale = availableWidth / baseWidth;
     
-    const availableWidth = containerWidth - paddingHorizontal;
-    const availableHeight = containerHeight - paddingVertical;
-    
-    // Calculate scale to fit both dimensions
-    const scaleX = availableWidth / baseWidth;
-    const scaleY = availableHeight / baseHeight;
-    
-    // Use the smaller scale to ensure it fits
-    let scale = Math.min(scaleX, scaleY);
-    
-    // On mobile, be more aggressive with scaling
-    if (window.innerWidth < 576) {
-        scale = Math.min(scale, 0.35); // Cap at 35% on small phones
-    } else if (window.innerWidth < 768) {
-        scale = Math.min(scale, 0.45); // Cap at 45% on larger phones
-    } else if (window.innerWidth < 992) {
-        scale = Math.min(scale, 0.6); // Cap at 60% on tablets
-    } else {
-        scale = Math.min(scale, 1); // Don't scale beyond 100% on desktop
+    // Check if height also fits, if not adjust scale
+    const scaledHeight = baseHeight * scale;
+    if (scaledHeight > availableHeight) {
+        scale = availableHeight / baseHeight;
     }
     
-    // Ensure minimum scale
-    scale = Math.max(scale, 0.2);
+    // Ensure minimum readability
+    scale = Math.max(scale, 0.15);
+    
+    // Don't scale up beyond original size
+    scale = Math.min(scale, 1);
     
     // Apply transform
     scaler.style.transform = `scale(${scale})`;
+    scaler.style.transformOrigin = 'top center';
+    
+    // Update container height to match scaled certificate
+    const newHeight = (baseHeight * scale) + paddingY;
+    container.style.minHeight = `${newHeight}px`;
+    
+    // Set explicit dimensions on scaler for proper layout
     scaler.style.width = `${baseWidth}px`;
     scaler.style.height = `${baseHeight}px`;
-    
-    // Update container height to prevent overflow
-    const scaledHeight = baseHeight * scale;
-    container.style.minHeight = `${scaledHeight + paddingVertical}px`;
 }
 
 /**
@@ -92,7 +94,7 @@ function printCertificate() {
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
     
-    // Get the certificate HTML and styles
+    // Get the certificate HTML
     const certHtml = certificate.outerHTML;
     
     printWindow.document.write(`
@@ -100,7 +102,7 @@ function printCertificate() {
         <html>
         <head>
             <title>Certificate - Print</title>
-            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;600;800;900&display=swap" rel="stylesheet">
             <style>
                 @page {
                     size: landscape;
@@ -185,6 +187,8 @@ function printCertificate() {
                     text-transform: uppercase;
                     margin-top: 15px;
                     margin-bottom: 15px;
+                    padding-top: 10px;
+                    padding-bottom: 10px;
                 }
                 
                 .center-section {
@@ -202,6 +206,7 @@ function printCertificate() {
                     line-height: 1;
                     font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
                     margin-bottom: 10px;
+                    padding-top: 45px;
                 }
                 
                 .title-en {
@@ -290,7 +295,7 @@ function printCertificate() {
                     font-weight: 600;
                     color: #fff;
                     margin-top: 8px;
-                    text-align: center;
+                    text-align: right;
                     letter-spacing: 2px;
                     font-family: 'Courier New', monospace;
                 }
@@ -340,9 +345,11 @@ function downloadCertificate() {
 function captureAndDownload(element) {
     // Show loading indicator
     const btn = document.querySelector('button[onclick="downloadCertificate()"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-    btn.disabled = true;
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        btn.disabled = true;
+    }
     
     // Get donor name for filename
     const donorName = document.querySelector('.bank-val')?.textContent || 'certificate';
@@ -352,7 +359,9 @@ function captureAndDownload(element) {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: null
+        backgroundColor: null,
+        width: 1200,
+        height: 750
     }).then(canvas => {
         // Create download link
         const link = document.createElement('a');
@@ -361,12 +370,16 @@ function captureAndDownload(element) {
         link.click();
         
         // Restore button
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }).catch(err => {
         console.error('Error generating certificate image:', err);
         alert('Error generating certificate. Please try printing instead.');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     });
 }
