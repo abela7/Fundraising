@@ -38,7 +38,7 @@ declare(strict_types=1);
             justify-content: center;
         }
 
-        /* Fixed size canvas - NEVER changes internally */
+        /* Fixed size canvas */
         .certificate {
             width: 1200px;
             height: 750px;
@@ -55,7 +55,7 @@ declare(strict_types=1);
         /* ===== TOP SECTION ===== */
         .top-section {
             position: absolute;
-            top: 20px;
+            top: 25px;
             left: 0;
             right: 0;
             text-align: center;
@@ -63,51 +63,54 @@ declare(strict_types=1);
 
         .top-verse {
             color: #ffcc33;
-            font-size: 18px;
+            font-size: 26px; /* Increased from 18px */
             font-weight: 800;
             line-height: 1.3;
             font-family: "Nyala", "Segoe UI Ethiopic", serif;
-            padding: 0 40px;
+            padding: 0 60px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .church-name {
-            font-size: 42px;
+            font-size: 48px;
             font-weight: 600;
             letter-spacing: 1px;
             text-transform: uppercase;
-            margin-top: 20px;
+            margin-top: 15px;
         }
 
         /* ===== CENTER TITLES ===== */
         .center-section {
             position: absolute;
-            top: 180px;
+            top: 200px; /* Adjusted down slightly */
             left: 0;
             right: 0;
             text-align: center;
         }
 
         .title-am {
-            font-size: 130px;
+            font-size: 135px;
             font-weight: 900;
             line-height: 1;
             font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
+            text-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         .title-en {
-            font-size: 115px;
+            font-size: 120px;
             font-weight: 900;
             line-height: 1;
             letter-spacing: -3px;
             margin-top: 5px;
+            text-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         /* ===== BOTTOM SECTION ===== */
         .bottom-section {
             position: absolute;
-            bottom: 35px;
-            left: 40px;
-            right: 40px;
+            bottom: 40px;
+            left: 50px;
+            right: 50px;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
@@ -116,14 +119,14 @@ declare(strict_types=1);
         .bank-area {
             display: flex;
             align-items: center;
-            gap: 25px;
+            gap: 30px;
         }
 
         .qr-code {
-            width: 140px;
-            height: 140px;
+            width: 160px;
+            height: 160px;
             background: white;
-            padding: 8px;
+            padding: 10px;
             flex-shrink: 0;
         }
 
@@ -134,18 +137,22 @@ declare(strict_types=1);
         }
 
         .bank-details {
-            font-size: 32px;
+            font-size: 44px; /* Increased from 32px */
             font-weight: 800;
-            line-height: 1.25;
+            line-height: 1.2;
         }
 
         .bank-row {
             display: flex;
-            gap: 12px;
+            gap: 15px;
             white-space: nowrap;
         }
 
-        .bank-label { color: #fff; min-width: 180px; }
+        .bank-label { 
+            color: #fff; 
+            min-width: 240px; /* Adjusted for larger font */
+        }
+        
         .bank-val { color: #ffcc33; }
 
         /* ===== RIGHT SIDE ===== */
@@ -153,43 +160,40 @@ declare(strict_types=1);
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 12px;
+            gap: 15px;
         }
 
         .sqm-label {
-            font-size: 30px;
+            font-size: 36px;
             font-weight: 800;
-            margin-right: 10px;
-            margin-bottom: -8px;
+            margin-right: 15px;
+            margin-bottom: -10px;
         }
 
         .pill-box {
-            width: 250px;
-            height: 70px;
+            width: 280px;
+            height: 80px;
             background: rgba(220, 220, 220, 0.95);
             border-radius: 40px;
-            box-shadow: inset 0 3px 6px rgba(0,0,0,0.1);
+            box-shadow: inset 0 3px 8px rgba(0,0,0,0.15);
         }
     </style>
 </head>
 <body>
     <div id="cert-scaler">
         <div class="certificate">
-            <!-- Top Section: Verse + Church Name -->
             <div class="top-section">
                 <div class="top-verse">
-                    "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።"<br>፪ ዜና ፪፡፱
+                    "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።" ፪ ዜና ፪፡፱
                 </div>
                 <div class="church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
             </div>
 
-            <!-- Center Section: Main Titles -->
             <div class="center-section">
                 <div class="title-am">ይህ ታሪኬ ነው</div>
                 <div class="title-en">It is My History</div>
             </div>
 
-            <!-- Bottom Section: QR + Bank + Pills -->
             <div class="bottom-section">
                 <div class="bank-area">
                     <div class="qr-code">
@@ -228,7 +232,6 @@ declare(strict_types=1);
             const baseW = 1200;
             const baseH = 750;
 
-            // Scale to fit viewport while maintaining aspect ratio
             const scale = Math.min(winW / baseW, winH / baseH) * 0.95;
             scaler.style.transform = `scale(${scale})`;
         }
