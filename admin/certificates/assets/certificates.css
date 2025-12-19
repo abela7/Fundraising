@@ -97,6 +97,8 @@
     text-transform: uppercase;
     margin-top: 15px;
     margin-bottom: 15px;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 /* ===== CENTER TITLES ===== */
@@ -116,6 +118,7 @@
     font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
     text-shadow: 0 5px 15px rgba(0,0,0,0.2);
     margin-bottom: 10px;
+    padding-top: 45px;
 }
 
 .title-en {
@@ -216,9 +219,10 @@
     font-weight: 600;
     color: #fff;
     margin-top: 8px;
-    text-align: center;
+    text-align: right;
     letter-spacing: 2px;
     font-family: 'Courier New', monospace;
+    vertical-align: bottom;
 }
 
 /* Responsive scaling for smaller screens */
