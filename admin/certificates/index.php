@@ -318,10 +318,10 @@ function extractReference(string $notes): string {
                                             </div>
                                             <div class="bank-details">
                                                 <div class="bank-row">
-                                                    <span class="bank-label">Donor</span>
+                                                    <span class="bank-label">Name</span>
                                                     <span class="bank-val"><?= htmlspecialchars($selectedDonor['name']) ?></span>
                                                 </div>
-                                                <div class="bank-row">
+                                                <div class="bank-row" style="margin-top: 15px;">
                                                     <span class="bank-label">Contribution</span>
                                                     <span class="bank-val"><?= $currency . number_format((float)$selectedDonor['total_paid'], 2) ?></span>
                                                 </div>
@@ -329,9 +329,8 @@ function extractReference(string $notes): string {
                                         </div>
 
                                         <div class="right-area">
-                                            <div class="sqm-label">Sq.m</div>
                                             <div class="pill-box">
-                                                <span class="sqm-value"><?= $sqmValue ?></span>
+                                                <span class="sqm-value"><?= $sqmValue ?>m²</span>
                                             </div>
                                             <?php if ($donorReference): ?>
                                                 <div class="reference-number"><?= $donorReference ?></div>

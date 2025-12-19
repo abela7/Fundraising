@@ -190,11 +190,6 @@ function printCertificate() {
                     gap: 15px;
                 }
                 
-                .sqm-label {
-                    font-size: 36px;
-                    font-weight: 800;
-                }
-                
                 .pill-box {
                     width: 280px;
                     height: 100px;
@@ -206,7 +201,7 @@ function printCertificate() {
                 }
                 
                 .sqm-value {
-                    font-size: 56px;
+                    font-size: 48px;
                     font-weight: 900;
                     color: #333;
                 }
