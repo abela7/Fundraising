@@ -306,6 +306,13 @@ try {
         </span>
         <span class="nav-label">Grid Allocation</span>
       </a>
+      <a href="<?php echo url_for('admin/certificates/'); ?>" 
+         class="nav-link <?php echo $current_dir === 'certificates' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-certificate" style="color: #ffc107;"></i>
+        </span>
+        <span class="nav-label">Certificates</span>
+      </a>
       <a href="<?php echo url_for('admin/audit/'); ?>" 
          class="nav-link <?php echo $current_dir === 'audit' ? 'active' : ''; ?>">
         <span class="nav-icon">
