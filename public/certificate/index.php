@@ -17,14 +17,17 @@ declare(strict_types=1);
             -webkit-font-smoothing: antialiased;
         }
 
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
         body {
             background: #1a1a1a;
-            height: 100vh;
-            width: 100vw;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
             font-family: 'Montserrat', sans-serif;
         }
 
@@ -33,9 +36,9 @@ declare(strict_types=1);
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.1s ease-out;
         }
 
+        /* Fixed size canvas - NEVER changes internally */
         .certificate {
             width: 1200px;
             height: 750px;
@@ -44,170 +47,174 @@ declare(strict_types=1);
             background-position: center;
             background-repeat: no-repeat;
             position: relative;
-            overflow: hidden;
             color: white;
             flex-shrink: 0;
-            box-shadow: 0 50px 100px rgba(0,0,0,0.5);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
         }
 
-        .content {
-            position: relative;
-            z-index: 10;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 25px 50px;
+        /* ===== TOP SECTION ===== */
+        .top-section {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
         }
 
         .top-verse {
             color: #ffcc33;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
-            text-align: center;
             line-height: 1.3;
             font-family: "Nyala", "Segoe UI Ethiopic", serif;
-            margin-bottom: 25px;
-            max-width: 950px;
+            padding: 0 40px;
         }
 
         .church-name {
-            font-size: 52px;
+            font-size: 42px;
             font-weight: 600;
             letter-spacing: 1px;
             text-transform: uppercase;
+            margin-top: 20px;
+        }
+
+        /* ===== CENTER TITLES ===== */
+        .center-section {
+            position: absolute;
+            top: 180px;
+            left: 0;
+            right: 0;
             text-align: center;
-            margin-bottom: 40px;
         }
 
         .title-am {
-            font-size: 160px;
+            font-size: 130px;
             font-weight: 900;
-            line-height: 0.9;
-            margin-bottom: 5px;
+            line-height: 1;
             font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
-            text-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         .title-en {
-            font-size: 145px;
+            font-size: 115px;
             font-weight: 900;
-            line-height: 0.9;
-            letter-spacing: -4px;
-            text-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            line-height: 1;
+            letter-spacing: -3px;
+            margin-top: 5px;
         }
 
-        .bottom-area {
+        /* ===== BOTTOM SECTION ===== */
+        .bottom-section {
             position: absolute;
-            bottom: 45px;
-            width: 100%;
-            padding: 0 60px;
+            bottom: 35px;
+            left: 40px;
+            right: 40px;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
         }
 
-        .bank-section {
+        .bank-area {
             display: flex;
             align-items: center;
-            gap: 30px;
+            gap: 25px;
         }
 
         .qr-code {
-            width: 165px;
-            height: 165px;
+            width: 140px;
+            height: 140px;
             background: white;
-            padding: 10px;
-            border: 1px solid #000;
+            padding: 8px;
+            flex-shrink: 0;
         }
 
-        .qr-code img { width: 100%; height: 100%; display: block; }
+        .qr-code img {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
 
         .bank-details {
-            font-size: 38px;
+            font-size: 32px;
             font-weight: 800;
-            line-height: 1.2;
+            line-height: 1.25;
         }
 
         .bank-row {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             white-space: nowrap;
         }
 
-        .bank-label { color: #fff; min-width: 210px; }
+        .bank-label { color: #fff; min-width: 180px; }
         .bank-val { color: #ffcc33; }
 
-        .right-section {
+        /* ===== RIGHT SIDE ===== */
+        .right-area {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 15px;
-        }
-
-        .sqm-container {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
+            gap: 12px;
         }
 
         .sqm-label {
-            font-size: 36px;
+            font-size: 30px;
             font-weight: 800;
-            margin-right: 15px;
-            margin-bottom: -5px;
+            margin-right: 10px;
+            margin-bottom: -8px;
         }
 
         .pill-box {
-            width: 300px;
-            height: 85px;
-            background: rgba(217, 217, 217, 0.95);
-            border-radius: 50px;
-            box-shadow: inset 0 4px 8px rgba(0,0,0,0.1);
+            width: 250px;
+            height: 70px;
+            background: rgba(220, 220, 220, 0.95);
+            border-radius: 40px;
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.1);
         }
     </style>
 </head>
 <body>
     <div id="cert-scaler">
         <div class="certificate">
-            <div class="content">
+            <!-- Top Section: Verse + Church Name -->
+            <div class="top-section">
                 <div class="top-verse">
-                    “የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።”<br>፪ ዜና ፪፡፱
+                    "የምሠራትም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጅልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ።"<br>፪ ዜና ፪፡፱
                 </div>
-
                 <div class="church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+            </div>
 
+            <!-- Center Section: Main Titles -->
+            <div class="center-section">
                 <div class="title-am">ይህ ታሪኬ ነው</div>
                 <div class="title-en">It is My History</div>
+            </div>
 
-                <div class="bottom-area">
-                    <div class="bank-section">
-                        <div class="qr-code">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=LMKATH-85455687" alt="QR">
+            <!-- Bottom Section: QR + Bank + Pills -->
+            <div class="bottom-section">
+                <div class="bank-area">
+                    <div class="qr-code">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=LMKATH-85455687" alt="QR">
+                    </div>
+                    <div class="bank-details">
+                        <div class="bank-row">
+                            <span class="bank-label">Acc.name</span>
+                            <span class="bank-val">LMKATH</span>
                         </div>
-                        <div class="bank-details">
-                            <div class="bank-row">
-                                <span class="bank-label">Acc.name</span>
-                                <span class="bank-val">LMKATH</span>
-                            </div>
-                            <div class="bank-row">
-                                <span class="bank-label">Acc.no</span>
-                                <span class="bank-val">85455687</span>
-                            </div>
-                            <div class="bank-row">
-                                <span class="bank-label">Sort code</span>
-                                <span class="bank-val">53-70-44</span>
-                            </div>
+                        <div class="bank-row">
+                            <span class="bank-label">Acc.no</span>
+                            <span class="bank-val">85455687</span>
+                        </div>
+                        <div class="bank-row">
+                            <span class="bank-label">Sort code</span>
+                            <span class="bank-val">53-70-44</span>
                         </div>
                     </div>
+                </div>
 
-                    <div class="right-section">
-                        <div class="sqm-container">
-                            <div class="sqm-label">Sq.m</div>
-                            <div class="pill-box"></div>
-                        </div>
-                        <div class="pill-box"></div>
-                    </div>
+                <div class="right-area">
+                    <div class="sqm-label">Sq.m</div>
+                    <div class="pill-box"></div>
+                    <div class="pill-box"></div>
                 </div>
             </div>
         </div>
@@ -221,14 +228,13 @@ declare(strict_types=1);
             const baseW = 1200;
             const baseH = 750;
 
-            // Maintain exact aspect ratio and scale to fit any screen
-            const scale = Math.min(winW / baseW, winH / baseH) * 0.98;
+            // Scale to fit viewport while maintaining aspect ratio
+            const scale = Math.min(winW / baseW, winH / baseH) * 0.95;
             scaler.style.transform = `scale(${scale})`;
         }
 
         window.addEventListener('resize', scaleCert);
         window.addEventListener('load', scaleCert);
-        // Run immediately
         scaleCert();
     </script>
 </body>
