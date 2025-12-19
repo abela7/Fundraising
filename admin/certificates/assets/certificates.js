@@ -108,6 +108,7 @@ function printCertificate() {
                     letter-spacing: 1px;
                     text-transform: uppercase;
                     margin-top: 15px;
+                    margin-bottom: 15px;
                 }
                 
                 .center-section {
@@ -124,6 +125,7 @@ function printCertificate() {
                     font-weight: 900;
                     line-height: 1;
                     font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
+                    margin-bottom: 10px;
                 }
                 
                 .title-en {
@@ -132,6 +134,7 @@ function printCertificate() {
                     line-height: 1;
                     letter-spacing: -3px;
                     margin-top: 5px;
+                    margin-bottom: 10px;
                 }
                 
                 .bottom-section {
