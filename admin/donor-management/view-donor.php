@@ -2761,7 +2761,7 @@ function formatDateTime($date) {
                                             <div class="cert-bottom-section">
                                                 <div class="cert-bank-area">
                                                     <div class="cert-qr-code">
-                                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://abuneteklehaymanot.org/" alt="QR">
+                                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://donate.abuneteklehaymanot.org/" alt="QR">
                                                     </div>
                                         <div class="cert-bank-details">
                                             <div class="cert-bank-row">
