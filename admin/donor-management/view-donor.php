@@ -2771,8 +2771,16 @@ function formatDateTime($date) {
                                                 <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
                                             </div>
                                             <div class="cert-bank-row" style="margin-top: 15px;">
-                                                <span class="cert-bank-label">Contribution</span>
-                                                <span class="cert-bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
+                                                <?php if ($isFullyPaid): ?>
+                                                    <span class="cert-bank-label">Contribution</span>
+                                                    <span class="cert-bank-val"><?= $currency . number_format($totalPaid, 2) ?></span>
+                                                <?php else: ?>
+                                                    <span class="cert-bank-label">Pledge / Paid</span>
+                                                    <span class="cert-bank-val">
+                                                        <?= $currency . number_format($totalPledged, 2) ?> / <?= $currency . number_format($totalPaid, 2) ?>
+                                                        <small style="font-size: 0.6em; opacity: 0.8; margin-left: 5px;">(<?= $paymentProgress ?>% PAID)</small>
+                                                    </span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                                 </div>
