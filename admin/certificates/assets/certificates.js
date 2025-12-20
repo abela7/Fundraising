@@ -251,6 +251,7 @@ function printCertificate() {
                     font-size: 38px;
                     font-weight: 800;
                     line-height: 1.3;
+                    max-width: 650px;
                 }
                 
                 .bank-row {
@@ -265,6 +266,8 @@ function printCertificate() {
                 
                 .bank-val { 
                     color: #ffcc33; 
+                    white-space: normal;
+                    word-break: break-word;
                 }
                 
                 .right-area {

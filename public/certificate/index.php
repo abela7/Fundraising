@@ -143,12 +143,12 @@ declare(strict_types=1);
             font-size: 44px; /* Increased from 32px */
             font-weight: 800;
             line-height: 1.2;
+            max-width: 650px;
         }
 
         .bank-row {
             display: flex;
             gap: 15px;
-            white-space: nowrap;
         }
 
         .bank-label { 
@@ -156,7 +156,11 @@ declare(strict_types=1);
             min-width: 240px; /* Adjusted for larger font */
         }
         
-        .bank-val { color: #ffcc33; }
+        .bank-val { 
+            color: #ffcc33; 
+            white-space: normal;
+            word-break: break-word;
+        }
 
         /* ===== RIGHT SIDE ===== */
         .right-area {

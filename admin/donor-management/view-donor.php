@@ -1740,12 +1740,12 @@ function formatDateTime($date) {
             font-size: 38px;
             font-weight: 800;
             line-height: 1.3;
+            max-width: 650px;
         }
 
         .cert-bank-row {
             display: flex;
             gap: 15px;
-            white-space: nowrap;
         }
 
         .cert-bank-label { 
@@ -1755,6 +1755,8 @@ function formatDateTime($date) {
 
         .cert-bank-val { 
             color: #ffcc33; 
+            white-space: normal;
+            word-break: break-word;
         }
 
         .cert-right-area {
@@ -4418,10 +4420,25 @@ function printDonorCertificate() {
                 .bank-area, .cert-bank-area { display: flex; align-items: center; gap: 30px; }
                 .qr-code, .cert-qr-code { width: 160px; height: 160px; background: white; padding: 10px; }
                 .qr-code img, .cert-qr-code img { width: 100%; height: 100%; }
-                .bank-details, .cert-bank-details { font-size: 38px; font-weight: 800; line-height: 1.3; }
-                .bank-row, .cert-bank-row { display: flex; gap: 15px; }
-                .bank-label, .cert-bank-label { color: #fff; min-width: 220px; }
-                .bank-val, .cert-bank-val { color: #ffcc33; }
+                .bank-details, .cert-bank-details { 
+                    font-size: 38px; 
+                    font-weight: 800; 
+                    line-height: 1.3; 
+                    max-width: 650px;
+                }
+                .bank-row, .cert-bank-row { 
+                    display: flex; 
+                    gap: 15px; 
+                }
+                .bank-label, .cert-bank-label { 
+                    color: #fff; 
+                    min-width: 220px; 
+                }
+                .bank-val, .cert-bank-val { 
+                    color: #ffcc33; 
+                    white-space: normal;
+                    word-break: break-word;
+                }
                 .right-area, .cert-right-area { display: flex; flex-direction: column; align-items: center; gap: 15px; }
                 .pill-box, .cert-pill-box {
                     width: 280px;
