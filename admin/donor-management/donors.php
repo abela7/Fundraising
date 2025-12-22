@@ -358,8 +358,12 @@ $filter_payment_min = isset($_GET['payment_min']) && $_GET['payment_min'] !== ''
 $filter_payment_max = isset($_GET['payment_max']) && $_GET['payment_max'] !== '' ? (float)$_GET['payment_max'] : null;
 $filter_registrar_id = isset($_GET['filter_registrar']) && $_GET['filter_registrar'] !== '' ? (int)$_GET['filter_registrar'] : null;
 
-// For non-admin users (registrars), force show only their assigned donors
-if (!$is_admin_user) {
+// Determine default behavior based on user role
+if ($is_admin_user) {
+    // Admins see ALL donors by default (unless they explicitly filter by agent)
+    // No action needed - $show_all defaults to true behavior for admins
+} else {
+    // Registrars/agents ONLY see their assigned donors
     $show_all = false;
     $filter_agent_id = null; // Will use current user's ID as agent filter
 }
@@ -383,18 +387,20 @@ try {
     $types = '';
     
     // Agent filter - respects user role
-    if (!$show_all) {
-        if ($is_admin_user && $filter_agent_id !== null) {
+    if ($is_admin_user) {
+        // Admins: only apply agent filter if explicitly requested
+        if ($filter_agent_id !== null) {
             // Admin filtering by specific agent
             $where_conditions[] = "d.agent_id = ?";
             $params[] = $filter_agent_id;
             $types .= 'i';
-        } else {
-            // Default: show current user's assigned donors
-            $where_conditions[] = "d.agent_id = ?";
-            $params[] = $user_id;
-            $types .= 'i';
         }
+        // If no filter, show all donors (no WHERE condition added)
+    } else {
+        // Registrars/agents: always filter by their assigned donors
+        $where_conditions[] = "d.agent_id = ?";
+        $params[] = $user_id;
+        $types .= 'i';
     }
     
     // Payment amount filter (min)
@@ -743,12 +749,14 @@ unset($donor); // Break reference
                             <h5 class="mb-0">
                                 <i class="fas fa-table me-2 text-primary"></i>
                                 <?php 
-                                if ($show_all) {
-                                    echo 'All Donors';
-                                } elseif ($is_admin_user && $filter_agent_id !== null) {
-                                    $selected_agent = array_filter($agents, fn($a) => $a['id'] == $filter_agent_id);
-                                    $selected_agent = reset($selected_agent);
-                                    echo 'Donors Assigned to ' . htmlspecialchars($selected_agent['name'] ?? 'Agent');
+                                if ($is_admin_user) {
+                                    if ($filter_agent_id !== null) {
+                                        $selected_agent = array_filter($agents, fn($a) => $a['id'] == $filter_agent_id);
+                                        $selected_agent = reset($selected_agent);
+                                        echo 'Donors Assigned to ' . htmlspecialchars($selected_agent['name'] ?? 'Agent');
+                                    } else {
+                                        echo 'All Donors';
+                                    }
                                 } else {
                                     echo 'My Assigned Donors';
                                 }
@@ -795,8 +803,12 @@ unset($donor); // Break reference
                                             <i class="fas fa-user-tie me-1"></i>Assigned Agent
                                         </label>
                                         <select class="form-select form-select-sm" name="filter_agent" id="filter_assigned_agent">
-                                            <option value="">My Assigned Donors</option>
-                                            <option value="all" <?php echo $show_all ? 'selected' : ''; ?>>ALL Donors</option>
+                                            <option value="" <?php echo ($filter_agent_id === null) ? 'selected' : ''; ?>>All Donors (Default)</option>
+                                            <optgroup label="My Donors">
+                                                <option value="<?php echo $current_user['id']; ?>" <?php echo $filter_agent_id == $current_user['id'] ? 'selected' : ''; ?>>
+                                                    My Assigned Donors
+                                                </option>
+                                            </optgroup>
                                             <optgroup label="Specific Agent">
                                                 <?php foreach ($agents as $agent): ?>
                                                     <option value="<?php echo $agent['id']; ?>" <?php echo $filter_agent_id == $agent['id'] ? 'selected' : ''; ?>>
@@ -1466,16 +1478,8 @@ $(document).ready(function() {
         $('input[name="search"][type="hidden"]').val($(this).val());
     });
     
-    // Handle filter form submission - convert "all" to show_all parameter
+    // Handle filter form submission - remove empty inputs to keep URL clean
     $('#filterForm').on('submit', function(e) {
-        const agentSelect = $('#filter_assigned_agent');
-        if (agentSelect.length && agentSelect.val() === 'all') {
-            // Change the select value to empty and add show_all hidden field
-            agentSelect.val('');
-            if (!$(this).find('input[name="show_all"]').length) {
-                $(this).append('<input type="hidden" name="show_all" value="1">');
-            }
-        }
         // Remove empty inputs to keep URL clean
         $(this).find('input, select').each(function() {
             if ($(this).val() === '' && $(this).attr('name')) {
@@ -1489,14 +1493,11 @@ $(document).ready(function() {
         const value = $(this).val();
         const url = new URL(window.location);
         
-        // Remove previous agent/show_all params
-        url.searchParams.delete('show_all');
+        // Remove previous agent filter param
         url.searchParams.delete('filter_agent');
         
-        // Add agent filter
-        if (value === 'all') {
-            url.searchParams.set('show_all', '1');
-        } else if (value !== '') {
+        // Add agent filter only if a specific agent is selected
+        if (value !== '') {
             url.searchParams.set('filter_agent', value);
         }
         
