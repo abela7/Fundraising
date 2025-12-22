@@ -409,11 +409,11 @@ function extractReference(string $notes): string {
                                         </div>
                                         <div class="bank-details">
                                             <div class="bank-row">
-                                                <span class="bank-label">Name</span>
+                                                <span class="bank-label">Name -</span>
                                                 <span class="bank-val"><?= htmlspecialchars($selectedDonor['name']) ?></span>
                                             </div>
                                             <div class="bank-row" style="margin-top: 15px;">
-                                                <span class="bank-label">Contribution</span>
+                                                <span class="bank-label">Contribution -</span>
                                                 <span class="bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
                                             </div>
                                         </div>

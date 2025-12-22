@@ -261,7 +261,7 @@ function printCertificate() {
                 
                 .bank-label { 
                     color: #fff; 
-                    min-width: 220px;
+                    white-space: nowrap;
                 }
                 
                 .bank-val { 

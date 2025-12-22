@@ -153,7 +153,7 @@ declare(strict_types=1);
 
         .bank-label { 
             color: #fff; 
-            min-width: 240px; /* Adjusted for larger font */
+            white-space: nowrap;
         }
         
         .bank-val { 
@@ -255,15 +255,15 @@ declare(strict_types=1);
                     </div>
                     <div class="bank-details">
                         <div class="bank-row">
-                            <span class="bank-label">Acc.name</span>
+                            <span class="bank-label">Acc.name -</span>
                             <span class="bank-val">LMKATH</span>
                         </div>
                         <div class="bank-row">
-                            <span class="bank-label">Acc.no</span>
+                            <span class="bank-label">Acc.no -</span>
                             <span class="bank-val">85455687</span>
                         </div>
                         <div class="bank-row">
-                            <span class="bank-label">Sort code</span>
+                            <span class="bank-label">Sort code -</span>
                             <span class="bank-val">53-70-44</span>
                         </div>
                     </div>

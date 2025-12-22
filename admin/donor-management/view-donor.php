@@ -1750,7 +1750,7 @@ function formatDateTime($date) {
 
         .cert-bank-label { 
             color: #fff; 
-            min-width: 220px;
+            white-space: nowrap;
         }
 
         .cert-bank-val { 
@@ -2767,11 +2767,11 @@ function formatDateTime($date) {
                                                     </div>
                                         <div class="cert-bank-details">
                                             <div class="cert-bank-row">
-                                                <span class="cert-bank-label">Name</span>
+                                                <span class="cert-bank-label">Name -</span>
                                                 <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
                                             </div>
                                             <div class="cert-bank-row" style="margin-top: 15px;">
-                                                <span class="cert-bank-label">Contribution</span>
+                                                <span class="cert-bank-label">Contribution -</span>
                                                 <span class="cert-bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
                                             </div>
                                         </div>
@@ -4432,7 +4432,7 @@ function printDonorCertificate() {
                 }
                 .bank-label, .cert-bank-label { 
                     color: #fff; 
-                    min-width: 220px; 
+                    white-space: nowrap; 
                 }
                 .bank-val, .cert-bank-val { 
                     color: #ffcc33; 
