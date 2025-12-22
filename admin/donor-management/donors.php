@@ -317,20 +317,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
 // Get list of agents for filter
 $agents = [];
 try {
-    $agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
-    if ($agents_result) {
-        while ($agent = $agents_result->fetch_assoc()) {
-            $agents[] = $agent;
+    $is_admin = $current_user['role'] === 'admin';
+    if ($is_admin) {
+        // Admin sees all agents
+        $agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+        if ($agents_result) {
+            while ($agent = $agents_result->fetch_assoc()) {
+                $agents[] = $agent;
+            }
         }
+    } else {
+        // Agent only sees themselves in the filter
+        $agents[] = ['id' => $current_user['id'], 'name' => $current_user['name']];
     }
 } catch (Exception $e) {
     error_log("Error loading agents: " . $e->getMessage());
 }
 
+// Get list of registrars for filter (all users who have registered a donor)
+$registrars = [];
+try {
+    $registrars_result = $db->query("
+        SELECT DISTINCT u.id, u.name 
+        FROM users u 
+        JOIN donors d ON d.registered_by_user_id = u.id 
+        ORDER BY u.name
+    ");
+    if ($registrars_result) {
+        while ($reg = $registrars_result->fetch_assoc()) {
+            $registrars[] = $reg;
+        }
+    }
+} catch (Exception $e) {
+    error_log("Error loading registrars: " . $e->getMessage());
+}
+
 // Get filter parameters
 $filter_agent_id = isset($_GET['filter_agent']) && $_GET['filter_agent'] !== '' ? (int)$_GET['filter_agent'] : null;
+$filter_registrar_id = isset($_GET['filter_registrar']) && $_GET['filter_registrar'] !== '' ? (int)$_GET['filter_registrar'] : null;
+$filter_donor_type = isset($_GET['donor_type']) && $_GET['donor_type'] !== '' ? $_GET['donor_type'] : null;
+$filter_payment_status = isset($_GET['payment_status']) && $_GET['payment_status'] !== '' ? $_GET['payment_status'] : null;
+$filter_payment_method = isset($_GET['payment_method']) && $_GET['payment_method'] !== '' ? $_GET['payment_method'] : null;
+$min_paid = isset($_GET['min_paid']) && $_GET['min_paid'] !== '' ? (float)$_GET['min_paid'] : null;
+$max_paid = isset($_GET['max_paid']) && $_GET['max_paid'] !== '' ? (float)$_GET['max_paid'] : null;
 $show_all = isset($_GET['show_all']) && $_GET['show_all'] === '1';
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
+
+// If user is not admin and trying to filter by another agent, override
+if ($current_user['role'] !== 'admin' && $filter_agent_id !== null && $filter_agent_id != $current_user['id']) {
+    $filter_agent_id = (int)$current_user['id'];
+}
 
 // Get donors list with payment plan details
 $donors = [];
@@ -356,11 +392,52 @@ try {
             $where_conditions[] = "d.agent_id = ?";
             $params[] = $filter_agent_id;
             $types .= 'i';
-        } else {
+        } elseif ($current_user['role'] !== 'admin') {
+            // Non-admins only see their own by default
             $where_conditions[] = "d.agent_id = ?";
             $params[] = $user_id;
             $types .= 'i';
         }
+    }
+    
+    // Registrar filter
+    if ($filter_registrar_id !== null) {
+        $where_conditions[] = "d.registered_by_user_id = ?";
+        $params[] = $filter_registrar_id;
+        $types .= 'i';
+    }
+
+    // Donor Type filter
+    if ($filter_donor_type !== null) {
+        $where_conditions[] = "d.donor_type = ?";
+        $params[] = $filter_donor_type;
+        $types .= 's';
+    }
+
+    // Payment Status filter
+    if ($filter_payment_status !== null) {
+        $where_conditions[] = "d.payment_status = ?";
+        $params[] = $filter_payment_status;
+        $types .= 's';
+    }
+
+    // Payment Method filter
+    if ($filter_payment_method !== null) {
+        $where_conditions[] = "d.preferred_payment_method = ?";
+        $params[] = $filter_payment_method;
+        $types .= 's';
+    }
+    
+    // Payment range filter
+    if ($min_paid !== null) {
+        $where_conditions[] = "d.total_paid >= ?";
+        $params[] = $min_paid;
+        $types .= 'd';
+    }
+    if ($max_paid !== null) {
+        $where_conditions[] = "d.total_paid <= ?";
+        $params[] = $max_paid;
+        $types .= 'd';
     }
     
     // Search filter - search in name, phone, and reference numbers from pledges/payments
@@ -733,63 +810,98 @@ unset($donor); // Break reference
                                 <input type="hidden" name="search" value="<?php echo htmlspecialchars($search_term); ?>">
                             <?php endif; ?>
                             <div class="row g-2">
-                                    <div class="col-12 col-sm-6 col-lg-4">
+                                    <div class="col-12 col-sm-6 col-lg-3">
                                         <label class="form-label small fw-bold mb-1">
                                             <i class="fas fa-user-tie me-1"></i>Assigned Agent
                                         </label>
                                         <select class="form-select form-select-sm" name="filter_agent" id="filter_assigned_agent">
-                                            <option value="">My Assigned Donors</option>
-                                            <option value="all" <?php echo $show_all ? 'selected' : ''; ?>>ALL Donors</option>
-                                            <optgroup label="Specific Agent">
-                                                <?php foreach ($agents as $agent): ?>
-                                                    <option value="<?php echo $agent['id']; ?>" <?php echo $filter_agent_id == $agent['id'] ? 'selected' : ''; ?>>
-                                                        <?php echo htmlspecialchars($agent['name']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </optgroup>
+                                            <?php if ($current_user['role'] === 'admin'): ?>
+                                                <option value="">My Assigned Donors</option>
+                                                <option value="all" <?php echo $show_all ? 'selected' : ''; ?>>ALL Donors</option>
+                                                <optgroup label="Specific Agent">
+                                                    <?php foreach ($agents as $agent): ?>
+                                                        <option value="<?php echo $agent['id']; ?>" <?php echo $filter_agent_id == $agent['id'] ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($agent['name']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </optgroup>
+                                            <?php else: ?>
+                                                <option value="<?php echo $current_user['id']; ?>" selected><?php echo htmlspecialchars($current_user['name']); ?></option>
+                                            <?php endif; ?>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-12 col-sm-6 col-lg-3">
+                                        <label class="form-label small fw-bold mb-1">
+                                            <i class="fas fa-user-edit me-1"></i>Registrar
+                                        </label>
+                                        <select class="form-select form-select-sm" name="filter_registrar" id="filter_registrar">
+                                            <option value="">All Registrars</option>
+                                            <?php foreach ($registrars as $reg): ?>
+                                                <option value="<?php echo $reg['id']; ?>" <?php echo $filter_registrar_id == $reg['id'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($reg['name']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
                                         </select>
                                     </div>
                                     
                                 <div class="col-12 col-sm-6 col-lg-3">
                                     <label class="form-label small fw-bold mb-1">Donor Type</label>
-                                    <select class="form-select form-select-sm" id="filter_donor_type">
+                                    <select class="form-select form-select-sm" name="donor_type" id="filter_donor_type">
                                         <option value="">All Types</option>
-                                        <option value="pledge">Pledge Donors</option>
-                                        <option value="immediate">Immediate Payers</option>
+                                        <option value="pledge" <?php echo $filter_donor_type === 'pledge' ? 'selected' : ''; ?>>Pledge Donors</option>
+                                        <option value="immediate" <?php echo $filter_donor_type === 'immediate' ? 'selected' : ''; ?>>Immediate Payers</option>
                                     </select>
                                 </div>
                                 
                                 <div class="col-12 col-sm-6 col-lg-3">
                                     <label class="form-label small fw-bold mb-1">Payment Status</label>
-                                    <select class="form-select form-select-sm" id="filter_payment_status">
+                                    <select class="form-select form-select-sm" name="payment_status" id="filter_payment_status">
                                         <option value="">All Statuses</option>
-                                        <option value="no_pledge">No Pledge</option>
-                                        <option value="not_started">Not Started</option>
-                                        <option value="paying">Paying</option>
-                                        <option value="overdue">Overdue</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="defaulted">Defaulted</option>
+                                        <option value="no_pledge" <?php echo $filter_payment_status === 'no_pledge' ? 'selected' : ''; ?>>No Pledge</option>
+                                        <option value="not_started" <?php echo $filter_payment_status === 'not_started' ? 'selected' : ''; ?>>Not Started</option>
+                                        <option value="paying" <?php echo $filter_payment_status === 'paying' ? 'selected' : ''; ?>>Paying</option>
+                                        <option value="overdue" <?php echo $filter_payment_status === 'overdue' ? 'selected' : ''; ?>>Overdue</option>
+                                        <option value="completed" <?php echo $filter_payment_status === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                        <option value="defaulted" <?php echo $filter_payment_status === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
                                     </select>
                                 </div>
-                                
-                                <div class="col-12 col-sm-6 col-lg-2">
+
+                                <div class="col-12 col-sm-6 col-lg-3">
                                     <label class="form-label small fw-bold mb-1">Payment Method</label>
-                                    <select class="form-select form-select-sm" id="filter_payment_method">
+                                    <select class="form-select form-select-sm" name="payment_method" id="filter_payment_method">
                                         <option value="">All Methods</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="cash">Cash</option>
-                                        <option value="card">Card</option>
+                                        <option value="bank_transfer" <?php echo $filter_payment_method === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
+                                        <option value="cash" <?php echo $filter_payment_method === 'cash' ? 'selected' : ''; ?>>Cash</option>
+                                        <option value="card" <?php echo $filter_payment_method === 'card' ? 'selected' : ''; ?>>Card</option>
                                     </select>
                                 </div>
+
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1">Min Paid (£)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" name="min_paid" 
+                                           value="<?php echo $min_paid !== null ? $min_paid : ''; ?>" placeholder="0.00">
+                                </div>
+
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1">Max Paid (£)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" name="max_paid" 
+                                           value="<?php echo $max_paid !== null ? $max_paid : ''; ?>" placeholder="10000.00">
+                                </div>
                                 
+                                <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-end">
+                                    <div class="d-flex flex-wrap gap-2 w-100">
+                                            <button type="submit" class="btn btn-sm btn-primary flex-grow-1">
+                                                <i class="fas fa-check me-1"></i>Apply
+                                        </button>
+                                            <a href="donors.php<?php echo $show_all ? '?show_all=1' : ''; ?>" class="btn btn-sm btn-danger flex-grow-1">
+                                                <i class="fas fa-times me-1"></i>Clear
+                                            </a>
+                                    </div>
+                                </div>
+
                                 <div class="col-12 mt-2">
                                     <div class="d-flex flex-wrap gap-2 align-items-center">
-                                            <button type="submit" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-check me-1"></i>Apply Filters
-                                        </button>
-                                            <a href="donors.php<?php echo $show_all ? '?show_all=1' : ''; ?>" class="btn btn-sm btn-danger">
-                                                <i class="fas fa-times me-1"></i>Clear All
-                                            </a>
                                         <?php if (!empty($search_term)): ?>
                                             <span class="badge bg-info">
                                                 <i class="fas fa-search me-1"></i>Searching: "<?php echo htmlspecialchars($search_term); ?>"
@@ -1302,86 +1414,34 @@ $(document).ready(function() {
         }
     });
     
-    // Custom filter function
-    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-        const donorType = $('#filter_donor_type').val();
-        const paymentStatus = $('#filter_payment_status').val();
-        const paymentMethod = $('#filter_payment_method').val();
-        
-        // Get data from table columns
-        // Column indices: 0=#, 1=Name, 2=Type, 3=Status, 4=Assigned To, 5=Pledged, 6=Paid, 7=Balance, 8=Actions
-        const rowDonorType = data[2].toLowerCase(); // Type column
-        const rowPaymentStatus = data[3].toLowerCase(); // Status column
-        
-        // Get donor data from row to check payment method
-        const $row = $(settings.aoData[dataIndex].nTr);
-        const donorData = $row.data('donor');
-        const rowPaymentMethod = donorData && donorData.preferred_payment_method ? donorData.preferred_payment_method.toLowerCase() : '';
-        
-        // Apply filters
-        if (donorType && !rowDonorType.includes(donorType.toLowerCase())) {
-            return false;
-        }
-        
-        if (paymentStatus && !rowPaymentStatus.includes(paymentStatus.toLowerCase().replace('_', ' '))) {
-            return false;
-        }
-        
-        if (paymentMethod && !rowPaymentMethod.includes(paymentMethod.toLowerCase().replace('_', ' '))) {
-            return false;
-        }
-        
-        return true;
-    });
-    
-    // Filter change handlers (for client-side filters only)
-    $('#filter_donor_type, #filter_payment_status, #filter_payment_method').on('change', function() {
-        table.draw();
-        updateFilterCount();
-    });
-    
     // Sync search input with hidden filter input
     $('#header_search_input').on('input', function() {
         $('input[name="search"][type="hidden"]').val($(this).val());
     });
 
-    // Assigned agent filter - server-side (reload page, preserve search)
-    $('#filter_assigned_agent').on('change', function() {
-        const value = $(this).val();
-        const searchValue = $('#header_search_input').val();
-        const url = new URL(window.location);
-        
-        // Clear existing params
-        url.search = '';
-        
-        // Add search if present
-        if (searchValue) {
-            url.searchParams.set('search', searchValue);
-        }
-        
-        // Add agent filter
-        if (value === 'all') {
-            url.searchParams.set('show_all', '1');
-        } else if (value !== '') {
-            url.searchParams.set('filter_agent', value);
-        }
-        
-        window.location.href = url.toString();
+    // Handle filter form submission
+    $('#filterForm').on('submit', function() {
+        // Sync search input one last time
+        $('input[name="search"][type="hidden"]').val($('#header_search_input').val());
+        return true;
     });
-    
+
     // Update filter result count
     function updateFilterCount() {
         const info = table.page.info();
         const activeFilters = [];
         
-        if ($('#filter_donor_type').val()) activeFilters.push('Type');
-        if ($('#filter_payment_status').val()) activeFilters.push('Status');
-        if ($('#filter_payment_method').val()) activeFilters.push('Payment Method');
+        if ('<?php echo $filter_donor_type; ?>') activeFilters.push('Type');
+        if ('<?php echo $filter_payment_status; ?>') activeFilters.push('Status');
+        if ('<?php echo $filter_payment_method; ?>') activeFilters.push('Payment Method');
+        if ('<?php echo $filter_registrar_id; ?>') activeFilters.push('Registrar');
+        if ('<?php echo $min_paid; ?>') activeFilters.push('Min Paid');
+        if ('<?php echo $max_paid; ?>') activeFilters.push('Max Paid');
         
         if (activeFilters.length > 0) {
             $('#filterResultCount').html(
                 '<i class="fas fa-filter me-1"></i>' +
-                'Showing ' + info.recordsDisplay + ' of ' + info.recordsTotal + ' donors ' +
+                'Showing ' + info.recordsTotal + ' donors matching current filters ' +
                 '(' + activeFilters.length + ' filter' + (activeFilters.length > 1 ? 's' : '') + ' active)'
             );
         } else {
