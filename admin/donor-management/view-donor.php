@@ -2701,47 +2701,6 @@ function formatDateTime($date) {
                                     </a>
                                 </div>
                                 
-                                <!-- Donor Stats Row -->
-                                <div class="row g-2 p-3 border-bottom">
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Ref</div>
-                                            <div class="fw-bold font-monospace small"><?= htmlspecialchars($donor_reference) ?></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Pledged</div>
-                                            <div class="fw-bold text-primary"><?= $currency . number_format($totalPledged, 0) ?></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Paid</div>
-                                            <div class="fw-bold <?= $isFullyPaid ? 'text-success' : 'text-warning' ?>"><?= $currency . number_format($totalPaid, 0) ?></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Area</div>
-                                            <div class="fw-bold text-success"><?= $sqmValue ?> m²</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <?php if ($hasPledge && !$isFullyPaid): ?>
-                                <!-- Payment Progress Bar -->
-                                <div class="px-3 py-2 border-bottom bg-light">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <small class="text-muted">Payment Progress</small>
-                                        <small class="fw-bold"><?= $paymentProgress ?>%</small>
-                                    </div>
-                                    <div class="progress" style="height: 6px;">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?= $paymentProgress ?>%"></div>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
-                                
                                 <!-- Certificate Preview - Responsive Fit -->
                                 <div class="cert-preview-wrapper">
                                     <div class="cert-aspect-ratio" id="cert-aspect-container">
@@ -2759,17 +2718,40 @@ function formatDateTime($date) {
                                             </div>
                                             <div class="cert-bottom-section">
                                                 <div class="cert-bank-area">
-                                                    <div class="cert-qr-code">
-                                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://donate.abuneteklehaymanot.org/" alt="QR">
+                                                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                                                        <div class="cert-qr-code">
+                                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://donate.abuneteklehaymanot.org/" alt="QR">
+                                                        </div>
+                                                        <!-- Payment Progress integrated under QR -->
+                                                        <?php if ($hasPledge): ?>
+                                                        <div class="cert-progress-box" style="width: 160px;">
+                                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-weight: 900; font-size: 18px; color: #fff;">
+                                                                <span>Progress</span>
+                                                                <span><?= $paymentProgress ?>%</span>
+                                                            </div>
+                                                            <div style="height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                                                <div style="height: 100%; width: <?= $paymentProgress ?>%; background: #ffcc33; box-shadow: 0 0 10px rgba(255,204,51,0.5);"></div>
+                                                            </div>
+                                                        </div>
+                                                        <?php endif; ?>
                                                     </div>
                                         <div class="cert-bank-details">
                                             <div class="cert-bank-row">
                                                 <span class="cert-bank-label">Name -</span>
                                                 <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
                                             </div>
-                                            <div class="cert-bank-row" style="margin-top: 15px;">
+                                            <div class="cert-bank-row" style="margin-top: 10px;">
                                                 <span class="cert-bank-label">Contribution -</span>
                                                 <span class="cert-bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
+                                            </div>
+                                            <!-- Financial Details -->
+                                            <div class="cert-bank-row" style="margin-top: 10px; font-size: 28px; opacity: 0.9;">
+                                                <span class="cert-bank-label">Pledged -</span>
+                                                <span class="cert-bank-val"><?= $currency . number_format($totalPledged, 0) ?></span>
+                                            </div>
+                                            <div class="cert-bank-row" style="margin-top: 5px; font-size: 28px; opacity: 0.9;">
+                                                <span class="cert-bank-label">Paid -</span>
+                                                <span class="cert-bank-val"><?= $currency . number_format($totalPaid, 0) ?></span>
                                             </div>
                                         </div>
                                                 </div>
