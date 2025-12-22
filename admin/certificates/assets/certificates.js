@@ -351,8 +351,8 @@ function captureAndDownload(element) {
     const btn = document.querySelector('button[onclick="downloadCertificate()"]');
     const originalText = btn ? btn.innerHTML : '';
     if (btn) {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-        btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    btn.disabled = true;
     }
     
     // Get donor name for filename
@@ -375,15 +375,15 @@ function captureAndDownload(element) {
         
         // Restore button
         if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+        btn.innerHTML = originalText;
+        btn.disabled = false;
         }
     }).catch(err => {
         console.error('Error generating certificate image:', err);
         alert('Error generating certificate. Please try printing instead.');
         if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+        btn.innerHTML = originalText;
+        btn.disabled = false;
         }
     });
 }
