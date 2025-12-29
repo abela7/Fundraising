@@ -83,6 +83,13 @@ if (!empty($params)) {
 
 $total_pages = ceil($total_records / $per_page);
 
+// Fetch Payment Confirmed Template from database
+$sms_template_res = $db->query("SELECT * FROM sms_templates WHERE template_key = 'payment_confirmed' LIMIT 1");
+$sms_template = $sms_template_res ? $sms_template_res->fetch_assoc() : null;
+
+// Fetch Next Payment Info Templates (usually handled in MessagingHelper or hardcoded if simple)
+// For this UI, we'll use the logic already in the JavaScript but we could also fetch sub-templates if needed.
+
 // Fetch payments with pagination
 $sql = "
     SELECT 
@@ -1300,6 +1307,25 @@ let isEditMode = false;
 // Kesis Birhanu's phone - donors assigned to him get messages routed through him
 const KESIS_BIRHANU_PHONE = '07473822244';
 
+// Database Templates (from PHP)
+const dbTemplates = <?php echo json_encode($sms_template); ?>;
+
+// Sub-templates for {next_payment_info} variable
+const nextPaymentTemplates = {
+    en: {
+        withPlan: "Your next payment of £{next_payment_amount} is due on {next_payment_date}.",
+        withoutPlan: "You can set up a payment plan to manage your remaining balance easily."
+    },
+    am: {
+        withPlan: "ቀጣዩ የ£{next_payment_amount} ክፍያዎ በ{next_payment_date} ነው።",
+        withoutPlan: "የሚከተለውን ሊንክ በመጠቀም ቀሪ ሂሳብዎን በቀላሉ ማስተካከል እንዲሁም የክፍያ እቅድ ማዘጋጀት ይችላሉ።\n\nhttps://donate.abuneteklehaymanot.org/donor"
+    },
+    ti: {
+        withPlan: "ዝቕጽል ክፍሊትካ £{next_payment_amount} ኣብ {next_payment_date} እዩ።",
+        withoutPlan: "ዝተረፈ ሒሳብካ ብቐሊሉ ንምምሕዳር መደብ ክፍሊት ከተዳልው ትኽእል።"
+    }
+};
+
 /**
  * Normalize phone number for comparison
  * Handles formats: 07473822244, +447473822244, 447473822244
@@ -1315,112 +1341,6 @@ function normalizePhoneForComparison(phone) {
     return digits;
 }
 
-// Message templates by language
-const messageTemplates = {
-    en: {
-        withPlan: `Dear {name},
-
-Thank you! We have received your payment of *£{amount}* on {payment_date}.
-
-📊 *Your Pledge Summary:*
-→ Total Pledge: £{total_pledge}
-→ Outstanding Balance: £{outstanding_balance}
-
-Your next payment of £{next_payment_amount} is due on {next_payment_date}.
-
-If you have any questions, please contact us.
-
-God bless you! 🙏
-- Liverpool Abune Teklehaymanot Church`,
-        withoutPlan: `Dear {name},
-
-Thank you! We have received your payment of *£{amount}* on {payment_date}.
-
-📊 *Your Pledge Summary:*
-→ Total Pledge: £{total_pledge}
-→ Outstanding Balance: £{outstanding_balance}
-
-You can set up a payment plan to manage your remaining balance easily.
-
-If you have any questions, please contact us.
-
-God bless you! 🙏
-- Liverpool Abune Teklehaymanot Church`
-    },
-    am: {
-        withPlan: `ሰላም ጤና ይስጥልን ወድ {name}፣
-
-ከሁሉም በፊት በሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ለሚደረገው የሕንጻ ግዢ አሻራዎን ለማስቀመጥ ስለፈቀዱ በእግዚአብሔር ስም ከፍ ያለ ምስጋናችንን እናቀርባለን።
-
-በዛሬው ዕለት ማለትም {payment_date} የ *£{amount}* ፓውንድ ክፍያዎን ተቀብለናል።
-
-የቃል ኪዳንዎ ማጠቃለያ፡
-→ ጠቅላላ ቃል ኪዳን የገቡት፡ £{total_pledge} (In Square meter based on the price of each meter square)
-→ የከፈሉት: £{amount}
-→ ቀሪ ሂሳብ፡ £{outstanding_balance}
-
-ቀጣዩ የ£{next_payment_amount} ክፍያዎ በ{next_payment_date} ነው።
-
-የሚከተለውን ሊንክ በመጠቀም ቀሪ ሂሳብዎን በቀላሉ ማስተካከል እንዲሁም የክፍያ እቅድ ማዘጋጀት ይችላሉ።
-
-https://donate.abuneteklehaymanot.org/donor
-
-ማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን.
-
-አምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏
-
-- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን`,
-        withoutPlan: `ሰላም ጤና ይስጥልን ወድ {name}፣
-
-ከሁሉም በፊት በሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ለሚደረገው የሕንጻ ግዢ አሻራዎን ለማስቀመጥ ስለፈቀዱ በእግዚአብሔር ስም ከፍ ያለ ምስጋናችንን እናቀርባለን።
-
-በዛሬው ዕለት ማለትም {payment_date} የ *£{amount}* ፓውንድ ክፍያዎን ተቀብለናል።
-
-የቃል ኪዳንዎ ማጠቃለያ፡
-→ ጠቅላላ ቃል ኪዳን የገቡት፡ £{total_pledge} (In Square meter based on the price of each meter square)
-→ የከፈሉት: £{amount}
-→ ቀሪ ሂሳብ፡ £{outstanding_balance}
-
-የሚከተለውን ሊንክ በመጠቀም ቀሪ ሂሳብዎን በቀላሉ ማስተካከል እንዲሁም የክፍያ እቅድ ማዘጋጀት ይችላሉ።
-
-https://donate.abuneteklehaymanot.org/donor
-
-ማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን.
-
-አምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏
-
-- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን`
-    },
-    ti: {
-        withPlan: `ክቡር {name}፣
-
-የቕንየልና! ናይ *£{amount}* ክፍሊትካ ኣብ {payment_date} ተቐቢልና።
-
-📊 *ጽሟቕ ቃልኪዳንካ:*
-→ ጠቕላላ ቃልኪዳን: £{total_pledge}
-→ ዝተረፈ ሒሳብ: £{outstanding_balance}
-
-ዝቕጽል ክፍሊትካ £{next_payment_amount} ኣብ {next_payment_date} እዩ።
-
-ሕቶ እንተሃልዩካ በጃኻ ርኸበና።
-
-ኣምላኽ ይባርኽካ! 🙏
-- ሊቨርፑል ኣቡነ ተክለሃይማኖት ቤተክርስቲያን`,
-        withoutPlan: `ክቡር {name}፣
-
-የቕንየልና! ናይ *£{amount}* ክፍሊትካ ኣብ {payment_date} ተቐቢልና።
-
-📊 *ጽሟቕ ቃልኪዳንካ:*
-→ ጠቕላላ ቃልኪዳን: £{total_pledge}
-→ ዝተረፈ ሒሳብ: £{outstanding_balance}
-
-ዝተረፈ ሒሳብካ ብቐሊሉ ንምምሕዳር መደብ ክፍሊት ከተዳልው ትኽእል።
-
-ሕቶ እንተሃልዩካ በጃኻ ርኸበና።
-
-ኣምላኽ ይባርኽካ! 🙏
-- ሊቨርፑል ኣቡነ ተክለሃይማኖት ቤተክርስቲያን`
-    }
 };
 
 function viewProof(src) {
@@ -1478,12 +1398,30 @@ function approvePayment(id, btn) {
  * The message content stays the same (addressed to donor), just routed to agent.
  */
 function sendToKesisBirhanu(data, btn) {
-    // Generate the message (same as would be shown in modal)
+    // Determine language and base template from database
     const lang = data.donor_language || 'en';
-    const templates = messageTemplates[lang] || messageTemplates['en'];
-    const template = data.has_plan ? templates.withPlan : templates.withoutPlan;
+    let baseTemplate = '';
     
-    let message = template
+    if (dbTemplates) {
+        if (lang === 'am') baseTemplate = dbTemplates.message_am;
+        else if (lang === 'ti') baseTemplate = dbTemplates.message_ti;
+        else baseTemplate = dbTemplates.message_en;
+    }
+    
+    // Fallback if no template found
+    if (!baseTemplate) {
+        baseTemplate = "Dear {name}, Thank you for your payment of £{amount}. Your balance is £{outstanding_balance}. {next_payment_info}";
+    }
+
+    // Get the appropriate next_payment_info sub-template
+    const nextTemplates = nextPaymentTemplates[lang] || nextPaymentTemplates['en'];
+    const nextInfoTemplate = data.has_plan ? nextTemplates.withPlan : nextTemplates.withoutPlan;
+    
+    // Replace {next_payment_info} first
+    let message = baseTemplate.replace(/{next_payment_info}/g, nextInfoTemplate);
+    
+    // Replace other variables
+    message = message
         .replace(/{name}/g, data.donor_name)
         .replace(/{amount}/g, data.payment_amount)
         .replace(/{payment_date}/g, data.payment_date)
@@ -1583,13 +1521,30 @@ function showNotificationModal(data) {
     document.getElementById('notifyAmount').textContent = '£' + data.payment_amount;
     document.getElementById('notifyBalance').textContent = '£' + data.outstanding_balance;
     
-    // Generate message based on donor language and plan status
+    // Determine language and base template from database
     const lang = data.donor_language || 'en';
-    const templates = messageTemplates[lang] || messageTemplates['en'];
-    const template = data.has_plan ? templates.withPlan : templates.withoutPlan;
+    let baseTemplate = '';
     
-    // Replace variables
-    let message = template
+    if (dbTemplates) {
+        if (lang === 'am') baseTemplate = dbTemplates.message_am;
+        else if (lang === 'ti') baseTemplate = dbTemplates.message_ti;
+        else baseTemplate = dbTemplates.message_en;
+    }
+    
+    // Fallback if no template found
+    if (!baseTemplate) {
+        baseTemplate = "Dear {name}, Thank you for your payment of £{amount}. Your balance is £{outstanding_balance}. {next_payment_info}";
+    }
+
+    // Get the appropriate next_payment_info sub-template
+    const nextTemplates = nextPaymentTemplates[lang] || nextPaymentTemplates['en'];
+    const nextInfoTemplate = data.has_plan ? nextTemplates.withPlan : nextTemplates.withoutPlan;
+    
+    // Replace {next_payment_info} first
+    let message = baseTemplate.replace(/{next_payment_info}/g, nextInfoTemplate);
+    
+    // Replace other variables
+    message = message
         .replace(/{name}/g, data.donor_name)
         .replace(/{amount}/g, data.payment_amount)
         .replace(/{payment_date}/g, data.payment_date)
