@@ -98,6 +98,7 @@ $sql = "
         d.phone AS donor_phone,
         d.preferred_language AS donor_language,
         d.total_pledged AS donor_pledge_amount,
+        d.total_paid AS donor_total_paid,
         d.balance AS donor_balance,
         d.active_payment_plan_id AS donor_active_plan_id,
         pl.amount AS pledge_amount,
@@ -944,6 +945,7 @@ function build_url($params) {
                                  data-payment-amount="<?php echo number_format((float)$p['amount'], 2); ?>"
                                  data-payment-date="<?php echo $p['created_at'] ? date('l, j F Y', strtotime($p['created_at'])) : ''; ?>"
                                  data-total-pledge="<?php echo number_format((float)($p['donor_pledge_amount'] ?? 0), 2); ?>"
+                                 data-total-paid="<?php echo number_format((float)($p['donor_total_paid'] ?? 0), 2); ?>"
                                  data-outstanding-balance="<?php echo number_format((float)($p['donor_balance'] ?? 0), 2); ?>"
                                  data-has-plan="<?php echo (!empty($p['plan_id']) && $p['plan_status'] === 'active') ? '1' : '0'; ?>"
                                  data-next-payment-date="<?php echo (!empty($p['plan_next_payment']) ? date('l, j F Y', strtotime($p['plan_next_payment'])) : ''); ?>"
@@ -1424,6 +1426,7 @@ function sendToKesisBirhanu(data, btn) {
         .replace(/{amount}/g, data.payment_amount)
         .replace(/{payment_date}/g, data.payment_date)
         .replace(/{total_pledge}/g, data.total_pledge)
+        .replace(/{total_paid}/g, data.total_paid)
         .replace(/{outstanding_balance}/g, data.outstanding_balance);
     
     if (data.has_plan) {
@@ -1493,6 +1496,7 @@ function showConfirmationMessage(paymentId) {
         payment_amount: card.dataset.paymentAmount,
         payment_date: card.dataset.paymentDate,
         total_pledge: card.dataset.totalPledge,
+        total_paid: card.dataset.totalPaid,
         outstanding_balance: card.dataset.outstandingBalance,
         has_plan: card.dataset.hasPlan === '1',
         next_payment_date: card.dataset.nextPaymentDate || null,
@@ -1547,6 +1551,7 @@ function showNotificationModal(data) {
         .replace(/{amount}/g, data.payment_amount)
         .replace(/{payment_date}/g, data.payment_date)
         .replace(/{total_pledge}/g, data.total_pledge)
+        .replace(/{total_paid}/g, data.total_paid)
         .replace(/{outstanding_balance}/g, data.outstanding_balance);
     
     if (data.has_plan) {
