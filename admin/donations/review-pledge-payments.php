@@ -89,6 +89,9 @@ $sql = "
         pp.*,
         d.name AS donor_name,
         d.phone AS donor_phone,
+        d.language AS donor_language,
+        d.pledge_amount AS donor_pledge_amount,
+        d.balance AS donor_balance,
         d.active_payment_plan_id AS donor_active_plan_id,
         pl.amount AS pledge_amount,
         pl.created_at AS pledge_date,
@@ -99,7 +102,9 @@ $sql = "
         pplan.id AS plan_id,
         pplan.monthly_amount AS plan_monthly_amount,
         pplan.payments_made AS plan_payments_made,
-        pplan.total_payments AS plan_total_payments" : "") . "
+        pplan.total_payments AS plan_total_payments,
+        pplan.next_payment_due AS plan_next_payment,
+        pplan.status AS plan_status" : "") . "
     FROM pledge_payments pp
     LEFT JOIN donors d ON pp.donor_id = d.id
     LEFT JOIN pledges pl ON pp.pledge_id = pl.id
@@ -923,7 +928,19 @@ function build_url($params) {
                 <?php else: ?>
                     <div class="payment-list">
                         <?php foreach ($payments as $p): ?>
-                            <div class="payment-card status-<?php echo $p['status']; ?>">
+                            <div class="payment-card status-<?php echo $p['status']; ?>"
+                                 data-payment-id="<?php echo $p['id']; ?>"
+                                 data-donor-id="<?php echo $p['donor_id']; ?>"
+                                 data-donor-name="<?php echo htmlspecialchars($p['donor_name'] ?? 'Unknown Donor'); ?>"
+                                 data-donor-phone="<?php echo htmlspecialchars($p['donor_phone'] ?? ''); ?>"
+                                 data-donor-language="<?php echo htmlspecialchars($p['donor_language'] ?? 'en'); ?>"
+                                 data-payment-amount="<?php echo number_format((float)$p['amount'], 2); ?>"
+                                 data-payment-date="<?php echo $p['created_at'] ? date('l, j F Y', strtotime($p['created_at'])) : ''; ?>"
+                                 data-total-pledge="<?php echo number_format((float)($p['donor_pledge_amount'] ?? 0), 2); ?>"
+                                 data-outstanding-balance="<?php echo number_format((float)($p['donor_balance'] ?? 0), 2); ?>"
+                                 data-has-plan="<?php echo (!empty($p['plan_id']) && $p['plan_status'] === 'active') ? '1' : '0'; ?>"
+                                 data-next-payment-date="<?php echo (!empty($p['plan_next_payment']) ? date('l, j F Y', strtotime($p['plan_next_payment'])) : ''); ?>"
+                                 data-next-payment-amount="<?php echo !empty($p['plan_monthly_amount']) ? number_format((float)$p['plan_monthly_amount'], 2) : ''; ?>">
                                 <!-- Card Header -->
                                 <div class="card-header-row">
                                     <div class="d-flex align-items-start gap-3">
@@ -1109,6 +1126,12 @@ function build_url($params) {
                                             <span>Reject</span>
                                         </button>
                                     <?php elseif ($p['status'] === 'confirmed'): ?>
+                                        <?php if (!empty($p['donor_phone'])): ?>
+                                        <button class="btn btn-approve" onclick="showConfirmationMessage(<?php echo $p['id']; ?>)">
+                                            <i class="fab fa-whatsapp"></i>
+                                            <span>Confirmation</span>
+                                        </button>
+                                        <?php endif; ?>
                                         <button class="btn btn-undo" onclick="undoPayment(<?php echo $p['id']; ?>)">
                                             <i class="fas fa-undo"></i>
                                             <span>Undo</span>
@@ -1511,6 +1534,43 @@ function sendToKesisBirhanu(data, btn) {
         alert('Payment approved, but failed to notify agent due to network error.');
         location.reload();
     });
+}
+
+/**
+ * Show confirmation message for already-confirmed payments
+ * Retrieves payment data from the card's data attributes
+ */
+function showConfirmationMessage(paymentId) {
+    // Find the payment card element
+    const card = document.querySelector(`[data-payment-id="${paymentId}"]`);
+    if (!card) {
+        alert('Payment data not found');
+        return;
+    }
+    
+    // Extract data from card attributes
+    const data = {
+        donor_id: parseInt(card.dataset.donorId),
+        donor_name: card.dataset.donorName,
+        donor_phone: card.dataset.donorPhone,
+        donor_language: card.dataset.donorLanguage || 'en',
+        payment_amount: card.dataset.paymentAmount,
+        payment_date: card.dataset.paymentDate,
+        total_pledge: card.dataset.totalPledge,
+        outstanding_balance: card.dataset.outstandingBalance,
+        has_plan: card.dataset.hasPlan === '1',
+        next_payment_date: card.dataset.nextPaymentDate || null,
+        next_payment_amount: card.dataset.nextPaymentAmount || null
+    };
+    
+    // Validate required fields
+    if (!data.donor_phone) {
+        alert('No phone number available for this donor');
+        return;
+    }
+    
+    // Show the notification modal
+    showNotificationModal(data);
 }
 
 function showNotificationModal(data) {
