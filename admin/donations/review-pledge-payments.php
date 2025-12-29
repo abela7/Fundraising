@@ -1341,8 +1341,6 @@ function normalizePhoneForComparison(phone) {
     return digits;
 }
 
-};
-
 function viewProof(src) {
     document.getElementById('proofImage').src = src;
     new bootstrap.Modal(document.getElementById('proofModal')).show();
