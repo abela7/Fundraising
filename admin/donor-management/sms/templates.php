@@ -63,6 +63,15 @@ try {
     $tables_exist = false;
 }
 
+// Detect all columns in sms_templates
+$table_columns = [];
+if ($tables_exist && $db) {
+    $col_res = $db->query("SHOW COLUMNS FROM sms_templates");
+    while ($col = $col_res->fetch_assoc()) {
+        $table_columns[] = $col['Field'];
+    }
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
     try {
@@ -83,9 +92,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
                 $message_en = trim($_POST['message_en'] ?? '');
                 $message_am = trim($_POST['message_am'] ?? '');
                 $message_ti = trim($_POST['message_ti'] ?? '');
-                $variables = trim($_POST['variables'] ?? '');
+                $variables_raw = trim($_POST['variables'] ?? '');
                 $priority = $_POST['priority'] ?? 'normal';
                 $is_active = isset($_POST['is_active']) ? 1 : 0;
+                $platform = $_POST['platform'] ?? 'both';
+                
+                // Advanced rules (if columns exist)
+                $max_sends = isset($_POST['max_sends_per_donor']) && $_POST['max_sends_per_donor'] !== '' ? (int)$_POST['max_sends_per_donor'] : null;
+                $min_interval = isset($_POST['min_interval_hours']) && $_POST['min_interval_hours'] !== '' ? (int)$_POST['min_interval_hours'] : 24;
+                $window_start = !empty($_POST['send_window_start']) ? $_POST['send_window_start'] : null;
+                $window_end = !empty($_POST['send_window_end']) ? $_POST['send_window_end'] : null;
+                $exclude_weekends = isset($_POST['exclude_weekends']) ? 1 : 0;
+                $requires_approval = isset($_POST['requires_approval']) ? 1 : 0;
+                
+                // Process variables into JSON
+                $variables_arr = [];
+                if (!empty($variables_raw)) {
+                    // Try parsing as JSON first
+                    $decoded = json_decode($variables_raw, true);
+                    if (is_array($decoded)) {
+                        $variables_arr = $decoded;
+                    } else {
+                        // Fallback: split by comma and remove braces/spaces
+                        $parts = explode(',', $variables_raw);
+                        foreach ($parts as $part) {
+                            $clean = trim($part, " \t\n\r\0\x0B{}[]'\"");
+                            if (!empty($clean)) $variables_arr[] = $clean;
+                        }
+                    }
+                }
+                $variables = json_encode($variables_arr);
                 
                 // Validation
                 if (empty($template_key) || empty($name) || empty($message_en)) {
@@ -95,52 +131,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
                 // Sanitize template key
                 $template_key = preg_replace('/[^a-z0-9_]/', '', strtolower($template_key));
                 
+                $fields = [
+                    'template_key' => $template_key,
+                    'name' => $name,
+                    'description' => $description,
+                    'category' => $category,
+                    'message_en' => $message_en,
+                    'message_am' => $message_am,
+                    'message_ti' => $message_ti,
+                    'variables' => $variables,
+                    'priority' => $priority,
+                    'is_active' => $is_active
+                ];
+                
+                // Add optional columns if they exist in schema
+                if (in_array('platform', $table_columns)) $fields['platform'] = $platform;
+                if (in_array('max_sends_per_donor', $table_columns)) $fields['max_sends_per_donor'] = $max_sends;
+                if (in_array('min_interval_hours', $table_columns)) $fields['min_interval_hours'] = $min_interval;
+                if (in_array('send_window_start', $table_columns)) $fields['send_window_start'] = $window_start;
+                if (in_array('send_window_end', $table_columns)) $fields['send_window_end'] = $window_end;
+                if (in_array('exclude_weekends', $table_columns)) $fields['exclude_weekends'] = $exclude_weekends;
+                if (in_array('requires_approval', $table_columns)) $fields['requires_approval'] = $requires_approval;
+
                 if ($action === 'create') {
-                    $stmt = $db->prepare("
-                        INSERT INTO sms_templates 
-                        (template_key, name, description, category, message_en, message_am, message_ti, 
-                         variables, priority, is_active, created_by, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                    ");
-                    if (!$stmt) {
-                        throw new Exception('Database error: ' . $db->error);
+                    $fields['created_by'] = $current_user['id'];
+                    $col_names = implode(', ', array_keys($fields)) . ", created_at, updated_at";
+                    $placeholders = implode(', ', array_fill(0, count($fields), '?')) . ", NOW(), NOW()";
+                    
+                    $stmt = $db->prepare("INSERT INTO sms_templates ($col_names) VALUES ($placeholders)");
+                    if (!$stmt) throw new Exception('Database error: ' . $db->error);
+                    
+                    $types = '';
+                    $vals = [];
+                    foreach ($fields as $val) {
+                        if (is_int($val)) $types .= 'i';
+                        elseif (is_double($val)) $types .= 'd';
+                        else $types .= 's';
+                        $vals[] = $val;
                     }
-                    $stmt->bind_param('sssssssssii', 
-                        $template_key, $name, $description, $category, 
-                        $message_en, $message_am, $message_ti,
-                        $variables, $priority, $is_active, $current_user['id']
-                    );
-                    if (!$stmt->execute()) {
-                        throw new Exception('Failed to create template: ' . $stmt->error);
-                    }
-                    $stmt->close();
-                    $success_message = 'Template created successfully!';
+                    
+                    $stmt->bind_param($types, ...$vals);
                 } else {
                     $template_id = (int)($_POST['template_id'] ?? 0);
-                    if ($template_id <= 0) {
-                        throw new Exception('Invalid template ID');
+                    if ($template_id <= 0) throw new Exception('Invalid template ID');
+                    
+                    $sets = [];
+                    $vals = [];
+                    $types = '';
+                    foreach ($fields as $key => $val) {
+                        $sets[] = "$key = ?";
+                        if (is_int($val)) $types .= 'i';
+                        elseif (is_double($val)) $types .= 'd';
+                        else $types .= 's';
+                        $vals[] = $val;
                     }
-                    $stmt = $db->prepare("
-                        UPDATE sms_templates 
-                        SET template_key = ?, name = ?, description = ?, category = ?,
-                            message_en = ?, message_am = ?, message_ti = ?,
-                            variables = ?, priority = ?, is_active = ?, updated_at = NOW()
-                        WHERE id = ?
-                    ");
-                    if (!$stmt) {
-                        throw new Exception('Database error: ' . $db->error);
-                    }
-                    $stmt->bind_param('ssssssssiii', 
-                        $template_key, $name, $description, $category, 
-                        $message_en, $message_am, $message_ti,
-                        $variables, $priority, $is_active, $template_id
-                    );
-                    if (!$stmt->execute()) {
-                        throw new Exception('Failed to update template: ' . $stmt->error);
-                    }
-                    $stmt->close();
-                    $success_message = 'Template updated successfully!';
+                    $vals[] = $template_id;
+                    $types .= 'i';
+                    
+                    $set_sql = implode(', ', $sets) . ", updated_at = NOW()";
+                    $stmt = $db->prepare("UPDATE sms_templates SET $set_sql WHERE id = ?");
+                    if (!$stmt) throw new Exception('Database error: ' . $db->error);
+                    
+                    $stmt->bind_param($types, ...$vals);
                 }
+                
+                if (!$stmt->execute()) {
+                    throw new Exception('Failed to save template: ' . $stmt->error);
+                }
+                $stmt->close();
+                $success_message = 'Template saved successfully!';
                 
                 $_SESSION['success_message'] = $success_message;
                 header('Location: templates.php');
@@ -245,6 +304,8 @@ $categories = [
             padding: 1.25rem;
             margin-bottom: 1rem;
             transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
         }
         .template-card:hover {
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -256,6 +317,8 @@ $categories = [
             padding: 0.25rem 0.5rem;
             border-radius: 4px;
             font-size: 0.8125rem;
+            display: inline-block;
+            margin-top: 0.25rem;
         }
         .message-preview {
             background: #f8fafc;
@@ -264,8 +327,9 @@ $categories = [
             padding: 0.75rem;
             font-size: 0.875rem;
             color: #475569;
-            max-height: 80px;
-            overflow: hidden;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 0.5rem;
         }
         .variable-tag {
             display: inline-block;
@@ -275,6 +339,20 @@ $categories = [
             border-radius: 4px;
             font-size: 0.75rem;
             margin: 0.125rem;
+            cursor: help;
+        }
+        .form-label {
+            margin-bottom: 0.25rem;
+        }
+        textarea.form-control {
+            font-family: inherit;
+            line-height: 1.5;
+        }
+        hr {
+            opacity: 0.1;
+        }
+        .badge {
+            font-weight: 500;
         }
         @media (max-width: 767px) {
             .template-card {
@@ -367,8 +445,8 @@ $categories = [
                                     <input type="hidden" name="template_id" value="<?php echo $edit_template['id']; ?>">
                                 <?php endif; ?>
                                 
-                                <div class="row g-3">
-                                    <div class="col-md-6">
+                <div class="row g-3">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-semibold">Template Key <span class="text-danger">*</span></label>
                                         <input type="text" name="template_key" class="form-control" required
                                                placeholder="e.g., payment_reminder_3day"
@@ -377,14 +455,23 @@ $categories = [
                                         <div class="form-text">Lowercase letters, numbers, underscores only</div>
                                     </div>
                                     
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-semibold">Display Name <span class="text-danger">*</span></label>
                                         <input type="text" name="name" class="form-control" required
                                                placeholder="e.g., 3-Day Payment Reminder"
                                                value="<?php echo htmlspecialchars($edit_template['name'] ?? ''); ?>">
                                     </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold">Platform</label>
+                                        <select name="platform" class="form-select">
+                                            <option value="both" <?php echo ($edit_template['platform'] ?? 'both') === 'both' ? 'selected' : ''; ?>>Both (SMS & WhatsApp)</option>
+                                            <option value="sms" <?php echo ($edit_template['platform'] ?? '') === 'sms' ? 'selected' : ''; ?>>SMS Only</option>
+                                            <option value="whatsapp" <?php echo ($edit_template['platform'] ?? '') === 'whatsapp' ? 'selected' : ''; ?>>WhatsApp Only</option>
+                                        </select>
+                                    </div>
                                     
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-semibold">Category</label>
                                         <select name="category" class="form-select">
                                             <?php foreach ($categories as $key => $label): ?>
@@ -396,7 +483,7 @@ $categories = [
                                         </select>
                                     </div>
                                     
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-semibold">Priority</label>
                                         <select name="priority" class="form-select">
                                             <option value="low" <?php echo ($edit_template['priority'] ?? '') === 'low' ? 'selected' : ''; ?>>Low</option>
@@ -404,6 +491,25 @@ $categories = [
                                             <option value="high" <?php echo ($edit_template['priority'] ?? '') === 'high' ? 'selected' : ''; ?>>High</option>
                                             <option value="urgent" <?php echo ($edit_template['priority'] ?? '') === 'urgent' ? 'selected' : ''; ?>>Urgent</option>
                                         </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold">Variables (Comma-separated)</label>
+                                        <?php 
+                                        $var_display = '';
+                                        if (!empty($edit_template['variables'])) {
+                                            $decoded = json_decode($edit_template['variables'], true);
+                                            if (is_array($decoded)) {
+                                                $var_display = implode(', ', $decoded);
+                                            } else {
+                                                $var_display = $edit_template['variables'];
+                                            }
+                                        }
+                                        ?>
+                                        <input type="text" name="variables" class="form-control"
+                                               placeholder="name, amount, due_date"
+                                               value="<?php echo htmlspecialchars($var_display); ?>">
+                                        <div class="form-text">Variables to replace in message</div>
                                     </div>
                                     
                                     <div class="col-12">
@@ -415,7 +521,7 @@ $categories = [
                                     
                                     <div class="col-12">
                                         <label class="form-label fw-semibold">English Message <span class="text-danger">*</span></label>
-                                        <textarea name="message_en" id="message_en" class="form-control" rows="3" required
+                                        <textarea name="message_en" id="message_en" class="form-control" rows="4" required
                                                   placeholder="Hi {name}, your payment of £{amount} is due on {due_date}..."
                                                   oninput="updateCharCount()"><?php echo htmlspecialchars($edit_template['message_en'] ?? ''); ?></textarea>
                                         <div class="form-text d-flex justify-content-between align-items-center">
@@ -431,29 +537,65 @@ $categories = [
                                     
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold">Amharic Message (Optional)</label>
-                                        <textarea name="message_am" class="form-control" rows="3"
+                                        <textarea name="message_am" class="form-control" rows="6"
                                                   placeholder="Amharic translation..."><?php echo htmlspecialchars($edit_template['message_am'] ?? ''); ?></textarea>
                                     </div>
                                     
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold">Tigrinya Message (Optional)</label>
-                                        <textarea name="message_ti" class="form-control" rows="3"
+                                        <textarea name="message_ti" class="form-control" rows="6"
                                                   placeholder="Tigrinya translation..."><?php echo htmlspecialchars($edit_template['message_ti'] ?? ''); ?></textarea>
                                     </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="mb-2">Advanced Rules & Constraints</h6>
                                     
-                                    <div class="col-12">
-                                        <label class="form-label fw-semibold">Variables (JSON Array)</label>
-                                        <input type="text" name="variables" class="form-control"
-                                               placeholder='["name", "amount", "due_date"]'
-                                               value="<?php echo htmlspecialchars($edit_template['variables'] ?? ''); ?>">
-                                        <div class="form-text">List of variables this template uses</div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Max Sends / Donor</label>
+                                        <input type="number" name="max_sends_per_donor" class="form-control"
+                                               placeholder="Unlimited"
+                                               value="<?php echo htmlspecialchars((string)($edit_template['max_sends_per_donor'] ?? '')); ?>">
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Min Interval (Hours)</label>
+                                        <input type="number" name="min_interval_hours" class="form-control"
+                                               value="<?php echo htmlspecialchars((string)($edit_template['min_interval_hours'] ?? 24)); ?>">
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Send Window Start</label>
+                                        <input type="time" name="send_window_start" class="form-control"
+                                               value="<?php echo htmlspecialchars($edit_template['send_window_start'] ?? ''); ?>">
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Send Window End</label>
+                                        <input type="time" name="send_window_end" class="form-control"
+                                               value="<?php echo htmlspecialchars($edit_template['send_window_end'] ?? ''); ?>">
                                     </div>
                                     
-                                    <div class="col-12">
+                                    <div class="col-md-4 mt-4">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
                                                    <?php echo ($edit_template['is_active'] ?? 1) ? 'checked' : ''; ?>>
                                             <label class="form-check-label" for="is_active">Template is active</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4 mt-4">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="exclude_weekends" id="exclude_weekends"
+                                                   <?php echo ($edit_template['exclude_weekends'] ?? 0) ? 'checked' : ''; ?>>
+                                            <label class="form-check-label" for="exclude_weekends">Exclude Weekends</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4 mt-4">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="requires_approval" id="requires_approval"
+                                                   <?php echo ($edit_template['requires_approval'] ?? 0) ? 'checked' : ''; ?>>
+                                            <label class="form-check-label" for="requires_approval">Requires Approval</label>
                                         </div>
                                     </div>
                                 </div>
@@ -498,48 +640,64 @@ $categories = [
                             <?php endif; ?>
                             
                             <div class="col-12 col-md-6 col-xl-4">
-                                <div class="template-card">
+                                <div class="template-card h-100">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
-                                            <h6 class="mb-1"><?php echo htmlspecialchars($template['name']); ?></h6>
+                                            <h6 class="mb-1 text-truncate" style="max-width: 200px;"><?php echo htmlspecialchars($template['name']); ?></h6>
                                             <code class="template-key"><?php echo htmlspecialchars($template['template_key']); ?></code>
                                         </div>
-                                        <div>
+                                        <div class="d-flex flex-column align-items-end gap-1">
                                             <?php if ($template['is_active']): ?>
                                                 <span class="badge bg-success">Active</span>
                                             <?php else: ?>
                                                 <span class="badge bg-secondary">Inactive</span>
                                             <?php endif; ?>
+                                            
+                                            <?php if (isset($template['platform'])): ?>
+                                                <span class="badge bg-info text-dark" style="font-size: 0.65rem;">
+                                                    <i class="<?php 
+                                                        echo $template['platform'] === 'whatsapp' ? 'fab fa-whatsapp' : 
+                                                            ($template['platform'] === 'sms' ? 'fas fa-sms' : 'fas fa-mobile-alt'); 
+                                                    ?> me-1"></i>
+                                                    <?php echo strtoupper($template['platform']); ?>
+                                                </span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     
-                                    <div class="message-preview mb-2">
+                                    <div class="message-preview mb-2" style="max-height: 100px;">
                                         <?php echo htmlspecialchars($template['message_en']); ?>
                                     </div>
                                     
                                     <?php if (!empty($template['variables'])): ?>
                                         <div class="mb-2">
                                             <?php 
-                                            $vars = json_decode($template['variables'], true) ?? [];
+                                            $vars = [];
+                                            $decoded = json_decode($template['variables'], true);
+                                            if (is_array($decoded)) {
+                                                $vars = $decoded;
+                                            } else {
+                                                // Fallback if not JSON
+                                                $vars = array_map('trim', explode(',', $template['variables']));
+                                            }
                                             foreach ($vars as $var): 
+                                                $var = trim($var, "{}[] ");
+                                                if (empty($var)) continue;
                                             ?>
                                                 <span class="variable-tag">{<?php echo htmlspecialchars($var); ?>}</span>
                                             <?php endforeach; ?>
                                         </div>
                                     <?php endif; ?>
                                     
-                                    <div class="d-flex justify-content-between align-items-center mt-3">
-                                        <small class="text-muted">
-                                            <?php if (isset($template['usage_count'])): ?>
-                                                Used <?php echo number_format((int)$template['usage_count']); ?> times
-                                            <?php else: ?>
-                                                <span class="text-muted">No usage data</span>
-                                            <?php endif; ?>
-                                        </small>
+                                    <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
+                                        <div class="small text-muted">
+                                            <i class="fas fa-paper-plane me-1"></i>
+                                            <?php echo number_format((int)($template['usage_count'] ?? 0)); ?> sends
+                                        </div>
                                         <div class="btn-group btn-group-sm">
                                             <a href="?edit=<?php echo (int)$template['id']; ?>" class="btn btn-outline-primary" title="Edit Template">
                                                 <i class="fas fa-edit"></i>
-                                                <span class="d-none d-md-inline ms-1">Edit</span>
+                                                <span class="ms-1">Edit</span>
                                             </a>
                                             <button type="button" class="btn btn-outline-danger" 
                                                     onclick="confirmDelete(<?php echo (int)$template['id']; ?>, '<?php echo htmlspecialchars(addslashes($template['name'] ?? 'Unknown')); ?>')"
