@@ -1793,6 +1793,108 @@ function formatDateTime($date) {
             letter-spacing: 2px;
             font-family: 'Courier New', monospace;
         }
+
+        /* Certificate Stats Strip - shown between center titles and bottom section */
+        .cert-stats-strip {
+            position: absolute;
+            bottom: 220px;
+            left: 50px;
+            right: 50px;
+            z-index: 1;
+            background: rgba(0, 0, 0, 0.45);
+            border-radius: 16px;
+            padding: 18px 30px 14px;
+        }
+
+        .cert-stats-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .cert-stat-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .cert-stat-label {
+            font-size: 18px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+
+        .cert-stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.2;
+        }
+
+        .cert-stat-value.cert-val-pledged { color: #4dabf7; }
+        .cert-stat-value.cert-val-paid-full { color: #51cf66; }
+        .cert-stat-value.cert-val-paid-partial { color: #fcc419; }
+        .cert-stat-value.cert-val-area { color: #51cf66; }
+        .cert-stat-value.cert-val-ref {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .cert-stat-divider {
+            width: 1px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            flex-shrink: 0;
+        }
+
+        /* Progress bar on certificate */
+        .cert-progress-wrap {
+            margin-top: 2px;
+        }
+
+        .cert-progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .cert-progress-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .cert-progress-pct {
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .cert-progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .cert-progress-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .cert-progress-fill.cert-fill-full {
+            background: linear-gradient(90deg, #51cf66, #40c057);
+        }
+
+        .cert-progress-fill.cert-fill-partial {
+            background: linear-gradient(90deg, #fcc419, #fab005);
+        }
     </style>
 </head>
 <body>
@@ -2756,6 +2858,41 @@ function formatDateTime($date) {
                                             <div class="cert-center-section">
                                                 <div class="cert-title-am">ይህ ታሪኬ ነው</div>
                                                 <div class="cert-title-en">It is My History</div>
+                                            </div>
+                                            <!-- Stats Strip - Ref, Pledged, Paid, Area + Progress Bar -->
+                                            <div class="cert-stats-strip">
+                                                <div class="cert-stats-row">
+                                                    <div class="cert-stat-item">
+                                                        <div class="cert-stat-label">Ref</div>
+                                                        <div class="cert-stat-value cert-val-ref"><?= htmlspecialchars($donor_reference) ?></div>
+                                                    </div>
+                                                    <div class="cert-stat-divider"></div>
+                                                    <div class="cert-stat-item">
+                                                        <div class="cert-stat-label">Pledged</div>
+                                                        <div class="cert-stat-value cert-val-pledged"><?= $currency . number_format($totalPledged, 0) ?></div>
+                                                    </div>
+                                                    <div class="cert-stat-divider"></div>
+                                                    <div class="cert-stat-item">
+                                                        <div class="cert-stat-label">Paid</div>
+                                                        <div class="cert-stat-value <?= $isFullyPaid ? 'cert-val-paid-full' : 'cert-val-paid-partial' ?>"><?= $currency . number_format($totalPaid, 0) ?></div>
+                                                    </div>
+                                                    <div class="cert-stat-divider"></div>
+                                                    <div class="cert-stat-item">
+                                                        <div class="cert-stat-label">Area</div>
+                                                        <div class="cert-stat-value cert-val-area"><?= $sqmValue ?> m²</div>
+                                                    </div>
+                                                </div>
+                                                <?php if ($hasPledge): ?>
+                                                <div class="cert-progress-wrap">
+                                                    <div class="cert-progress-header">
+                                                        <span class="cert-progress-label">Payment Progress</span>
+                                                        <span class="cert-progress-pct"><?= $paymentProgress ?>%</span>
+                                                    </div>
+                                                    <div class="cert-progress-bar">
+                                                        <div class="cert-progress-fill <?= $isFullyPaid ? 'cert-fill-full' : 'cert-fill-partial' ?>" style="width: <?= $paymentProgress ?>%"></div>
+                                                    </div>
+                                                </div>
+                                                <?php endif; ?>
                                             </div>
                                             <div class="cert-bottom-section">
                                                 <div class="cert-bank-area">
