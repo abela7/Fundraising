@@ -1596,7 +1596,7 @@ function formatDateTime($date) {
         .cert-aspect-ratio {
             position: relative;
             width: 100%;
-            padding-bottom: 62.5%; /* 750/1200 = 0.625 = 62.5% */
+            padding-bottom: 72.5%; /* 870/1200 = 0.725 = 72.5% */
             overflow: hidden;
             border-radius: 0.25rem;
             box-shadow: 0 4px 20px rgba(0,0,0,0.4);
@@ -1608,7 +1608,7 @@ function formatDateTime($date) {
             top: 0;
             left: 0;
             width: 1200px;
-            height: 750px;
+            height: 870px;
             background-image: url('../../assets/images/cert-bg.png');
             background-size: cover;
             background-position: center;
@@ -1794,23 +1794,26 @@ function formatDateTime($date) {
             font-family: 'Courier New', monospace;
         }
 
-        /* Certificate Stats Strip - shown between center titles and bottom section */
+        /* Certificate Stats Strip - white bar at the very bottom */
         .cert-stats-strip {
             position: absolute;
-            bottom: 220px;
-            left: 50px;
-            right: 50px;
-            z-index: 1;
-            background: rgba(0, 0, 0, 0.45);
-            border-radius: 16px;
-            padding: 18px 30px 14px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 2;
+            background: #ffffff;
+            padding: 16px 50px 12px;
         }
 
         .cert-stats-row {
             display: flex;
             justify-content: space-around;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 0;
+        }
+
+        .cert-stats-row.cert-has-progress {
+            margin-bottom: 10px;
         }
 
         .cert-stat-item {
@@ -1819,40 +1822,41 @@ function formatDateTime($date) {
         }
 
         .cert-stat-label {
-            font-size: 18px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.7);
+            font-size: 16px;
+            font-weight: 600;
+            color: #999;
             text-transform: uppercase;
             letter-spacing: 1.5px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .cert-stat-value {
-            font-size: 32px;
+            font-size: 30px;
             font-weight: 800;
-            color: #ffffff;
+            color: #333;
             line-height: 1.2;
         }
 
-        .cert-stat-value.cert-val-pledged { color: #4dabf7; }
-        .cert-stat-value.cert-val-paid-full { color: #51cf66; }
-        .cert-stat-value.cert-val-paid-partial { color: #fcc419; }
-        .cert-stat-value.cert-val-area { color: #51cf66; }
+        .cert-stat-value.cert-val-pledged { color: #1a73e8; }
+        .cert-stat-value.cert-val-paid-full { color: #2e7d32; }
+        .cert-stat-value.cert-val-paid-partial { color: #e65100; }
+        .cert-stat-value.cert-val-area { color: #2e7d32; }
         .cert-stat-value.cert-val-ref {
             font-family: 'Courier New', monospace;
             letter-spacing: 2px;
+            color: #333;
         }
 
         .cert-stat-divider {
             width: 1px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
+            height: 36px;
+            background: #e0e0e0;
             flex-shrink: 0;
         }
 
         /* Progress bar on certificate */
         .cert-progress-wrap {
-            margin-top: 2px;
+            margin-top: 0;
         }
 
         .cert-progress-header {
@@ -1863,21 +1867,21 @@ function formatDateTime($date) {
         }
 
         .cert-progress-label {
-            font-size: 15px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            font-weight: 600;
+            color: #999;
         }
 
         .cert-progress-pct {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
-            color: #ffffff;
+            color: #333;
         }
 
         .cert-progress-bar {
             width: 100%;
             height: 10px;
-            background: rgba(255, 255, 255, 0.15);
+            background: #e8e8e8;
             border-radius: 5px;
             overflow: hidden;
         }
@@ -1889,11 +1893,11 @@ function formatDateTime($date) {
         }
 
         .cert-progress-fill.cert-fill-full {
-            background: linear-gradient(90deg, #51cf66, #40c057);
+            background: linear-gradient(90deg, #43a047, #2e7d32);
         }
 
         .cert-progress-fill.cert-fill-partial {
-            background: linear-gradient(90deg, #fcc419, #fab005);
+            background: linear-gradient(90deg, #fb8c00, #e65100);
         }
     </style>
 </head>
@@ -2861,7 +2865,7 @@ function formatDateTime($date) {
                                             </div>
                                             <!-- Stats Strip - Ref, Pledged, Paid, Area + Progress Bar -->
                                             <div class="cert-stats-strip">
-                                                <div class="cert-stats-row">
+                                                <div class="cert-stats-row <?= $hasPledge ? 'cert-has-progress' : '' ?>">
                                                     <div class="cert-stat-item">
                                                         <div class="cert-stat-label">Ref</div>
                                                         <div class="cert-stat-value cert-val-ref"><?= htmlspecialchars($donor_reference) ?></div>
@@ -4422,7 +4426,7 @@ function captureDonorCert(element) {
         allowTaint: true,
         backgroundColor: null,
         width: 1200,
-        height: 750,
+        height: 870,
         onclone: function(clonedDoc) {
             const clonedCert = clonedDoc.getElementById('donor-certificate');
             if (clonedCert) {
@@ -4510,7 +4514,7 @@ async function captureAndSendCertificate(element, phone, donorId, donorName, sqm
             allowTaint: true,
             backgroundColor: null,
             width: 1200,
-            height: 750
+            height: 870
         });
 
         element.style.transform = originalTransform;
