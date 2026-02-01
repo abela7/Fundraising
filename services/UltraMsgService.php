@@ -150,9 +150,9 @@ class UltraMsgService
     
     /**
      * Send WhatsApp image message
-     * 
+     *
      * @param string $phoneNumber Recipient phone number
-     * @param string $imageUrl URL to the image
+     * @param string $imageUrl URL to the image OR base64 data URI
      * @param string $caption Optional caption
      * @param array $options Additional options
      * @return array Result
@@ -160,7 +160,7 @@ class UltraMsgService
     public function sendImage(string $phoneNumber, string $imageUrl, string $caption = '', array $options = []): array
     {
         $phoneNumber = $this->normalizePhoneNumber($phoneNumber);
-        
+
         if (!$phoneNumber) {
             return [
                 'success' => false,
@@ -168,16 +168,69 @@ class UltraMsgService
                 'error_code' => 'INVALID_PHONE'
             ];
         }
-        
+
         $params = [
             'token' => $this->token,
             'to' => $phoneNumber,
             'image' => $imageUrl,
             'caption' => $caption
         ];
-        
+
         $response = $this->makeRequest('messages/image', $params);
         return $this->parseResponse($response);
+    }
+
+    /**
+     * Send WhatsApp image from a local file path (sends as base64)
+     *
+     * Reads the file, converts to base64 data URI, and sends via UltraMsg API.
+     * This is more reliable than URL-based sending because UltraMsg doesn't
+     * need to fetch the image from your server.
+     *
+     * @param string $phoneNumber Recipient phone number
+     * @param string $filePath Absolute path to the image file on disk
+     * @param string $caption Optional caption
+     * @param array $options Additional options
+     * @return array Result
+     */
+    public function sendImageFromFile(string $phoneNumber, string $filePath, string $caption = '', array $options = []): array
+    {
+        if (!file_exists($filePath)) {
+            return [
+                'success' => false,
+                'error' => 'Image file not found: ' . $filePath,
+                'error_code' => 'FILE_NOT_FOUND'
+            ];
+        }
+
+        // Read file and convert to base64 data URI
+        $imageData = file_get_contents($filePath);
+        if ($imageData === false) {
+            return [
+                'success' => false,
+                'error' => 'Failed to read image file',
+                'error_code' => 'FILE_READ_ERROR'
+            ];
+        }
+
+        // Detect mime type
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $filePath) ?: 'image/png';
+        finfo_close($finfo);
+
+        // Build base64 data URI: data:image/png;base64,....
+        $base64DataUri = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+
+        // Check base64 string length (UltraMsg limit: 10,000,000 characters)
+        if (strlen($base64DataUri) > 10000000) {
+            return [
+                'success' => false,
+                'error' => 'Image too large for base64 encoding (max ~7.5MB)',
+                'error_code' => 'FILE_TOO_LARGE'
+            ];
+        }
+
+        return $this->sendImage($phoneNumber, $base64DataUri, $caption, $options);
     }
     
     /**

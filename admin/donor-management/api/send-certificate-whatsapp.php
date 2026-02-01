@@ -132,7 +132,7 @@ try {
         throw new Exception('Failed to save certificate image');
     }
 
-    // Generate public URL for the file
+    // Generate public URL for the file (used for database record-keeping)
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'];
     $baseUrl = $protocol . '://' . $host;
@@ -155,8 +155,9 @@ try {
         . "May God bless you abundantly!\n\n"
         . "Liverpool Abune Teklehaymanot EOTC";
 
-    // Send image via UltraMsg
-    $result = $service->sendImage($phone, $publicUrl, $caption);
+    // Send image via UltraMsg using base64 (much more reliable than URL)
+    // This sends the image data directly so UltraMsg doesn't need to fetch from our server
+    $result = $service->sendImageFromFile($phone, $localPath, $caption);
 
     if (!$result['success']) {
         @unlink($localPath);
