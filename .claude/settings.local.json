@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(php -l:*)",
-      "WebFetch(domain:docs.ultramsg.com)"
+      "WebFetch(domain:docs.ultramsg.com)",
+      "Bash(find:*)"
     ]
   }
 }

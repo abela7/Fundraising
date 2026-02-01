@@ -1,6 +1,7 @@
 <?php
 // admin/donations/review-pledge-payments.php
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 
 // Allow both admin and registrar access
@@ -182,6 +183,7 @@ function build_url($params) {
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;600;800;900&display=swap">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
         :root {
@@ -842,10 +844,29 @@ function build_url($params) {
         .sending-spinner.active {
             display: inline-block;
         }
-        
+
+        /* Certificate Toggle */
+        .cert-toggle-section {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+        }
+        .cert-toggle-section .form-check-input:checked {
+            background-color: #f59e0b;
+            border-color: #f59e0b;
+        }
+        .cert-toggle-section .form-check-input {
+            width: 2.5em;
+            height: 1.25em;
+            cursor: pointer;
+        }
+
     </style>
 </head>
 <body>
+<?= csrf_input() ?>
 <div class="admin-wrapper">
     <?php include '../includes/sidebar.php'; ?>
     <div class="admin-content">
@@ -1260,6 +1281,17 @@ function build_url($params) {
                     </div>
                 </div>
                 
+                <!-- Send Certificate Toggle -->
+                <div class="cert-toggle-section">
+                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-1">
+                        <input class="form-check-input" type="checkbox" id="sendCertificateToggle" onchange="onCertToggleChange()">
+                        <label class="form-check-label fw-semibold" for="sendCertificateToggle">
+                            <i class="fas fa-certificate text-warning me-1"></i>Send Certificate
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mb-3" style="padding-left: 2.5rem;">Sends certificate image with real-time payment status via WhatsApp. Falls back to text SMS if WhatsApp fails.</small>
+                </div>
+
                 <!-- Message Preview -->
                 <div class="notification-preview" id="messagePreviewContainer">
                     <div class="preview-header">
@@ -1716,6 +1748,296 @@ function undoPayment(id) {
         alert('Network error. Please try again.');
         console.error(err);
     });
+}
+</script>
+
+<!-- Hidden Certificate Render Area (offscreen, used by html2canvas) -->
+<div id="certRenderArea" style="position:absolute;left:-9999px;top:-9999px;z-index:-1;">
+    <div id="certCaptureWrapper" style="width:1200px;height:870px;">
+        <!-- Certificate (750px) -->
+        <div id="certRender" style="position:relative;width:1200px;height:750px;background-image:url('../../assets/images/cert-bg.png');background-size:cover;background-position:center;color:white;font-family:'Montserrat',sans-serif;">
+            <div style="position:absolute;top:0;right:0;width:500px;height:100%;pointer-events:none;overflow:hidden;">
+                <div style="position:absolute;top:50%;right:-50px;transform:translateY(-50%);width:450px;height:450px;border-radius:50%;background-image:url('../../assets/images/new-church.png');background-size:cover;background-position:center;opacity:0.15;filter:saturate(0.6) brightness(1.1);"></div>
+            </div>
+            <div style="position:absolute;top:25px;left:0;right:0;text-align:center;z-index:1;">
+                <div style="font-size:41px;font-weight:200;color:#ffcc33;font-family:'Nyala','Segoe UI Ethiopic',serif;padding:0 60px;">"የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" ፪ ዜና ፪፡፱</div>
+                <div style="font-size:48px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-top:10px;padding:0 30px;">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+            </div>
+            <div style="position:absolute;top:200px;left:0;right:0;text-align:center;z-index:1;">
+                <div style="font-size:135px;font-weight:900;line-height:1;font-family:'Nyala','Segoe UI Ethiopic',sans-serif;text-shadow:0 5px 15px rgba(0,0,0,0.2);padding-top:45px;">ይህ ታሪኬ ነው</div>
+                <div style="font-size:120px;font-weight:900;line-height:1;letter-spacing:-3px;margin-top:5px;text-shadow:0 5px 15px rgba(0,0,0,0.2);">It is My History</div>
+            </div>
+            <div style="position:absolute;bottom:40px;left:50px;right:50px;display:flex;justify-content:space-between;align-items:flex-end;z-index:1;">
+                <div style="display:flex;align-items:center;gap:30px;">
+                    <div style="width:160px;height:160px;background:white;padding:10px;flex-shrink:0;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://donate.abuneteklehaymanot.org/" alt="QR" style="width:100%;height:100%;display:block;">
+                    </div>
+                    <div style="font-size:38px;font-weight:800;line-height:1.3;max-width:650px;">
+                        <div style="display:flex;gap:15px;"><span style="color:#fff;white-space:nowrap;">Name -</span><span id="certDonorName" style="color:#ffcc33;word-break:break-word;"></span></div>
+                        <div style="display:flex;gap:15px;margin-top:15px;"><span style="color:#fff;white-space:nowrap;">Contribution -</span><span id="certContribution" style="color:#ffcc33;word-break:break-word;"></span></div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:15px;">
+                    <div style="width:280px;height:100px;background:#ffffff;border-radius:50px;box-shadow:0 4px 15px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;">
+                        <span id="certSqmPill" style="font-size:48px;font-weight:900;color:#333;text-shadow:none;"></span>
+                    </div>
+                    <div id="certRefBottom" style="font-size:20px;font-weight:600;color:#fff;letter-spacing:2px;font-family:'Courier New',monospace;text-align:right;"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Stats Strip (120px) -->
+        <div id="certStatsStrip" style="width:1200px;height:120px;background:#ffffff;padding:16px 50px 12px;box-sizing:border-box;font-family:'Montserrat',sans-serif;">
+            <div id="certStatsRow" style="display:flex;justify-content:space-around;align-items:center;">
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:16px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">Ref</div>
+                    <div id="certStatRef" style="font-size:30px;font-weight:800;color:#333;font-family:'Courier New',monospace;letter-spacing:2px;"></div>
+                </div>
+                <div style="width:1px;height:36px;background:#e0e0e0;flex-shrink:0;"></div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:16px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">Pledged</div>
+                    <div id="certStatPledged" style="font-size:30px;font-weight:800;color:#1a73e8;"></div>
+                </div>
+                <div style="width:1px;height:36px;background:#e0e0e0;flex-shrink:0;"></div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:16px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">Paid</div>
+                    <div id="certStatPaid" style="font-size:30px;font-weight:800;"></div>
+                </div>
+                <div style="width:1px;height:36px;background:#e0e0e0;flex-shrink:0;"></div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:16px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">Area</div>
+                    <div id="certStatArea" style="font-size:30px;font-weight:800;color:#2e7d32;"></div>
+                </div>
+            </div>
+            <div id="certProgressWrap" style="margin-top:10px;display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                    <span style="font-size:14px;font-weight:600;color:#999;">Payment Progress</span>
+                    <span id="certProgressPct" style="font-size:14px;font-weight:700;color:#333;"></span>
+                </div>
+                <div style="width:100%;height:10px;background:#e8e8e8;border-radius:5px;overflow:hidden;">
+                    <div id="certProgressFill" style="height:100%;border-radius:5px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Certificate toggle handler
+function onCertToggleChange() {
+    const toggle = document.getElementById('sendCertificateToggle');
+    const previewContainer = document.getElementById('messagePreviewContainer');
+    const editToggle = document.querySelector('.edit-message-toggle');
+    const editContainer = document.getElementById('messageEditContainer');
+
+    if (toggle.checked) {
+        // When certificate is ON, show a note instead of message preview
+        previewContainer.innerHTML = `
+            <div class="preview-header">
+                <i class="fas fa-certificate text-warning"></i>
+                <span>Certificate + Caption</span>
+            </div>
+            <div class="text-muted" style="font-size:0.85rem;">
+                <p class="mb-2">The donor will receive:</p>
+                <div class="d-flex align-items-start gap-2 mb-1">
+                    <i class="fab fa-whatsapp text-success mt-1"></i>
+                    <span><strong>WhatsApp:</strong> Certificate image with updated payment status + caption message</span>
+                </div>
+                <div class="d-flex align-items-start gap-2">
+                    <i class="fas fa-sms text-primary mt-1"></i>
+                    <span><strong>Fallback:</strong> If WhatsApp fails, a text SMS will be sent instead (no image)</span>
+                </div>
+            </div>`;
+        if (editToggle) editToggle.style.display = 'none';
+        if (editContainer) editContainer.style.display = 'none';
+    } else {
+        // Restore original message preview
+        previewContainer.innerHTML = `
+            <div class="preview-header">
+                <i class="fab fa-whatsapp"></i>
+                <span>Message Preview</span>
+            </div>
+            <div id="messagePreview">${currentNotificationData ? currentNotificationData.message : ''}</div>`;
+        if (editToggle) editToggle.style.display = '';
+    }
+}
+
+// Override sendNotification to handle certificate
+const originalSendNotification = sendNotification;
+sendNotification = async function() {
+    const certToggle = document.getElementById('sendCertificateToggle');
+
+    if (!certToggle || !certToggle.checked) {
+        // Certificate OFF — use original text-only flow
+        return originalSendNotification();
+    }
+
+    // Certificate ON — generate and send certificate image
+    if (!currentNotificationData) return;
+
+    const btn = document.querySelector('.btn-send-notification');
+    btn.disabled = true;
+    document.getElementById('sendingSpinner').classList.add('active');
+    document.getElementById('sendIcon').style.display = 'none';
+    document.getElementById('sendBtnText').textContent = 'Generating certificate...';
+
+    try {
+        // Step 1: Fetch fresh donor data
+        const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
+        const dataJson = await dataRes.json();
+
+        if (!dataJson.success) {
+            throw new Error(dataJson.error || 'Failed to load donor data');
+        }
+
+        const d = dataJson.donor;
+
+        // Step 2: Populate hidden certificate
+        document.getElementById('certDonorName').textContent = d.name;
+        document.getElementById('certContribution').textContent = d.currency + parseFloat(d.allocation_base).toFixed(2);
+        document.getElementById('certSqmPill').textContent = d.sqm_value + 'm\u00B2';
+        document.getElementById('certRefBottom').textContent = d.reference;
+        document.getElementById('certStatRef').textContent = d.reference;
+        document.getElementById('certStatPledged').textContent = d.currency + Math.round(d.total_pledged).toLocaleString();
+
+        const paidEl = document.getElementById('certStatPaid');
+        paidEl.textContent = d.currency + Math.round(d.total_paid).toLocaleString();
+        paidEl.style.color = d.is_fully_paid ? '#2e7d32' : '#e65100';
+
+        document.getElementById('certStatArea').textContent = d.sqm_value + ' m\u00B2';
+
+        // Progress bar
+        const progressWrap = document.getElementById('certProgressWrap');
+        const statsRow = document.getElementById('certStatsRow');
+        if (d.has_pledge) {
+            progressWrap.style.display = '';
+            statsRow.style.marginBottom = '10px';
+            document.getElementById('certProgressPct').textContent = d.payment_progress + '%';
+            const fill = document.getElementById('certProgressFill');
+            fill.style.width = d.payment_progress + '%';
+            fill.style.background = d.is_fully_paid
+                ? 'linear-gradient(90deg, #43a047, #2e7d32)'
+                : 'linear-gradient(90deg, #fb8c00, #e65100)';
+        } else {
+            progressWrap.style.display = 'none';
+            statsRow.style.marginBottom = '0';
+        }
+
+        // Step 3: Load html2canvas and capture
+        document.getElementById('sendBtnText').textContent = 'Capturing certificate...';
+
+        if (typeof html2canvas === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Failed to load html2canvas'));
+                document.head.appendChild(script);
+            });
+        }
+
+        const captureEl = document.getElementById('certCaptureWrapper');
+        const canvas = await html2canvas(captureEl, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            width: 1200,
+            height: 870
+        });
+
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('Failed to generate certificate image');
+
+        // Step 4: Send certificate via WhatsApp
+        document.getElementById('sendBtnText').textContent = 'Sending via WhatsApp...';
+
+        const formData = new FormData();
+        formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
+        formData.append('phone', currentNotificationData.donor_phone);
+        formData.append('donor_id', currentNotificationData.donor_id);
+        formData.append('donor_name', d.name);
+        formData.append('sqm_value', d.sqm_value);
+        formData.append('total_paid', d.currency + parseFloat(d.total_paid).toFixed(2));
+
+        // Get CSRF token
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
+        formData.append('csrf_token', csrfToken);
+
+        const certRes = await fetch('../../donor-management/api/send-certificate-whatsapp.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const certResult = await certRes.json();
+
+        if (certResult.success) {
+            // Certificate sent successfully via WhatsApp!
+            document.getElementById('sendingSpinner').classList.remove('active');
+            document.getElementById('sendIcon').className = 'fas fa-check me-1';
+            document.getElementById('sendIcon').style.display = '';
+            document.getElementById('sendBtnText').textContent = 'Certificate Sent!';
+
+            setTimeout(() => {
+                if (notificationModal) notificationModal.hide();
+            }, 1200);
+            return;
+        }
+
+        // WhatsApp failed — fall back to text SMS
+        console.warn('Certificate WhatsApp failed, falling back to SMS text:', certResult.error);
+        document.getElementById('sendBtnText').textContent = 'Falling back to SMS...';
+
+        await sendTextFallback();
+
+    } catch (err) {
+        console.error('Certificate send error:', err);
+
+        // Try text fallback
+        try {
+            document.getElementById('sendBtnText').textContent = 'Falling back to SMS...';
+            await sendTextFallback();
+        } catch (fallbackErr) {
+            console.error('Fallback also failed:', fallbackErr);
+            alert('Failed to send notification: ' + err.message);
+            btn.disabled = false;
+            document.getElementById('sendingSpinner').classList.remove('active');
+            document.getElementById('sendIcon').style.display = '';
+            document.getElementById('sendBtnText').textContent = 'Retry';
+        }
+    }
+};
+
+// Text-only fallback (SMS)
+async function sendTextFallback() {
+    const message = currentNotificationData.message;
+
+    const res = await fetch('send-payment-notification.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            donor_id: currentNotificationData.donor_id,
+            phone: currentNotificationData.donor_phone,
+            message: message,
+            language: currentNotificationData.donor_language
+        })
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+        document.getElementById('sendingSpinner').classList.remove('active');
+        document.getElementById('sendIcon').className = 'fas fa-check me-1';
+        document.getElementById('sendIcon').style.display = '';
+        document.getElementById('sendBtnText').textContent = 'Sent (SMS)!';
+
+        setTimeout(() => {
+            if (notificationModal) notificationModal.hide();
+        }, 1200);
+    } else {
+        throw new Error(result.error || 'SMS fallback failed');
+    }
 }
 </script>
 </body>
