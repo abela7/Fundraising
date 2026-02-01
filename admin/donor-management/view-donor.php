@@ -1602,13 +1602,21 @@ function formatDateTime($date) {
             box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
 
-        /* The actual certificate - fixed size, scaled via JS transform */
-        .donor-certificate {
+        /* Capture wrapper - this is what html2canvas captures (cert + stats) */
+        .cert-capture-wrapper {
             position: absolute;
             top: 0;
             left: 0;
             width: 1200px;
             height: 870px;
+            transform-origin: top left;
+        }
+
+        /* The actual certificate - original 750px design untouched */
+        .donor-certificate {
+            position: relative;
+            width: 1200px;
+            height: 750px;
             background-image: url('../../assets/images/cert-bg.png');
             background-size: cover;
             background-position: center;
@@ -1794,15 +1802,13 @@ function formatDateTime($date) {
             font-family: 'Courier New', monospace;
         }
 
-        /* Certificate Stats Strip - white bar at the very bottom */
+        /* Certificate Stats Strip - white bar below the certificate */
         .cert-stats-strip {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 2;
+            width: 1200px;
+            height: 120px;
             background: #ffffff;
             padding: 16px 50px 12px;
+            box-sizing: border-box;
         }
 
         .cert-stats-row {
@@ -2851,19 +2857,47 @@ function formatDateTime($date) {
                                 <!-- Certificate Preview - Responsive Fit -->
                                 <div class="cert-preview-wrapper">
                                     <div class="cert-aspect-ratio" id="cert-aspect-container">
-                                        <div class="donor-certificate" id="donor-certificate">
-                                            <div class="cert-church-overlay"></div>
-                                            <div class="cert-top-section">
-                                                <div class="cert-top-verse">
-                                                    "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" ፪ ዜና ፪፡፱
+                                        <div class="cert-capture-wrapper" id="donor-certificate">
+                                            <!-- Original Certificate (750px) -->
+                                            <div class="donor-certificate">
+                                                <div class="cert-church-overlay"></div>
+                                                <div class="cert-top-section">
+                                                    <div class="cert-top-verse">
+                                                        "የምሠራውም ቤት እጅግ ታላቅና ድንቅ ይሆናልና ብዙ እንጨት ያዘጋጁልኝ ዘንድ እነሆ ባሪያዎቼ ከባሪያዎችህ ጋር ይሆናሉ፡፡" ፪ ዜና ፪፡፱
+                                                    </div>
+                                                    <div class="cert-church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
                                                 </div>
-                                                <div class="cert-church-name">LIVERPOOL ABUNE TEKLEHAYMANOT EOTC</div>
+                                                <div class="cert-center-section">
+                                                    <div class="cert-title-am">ይህ ታሪኬ ነው</div>
+                                                    <div class="cert-title-en">It is My History</div>
+                                                </div>
+                                                <div class="cert-bottom-section">
+                                                    <div class="cert-bank-area">
+                                                        <div class="cert-qr-code">
+                                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://donate.abuneteklehaymanot.org/" alt="QR">
+                                                        </div>
+                                                        <div class="cert-bank-details">
+                                                            <div class="cert-bank-row">
+                                                                <span class="cert-bank-label">Name -</span>
+                                                                <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
+                                                            </div>
+                                                            <div class="cert-bank-row" style="margin-top: 15px;">
+                                                                <span class="cert-bank-label">Contribution -</span>
+                                                                <span class="cert-bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="cert-right-area">
+                                                        <div class="cert-pill-box">
+                                                            <span class="cert-sqm-value"><?= $sqmValue ?>m²</span>
+                                                        </div>
+                                                        <?php if ($donor_reference): ?>
+                                                        <div class="cert-reference-number"><?= htmlspecialchars($donor_reference) ?></div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="cert-center-section">
-                                                <div class="cert-title-am">ይህ ታሪኬ ነው</div>
-                                                <div class="cert-title-en">It is My History</div>
-                                            </div>
-                                            <!-- Stats Strip - Ref, Pledged, Paid, Area + Progress Bar -->
+                                            <!-- Stats Strip - sits below the certificate -->
                                             <div class="cert-stats-strip">
                                                 <div class="cert-stats-row <?= $hasPledge ? 'cert-has-progress' : '' ?>">
                                                     <div class="cert-stat-item">
@@ -2897,31 +2931,6 @@ function formatDateTime($date) {
                                                     </div>
                                                 </div>
                                                 <?php endif; ?>
-                                            </div>
-                                            <div class="cert-bottom-section">
-                                                <div class="cert-bank-area">
-                                                    <div class="cert-qr-code">
-                                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://donate.abuneteklehaymanot.org/" alt="QR">
-                                                    </div>
-                                        <div class="cert-bank-details">
-                                            <div class="cert-bank-row">
-                                                <span class="cert-bank-label">Name -</span>
-                                                <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
-                                            </div>
-                                            <div class="cert-bank-row" style="margin-top: 15px;">
-                                                <span class="cert-bank-label">Contribution -</span>
-                                                <span class="cert-bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
-                                            </div>
-                                        </div>
-                                                </div>
-                                                <div class="cert-right-area">
-                                                    <div class="cert-pill-box">
-                                                        <span class="cert-sqm-value"><?= $sqmValue ?>m²</span>
-                                                    </div>
-                                                    <?php if ($donor_reference): ?>
-                                                    <div class="cert-reference-number"><?= htmlspecialchars($donor_reference) ?></div>
-                                                    <?php endif; ?>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
