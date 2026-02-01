@@ -1,0 +1,5 @@
+# Add this to your global git config (~/.gitconfig) or run:
+# git config --global alias.sync-github '!f() { cd C:/xampp/htdocs/Fundraising && git pull origin main && git merge bold-knuth --no-edit && git push origin main; }; f'
+
+[alias]
+    sync-github = "!f() { cd C:/xampp/htdocs/Fundraising && git pull origin main && git merge bold-knuth --no-edit && git push origin main; }; f"
