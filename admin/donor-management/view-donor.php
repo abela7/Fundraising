@@ -4318,55 +4318,55 @@ function captureDonorCert(element) {
     });
 }
 
-// Send certificate via WhatsApp - generates image first then shares
+// Send certificate via WhatsApp - captures as PNG and sends directly via UltraMsg API
 function sendCertificateWhatsApp() {
     const certificate = document.getElementById('donor-certificate');
     if (!certificate) {
         alert('Certificate not found');
         return;
     }
-    
+
     const donorPhone = '<?php echo htmlspecialchars($donor['phone'] ?? ''); ?>';
     const donorName = '<?php echo htmlspecialchars(addslashes($donor['name'] ?? '')); ?>';
+    const donorId = '<?php echo $donor_id; ?>';
     const sqmValue = '<?php echo $sqmValue; ?>';
     const totalPaid = '<?php echo $currency . number_format($allocationBase, 2); ?>';
-    const paymentStatus = '<?php echo $isFullyPaid ? "Fully Paid" : ($paymentProgress . "% Paid"); ?>';
-    
-    // Format phone for WhatsApp
-    let waPhone = donorPhone.replace(/\s+/g, '');
-    if (waPhone.startsWith('0')) {
-        waPhone = '44' + waPhone.substring(1);
-    } else if (!waPhone.startsWith('44') && !waPhone.startsWith('+44')) {
-        waPhone = '44' + waPhone;
+
+    if (!donorPhone) {
+        alert('Donor has no phone number. Cannot send WhatsApp.');
+        return;
     }
-    waPhone = waPhone.replace(/^\+/, '');
-    
-    // Show loading
+
+    // Show loading state
     const btn = document.querySelector('button[onclick="sendCertificateWhatsApp()"]');
     const originalText = btn ? btn.innerHTML : '';
     if (btn) {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Preparing...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending...';
         btn.disabled = true;
     }
-    
-    // Load html2canvas if needed
+
+    // Load html2canvas if needed, then capture and send
     if (typeof html2canvas === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = () => generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
+        script.onload = () => captureAndSendCertificate(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText);
+        script.onerror = () => {
+            alert('Failed to load image library. Please try again.');
+            if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+        };
         document.head.appendChild(script);
     } else {
-        generateAndShareCert(certificate, waPhone, donorName, sqmValue, totalPaid, btn, originalText);
+        captureAndSendCertificate(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText);
     }
 }
 
-// Generate certificate image and share via WhatsApp
-async function generateAndShareCert(element, waPhone, donorName, sqmValue, totalPaid, btn, originalText) {
+// Capture certificate as PNG and send directly via server API to WhatsApp
+async function captureAndSendCertificate(element, phone, donorId, donorName, sqmValue, totalPaid, btn, originalText) {
     try {
-        // Reset transform for capture
+        // Step 1: Capture certificate as PNG
         const originalTransform = element.style.transform;
         element.style.transform = 'none';
-        
+
         const canvas = await html2canvas(element, {
             scale: 2,
             useCORS: true,
@@ -4375,77 +4375,71 @@ async function generateAndShareCert(element, waPhone, donorName, sqmValue, total
             width: 1200,
             height: 750
         });
-        
-        // Restore transform
+
         element.style.transform = originalTransform;
-        
-        // Convert to blob
+
+        // Convert canvas to PNG blob
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        const file = new File([blob], `certificate_${donorName.replace(/[^a-z0-9]/gi, '_')}.png`, { type: 'image/png' });
-        
-        // Check if Web Share API with files is supported
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            // Use Web Share API to share the image directly
-            await navigator.share({
-                files: [file],
-                title: 'Certificate of Contribution',
-                text: `🎉 Certificate for ${donorName}\n💰 Contribution: ${totalPaid}\n📐 Allocation: ${sqmValue} m²`
-            });
-            
+        if (!blob) {
+            throw new Error('Failed to generate certificate image');
+        }
+
+        // Step 2: Update button to show sending state
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending to WhatsApp...';
+        }
+
+        // Step 3: Send to server API which sends via UltraMsg
+        const formData = new FormData();
+        formData.append('certificate', blob, `certificate_${donorName.replace(/[^a-z0-9]/gi, '_')}.png`);
+        formData.append('phone', phone);
+        formData.append('donor_id', donorId);
+        formData.append('donor_name', donorName);
+        formData.append('sqm_value', sqmValue);
+        formData.append('total_paid', totalPaid);
+
+        // Get CSRF token
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+        formData.append('csrf_token', csrfToken);
+
+        const response = await fetch('api/send-certificate-whatsapp.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show success state on button
             if (btn) {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        } else {
-            // Fallback: Download the image first, then open WhatsApp
-            const link = document.createElement('a');
-            link.download = `certificate_${donorName.replace(/[^a-z0-9]/gi, '_')}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            
-            // Show instructions
-            setTimeout(() => {
-                const message = `🎉 *Certificate of Contribution*
+                btn.innerHTML = '<i class="fas fa-check me-1"></i> Sent!';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
 
-Dear ${donorName},
-
-Thank you for your generous contribution to Liverpool Abune Teklehaymanot EOTC!
-
-📊 *Your Contribution:*
-💰 Amount: ${totalPaid}
-📐 Allocation: ${sqmValue} m²
-
-Please find your certificate attached. May God bless you abundantly!
-
-_Liverpool Abune Teklehaymanot EOTC_`;
-                
-                const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
-                
-                if (confirm('Certificate downloaded! Click OK to open WhatsApp. You can then attach the downloaded certificate image.')) {
-                    window.open(waUrl, '_blank');
-                }
-                
-                if (btn) {
+                // Restore button after 3 seconds
+                setTimeout(() => {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
-                }
-            }, 500);
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-primary');
+                }, 3000);
+            }
+
+            // Show success toast if available, otherwise simple alert
+            if (typeof showToast === 'function') {
+                showToast('Certificate sent to ' + donorName + ' via WhatsApp!', 'success');
+            }
+        } else {
+            throw new Error(result.error || 'Failed to send certificate');
         }
+
     } catch (err) {
-        console.error('Error sharing certificate:', err);
-        
-        // Fallback to simple WhatsApp message
-        const message = `🎉 *Certificate of Contribution*
+        console.error('Error sending certificate via WhatsApp:', err);
 
-Dear ${donorName},
+        // Show error
+        alert('Failed to send certificate: ' + err.message);
 
-Thank you for your contribution of ${totalPaid} (${sqmValue} m²) to Liverpool Abune Teklehaymanot EOTC!
-
-🙏 May God bless you abundantly!`;
-        
-        const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
-        window.open(waUrl, '_blank');
-        
+        // Restore button
         if (btn) {
             btn.innerHTML = originalText;
             btn.disabled = false;
