@@ -614,24 +614,40 @@ class MessagingHelper
     {
         // Remove all non-numeric characters except +
         $phone = preg_replace('/[^0-9+]/', '', $phone);
-        
+
+        // Already full international format +XXXX... (at least 10 digits)
+        if (preg_match('/^\+\d{10,15}$/', $phone)) {
+            return $phone;
+        }
+
         // Handle UK formats
         if (preg_match('/^\+44(\d{10})$/', $phone, $matches)) {
             return '+44' . $matches[1];
         }
-        
+
         if (preg_match('/^44(\d{10})$/', $phone)) {
             return '+' . $phone;
         }
-        
+
         if (preg_match('/^0([1-9]\d{9})$/', $phone, $matches)) {
             return '+44' . $matches[1];
         }
-        
+
         if (preg_match('/^([1-9]\d{9})$/', $phone)) {
+            // 10 digit without leading 0 — assume UK
             return '+44' . $phone;
         }
-        
+
+        // Handle Ethiopian format +251
+        if (preg_match('/^251(\d{9})$/', $phone)) {
+            return '+251' . substr($phone, 3);
+        }
+
+        // Any other international format without + (at least 10 digits)
+        if (preg_match('/^[1-9]\d{9,14}$/', $phone)) {
+            return '+' . $phone;
+        }
+
         return null;
     }
     

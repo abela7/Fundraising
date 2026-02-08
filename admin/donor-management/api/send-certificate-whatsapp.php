@@ -157,7 +157,9 @@ try {
 
     // Send image via UltraMsg using base64 (much more reliable than URL)
     // This sends the image data directly so UltraMsg doesn't need to fetch from our server
+    error_log("WhatsApp Certificate: Sending to $phone, file=$localPath, size=" . filesize($localPath) . " bytes");
     $result = $service->sendImageFromFile($phone, $localPath, $caption);
+    error_log("WhatsApp Certificate: Result = " . json_encode($result));
 
     if (!$result['success']) {
         @unlink($localPath);
@@ -242,14 +244,17 @@ try {
 function normalizePhoneForDb(string $phone): string
 {
     $phone = preg_replace('/[^0-9+]/', '', $phone);
-    if (strpos($phone, '+') !== 0) {
-        if (strpos($phone, '44') === 0) {
-            $phone = '+' . $phone;
-        } elseif (strpos($phone, '0') === 0) {
-            $phone = '+44' . substr($phone, 1);
-        } else {
-            $phone = '+' . $phone;
-        }
+    if (strpos($phone, '+') === 0) {
+        return $phone; // Already international format
     }
-    return $phone;
+    if (strpos($phone, '44') === 0 && strlen($phone) === 12) {
+        return '+' . $phone;
+    }
+    if (strpos($phone, '251') === 0 && strlen($phone) === 12) {
+        return '+' . $phone;
+    }
+    if (strpos($phone, '0') === 0) {
+        return '+44' . substr($phone, 1);
+    }
+    return '+' . $phone;
 }

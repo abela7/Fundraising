@@ -548,35 +548,50 @@ class UltraMsgService
     {
         // Remove all non-numeric characters except +
         $phone = preg_replace('/[^0-9+]/', '', $phone);
-        
-        // Handle different formats
+
+        // Already full international format +XXXX... (at least 10 digits)
+        if (preg_match('/^\+\d{10,15}$/', $phone)) {
+            return $phone;
+        }
+
+        // Handle UK formats
         if (preg_match('/^\+44(\d{10})$/', $phone, $matches)) {
             // Already international format +44...
             return '+44' . $matches[1];
         }
-        
+
         if (preg_match('/^44(\d{10})$/', $phone)) {
             // International without +
             return '+' . $phone;
         }
-        
+
         if (preg_match('/^0([1-9]\d{9})$/', $phone, $matches)) {
             // UK national format 07xxx or 01xxx
             return '+44' . $matches[1];
         }
-        
+
         if (preg_match('/^([1-9]\d{9})$/', $phone)) {
-            // 10 digit without leading 0
+            // 10 digit without leading 0 — assume UK
             return '+44' . $phone;
         }
-        
+
+        // Handle Ethiopian format +251
+        if (preg_match('/^251(\d{9})$/', $phone)) {
+            return '+251' . substr($phone, 3);
+        }
+
+        // Any other international format without + (at least 10 digits)
+        if (preg_match('/^[1-9]\d{9,14}$/', $phone)) {
+            return '+' . $phone;
+        }
+
         // Invalid format
         return null;
     }
     
     /**
      * Make HTTP request to UltraMsg API
-     * 
+     *
      * @param string $endpoint API endpoint
      * @param array $params Request parameters
      * @param string $method HTTP method (GET or POST)
@@ -585,44 +600,70 @@ class UltraMsgService
     private function makeRequest(string $endpoint, array $params, string $method = 'POST')
     {
         $url = self::API_BASE_URL . $this->instanceId . '/' . $endpoint;
-        
+
+        // Check if this is a media endpoint with large base64 data
+        $isMediaEndpoint = in_array($endpoint, ['messages/image', 'messages/document', 'messages/video', 'messages/audio']);
+        $hasBase64 = false;
+        if ($isMediaEndpoint) {
+            foreach ($params as $val) {
+                if (is_string($val) && strpos($val, 'data:') === 0 && strpos($val, ';base64,') !== false) {
+                    $hasBase64 = true;
+                    break;
+                }
+            }
+        }
+
         $ch = curl_init();
-        
+
         if ($method === 'GET') {
             $url .= '?' . http_build_query($params);
             curl_setopt($ch, CURLOPT_HTTPGET, true);
+            $contentType = 'application/x-www-form-urlencoded';
         } else {
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+
+            if ($hasBase64) {
+                // Use JSON for base64 media to avoid URL-encoding overhead
+                // and prevent data corruption from encoding/decoding large payloads
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+                $contentType = 'application/json';
+            } else {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+                $contentType = 'application/x-www-form-urlencoded';
+            }
         }
-        
+
+        // Use longer timeout for media uploads (120s vs 30s)
+        $timeout = ($isMediaEndpoint && $hasBase64) ? 120 : 30;
+
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
+            CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_HTTPHEADER => [
-                'Content-Type: application/x-www-form-urlencoded'
+                'Content-Type: ' . $contentType
             ]
         ]);
-        
+
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
-        
+        $curlErrno = curl_errno($ch);
+
         curl_close($ch);
-        
+
         if ($error) {
-            error_log("UltraMsg cURL error: $error");
+            error_log("UltraMsg cURL error (errno=$curlErrno): $error [endpoint=$endpoint, timeout={$timeout}s]");
             return false;
         }
-        
+
         if ($httpCode >= 400) {
-            error_log("UltraMsg HTTP error: $httpCode - $response");
+            error_log("UltraMsg HTTP error: $httpCode - " . substr($response, 0, 500) . " [endpoint=$endpoint]");
             return false;
         }
-        
+
         return $response;
     }
     
