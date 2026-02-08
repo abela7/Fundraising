@@ -165,6 +165,7 @@ $categories = [
     'follow_up' => 'Follow Up',
     'payment_reminder' => 'Payment Reminder',
     'payment_confirmation' => 'Payment Confirmation',
+    'fully_paid' => 'Fully Paid',
     'callback' => 'Callback',
     'thank_you' => 'Thank You',
     'general' => 'General',

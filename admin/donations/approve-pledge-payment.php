@@ -297,6 +297,13 @@ try {
     $updatedDonor = $updatedDonorStmt->get_result()->fetch_assoc();
     $updatedDonorStmt->close();
     
+    // Calculate fully-paid status
+    $updatedTotalPledged = (float)($updatedDonor['total_pledged'] ?? 0);
+    $updatedTotalPaid = (float)($updatedDonor['total_paid'] ?? 0);
+    $updatedBalance = (float)($updatedDonor['balance'] ?? 0);
+    $isFullyPaid = $updatedTotalPledged > 0 && $updatedBalance <= 0;
+    $sqmValue = round(max($updatedTotalPledged, $updatedTotalPaid) / 400, 2);
+
     // Prepare notification data (including assigned agent for routing)
     $notificationData = [
         'donor_id' => $donor_id,
@@ -306,13 +313,18 @@ try {
         'payment_amount' => number_format((float)$payment['amount'], 2),
         'payment_date' => date('l, j F Y'), // e.g., "Saturday, 14 December 2024"
         'total_pledge' => number_format((float)($updatedDonor['pledge_amount'] ?? 0), 2),
-        'outstanding_balance' => number_format((float)($updatedDonor['balance'] ?? 0), 2),
+        'total_paid' => number_format($updatedTotalPaid, 2),
+        'outstanding_balance' => number_format($updatedBalance, 2),
+        'is_fully_paid' => $isFullyPaid,
+        'sqm_value' => $sqmValue,
+        'total_pledged_raw' => $updatedTotalPledged,
+        'total_paid_raw' => $updatedTotalPaid,
         'has_plan' => !empty($updatedDonor['plan_next_payment']) && $updatedDonor['plan_status'] === 'active',
-        'next_payment_date' => $updatedDonor['plan_next_payment'] 
-            ? date('l, j F Y', strtotime($updatedDonor['plan_next_payment'])) 
+        'next_payment_date' => $updatedDonor['plan_next_payment']
+            ? date('l, j F Y', strtotime($updatedDonor['plan_next_payment']))
             : null,
-        'next_payment_amount' => $updatedDonor['plan_amount'] 
-            ? number_format((float)$updatedDonor['plan_amount'], 2) 
+        'next_payment_amount' => $updatedDonor['plan_amount']
+            ? number_format((float)$updatedDonor['plan_amount'], 2)
             : null,
         // Assigned agent info for message routing
         'assigned_agent_id' => $updatedDonor['assigned_agent_id'] ?? null,

@@ -88,6 +88,10 @@ $total_pages = ceil($total_records / $per_page);
 $sms_template_res = $db->query("SELECT * FROM sms_templates WHERE template_key = 'payment_confirmed' LIMIT 1");
 $sms_template = $sms_template_res ? $sms_template_res->fetch_assoc() : null;
 
+// Fetch Fully Paid Confirmation Template
+$fully_paid_tpl_res = $db->query("SELECT * FROM sms_templates WHERE template_key = 'fully_paid_confirmation' AND is_active = 1 LIMIT 1");
+$fully_paid_template = $fully_paid_tpl_res ? $fully_paid_tpl_res->fetch_assoc() : null;
+
 // Fetch Next Payment Info Templates (usually handled in MessagingHelper or hardcoded if simple)
 // For this UI, we'll use the logic already in the JavaScript but we could also fetch sub-templates if needed.
 
@@ -863,6 +867,303 @@ function build_url($params) {
             cursor: pointer;
         }
 
+        /* ===== Fully Paid Modal ===== */
+        .fully-paid-modal .modal-content {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+        .fully-paid-modal .modal-dialog {
+            max-width: 520px;
+        }
+        .fp-header {
+            background: linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%);
+            padding: 1.5rem 1.75rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        .fp-header::before {
+            content: '';
+            position: absolute;
+            top: -30px;
+            right: -30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        .fp-header::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 40%;
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .fp-header .btn-close {
+            filter: brightness(0) invert(1);
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2;
+        }
+        .fp-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.18);
+            backdrop-filter: blur(4px);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .fp-header h5 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .fp-header p {
+            margin: 4px 0 0;
+            font-size: 0.85rem;
+            opacity: 0.85;
+        }
+        .fp-body {
+            padding: 1.5rem 1.75rem;
+        }
+        .fp-donor-card {
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+            border: 1px solid #a7f3d0;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        .fp-donor-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #065f46;
+            margin-bottom: 2px;
+        }
+        .fp-donor-phone {
+            font-size: 0.825rem;
+            color: #6b7280;
+        }
+        .fp-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .fp-stat {
+            background: white;
+            border-radius: 8px;
+            padding: 8px 12px;
+            border: 1px solid #d1fae5;
+        }
+        .fp-stat-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .fp-stat-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-top: 1px;
+        }
+        .fp-stat-value.green { color: #059669; }
+        .fp-stat-value.blue { color: #2563eb; }
+        .fp-progress-complete {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #059669;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .fp-progress-complete i {
+            font-size: 0.9rem;
+        }
+        .fp-section-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .fp-message-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            max-height: 220px;
+            overflow-y: auto;
+            color: #374151;
+            margin-bottom: 1rem;
+        }
+        .fp-cert-toggle {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 1px solid #fbbf24;
+            border-radius: 12px;
+            padding: 0.875rem 1rem;
+            margin-bottom: 1.25rem;
+            transition: all 0.2s;
+        }
+        .fp-cert-toggle.active {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #f59e0b;
+        }
+        .fp-cert-toggle .form-check-input:checked {
+            background-color: #f59e0b;
+            border-color: #f59e0b;
+        }
+        .fp-cert-toggle .form-check-input {
+            width: 2.75em;
+            height: 1.35em;
+            cursor: pointer;
+        }
+        .fp-cert-info {
+            display: none;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #92400e;
+        }
+        .fp-cert-toggle.active .fp-cert-info {
+            display: block;
+        }
+        .fp-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 0.25rem;
+        }
+        .fp-btn-skip {
+            flex: 0 0 auto;
+            padding: 0.75rem 1.25rem;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .fp-btn-skip:hover {
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .fp-btn-send {
+            flex: 1;
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .fp-btn-send:hover:not(:disabled) {
+            background: linear-gradient(135deg, #128C7E 0%, #075E54 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37,211,102,0.3);
+        }
+        .fp-btn-send:disabled {
+            opacity: 0.75;
+            cursor: not-allowed;
+        }
+        .fp-btn-send .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            border-width: 2px;
+            display: none;
+        }
+        .fp-btn-send.loading .spinner-border {
+            display: inline-block;
+        }
+        .fp-btn-send.loading .btn-icon {
+            display: none;
+        }
+        .fp-edit-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.78rem;
+            color: #6366f1;
+            cursor: pointer;
+            margin-top: -4px;
+            margin-bottom: 8px;
+        }
+        .fp-edit-link:hover { text-decoration: underline; }
+        .fp-edit-textarea {
+            width: 100%;
+            min-height: 180px;
+            padding: 0.75rem;
+            border: 1px solid #c7d2fe;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            resize: vertical;
+            font-family: inherit;
+            margin-bottom: 1rem;
+        }
+        .fp-edit-textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+        }
+        .fp-step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.72rem;
+            color: #9ca3af;
+            margin-top: 6px;
+        }
+        .fp-step-indicator .step {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            transition: all 0.3s;
+        }
+        .fp-step-indicator .step.active {
+            background: #25D366;
+            width: 18px;
+            border-radius: 3px;
+        }
+        .fp-step-indicator .step.done {
+            background: #059669;
+        }
+
     </style>
 </head>
 <body>
@@ -970,7 +1271,13 @@ function build_url($params) {
                                  data-outstanding-balance="<?php echo number_format((float)($p['donor_balance'] ?? 0), 2); ?>"
                                  data-has-plan="<?php echo (!empty($p['plan_id']) && $p['plan_status'] === 'active') ? '1' : '0'; ?>"
                                  data-next-payment-date="<?php echo (!empty($p['plan_next_payment']) ? date('l, j F Y', strtotime($p['plan_next_payment'])) : ''); ?>"
-                                 data-next-payment-amount="<?php echo !empty($p['plan_monthly_amount']) ? number_format((float)$p['plan_monthly_amount'], 2) : ''; ?>">
+                                 data-next-payment-amount="<?php echo !empty($p['plan_monthly_amount']) ? number_format((float)$p['plan_monthly_amount'], 2) : ''; ?>"
+                                 data-is-fully-paid="<?php
+                                    $tPledged = (float)($p['donor_pledge_amount'] ?? 0);
+                                    $tBalance = (float)($p['donor_balance'] ?? 0);
+                                    echo ($tPledged > 0 && $tBalance <= 0) ? '1' : '0';
+                                 ?>"
+                                 data-sqm-value="<?php echo round(max((float)($p['donor_pledge_amount'] ?? 0), (float)($p['donor_total_paid'] ?? 0)) / 400, 2); ?>">
                                 <!-- Card Header -->
                                 <div class="card-header-row">
                                     <div class="d-flex align-items-start gap-3">
@@ -1330,6 +1637,97 @@ function build_url($params) {
     </div>
 </div>
 
+<!-- Fully Paid Notification Modal -->
+<div class="modal fade fully-paid-modal" id="fullyPaidModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="fp-header">
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="fp-badge">
+                    <i class="fas fa-check-circle"></i> Fully Paid
+                </div>
+                <h5><i class="fas fa-trophy me-2"></i>Payment Complete!</h5>
+                <p>This donor has completed all pledge payments</p>
+            </div>
+
+            <!-- Body -->
+            <div class="fp-body">
+                <!-- Donor Card -->
+                <div class="fp-donor-card">
+                    <div class="fp-donor-name" id="fpDonorName">-</div>
+                    <div class="fp-donor-phone" id="fpDonorPhone">-</div>
+                    <div class="fp-stats">
+                        <div class="fp-stat">
+                            <div class="fp-stat-label">Total Pledged</div>
+                            <div class="fp-stat-value blue" id="fpPledged">-</div>
+                        </div>
+                        <div class="fp-stat">
+                            <div class="fp-stat-label">Total Paid</div>
+                            <div class="fp-stat-value green" id="fpPaid">-</div>
+                        </div>
+                        <div class="fp-stat">
+                            <div class="fp-stat-label">This Payment</div>
+                            <div class="fp-stat-value" id="fpThisPayment">-</div>
+                        </div>
+                        <div class="fp-stat">
+                            <div class="fp-stat-label">Area Allocation</div>
+                            <div class="fp-stat-value green" id="fpArea">-</div>
+                        </div>
+                    </div>
+                    <div class="fp-progress-complete">
+                        <i class="fas fa-check-circle"></i>
+                        <span>100% Payment Complete</span>
+                    </div>
+                </div>
+
+                <!-- Certificate Toggle -->
+                <div class="fp-cert-toggle" id="fpCertToggleWrap">
+                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-0">
+                        <input class="form-check-input" type="checkbox" id="fpCertToggle" checked onchange="onFpCertToggle()">
+                        <label class="form-check-label fw-semibold" for="fpCertToggle">
+                            <i class="fas fa-certificate text-warning me-1"></i>Attach Certificate
+                        </label>
+                    </div>
+                    <div class="fp-cert-info">
+                        <i class="fab fa-whatsapp text-success me-1"></i>
+                        Certificate image will be sent as a WhatsApp image with the message below as caption.
+                    </div>
+                </div>
+
+                <!-- Message Section -->
+                <div class="fp-section-title">
+                    <i class="fab fa-whatsapp text-success"></i> WhatsApp Message
+                </div>
+
+                <div class="fp-edit-link" id="fpEditLink" onclick="toggleFpEdit()">
+                    <i class="fas fa-edit"></i> <span id="fpEditText">Edit message</span>
+                </div>
+
+                <div id="fpMessagePreview" class="fp-message-box"></div>
+                <textarea id="fpMessageEdit" class="fp-edit-textarea" style="display:none;"></textarea>
+
+                <!-- Actions -->
+                <div class="fp-actions">
+                    <button type="button" class="fp-btn-skip" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Skip
+                    </button>
+                    <button type="button" class="fp-btn-send" id="fpSendBtn" onclick="sendFullyPaidNotification()">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                        <i class="fab fa-whatsapp btn-icon"></i>
+                        <span id="fpSendText">Send Message</span>
+                    </button>
+                </div>
+                <div class="fp-step-indicator" id="fpSteps">
+                    <span class="step active"></span>
+                    <span class="step"></span>
+                    <span class="step"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
@@ -1343,6 +1741,7 @@ const KESIS_BIRHANU_PHONE = '07473822244';
 
 // Database Templates (from PHP)
 const dbTemplates = <?php echo json_encode($sms_template); ?>;
+const dbFullyPaidTemplate = <?php echo json_encode($fully_paid_template); ?>;
 
 // Sub-templates for {next_payment_info} variable
 const nextPaymentTemplates = {
@@ -1396,16 +1795,22 @@ function approvePayment(id, btn) {
             // Check if we have notification data
             if (res.notification_data && res.notification_data.donor_phone) {
                 const data = res.notification_data;
-                const agentPhone = normalizePhoneForComparison(data.assigned_agent_phone);
-                const kesisBirhanuPhone = normalizePhoneForComparison(KESIS_BIRHANU_PHONE);
-                
-                // Check if donor is assigned to Kesis Birhanu
-                if (agentPhone && agentPhone === kesisBirhanuPhone) {
-                    // Auto-send to Kesis Birhanu without showing modal
-                    sendToKesisBirhanu(data, btn);
-                } else {
-                    // Show normal notification modal for other agents or unassigned donors
+
+                // Fully paid donors always get the special modal (milestone event)
+                if (data.is_fully_paid) {
                     showNotificationModal(data);
+                } else {
+                    const agentPhone = normalizePhoneForComparison(data.assigned_agent_phone);
+                    const kesisBirhanuPhone = normalizePhoneForComparison(KESIS_BIRHANU_PHONE);
+
+                    // Check if donor is assigned to Kesis Birhanu
+                    if (agentPhone && agentPhone === kesisBirhanuPhone) {
+                        // Auto-send to Kesis Birhanu without showing modal
+                        sendToKesisBirhanu(data, btn);
+                    } else {
+                        // Show normal notification modal for other agents or unassigned donors
+                        showNotificationModal(data);
+                    }
                 }
             } else {
                 // No phone number, just reload
@@ -1532,7 +1937,9 @@ function showConfirmationMessage(paymentId) {
         outstanding_balance: card.dataset.outstandingBalance,
         has_plan: card.dataset.hasPlan === '1',
         next_payment_date: card.dataset.nextPaymentDate || null,
-        next_payment_amount: card.dataset.nextPaymentAmount || null
+        next_payment_amount: card.dataset.nextPaymentAmount || null,
+        is_fully_paid: card.dataset.isFullyPaid === '1',
+        sqm_value: parseFloat(card.dataset.sqmValue || '0')
     };
     
     // Validate required fields
@@ -1548,7 +1955,13 @@ function showConfirmationMessage(paymentId) {
 function showNotificationModal(data) {
     currentNotificationData = data;
     isEditMode = false;
-    
+
+    // Check if donor is fully paid - show special modal
+    if (data.is_fully_paid) {
+        showFullyPaidModal(data);
+        return;
+    }
+
     // Update modal fields
     document.getElementById('notifyDonorName').textContent = data.donor_name;
     document.getElementById('notifyDonorPhone').textContent = data.donor_phone;
@@ -2008,6 +2421,288 @@ sendNotification = async function() {
         }
     }
 };
+
+// ===== Fully Paid Modal Logic =====
+let fullyPaidModal = null;
+let fpEditMode = false;
+
+function showFullyPaidModal(data) {
+    currentNotificationData = data;
+    fpEditMode = false;
+
+    // Populate donor card
+    document.getElementById('fpDonorName').textContent = data.donor_name;
+    document.getElementById('fpDonorPhone').textContent = data.donor_phone;
+    document.getElementById('fpPledged').textContent = '£' + data.total_pledge;
+    document.getElementById('fpPaid').textContent = '£' + data.total_paid;
+    document.getElementById('fpThisPayment').textContent = '£' + data.payment_amount;
+    document.getElementById('fpArea').textContent = (data.sqm_value || '0') + ' m²';
+
+    // Build message from fully_paid_confirmation template
+    const lang = data.donor_language || 'am'; // Default to Amharic for fully paid
+    let message = '';
+
+    if (dbFullyPaidTemplate) {
+        if (lang === 'am' && dbFullyPaidTemplate.message_am) {
+            message = dbFullyPaidTemplate.message_am;
+        } else if (lang === 'ti' && dbFullyPaidTemplate.message_ti) {
+            message = dbFullyPaidTemplate.message_ti;
+        } else if (dbFullyPaidTemplate.message_en) {
+            message = dbFullyPaidTemplate.message_en;
+        }
+        // Fallback to Amharic if the selected language is empty
+        if (!message && dbFullyPaidTemplate.message_am) {
+            message = dbFullyPaidTemplate.message_am;
+        }
+    }
+
+    // Fallback if no template in database
+    if (!message) {
+        message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment!\n\nPayment received today ({date}): £{payment_amount}\n\nYour Pledge Summary:\n→ Total Pledge: {total_pledged_sqm} sqm, £{total_pledged}\n→ Total Paid: £{total_paid}\n→ Remaining: £{remaining}\n\nhttps://donate.abuneteklehaymanot.org/donor\n\nMay God bless you abundantly!\n\n- Liverpool Abune Teklehaymanot EOTC';
+    }
+
+    // Replace variables
+    message = message
+        .replace(/\{donor_name\}/g, data.donor_name)
+        .replace(/\{date\}/g, data.payment_date)
+        .replace(/\{payment_amount\}/g, data.payment_amount)
+        .replace(/\{total_pledged_sqm\}/g, (data.sqm_value || '0'))
+        .replace(/\{total_pledged\}/g, data.total_pledge)
+        .replace(/\{total_paid\}/g, data.total_paid)
+        .replace(/\{remaining\}/g, '0.00');
+
+    // Handle \n in template (database stores literal \n)
+    message = message.replace(/\\n/g, '\n');
+
+    currentNotificationData.fullyPaidMessage = message;
+
+    // Set message preview
+    document.getElementById('fpMessagePreview').textContent = message;
+    document.getElementById('fpMessageEdit').value = message;
+
+    // Reset UI state
+    document.getElementById('fpMessagePreview').style.display = '';
+    document.getElementById('fpMessageEdit').style.display = 'none';
+    document.getElementById('fpEditText').textContent = 'Edit message';
+    document.getElementById('fpCertToggle').checked = true;
+    const certWrap = document.getElementById('fpCertToggleWrap');
+    certWrap.classList.add('active');
+
+    // Reset send button
+    const btn = document.getElementById('fpSendBtn');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    document.getElementById('fpSendText').textContent = 'Send Message';
+
+    // Reset steps
+    resetFpSteps();
+
+    // Show modal
+    if (!fullyPaidModal) {
+        fullyPaidModal = new bootstrap.Modal(document.getElementById('fullyPaidModal'));
+    }
+
+    document.getElementById('fullyPaidModal').addEventListener('hidden.bs.modal', function() {
+        location.reload();
+    }, { once: true });
+
+    fullyPaidModal.show();
+}
+
+function onFpCertToggle() {
+    const toggle = document.getElementById('fpCertToggle');
+    const wrap = document.getElementById('fpCertToggleWrap');
+    if (toggle.checked) {
+        wrap.classList.add('active');
+    } else {
+        wrap.classList.remove('active');
+    }
+}
+
+function toggleFpEdit() {
+    fpEditMode = !fpEditMode;
+    if (fpEditMode) {
+        document.getElementById('fpMessagePreview').style.display = 'none';
+        document.getElementById('fpMessageEdit').style.display = '';
+        document.getElementById('fpEditText').textContent = 'Preview message';
+        document.getElementById('fpMessageEdit').focus();
+    } else {
+        const edited = document.getElementById('fpMessageEdit').value;
+        currentNotificationData.fullyPaidMessage = edited;
+        document.getElementById('fpMessagePreview').textContent = edited;
+        document.getElementById('fpMessagePreview').style.display = '';
+        document.getElementById('fpMessageEdit').style.display = 'none';
+        document.getElementById('fpEditText').textContent = 'Edit message';
+    }
+}
+
+function resetFpSteps() {
+    const steps = document.querySelectorAll('#fpSteps .step');
+    steps.forEach((s, i) => {
+        s.className = 'step' + (i === 0 ? ' active' : '');
+    });
+}
+
+function setFpStep(stepIndex) {
+    const steps = document.querySelectorAll('#fpSteps .step');
+    steps.forEach((s, i) => {
+        if (i < stepIndex) s.className = 'step done';
+        else if (i === stepIndex) s.className = 'step active';
+        else s.className = 'step';
+    });
+}
+
+async function sendFullyPaidNotification() {
+    if (!currentNotificationData) return;
+
+    const btn = document.getElementById('fpSendBtn');
+    const sendText = document.getElementById('fpSendText');
+    const sendCert = document.getElementById('fpCertToggle').checked;
+
+    // Get message (might be edited)
+    const message = fpEditMode
+        ? document.getElementById('fpMessageEdit').value
+        : currentNotificationData.fullyPaidMessage;
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+        // Step 1: Send text message
+        setFpStep(0);
+        sendText.textContent = 'Sending message...';
+
+        const textRes = await fetch('send-payment-notification.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                donor_id: currentNotificationData.donor_id,
+                phone: currentNotificationData.donor_phone,
+                message: message,
+                language: currentNotificationData.donor_language || 'am'
+            })
+        });
+
+        const textResult = await textRes.json();
+        if (!textResult.success) {
+            throw new Error(textResult.error || 'Failed to send message');
+        }
+
+        setFpStep(1);
+
+        // Step 2: Send certificate (if toggled on)
+        if (sendCert) {
+            sendText.textContent = 'Generating certificate...';
+
+            // Fetch fresh donor data
+            const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
+            const dataJson = await dataRes.json();
+            if (!dataJson.success) {
+                throw new Error(dataJson.error || 'Failed to load donor data');
+            }
+
+            const d = dataJson.donor;
+
+            // Populate hidden certificate
+            document.getElementById('certDonorName').textContent = d.name;
+            document.getElementById('certContribution').textContent = d.currency + parseFloat(d.allocation_base).toFixed(2);
+            document.getElementById('certSqmPill').textContent = d.sqm_value + 'm\u00B2';
+            document.getElementById('certRefBottom').textContent = d.reference;
+            document.getElementById('certStatRef').textContent = d.reference;
+            document.getElementById('certStatPledged').textContent = d.currency + Math.round(d.total_pledged).toLocaleString();
+
+            const paidEl = document.getElementById('certStatPaid');
+            paidEl.textContent = d.currency + Math.round(d.total_paid).toLocaleString();
+            paidEl.style.color = '#2e7d32'; // Always green for fully paid
+
+            document.getElementById('certStatArea').textContent = d.sqm_value + ' m\u00B2';
+
+            // Progress bar - always 100% for fully paid
+            const progressWrap = document.getElementById('certProgressWrap');
+            const statsRow = document.getElementById('certStatsRow');
+            progressWrap.style.display = '';
+            statsRow.style.marginBottom = '10px';
+            document.getElementById('certProgressPct').textContent = '100%';
+            const fill = document.getElementById('certProgressFill');
+            fill.style.width = '100%';
+            fill.style.background = 'linear-gradient(90deg, #43a047, #2e7d32)';
+
+            sendText.textContent = 'Capturing certificate...';
+
+            // Load html2canvas
+            if (typeof html2canvas === 'undefined') {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('Failed to load html2canvas'));
+                    document.head.appendChild(script);
+                });
+            }
+
+            const captureEl = document.getElementById('certCaptureWrapper');
+            const canvas = await html2canvas(captureEl, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: null,
+                width: 1200,
+                height: 870
+            });
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) throw new Error('Failed to generate certificate image');
+
+            setFpStep(2);
+            sendText.textContent = 'Sending certificate...';
+
+            const formData = new FormData();
+            formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
+            formData.append('phone', currentNotificationData.donor_phone);
+            formData.append('donor_id', currentNotificationData.donor_id);
+            formData.append('donor_name', d.name);
+            formData.append('sqm_value', d.sqm_value);
+            formData.append('total_paid', d.currency + parseFloat(d.total_paid).toFixed(2));
+
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfInput = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
+            formData.append('csrf_token', csrfToken);
+
+            const certRes = await fetch('../../donor-management/api/send-certificate-whatsapp.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const certResult = await certRes.json();
+
+            if (!certResult.success) {
+                console.warn('Certificate send failed:', certResult.error);
+                // Don't throw - text message was already sent successfully
+            }
+        }
+
+        // All done!
+        btn.classList.remove('loading');
+        const steps = document.querySelectorAll('#fpSteps .step');
+        steps.forEach(s => s.className = 'step done');
+
+        sendText.textContent = sendCert ? 'Message + Certificate Sent!' : 'Message Sent!';
+        btn.querySelector('.btn-icon').className = 'fas fa-check btn-icon';
+        btn.querySelector('.btn-icon').style.display = '';
+
+        setTimeout(() => {
+            if (fullyPaidModal) fullyPaidModal.hide();
+        }, 1500);
+
+    } catch (err) {
+        console.error('Fully paid notification error:', err);
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        sendText.textContent = 'Retry';
+    }
+}
 
 // Text-only fallback (SMS)
 async function sendTextFallback() {
