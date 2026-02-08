@@ -182,12 +182,13 @@ try {
     }
     
     // Update session with call SID
+    // Note: conversation_stage stays 'initiating' until Twilio confirms donor answered
     $callSid = $result['call_sid'];
     $stmt = $db->prepare("
-        UPDATE call_center_sessions 
+        UPDATE call_center_sessions
         SET twilio_call_sid = ?,
             twilio_status = 'queued',
-            conversation_stage = 'contact_made'
+            conversation_stage = 'initiating'
         WHERE id = ?
     ");
     $stmt->bind_param('si', $callSid, $sessionId);

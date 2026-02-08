@@ -54,13 +54,13 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
     <Pause length="1"/>
     
     <!-- Dial the donor -->
-    <Dial 
+    <Dial
         callerId="<?php echo htmlspecialchars($donorPhone); ?>"
         timeout="30"
         record="record-from-answer"
         recordingStatusCallback="<?php echo htmlspecialchars($baseUrl); ?>/admin/call-center/api/twilio-recording-callback.php?session_id=<?php echo $sessionId; ?>"
         recordingStatusCallbackMethod="POST">
-        <Number statusCallback="<?php echo htmlspecialchars($statusCallbackUrl); ?>" statusCallbackMethod="POST">
+        <Number statusCallback="<?php echo htmlspecialchars($statusCallbackUrl); ?>" statusCallbackMethod="POST" statusCallbackEvent="initiated ringing answered completed">
             <?php echo htmlspecialchars($donorPhone); ?>
         </Number>
     </Dial>
