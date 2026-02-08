@@ -276,6 +276,7 @@ $categories = [
     'payment_reminder' => 'Payment Reminder',
     'payment_confirmation' => 'Payment Confirmation',
     'payment_overdue' => 'Payment Overdue',
+    'fully_paid' => 'Fully Paid',
     'plan_created' => 'Plan Created',
     'callback' => 'Callback',
     'missed_call' => 'Missed Call',
