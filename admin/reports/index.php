@@ -383,19 +383,18 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
     $ppStmt->close();
   }
 
-  // Finalize per-row metrics to match FinancialCalculator:
-  // - pledged (display) = total pledges - pledge_payments
-  // - paid (display) = instant payments + pledge_payments
-  // - balance = pledged (display)
+  // Finalize per-row metrics to match view-donor.php:
+  // - pledge (display) = total pledges (the full commitment amount)
+  // - paid (display) = instant payments + pledge_payments (all cash received)
+  // - balance = max(pledge - paid, 0) (remaining amount owed)
   foreach ($donors as &$d) {
     $pledgeTotal = (float)($d['_pledge_total'] ?? 0);
     $pledgePaid = (float)($d['_pledge_paid'] ?? 0);
     $instantPaid = (float)($d['_instant_paid'] ?? 0);
 
-    $outstanding = max(0, $pledgeTotal - $pledgePaid);
     $totalPaid = $instantPaid + $pledgePaid;
 
-    $d['pledge'] = $outstanding;
+    $d['pledge'] = $pledgeTotal;
     $d['paid'] = $totalPaid;
   }
   unset($d);
@@ -455,10 +454,10 @@ function build_donor_backup_summary(mysqli $db, string $fromDate, string $toDate
     'totals' => [
       'pledge' => $totalPledge,
       'paid' => $totalPaid,
-      // Balance shown in UI should be the outstanding pledged (same as pledge)
-      'balance' => $totalPledge,
-      // Total Raised (system) = Paid + Outstanding Pledged
-      'grand' => ($totalPaid + $totalPledge),
+      // Balance = total remaining (pledge - paid per row, summed)
+      'balance' => $totalBalance,
+      // Total Raised (system) = Paid + Balance
+      'grand' => ($totalPaid + $totalBalance),
     ]
   ];
 }
@@ -1135,8 +1134,8 @@ if (isset($_GET['report'])) {
         echo '</tr>';
       }
 
-      // Grand total = pledged commitments + money already paid
-      $grandTotalForBackup = $totalPledge + $totalPaid;
+      // Grand total = money already paid + remaining balance
+      $grandTotalForBackup = $totalPaid + $totalBalance;
       echo '<tr style="background-color: #f8f9fa; font-weight: bold;">';
       echo '<td colspan="4" style="text-align:right;"><strong>Totals:</strong></td>';
       echo '<td class="number"><strong>' . number_format($totalPledge, 2) . '</strong></td>';
