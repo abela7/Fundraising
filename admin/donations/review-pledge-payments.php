@@ -2347,7 +2347,7 @@ sendNotification = async function() {
         const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
         formData.append('csrf_token', csrfToken);
 
-        const certRes = await fetch('../../donor-management/api/send-certificate-whatsapp.php', {
+        const certRes = await fetch('../donor-management/api/send-certificate-whatsapp.php', {
             method: 'POST',
             body: formData
         });
@@ -2614,7 +2614,7 @@ async function sendFullyPaidNotification() {
             const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
             formData.append('csrf_token', csrfToken);
 
-            const certRes = await fetch('../../donor-management/api/send-certificate-whatsapp.php', {
+            const certRes = await fetch('../donor-management/api/send-certificate-whatsapp.php', {
                 method: 'POST',
                 body: formData
             });
