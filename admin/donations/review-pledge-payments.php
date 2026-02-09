@@ -1708,7 +1708,6 @@ function build_url($params) {
                 <div class="fp-step-indicator" id="fpSteps">
                     <span class="step active"></span>
                     <span class="step"></span>
-                    <span class="step"></span>
                 </div>
             </div>
         </div>
@@ -2222,7 +2221,7 @@ function undoPayment(id) {
 </div>
 
 <script>
-// Override sendNotification — always sends text message + certificate image
+// Override sendNotification — sends certificate image with template message
 sendNotification = async function() {
     if (!currentNotificationData) return;
 
@@ -2232,40 +2231,21 @@ sendNotification = async function() {
     document.getElementById('sendIcon').style.display = 'none';
 
     try {
-        // Step 1: Send the text message (WhatsApp with SMS fallback)
-        document.getElementById('sendBtnText').textContent = 'Sending message...';
-
+        // Get the message that will be sent with the certificate
         const message = isEditMode
             ? document.getElementById('messageTextarea').value
             : currentNotificationData.message;
 
-        const textRes = await fetch('send-payment-notification.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                donor_id: currentNotificationData.donor_id,
-                phone: currentNotificationData.donor_phone,
-                message: message,
-                language: currentNotificationData.donor_language
-            })
-        });
-
-        const textResult = await textRes.json();
-        if (!textResult.success) {
-            throw new Error(textResult.error || 'Failed to send message');
-        }
-
-        // Step 2: Generate certificate and send it
+        // Step 1: Generate certificate
         document.getElementById('sendBtnText').textContent = 'Generating certificate...';
 
         const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
         const dataJson = await dataRes.json();
 
         if (!dataJson.success) {
-            // Text sent, but can't get cert data — still a success
+            // Can't get cert data - show error
             console.warn('Could not load donor cert data:', dataJson.error);
-            showSendSuccess('Message Sent!');
-            return;
+            throw new Error('Failed to load certificate data: ' + dataJson.error);
         }
 
         const d = dataJson.donor;
@@ -2327,11 +2307,10 @@ sendNotification = async function() {
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         if (!blob) {
             console.warn('Failed to generate certificate image blob');
-            showSendSuccess('Message Sent!');
-            return;
+            throw new Error('Failed to generate certificate image');
         }
 
-        // Step 3: Send certificate image via WhatsApp
+        // Step 2: Send certificate image with template message via WhatsApp
         document.getElementById('sendBtnText').textContent = 'Sending certificate...';
 
         const formData = new FormData();
@@ -2341,6 +2320,7 @@ sendNotification = async function() {
         formData.append('donor_name', d.name);
         formData.append('sqm_value', d.sqm_value);
         formData.append('total_paid', d.currency + parseFloat(d.total_paid).toFixed(2));
+        formData.append('message', message); // Send template message with certificate
 
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfInput = document.querySelector('input[name="csrf_token"]');
@@ -2355,10 +2335,10 @@ sendNotification = async function() {
         const certResult = await certRes.json();
 
         if (certResult.success) {
-            showSendSuccess('Message + Certificate Sent!');
+            showSendSuccess('Certificate + Message Sent!');
         } else {
-            console.warn('Certificate image failed:', certResult.error);
-            showSendSuccess('Message Sent (certificate failed)');
+            console.warn('Certificate send failed:', certResult.error);
+            throw new Error(certResult.error || 'Failed to send certificate');
         }
 
     } catch (err) {
@@ -2504,7 +2484,7 @@ async function sendFullyPaidNotification() {
     const btn = document.getElementById('fpSendBtn');
     const sendText = document.getElementById('fpSendText');
 
-    // Get message (might be edited)
+    // Get message (might be edited) - will be sent with certificate
     const message = fpEditMode
         ? document.getElementById('fpMessageEdit').value
         : currentNotificationData.fullyPaidMessage;
@@ -2513,118 +2493,96 @@ async function sendFullyPaidNotification() {
     btn.classList.add('loading');
 
     try {
-        // Step 1: Send text message
+        // Step 1: Generate and send certificate with message
         setFpStep(0);
-        sendText.textContent = 'Sending message...';
+        sendText.textContent = 'Generating certificate...';
 
-        const textRes = await fetch('send-payment-notification.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                donor_id: currentNotificationData.donor_id,
-                phone: currentNotificationData.donor_phone,
-                message: message,
-                language: currentNotificationData.donor_language || 'am'
-            })
-        });
-
-        const textResult = await textRes.json();
-        if (!textResult.success) {
-            throw new Error(textResult.error || 'Failed to send message');
+        // Fetch fresh donor data
+        const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
+        const dataJson = await dataRes.json();
+        if (!dataJson.success) {
+            throw new Error(dataJson.error || 'Failed to load donor data');
         }
 
+        const d = dataJson.donor;
+
+        // Populate hidden certificate
+        document.getElementById('certDonorName').textContent = d.name;
+        document.getElementById('certContribution').textContent = d.currency + parseFloat(d.allocation_base).toFixed(2);
+        document.getElementById('certSqmPill').textContent = d.sqm_value + 'm\u00B2';
+        document.getElementById('certRefBottom').textContent = d.reference;
+        document.getElementById('certStatRef').textContent = d.reference;
+        document.getElementById('certStatPledged').textContent = d.currency + Math.round(d.total_pledged).toLocaleString();
+
+        const paidEl = document.getElementById('certStatPaid');
+        paidEl.textContent = d.currency + Math.round(d.total_paid).toLocaleString();
+        paidEl.style.color = '#2e7d32'; // Always green for fully paid
+
+        document.getElementById('certStatArea').textContent = d.sqm_value + ' m\u00B2';
+
+        // Progress bar - always 100% for fully paid
+        const progressWrap = document.getElementById('certProgressWrap');
+        const statsRow = document.getElementById('certStatsRow');
+        progressWrap.style.display = '';
+        statsRow.style.marginBottom = '10px';
+        document.getElementById('certProgressPct').textContent = '100%';
+        const fill = document.getElementById('certProgressFill');
+        fill.style.width = '100%';
+        fill.style.background = 'linear-gradient(90deg, #43a047, #2e7d32)';
+
+        sendText.textContent = 'Capturing certificate...';
+
+        // Load html2canvas
+        if (typeof html2canvas === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Failed to load html2canvas'));
+                document.head.appendChild(script);
+            });
+        }
+
+        const captureEl = document.getElementById('certCaptureWrapper');
+        const canvas = await html2canvas(captureEl, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            width: 1200,
+            height: 870
+        });
+
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('Failed to generate certificate image');
+
         setFpStep(1);
+        sendText.textContent = 'Sending certificate...';
 
-        // Step 2: Generate and send certificate
-        {
-            sendText.textContent = 'Generating certificate...';
+        const formData = new FormData();
+        formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
+        formData.append('phone', currentNotificationData.donor_phone);
+        formData.append('donor_id', currentNotificationData.donor_id);
+        formData.append('donor_name', d.name);
+        formData.append('sqm_value', d.sqm_value);
+        formData.append('total_paid', d.currency + parseFloat(d.total_paid).toFixed(2));
+        formData.append('message', message); // Send template message with certificate
 
-            // Fetch fresh donor data
-            const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
-            const dataJson = await dataRes.json();
-            if (!dataJson.success) {
-                throw new Error(dataJson.error || 'Failed to load donor data');
-            }
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
+        formData.append('csrf_token', csrfToken);
 
-            const d = dataJson.donor;
+        const certRes = await fetch('../donor-management/api/send-certificate-whatsapp.php', {
+            method: 'POST',
+            body: formData
+        });
 
-            // Populate hidden certificate
-            document.getElementById('certDonorName').textContent = d.name;
-            document.getElementById('certContribution').textContent = d.currency + parseFloat(d.allocation_base).toFixed(2);
-            document.getElementById('certSqmPill').textContent = d.sqm_value + 'm\u00B2';
-            document.getElementById('certRefBottom').textContent = d.reference;
-            document.getElementById('certStatRef').textContent = d.reference;
-            document.getElementById('certStatPledged').textContent = d.currency + Math.round(d.total_pledged).toLocaleString();
+        const certResult = await certRes.json();
 
-            const paidEl = document.getElementById('certStatPaid');
-            paidEl.textContent = d.currency + Math.round(d.total_paid).toLocaleString();
-            paidEl.style.color = '#2e7d32'; // Always green for fully paid
-
-            document.getElementById('certStatArea').textContent = d.sqm_value + ' m\u00B2';
-
-            // Progress bar - always 100% for fully paid
-            const progressWrap = document.getElementById('certProgressWrap');
-            const statsRow = document.getElementById('certStatsRow');
-            progressWrap.style.display = '';
-            statsRow.style.marginBottom = '10px';
-            document.getElementById('certProgressPct').textContent = '100%';
-            const fill = document.getElementById('certProgressFill');
-            fill.style.width = '100%';
-            fill.style.background = 'linear-gradient(90deg, #43a047, #2e7d32)';
-
-            sendText.textContent = 'Capturing certificate...';
-
-            // Load html2canvas
-            if (typeof html2canvas === 'undefined') {
-                await new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                    script.onload = resolve;
-                    script.onerror = () => reject(new Error('Failed to load html2canvas'));
-                    document.head.appendChild(script);
-                });
-            }
-
-            const captureEl = document.getElementById('certCaptureWrapper');
-            const canvas = await html2canvas(captureEl, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: null,
-                width: 1200,
-                height: 870
-            });
-
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-            if (!blob) throw new Error('Failed to generate certificate image');
-
-            setFpStep(2);
-            sendText.textContent = 'Sending certificate...';
-
-            const formData = new FormData();
-            formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
-            formData.append('phone', currentNotificationData.donor_phone);
-            formData.append('donor_id', currentNotificationData.donor_id);
-            formData.append('donor_name', d.name);
-            formData.append('sqm_value', d.sqm_value);
-            formData.append('total_paid', d.currency + parseFloat(d.total_paid).toFixed(2));
-
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            const csrfInput = document.querySelector('input[name="csrf_token"]');
-            const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
-            formData.append('csrf_token', csrfToken);
-
-            const certRes = await fetch('../donor-management/api/send-certificate-whatsapp.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const certResult = await certRes.json();
-
-            if (!certResult.success) {
-                console.warn('Certificate send failed:', certResult.error);
-                // Don't throw - text message was already sent successfully
-            }
+        if (!certResult.success) {
+            console.warn('Certificate send failed:', certResult.error);
+            throw new Error(certResult.error || 'Failed to send certificate');
         }
 
         // All done!
@@ -2632,7 +2590,7 @@ async function sendFullyPaidNotification() {
         const steps = document.querySelectorAll('#fpSteps .step');
         steps.forEach(s => s.className = 'step done');
 
-        sendText.textContent = 'Message + Certificate Sent!';
+        sendText.textContent = 'Certificate + Message Sent!';
         btn.querySelector('.btn-icon').className = 'fas fa-check btn-icon';
         btn.querySelector('.btn-icon').style.display = '';
 
