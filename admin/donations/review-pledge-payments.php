@@ -849,22 +849,13 @@ function build_url($params) {
             display: inline-block;
         }
 
-        /* Certificate Toggle */
+        /* Certificate Info Banner */
         .cert-toggle-section {
-            background: #fffbeb;
-            border: 1px solid #fde68a;
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+            border: 1px solid #a7f3d0;
             border-radius: 10px;
             padding: 0.75rem 1rem;
             margin-bottom: 1rem;
-        }
-        .cert-toggle-section .form-check-input:checked {
-            background-color: #f59e0b;
-            border-color: #f59e0b;
-        }
-        .cert-toggle-section .form-check-input {
-            width: 2.5em;
-            height: 1.25em;
-            cursor: pointer;
         }
 
         /* ===== Fully Paid Modal ===== */
@@ -1588,15 +1579,13 @@ function build_url($params) {
                     </div>
                 </div>
                 
-                <!-- Send Certificate Toggle -->
+                <!-- Certificate Info -->
                 <div class="cert-toggle-section">
-                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-1">
-                        <input class="form-check-input" type="checkbox" id="sendCertificateToggle" onchange="onCertToggleChange()">
-                        <label class="form-check-label fw-semibold" for="sendCertificateToggle">
-                            <i class="fas fa-certificate text-warning me-1"></i>Send Certificate
-                        </label>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fas fa-certificate text-warning" style="font-size: 1.1rem;"></i>
+                        <span class="fw-semibold" style="font-size: 0.9rem;">Certificate will be included</span>
                     </div>
-                    <small class="text-muted d-block mb-3" style="padding-left: 2.5rem;">Sends certificate image with real-time payment status via WhatsApp. Falls back to text SMS if WhatsApp fails.</small>
+                    <small class="text-muted d-block" style="padding-left: 1.75rem;">The donor will receive the text message + a certificate image showing their payment status via WhatsApp.</small>
                 </div>
 
                 <!-- Message Preview -->
@@ -1681,17 +1670,15 @@ function build_url($params) {
                     </div>
                 </div>
 
-                <!-- Certificate Toggle -->
-                <div class="fp-cert-toggle" id="fpCertToggleWrap">
-                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-0">
-                        <input class="form-check-input" type="checkbox" id="fpCertToggle" checked onchange="onFpCertToggle()">
-                        <label class="form-check-label fw-semibold" for="fpCertToggle">
-                            <i class="fas fa-certificate text-warning me-1"></i>Attach Certificate
-                        </label>
+                <!-- Certificate Info -->
+                <div class="fp-cert-toggle active">
+                    <div class="d-flex align-items-center gap-2 mb-0">
+                        <i class="fas fa-certificate text-warning" style="font-size: 1.1rem;"></i>
+                        <span class="fw-semibold" style="font-size: 0.9rem;">Certificate will be included</span>
                     </div>
-                    <div class="fp-cert-info">
+                    <div class="fp-cert-info" style="display:block;">
                         <i class="fab fa-whatsapp text-success me-1"></i>
-                        Certificate image will be sent as a WhatsApp image with the message below as caption.
+                        The donor will receive the text message + certificate image showing 100% completion.
                     </div>
                 </div>
 
@@ -2235,76 +2222,55 @@ function undoPayment(id) {
 </div>
 
 <script>
-// Certificate toggle handler
-function onCertToggleChange() {
-    const toggle = document.getElementById('sendCertificateToggle');
-    const previewContainer = document.getElementById('messagePreviewContainer');
-    const editToggle = document.querySelector('.edit-message-toggle');
-    const editContainer = document.getElementById('messageEditContainer');
-
-    if (toggle.checked) {
-        // When certificate is ON, show a note instead of message preview
-        previewContainer.innerHTML = `
-            <div class="preview-header">
-                <i class="fas fa-certificate text-warning"></i>
-                <span>Certificate + Caption</span>
-            </div>
-            <div class="text-muted" style="font-size:0.85rem;">
-                <p class="mb-2">The donor will receive:</p>
-                <div class="d-flex align-items-start gap-2 mb-1">
-                    <i class="fab fa-whatsapp text-success mt-1"></i>
-                    <span><strong>WhatsApp:</strong> Certificate image with updated payment status + caption message</span>
-                </div>
-                <div class="d-flex align-items-start gap-2">
-                    <i class="fas fa-sms text-primary mt-1"></i>
-                    <span><strong>Fallback:</strong> If WhatsApp fails, a text SMS will be sent instead (no image)</span>
-                </div>
-            </div>`;
-        if (editToggle) editToggle.style.display = 'none';
-        if (editContainer) editContainer.style.display = 'none';
-    } else {
-        // Restore original message preview
-        previewContainer.innerHTML = `
-            <div class="preview-header">
-                <i class="fab fa-whatsapp"></i>
-                <span>Message Preview</span>
-            </div>
-            <div id="messagePreview">${currentNotificationData ? currentNotificationData.message : ''}</div>`;
-        if (editToggle) editToggle.style.display = '';
-    }
-}
-
-// Override sendNotification to handle certificate
-const originalSendNotification = sendNotification;
+// Override sendNotification — always sends text message + certificate image
 sendNotification = async function() {
-    const certToggle = document.getElementById('sendCertificateToggle');
-
-    if (!certToggle || !certToggle.checked) {
-        // Certificate OFF — use original text-only flow
-        return originalSendNotification();
-    }
-
-    // Certificate ON — generate and send certificate image
     if (!currentNotificationData) return;
 
     const btn = document.querySelector('.btn-send-notification');
     btn.disabled = true;
     document.getElementById('sendingSpinner').classList.add('active');
     document.getElementById('sendIcon').style.display = 'none';
-    document.getElementById('sendBtnText').textContent = 'Generating certificate...';
 
     try {
-        // Step 1: Fetch fresh donor data
+        // Step 1: Send the text message (WhatsApp with SMS fallback)
+        document.getElementById('sendBtnText').textContent = 'Sending message...';
+
+        const message = isEditMode
+            ? document.getElementById('messageTextarea').value
+            : currentNotificationData.message;
+
+        const textRes = await fetch('send-payment-notification.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                donor_id: currentNotificationData.donor_id,
+                phone: currentNotificationData.donor_phone,
+                message: message,
+                language: currentNotificationData.donor_language
+            })
+        });
+
+        const textResult = await textRes.json();
+        if (!textResult.success) {
+            throw new Error(textResult.error || 'Failed to send message');
+        }
+
+        // Step 2: Generate certificate and send it
+        document.getElementById('sendBtnText').textContent = 'Generating certificate...';
+
         const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
         const dataJson = await dataRes.json();
 
         if (!dataJson.success) {
-            throw new Error(dataJson.error || 'Failed to load donor data');
+            // Text sent, but can't get cert data — still a success
+            console.warn('Could not load donor cert data:', dataJson.error);
+            showSendSuccess('Message Sent!');
+            return;
         }
 
         const d = dataJson.donor;
 
-        // Step 2: Populate hidden certificate
+        // Populate hidden certificate
         document.getElementById('certDonorName').textContent = d.name;
         document.getElementById('certContribution').textContent = d.currency + parseFloat(d.allocation_base).toFixed(2);
         document.getElementById('certSqmPill').textContent = d.sqm_value + 'm\u00B2';
@@ -2335,7 +2301,7 @@ sendNotification = async function() {
             statsRow.style.marginBottom = '0';
         }
 
-        // Step 3: Load html2canvas and capture
+        // Capture certificate image
         document.getElementById('sendBtnText').textContent = 'Capturing certificate...';
 
         if (typeof html2canvas === 'undefined') {
@@ -2359,10 +2325,14 @@ sendNotification = async function() {
         });
 
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (!blob) throw new Error('Failed to generate certificate image');
+        if (!blob) {
+            console.warn('Failed to generate certificate image blob');
+            showSendSuccess('Message Sent!');
+            return;
+        }
 
-        // Step 4: Send certificate via WhatsApp
-        document.getElementById('sendBtnText').textContent = 'Sending via WhatsApp...';
+        // Step 3: Send certificate image via WhatsApp
+        document.getElementById('sendBtnText').textContent = 'Sending certificate...';
 
         const formData = new FormData();
         formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
@@ -2372,7 +2342,6 @@ sendNotification = async function() {
         formData.append('sqm_value', d.sqm_value);
         formData.append('total_paid', d.currency + parseFloat(d.total_paid).toFixed(2));
 
-        // Get CSRF token
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfInput = document.querySelector('input[name="csrf_token"]');
         const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
@@ -2386,41 +2355,32 @@ sendNotification = async function() {
         const certResult = await certRes.json();
 
         if (certResult.success) {
-            // Certificate sent successfully via WhatsApp!
-            document.getElementById('sendingSpinner').classList.remove('active');
-            document.getElementById('sendIcon').className = 'fas fa-check me-1';
-            document.getElementById('sendIcon').style.display = '';
-            document.getElementById('sendBtnText').textContent = 'Certificate Sent!';
-
-            setTimeout(() => {
-                if (notificationModal) notificationModal.hide();
-            }, 1200);
-            return;
+            showSendSuccess('Message + Certificate Sent!');
+        } else {
+            console.warn('Certificate image failed:', certResult.error);
+            showSendSuccess('Message Sent (certificate failed)');
         }
-
-        // WhatsApp failed — fall back to text SMS
-        console.warn('Certificate WhatsApp failed, falling back to SMS text:', certResult.error);
-        document.getElementById('sendBtnText').textContent = 'Falling back to SMS...';
-
-        await sendTextFallback();
 
     } catch (err) {
-        console.error('Certificate send error:', err);
-
-        // Try text fallback
-        try {
-            document.getElementById('sendBtnText').textContent = 'Falling back to SMS...';
-            await sendTextFallback();
-        } catch (fallbackErr) {
-            console.error('Fallback also failed:', fallbackErr);
-            alert('Failed to send notification: ' + err.message);
-            btn.disabled = false;
-            document.getElementById('sendingSpinner').classList.remove('active');
-            document.getElementById('sendIcon').style.display = '';
-            document.getElementById('sendBtnText').textContent = 'Retry';
-        }
+        console.error('Send error:', err);
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        document.getElementById('sendingSpinner').classList.remove('active');
+        document.getElementById('sendIcon').style.display = '';
+        document.getElementById('sendBtnText').textContent = 'Retry';
     }
 };
+
+// Helper to show success and close modal
+function showSendSuccess(text) {
+    document.getElementById('sendingSpinner').classList.remove('active');
+    document.getElementById('sendIcon').className = 'fas fa-check me-1';
+    document.getElementById('sendIcon').style.display = '';
+    document.getElementById('sendBtnText').textContent = text;
+    setTimeout(() => {
+        if (notificationModal) notificationModal.hide();
+    }, 1500);
+}
 
 // ===== Fully Paid Modal Logic =====
 let fullyPaidModal = null;
@@ -2484,10 +2444,6 @@ function showFullyPaidModal(data) {
     document.getElementById('fpMessagePreview').style.display = '';
     document.getElementById('fpMessageEdit').style.display = 'none';
     document.getElementById('fpEditText').textContent = 'Edit message';
-    document.getElementById('fpCertToggle').checked = true;
-    const certWrap = document.getElementById('fpCertToggleWrap');
-    certWrap.classList.add('active');
-
     // Reset send button
     const btn = document.getElementById('fpSendBtn');
     btn.disabled = false;
@@ -2507,16 +2463,6 @@ function showFullyPaidModal(data) {
     }, { once: true });
 
     fullyPaidModal.show();
-}
-
-function onFpCertToggle() {
-    const toggle = document.getElementById('fpCertToggle');
-    const wrap = document.getElementById('fpCertToggleWrap');
-    if (toggle.checked) {
-        wrap.classList.add('active');
-    } else {
-        wrap.classList.remove('active');
-    }
 }
 
 function toggleFpEdit() {
@@ -2557,7 +2503,6 @@ async function sendFullyPaidNotification() {
 
     const btn = document.getElementById('fpSendBtn');
     const sendText = document.getElementById('fpSendText');
-    const sendCert = document.getElementById('fpCertToggle').checked;
 
     // Get message (might be edited)
     const message = fpEditMode
@@ -2590,8 +2535,8 @@ async function sendFullyPaidNotification() {
 
         setFpStep(1);
 
-        // Step 2: Send certificate (if toggled on)
-        if (sendCert) {
+        // Step 2: Generate and send certificate
+        {
             sendText.textContent = 'Generating certificate...';
 
             // Fetch fresh donor data
@@ -2687,7 +2632,7 @@ async function sendFullyPaidNotification() {
         const steps = document.querySelectorAll('#fpSteps .step');
         steps.forEach(s => s.className = 'step done');
 
-        sendText.textContent = sendCert ? 'Message + Certificate Sent!' : 'Message Sent!';
+        sendText.textContent = 'Message + Certificate Sent!';
         btn.querySelector('.btn-icon').className = 'fas fa-check btn-icon';
         btn.querySelector('.btn-icon').style.display = '';
 
