@@ -35,6 +35,8 @@ class MessagingHelper
     private bool $initialized = false;
     private ?int $currentUserId = null;
     private ?array $currentUser = null;
+    private bool $whatsappChecked = false;
+    private bool $whatsappReady = false;
     
     // Channel preference constants
     public const CHANNEL_AUTO = 'auto';
@@ -122,10 +124,35 @@ class MessagingHelper
         if (!$this->whatsappService) {
             return false;
         }
-        
-        // Quick status check
-        $status = $this->whatsappService->getStatus();
-        return $status['success'] && ($status['status'] === 'authenticated' || $status['status'] === 'connected');
+
+        // If we already verified this session, don't hit the API again
+        if ($this->whatsappChecked) {
+            return $this->whatsappReady;
+        }
+
+        $this->whatsappChecked = true;
+
+        try {
+            $status = $this->whatsappService->getStatus();
+            $statusValue = strtolower($status['status'] ?? 'unknown');
+
+            // Accept any status that means the instance is usable
+            // UltraMsg statuses: authenticated, connected, ready, standby, loading
+            // Only reject clearly bad states
+            $badStatuses = ['disconnected', 'initialize', 'qr', 'error', 'unknown'];
+            $this->whatsappReady = $status['success'] && !in_array($statusValue, $badStatuses);
+
+            if (!$this->whatsappReady) {
+                error_log("MessagingHelper: WhatsApp not available, status=$statusValue");
+            }
+        } catch (\Throwable $e) {
+            error_log("MessagingHelper: WhatsApp status check failed: " . $e->getMessage());
+            // If status check itself fails, still try to send
+            // The actual send will fail with a clear error if the service is truly down
+            $this->whatsappReady = true;
+        }
+
+        return $this->whatsappReady;
     }
     
     /**

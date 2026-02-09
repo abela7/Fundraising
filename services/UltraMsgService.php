@@ -506,7 +506,7 @@ class UltraMsgService
     public function checkNumber(string $phoneNumber): array
     {
         $phoneNumber = $this->normalizePhoneNumber($phoneNumber);
-        
+
         if (!$phoneNumber) {
             return [
                 'success' => false,
@@ -514,15 +514,29 @@ class UltraMsgService
                 'error' => 'Invalid phone number'
             ];
         }
-        
+
+        // UltraMsg contacts/check requires chatId in format: 447xxx@c.us
+        // Strip the + prefix and append @c.us
+        $chatId = ltrim($phoneNumber, '+') . '@c.us';
+
         $params = [
             'token' => $this->token,
-            'chatId' => $phoneNumber
+            'chatId' => $chatId
         ];
-        
+
         $response = $this->makeRequest('contacts/check', $params, 'GET');
+
+        if ($response === false) {
+            // If API check fails, assume number has WhatsApp and let the send attempt decide
+            return [
+                'success' => true,
+                'has_whatsapp' => true,
+                'error' => null
+            ];
+        }
+
         $data = json_decode($response, true);
-        
+
         if (isset($data['status'])) {
             return [
                 'success' => true,
@@ -530,11 +544,13 @@ class UltraMsgService
                 'error' => null
             ];
         }
-        
+
+        // If response format is unexpected, assume number has WhatsApp
+        // The actual send will fail cleanly if it doesn't
         return [
-            'success' => false,
-            'has_whatsapp' => false,
-            'error' => $data['error'] ?? 'Unknown error'
+            'success' => true,
+            'has_whatsapp' => true,
+            'error' => null
         ];
     }
     
