@@ -58,7 +58,7 @@ if (isLocalEnvironment()) {
         // Security: Load credentials from environment variables or external config
         define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
         define('DB_USER', $_ENV['DB_USER'] ?? 'abunetdg_abela');
-        define('DB_PASS', $_ENV['DB_PASS'] ?? '');
+        define('DB_PASS', $_ENV['DB_PASS'] ?? '2424@Admin');
         define('DB_NAME', $_ENV['DB_NAME'] ?? 'abunetdg_fundraising');
         define('ENVIRONMENT', 'production');
     }
