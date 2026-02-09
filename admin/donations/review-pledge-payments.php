@@ -2334,34 +2334,12 @@ sendNotification = async function() {
 
         const certResult = await certRes.json();
 
-        if (!certResult.success) {
+        if (certResult.success) {
+            showSendSuccess('Certificate + Message Sent!');
+        } else {
             console.warn('Certificate send failed:', certResult.error);
             throw new Error(certResult.error || 'Failed to send certificate');
         }
-
-        // Step 3: Send donor portal link as separate message (makes it clickable)
-        document.getElementById('sendBtnText').textContent = 'Sending link...';
-
-        const linkMessage = 'https://donate.abuneteklehaymanot.org/donor';
-
-        const linkRes = await fetch('send-payment-notification.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                donor_id: currentNotificationData.donor_id,
-                phone: currentNotificationData.donor_phone,
-                message: linkMessage,
-                language: currentNotificationData.donor_language
-            })
-        });
-
-        const linkResult = await linkRes.json();
-        if (!linkResult.success) {
-            console.warn('Link message failed:', linkResult.error);
-            // Don't throw - certificate was already sent successfully
-        }
-
-        showSendSuccess('Certificate + Message Sent!');
 
     } catch (err) {
         console.error('Send error:', err);
@@ -2605,28 +2583,6 @@ async function sendFullyPaidNotification() {
         if (!certResult.success) {
             console.warn('Certificate send failed:', certResult.error);
             throw new Error(certResult.error || 'Failed to send certificate');
-        }
-
-        // Send donor portal link as separate message (makes it clickable)
-        sendText.textContent = 'Sending link...';
-
-        const linkMessage = 'https://donate.abuneteklehaymanot.org/donor';
-
-        const linkRes = await fetch('send-payment-notification.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                donor_id: currentNotificationData.donor_id,
-                phone: currentNotificationData.donor_phone,
-                message: linkMessage,
-                language: currentNotificationData.donor_language || 'am'
-            })
-        });
-
-        const linkResult = await linkRes.json();
-        if (!linkResult.success) {
-            console.warn('Link message failed:', linkResult.error);
-            // Don't throw - certificate was already sent successfully
         }
 
         // All done!
