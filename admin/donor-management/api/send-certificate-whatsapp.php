@@ -66,6 +66,7 @@ $donorId = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : 0;
 $donorName = trim($_POST['donor_name'] ?? '');
 $sqmValue = trim($_POST['sqm_value'] ?? '0');
 $totalPaid = trim($_POST['total_paid'] ?? '');
+$customMessage = trim($_POST['message'] ?? ''); // Accept custom message
 
 if (empty($phone)) {
     http_response_code(400);
@@ -145,15 +146,19 @@ try {
         throw new Exception('WhatsApp provider not configured. Please set up UltraMsg in WhatsApp Settings first.');
     }
 
-    // Build caption message
-    $caption = "Certificate of Contribution\n\n"
-        . "Dear {$donorName},\n\n"
-        . "Thank you for your generous contribution to Liverpool Abune Teklehaymanot EOTC!\n\n"
-        . "Your Contribution:\n"
-        . "Amount: {$totalPaid}\n"
-        . "Allocation: {$sqmValue} m\u{00B2}\n\n"
-        . "May God bless you abundantly!\n\n"
-        . "Liverpool Abune Teklehaymanot EOTC";
+    // Build caption message - use custom message if provided, otherwise use default
+    if (!empty($customMessage)) {
+        $caption = $customMessage;
+    } else {
+        $caption = "Certificate of Contribution\n\n"
+            . "Dear {$donorName},\n\n"
+            . "Thank you for your generous contribution to Liverpool Abune Teklehaymanot EOTC!\n\n"
+            . "Your Contribution:\n"
+            . "Amount: {$totalPaid}\n"
+            . "Allocation: {$sqmValue} m\u{00B2}\n\n"
+            . "May God bless you abundantly!\n\n"
+            . "Liverpool Abune Teklehaymanot EOTC";
+    }
 
     // Send image via UltraMsg using base64 (much more reliable than URL)
     // This sends the image data directly so UltraMsg doesn't need to fetch from our server
