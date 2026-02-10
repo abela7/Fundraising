@@ -378,9 +378,14 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
           <h1 class="h3 mb-1">Members Management</h1>
           <p class="text-muted mb-0">Manage admin and registrar users</p>
         </div>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
-          <i class="fas fa-user-plus me-2"></i><span class="d-none d-sm-inline">Add New Member</span><span class="d-inline d-sm-none">Add</span>
-        </button>
+        <div class="d-flex gap-2">
+          <a href="report.php" class="btn btn-outline-primary">
+            <i class="fas fa-chart-bar me-1"></i><span class="d-none d-sm-inline">Registrar Report</span><span class="d-inline d-sm-none">Report</span>
+          </a>
+          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+            <i class="fas fa-user-plus me-2"></i><span class="d-none d-sm-inline">Add New Member</span><span class="d-inline d-sm-none">Add</span>
+          </button>
+        </div>
       </div>
 
       <!-- Bulk Actions Bar -->
