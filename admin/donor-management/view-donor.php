@@ -2446,10 +2446,10 @@ function formatDateTime($date) {
             /* Dark navy base with church photo subtly blended */
             background:
                 linear-gradient(135deg,
-                    rgba(15, 15, 35, 0.93) 0%,
-                    rgba(22, 33, 62, 0.88) 35%,
-                    rgba(10, 98, 134, 0.35) 65%,
-                    rgba(15, 15, 35, 0.93) 100%
+                    rgba(15, 15, 35, 0.95) 0%,
+                    rgba(22, 33, 62, 0.92) 35%,
+                    rgba(10, 98, 134, 0.45) 65%,
+                    rgba(15, 15, 35, 0.95) 100%
                 ),
                 url('../../assets/images/new-church.png');
             background-size: cover, cover;
@@ -2588,11 +2588,8 @@ function formatDateTime($date) {
             font-weight: 900;
             line-height: 1;
             font-family: "Nyala", "Segoe UI Ethiopic", sans-serif;
-            background: linear-gradient(180deg, #ffd700, #d4af37, #b8860b);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            color: #ffd700;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 40px rgba(212, 175, 55, 0.15);
             margin-bottom: 6px;
         }
 
@@ -2601,11 +2598,8 @@ function formatDateTime($date) {
             font-weight: 900;
             line-height: 1;
             letter-spacing: -2px;
-            background: linear-gradient(180deg, #ffd700, #d4af37, #b8860b);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            color: #ffd700;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 40px rgba(212, 175, 55, 0.15);
             margin-bottom: 16px;
         }
 
