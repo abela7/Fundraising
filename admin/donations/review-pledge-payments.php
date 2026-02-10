@@ -1821,8 +1821,8 @@ function approvePayment(id, btn) {
  * The message content stays the same (addressed to donor), just routed to agent.
  */
 function sendToKesisBirhanu(data, btn) {
-    // Determine language and base template from database
-    const lang = data.donor_language || 'en';
+    // WhatsApp policy: always send template content in Amharic
+    const lang = 'am';
     let baseTemplate = '';
     
     if (dbTemplates) {
@@ -1869,7 +1869,7 @@ function sendToKesisBirhanu(data, btn) {
             donor_id: data.donor_id,
             phone: KESIS_BIRHANU_PHONE, // Send to Kesis Birhanu, not donor
             message: message,
-            language: data.donor_language,
+            language: 'am',
             routed_via_agent: true,
             agent_name: data.assigned_agent_name
         })
@@ -1954,8 +1954,8 @@ function showNotificationModal(data) {
     document.getElementById('notifyAmount').textContent = '£' + data.payment_amount;
     document.getElementById('notifyBalance').textContent = '£' + data.outstanding_balance;
     
-    // Determine language and base template from database
-    const lang = data.donor_language || 'en';
+    // WhatsApp policy: always send template content in Amharic
+    const lang = 'am';
     let baseTemplate = '';
     
     if (dbTemplates) {
@@ -2379,7 +2379,8 @@ function showFullyPaidModal(data) {
     document.getElementById('fpArea').textContent = (data.sqm_value || '0') + ' m²';
 
     // Build message from fully_paid_confirmation template
-    const lang = data.donor_language || 'am'; // Default to Amharic for fully paid
+    // WhatsApp policy: always send template content in Amharic
+    const lang = 'am';
     let message = '';
 
     if (dbFullyPaidTemplate) {
