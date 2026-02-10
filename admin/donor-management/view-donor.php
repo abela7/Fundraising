@@ -504,22 +504,27 @@ try {
         $pledges[] = $p;
     }
     
-    // Extract 4-digit reference number from pledge notes
+    // Extract 4-digit reference number from pledge notes.
+    // We also track which pledge it came from so edits target the right row.
     $donor_reference = null;
+    $donor_reference_pledge_id = null;
+    $donor_reference_is_fallback = true;
     if (!empty($pledges)) {
-        // Get the most recent pledge's notes
-        $most_recent_pledge = $pledges[0];
-        if (!empty($most_recent_pledge['notes'])) {
-            // Look for a 4-digit number in the notes
-            // Pattern: could be "REF: 1234", "Reference: 1234", "1234", or similar
-            if (preg_match('/\b(\d{4})\b/', $most_recent_pledge['notes'], $matches)) {
+        // Search ALL pledges (most recent first) for a 4-digit reference
+        foreach ($pledges as $p_ref) {
+            if (!empty($p_ref['notes']) && preg_match('/\b(\d{4})\b/', $p_ref['notes'], $matches)) {
                 $donor_reference = $matches[1];
+                $donor_reference_pledge_id = (int)$p_ref['id'];
+                $donor_reference_is_fallback = false;
+                break;
             }
         }
     }
-    // Fallback to donor ID if no reference found
+    // Fallback to donor ID if no reference found in any pledge
     if (!$donor_reference) {
         $donor_reference = str_pad((string)$donor['id'], 4, '0', STR_PAD_LEFT);
+        // Use the most recent pledge ID as the target for creating a reference
+        $donor_reference_pledge_id = !empty($pledges) ? (int)$pledges[0]['id'] : null;
     }
 
     // 3. Payments (includes both instant payments and pledge payments)
@@ -2967,6 +2972,31 @@ function formatDateTime($date) {
                                     </div>
                                     <div class="col-md-6">
                                         <div class="info-row">
+                                            <span class="info-label">Reference</span>
+                                            <span class="info-value d-flex align-items-center gap-2">
+                                                <span id="donorRefDisplay" class="font-monospace fw-bold text-primary" style="font-size: 1.1rem; letter-spacing: 2px;"><?php echo htmlspecialchars($donor_reference); ?></span>
+                                                <?php if ($donor_reference_is_fallback): ?>
+                                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">Auto</span>
+                                                <?php endif; ?>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem; line-height: 1.5;" onclick="toggleRefEdit()" id="editRefBtn" title="Edit reference">
+                                                    <i class="fas fa-pencil-alt"></i>
+                                                </button>
+                                                <!-- Inline edit form (hidden by default) -->
+                                                <span id="donorRefEditWrap" class="d-none align-items-center gap-1">
+                                                    <input type="text" id="donorRefInput" class="form-control form-control-sm font-monospace text-center" 
+                                                           style="width: 70px; letter-spacing: 2px; font-weight: 700;"
+                                                           maxlength="4" pattern="\d{4}" value="<?php echo htmlspecialchars($donor_reference); ?>"
+                                                           placeholder="0000">
+                                                    <button type="button" class="btn btn-sm btn-success py-0 px-2" onclick="saveReference()" id="saveRefBtn" title="Save">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="cancelRefEdit()" title="Cancel">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </span>
+                                            </span>
+                                        </div>
+                                        <div class="info-row">
                                             <span class="info-label">City / Address</span>
                                             <span class="info-value"><?php echo htmlspecialchars($donor['city'] ?? '-'); ?></span>
                                         </div>
@@ -4824,6 +4854,148 @@ function showTwilioStatus(type, message) {
     statusDiv.innerHTML = `<div class="p-3 rounded" style="background: ${bgColor}; border: 1px solid ${borderColor}; color: ${textColor};">${message}</div>`;
     statusDiv.style.display = 'block';
 }
+
+// ===== Reference Inline Edit =====
+const REF_DONOR_ID = <?php echo $donor_id; ?>;
+const REF_PLEDGE_ID = <?php echo $donor_reference_pledge_id ? $donor_reference_pledge_id : 'null'; ?>;
+let refOriginalValue = <?php echo json_encode($donor_reference); ?>;
+
+/**
+ * Toggle the reference inline edit form.
+ */
+function toggleRefEdit() {
+    const display = document.getElementById('donorRefDisplay');
+    const editWrap = document.getElementById('donorRefEditWrap');
+    const editBtn = document.getElementById('editRefBtn');
+    const input = document.getElementById('donorRefInput');
+    const autoBadge = display.parentElement.querySelector('.badge');
+
+    display.classList.add('d-none');
+    if (autoBadge) autoBadge.classList.add('d-none');
+    editBtn.classList.add('d-none');
+    editWrap.classList.remove('d-none');
+    editWrap.classList.add('d-inline-flex');
+    input.value = refOriginalValue;
+    input.focus();
+    input.select();
+}
+
+/**
+ * Cancel the reference edit and restore previous value.
+ */
+function cancelRefEdit() {
+    const display = document.getElementById('donorRefDisplay');
+    const editWrap = document.getElementById('donorRefEditWrap');
+    const editBtn = document.getElementById('editRefBtn');
+    const autoBadge = display.parentElement.querySelector('.badge');
+
+    editWrap.classList.add('d-none');
+    editWrap.classList.remove('d-inline-flex');
+    display.classList.remove('d-none');
+    if (autoBadge) autoBadge.classList.remove('d-none');
+    editBtn.classList.remove('d-none');
+}
+
+/**
+ * Save the new reference via AJAX and update all visible occurrences.
+ */
+async function saveReference() {
+    const input = document.getElementById('donorRefInput');
+    const newRef = input.value.trim();
+
+    // Client-side validation: exactly 4 digits
+    if (!/^\d{4}$/.test(newRef)) {
+        alert('Reference must be exactly 4 digits (e.g. 1307).');
+        input.focus();
+        return;
+    }
+
+    const saveBtn = document.getElementById('saveRefBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        const res = await fetch('api/update-donor-reference.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                donor_id: REF_DONOR_ID,
+                pledge_id: REF_PLEDGE_ID,
+                new_reference: newRef
+            })
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to update reference');
+        }
+
+        // Update the stored value
+        refOriginalValue = newRef;
+
+        // Update ALL visible references on the page
+        document.getElementById('donorRefDisplay').textContent = newRef;
+
+        // Remove the "Auto" badge since we now have a real reference
+        const autoBadge = document.getElementById('donorRefDisplay')
+            .parentElement.querySelector('.badge');
+        if (autoBadge) autoBadge.remove();
+
+        // Update reference in the Contact Donor section
+        document.querySelectorAll('.fa-hashtag').forEach(icon => {
+            const parent = icon.parentElement;
+            if (parent && parent.tagName !== 'BUTTON' && !parent.classList.contains('cert-donor-stat-icon')) {
+                // Check if this is a text node reference (not inside a stat card)
+                const text = parent.textContent.trim();
+                if (/^\d{4}$/.test(text.replace('#', '').trim()) || text.includes(refOriginalValue)) {
+                    // Keep the icon, update the text after it
+                    const iconHTML = parent.querySelector('i') ? parent.querySelector('i').outerHTML : '';
+                    parent.innerHTML = iconHTML + ' ' + newRef;
+                }
+            }
+        });
+
+        // Close edit mode
+        cancelRefEdit();
+
+        // Brief success flash
+        const display = document.getElementById('donorRefDisplay');
+        display.style.transition = 'background 0.3s';
+        display.style.background = '#d1fae5';
+        display.style.borderRadius = '4px';
+        display.style.padding = '2px 6px';
+        setTimeout(() => {
+            display.style.background = '';
+            display.style.padding = '';
+        }, 1500);
+
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+    }
+}
+
+// Allow Enter to save, Escape to cancel
+document.addEventListener('DOMContentLoaded', function() {
+    const refInput = document.getElementById('donorRefInput');
+    if (refInput) {
+        refInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveReference();
+            } else if (e.key === 'Escape') {
+                cancelRefEdit();
+            }
+        });
+        // Only allow digits, max 4 chars
+        refInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').slice(0, 4);
+        });
+    }
+});
 
 // Load Donor Data - Use PHP data already on page
 function loadDonorData(donorId) {
