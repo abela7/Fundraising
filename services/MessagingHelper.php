@@ -202,8 +202,8 @@ class MessagingHelper
         if ($channel === self::CHANNEL_WHATSAPP) {
             return $this->sendWhatsAppFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
         } else {
-            // Send via SMS - SMSHelper logs via VoodooSMSService
-            $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+            // Send via SMS as PRIMARY channel - use Amharic
+            $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'am');
             return $smsResult;
         }
     }
@@ -550,9 +550,9 @@ class MessagingHelper
             'whatsapp' => null
         ];
         
-        // Send SMS - SMSHelper logs via VoodooSMSService
+        // Send SMS - SMSHelper logs via VoodooSMSService (use Amharic for primary SMS)
         if ($this->isSMSAvailable()) {
-            $results['sms'] = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+            $results['sms'] = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'am');
         }
         
         // Send WhatsApp - logs via UltraMsgService
