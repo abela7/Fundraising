@@ -2274,8 +2274,22 @@ async function fetchDonorCertificateData(donorId) {
     return dataJson.donor;
 }
 
-async function captureCertificateFromDonorView(donorId) {
+/**
+ * Capture a certificate from the donor view page via hidden iframe.
+ * @param {number|string} donorId - The donor ID
+ * @param {string} certType - 'progress' for the standard certificate
+ *                            (with stats strip, 1200x970) or 'completed'
+ *                            for the premium final certificate (1200x850).
+ *                            Defaults to 'progress'.
+ * @returns {Promise<Blob>} PNG blob of the captured certificate
+ */
+async function captureCertificateFromDonorView(donorId, certType = 'progress') {
     await ensureHtml2CanvasLoaded();
+
+    // Determine which element to capture and its dimensions
+    const isCompleted = certType === 'completed';
+    const elementId = isCompleted ? 'completed-certificate' : 'donor-certificate';
+    const captureHeight = isCompleted ? 850 : 970;
 
     return new Promise((resolve, reject) => {
         const iframe = document.createElement('iframe');
@@ -2304,6 +2318,7 @@ async function captureCertificateFromDonorView(donorId) {
                 const doc = iframe.contentDocument;
                 if (!doc) throw new Error('Unable to load donor certificate document');
 
+                // Expand the certificate accordion so elements are rendered
                 const certSection = doc.getElementById('collapseCertificate');
                 if (certSection) {
                     certSection.classList.add('show');
@@ -2311,19 +2326,34 @@ async function captureCertificateFromDonorView(donorId) {
                     certSection.style.height = 'auto';
                 }
 
-                const certElement = doc.getElementById('donor-certificate');
+                // For the completed certificate, activate its tab
+                if (isCompleted) {
+                    const completedTab = doc.getElementById('cert-tab-completed');
+                    const progressTab = doc.getElementById('cert-tab-progress');
+                    if (completedTab) {
+                        completedTab.classList.add('active');
+                        completedTab.style.display = 'block';
+                    }
+                    if (progressTab) {
+                        progressTab.classList.remove('active');
+                        progressTab.style.display = 'none';
+                    }
+                }
+
+                const certElement = doc.getElementById(elementId);
                 if (!certElement) {
                     const bodyText = (doc.body?.innerText || '').toLowerCase();
                     if (bodyText.includes('access denied') || bodyText.includes('unauthorized')) {
                         throw new Error('Current user cannot access donor certificate view');
                     }
-                    throw new Error('Donor certificate element not found');
+                    throw new Error('Certificate element not found (' + elementId + ')');
                 }
 
                 const originalTransform = certElement.style.transform;
                 certElement.style.transform = 'none';
 
-                await new Promise(r => setTimeout(r, 350));
+                // Allow images and fonts to load
+                await new Promise(r => setTimeout(r, 500));
 
                 const canvas = await html2canvas(certElement, {
                     scale: 2,
@@ -2331,7 +2361,7 @@ async function captureCertificateFromDonorView(donorId) {
                     allowTaint: true,
                     backgroundColor: null,
                     width: 1200,
-                    height: 970
+                    height: captureHeight
                 });
 
                 certElement.style.transform = originalTransform;
@@ -2608,20 +2638,20 @@ async function sendFullyPaidNotification() {
     btn.classList.add('loading');
 
     try {
-        // Step 1: Generate and send certificate with message
+        // Step 1: Generate the FINAL (completed) certificate
         setFpStep(0);
-        sendText.textContent = 'Generating certificate...';
+        sendText.textContent = 'Generating final certificate...';
 
         const d = await fetchDonorCertificateData(currentNotificationData.donor_id);
 
-        sendText.textContent = 'Capturing certificate...';
-        const blob = await captureCertificateFromDonorView(currentNotificationData.donor_id);
+        sendText.textContent = 'Capturing final certificate...';
+        const blob = await captureCertificateFromDonorView(currentNotificationData.donor_id, 'completed');
 
         setFpStep(1);
         sendText.textContent = 'Sending certificate...';
 
         const formData = new FormData();
-        formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
+        formData.append('certificate', blob, `certificate_final_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
         formData.append('phone', currentNotificationData.donor_phone);
         formData.append('donor_id', currentNotificationData.donor_id);
         formData.append('donor_name', d.name);
