@@ -504,27 +504,55 @@ try {
         $pledges[] = $p;
     }
     
-    // Extract 4-digit reference number from pledge notes.
-    // We also track which pledge it came from so edits target the right row.
+    // Extract 4-digit reference number from pledge notes OR payment reference fields.
+    // We track which record it came from so edits target the right row.
     $donor_reference = null;
-    $donor_reference_pledge_id = null;
+    $donor_reference_source_type = null; // 'pledge' or 'payment'
+    $donor_reference_source_id = null;   // pledge.id or payment.id
     $donor_reference_is_fallback = true;
+    
+    // First, search pledges (check notes field)
     if (!empty($pledges)) {
-        // Search ALL pledges (most recent first) for a 4-digit reference
         foreach ($pledges as $p_ref) {
             if (!empty($p_ref['notes']) && preg_match('/\b(\d{4})\b/', $p_ref['notes'], $matches)) {
                 $donor_reference = $matches[1];
-                $donor_reference_pledge_id = (int)$p_ref['id'];
+                $donor_reference_source_type = 'pledge';
+                $donor_reference_source_id = (int)$p_ref['id'];
                 $donor_reference_is_fallback = false;
                 break;
             }
         }
     }
-    // Fallback to donor ID if no reference found in any pledge
+    
+    // If not found in pledges, search instant payments (check reference field)
+    if (!$donor_reference && !empty($payments)) {
+        foreach ($payments as $pay_ref) {
+            if ($pay_ref['payment_type'] === 'instant' && !empty($pay_ref['reference'])) {
+                if (preg_match('/\b(\d{4})\b/', $pay_ref['reference'], $matches)) {
+                    $donor_reference = $matches[1];
+                    $donor_reference_source_type = 'payment';
+                    $donor_reference_source_id = (int)$pay_ref['id'];
+                    $donor_reference_is_fallback = false;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Fallback to donor ID if no reference found anywhere
     if (!$donor_reference) {
         $donor_reference = str_pad((string)$donor['id'], 4, '0', STR_PAD_LEFT);
-        // Use the most recent pledge ID as the target for creating a reference
-        $donor_reference_pledge_id = !empty($pledges) ? (int)$pledges[0]['id'] : null;
+        // Use the most recent pledge OR payment as the target for creating a reference
+        if (!empty($pledges)) {
+            $donor_reference_source_type = 'pledge';
+            $donor_reference_source_id = (int)$pledges[0]['id'];
+        } elseif (!empty($payments)) {
+            $donor_reference_source_type = 'payment';
+            $donor_reference_source_id = (int)$payments[0]['id'];
+        } else {
+            $donor_reference_source_type = null;
+            $donor_reference_source_id = null;
+        }
     }
 
     // 3. Payments (includes both instant payments and pledge payments)
@@ -4857,7 +4885,8 @@ function showTwilioStatus(type, message) {
 
 // ===== Reference Inline Edit =====
 const REF_DONOR_ID = <?php echo $donor_id; ?>;
-const REF_PLEDGE_ID = <?php echo $donor_reference_pledge_id ? $donor_reference_pledge_id : 'null'; ?>;
+const REF_SOURCE_TYPE = <?php echo json_encode($donor_reference_source_type); ?>;
+const REF_SOURCE_ID = <?php echo $donor_reference_source_id ? $donor_reference_source_id : 'null'; ?>;
 let refOriginalValue = <?php echo json_encode($donor_reference); ?>;
 
 /**
@@ -4920,7 +4949,8 @@ async function saveReference() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 donor_id: REF_DONOR_ID,
-                pledge_id: REF_PLEDGE_ID,
+                source_type: REF_SOURCE_TYPE,
+                source_id: REF_SOURCE_ID,
                 new_reference: newRef
             })
         });
