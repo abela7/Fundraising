@@ -1737,7 +1737,7 @@ const nextPaymentTemplates = {
     },
     am: {
         withPlan: "ቀጣዩ የ£{next_payment_amount} ክፍያዎ በ{next_payment_date} ነው።",
-        withoutPlan: "የሚከተለውን ሊንክ በመጠቀም ቀሪ ሂሳብዎን በቀላሉ ማስተካከል እንዲሁም የክፍያ እቅድ ማዘጋጀት ይችላሉ።\n\nhttps://donate.abuneteklehaymanot.org/donor"
+        withoutPlan: "ቀሪ ሂሳብዎን በቀላሉ ማስተካከል እንዲሁም የክፍያ እቅድ ማዘጋጀት ይችላሉ።"
     },
     ti: {
         withPlan: "ዝቕጽል ክፍሊትካ £{next_payment_amount} ኣብ {next_payment_date} እዩ።",
@@ -2339,28 +2339,6 @@ sendNotification = async function() {
             throw new Error(certResult.error || 'Failed to send certificate');
         }
 
-        // Step 3: Send donor portal link as separate message (makes it clickable)
-        document.getElementById('sendBtnText').textContent = 'Sending link...';
-
-        const linkMessage = 'https://donate.abuneteklehaymanot.org/donor';
-
-        const linkRes = await fetch('send-payment-notification.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                donor_id: currentNotificationData.donor_id,
-                phone: currentNotificationData.donor_phone,
-                message: linkMessage,
-                language: currentNotificationData.donor_language
-            })
-        });
-
-        const linkResult = await linkRes.json();
-        if (!linkResult.success) {
-            console.warn('Link message failed:', linkResult.error);
-            // Don't throw - certificate was already sent successfully
-        }
-
         showSendSuccess('Certificate + Message Sent!');
 
     } catch (err) {
@@ -2420,7 +2398,7 @@ function showFullyPaidModal(data) {
 
     // Fallback if no template in database
     if (!message) {
-        message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment!\n\nPayment received today ({date}): £{payment_amount}\n\nYour Pledge Summary:\n→ Total Pledge: {total_pledged_sqm} sqm, £{total_pledged}\n→ Total Paid: £{total_paid}\n→ Remaining: £{remaining}\n\nhttps://donate.abuneteklehaymanot.org/donor\n\nMay God bless you abundantly!\n\n- Liverpool Abune Teklehaymanot EOTC';
+        message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment!\n\nPayment received today ({date}): £{payment_amount}\n\nYour Pledge Summary:\n→ Total Pledge: {total_pledged_sqm} sqm, £{total_pledged}\n→ Total Paid: £{total_paid}\n→ Remaining: £{remaining}\n\nMay God bless you abundantly!\n\n- Liverpool Abune Teklehaymanot EOTC';
     }
 
     // Replace variables
@@ -2605,28 +2583,6 @@ async function sendFullyPaidNotification() {
         if (!certResult.success) {
             console.warn('Certificate send failed:', certResult.error);
             throw new Error(certResult.error || 'Failed to send certificate');
-        }
-
-        // Send donor portal link as separate message (makes it clickable)
-        sendText.textContent = 'Sending link...';
-
-        const linkMessage = 'https://donate.abuneteklehaymanot.org/donor';
-
-        const linkRes = await fetch('send-payment-notification.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                donor_id: currentNotificationData.donor_id,
-                phone: currentNotificationData.donor_phone,
-                message: linkMessage,
-                language: currentNotificationData.donor_language || 'am'
-            })
-        });
-
-        const linkResult = await linkRes.json();
-        if (!linkResult.success) {
-            console.warn('Link message failed:', linkResult.error);
-            // Don't throw - certificate was already sent successfully
         }
 
         // All done!
