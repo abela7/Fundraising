@@ -1974,7 +1974,7 @@ function formatDateTime($date) {
         .cert-aspect-ratio {
             position: relative;
             width: 100%;
-            padding-bottom: 72.5%; /* 870/1200 */
+            padding-bottom: 80.83%; /* 970/1200 */
             overflow: hidden;
             border-radius: 8px;
             box-shadow:
@@ -1989,7 +1989,7 @@ function formatDateTime($date) {
             top: 0;
             left: 0;
             width: 1200px;
-            height: 870px;
+            height: 970px;
             transform-origin: top left;
         }
 
@@ -2183,112 +2183,138 @@ function formatDateTime($date) {
             font-family: 'Courier New', monospace;
         }
 
-        /* ---- Certificate Stats Strip (inside the image) - Enhanced ---- */
+        /* ---- Certificate Stats Strip (inside the image) - Bold & Visible ---- */
         .cert-stats-strip {
             width: 1200px;
-            height: 120px;
-            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-            padding: 14px 40px 10px;
+            height: 220px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            padding: 0;
             box-sizing: border-box;
-            border-top: 3px solid var(--accent-color, #e2ca18);
+            border-top: 5px solid #e2ca18;
+            font-family: 'Montserrat', sans-serif;
         }
 
         .cert-stats-row {
             display: flex;
-            justify-content: space-around;
-            align-items: center;
-            margin-bottom: 0;
+            justify-content: stretch;
+            align-items: stretch;
+            height: 130px;
         }
 
         .cert-stats-row.cert-has-progress {
-            margin-bottom: 8px;
+            height: 110px;
         }
 
         .cert-stat-item {
             text-align: center;
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 10px;
         }
 
         .cert-stat-label {
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 700;
-            color: #8899a6;
+            color: #94a3b8;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 2px;
+            letter-spacing: 3px;
+            margin-bottom: 6px;
         }
 
         .cert-stat-value {
-            font-size: 28px;
-            font-weight: 800;
-            color: #333;
-            line-height: 1.2;
+            font-size: 38px;
+            font-weight: 900;
+            color: #1e293b;
+            line-height: 1.1;
         }
 
-        .cert-stat-value.cert-val-pledged { color: #1a73e8; }
+        .cert-stat-value.cert-val-pledged { color: #0a6286; }
         .cert-stat-value.cert-val-paid-full { color: #059669; }
         .cert-stat-value.cert-val-paid-partial { color: #d97706; }
         .cert-stat-value.cert-val-area { color: #059669; }
         .cert-stat-value.cert-val-ref {
             font-family: 'Courier New', monospace;
-            letter-spacing: 2px;
-            color: var(--primary-color, #0a6286);
+            letter-spacing: 3px;
+            font-size: 34px;
+            color: #0a6286;
         }
 
         .cert-stat-divider {
             width: 2px;
-            height: 40px;
-            background: linear-gradient(180deg, transparent, #d1d5db, transparent);
+            align-self: center;
+            height: 60px;
+            background: linear-gradient(180deg, transparent, #cbd5e1, transparent);
             flex-shrink: 0;
         }
 
-        /* Progress bar inside certificate image */
+        /* Progress bar inside certificate image - BIG & BOLD */
         .cert-progress-wrap {
-            margin-top: 0;
+            padding: 12px 50px 18px;
         }
 
         .cert-progress-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 10px;
         }
 
         .cert-progress-label {
-            font-size: 13px;
-            font-weight: 700;
-            color: #8899a6;
+            font-size: 18px;
+            font-weight: 800;
+            color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
 
         .cert-progress-pct {
-            font-size: 14px;
-            font-weight: 800;
-            color: #333;
+            font-size: 22px;
+            font-weight: 900;
+            color: #1e293b;
         }
 
         .cert-progress-bar {
             width: 100%;
-            height: 12px;
-            background: #e5e7eb;
-            border-radius: 6px;
+            height: 36px;
+            background: #e2e8f0;
+            border-radius: 18px;
             overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.08);
+            position: relative;
         }
 
         .cert-progress-fill {
             height: 100%;
-            border-radius: 6px;
+            border-radius: 18px;
             transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 80px;
+            position: relative;
+        }
+
+        .cert-progress-fill::after {
+            content: attr(data-pct);
+            font-size: 18px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            position: absolute;
+            right: 16px;
         }
 
         .cert-progress-fill.cert-fill-full {
-            background: linear-gradient(90deg, #10b981, #059669);
+            background: linear-gradient(90deg, #10b981, #059669, #047857);
+            box-shadow: 0 3px 12px rgba(16, 185, 129, 0.4);
         }
 
         .cert-progress-fill.cert-fill-partial {
-            background: linear-gradient(90deg, #e2ca18, #d4a000);
+            background: linear-gradient(90deg, #fbbf24, #e2ca18, #d4a000);
+            box-shadow: 0 3px 12px rgba(226, 202, 24, 0.4);
         }
     </style>
 </head>
@@ -3332,7 +3358,7 @@ function formatDateTime($date) {
                                                         <span class="cert-progress-pct"><?= $paymentProgress ?>%</span>
                                                     </div>
                                                     <div class="cert-progress-bar">
-                                                        <div class="cert-progress-fill <?= $isFullyPaid ? 'cert-fill-full' : 'cert-fill-partial' ?>" style="width: <?= $paymentProgress ?>%"></div>
+                                                        <div class="cert-progress-fill <?= $isFullyPaid ? 'cert-fill-full' : 'cert-fill-partial' ?>" style="width: <?= $paymentProgress ?>%" data-pct="<?= $paymentProgress ?>%"></div>
                                                     </div>
                                                 </div>
                                                 <?php endif; ?>
@@ -4847,7 +4873,7 @@ function captureDonorCert(element) {
         allowTaint: true,
         backgroundColor: null,
         width: 1200,
-        height: 870,
+        height: 970,
         onclone: function(clonedDoc) {
             const clonedCert = clonedDoc.getElementById('donor-certificate');
             if (clonedCert) {
@@ -4935,7 +4961,7 @@ async function captureAndSendCertificate(element, phone, donorId, donorName, sqm
             allowTaint: true,
             backgroundColor: null,
             width: 1200,
-            height: 870
+            height: 970
         });
 
         element.style.transform = originalTransform;
