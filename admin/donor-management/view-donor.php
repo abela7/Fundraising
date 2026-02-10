@@ -4972,6 +4972,15 @@ async function saveReference() {
             .parentElement.querySelector('.badge');
         if (autoBadge) autoBadge.remove();
 
+        // Update reference in certificates
+        // Progress certificate (cert-donor-stat-val)
+        const progressCertRef = document.querySelector('.cert-donor-stat-val.font-monospace');
+        if (progressCertRef) progressCertRef.textContent = newRef;
+
+        // Completed certificate (fc-ref)
+        const completedCertRef = document.querySelector('.fc-ref');
+        if (completedCertRef) completedCertRef.textContent = newRef;
+
         // Update reference in the Contact Donor section
         document.querySelectorAll('.fa-hashtag').forEach(icon => {
             const parent = icon.parentElement;
