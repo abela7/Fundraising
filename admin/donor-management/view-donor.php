@@ -2684,7 +2684,7 @@ function formatDateTime($date) {
         .fc-detail-row {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         }
 
         .fc-detail-icon {
@@ -2705,10 +2705,16 @@ function formatDateTime($date) {
             font-size: 22px;
             font-weight: 700;
             color: #fff;
+            white-space: nowrap;
+        }
+
+        .fc-detail-label {
+            margin-right: 8px;
         }
 
         .fc-detail-text .fc-detail-highlight {
             color: #ffd700;
+            margin-left: 6px;
         }
 
         /* Right side: sqm pill + ref + FULLY PAID seal */
@@ -3953,13 +3959,13 @@ function formatDateTime($date) {
                                                                 <div class="fc-detail-row">
                                                                     <div class="fc-detail-icon"><i class="fas fa-pound-sign"></i></div>
                                                                     <div class="fc-detail-text">
-                                                                        Contribution: <span class="fc-detail-highlight"><?= $currency . number_format($allocationBase, 2) ?></span>
+                                                                        <span class="fc-detail-label">Contribution:</span><span class="fc-detail-highlight"><?= $currency . number_format($allocationBase, 2) ?></span>
                                                                     </div>
                                                                 </div>
                                                                 <div class="fc-detail-row">
                                                                     <div class="fc-detail-icon"><i class="fas fa-vector-square"></i></div>
                                                                     <div class="fc-detail-text">
-                                                                        Area: <span class="fc-detail-highlight"><?= $sqmValue ?> m²</span>
+                                                                        <span class="fc-detail-label">Area:</span><span class="fc-detail-highlight"><?= $sqmValue ?> m²</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
