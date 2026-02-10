@@ -1801,21 +1801,19 @@ function approvePayment(id, btn) {
             if (res.notification_data && res.notification_data.donor_phone) {
                 const data = res.notification_data;
 
-                // Fully paid donors always get the special modal (milestone event)
-                if (data.is_fully_paid) {
+                // Check if donor is assigned to Kesis Birhanu — ALWAYS route through him
+                const agentPhone = normalizePhoneForComparison(data.assigned_agent_phone);
+                const kesisBirhanuPhone = normalizePhoneForComparison(KESIS_BIRHANU_PHONE);
+
+                if (agentPhone && agentPhone === kesisBirhanuPhone) {
+                    // Route to Kesis Birhanu (both ongoing and fully paid)
+                    sendToKesisBirhanu(data, btn);
+                } else if (data.is_fully_paid) {
+                    // Fully paid — show special modal, send directly to donor
                     showNotificationModal(data);
                 } else {
-                    const agentPhone = normalizePhoneForComparison(data.assigned_agent_phone);
-                    const kesisBirhanuPhone = normalizePhoneForComparison(KESIS_BIRHANU_PHONE);
-
-                    // Check if donor is assigned to Kesis Birhanu
-                    if (agentPhone && agentPhone === kesisBirhanuPhone) {
-                        // Auto-send to Kesis Birhanu without showing modal
-                        sendToKesisBirhanu(data, btn);
-                    } else {
-                        // Show normal notification modal for other agents or unassigned donors
-                        showNotificationModal(data);
-                    }
+                    // Ongoing — show normal modal, send directly to donor
+                    showNotificationModal(data);
                 }
             } else {
                 // No phone number, just reload
@@ -1836,91 +1834,130 @@ function approvePayment(id, btn) {
 }
 
 /**
- * Automatically send notification to Kesis Birhanu for donors assigned to him.
- * The message content stays the same (addressed to donor), just routed to agent.
+ * Send notification to Kesis Birhanu for donors assigned to him.
+ * Handles both ongoing and fully paid cases.
+ * - Ongoing: text message + progress certificate via WhatsApp
+ * - Fully paid: text message + final certificate via WhatsApp
+ * Message content is addressed to the donor, but sent to agent's phone.
  */
-function sendToKesisBirhanu(data, btn) {
-    // Respect template mode: sms => English, auto/whatsapp => Amharic.
-    const lang = paymentTemplateMode === 'sms' ? 'en' : 'am';
-    let baseTemplate = '';
-    
-    if (dbTemplates) {
-        if (lang === 'am') baseTemplate = dbTemplates.message_am;
-        else if (lang === 'ti') baseTemplate = dbTemplates.message_ti;
-        else baseTemplate = dbTemplates.message_en;
-    }
-    
-    // Fallback if no template found.
-    if (!baseTemplate) {
-        if (lang === 'am') {
-            baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
-        } else {
-            baseTemplate = "Dear {name},\n\nThank you. We received your payment of £{amount} on {payment_date}.\n\nOutstanding balance: £{outstanding_balance}\n\n{next_payment_info}\n\n- Liverpool Abune Teklehaymanot Church";
+async function sendToKesisBirhanu(data, btn) {
+    const isFullyPaid = !!data.is_fully_paid;
+
+    // Pick the right template based on fully paid status
+    const templateMode = isFullyPaid ? fullyPaidTemplateMode : paymentTemplateMode;
+    const lang = templateMode === 'sms' ? 'en' : 'am';
+    let message = '';
+
+    if (isFullyPaid) {
+        // Build message from fully_paid_confirmation template
+        if (dbFullyPaidTemplate) {
+            if (lang === 'am' && dbFullyPaidTemplate.message_am) message = dbFullyPaidTemplate.message_am;
+            else if (lang === 'ti' && dbFullyPaidTemplate.message_ti) message = dbFullyPaidTemplate.message_ti;
+            else if (dbFullyPaidTemplate.message_en) message = dbFullyPaidTemplate.message_en;
+            if (!message && dbFullyPaidTemplate.message_am) message = dbFullyPaidTemplate.message_am;
+        }
+        if (!message) {
+            if (lang === 'am') {
+                message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
+            } else {
+                message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment.\n\nPayment received on {date}: £{payment_amount}\n\nPledge summary:\n→ Total pledge: {total_pledged_sqm} m², £{total_pledged}\n→ Total paid: £{total_paid}\n→ Remaining: £{remaining}\n\n- Liverpool Abune Teklehaymanot Church';
+            }
+        }
+        message = message
+            .replace(/\{donor_name\}/g, data.donor_name)
+            .replace(/\{date\}/g, data.payment_date)
+            .replace(/\{payment_amount\}/g, data.payment_amount)
+            .replace(/\{total_pledged_sqm\}/g, (data.sqm_value || '0'))
+            .replace(/\{total_pledged\}/g, data.total_pledge)
+            .replace(/\{total_paid\}/g, data.total_paid)
+            .replace(/\{remaining\}/g, '0.00');
+    } else {
+        // Build message from payment_confirmed template
+        let baseTemplate = '';
+        if (dbTemplates) {
+            if (lang === 'am') baseTemplate = dbTemplates.message_am;
+            else if (lang === 'ti') baseTemplate = dbTemplates.message_ti;
+            else baseTemplate = dbTemplates.message_en;
+        }
+        if (!baseTemplate) {
+            if (lang === 'am') {
+                baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
+            } else {
+                baseTemplate = "Dear {name},\n\nThank you. We received your payment of £{amount} on {payment_date}.\n\nOutstanding balance: £{outstanding_balance}\n\n{next_payment_info}\n\n- Liverpool Abune Teklehaymanot Church";
+            }
+        }
+        const nextTemplates = nextPaymentTemplates[lang] || nextPaymentTemplates['en'];
+        const nextInfoTemplate = data.has_plan ? nextTemplates.withPlan : nextTemplates.withoutPlan;
+        message = baseTemplate.replace(/{next_payment_info}/g, nextInfoTemplate);
+        message = message
+            .replace(/{name}/g, data.donor_name)
+            .replace(/{amount}/g, data.payment_amount)
+            .replace(/{payment_date}/g, data.payment_date)
+            .replace(/{total_pledge}/g, data.total_pledge)
+            .replace(/{total_paid}/g, data.total_paid)
+            .replace(/{outstanding_balance}/g, data.outstanding_balance);
+        if (data.has_plan) {
+            message = message
+                .replace(/{next_payment_amount}/g, data.next_payment_amount || data.payment_amount)
+                .replace(/{next_payment_date}/g, data.next_payment_date || 'TBD');
         }
     }
 
-    // Get the appropriate next_payment_info sub-template
-    const nextTemplates = nextPaymentTemplates[lang] || nextPaymentTemplates['en'];
-    const nextInfoTemplate = data.has_plan ? nextTemplates.withPlan : nextTemplates.withoutPlan;
-    
-    // Replace {next_payment_info} first
-    let message = baseTemplate.replace(/{next_payment_info}/g, nextInfoTemplate);
-    
-    // Replace other variables
-    message = message
-        .replace(/{name}/g, data.donor_name)
-        .replace(/{amount}/g, data.payment_amount)
-        .replace(/{payment_date}/g, data.payment_date)
-        .replace(/{total_pledge}/g, data.total_pledge)
-        .replace(/{total_paid}/g, data.total_paid)
-        .replace(/{outstanding_balance}/g, data.outstanding_balance);
-    
-    if (data.has_plan) {
-        message = message
-            .replace(/{next_payment_amount}/g, data.next_payment_amount || data.payment_amount)
-            .replace(/{next_payment_date}/g, data.next_payment_date || 'TBD');
-    }
-    
+    // Handle \n literals from database templates
+    message = message.replace(/\\n/g, '\n');
+
     // Update button to show sending status
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending to agent...';
-    
-    // Send to Kesis Birhanu's phone instead of donor's phone
-    fetch('send-payment-notification.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            donor_id: data.donor_id,
-            phone: KESIS_BIRHANU_PHONE, // Send to Kesis Birhanu, not donor
-            message: message,
-            language: lang,
-            template_mode: paymentTemplateMode,
-            template_key: 'payment_confirmed',
-            routed_via_agent: true,
-            agent_name: data.assigned_agent_name
-        })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.success) {
-            // Show brief success message
-            btn.innerHTML = '<i class="fas fa-check"></i> Sent to ' + (data.assigned_agent_name || 'Agent');
+    const agentLabel = data.assigned_agent_name || 'Kesis Birhanu';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending to ' + agentLabel + '...';
+
+    try {
+        // Capture the appropriate certificate
+        const certType = isFullyPaid ? 'completed' : 'progress';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating certificate...';
+
+        const d = await fetchDonorCertificateData(data.donor_id);
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Capturing certificate...';
+        const blob = await captureCertificateFromDonorView(data.donor_id, certType);
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending to ' + agentLabel + '...';
+
+        // Send certificate + message to Kesis Birhanu's phone
+        const formData = new FormData();
+        const safeName = (d.name || 'donor').replace(/[^a-z0-9]/gi, '_');
+        const filePrefix = isFullyPaid ? 'certificate_final' : 'certificate';
+        formData.append('certificate', blob, `${filePrefix}_${safeName}.png`);
+        formData.append('phone', KESIS_BIRHANU_PHONE);
+        formData.append('donor_id', data.donor_id);
+        formData.append('donor_name', d.name);
+        formData.append('sqm_value', d.sqm_value);
+        formData.append('total_paid', d.currency + parseFloat(d.total_paid).toFixed(2));
+        formData.append('message', message);
+
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
+        formData.append('csrf_token', csrfToken);
+
+        const certRes = await fetch('../donor-management/api/send-certificate-whatsapp.php', {
+            method: 'POST',
+            body: formData
+        });
+        const certResult = await certRes.json();
+
+        if (certResult.success) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Sent to ' + agentLabel;
             btn.classList.remove('btn-approve');
             btn.classList.add('btn-success');
-            
-            // Reload after short delay
             setTimeout(() => location.reload(), 1500);
         } else {
-            // Failed to send, but payment was still approved
-            console.error('Failed to send to agent:', res.error);
-            alert('Payment approved, but failed to notify agent: ' + (res.error || 'Unknown error'));
-            location.reload();
+            throw new Error(certResult.error || 'Failed to send');
         }
-    })
-    .catch(err => {
-        console.error('Network error sending to agent:', err);
-        alert('Payment approved, but failed to notify agent due to network error.');
+    } catch (err) {
+        console.error('Error sending to ' + agentLabel + ':', err);
+        alert('Payment approved, but failed to send to ' + agentLabel + ': ' + err.message);
         location.reload();
-    });
+    }
 }
 
 /**
