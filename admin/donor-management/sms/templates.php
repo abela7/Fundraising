@@ -72,6 +72,53 @@ if ($tables_exist && $db) {
     }
 }
 
+/**
+ * Resolve delivery mode from template row with backward compatibility.
+ * Modes:
+ * - auto: WhatsApp first (Amharic), then SMS fallback (English)
+ * - sms: SMS always (English)
+ * - whatsapp: WhatsApp always (Amharic)
+ */
+function resolve_delivery_mode(array $row): string {
+    $mode = strtolower(trim((string)($row['preferred_channel'] ?? '')));
+    if (in_array($mode, ['auto', 'sms', 'whatsapp'], true)) {
+        return $mode;
+    }
+
+    $platform = strtolower(trim((string)($row['platform'] ?? '')));
+    if ($platform === 'sms' || $platform === 'whatsapp') {
+        return $platform;
+    }
+
+    return 'auto';
+}
+
+/**
+ * Keep legacy `platform` aligned for compatibility with other pages.
+ */
+function mode_to_platform(string $mode): string {
+    if ($mode === 'sms') return 'sms';
+    if ($mode === 'whatsapp') return 'whatsapp';
+    return 'both';
+}
+
+/**
+ * Core Amharic translations for known system templates.
+ */
+function core_amharic_template_map(): array {
+    return [
+        'missed_call' => "ሰላም {name}፣\n\nከሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን ደውለን ነበር ነገር ግን ሊደርስልዎ አልቻለም። በ{callback_date} በ{callback_time} እንደገና እንደውላለን። እናመሰግናለን!",
+        'line_busy' => "ሰላም {name}፣\n\nከአቡነ ተክለሃይማኖት ቤተክርስቲያን ስንደውል መስመርዎ ተጠምዶ ነበር። በ{callback_date} በ{callback_time} እንደገና እንሞክራለን። እናመሰግናለን!",
+        'callback_requested' => "ሰላም {name}፣\n\nእንደተስማማነው በ{callback_date} በ{callback_time} እንደገና እንደውላለን። እናመሰግናለን! - ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን",
+        'follow_up_reminder' => "ሰላም {name}፣\n\nስለ ወቅታዊ ጊዜዎ እናመሰግናለን። በ{callback_date} በ{callback_time} እንደገና እንከታተላለን። - ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን",
+        'payment_plan_created' => "ሰላም {name}፣ ከሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን ጋር የክፍያ እቅድ ስላዘጋጁ እናመሰግናለን! ከ{start_date} ጀምሮ {amount} {frequency_am} ይከፍላሉ። የክፍያ ዘዴ: {payment_method}። ቀጣዩ ክፍያዎ {next_payment_due} ነው። ከክፍያ ቀንዎ 2 ቀን በፊት እናሳስባለን። - እግዚአብሔር ይባርክዎ!",
+        'payment_reminder_2day' => "ውድ {name}፣ በክፍያ እቅድዎ መሠረት ቀጣዩ የ{amount} ክፍያዎ በ{due_date} ይከፈላል። የክፍያ ዘዴ: {payment_method}። {payment_instructions}። እናመሰግናለን! - ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን",
+        'missed_payment_reminder' => "ሰላም {name}፣\n\nበ{missed_date} መከፈል የነበረበትን {amount} ክፍያ አልተከፈለም።\n\nእባክዎ የክፍያ እቅድዎን ለማስቀጠል በተቻለ ፍጥነት ክፍያዎን ይፈጽሙ።\n{payment_instructions}\n\nቀጣዩ የ{amount} ክፍያዎ በ{next_payment_date} ነው።\n\nጥያቄ ካለዎት እባክዎን ያግኙን።\n\nእግዚአብሔር ይባርክዎ! 🙏\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን",
+        'payment_confirmed' => "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት ማለትም {payment_date} የ {amount} ፓውንድ ክፍያዎን ተቀብለናል።\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን የገቡት፡ {total_pledge}\n→ እስካሁን የከፈሉት: {total_paid}\n→ ቀሪ ሂሳብ፡ {outstanding_balance}\n\n{next_payment_info}\n\nማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን።\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን",
+        'fully_paid_confirmation' => "ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን"
+    ];
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
     try {
@@ -82,8 +129,99 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
     
     if (!$error_message) {
         $action = $_POST['action'] ?? '';
+        $has_preferred_channel = in_array('preferred_channel', $table_columns, true);
+        $has_platform = in_array('platform', $table_columns, true);
         
         try {
+            if ($action === 'apply_amharic_pack') {
+                $translations = core_amharic_template_map();
+
+                $selectCols = ['id', 'template_key', 'message_en', 'message_am'];
+                if ($has_preferred_channel) $selectCols[] = 'preferred_channel';
+                if ($has_platform) $selectCols[] = 'platform';
+
+                $query = "SELECT " . implode(', ', $selectCols) . " FROM sms_templates";
+                $res = $db->query($query);
+                if (!$res) {
+                    throw new Exception('Failed to read templates for Amharic pack.');
+                }
+
+                $updated_rows = 0;
+                $translated_count = 0;
+                $copied_count = 0;
+                $mode_fixed = 0;
+                $platform_fixed = 0;
+
+                while ($row = $res->fetch_assoc()) {
+                    $updates = [];
+                    $vals = [];
+                    $types = '';
+
+                    $templateKey = strtolower(trim((string)($row['template_key'] ?? '')));
+                    $currentAm = trim((string)($row['message_am'] ?? ''));
+
+                    // Fill Amharic text if missing.
+                    if ($currentAm === '') {
+                        if (isset($translations[$templateKey])) {
+                            $newAm = $translations[$templateKey];
+                            $translated_count++;
+                        } else {
+                            // Fallback to English text to avoid empty WhatsApp messages.
+                            $newAm = trim((string)($row['message_en'] ?? ''));
+                            $copied_count++;
+                        }
+
+                        if ($newAm !== '') {
+                            $updates[] = 'message_am = ?';
+                            $vals[] = $newAm;
+                            $types .= 's';
+                        }
+                    }
+
+                    // Normalize mode and keep legacy platform aligned.
+                    $mode = resolve_delivery_mode($row);
+                    if ($has_preferred_channel) {
+                        $currentMode = strtolower(trim((string)($row['preferred_channel'] ?? '')));
+                        if (!in_array($currentMode, ['auto', 'sms', 'whatsapp'], true)) {
+                            $updates[] = 'preferred_channel = ?';
+                            $vals[] = $mode;
+                            $types .= 's';
+                            $mode_fixed++;
+                        }
+                    }
+                    if ($has_platform) {
+                        $targetPlatform = mode_to_platform($mode);
+                        $currentPlatform = strtolower(trim((string)($row['platform'] ?? '')));
+                        if ($currentPlatform !== $targetPlatform) {
+                            $updates[] = 'platform = ?';
+                            $vals[] = $targetPlatform;
+                            $types .= 's';
+                            $platform_fixed++;
+                        }
+                    }
+
+                    if (!empty($updates)) {
+                        $vals[] = (int)$row['id'];
+                        $types .= 'i';
+                        $sql = "UPDATE sms_templates SET " . implode(', ', $updates) . ", updated_at = NOW() WHERE id = ?";
+                        $stmt = $db->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception('Failed to update template #' . (int)$row['id'] . ': ' . $db->error);
+                        }
+                        $stmt->bind_param($types, ...$vals);
+                        if (!$stmt->execute()) {
+                            throw new Exception('Failed to update template #' . (int)$row['id'] . ': ' . $stmt->error);
+                        }
+                        $stmt->close();
+                        $updated_rows++;
+                    }
+                }
+
+                $_SESSION['success_message'] = "Amharic pack applied. Updated {$updated_rows} templates ({$translated_count} translated, {$copied_count} copied from English, {$mode_fixed} mode fixes, {$platform_fixed} platform fixes).";
+                header('Location: templates.php');
+                exit;
+            }
+
             if ($action === 'create' || $action === 'update') {
                 $template_key = trim($_POST['template_key'] ?? '');
                 $name = trim($_POST['name'] ?? '');
@@ -95,7 +233,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
                 $variables_raw = trim($_POST['variables'] ?? '');
                 $priority = $_POST['priority'] ?? 'normal';
                 $is_active = isset($_POST['is_active']) ? 1 : 0;
-                $platform = $_POST['platform'] ?? 'both';
+                $delivery_mode = strtolower(trim((string)($_POST['preferred_channel'] ?? 'auto')));
+                if (!in_array($delivery_mode, ['auto', 'sms', 'whatsapp'], true)) {
+                    $delivery_mode = 'auto';
+                }
                 
                 // Advanced rules (if columns exist)
                 $max_sends = isset($_POST['max_sends_per_donor']) && $_POST['max_sends_per_donor'] !== '' ? (int)$_POST['max_sends_per_donor'] : null;
@@ -130,6 +271,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
                 
                 // Sanitize template key
                 $template_key = preg_replace('/[^a-z0-9_]/', '', strtolower($template_key));
+
+                // Auto-fill Amharic from core map if left empty.
+                if ($message_am === '') {
+                    $translations = core_amharic_template_map();
+                    if (isset($translations[$template_key])) {
+                        $message_am = $translations[$template_key];
+                    }
+                }
                 
                 $fields = [
                     'template_key' => $template_key,
@@ -145,7 +294,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tables_exist && $db) {
                 ];
                 
                 // Add optional columns if they exist in schema
-                if (in_array('platform', $table_columns)) $fields['platform'] = $platform;
+                if ($has_preferred_channel) $fields['preferred_channel'] = $delivery_mode;
+                if ($has_platform) $fields['platform'] = mode_to_platform($delivery_mode);
                 if (in_array('max_sends_per_donor', $table_columns)) $fields['max_sends_per_donor'] = $max_sends;
                 if (in_array('min_interval_hours', $table_columns)) $fields['min_interval_hours'] = $min_interval;
                 if (in_array('send_window_start', $table_columns)) $fields['send_window_start'] = $window_start;
@@ -397,8 +547,15 @@ $categories = [
                             <i class="fas fa-file-alt text-primary me-2"></i>SMS Templates
                         </h1>
                     </div>
-                    <div>
+                    <div class="d-flex gap-2 flex-wrap">
                         <?php if (!$show_form): ?>
+                            <form method="POST" class="d-inline">
+                                <?php echo csrf_input(); ?>
+                                <input type="hidden" name="action" value="apply_amharic_pack">
+                                <button type="submit" class="btn btn-outline-success" onclick="return confirm('Apply Amharic pack to existing templates? This will fill missing Amharic messages and normalize delivery mode settings.');">
+                                    <i class="fas fa-language me-2"></i>Apply Amharic Pack
+                                </button>
+                            </form>
                             <a href="?action=new" class="btn btn-primary">
                                 <i class="fas fa-plus me-2"></i>New Template
                             </a>
@@ -464,12 +621,14 @@ $categories = [
                                     </div>
 
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold">Platform</label>
-                                        <select name="platform" class="form-select">
-                                            <option value="both" <?php echo ($edit_template['platform'] ?? 'both') === 'both' ? 'selected' : ''; ?>>Both (SMS & WhatsApp)</option>
-                                            <option value="sms" <?php echo ($edit_template['platform'] ?? '') === 'sms' ? 'selected' : ''; ?>>SMS Only</option>
-                                            <option value="whatsapp" <?php echo ($edit_template['platform'] ?? '') === 'whatsapp' ? 'selected' : ''; ?>>WhatsApp Only</option>
+                                        <?php $form_delivery_mode = resolve_delivery_mode($edit_template ?? []); ?>
+                                        <label class="form-label fw-semibold">Delivery Mode</label>
+                                        <select name="preferred_channel" class="form-select">
+                                            <option value="auto" <?php echo $form_delivery_mode === 'auto' ? 'selected' : ''; ?>>Default (WhatsApp first, then SMS fallback)</option>
+                                            <option value="sms" <?php echo $form_delivery_mode === 'sms' ? 'selected' : ''; ?>>SMS Always (English)</option>
+                                            <option value="whatsapp" <?php echo $form_delivery_mode === 'whatsapp' ? 'selected' : ''; ?>>WhatsApp Always (Amharic)</option>
                                         </select>
+                                        <div class="form-text">Template-level sending policy. Default uses WhatsApp first, then SMS fallback.</div>
                                     </div>
                                     
                                     <div class="col-md-4">
@@ -654,15 +813,19 @@ $categories = [
                                                 <span class="badge bg-secondary">Inactive</span>
                                             <?php endif; ?>
                                             
-                                            <?php if (isset($template['platform'])): ?>
-                                                <span class="badge bg-info text-dark" style="font-size: 0.65rem;">
-                                                    <i class="<?php 
-                                                        echo $template['platform'] === 'whatsapp' ? 'fab fa-whatsapp' : 
-                                                            ($template['platform'] === 'sms' ? 'fas fa-sms' : 'fas fa-mobile-alt'); 
-                                                    ?> me-1"></i>
-                                                    <?php echo strtoupper($template['platform']); ?>
-                                                </span>
-                                            <?php endif; ?>
+                                            <?php
+                                                $templateMode = resolve_delivery_mode($template);
+                                                $modeIcon = $templateMode === 'whatsapp'
+                                                    ? 'fab fa-whatsapp'
+                                                    : ($templateMode === 'sms' ? 'fas fa-sms' : 'fas fa-random');
+                                                $modeLabel = $templateMode === 'whatsapp'
+                                                    ? 'WHATSAPP ALWAYS'
+                                                    : ($templateMode === 'sms' ? 'SMS ALWAYS' : 'DEFAULT');
+                                            ?>
+                                            <span class="badge bg-info text-dark" style="font-size: 0.65rem;">
+                                                <i class="<?php echo $modeIcon; ?> me-1"></i>
+                                                <?php echo $modeLabel; ?>
+                                            </span>
                                         </div>
                                     </div>
                                     

@@ -189,23 +189,56 @@ class MessagingHelper
         if (!$donor) {
             return $this->error("Donor #$donorId not found");
         }
-        
-        // Determine best channel
-        $channel = $this->determineChannel($donor, $preferredChannel);
-        
-        if ($channel === self::CHANNEL_BOTH) {
-            // Send via both channels
+
+        // Load template once so we can enforce per-template delivery mode.
+        $template = $this->smsHelper->getTemplate($templateKey);
+        if (!$template) {
+            return $this->error("Template '$templateKey' not found");
+        }
+
+        // If caller passes auto, use template mode:
+        // - auto: WhatsApp first (Amharic) then SMS (English)
+        // - sms: SMS only (English)
+        // - whatsapp: WhatsApp only (Amharic, no SMS fallback)
+        $requestedChannel = strtolower(trim($preferredChannel));
+        if ($requestedChannel === '') {
+            $requestedChannel = self::CHANNEL_AUTO;
+        }
+        $templateMode = $this->resolveTemplateDeliveryMode($template);
+        $effectiveChannel = ($requestedChannel === self::CHANNEL_AUTO) ? $templateMode : $requestedChannel;
+
+        if ($effectiveChannel === self::CHANNEL_BOTH) {
             return $this->sendViaBothChannels($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
         }
-        
-        // Send via single channel
-        if ($channel === self::CHANNEL_WHATSAPP) {
-            return $this->sendWhatsAppFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
-        } else {
-            // Send via SMS as PRIMARY channel - use Amharic
-            $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'am');
-            return $smsResult;
+
+        if ($effectiveChannel === self::CHANNEL_SMS) {
+            return $this->sendSmsFromTemplateEnglish($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
         }
+
+        if ($effectiveChannel === self::CHANNEL_WHATSAPP) {
+            return $this->sendWhatsAppFromTemplate(
+                $templateKey,
+                $donorId,
+                $variables,
+                $sourceType,
+                $queue,
+                $forceImmediate,
+                false, // WhatsApp-only mode should not fallback to SMS
+                $template
+            );
+        }
+
+        // Default/auto mode: WhatsApp first (Amharic), then SMS (English) fallback.
+        return $this->sendWhatsAppFromTemplate(
+            $templateKey,
+            $donorId,
+            $variables,
+            $sourceType,
+            $queue,
+            $forceImmediate,
+            true,
+            $template
+        );
     }
     
     /**
@@ -223,7 +256,8 @@ class MessagingHelper
         string $message,
         string $channel = self::CHANNEL_AUTO,
         ?int $donorId = null,
-        string $sourceType = 'manual'
+        string $sourceType = 'manual',
+        bool $allowSmsFallback = true
     ): array {
         // Get donor if ID provided
         $donor = $donorId ? $this->getDonor($donorId) : null;
@@ -246,10 +280,13 @@ class MessagingHelper
         if ($channel === self::CHANNEL_BOTH) {
             return $this->sendDirectViaBoth($phoneNumber, $message, $donorId, $sourceType);
         } elseif ($channel === self::CHANNEL_WHATSAPP) {
-            return $this->sendWhatsAppDirect($phoneNumber, $message, $donorId, $sourceType);
+            return $this->sendWhatsAppDirect($phoneNumber, $message, $donorId, $sourceType, $allowSmsFallback);
         } else {
             // Send via SMS - SMSHelper logs via VoodooSMSService
             $smsResult = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
+            if (!empty($smsResult['success'])) {
+                $smsResult['channel'] = self::CHANNEL_SMS;
+            }
             return $smsResult;
         }
     }
@@ -267,7 +304,8 @@ class MessagingHelper
         int $donorId,
         string $message,
         string $preferredChannel = self::CHANNEL_AUTO,
-        string $sourceType = 'manual'
+        string $sourceType = 'manual',
+        bool $allowSmsFallback = true
     ): array {
         $donor = $this->getDonor($donorId);
         if (!$donor) {
@@ -278,7 +316,57 @@ class MessagingHelper
             return $this->error("Donor #$donorId has no phone number");
         }
         
-        return $this->sendDirect($donor['phone'], $message, $preferredChannel, $donorId, $sourceType);
+        return $this->sendDirect($donor['phone'], $message, $preferredChannel, $donorId, $sourceType, $allowSmsFallback);
+    }
+
+    /**
+     * Resolve template delivery mode from schema-compatible columns.
+     *
+     * Preferred column: preferred_channel (auto|sms|whatsapp)
+     * Backward compatibility: platform (both->auto, sms, whatsapp)
+     */
+    private function resolveTemplateDeliveryMode(array $template): string
+    {
+        $mode = strtolower(trim((string)($template['preferred_channel'] ?? '')));
+        if (in_array($mode, [self::CHANNEL_AUTO, self::CHANNEL_SMS, self::CHANNEL_WHATSAPP], true)) {
+            return $mode;
+        }
+
+        $platform = strtolower(trim((string)($template['platform'] ?? '')));
+        if ($platform === self::CHANNEL_SMS || $platform === self::CHANNEL_WHATSAPP) {
+            return $platform;
+        }
+
+        return self::CHANNEL_AUTO;
+    }
+
+    /**
+     * Send template via SMS in English and annotate response channel.
+     */
+    private function sendSmsFromTemplateEnglish(
+        string $templateKey,
+        int $donorId,
+        array $variables,
+        string $sourceType,
+        bool $queue,
+        bool $forceImmediate
+    ): array {
+        $smsResult = $this->smsHelper->sendFromTemplate(
+            $templateKey,
+            $donorId,
+            $variables,
+            $sourceType,
+            $queue,
+            $forceImmediate,
+            'en'
+        );
+
+        if (!empty($smsResult['success'])) {
+            $smsResult['channel'] = self::CHANNEL_SMS;
+            $smsResult['language'] = 'en';
+        }
+
+        return $smsResult;
     }
     
     /**
@@ -437,15 +525,27 @@ class MessagingHelper
         array $variables,
         string $sourceType,
         bool $queue,
-        bool $forceImmediate
+        bool $forceImmediate,
+        bool $allowSmsFallback = true,
+        ?array $templateOverride = null
     ): array {
         if (!$this->whatsappService) {
+            if (!$allowSmsFallback) {
+                return $this->error('WhatsApp service is not available');
+            }
+
             // Fallback to SMS with ENGLISH language
-            return $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'en');
+            $smsFallback = $this->sendSmsFromTemplateEnglish($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+            if (!empty($smsFallback['success'])) {
+                $smsFallback['is_fallback'] = true;
+                $smsFallback['fallback_reason'] = 'whatsapp_unavailable';
+                $smsFallback['original_channel'] = 'whatsapp';
+            }
+            return $smsFallback;
         }
         
         // Get template (use SMS templates for now, can be extended)
-        $template = $this->smsHelper->getTemplate($templateKey);
+        $template = $templateOverride ?? $this->smsHelper->getTemplate($templateKey);
         if (!$template) {
             return $this->error("Template '$templateKey' not found");
         }
@@ -461,16 +561,12 @@ class MessagingHelper
         $language = 'am';
         $message = trim((string)($template['message_am'] ?? ''));
         if ($message === '') {
-            $smsResult = $this->smsHelper->sendFromTemplate(
-                $templateKey,
-                $donorId,
-                $variables,
-                $sourceType,
-                $queue,
-                $forceImmediate,
-                'en'
-            );
-            if (isset($smsResult['success']) && $smsResult['success']) {
+            if (!$allowSmsFallback) {
+                return $this->error("Template '{$templateKey}' does not have an Amharic message for WhatsApp mode");
+            }
+
+            $smsResult = $this->sendSmsFromTemplateEnglish($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+            if (!empty($smsResult['success'])) {
                 $smsResult['is_fallback'] = true;
                 $smsResult['fallback_reason'] = 'whatsapp_amharic_template_missing';
                 $smsResult['original_channel'] = 'whatsapp';
@@ -507,18 +603,22 @@ class MessagingHelper
                 'message' => 'WhatsApp message sent successfully (Amharic)',
                 'message_id' => $result['message_id'] ?? null
             ];
-        } else {
-            // Fallback to SMS with ENGLISH language
-            $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'en');
-            // Mark as fallback
-            if (isset($smsResult['success']) && $smsResult['success']) {
-                $smsResult['is_fallback'] = true;
-                $smsResult['fallback_reason'] = 'whatsapp_failed';
-                $smsResult['original_channel'] = 'whatsapp';
-                $smsResult['language'] = 'en';
-            }
-            return $smsResult;
         }
+
+        if (!$allowSmsFallback) {
+            return $this->error($result['error'] ?? 'Failed to send WhatsApp message');
+        }
+
+        // Fallback to SMS with ENGLISH language
+        $smsResult = $this->sendSmsFromTemplateEnglish($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+        // Mark as fallback
+        if (!empty($smsResult['success'])) {
+            $smsResult['is_fallback'] = true;
+            $smsResult['fallback_reason'] = 'whatsapp_failed';
+            $smsResult['original_channel'] = 'whatsapp';
+            $smsResult['language'] = 'en';
+        }
+        return $smsResult;
     }
     
     /**
@@ -528,11 +628,22 @@ class MessagingHelper
         string $phoneNumber,
         string $message,
         ?int $donorId,
-        string $sourceType
+        string $sourceType,
+        bool $allowSmsFallback = true
     ): array {
         if (!$this->whatsappService) {
+            if (!$allowSmsFallback) {
+                return $this->error('WhatsApp service is not available');
+            }
             // Fallback to SMS - SMSHelper logs via VoodooSMSService
-            return $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
+            $smsResult = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
+            if (!empty($smsResult['success'])) {
+                $smsResult['channel'] = self::CHANNEL_SMS;
+                $smsResult['is_fallback'] = true;
+                $smsResult['fallback_reason'] = 'whatsapp_unavailable';
+                $smsResult['original_channel'] = self::CHANNEL_WHATSAPP;
+            }
+            return $smsResult;
         }
         
         $result = $this->whatsappService->send($phoneNumber, $message, [
@@ -548,11 +659,21 @@ class MessagingHelper
                 'message' => 'WhatsApp message sent successfully',
                 'message_id' => $result['message_id'] ?? null
             ];
-        } else {
-            // Fallback to SMS - SMSHelper logs via VoodooSMSService
-            $smsResult = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
-            return $smsResult;
         }
+
+        if (!$allowSmsFallback) {
+            return $this->error($result['error'] ?? 'Failed to send WhatsApp message');
+        }
+
+        // Fallback to SMS - SMSHelper logs via VoodooSMSService
+        $smsResult = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
+        if (!empty($smsResult['success'])) {
+            $smsResult['channel'] = self::CHANNEL_SMS;
+            $smsResult['is_fallback'] = true;
+            $smsResult['fallback_reason'] = 'whatsapp_failed';
+            $smsResult['original_channel'] = self::CHANNEL_WHATSAPP;
+        }
+        return $smsResult;
     }
     
     /**
@@ -573,14 +694,14 @@ class MessagingHelper
             'whatsapp' => null
         ];
         
-        // Send SMS - SMSHelper logs via VoodooSMSService (use Amharic for primary SMS)
+        // Send SMS using English template copy for consistency.
         if ($this->isSMSAvailable()) {
-            $results['sms'] = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'am');
+            $results['sms'] = $this->sendSmsFromTemplateEnglish($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
         }
         
-        // Send WhatsApp - logs via UltraMsgService
+        // Send WhatsApp without fallback since SMS is already attempted separately.
         if ($this->isWhatsAppAvailable()) {
-            $results['whatsapp'] = $this->sendWhatsAppFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+            $results['whatsapp'] = $this->sendWhatsAppFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, false);
         }
         
         // Success if at least one succeeded
@@ -610,11 +731,15 @@ class MessagingHelper
         // Send SMS - SMSHelper logs via VoodooSMSService
         if ($this->isSMSAvailable()) {
             $results['sms'] = $this->smsHelper->sendDirect($phoneNumber, $message, $donorId, $sourceType);
+            if (!empty($results['sms']['success'])) {
+                $results['sms']['channel'] = self::CHANNEL_SMS;
+            }
         }
         
         // Send WhatsApp - logs via UltraMsgService
         if ($this->isWhatsAppAvailable()) {
-            $results['whatsapp'] = $this->sendWhatsAppDirect($phoneNumber, $message, $donorId, $sourceType);
+            // Do not fallback here; SMS is already attempted separately.
+            $results['whatsapp'] = $this->sendWhatsAppDirect($phoneNumber, $message, $donorId, $sourceType, false);
         }
         
         // Success if at least one succeeded

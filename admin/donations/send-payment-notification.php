@@ -2,8 +2,8 @@
 /**
  * Send Payment Confirmation Notification
  * 
- * Sends a WhatsApp message (with SMS fallback) to notify a donor
- * that their payment has been confirmed.
+ * Sends payment-related donor notifications while respecting
+ * template delivery mode (auto, sms, whatsapp).
  */
 
 declare(strict_types=1);
@@ -56,8 +56,18 @@ try {
     $phone = trim($input['phone'] ?? '');
     $message = trim($input['message'] ?? '');
     $language = $input['language'] ?? 'en';
+    $templateMode = strtolower(trim((string)($input['template_mode'] ?? 'auto')));
+    $templateKey = strtolower(trim((string)($input['template_key'] ?? 'payment_confirmed')));
     $routedViaAgent = $input['routed_via_agent'] ?? false;
     $agentName = $input['agent_name'] ?? null;
+
+    if (!in_array($templateMode, ['auto', 'sms', 'whatsapp'], true)) {
+        $templateMode = 'auto';
+    }
+
+    if (!in_array($templateKey, ['payment_confirmed', 'fully_paid_confirmation'], true)) {
+        $templateKey = 'payment_confirmed';
+    }
 
     if ($donorId <= 0) {
         sendJsonResponse(['success' => false, 'error' => 'Invalid donor ID']);
@@ -93,13 +103,27 @@ try {
         $current_user
     );
 
-    // Send the message (WhatsApp first, SMS fallback)
+    // Resolve channel from template mode:
+    // - auto: WhatsApp first, SMS fallback
+    // - sms: SMS always
+    // - whatsapp: WhatsApp always (no SMS fallback)
+    $channel = MessagingHelper::CHANNEL_AUTO;
+    $allowSmsFallback = true;
+    if ($templateMode === 'sms') {
+        $channel = MessagingHelper::CHANNEL_SMS;
+    } elseif ($templateMode === 'whatsapp') {
+        $channel = MessagingHelper::CHANNEL_WHATSAPP;
+        $allowSmsFallback = false;
+    }
+
+    // Send the message using resolved channel policy
     $result = $messaging->sendDirect(
         $phone,
         $message,
-        MessagingHelper::CHANNEL_AUTO,
+        $channel,
         $donorId,
-        'payment_confirmation'
+        $templateKey,
+        $allowSmsFallback
     );
 
     if ($result['success']) {
@@ -152,9 +176,9 @@ try {
             $logStmt = $db->prepare("
                 INSERT INTO payment_notifications_log 
                 (donor_id, notification_type, channel, phone_number, message_preview, sent_by_user_id, routed_via_agent, agent_name)
-                VALUES (?, 'payment_confirmed', ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $logStmt->bind_param('isssiis', $donorId, $channel, $phone, $preview, $userId, $routedFlag, $agentName);
+            $logStmt->bind_param('issssiis', $donorId, $templateKey, $channel, $phone, $preview, $userId, $routedFlag, $agentName);
             $logStmt->execute();
             $logStmt->close();
         } catch (Exception $logError) {
@@ -169,7 +193,9 @@ try {
         sendJsonResponse([
             'success' => true,
             'message' => $responseMessage,
+            'notification_type' => $templateKey,
             'channel' => $result['channel'] ?? 'whatsapp',
+            'fallback' => !empty($result['is_fallback']),
             'routed_via_agent' => $routedViaAgent
         ]);
     } else {

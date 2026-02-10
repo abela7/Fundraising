@@ -327,6 +327,7 @@ try {
                 'phone' => $donor['phone'],
                 'status' => 'failed',
                 'fallback' => false,
+                'channel_used' => 'sms',
                 'error' => ''
             ];
 
@@ -361,21 +362,23 @@ try {
                     $templateKey = $tRes['template_key'] ?? null;
 
                     if ($templateKey) {
+                        $requestedChannel = in_array($channel, ['auto', 'sms', 'whatsapp', 'both'], true)
+                            ? $channel
+                            : MessagingHelper::CHANNEL_AUTO;
                         $sourceType = $bulk_run_id ? ('bulk_manual:' . $bulk_run_id) : 'bulk_manual';
                         $sendRes = $msgHelper->sendFromTemplate(
                             $templateKey,
                             (int)$donor['id'],
                             $variables,
-                            $channel,
+                            $requestedChannel,
                             $sourceType,
                             false
                         );
                         
                         if (isset($sendRes['success']) && $sendRes['success']) {
                             $resultEntry['status'] = 'sent';
-                            if ($channel === 'whatsapp' && ($sendRes['channel'] ?? '') === 'sms') {
-                                $resultEntry['fallback'] = true;
-                            }
+                            $resultEntry['fallback'] = !empty($sendRes['is_fallback']);
+                            $resultEntry['channel_used'] = $sendRes['channel'] ?? ($resultEntry['fallback'] ? 'sms' : $requestedChannel);
                         } else {
                             $resultEntry['error'] = $sendRes['error'] ?? 'Unknown error';
                         }
@@ -394,7 +397,7 @@ try {
                     $processedMessage = preg_replace('/\{[a-z_]+\}/', '', $processedMessage);
                     $processedMessage = trim($processedMessage);
 
-                    if ($channel === 'whatsapp') {
+                    if ($channel === 'whatsapp' || $channel === 'auto') {
                         if ($msgHelper->isWhatsAppAvailable()) {
                             $whatsapp = UltraMsgService::fromDatabase($db);
                             if ($whatsapp) {
@@ -403,6 +406,7 @@ try {
                                 
                                 if ($waRes['success']) {
                                     $resultEntry['status'] = 'sent';
+                                    $resultEntry['channel_used'] = 'whatsapp';
                                 } else {
                                     $resultEntry['error'] = 'WhatsApp failed: ' . ($waRes['error'] ?? '');
                                     
@@ -414,6 +418,7 @@ try {
                                         if ($smsRes['success']) {
                                             $resultEntry['status'] = 'sent';
                                             $resultEntry['fallback'] = true;
+                                            $resultEntry['channel_used'] = 'sms';
                                             $resultEntry['error'] = ''; 
                                         } else {
                                             $resultEntry['error'] .= ' | SMS Failed: ' . ($smsRes['error'] ?? '');
@@ -432,6 +437,7 @@ try {
                                 if ($smsRes['success']) {
                                     $resultEntry['status'] = 'sent';
                                     $resultEntry['fallback'] = true; 
+                                    $resultEntry['channel_used'] = 'sms';
                                 } else {
                                     $resultEntry['error'] = 'SMS Failed: ' . ($smsRes['error'] ?? '');
                                 }
@@ -447,6 +453,7 @@ try {
                             $smsRes = $sms->send($donor['phone'], $processedMessage, ['donor_id' => $donor['id'], 'source_type' => $smsSource]);
                             if ($smsRes['success']) {
                                 $resultEntry['status'] = 'sent';
+                                $resultEntry['channel_used'] = 'sms';
                             } else {
                                 $resultEntry['error'] = 'SMS Failed: ' . ($smsRes['error'] ?? '');
                             }
@@ -461,14 +468,7 @@ try {
 
             // Persist recipient row for bulk history
             if ($bulk_run_id !== '') {
-                $channelUsed = 'sms';
-                if ($template_id) {
-                    // MessagingHelper returns 'channel' only for WhatsApp success in this system
-                    $channelUsed = ($resultEntry['status'] === 'sent' && !$resultEntry['fallback'] && $channel === 'whatsapp') ? 'whatsapp' : 'sms';
-                } else {
-                    // Custom path sets fallback flag; prefer whatsapp when sent and not fallback and preferred was whatsapp
-                    $channelUsed = ($resultEntry['status'] === 'sent' && !$resultEntry['fallback'] && $channel === 'whatsapp') ? 'whatsapp' : 'sms';
-                }
+                $channelUsed = $resultEntry['channel_used'] ?? 'sms';
 
                 $statusVal = $resultEntry['status'] === 'sent' ? 'sent' : 'failed';
                 $isFallback = $resultEntry['fallback'] ? 1 : 0;

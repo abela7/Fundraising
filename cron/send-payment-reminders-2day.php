@@ -223,14 +223,14 @@ try {
                 'payment_reminder_2day',
                 $donorId,
                 $variables,
-                'whatsapp', // Try WhatsApp first
+                MessagingHelper::CHANNEL_AUTO, // Use template delivery mode
                 'cron_payment_reminder',
                 false, // Don't queue, send now
                 true // Force immediate
             );
             
             if ($sendResult['success']) {
-                $usedChannel = $sendResult['channel'] ?? 'whatsapp';
+                $usedChannel = $sendResult['channel'] ?? 'sms';
                 cron_log("SENT: Donor #{$donorId} ({$row['donor_phone']}) via {$usedChannel}");
                 $sent++;
                 $sentDonors[] = [

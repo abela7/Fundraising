@@ -58,12 +58,6 @@ try {
     // Get the call status to determine which template to use
     $call_status = $_GET['status'] ?? 'not_picked_up';
 
-    // Channel strategy:
-    // - Missed call / phone busy: SMS only
-    // - Other follow-ups / outcomes: WhatsApp first, then fallback to SMS if needed
-    $sms_only_statuses = ['not_picked_up', 'busy'];
-    $use_sms_only = in_array($call_status, $sms_only_statuses, true);
-    
     // Map status to template key
     $template_map = [
         'not_picked_up' => 'missed_call',
@@ -108,46 +102,20 @@ try {
                         'callback_time' => $callbackTime
                 ];
 
-                if ($use_sms_only) {
-                    // SMS-only (missed call / line busy)
-                    // forceImmediate = true → Send NOW, don't queue even during quiet hours
-                    $result = $sms_helper->sendFromTemplate(
-                        $template_key,
-                        $donor_id,
-                        $variables,
+                // Use template-level delivery mode from sms_templates.
+                $msg_helper = new MessagingHelper($db);
+                $result = $msg_helper->sendFromTemplate(
+                    $template_key,
+                    $donor_id,
+                    $variables,
+                    MessagingHelper::CHANNEL_AUTO,
                     'call_center',
-                    false,  // queue = false
-                    true    // forceImmediate = true (bypass quiet hours!)
+                    false, // queue
+                    true   // forceImmediate
                 );
-                    $sent_channel = 'sms';
-                    $fallback_used = 0;
-                } else {
-                    // WhatsApp first, fallback to SMS automatically if not sent/delivered
-                    $msg_helper = new MessagingHelper($db);
 
-                    // Check if WhatsApp is actually available BEFORE sending
-                    // so we can distinguish between "fallback" vs "WhatsApp wasn't an option"
-                    $whatsapp_was_available = $msg_helper->isWhatsAppAvailable();
-
-                    $result = $msg_helper->sendFromTemplate(
-                        $template_key,
-                        $donor_id,
-                        $variables,
-                        'whatsapp',
-                        'call_center',
-                        false, // queue
-                        true   // forceImmediate
-                    );
-
-                    // MessagingHelper returns 'channel' only for WhatsApp success.
-                    // If it falls back to SMS, it returns the SMSHelper response (no channel).
-                    $sent_channel = $result['channel'] ?? 'sms';
-
-                    // Only flag as fallback if WhatsApp WAS available but we ended up using SMS
-                    // (i.e., WhatsApp was tried and failed). If WhatsApp wasn't available,
-                    // SMS was the determined channel, not a fallback.
-                    $fallback_used = ($whatsapp_was_available && $sent_channel === 'sms') ? 1 : 0;
-                }
+                $sent_channel = $result['channel'] ?? 'sms';
+                $fallback_used = !empty($result['is_fallback']) ? 1 : 0;
                 
                 if (!empty($result['success'])) {
                     $sms_status = 'sent';
@@ -427,16 +395,44 @@ $page_title = 'Callback Scheduled';
                 $callbackDate = date('D, M j', strtotime($appointment->appointment_date));
                 $callbackTime = date('g:i A', strtotime($appointment->appointment_time));
                 
-                // Use donor's preferred language for preview (fallback to English)
-                $donorLang = $appointment->donor_language ?? 'en';
-                $langField = "message_{$donorLang}";
-                $templateMessage = !empty($sms_template[$langField]) ? $sms_template[$langField] : $sms_template['message_en'];
-                
-                // Language display labels
+                // Resolve template delivery mode (preferred_channel first, then platform fallback).
+                $templateMode = strtolower(trim((string)($sms_template['preferred_channel'] ?? '')));
+                if (!in_array($templateMode, ['auto', 'sms', 'whatsapp'], true)) {
+                    $platformMode = strtolower(trim((string)($sms_template['platform'] ?? '')));
+                    $templateMode = in_array($platformMode, ['sms', 'whatsapp'], true) ? $platformMode : 'auto';
+                }
+
+                // Channel/language preview based on template mode.
                 $langLabels = ['en' => '🇬🇧 English', 'am' => '🇪🇹 Amharic', 'ti' => '🇪🇷 Tigrinya'];
-                $previewLangLabel = $langLabels[$donorLang] ?? $langLabels['en'];
-                // Check if we're showing fallback
-                $usingFallback = empty($sms_template[$langField]) && $donorLang !== 'en';
+                $usingFallback = false;
+                $fallbackNote = '';
+                $previewChannelLabel = 'Default (WhatsApp → SMS fallback)';
+
+                if ($templateMode === 'sms') {
+                    $previewLang = 'en';
+                    $templateMessage = $sms_template['message_en'] ?? '';
+                    $previewChannelLabel = 'SMS Always (English)';
+                } elseif ($templateMode === 'whatsapp') {
+                    $previewLang = 'am';
+                    $templateMessage = trim((string)($sms_template['message_am'] ?? ''));
+                    $previewChannelLabel = 'WhatsApp Always (Amharic)';
+                    if ($templateMessage === '') {
+                        $templateMessage = $sms_template['message_en'] ?? '';
+                        $usingFallback = true;
+                        $fallbackNote = 'Amharic message is missing. WhatsApp-only mode will fail until you add Amharic text.';
+                    }
+                } else {
+                    $previewLang = 'am';
+                    $templateMessage = trim((string)($sms_template['message_am'] ?? ''));
+                    if ($templateMessage === '') {
+                        $templateMessage = $sms_template['message_en'] ?? '';
+                        $previewLang = 'en';
+                        $usingFallback = true;
+                        $fallbackNote = 'No Amharic translation available - default mode will fall back to English SMS.';
+                    }
+                }
+
+                $previewLangLabel = $langLabels[$previewLang] ?? $langLabels['en'];
                 
                 $previewMessage = str_replace(
                     ['{name}', '{callback_date}', '{callback_time}'],
@@ -446,24 +442,25 @@ $page_title = 'Callback Scheduled';
                 
                 // Button text based on status
                 $button_labels = [
-                    'not_picked_up' => 'Send "Missed Call" SMS',
-                    'busy' => 'Send "Line Busy" SMS',
-                    'busy_cant_talk' => 'Send Callback Message (WhatsApp → SMS)',
-                    'not_ready_to_pay' => 'Send Follow-up Message (WhatsApp → SMS)'
+                    'not_picked_up' => 'Send "Missed Call" Notification',
+                    'busy' => 'Send "Line Busy" Notification',
+                    'busy_cant_talk' => 'Send Callback Notification',
+                    'not_ready_to_pay' => 'Send Follow-up Notification'
                 ];
-                $button_label = $button_labels[$call_status] ?? 'Send SMS Now';
+                $button_label = $button_labels[$call_status] ?? 'Send Notification';
                 ?>
                 <div class="sms-option-card mb-3">
                     <div class="sms-option-header">
                         <i class="fas fa-sms me-2"></i>
-                        <strong><?php echo $use_sms_only ? 'Send SMS Notification?' : 'Send Notification?'; ?></strong>
+                        <strong>Send Notification?</strong>
                         <span class="badge bg-secondary ms-2"><?php echo htmlspecialchars($sms_template['name'] ?? $template_key); ?></span>
+                        <span class="badge bg-secondary ms-1"><?php echo htmlspecialchars($previewChannelLabel); ?></span>
                         <span class="badge bg-info ms-1"><?php echo $previewLangLabel; ?></span>
                     </div>
                     <?php if ($usingFallback): ?>
                     <div class="alert alert-warning py-2 px-3 mb-2" style="font-size: 0.8125rem;">
                         <i class="fas fa-exclamation-triangle me-1"></i>
-                        No <?php echo $langLabels[$donorLang] ?? $donorLang; ?> translation available — using English fallback.
+                        <?php echo htmlspecialchars($fallbackNote); ?>
                     </div>
                     <?php endif; ?>
                     <div class="sms-preview">

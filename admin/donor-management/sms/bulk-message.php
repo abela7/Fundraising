@@ -572,15 +572,21 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'donor_list') {
                                             <label class="form-label fw-bold">Channel</label>
                                             <div class="d-flex gap-3">
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="radio" name="channel" id="channelWhatsapp" value="whatsapp" checked>
-                                                    <label class="form-check-label" for="channelWhatsapp">
-                                                        <i class="fab fa-whatsapp text-success me-1"></i> WhatsApp (with SMS Fallback)
+                                                <input class="form-check-input" type="radio" name="channel" id="channelAuto" value="auto" checked>
+                                                <label class="form-check-label" for="channelAuto">
+                                                    <i class="fas fa-random text-primary me-1"></i> Template Default
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="channel" id="channelWhatsapp" value="whatsapp">
+                                                <label class="form-check-label" for="channelWhatsapp">
+                                                    <i class="fab fa-whatsapp text-success me-1"></i> Force WhatsApp
                                                     </label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="radio" name="channel" id="channelSms" value="sms">
                                                     <label class="form-check-label" for="channelSms">
-                                                        <i class="fas fa-sms text-info me-1"></i> SMS Only
+                                                    <i class="fas fa-sms text-info me-1"></i> Force SMS
                                                     </label>
                                                 </div>
                                             </div>
@@ -991,10 +997,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateSummary() {
         const channel = document.querySelector('input[name="channel"]:checked').value;
-        document.getElementById('summaryChannel').textContent = channel === 'whatsapp' ? 'WhatsApp' : 'SMS Only';
+        if (channel === 'auto') {
+            document.getElementById('summaryChannel').textContent = 'Template Default';
+        } else if (channel === 'whatsapp') {
+            document.getElementById('summaryChannel').textContent = 'Force WhatsApp';
+        } else {
+            document.getElementById('summaryChannel').textContent = 'Force SMS';
+        }
         
         // Very rough estimate
-        const costPerMsg = channel === 'whatsapp' ? 0.05 : 0.04; 
+        const costPerMsg = channel === 'sms' ? 0.04 : 0.05; 
         document.getElementById('summaryCost').textContent = '£' + (totalDonors * costPerMsg).toFixed(2);
     }
 

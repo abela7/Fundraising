@@ -1729,6 +1729,25 @@ const KESIS_BIRHANU_PHONE = '07473822244';
 const dbTemplates = <?php echo json_encode($sms_template); ?>;
 const dbFullyPaidTemplate = <?php echo json_encode($fully_paid_template); ?>;
 
+function resolveTemplateMode(templateObj) {
+    if (!templateObj || typeof templateObj !== 'object') return 'auto';
+
+    const preferred = String(templateObj.preferred_channel || '').toLowerCase();
+    if (preferred === 'auto' || preferred === 'sms' || preferred === 'whatsapp') {
+        return preferred;
+    }
+
+    const platform = String(templateObj.platform || '').toLowerCase();
+    if (platform === 'sms' || platform === 'whatsapp') {
+        return platform;
+    }
+
+    return 'auto';
+}
+
+const paymentTemplateMode = resolveTemplateMode(dbTemplates);
+const fullyPaidTemplateMode = resolveTemplateMode(dbFullyPaidTemplate);
+
 // Sub-templates for {next_payment_info} variable
 const nextPaymentTemplates = {
     en: {
@@ -1821,8 +1840,8 @@ function approvePayment(id, btn) {
  * The message content stays the same (addressed to donor), just routed to agent.
  */
 function sendToKesisBirhanu(data, btn) {
-    // WhatsApp policy: always send template content in Amharic
-    const lang = 'am';
+    // Respect template mode: sms => English, auto/whatsapp => Amharic.
+    const lang = paymentTemplateMode === 'sms' ? 'en' : 'am';
     let baseTemplate = '';
     
     if (dbTemplates) {
@@ -1831,9 +1850,13 @@ function sendToKesisBirhanu(data, btn) {
         else baseTemplate = dbTemplates.message_en;
     }
     
-    // Fallback if no template found (Amharic by policy)
+    // Fallback if no template found.
     if (!baseTemplate) {
-        baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
+        if (lang === 'am') {
+            baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
+        } else {
+            baseTemplate = "Dear {name},\n\nThank you. We received your payment of £{amount} on {payment_date}.\n\nOutstanding balance: £{outstanding_balance}\n\n{next_payment_info}\n\n- Liverpool Abune Teklehaymanot Church";
+        }
     }
 
     // Get the appropriate next_payment_info sub-template
@@ -1869,7 +1892,9 @@ function sendToKesisBirhanu(data, btn) {
             donor_id: data.donor_id,
             phone: KESIS_BIRHANU_PHONE, // Send to Kesis Birhanu, not donor
             message: message,
-            language: 'am',
+            language: lang,
+            template_mode: paymentTemplateMode,
+            template_key: 'payment_confirmed',
             routed_via_agent: true,
             agent_name: data.assigned_agent_name
         })
@@ -1954,8 +1979,8 @@ function showNotificationModal(data) {
     document.getElementById('notifyAmount').textContent = '£' + data.payment_amount;
     document.getElementById('notifyBalance').textContent = '£' + data.outstanding_balance;
     
-    // WhatsApp policy: always send template content in Amharic
-    const lang = 'am';
+    // Respect template mode: sms => English, auto/whatsapp => Amharic.
+    const lang = paymentTemplateMode === 'sms' ? 'en' : 'am';
     let baseTemplate = '';
     
     if (dbTemplates) {
@@ -1964,9 +1989,13 @@ function showNotificationModal(data) {
         else baseTemplate = dbTemplates.message_en;
     }
     
-    // Fallback if no template found (Amharic by policy)
+    // Fallback if no template found.
     if (!baseTemplate) {
-        baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
+        if (lang === 'am') {
+            baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
+        } else {
+            baseTemplate = "Dear {name},\n\nThank you. We received your payment of £{amount} on {payment_date}.\n\nOutstanding balance: £{outstanding_balance}\n\n{next_payment_info}\n\n- Liverpool Abune Teklehaymanot Church";
+        }
     }
 
     // Get the appropriate next_payment_info sub-template
@@ -1993,6 +2022,7 @@ function showNotificationModal(data) {
     
     // Store the message
     currentNotificationData.message = message;
+    currentNotificationData.template_mode = paymentTemplateMode;
     
     // Update preview
     document.getElementById('messagePreview').textContent = message;
@@ -2065,7 +2095,9 @@ function sendNotification() {
             donor_id: currentNotificationData.donor_id,
             phone: currentNotificationData.donor_phone,
             message: message,
-            language: currentNotificationData.donor_language
+            language: paymentTemplateMode === 'sms' ? 'en' : 'am',
+            template_mode: currentNotificationData.template_mode || paymentTemplateMode,
+            template_key: 'payment_confirmed'
         })
     })
     .then(r => r.json())
@@ -2379,8 +2411,8 @@ function showFullyPaidModal(data) {
     document.getElementById('fpArea').textContent = (data.sqm_value || '0') + ' m²';
 
     // Build message from fully_paid_confirmation template
-    // WhatsApp policy: always send template content in Amharic
-    const lang = 'am';
+    // Respect template mode: sms => English, auto/whatsapp => Amharic.
+    const lang = fullyPaidTemplateMode === 'sms' ? 'en' : 'am';
     let message = '';
 
     if (dbFullyPaidTemplate) {
@@ -2397,9 +2429,13 @@ function showFullyPaidModal(data) {
         }
     }
 
-    // Fallback if no template in database (Amharic by policy)
+    // Fallback if no template in database.
     if (!message) {
-        message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
+        if (lang === 'am') {
+            message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
+        } else {
+            message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment.\n\nPayment received on {date}: £{payment_amount}\n\nPledge summary:\n→ Total pledge: {total_pledged_sqm} m², £{total_pledged}\n→ Total paid: £{total_paid}\n→ Remaining: £{remaining}\n\n- Liverpool Abune Teklehaymanot Church';
+        }
     }
 
     // Replace variables
@@ -2416,6 +2452,7 @@ function showFullyPaidModal(data) {
     message = message.replace(/\\n/g, '\n');
 
     currentNotificationData.fullyPaidMessage = message;
+    currentNotificationData.fully_paid_template_mode = fullyPaidTemplateMode;
 
     // Set message preview
     document.getElementById('fpMessagePreview').textContent = message;
@@ -2489,6 +2526,46 @@ async function sendFullyPaidNotification() {
     const message = fpEditMode
         ? document.getElementById('fpMessageEdit').value
         : currentNotificationData.fullyPaidMessage;
+
+    // SMS-only mode: send text notification only (no WhatsApp certificate media flow).
+    if ((currentNotificationData.fully_paid_template_mode || fullyPaidTemplateMode) === 'sms') {
+        btn.disabled = true;
+        btn.classList.add('loading');
+        sendText.textContent = 'Sending SMS...';
+
+        try {
+            const textRes = await fetch('send-payment-notification.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    donor_id: currentNotificationData.donor_id,
+                    phone: currentNotificationData.donor_phone,
+                    message: message,
+                    language: 'en',
+                    template_mode: 'sms',
+                    template_key: 'fully_paid_confirmation'
+                })
+            });
+            const textJson = await textRes.json();
+            if (!textJson.success) {
+                throw new Error(textJson.error || 'Failed to send SMS notification');
+            }
+
+            sendText.textContent = 'SMS Sent!';
+            btn.querySelector('.btn-icon').className = 'fas fa-check btn-icon';
+            btn.querySelector('.btn-icon').style.display = '';
+            setTimeout(() => {
+                if (fullyPaidModal) fullyPaidModal.hide();
+            }, 1200);
+        } catch (err) {
+            console.error('Fully paid SMS notification error:', err);
+            alert('Error: ' + err.message);
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            sendText.textContent = 'Retry';
+        }
+        return;
+    }
 
     btn.disabled = true;
     btn.classList.add('loading');
@@ -2619,7 +2696,9 @@ async function sendTextFallback() {
             donor_id: currentNotificationData.donor_id,
             phone: currentNotificationData.donor_phone,
             message: message,
-            language: currentNotificationData.donor_language
+            language: paymentTemplateMode === 'sms' ? 'en' : 'am',
+            template_mode: currentNotificationData.template_mode || paymentTemplateMode,
+            template_key: 'payment_confirmed'
         })
     });
 
