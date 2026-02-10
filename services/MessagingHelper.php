@@ -440,8 +440,8 @@ class MessagingHelper
         bool $forceImmediate
     ): array {
         if (!$this->whatsappService) {
-            // Fallback to SMS
-            return $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+            // Fallback to SMS with ENGLISH language
+            return $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'en');
         }
         
         // Get template (use SMS templates for now, can be extended)
@@ -456,9 +456,9 @@ class MessagingHelper
             return $this->error("Donor #$donorId not found");
         }
         
-        // Get localized message
-        $language = $donor['preferred_language'] ?? 'en';
-        $message = $template["message_$language"] ?? $template['message_en'] ?? '';
+        // WhatsApp: ALWAYS use Amharic (am)
+        $language = 'am'; // Force Amharic for WhatsApp
+        $message = $template["message_am"] ?? $template['message_en'] ?? '';
         
         if (empty($message)) {
             return $this->error("Template '$templateKey' has no message content");
@@ -488,12 +488,20 @@ class MessagingHelper
             return [
                 'success' => true,
                 'channel' => 'whatsapp',
-                'message' => 'WhatsApp message sent successfully',
+                'language' => 'am',
+                'message' => 'WhatsApp message sent successfully (Amharic)',
                 'message_id' => $result['message_id'] ?? null
             ];
         } else {
-            // Fallback to SMS on failure - SMSHelper logs via VoodooSMSService
-            $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate);
+            // Fallback to SMS with ENGLISH language
+            $smsResult = $this->smsHelper->sendFromTemplate($templateKey, $donorId, $variables, $sourceType, $queue, $forceImmediate, 'en');
+            // Mark as fallback
+            if (isset($smsResult['success']) && $smsResult['success']) {
+                $smsResult['is_fallback'] = true;
+                $smsResult['fallback_reason'] = 'whatsapp_failed';
+                $smsResult['original_channel'] = 'whatsapp';
+                $smsResult['language'] = 'en';
+            }
             return $smsResult;
         }
     }
