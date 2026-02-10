@@ -47,6 +47,11 @@ try {
         throw new Exception('Invalid donor ID.');
     }
 
+    // Default to 'payment' if no source type provided
+    if ($source_type === '' || $source_type === 'null') {
+        $source_type = 'payment';
+    }
+
     if (!in_array($source_type, ['pledge', 'payment'], true)) {
         throw new Exception('Invalid source type. Must be "pledge" or "payment".');
     }
@@ -72,20 +77,75 @@ try {
             }
             $source_id = (int)$found['id'];
         } else {
-            // Find most recent instant payment
+            // Find most recent instant payment by donor_id OR donor_phone
+            $donor_check = $db->prepare("SELECT phone FROM donors WHERE id = ?");
+            $donor_check->bind_param('i', $donor_id);
+            $donor_check->execute();
+            $donor_phone_result = $donor_check->get_result()->fetch_assoc();
+            $donor_check->close();
+
+            if (!$donor_phone_result) {
+                throw new Exception('Donor not found.');
+            }
+
+            $donor_phone = $donor_phone_result['phone'];
+
             $find_stmt = $db->prepare("
                 SELECT id FROM payments
-                WHERE donor_id = ?
+                WHERE donor_id = ? OR donor_phone = ?
                 ORDER BY created_at DESC
                 LIMIT 1
             ");
-            $find_stmt->bind_param('i', $donor_id);
+            $find_stmt->bind_param('is', $donor_id, $donor_phone);
             $find_stmt->execute();
             $found = $find_stmt->get_result()->fetch_assoc();
             $find_stmt->close();
             
+            // If no payment exists, create a minimal one to store the reference
             if (!$found) {
-                throw new Exception('No payment found for this donor.');
+                $payment_columns = [];
+                $col_query = $db->query("SHOW COLUMNS FROM payments");
+                while ($col = $col_query->fetch_assoc()) {
+                    $payment_columns[] = $col['Field'];
+                }
+                $ref_col = in_array('transaction_ref', $payment_columns) ? 'transaction_ref' : 'reference';
+
+                $create_stmt = $db->prepare("
+                    INSERT INTO payments (donor_id, donor_phone, {$ref_col}, amount, status, created_at)
+                    VALUES (?, ?, ?, 0, 'pending', NOW())
+                ");
+                $create_stmt->bind_param('iss', $donor_id, $donor_phone, $new_ref);
+                
+                if (!$create_stmt->execute()) {
+                    throw new Exception('Failed to create payment record: ' . $create_stmt->error);
+                }
+                $source_id = (int)$create_stmt->insert_id;
+                $create_stmt->close();
+
+                // Log the creation
+                log_audit(
+                    $db,
+                    'create',
+                    'payment',
+                    $source_id,
+                    [],
+                    [$ref_col => $new_ref, 'donor_id' => $donor_id, 'amount' => 0, 'status' => 'pending'],
+                    'admin_portal',
+                    (int)($_SESSION['user']['id'] ?? 0)
+                );
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Reference created: ' . $new_ref,
+                    'new_reference' => $new_ref,
+                    'source_type' => 'payment',
+                    'source_id' => $source_id,
+                    'field_name' => $ref_col,
+                    'old_value' => '',
+                    'new_value' => $new_ref,
+                    'created_new_record' => true
+                ]);
+                exit;
             }
             $source_id = (int)$found['id'];
         }
