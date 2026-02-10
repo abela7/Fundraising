@@ -7,110 +7,110 @@ require_admin();
 
 $db = db();
 
-// ─── Load Member (registrar) ───
+// ─── Load Member ───
 $memberId = max(1, (int)($_GET['id'] ?? 0));
 $stmt = $db->prepare('SELECT id, name, phone, email, role, active, created_at FROM users WHERE id = ? LIMIT 1');
 $stmt->bind_param('i', $memberId);
 $stmt->execute();
 $member = $stmt->get_result()->fetch_assoc();
 $stmt->close();
-if (!$member) {
-    http_response_code(404);
-    echo 'Member not found';
-    exit;
-}
+if (!$member) { http_response_code(404); echo 'Member not found'; exit; }
 
-$page_title = htmlspecialchars($member['name']) . ' — Donor Report';
+$page_title = htmlspecialchars($member['name']) . ' — Report';
+$currency = '£';
 
-// ─── Scope: donors linked to this member ───
-// A donor belongs to a registrar through TWO paths:
-//   1. donors.registered_by_user_id = memberId  (direct registration via add-donor)
-//   2. A pledge with pledges.created_by_user_id = memberId exists for the donor
-//      (registrar created the pledge, donor was auto-created on approval)
-// We use a subquery to cover both paths without duplicates.
-$memberScope = "(d.registered_by_user_id = ? OR d.id IN (SELECT DISTINCT p.donor_id FROM pledges p WHERE p.created_by_user_id = ?))";
+// ══════════════════════════════════════════════════════════════════
+// REAL DATA — We query the actual source tables, not cached donor fields
+// ══════════════════════════════════════════════════════════════════
 
-// ─── Aggregated Stats (ONLY donors linked to this member) ───
-$stats = [
-    'total_donors'      => 0,
-    'pledge_donors'     => 0,
-    'immediate_donors'  => 0,
-    'total_pledged'     => 0,
-    'total_paid'        => 0,
-    'total_balance'     => 0,
-    'with_active_plan'  => 0,
-    'status_no_pledge'  => 0,
-    'status_not_started'=> 0,
-    'status_paying'     => 0,
-    'status_overdue'    => 0,
-    'status_completed'  => 0,
-    'status_defaulted'  => 0,
-    'src_public_form'   => 0,
-    'src_registrar'     => 0,
-    'src_imported'      => 0,
-    'src_admin'         => 0,
-];
-
-$stStats = $db->prepare("
+// ─── 1. Pledges logged by this member ───
+$pl = $db->prepare("
     SELECT
-        COUNT(*)                                                     AS total_donors,
-        SUM(donor_type='pledge')                                     AS pledge_donors,
-        SUM(donor_type='immediate_payment')                          AS immediate_donors,
-        COALESCE(SUM(total_pledged),0)                               AS total_pledged,
-        COALESCE(SUM(total_paid),0)                                  AS total_paid,
-        COALESCE(SUM(balance),0)                                     AS total_balance,
-        SUM(has_active_plan=1)                                       AS with_active_plan,
-        SUM(payment_status='no_pledge')                              AS status_no_pledge,
-        SUM(payment_status='not_started')                            AS status_not_started,
-        SUM(payment_status='paying')                                 AS status_paying,
-        SUM(payment_status='overdue')                                AS status_overdue,
-        SUM(payment_status='completed')                              AS status_completed,
-        SUM(payment_status='defaulted')                              AS status_defaulted,
-        SUM(source='public_form')                                    AS src_public_form,
-        SUM(source='registrar')                                      AS src_registrar,
-        SUM(source='imported' OR is_imported=1)                      AS src_imported,
-        SUM(source='admin')                                          AS src_admin
-    FROM donors d
-    WHERE $memberScope
+        COUNT(*)                                           AS total,
+        SUM(status='pending')                              AS pending,
+        SUM(status='approved')                             AS approved,
+        SUM(status='rejected')                             AS rejected,
+        SUM(status='cancelled')                            AS cancelled,
+        COALESCE(SUM(amount),0)                            AS total_amount,
+        COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) AS approved_amount,
+        COALESCE(SUM(CASE WHEN status='pending'  THEN amount ELSE 0 END),0) AS pending_amount
+    FROM pledges WHERE created_by_user_id = ?
 ");
-$stStats->bind_param('ii', $memberId, $memberId);
-$stStats->execute();
-$statsRow = $stStats->get_result()->fetch_assoc();
-$stStats->close();
+$pl->bind_param('i', $memberId);
+$pl->execute();
+$pledgeStats = $pl->get_result()->fetch_assoc();
+$pl->close();
 
-if ($statsRow) {
-    foreach ($stats as $k => &$v) {
-        $v = (float)($statsRow[$k] ?? 0);
-    }
-    unset($v);
-}
+// ─── 2. Immediate payments logged by this member ───
+$py = $db->prepare("
+    SELECT
+        COUNT(*)                                           AS total,
+        SUM(status='pending')                              AS pending,
+        SUM(status='approved')                             AS approved,
+        SUM(status='voided')                               AS voided,
+        COALESCE(SUM(amount),0)                            AS total_amount,
+        COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) AS approved_amount,
+        COALESCE(SUM(CASE WHEN status='pending'  THEN amount ELSE 0 END),0) AS pending_amount
+    FROM payments WHERE received_by_user_id = ?
+");
+$py->bind_param('i', $memberId);
+$py->execute();
+$paymentStats = $py->get_result()->fetch_assoc();
+$py->close();
 
-// ─── Also count pledges & payments directly handled by this member ───
-$stPledges = $db->prepare("SELECT COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS total FROM pledges WHERE created_by_user_id = ?");
-$stPledges->bind_param('i', $memberId);
-$stPledges->execute();
-$pledgeStats = $stPledges->get_result()->fetch_assoc();
-$stPledges->close();
+// ─── 3. Unique donors linked to this member ───
+// Path A: donor has a pledge created by this member (approved, so donor_id is set)
+// Path B: donor has a payment received by this member (approved, so donor_id is set)
+// Path C: donor.registered_by_user_id = memberId (direct registration)
+$donorScope = "(
+    d.id IN (SELECT DISTINCT pl.donor_id FROM pledges pl WHERE pl.created_by_user_id = ? AND pl.donor_id IS NOT NULL)
+    OR d.id IN (SELECT DISTINCT pa.donor_id FROM payments pa WHERE pa.received_by_user_id = ? AND pa.donor_id IS NOT NULL)
+    OR d.registered_by_user_id = ?
+)";
 
-$stPayments = $db->prepare("SELECT COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS total FROM payments WHERE received_by_user_id = ?");
-$stPayments->bind_param('i', $memberId);
-$stPayments->execute();
-$paymentStats = $stPayments->get_result()->fetch_assoc();
-$stPayments->close();
+$ds = $db->prepare("
+    SELECT
+        COUNT(*)                                           AS total_donors,
+        SUM(donor_type='pledge')                           AS pledge_donors,
+        SUM(donor_type='immediate_payment')                AS immediate_donors,
+        SUM(payment_status='not_started')                  AS st_not_started,
+        SUM(payment_status='paying')                       AS st_paying,
+        SUM(payment_status='overdue')                      AS st_overdue,
+        SUM(payment_status='completed')                    AS st_completed,
+        SUM(payment_status='defaulted')                    AS st_defaulted,
+        SUM(payment_status='no_pledge')                    AS st_no_pledge,
+        COALESCE(SUM(total_pledged),0)                     AS sum_pledged,
+        COALESCE(SUM(total_paid),0)                        AS sum_paid,
+        COALESCE(SUM(balance),0)                           AS sum_balance
+    FROM donors d WHERE $donorScope
+");
+$ds->bind_param('iii', $memberId, $memberId, $memberId);
+$ds->execute();
+$donorStats = $ds->get_result()->fetch_assoc();
+$ds->close();
 
-// ─── Filters ───
+// Grand totals
+$grandPledges  = (int)($pledgeStats['total'] ?? 0);
+$grandPayments = (int)($paymentStats['total'] ?? 0);
+$grandDonors   = (int)($donorStats['total_donors'] ?? 0);
+$approvalRate  = $grandPledges > 0
+    ? round(((int)$pledgeStats['approved'] / $grandPledges) * 100)
+    : 0;
+$collectionRate = (float)$donorStats['sum_pledged'] > 0
+    ? round(((float)$donorStats['sum_paid'] / (float)$donorStats['sum_pledged']) * 100)
+    : 0;
+
+// ─── 4. Donor list with filters ───
 $filterStatus = $_GET['status'] ?? 'all';
 $filterType   = $_GET['type']   ?? 'all';
-$filterSource = $_GET['source'] ?? 'all';
 $search       = trim($_GET['q'] ?? '');
-$sort         = $_GET['sort']   ?? 'name_asc';
+$sort         = $_GET['sort']   ?? 'newest';
 $page         = max(1, (int)($_GET['page'] ?? 1));
-$perPage      = 25;
+$perPage      = 20;
 
-// Always scope to this member (both paths)
-$where  = [$memberScope];
-$params = [$memberId, $memberId];
-$types  = 'ii';
+$where  = [$donorScope];
+$params = [$memberId, $memberId, $memberId];
+$types  = 'iii';
 
 if ($filterStatus !== 'all') {
     $where[]  = 'd.payment_status = ?';
@@ -121,15 +121,6 @@ if ($filterType !== 'all') {
     $where[]  = 'd.donor_type = ?';
     $params[] = $filterType;
     $types   .= 's';
-}
-if ($filterSource !== 'all') {
-    if ($filterSource === 'imported') {
-        $where[] = "(d.source = 'imported' OR d.is_imported = 1)";
-    } else {
-        $where[]  = 'd.source = ?';
-        $params[] = $filterSource;
-        $types   .= 's';
-    }
 }
 if ($search !== '') {
     $where[]  = '(d.name LIKE ? OR d.phone LIKE ?)';
@@ -142,20 +133,16 @@ if ($search !== '') {
 $whereSQL = 'WHERE ' . implode(' AND ', $where);
 
 $orderMap = [
-    'name_asc'      => 'd.name ASC',
-    'name_desc'     => 'd.name DESC',
-    'paid_desc'     => 'd.total_paid DESC',
-    'paid_asc'      => 'd.total_paid ASC',
-    'pledged_desc'  => 'd.total_pledged DESC',
-    'balance_desc'  => 'd.balance DESC',
-    'newest'        => 'd.created_at DESC',
-    'oldest'        => 'd.created_at ASC',
+    'name_asc'     => 'd.name ASC',
+    'name_desc'    => 'd.name DESC',
+    'paid_desc'    => 'd.total_paid DESC',
+    'balance_desc' => 'd.balance DESC',
+    'newest'       => 'd.created_at DESC',
+    'oldest'       => 'd.created_at ASC',
 ];
-$orderSQL = $orderMap[$sort] ?? 'd.name ASC';
+$orderSQL = $orderMap[$sort] ?? 'd.created_at DESC';
 
-// Count
-$countSQL = "SELECT COUNT(*) AS cnt FROM donors d $whereSQL";
-$st = $db->prepare($countSQL);
+$st = $db->prepare("SELECT COUNT(*) AS cnt FROM donors d $whereSQL");
 $st->bind_param($types, ...$params);
 $st->execute();
 $totalRows = (int)$st->get_result()->fetch_assoc()['cnt'];
@@ -164,41 +151,28 @@ $st->close();
 $totalPages = max(1, (int)ceil($totalRows / $perPage));
 $offset     = ($page - 1) * $perPage;
 
-// Fetch donors
-$sql = "SELECT d.id, d.name, d.phone, d.donor_type, d.total_pledged, d.total_paid,
-               d.balance, d.payment_status, d.achievement_badge, d.source,
-               d.has_active_plan, d.created_at, d.last_payment_date
-        FROM donors d
-        $whereSQL
-        ORDER BY $orderSQL
-        LIMIT $perPage OFFSET $offset";
-
-$st = $db->prepare($sql);
+$st = $db->prepare("
+    SELECT d.id, d.name, d.phone, d.donor_type, d.total_pledged, d.total_paid,
+           d.balance, d.payment_status, d.has_active_plan, d.created_at, d.last_payment_date
+    FROM donors d $whereSQL ORDER BY $orderSQL LIMIT $perPage OFFSET $offset
+");
 $st->bind_param($types, ...$params);
 $st->execute();
 $donors = $st->get_result()->fetch_all(MYSQLI_ASSOC);
 $st->close();
 
-// Helper: build query string preserving filters (always keeps member id)
-function qsReplace(array $overrides): string {
-    $qs = array_merge($_GET, $overrides);
-    // Always preserve member id
-    if (!isset($qs['id']) && isset($_GET['id'])) {
-        $qs['id'] = $_GET['id'];
-    }
-    return '?' . http_build_query($qs);
+function qsReplace(array $o): string {
+    $q = array_merge($_GET, $o);
+    return '?' . http_build_query($q);
 }
 
-$currency = '£';
-
-// Status config
-$statusConfig = [
-    'no_pledge'   => ['label'=>'No Pledge',   'color'=>'#94a3b8', 'bg'=>'#f1f5f9', 'icon'=>'fa-minus-circle'],
-    'not_started' => ['label'=>'Not Started',  'color'=>'#f59e0b', 'bg'=>'#fffbeb', 'icon'=>'fa-hourglass-start'],
-    'paying'      => ['label'=>'Paying',       'color'=>'#3b82f6', 'bg'=>'#eff6ff', 'icon'=>'fa-spinner'],
-    'overdue'     => ['label'=>'Overdue',      'color'=>'#ef4444', 'bg'=>'#fef2f2', 'icon'=>'fa-exclamation-triangle'],
-    'completed'   => ['label'=>'Completed',    'color'=>'#10b981', 'bg'=>'#ecfdf5', 'icon'=>'fa-check-circle'],
-    'defaulted'   => ['label'=>'Defaulted',    'color'=>'#6b7280', 'bg'=>'#f3f4f6', 'icon'=>'fa-times-circle'],
+$statusCfg = [
+    'no_pledge'   => ['l'=>'No Pledge',  'c'=>'#94a3b8','bg'=>'#f1f5f9','ic'=>'fa-minus-circle'],
+    'not_started' => ['l'=>'Not Started', 'c'=>'#f59e0b','bg'=>'#fffbeb','ic'=>'fa-hourglass-start'],
+    'paying'      => ['l'=>'Paying',      'c'=>'#3b82f6','bg'=>'#eff6ff','ic'=>'fa-spinner'],
+    'overdue'     => ['l'=>'Overdue',     'c'=>'#ef4444','bg'=>'#fef2f2','ic'=>'fa-exclamation-triangle'],
+    'completed'   => ['l'=>'Completed',   'c'=>'#10b981','bg'=>'#ecfdf5','ic'=>'fa-check-circle'],
+    'defaulted'   => ['l'=>'Defaulted',   'c'=>'#6b7280','bg'=>'#f3f4f6','ic'=>'fa-times-circle'],
 ];
 ?>
 <!DOCTYPE html>
@@ -212,436 +186,185 @@ $statusConfig = [
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="../assets/admin.css">
 <style>
-/* ═══ Donor Report — Mobile-First ═══ */
+:root { --rpt-radius: 14px; }
 
-/* Member Profile Card */
-.dr-member-card {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+/* ── Member Header ── */
+.rpt-member {
     background: #fff;
-    border-radius: 16px;
+    border-radius: var(--rpt-radius);
     padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 6px rgba(0,0,0,.06);
-}
-.dr-mc-left {
+    margin-bottom: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
     display: flex;
-    gap: 14px;
-    align-items: flex-start;
-}
-.dr-mc-avatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--primary, #0a6286), #0b78a6);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 1.3rem;
-    flex-shrink: 0;
-}
-.dr-mc-name {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--gray-900, #111827);
-    line-height: 1.2;
-}
-.dr-mc-meta-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: .75rem;
-    color: var(--gray-500, #6b7280);
-    margin-top: 3px;
-}
-.dr-mc-meta-row i { margin-right: 3px; font-size: .65rem; }
-.dr-mc-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-}
-.dr-mc-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: .65rem;
-    font-weight: 600;
-}
-.dr-mc-badge i { font-size: .6rem; }
-.dr-hero-total-badge {
-    background: rgba(255,255,255,.2);
-    backdrop-filter: blur(8px);
-    border-radius: 12px;
-    padding: 8px 14px;
-    text-align: center;
-    flex-shrink: 0;
-}
-
-@media (min-width: 768px) {
-    .dr-member-card { flex-direction: row; justify-content: space-between; align-items: center; padding: 20px; }
-}
-
-.dr-hero {
-    background: linear-gradient(135deg, var(--primary, #0a6286) 0%, #0b78a6 60%, rgba(226,202,24,.85) 100%);
-    border-radius: 16px;
-    padding: 20px;
-    color: #fff;
-    margin-bottom: 20px;
-}
-.dr-hero-title {
-    font-size: 1.25rem;
-    font-weight: 800;
-    margin-bottom: 4px;
-}
-.dr-hero-sub {
-    font-size: .8rem;
-    opacity: .8;
-}
-.dr-hero-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-top: 16px;
-}
-.dr-hero-stat {
-    background: rgba(255,255,255,.15);
-    backdrop-filter: blur(8px);
-    border-radius: 10px;
-    padding: 12px;
-    text-align: center;
-}
-.dr-hero-stat .val {
-    font-size: 1.4rem;
-    font-weight: 800;
-    line-height: 1.1;
-}
-.dr-hero-stat .lbl {
-    font-size: .65rem;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    opacity: .85;
-    margin-top: 2px;
-}
-
-/* Status Breakdown */
-.dr-status-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 20px;
-}
-.dr-status-card {
-    border-radius: 12px;
-    padding: 14px;
-    display: flex;
+    justify-content: space-between;
     align-items: center;
     gap: 12px;
-    cursor: pointer;
-    transition: transform .15s, box-shadow .15s;
-    text-decoration: none;
-    border: 2px solid transparent;
+    flex-wrap: wrap;
 }
-.dr-status-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,.08);
+.rpt-m-left { display: flex; gap: 12px; align-items: center; }
+.rpt-m-avatar {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary,#0a6286), #0b78a6);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.2rem; flex-shrink: 0;
 }
-.dr-status-card.active-filter {
-    border-color: currentColor;
-    box-shadow: 0 2px 12px rgba(0,0,0,.12);
+.rpt-m-name { font-weight: 800; font-size: 1rem; line-height: 1.2; }
+.rpt-m-detail { font-size: .72rem; color: var(--gray-500,#6b7280); margin-top: 1px; }
+.rpt-m-detail i { font-size: .6rem; margin-right: 2px; }
+.rpt-m-tags { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+.rpt-tag {
+    font-size: .6rem; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+    display: inline-flex; align-items: center; gap: 3px;
 }
-.dr-status-card .sc-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .9rem;
-    flex-shrink: 0;
-}
-.dr-status-card .sc-count {
-    font-size: 1.25rem;
-    font-weight: 800;
-    line-height: 1;
-}
-.dr-status-card .sc-label {
-    font-size: .7rem;
-    text-transform: uppercase;
-    letter-spacing: .3px;
-    opacity: .7;
-}
+.rpt-tag i { font-size: .55rem; }
 
-/* Filters bar */
-.dr-filters {
-    background: #fff;
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.dr-search {
-    position: relative;
-}
-.dr-search input {
-    width: 100%;
-    border: 1.5px solid var(--gray-200, #e5e7eb);
-    border-radius: 10px;
-    padding: 10px 12px 10px 38px;
-    font-size: .85rem;
-    transition: border .2s;
-}
-.dr-search input:focus {
-    outline: none;
-    border-color: var(--primary, #0a6286);
-    box-shadow: 0 0 0 3px rgba(10,98,134,.1);
-}
-.dr-search i {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--gray-400, #9ca3af);
-    font-size: .85rem;
-}
-.dr-filter-row {
+/* ── Summary Cards ── */
+.rpt-summary {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-.dr-filter-row select {
-    border: 1.5px solid var(--gray-200, #e5e7eb);
-    border-radius: 8px;
-    padding: 8px 10px;
-    font-size: .8rem;
-    color: var(--gray-700, #374151);
-    background: #fff;
-}
-.dr-filter-row select:focus {
-    outline: none;
-    border-color: var(--primary, #0a6286);
-}
-
-/* Results header */
-.dr-results-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    padding: 0 2px;
-}
-.dr-results-count {
-    font-size: .8rem;
-    color: var(--gray-500, #6b7280);
-    font-weight: 600;
-}
-
-/* Donor cards (mobile) */
-.dr-donor-list {
-    display: flex;
-    flex-direction: column;
     gap: 10px;
+    margin-bottom: 14px;
 }
-.dr-donor-card {
+.rpt-card {
     background: #fff;
-    border-radius: 12px;
+    border-radius: var(--rpt-radius);
     padding: 14px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    transition: box-shadow .2s;
-    text-decoration: none;
-    color: inherit;
-    display: block;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
 }
-.dr-donor-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,.1);
-    color: inherit;
+.rpt-card-title {
+    font-size: .65rem; text-transform: uppercase; letter-spacing: .5px;
+    font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
 }
-.dr-dc-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
+.rpt-card-title i { font-size: .7rem; }
+.rpt-num { font-size: 1.3rem; font-weight: 800; line-height: 1; }
+.rpt-label { font-size: .6rem; color: var(--gray-500,#6b7280); text-transform: uppercase; letter-spacing: .3px; margin-top: 1px; }
+.rpt-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; }
+.rpt-row + .rpt-row { border-top: 1px solid var(--gray-100,#f3f4f6); }
+.rpt-row-label { font-size: .72rem; color: var(--gray-600,#4b5563); }
+.rpt-row-val { font-size: .8rem; font-weight: 700; }
+.rpt-bar { height: 6px; background: var(--gray-100,#f3f4f6); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.rpt-bar-fill { height: 100%; border-radius: 3px; }
+
+/* ── Performance ── */
+.rpt-perf {
+    background: linear-gradient(135deg, var(--primary,#0a6286) 0%, #0b78a6 60%, rgba(226,202,24,.85) 100%);
+    border-radius: var(--rpt-radius);
+    padding: 16px;
+    color: #fff;
+    margin-bottom: 14px;
 }
-.dr-dc-name {
-    font-weight: 700;
-    font-size: .95rem;
-    line-height: 1.2;
+.rpt-perf-title { font-size: .85rem; font-weight: 800; margin-bottom: 12px; }
+.rpt-perf-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.rpt-perf-item {
+    background: rgba(255,255,255,.15); backdrop-filter: blur(8px);
+    border-radius: 10px; padding: 10px; text-align: center;
 }
-.dr-dc-phone {
-    font-size: .75rem;
-    color: var(--gray-500, #6b7280);
-}
-.dr-dc-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: .65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .3px;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.dr-dc-money {
+.rpt-perf-item .pv { font-size: 1.3rem; font-weight: 800; line-height: 1; }
+.rpt-perf-item .pl { font-size: .58rem; text-transform: uppercase; letter-spacing: .4px; opacity: .8; margin-top: 2px; }
+
+/* ── Status Chips ── */
+.rpt-statuses {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
 }
-.dr-dc-money-item {
-    text-align: center;
-    padding: 6px 4px;
-    border-radius: 8px;
-    background: var(--gray-50, #f9fafb);
+.rpt-st {
+    border-radius: 10px; padding: 10px 12px; text-decoration: none;
+    display: flex; align-items: center; gap: 8px;
+    border: 2px solid transparent; transition: transform .12s, box-shadow .12s;
 }
-.dr-dc-money-item .mv {
-    font-size: .95rem;
-    font-weight: 800;
-    line-height: 1;
-}
-.dr-dc-money-item .ml {
-    font-size: .6rem;
-    text-transform: uppercase;
-    letter-spacing: .3px;
-    color: var(--gray-500, #6b7280);
-    margin-top: 2px;
-}
-.dr-dc-bar {
-    height: 6px;
-    background: var(--gray-200, #e5e7eb);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-.dr-dc-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width .4s ease;
-}
-.dr-dc-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: .7rem;
-    color: var(--gray-400, #9ca3af);
-}
-.dr-dc-type-badge {
-    font-size: .6rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
+.rpt-st:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.07); }
+.rpt-st.act { border-color: currentColor; }
+.rpt-st-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .75rem; flex-shrink: 0; }
+.rpt-st-count { font-size: 1.05rem; font-weight: 800; line-height: 1; }
+.rpt-st-label { font-size: .58rem; text-transform: uppercase; letter-spacing: .3px; opacity: .7; }
 
-/* Pagination */
-.dr-pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 4px;
-    margin-top: 20px;
-    flex-wrap: wrap;
+/* ── Filters ── */
+.rpt-filters {
+    background: #fff; border-radius: var(--rpt-radius); padding: 12px;
+    margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    display: flex; flex-direction: column; gap: 8px;
 }
-.dr-pagination a, .dr-pagination span {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    font-size: .8rem;
-    font-weight: 600;
-    text-decoration: none;
-    color: var(--gray-600, #4b5563);
-    background: #fff;
-    border: 1.5px solid var(--gray-200, #e5e7eb);
-    transition: all .15s;
+.rpt-search { position: relative; }
+.rpt-search input {
+    width: 100%; border: 1.5px solid var(--gray-200,#e5e7eb); border-radius: 8px;
+    padding: 9px 10px 9px 34px; font-size: .82rem;
 }
-.dr-pagination a:hover {
-    background: var(--gray-50, #f9fafb);
-    border-color: var(--primary, #0a6286);
-    color: var(--primary, #0a6286);
+.rpt-search input:focus { outline: none; border-color: var(--primary,#0a6286); box-shadow: 0 0 0 3px rgba(10,98,134,.08); }
+.rpt-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--gray-400,#9ca3af); font-size: .8rem; }
+.rpt-sel-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.rpt-sel-row select, .rpt-sel-row button {
+    border: 1.5px solid var(--gray-200,#e5e7eb); border-radius: 8px;
+    padding: 8px 8px; font-size: .78rem; background: #fff; color: var(--gray-700,#374151);
 }
-.dr-pagination .active {
-    background: var(--primary, #0a6286);
-    color: #fff;
-    border-color: var(--primary, #0a6286);
-}
-.dr-pagination .disabled {
-    opacity: .4;
-    pointer-events: none;
-}
+.rpt-sel-row select:focus { outline: none; border-color: var(--primary,#0a6286); }
+.rpt-sel-row button { background: var(--primary,#0a6286); color: #fff; border-color: var(--primary,#0a6286); font-weight: 600; cursor: pointer; }
 
-/* Source breakdown mini bar */
-.dr-source-bar {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
+/* ── Donor Cards ── */
+.rpt-donors { display: flex; flex-direction: column; gap: 8px; }
+.rpt-donor {
+    background: #fff; border-radius: 12px; padding: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05); display: block;
+    text-decoration: none; color: inherit; transition: box-shadow .15s;
 }
-.dr-source-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-size: .72rem;
-    font-weight: 600;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    text-decoration: none;
-    color: var(--gray-700, #374151);
-    transition: all .15s;
-    border: 1.5px solid transparent;
+.rpt-donor:hover { box-shadow: 0 4px 14px rgba(0,0,0,.1); color: inherit; }
+.rpt-d-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.rpt-d-name { font-weight: 700; font-size: .9rem; line-height: 1.2; }
+.rpt-d-phone { font-size: .7rem; color: var(--gray-500,#6b7280); }
+.rpt-d-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 5px; font-size: .6rem;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; flex-shrink: 0;
 }
-.dr-source-chip:hover {
-    border-color: var(--primary, #0a6286);
-    color: var(--primary, #0a6286);
+.rpt-d-money { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 8px; }
+.rpt-d-mi { text-align: center; padding: 5px 2px; border-radius: 6px; background: var(--gray-50,#f9fafb); }
+.rpt-d-mi .v { font-size: .85rem; font-weight: 800; line-height: 1; }
+.rpt-d-mi .l { font-size: .55rem; text-transform: uppercase; color: var(--gray-500,#6b7280); margin-top: 1px; }
+.rpt-d-bar { height: 5px; background: var(--gray-200,#e5e7eb); border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+.rpt-d-bar-f { height: 100%; border-radius: 3px; }
+.rpt-d-foot { display: flex; justify-content: space-between; align-items: center; font-size: .65rem; color: var(--gray-400,#9ca3af); }
+.rpt-d-type {
+    font-size: .55rem; padding: 2px 5px; border-radius: 4px; font-weight: 600; text-transform: uppercase;
 }
-.dr-source-chip.active-filter {
-    border-color: var(--primary, #0a6286);
-    background: rgba(10,98,134,.06);
-    color: var(--primary, #0a6286);
-}
-.dr-source-chip .sc-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
+.rpt-d-pct { font-size: .65rem; font-weight: 700; }
 
-/* ─── Tablet (≥ 768px) ─── */
+/* ── Pagination ── */
+.rpt-pag { display: flex; justify-content: center; gap: 4px; margin-top: 16px; flex-wrap: wrap; }
+.rpt-pag a, .rpt-pag span {
+    min-width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: .78rem; font-weight: 600; text-decoration: none;
+    color: var(--gray-600,#4b5563); background: #fff; border: 1.5px solid var(--gray-200,#e5e7eb);
+}
+.rpt-pag a:hover { border-color: var(--primary,#0a6286); color: var(--primary,#0a6286); }
+.rpt-pag .act { background: var(--primary,#0a6286); color: #fff; border-color: var(--primary,#0a6286); }
+.rpt-pag .dis { opacity: .35; pointer-events: none; }
+
+.rpt-empty { text-align: center; padding: 40px 20px; }
+.rpt-empty i { font-size: 2rem; color: var(--gray-300,#d1d5db); margin-bottom: 10px; display: block; }
+.rpt-empty p { color: var(--gray-500,#6b7280); font-size: .85rem; }
+.rpt-results-count { font-size: .75rem; color: var(--gray-500,#6b7280); font-weight: 600; margin-bottom: 8px; }
+
+/* ── Responsive ── */
+@media (min-width: 576px) {
+    .rpt-statuses { grid-template-columns: repeat(3, 1fr); }
+    .rpt-perf-grid { grid-template-columns: repeat(4, 1fr); }
+}
 @media (min-width: 768px) {
-    .dr-hero-row { grid-template-columns: repeat(3, 1fr); }
-    .dr-status-grid { grid-template-columns: repeat(3, 1fr); }
-    .dr-filters { flex-direction: row; align-items: center; flex-wrap: wrap; }
-    .dr-search { flex: 1; min-width: 200px; }
-    .dr-filter-row { grid-template-columns: repeat(3, 1fr); flex: 2; }
+    .rpt-summary { grid-template-columns: repeat(2, 1fr); }
+    .rpt-filters { flex-direction: row; flex-wrap: wrap; align-items: center; }
+    .rpt-search { flex: 1; min-width: 180px; }
+    .rpt-sel-row { flex: 2; }
 }
-
-/* ─── Desktop (≥ 1200px) ─── */
+@media (min-width: 992px) {
+    .rpt-statuses { grid-template-columns: repeat(6, 1fr); }
+    .rpt-perf-grid { grid-template-columns: repeat(4, 1fr); }
+}
 @media (min-width: 1200px) {
-    .dr-hero-row { grid-template-columns: repeat(6, 1fr); }
-    .dr-hero-stat .val { font-size: 1.6rem; }
-    .dr-status-grid { grid-template-columns: repeat(6, 1fr); }
-    .dr-donor-list {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
+    .rpt-donors { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
 @media (min-width: 1600px) {
-    .dr-donor-list { grid-template-columns: repeat(3, 1fr); }
+    .rpt-donors { grid-template-columns: repeat(3, 1fr); }
 }
 </style>
 </head>
@@ -653,273 +376,261 @@ $statusConfig = [
     <main class="main-content">
       <div class="container-fluid">
 
-        <!-- ══ Member Profile Card ══ -->
-        <div class="dr-member-card">
-          <div class="dr-mc-left">
-            <div class="dr-mc-avatar"><?= strtoupper(mb_substr($member['name'], 0, 1)) ?></div>
-            <div class="dr-mc-info">
-              <div class="dr-mc-name"><?= htmlspecialchars($member['name']) ?></div>
-              <div class="dr-mc-meta-row">
-                <?php if ($member['phone']): ?><span><i class="fas fa-phone"></i> <?= htmlspecialchars($member['phone']) ?></span><?php endif; ?>
-                <?php if ($member['email']): ?><span><i class="fas fa-envelope"></i> <?= htmlspecialchars($member['email']) ?></span><?php endif; ?>
+        <!-- ═ Member Header ═ -->
+        <div class="rpt-member">
+          <div class="rpt-m-left">
+            <div class="rpt-m-avatar"><?= strtoupper(mb_substr($member['name'], 0, 1)) ?></div>
+            <div>
+              <div class="rpt-m-name"><?= htmlspecialchars($member['name']) ?></div>
+              <div class="rpt-m-detail">
+                <?php if ($member['phone']): ?><i class="fas fa-phone"></i> <?= htmlspecialchars($member['phone']) ?><?php endif; ?>
+                <?php if ($member['email']): ?> &middot; <i class="fas fa-envelope"></i> <?= htmlspecialchars($member['email']) ?><?php endif; ?>
               </div>
-              <div class="dr-mc-badges">
-                <span class="dr-mc-badge" style="background:<?= $member['role']==='admin'?'#eff6ff':'#f0fdf4' ?>;color:<?= $member['role']==='admin'?'#3b82f6':'#16a34a' ?>">
+              <div class="rpt-m-tags">
+                <span class="rpt-tag" style="background:<?= $member['role']==='admin'?'#eff6ff':'#f0fdf4' ?>;color:<?= $member['role']==='admin'?'#3b82f6':'#16a34a' ?>">
                   <i class="fas <?= $member['role']==='admin'?'fa-shield-halved':'fa-id-badge' ?>"></i> <?= ucfirst($member['role']) ?>
                 </span>
-                <span class="dr-mc-badge" style="background:<?= ((int)$member['active']===1)?'#ecfdf5':'#fef2f2' ?>;color:<?= ((int)$member['active']===1)?'#10b981':'#ef4444' ?>">
-                  <i class="fas <?= ((int)$member['active']===1)?'fa-check-circle':'fa-ban' ?>"></i>
+                <span class="rpt-tag" style="background:<?= ((int)$member['active']===1)?'#ecfdf5':'#fef2f2' ?>;color:<?= ((int)$member['active']===1)?'#10b981':'#ef4444' ?>">
                   <?= ((int)$member['active']===1)?'Active':'Inactive' ?>
                 </span>
-                <span class="dr-mc-badge" style="background:#f5f3ff;color:#7c3aed">
-                  <i class="fas fa-calendar"></i> Joined <?= date('M d, Y', strtotime($member['created_at'])) ?>
+                <span class="rpt-tag" style="background:#f5f3ff;color:#7c3aed">
+                  Joined <?= date('M d, Y', strtotime($member['created_at'])) ?>
                 </span>
               </div>
             </div>
           </div>
-          <a href="./" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem;white-space:nowrap;align-self:flex-start;">
-            <i class="fas fa-arrow-left me-1"></i>All Members
+          <a href="./" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem;white-space:nowrap">
+            <i class="fas fa-arrow-left me-1"></i>Members
           </a>
         </div>
 
-        <!-- ══ Hero Stats ══ -->
-        <div class="dr-hero">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="dr-hero-title"><i class="fas fa-chart-pie me-2"></i>Registrar Performance</div>
-              <div class="dr-hero-sub">Donors registered by <?= htmlspecialchars($member['name']) ?></div>
+        <!-- ═ Performance Banner ═ -->
+        <div class="rpt-perf">
+          <div class="rpt-perf-title"><i class="fas fa-chart-line me-1"></i> Registrar Performance</div>
+          <div class="rpt-perf-grid">
+            <div class="rpt-perf-item">
+              <div class="pv"><?= $grandDonors ?></div>
+              <div class="pl">Donors</div>
             </div>
-            <div class="dr-hero-total-badge">
-              <div style="font-size:1.5rem;font-weight:900;line-height:1"><?= number_format($stats['total_donors']) ?></div>
-              <div style="font-size:.6rem;opacity:.8;text-transform:uppercase;letter-spacing:.5px">Donors</div>
+            <div class="rpt-perf-item">
+              <div class="pv"><?= $grandPledges + $grandPayments ?></div>
+              <div class="pl">Total Logged</div>
             </div>
-          </div>
-          <!-- Row 1: Donor counts -->
-          <div class="dr-hero-row">
-            <div class="dr-hero-stat">
-              <div class="val"><?= number_format($stats['total_donors']) ?></div>
-              <div class="lbl">Total Donors</div>
+            <div class="rpt-perf-item">
+              <div class="pv"><?= $approvalRate ?>%</div>
+              <div class="pl">Approval Rate</div>
             </div>
-            <div class="dr-hero-stat">
-              <div class="val"><?= number_format($stats['pledge_donors']) ?></div>
-              <div class="lbl">Pledge Donors</div>
-            </div>
-            <div class="dr-hero-stat">
-              <div class="val"><?= number_format($stats['immediate_donors']) ?></div>
-              <div class="lbl">Immediate</div>
-            </div>
-            <div class="dr-hero-stat">
-              <div class="val"><?= $currency . number_format($stats['total_pledged']) ?></div>
-              <div class="lbl">Total Pledged</div>
-            </div>
-            <div class="dr-hero-stat">
-              <div class="val"><?= $currency . number_format($stats['total_paid']) ?></div>
-              <div class="lbl">Total Paid</div>
-            </div>
-            <div class="dr-hero-stat">
-              <div class="val"><?= $currency . number_format($stats['total_balance']) ?></div>
-              <div class="lbl">Outstanding</div>
-            </div>
-          </div>
-          <!-- Row 2: Activity stats -->
-          <div class="dr-hero-row" style="margin-top:10px">
-            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
-              <div class="val"><?= number_format((int)$pledgeStats['cnt']) ?></div>
-              <div class="lbl">Pledges Logged</div>
-            </div>
-            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
-              <div class="val"><?= $currency . number_format((float)$pledgeStats['total']) ?></div>
-              <div class="lbl">Pledge Value</div>
-            </div>
-            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
-              <div class="val"><?= number_format((int)$paymentStats['cnt']) ?></div>
-              <div class="lbl">Payments Received</div>
-            </div>
-            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
-              <div class="val"><?= $currency . number_format((float)$paymentStats['total']) ?></div>
-              <div class="lbl">Payment Value</div>
+            <div class="rpt-perf-item">
+              <div class="pv"><?= $collectionRate ?>%</div>
+              <div class="pl">Collection Rate</div>
             </div>
           </div>
         </div>
 
-        <!-- ══ Status Breakdown ══ -->
-        <div class="dr-status-grid">
-          <?php foreach ($statusConfig as $key => $cfg):
-              $cnt = (int)$stats['status_' . $key];
-              $isActive = ($filterStatus === $key);
-              $href = $isActive ? qsReplace(['status'=>'all','page'=>1]) : qsReplace(['status'=>$key,'page'=>1]);
-          ?>
-          <a href="<?= htmlspecialchars($href) ?>"
-             class="dr-status-card <?= $isActive ? 'active-filter' : '' ?>"
-             style="background:<?= $cfg['bg'] ?>; color:<?= $cfg['color'] ?>;">
-            <div class="sc-icon" style="background:<?= $cfg['color'] ?>1a; color:<?= $cfg['color'] ?>;">
-              <i class="fas <?= $cfg['icon'] ?>"></i>
+        <!-- ═ Summary Cards ═ -->
+        <div class="rpt-summary">
+          <!-- Pledges Card -->
+          <div class="rpt-card">
+            <div class="rpt-card-title" style="color:#3b82f6"><i class="fas fa-hand-holding-heart"></i> Pledges Logged</div>
+            <div class="rpt-num" style="color:#3b82f6"><?= (int)$pledgeStats['total'] ?></div>
+            <div class="rpt-label">Total pledges</div>
+            <div style="margin-top:10px">
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#10b981;vertical-align:middle"></i> Approved</span>
+                <span class="rpt-row-val" style="color:#10b981"><?= (int)$pledgeStats['approved'] ?> &middot; <?= $currency . number_format((float)$pledgeStats['approved_amount']) ?></span>
+              </div>
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#f59e0b;vertical-align:middle"></i> Pending</span>
+                <span class="rpt-row-val" style="color:#f59e0b"><?= (int)$pledgeStats['pending'] ?> &middot; <?= $currency . number_format((float)$pledgeStats['pending_amount']) ?></span>
+              </div>
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#ef4444;vertical-align:middle"></i> Rejected</span>
+                <span class="rpt-row-val" style="color:#ef4444"><?= (int)$pledgeStats['rejected'] ?></span>
+              </div>
             </div>
-            <div>
-              <div class="sc-count"><?= $cnt ?></div>
-              <div class="sc-label"><?= $cfg['label'] ?></div>
+            <?php $plPct = (int)$pledgeStats['total'] > 0 ? round(((int)$pledgeStats['approved'] / (int)$pledgeStats['total'])*100) : 0; ?>
+            <div class="rpt-bar"><div class="rpt-bar-fill" style="width:<?= $plPct ?>%;background:#3b82f6"></div></div>
+          </div>
+
+          <!-- Payments Card -->
+          <div class="rpt-card">
+            <div class="rpt-card-title" style="color:#10b981"><i class="fas fa-money-bill-wave"></i> Payments Logged</div>
+            <div class="rpt-num" style="color:#10b981"><?= (int)$paymentStats['total'] ?></div>
+            <div class="rpt-label">Total payments</div>
+            <div style="margin-top:10px">
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#10b981;vertical-align:middle"></i> Approved</span>
+                <span class="rpt-row-val" style="color:#10b981"><?= (int)$paymentStats['approved'] ?> &middot; <?= $currency . number_format((float)$paymentStats['approved_amount']) ?></span>
+              </div>
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#f59e0b;vertical-align:middle"></i> Pending</span>
+                <span class="rpt-row-val" style="color:#f59e0b"><?= (int)$paymentStats['pending'] ?> &middot; <?= $currency . number_format((float)$paymentStats['pending_amount']) ?></span>
+              </div>
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#6b7280;vertical-align:middle"></i> Voided</span>
+                <span class="rpt-row-val" style="color:#6b7280"><?= (int)$paymentStats['voided'] ?></span>
+              </div>
             </div>
-          </a>
-          <?php endforeach; ?>
+            <?php $pyPct = (int)$paymentStats['total'] > 0 ? round(((int)$paymentStats['approved'] / (int)$paymentStats['total'])*100) : 0; ?>
+            <div class="rpt-bar"><div class="rpt-bar-fill" style="width:<?= $pyPct ?>%;background:#10b981"></div></div>
+          </div>
         </div>
 
-        <!-- ══ Source Breakdown ══ -->
-        <div class="dr-source-bar">
-          <span style="font-size:.72rem;font-weight:700;color:var(--gray-500);align-self:center;">Source:</span>
+        <!-- ═ Financial Summary ═ -->
+        <div class="rpt-summary" style="margin-bottom:14px">
+          <div class="rpt-card">
+            <div class="rpt-card-title" style="color:#1a73e8"><i class="fas fa-coins"></i> Financial (Donors)</div>
+            <div class="rpt-row">
+              <span class="rpt-row-label">Total Pledged</span>
+              <span class="rpt-row-val" style="color:#1a73e8"><?= $currency . number_format((float)$donorStats['sum_pledged']) ?></span>
+            </div>
+            <div class="rpt-row">
+              <span class="rpt-row-label">Total Paid</span>
+              <span class="rpt-row-val" style="color:#10b981"><?= $currency . number_format((float)$donorStats['sum_paid']) ?></span>
+            </div>
+            <div class="rpt-row">
+              <span class="rpt-row-label">Outstanding</span>
+              <span class="rpt-row-val" style="color:#ef4444"><?= $currency . number_format((float)$donorStats['sum_balance']) ?></span>
+            </div>
+            <div class="rpt-bar"><div class="rpt-bar-fill" style="width:<?= $collectionRate ?>%;background:#10b981"></div></div>
+            <div style="text-align:right;font-size:.6rem;color:var(--gray-500);margin-top:3px"><?= $collectionRate ?>% collected</div>
+          </div>
+          <div class="rpt-card">
+            <div class="rpt-card-title" style="color:#8b5cf6"><i class="fas fa-users"></i> Donor Breakdown</div>
+            <div class="rpt-row">
+              <span class="rpt-row-label">Total Donors</span>
+              <span class="rpt-row-val"><?= $grandDonors ?></span>
+            </div>
+            <div class="rpt-row">
+              <span class="rpt-row-label">Pledge Donors</span>
+              <span class="rpt-row-val" style="color:#3b82f6"><?= (int)($donorStats['pledge_donors'] ?? 0) ?></span>
+            </div>
+            <div class="rpt-row">
+              <span class="rpt-row-label">Immediate Payment</span>
+              <span class="rpt-row-val" style="color:#d97706"><?= (int)($donorStats['immediate_donors'] ?? 0) ?></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═ Status Breakdown ═ -->
+        <div class="rpt-statuses">
           <?php
-          $sources = [
-              'public_form' => ['label'=>'Public Form', 'color'=>'#3b82f6', 'count'=>$stats['src_public_form']],
-              'registrar'   => ['label'=>'Registrar',   'color'=>'#8b5cf6', 'count'=>$stats['src_registrar']],
-              'imported'    => ['label'=>'Imported',     'color'=>'#f59e0b', 'count'=>$stats['src_imported']],
-              'admin'       => ['label'=>'Admin',        'color'=>'#10b981', 'count'=>$stats['src_admin']],
+          $stMap = [
+              'no_pledge'   => (int)($donorStats['st_no_pledge'] ?? 0),
+              'not_started' => (int)($donorStats['st_not_started'] ?? 0),
+              'paying'      => (int)($donorStats['st_paying'] ?? 0),
+              'overdue'     => (int)($donorStats['st_overdue'] ?? 0),
+              'completed'   => (int)($donorStats['st_completed'] ?? 0),
+              'defaulted'   => (int)($donorStats['st_defaulted'] ?? 0),
           ];
-          foreach ($sources as $sk => $sv):
-              $isActive = ($filterSource === $sk);
-              $href = $isActive ? qsReplace(['source'=>'all','page'=>1]) : qsReplace(['source'=>$sk,'page'=>1]);
+          foreach ($statusCfg as $key => $cfg):
+              $cnt = $stMap[$key];
+              $isAct = ($filterStatus === $key);
+              $href = $isAct ? qsReplace(['status'=>'all','page'=>1]) : qsReplace(['status'=>$key,'page'=>1]);
           ?>
-          <a href="<?= htmlspecialchars($href) ?>" class="dr-source-chip <?= $isActive?'active-filter':'' ?>">
-            <span class="sc-dot" style="background:<?= $sv['color'] ?>"></span>
-            <?= $sv['label'] ?> <strong>(<?= (int)$sv['count'] ?>)</strong>
+          <a href="<?= htmlspecialchars($href) ?>" class="rpt-st <?= $isAct?'act':'' ?>" style="background:<?= $cfg['bg'] ?>;color:<?= $cfg['c'] ?>">
+            <div class="rpt-st-icon" style="background:<?= $cfg['c'] ?>15;color:<?= $cfg['c'] ?>"><i class="fas <?= $cfg['ic'] ?>"></i></div>
+            <div>
+              <div class="rpt-st-count"><?= $cnt ?></div>
+              <div class="rpt-st-label"><?= $cfg['l'] ?></div>
+            </div>
           </a>
           <?php endforeach; ?>
-          <?php if ($filterSource !== 'all'): ?>
-          <a href="<?= htmlspecialchars(qsReplace(['source'=>'all','page'=>1])) ?>" class="dr-source-chip" style="color:var(--danger, #ef4444);">
-            <i class="fas fa-times" style="font-size:.65rem"></i> Clear
-          </a>
-          <?php endif; ?>
         </div>
 
-        <!-- ══ Filters ══ -->
-        <form method="get" class="dr-filters" id="filterForm">
-          <!-- preserve member id and existing filters -->
+        <!-- ═ Filters ═ -->
+        <form method="get" class="rpt-filters">
           <input type="hidden" name="id" value="<?= $memberId ?>">
           <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
-          <input type="hidden" name="source" value="<?= htmlspecialchars($filterSource) ?>">
-          <div class="dr-search">
+          <div class="rpt-search">
             <i class="fas fa-search"></i>
-            <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by name or phone...">
+            <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search donor name or phone...">
           </div>
-          <div class="dr-filter-row">
+          <div class="rpt-sel-row">
             <select name="type" onchange="this.form.submit()">
               <option value="all" <?= $filterType==='all'?'selected':'' ?>>All Types</option>
               <option value="pledge" <?= $filterType==='pledge'?'selected':'' ?>>Pledge</option>
               <option value="immediate_payment" <?= $filterType==='immediate_payment'?'selected':'' ?>>Immediate</option>
             </select>
             <select name="sort" onchange="this.form.submit()">
+              <option value="newest"       <?= $sort==='newest'?'selected':'' ?>>Newest</option>
+              <option value="oldest"       <?= $sort==='oldest'?'selected':'' ?>>Oldest</option>
               <option value="name_asc"     <?= $sort==='name_asc'?'selected':'' ?>>Name A-Z</option>
-              <option value="name_desc"    <?= $sort==='name_desc'?'selected':'' ?>>Name Z-A</option>
               <option value="paid_desc"    <?= $sort==='paid_desc'?'selected':'' ?>>Most Paid</option>
-              <option value="paid_asc"     <?= $sort==='paid_asc'?'selected':'' ?>>Least Paid</option>
-              <option value="pledged_desc" <?= $sort==='pledged_desc'?'selected':'' ?>>Most Pledged</option>
               <option value="balance_desc" <?= $sort==='balance_desc'?'selected':'' ?>>Highest Balance</option>
-              <option value="newest"       <?= $sort==='newest'?'selected':'' ?>>Newest First</option>
-              <option value="oldest"       <?= $sort==='oldest'?'selected':'' ?>>Oldest First</option>
             </select>
-            <button type="submit" class="btn btn-sm" style="background:var(--primary,#0a6286);color:#fff;border-radius:8px;font-size:.8rem;">
-              <i class="fas fa-filter me-1"></i>Apply
-            </button>
+            <button type="submit"><i class="fas fa-filter me-1"></i>Filter</button>
           </div>
         </form>
 
-        <!-- ══ Results ══ -->
-        <div class="dr-results-header">
-          <div class="dr-results-count">
-            Showing <?= count($donors) ?> of <?= number_format($totalRows) ?> donor<?= $totalRows !== 1 ? 's' : '' ?>
-            <?php if ($filterStatus !== 'all' || $filterType !== 'all' || $filterSource !== 'all' || $search): ?>
-              <a href="?id=<?= $memberId ?>" style="font-size:.72rem;margin-left:8px;color:var(--danger,#ef4444)"><i class="fas fa-times"></i> Clear all</a>
-            <?php endif; ?>
-          </div>
+        <!-- ═ Results ═ -->
+        <div class="rpt-results-count">
+          <?= $totalRows ?> donor<?= $totalRows !== 1 ? 's' : '' ?>
+          <?php if ($filterStatus !== 'all' || $filterType !== 'all' || $search): ?>
+            <a href="?id=<?= $memberId ?>" style="margin-left:6px;color:var(--danger,#ef4444);font-size:.7rem"><i class="fas fa-times"></i> Clear</a>
+          <?php endif; ?>
         </div>
 
         <?php if (empty($donors)): ?>
-        <div class="text-center py-5">
-          <i class="fas fa-inbox fa-3x mb-3" style="color:var(--gray-300)"></i>
-          <p class="text-muted">No donors registered by <?= htmlspecialchars($member['name']) ?> match your filters.</p>
-        </div>
+          <div class="rpt-empty"><i class="fas fa-inbox"></i><p>No donors found.</p></div>
         <?php else: ?>
-        <div class="dr-donor-list">
+        <div class="rpt-donors">
           <?php foreach ($donors as $d):
               $pledged = (float)$d['total_pledged'];
               $paid    = (float)$d['total_paid'];
               $bal     = (float)$d['balance'];
               $pct     = $pledged > 0 ? min(100, round(($paid / $pledged) * 100)) : ($paid > 0 ? 100 : 0);
-              $sc      = $statusConfig[$d['payment_status']] ?? $statusConfig['no_pledge'];
-              $isPledge = $d['donor_type'] === 'pledge';
-              $barColor = $pct >= 100 ? '#10b981' : ($pct >= 50 ? '#3b82f6' : ($pct > 0 ? '#f59e0b' : '#e5e7eb'));
+              $sc      = $statusCfg[$d['payment_status']] ?? $statusCfg['no_pledge'];
+              $isP     = $d['donor_type'] === 'pledge';
+              $barC    = $pct >= 100 ? '#10b981' : ($pct >= 50 ? '#3b82f6' : ($pct > 0 ? '#f59e0b' : '#e5e7eb'));
           ?>
-          <a href="../donor-management/view-donor.php?id=<?= $d['id'] ?>" class="dr-donor-card">
-            <div class="dr-dc-top">
+          <a href="../donor-management/view-donor.php?id=<?= $d['id'] ?>" class="rpt-donor">
+            <div class="rpt-d-top">
               <div>
-                <div class="dr-dc-name"><?= htmlspecialchars($d['name']) ?></div>
-                <div class="dr-dc-phone"><i class="fas fa-phone me-1"></i><?= htmlspecialchars($d['phone']) ?></div>
+                <div class="rpt-d-name"><?= htmlspecialchars($d['name']) ?></div>
+                <div class="rpt-d-phone"><i class="fas fa-phone me-1"></i><?= htmlspecialchars($d['phone']) ?></div>
               </div>
-              <div class="dr-dc-badge" style="background:<?= $sc['bg'] ?>;color:<?= $sc['color'] ?>">
-                <i class="fas <?= $sc['icon'] ?>" style="font-size:.55rem"></i>
-                <?= $sc['label'] ?>
+              <div class="rpt-d-badge" style="background:<?= $sc['bg'] ?>;color:<?= $sc['c'] ?>">
+                <i class="fas <?= $sc['ic'] ?>" style="font-size:.5rem"></i> <?= $sc['l'] ?>
               </div>
             </div>
-            <div class="dr-dc-money">
-              <div class="dr-dc-money-item">
-                <div class="mv" style="color:#1a73e8"><?= $currency . number_format($pledged) ?></div>
-                <div class="ml">Pledged</div>
-              </div>
-              <div class="dr-dc-money-item">
-                <div class="mv" style="color:#10b981"><?= $currency . number_format($paid) ?></div>
-                <div class="ml">Paid</div>
-              </div>
-              <div class="dr-dc-money-item">
-                <div class="mv" style="color:<?= $bal > 0 ? '#ef4444' : '#10b981' ?>"><?= $currency . number_format($bal) ?></div>
-                <div class="ml">Balance</div>
-              </div>
+            <div class="rpt-d-money">
+              <div class="rpt-d-mi"><div class="v" style="color:#1a73e8"><?= $currency . number_format($pledged) ?></div><div class="l">Pledged</div></div>
+              <div class="rpt-d-mi"><div class="v" style="color:#10b981"><?= $currency . number_format($paid) ?></div><div class="l">Paid</div></div>
+              <div class="rpt-d-mi"><div class="v" style="color:<?= $bal > 0 ? '#ef4444' : '#10b981' ?>"><?= $currency . number_format($bal) ?></div><div class="l">Balance</div></div>
             </div>
             <?php if ($pledged > 0): ?>
-            <div class="dr-dc-bar">
-              <div class="dr-dc-bar-fill" style="width:<?= $pct ?>%;background:<?= $barColor ?>"></div>
-            </div>
+            <div class="rpt-d-bar"><div class="rpt-d-bar-f" style="width:<?= $pct ?>%;background:<?= $barC ?>"></div></div>
             <?php endif; ?>
-            <div class="dr-dc-meta">
+            <div class="rpt-d-foot">
               <div>
-                <span class="dr-dc-type-badge" style="background:<?= $isPledge ? '#eff6ff' : '#fef3c7' ?>;color:<?= $isPledge ? '#3b82f6' : '#d97706' ?>">
-                  <?= $isPledge ? 'Pledge' : 'Immediate' ?>
+                <span class="rpt-d-type" style="background:<?= $isP ? '#eff6ff' : '#fef3c7' ?>;color:<?= $isP ? '#3b82f6' : '#d97706' ?>">
+                  <?= $isP ? 'Pledge' : 'Immediate' ?>
                 </span>
-                <?php if ($d['has_active_plan']): ?>
-                <span class="dr-dc-type-badge" style="background:#ecfdf5;color:#10b981;margin-left:4px">
-                  <i class="fas fa-calendar-check" style="font-size:.55rem"></i> Plan
-                </span>
-                <?php endif; ?>
               </div>
-              <div>
-                <?php if ($d['last_payment_date']): ?>
-                  Last paid: <?= date('d M Y', strtotime($d['last_payment_date'])) ?>
-                <?php else: ?>
-                  Joined: <?= date('d M Y', strtotime($d['created_at'])) ?>
-                <?php endif; ?>
+              <div style="display:flex;align-items:center;gap:8px">
+                <?php if ($pledged > 0): ?><span class="rpt-d-pct" style="color:<?= $barC ?>"><?= $pct ?>%</span><?php endif; ?>
+                <span><?= $d['last_payment_date'] ? 'Paid: '.date('d M Y', strtotime($d['last_payment_date'])) : date('d M Y', strtotime($d['created_at'])) ?></span>
               </div>
             </div>
           </a>
           <?php endforeach; ?>
         </div>
 
-        <!-- ══ Pagination ══ -->
         <?php if ($totalPages > 1): ?>
-        <div class="dr-pagination">
-          <a href="<?= htmlspecialchars(qsReplace(['page' => max(1, $page-1)])) ?>"
-             class="<?= $page <= 1 ? 'disabled' : '' ?>"><i class="fas fa-chevron-left"></i></a>
+        <div class="rpt-pag">
+          <a href="<?= htmlspecialchars(qsReplace(['page'=>max(1,$page-1)])) ?>" class="<?= $page<=1?'dis':'' ?>"><i class="fas fa-chevron-left"></i></a>
           <?php
-          $startP = max(1, $page - 2);
-          $endP   = min($totalPages, $page + 2);
-          if ($startP > 1) echo '<a href="' . htmlspecialchars(qsReplace(['page'=>1])) . '">1</a>';
-          if ($startP > 2) echo '<span class="disabled">...</span>';
-          for ($i = $startP; $i <= $endP; $i++):
+          $s = max(1, $page - 2); $e = min($totalPages, $page + 2);
+          if ($s > 1) echo '<a href="'.htmlspecialchars(qsReplace(['page'=>1])).'">1</a>';
+          if ($s > 2) echo '<span class="dis">...</span>';
+          for ($i = $s; $i <= $e; $i++):
+          ?><a href="<?= htmlspecialchars(qsReplace(['page'=>$i])) ?>" class="<?= $i===$page?'act':'' ?>"><?= $i ?></a><?php
+          endfor;
+          if ($e < $totalPages-1) echo '<span class="dis">...</span>';
+          if ($e < $totalPages) echo '<a href="'.htmlspecialchars(qsReplace(['page'=>$totalPages])).'">'.$totalPages.'</a>';
           ?>
-            <a href="<?= htmlspecialchars(qsReplace(['page'=>$i])) ?>"
-               class="<?= $i === $page ? 'active' : '' ?>"><?= $i ?></a>
-          <?php endfor;
-          if ($endP < $totalPages - 1) echo '<span class="disabled">...</span>';
-          if ($endP < $totalPages) echo '<a href="' . htmlspecialchars(qsReplace(['page'=>$totalPages])) . '">' . $totalPages . '</a>';
-          ?>
-          <a href="<?= htmlspecialchars(qsReplace(['page' => min($totalPages, $page+1)])) ?>"
-             class="<?= $page >= $totalPages ? 'disabled' : '' ?>"><i class="fas fa-chevron-right"></i></a>
+          <a href="<?= htmlspecialchars(qsReplace(['page'=>min($totalPages,$page+1)])) ?>" class="<?= $page>=$totalPages?'dis':'' ?>"><i class="fas fa-chevron-right"></i></a>
         </div>
         <?php endif; ?>
         <?php endif; ?>
