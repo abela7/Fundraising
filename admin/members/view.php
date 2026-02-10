@@ -22,7 +22,15 @@ if (!$member) {
 
 $page_title = htmlspecialchars($member['name']) . ' — Donor Report';
 
-// ─── Aggregated Stats (ONLY donors registered by this member) ───
+// ─── Scope: donors linked to this member ───
+// A donor belongs to a registrar through TWO paths:
+//   1. donors.registered_by_user_id = memberId  (direct registration via add-donor)
+//   2. A pledge with pledges.created_by_user_id = memberId exists for the donor
+//      (registrar created the pledge, donor was auto-created on approval)
+// We use a subquery to cover both paths without duplicates.
+$memberScope = "(d.registered_by_user_id = ? OR d.id IN (SELECT DISTINCT p.donor_id FROM pledges p WHERE p.created_by_user_id = ?))";
+
+// ─── Aggregated Stats (ONLY donors linked to this member) ───
 $stats = [
     'total_donors'      => 0,
     'pledge_donors'     => 0,
@@ -62,10 +70,10 @@ $stStats = $db->prepare("
         SUM(source='registrar')                                      AS src_registrar,
         SUM(source='imported' OR is_imported=1)                      AS src_imported,
         SUM(source='admin')                                          AS src_admin
-    FROM donors
-    WHERE registered_by_user_id = ?
+    FROM donors d
+    WHERE $memberScope
 ");
-$stStats->bind_param('i', $memberId);
+$stStats->bind_param('ii', $memberId, $memberId);
 $stStats->execute();
 $statsRow = $stStats->get_result()->fetch_assoc();
 $stStats->close();
@@ -77,6 +85,19 @@ if ($statsRow) {
     unset($v);
 }
 
+// ─── Also count pledges & payments directly handled by this member ───
+$stPledges = $db->prepare("SELECT COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS total FROM pledges WHERE created_by_user_id = ?");
+$stPledges->bind_param('i', $memberId);
+$stPledges->execute();
+$pledgeStats = $stPledges->get_result()->fetch_assoc();
+$stPledges->close();
+
+$stPayments = $db->prepare("SELECT COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS total FROM payments WHERE received_by_user_id = ?");
+$stPayments->bind_param('i', $memberId);
+$stPayments->execute();
+$paymentStats = $stPayments->get_result()->fetch_assoc();
+$stPayments->close();
+
 // ─── Filters ───
 $filterStatus = $_GET['status'] ?? 'all';
 $filterType   = $_GET['type']   ?? 'all';
@@ -86,10 +107,10 @@ $sort         = $_GET['sort']   ?? 'name_asc';
 $page         = max(1, (int)($_GET['page'] ?? 1));
 $perPage      = 25;
 
-// Always scope to this member
-$where  = ['d.registered_by_user_id = ?'];
-$params = [$memberId];
-$types  = 'i';
+// Always scope to this member (both paths)
+$where  = [$memberScope];
+$params = [$memberId, $memberId];
+$types  = 'ii';
 
 if ($filterStatus !== 'all') {
     $where[]  = 'd.payment_status = ?';
@@ -673,6 +694,7 @@ $statusConfig = [
               <div style="font-size:.6rem;opacity:.8;text-transform:uppercase;letter-spacing:.5px">Donors</div>
             </div>
           </div>
+          <!-- Row 1: Donor counts -->
           <div class="dr-hero-row">
             <div class="dr-hero-stat">
               <div class="val"><?= number_format($stats['total_donors']) ?></div>
@@ -697,6 +719,25 @@ $statusConfig = [
             <div class="dr-hero-stat">
               <div class="val"><?= $currency . number_format($stats['total_balance']) ?></div>
               <div class="lbl">Outstanding</div>
+            </div>
+          </div>
+          <!-- Row 2: Activity stats -->
+          <div class="dr-hero-row" style="margin-top:10px">
+            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
+              <div class="val"><?= number_format((int)$pledgeStats['cnt']) ?></div>
+              <div class="lbl">Pledges Logged</div>
+            </div>
+            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
+              <div class="val"><?= $currency . number_format((float)$pledgeStats['total']) ?></div>
+              <div class="lbl">Pledge Value</div>
+            </div>
+            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
+              <div class="val"><?= number_format((int)$paymentStats['cnt']) ?></div>
+              <div class="lbl">Payments Received</div>
+            </div>
+            <div class="dr-hero-stat" style="background:rgba(255,255,255,.1)">
+              <div class="val"><?= $currency . number_format((float)$paymentStats['total']) ?></div>
+              <div class="lbl">Payment Value</div>
             </div>
           </div>
         </div>
