@@ -2443,13 +2443,14 @@ function formatDateTime($date) {
             font-family: 'Montserrat', sans-serif;
             overflow: hidden;
             color: #fff;
-            /* Dark navy base with church photo subtly blended */
+            /* Rich navy overlay — church photo visible but subdued */
             background:
-                linear-gradient(135deg,
-                    rgba(15, 15, 35, 0.95) 0%,
-                    rgba(22, 33, 62, 0.92) 35%,
-                    rgba(10, 98, 134, 0.45) 65%,
-                    rgba(15, 15, 35, 0.95) 100%
+                linear-gradient(160deg,
+                    rgba(12, 12, 40, 0.88) 0%,
+                    rgba(18, 28, 58, 0.82) 30%,
+                    rgba(14, 60, 95, 0.78) 55%,
+                    rgba(18, 28, 58, 0.82) 75%,
+                    rgba(12, 12, 40, 0.88) 100%
                 ),
                 url('../../assets/images/new-church.png');
             background-size: cover, cover;
