@@ -3049,6 +3049,11 @@ if ($selected_id && $tables_exist) {
                             <div class="chat-header-status"><?php echo $chatStatus; ?></div>
                         </div>
                         <?php endif; ?>
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-auto" 
+                                onclick="deleteCurrentConversation(<?php echo $selected_id; ?>)"
+                                title="Delete conversation">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                     
                     <div class="chat-messages" id="chatMessages">
@@ -5106,6 +5111,36 @@ async function bulkDelete() {
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-trash-alt"></i> <span>Delete</span>';
+    }
+}
+
+// Delete current conversation
+async function deleteCurrentConversation(conversationId) {
+    if (!confirm('Are you sure you want to delete this conversation? This will permanently delete all messages in this conversation from the local database.')) {
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('conversation_id', conversationId);
+        formData.append('<?php echo csrf_token_name(); ?>', '<?php echo csrf_token(); ?>');
+        
+        const response = await fetch('api/delete-conversation.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Redirect to inbox without conversation selected
+            window.location.href = 'inbox.php';
+        } else {
+            alert('Failed to delete conversation: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('Failed to delete conversation. Please try again.');
     }
 }
 </script>
