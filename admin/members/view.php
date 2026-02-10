@@ -5,10 +5,24 @@ require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
 require_admin();
 
-$page_title = 'Donor Report';
 $db = db();
 
-// ─── Aggregated Stats ───
+// ─── Load Member (registrar) ───
+$memberId = max(1, (int)($_GET['id'] ?? 0));
+$stmt = $db->prepare('SELECT id, name, phone, email, role, active, created_at FROM users WHERE id = ? LIMIT 1');
+$stmt->bind_param('i', $memberId);
+$stmt->execute();
+$member = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+if (!$member) {
+    http_response_code(404);
+    echo 'Member not found';
+    exit;
+}
+
+$page_title = htmlspecialchars($member['name']) . ' — Donor Report';
+
+// ─── Aggregated Stats (ONLY donors registered by this member) ───
 $stats = [
     'total_donors'      => 0,
     'pledge_donors'     => 0,
@@ -17,21 +31,19 @@ $stats = [
     'total_paid'        => 0,
     'total_balance'     => 0,
     'with_active_plan'  => 0,
-    // Payment status counts
     'status_no_pledge'  => 0,
     'status_not_started'=> 0,
     'status_paying'     => 0,
     'status_overdue'    => 0,
     'status_completed'  => 0,
     'status_defaulted'  => 0,
-    // Source counts
     'src_public_form'   => 0,
     'src_registrar'     => 0,
     'src_imported'      => 0,
     'src_admin'         => 0,
 ];
 
-$statsRow = $db->query("
+$stStats = $db->prepare("
     SELECT
         COUNT(*)                                                     AS total_donors,
         SUM(donor_type='pledge')                                     AS pledge_donors,
@@ -51,7 +63,12 @@ $statsRow = $db->query("
         SUM(source='imported' OR is_imported=1)                      AS src_imported,
         SUM(source='admin')                                          AS src_admin
     FROM donors
-")?->fetch_assoc();
+    WHERE registered_by_user_id = ?
+");
+$stStats->bind_param('i', $memberId);
+$stStats->execute();
+$statsRow = $stStats->get_result()->fetch_assoc();
+$stStats->close();
 
 if ($statsRow) {
     foreach ($stats as $k => &$v) {
@@ -69,9 +86,10 @@ $sort         = $_GET['sort']   ?? 'name_asc';
 $page         = max(1, (int)($_GET['page'] ?? 1));
 $perPage      = 25;
 
-$where = [];
-$params = [];
-$types  = '';
+// Always scope to this member
+$where  = ['d.registered_by_user_id = ?'];
+$params = [$memberId];
+$types  = 'i';
 
 if ($filterStatus !== 'all') {
     $where[]  = 'd.payment_status = ?';
@@ -100,7 +118,7 @@ if ($search !== '') {
     $types   .= 'ss';
 }
 
-$whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+$whereSQL = 'WHERE ' . implode(' AND ', $where);
 
 $orderMap = [
     'name_asc'      => 'd.name ASC',
@@ -116,15 +134,11 @@ $orderSQL = $orderMap[$sort] ?? 'd.name ASC';
 
 // Count
 $countSQL = "SELECT COUNT(*) AS cnt FROM donors d $whereSQL";
-if ($types) {
-    $st = $db->prepare($countSQL);
-    $st->bind_param($types, ...$params);
-    $st->execute();
-    $totalRows = (int)$st->get_result()->fetch_assoc()['cnt'];
-    $st->close();
-} else {
-    $totalRows = (int)$db->query($countSQL)->fetch_assoc()['cnt'];
-}
+$st = $db->prepare($countSQL);
+$st->bind_param($types, ...$params);
+$st->execute();
+$totalRows = (int)$st->get_result()->fetch_assoc()['cnt'];
+$st->close();
 
 $totalPages = max(1, (int)ceil($totalRows / $perPage));
 $offset     = ($page - 1) * $perPage;
@@ -138,19 +152,19 @@ $sql = "SELECT d.id, d.name, d.phone, d.donor_type, d.total_pledged, d.total_pai
         ORDER BY $orderSQL
         LIMIT $perPage OFFSET $offset";
 
-if ($types) {
-    $st = $db->prepare($sql);
-    $st->bind_param($types, ...$params);
-    $st->execute();
-    $donors = $st->get_result()->fetch_all(MYSQLI_ASSOC);
-    $st->close();
-} else {
-    $donors = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
-}
+$st = $db->prepare($sql);
+$st->bind_param($types, ...$params);
+$st->execute();
+$donors = $st->get_result()->fetch_all(MYSQLI_ASSOC);
+$st->close();
 
-// Helper: build query string preserving filters
+// Helper: build query string preserving filters (always keeps member id)
 function qsReplace(array $overrides): string {
     $qs = array_merge($_GET, $overrides);
+    // Always preserve member id
+    if (!isset($qs['id']) && isset($_GET['id'])) {
+        $qs['id'] = $_GET['id'];
+    }
     return '?' . http_build_query($qs);
 }
 
@@ -178,6 +192,79 @@ $statusConfig = [
 <link rel="stylesheet" href="../assets/admin.css">
 <style>
 /* ═══ Donor Report — Mobile-First ═══ */
+
+/* Member Profile Card */
+.dr-member-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06);
+}
+.dr-mc-left {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+.dr-mc-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary, #0a6286), #0b78a6);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.dr-mc-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--gray-900, #111827);
+    line-height: 1.2;
+}
+.dr-mc-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: .75rem;
+    color: var(--gray-500, #6b7280);
+    margin-top: 3px;
+}
+.dr-mc-meta-row i { margin-right: 3px; font-size: .65rem; }
+.dr-mc-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+.dr-mc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: .65rem;
+    font-weight: 600;
+}
+.dr-mc-badge i { font-size: .6rem; }
+.dr-hero-total-badge {
+    background: rgba(255,255,255,.2);
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 8px 14px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+    .dr-member-card { flex-direction: row; justify-content: space-between; align-items: center; padding: 20px; }
+}
 
 .dr-hero {
     background: linear-gradient(135deg, var(--primary, #0a6286) 0%, #0b78a6 60%, rgba(226,202,24,.85) 100%);
@@ -545,14 +632,46 @@ $statusConfig = [
     <main class="main-content">
       <div class="container-fluid">
 
+        <!-- ══ Member Profile Card ══ -->
+        <div class="dr-member-card">
+          <div class="dr-mc-left">
+            <div class="dr-mc-avatar"><?= strtoupper(mb_substr($member['name'], 0, 1)) ?></div>
+            <div class="dr-mc-info">
+              <div class="dr-mc-name"><?= htmlspecialchars($member['name']) ?></div>
+              <div class="dr-mc-meta-row">
+                <?php if ($member['phone']): ?><span><i class="fas fa-phone"></i> <?= htmlspecialchars($member['phone']) ?></span><?php endif; ?>
+                <?php if ($member['email']): ?><span><i class="fas fa-envelope"></i> <?= htmlspecialchars($member['email']) ?></span><?php endif; ?>
+              </div>
+              <div class="dr-mc-badges">
+                <span class="dr-mc-badge" style="background:<?= $member['role']==='admin'?'#eff6ff':'#f0fdf4' ?>;color:<?= $member['role']==='admin'?'#3b82f6':'#16a34a' ?>">
+                  <i class="fas <?= $member['role']==='admin'?'fa-shield-halved':'fa-id-badge' ?>"></i> <?= ucfirst($member['role']) ?>
+                </span>
+                <span class="dr-mc-badge" style="background:<?= ((int)$member['active']===1)?'#ecfdf5':'#fef2f2' ?>;color:<?= ((int)$member['active']===1)?'#10b981':'#ef4444' ?>">
+                  <i class="fas <?= ((int)$member['active']===1)?'fa-check-circle':'fa-ban' ?>"></i>
+                  <?= ((int)$member['active']===1)?'Active':'Inactive' ?>
+                </span>
+                <span class="dr-mc-badge" style="background:#f5f3ff;color:#7c3aed">
+                  <i class="fas fa-calendar"></i> Joined <?= date('M d, Y', strtotime($member['created_at'])) ?>
+                </span>
+              </div>
+            </div>
+          </div>
+          <a href="./" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem;white-space:nowrap;align-self:flex-start;">
+            <i class="fas fa-arrow-left me-1"></i>All Members
+          </a>
+        </div>
+
         <!-- ══ Hero Stats ══ -->
         <div class="dr-hero">
           <div class="d-flex justify-content-between align-items-start">
             <div>
-              <div class="dr-hero-title"><i class="fas fa-chart-pie me-2"></i>Donor Report</div>
-              <div class="dr-hero-sub">Comprehensive overview of all registered donors</div>
+              <div class="dr-hero-title"><i class="fas fa-chart-pie me-2"></i>Registrar Performance</div>
+              <div class="dr-hero-sub">Donors registered by <?= htmlspecialchars($member['name']) ?></div>
             </div>
-            <a href="./" class="btn btn-sm btn-light" style="font-size:.75rem"><i class="fas fa-arrow-left me-1"></i>Members</a>
+            <div class="dr-hero-total-badge">
+              <div style="font-size:1.5rem;font-weight:900;line-height:1"><?= number_format($stats['total_donors']) ?></div>
+              <div style="font-size:.6rem;opacity:.8;text-transform:uppercase;letter-spacing:.5px">Donors</div>
+            </div>
           </div>
           <div class="dr-hero-row">
             <div class="dr-hero-stat">
@@ -631,7 +750,8 @@ $statusConfig = [
 
         <!-- ══ Filters ══ -->
         <form method="get" class="dr-filters" id="filterForm">
-          <!-- preserve existing filters -->
+          <!-- preserve member id and existing filters -->
+          <input type="hidden" name="id" value="<?= $memberId ?>">
           <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
           <input type="hidden" name="source" value="<?= htmlspecialchars($filterSource) ?>">
           <div class="dr-search">
@@ -665,7 +785,7 @@ $statusConfig = [
           <div class="dr-results-count">
             Showing <?= count($donors) ?> of <?= number_format($totalRows) ?> donor<?= $totalRows !== 1 ? 's' : '' ?>
             <?php if ($filterStatus !== 'all' || $filterType !== 'all' || $filterSource !== 'all' || $search): ?>
-              <a href="?" style="font-size:.72rem;margin-left:8px;color:var(--danger,#ef4444)"><i class="fas fa-times"></i> Clear all</a>
+              <a href="?id=<?= $memberId ?>" style="font-size:.72rem;margin-left:8px;color:var(--danger,#ef4444)"><i class="fas fa-times"></i> Clear all</a>
             <?php endif; ?>
           </div>
         </div>
@@ -673,7 +793,7 @@ $statusConfig = [
         <?php if (empty($donors)): ?>
         <div class="text-center py-5">
           <i class="fas fa-inbox fa-3x mb-3" style="color:var(--gray-300)"></i>
-          <p class="text-muted">No donors match your filters.</p>
+          <p class="text-muted">No donors registered by <?= htmlspecialchars($member['name']) ?> match your filters.</p>
         </div>
         <?php else: ?>
         <div class="dr-donor-list">

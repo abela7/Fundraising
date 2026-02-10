@@ -62,6 +62,10 @@ $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_c
 
 // Check if payment_plan_id column exists
 $has_plan_col = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_plan_id'")->num_rows > 0;
+$has_user_phone_number_col = $db->query("SHOW COLUMNS FROM users LIKE 'phone_number'")->num_rows > 0;
+$assigned_agent_phone_expr = $has_user_phone_number_col
+    ? "COALESCE(NULLIF(assigned_agent.phone_number, ''), NULLIF(assigned_agent.phone, ''))"
+    : "NULLIF(assigned_agent.phone, '')";
 
 // Get total count for pagination
 $count_sql = "
@@ -106,6 +110,10 @@ $sql = "
         d.total_paid AS donor_total_paid,
         d.balance AS donor_balance,
         d.active_payment_plan_id AS donor_active_plan_id,
+        assigned_agent.name AS assigned_agent_name,
+        {$assigned_agent_phone_expr} AS assigned_agent_phone,
+        assigned_rep.name AS assigned_representative_name,
+        assigned_rep.phone AS assigned_representative_phone,
         pl.amount AS pledge_amount,
         pl.created_at AS pledge_date,
         u.name AS processed_by_name,
@@ -121,6 +129,8 @@ $sql = "
     FROM pledge_payments pp
     LEFT JOIN donors d ON pp.donor_id = d.id
     LEFT JOIN pledges pl ON pp.pledge_id = pl.id
+    LEFT JOIN users assigned_agent ON d.agent_id = assigned_agent.id
+    LEFT JOIN church_representatives assigned_rep ON d.representative_id = assigned_rep.id
     LEFT JOIN users u ON pp.processed_by_user_id = u.id
     LEFT JOIN users approver ON pp.approved_by_user_id = approver.id
     LEFT JOIN users voider ON pp.voided_by_user_id = voider.id" . 
@@ -1268,6 +1278,10 @@ function build_url($params) {
                                     $tBalance = (float)($p['donor_balance'] ?? 0);
                                     echo ($tPledged > 0 && $tBalance <= 0) ? '1' : '0';
                                  ?>"
+                                 data-assigned-agent-name="<?php echo htmlspecialchars($p['assigned_agent_name'] ?? ''); ?>"
+                                 data-assigned-agent-phone="<?php echo htmlspecialchars($p['assigned_agent_phone'] ?? ''); ?>"
+                                 data-assigned-representative-name="<?php echo htmlspecialchars($p['assigned_representative_name'] ?? ''); ?>"
+                                 data-assigned-representative-phone="<?php echo htmlspecialchars($p['assigned_representative_phone'] ?? ''); ?>"
                                  data-sqm-value="<?php echo round(max((float)($p['donor_pledge_amount'] ?? 0), (float)($p['donor_total_paid'] ?? 0)) / 400, 2); ?>">
                                 <!-- Card Header -->
                                 <div class="card-header-row">
@@ -1454,12 +1468,10 @@ function build_url($params) {
                                             <span>Reject</span>
                                         </button>
                                     <?php elseif ($p['status'] === 'confirmed'): ?>
-                                        <?php if (!empty($p['donor_phone'])): ?>
-                                        <button class="btn btn-approve" onclick="showConfirmationMessage(<?php echo $p['id']; ?>)">
+                                        <button class="btn btn-approve" onclick="showConfirmationMessage(<?php echo $p['id']; ?>, this)">
                                             <i class="fab fa-whatsapp"></i>
                                             <span>Confirmation</span>
                                         </button>
-                                        <?php endif; ?>
                                         <button class="btn btn-undo" onclick="undoPayment(<?php echo $p['id']; ?>)">
                                             <i class="fas fa-undo"></i>
                                             <span>Undo</span>
@@ -1578,6 +1590,12 @@ function build_url($params) {
                         <span class="value" id="notifyBalance">£0.00</span>
                     </div>
                 </div>
+                <div id="notifyRoutingNotice" class="alert alert-warning py-2 px-3 mt-2 mb-3 d-none">
+                    <i class="fas fa-user-shield me-1"></i>
+                    Assigned to <strong id="notifyRoutingAgent">Kesis Birhanu</strong>.
+                    This message and certificate will be sent to
+                    <strong id="notifyRoutingPhone">07473822244</strong>.
+                </div>
                 
                 <!-- Certificate Info -->
                 <div class="cert-toggle-section">
@@ -1669,6 +1687,12 @@ function build_url($params) {
                         <span>100% Payment Complete</span>
                     </div>
                 </div>
+                <div id="fpRoutingNotice" class="alert alert-warning py-2 px-3 mb-3 d-none">
+                    <i class="fas fa-user-shield me-1"></i>
+                    Assigned to <strong id="fpRoutingAgent">Kesis Birhanu</strong>.
+                    This message and certificate will be sent to
+                    <strong id="fpRoutingPhone">07473822244</strong>.
+                </div>
 
                 <!-- Certificate Info -->
                 <div class="fp-cert-toggle active">
@@ -1724,6 +1748,7 @@ let isEditMode = false;
 
 // Kesis Birhanu's phone - donors assigned to him get messages routed through him
 const KESIS_BIRHANU_PHONE = '07473822244';
+const KESIS_BIRHANU_NAME = 'Kesis Birhanu';
 
 // Database Templates (from PHP)
 const dbTemplates = <?php echo json_encode($sms_template); ?>;
@@ -1770,13 +1795,79 @@ const nextPaymentTemplates = {
  */
 function normalizePhoneForComparison(phone) {
     if (!phone) return '';
-    // Remove all non-digits
-    let digits = phone.replace(/\D/g, '');
-    // If starts with 44 and is 12 digits, convert to UK format
-    if (digits.startsWith('44') && digits.length === 12) {
+    let digits = String(phone).replace(/\D/g, '');
+    if (digits.startsWith('440') && digits.length >= 13) {
+        digits = '0' + digits.substring(3);
+    } else if (digits.startsWith('44') && digits.length >= 12) {
         digits = '0' + digits.substring(2);
     }
     return digits;
+}
+
+function phonesMatch(phoneA, phoneB) {
+    const a = normalizePhoneForComparison(phoneA);
+    const b = normalizePhoneForComparison(phoneB);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    return a.replace(/^0/, '') === b.replace(/^0/, '');
+}
+
+function normalizeNameForComparison(name) {
+    return String(name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+}
+
+function isNameKesisBirhanu(name) {
+    const normalized = normalizeNameForComparison(name);
+    return normalized.includes('kesis') && normalized.includes('birhanu');
+}
+
+function isAssignedToKesisBirhanu(data) {
+    if (!data) return false;
+
+    const candidatePhones = [
+        data.assigned_agent_phone,
+        data.assigned_representative_phone
+    ];
+
+    const hasMatchingPhone = candidatePhones.some(phone => phonesMatch(phone, KESIS_BIRHANU_PHONE));
+    const hasMatchingName =
+        isNameKesisBirhanu(data.assigned_agent_name) ||
+        isNameKesisBirhanu(data.assigned_representative_name);
+
+    return hasMatchingPhone || hasMatchingName;
+}
+
+function getRoutingTarget(data) {
+    const routedToKesis = isAssignedToKesisBirhanu(data);
+    const assignedName = data?.assigned_agent_name ||
+        data?.assigned_representative_name ||
+        KESIS_BIRHANU_NAME;
+
+    return {
+        routedToKesis,
+        assignedName,
+        destinationPhone: routedToKesis ? KESIS_BIRHANU_PHONE : (data?.donor_phone || '')
+    };
+}
+
+function renderRoutingNotice(data, noticeId, agentId, phoneId) {
+    const noticeEl = document.getElementById(noticeId);
+    if (!noticeEl) return;
+
+    const routing = getRoutingTarget(data);
+    if (!routing.routedToKesis) {
+        noticeEl.classList.add('d-none');
+        return;
+    }
+
+    const agentEl = document.getElementById(agentId);
+    const phoneEl = document.getElementById(phoneId);
+    if (agentEl) agentEl.textContent = routing.assignedName;
+    if (phoneEl) phoneEl.textContent = routing.destinationPhone;
+    noticeEl.classList.remove('d-none');
 }
 
 function viewProof(src) {
@@ -1798,21 +1889,22 @@ function approvePayment(id, btn) {
     .then(res => {
         if (res.success) {
             // Check if we have notification data
-            if (res.notification_data && res.notification_data.donor_phone) {
+            if (res.notification_data) {
                 const data = res.notification_data;
+                const routing = getRoutingTarget(data);
+
+                if (!routing.destinationPhone) {
+                    alert('Payment approved, but no valid recipient phone was found.');
+                    location.reload();
+                    return;
+                }
 
                 // Check if donor is assigned to Kesis Birhanu — ALWAYS route through him
-                const agentPhone = normalizePhoneForComparison(data.assigned_agent_phone);
-                const kesisBirhanuPhone = normalizePhoneForComparison(KESIS_BIRHANU_PHONE);
-
-                if (agentPhone && agentPhone === kesisBirhanuPhone) {
+                if (routing.routedToKesis) {
                     // Route to Kesis Birhanu (both ongoing and fully paid)
                     sendToKesisBirhanu(data, btn);
-                } else if (data.is_fully_paid) {
-                    // Fully paid — show special modal, send directly to donor
-                    showNotificationModal(data);
                 } else {
-                    // Ongoing — show normal modal, send directly to donor
+                    // Not assigned to Kesis Birhanu: send directly to donor
                     showNotificationModal(data);
                 }
             } else {
@@ -1842,6 +1934,7 @@ function approvePayment(id, btn) {
  */
 async function sendToKesisBirhanu(data, btn) {
     const isFullyPaid = !!data.is_fully_paid;
+    const routing = getRoutingTarget(data);
 
     // Pick the right template based on fully paid status
     const templateMode = isFullyPaid ? fullyPaidTemplateMode : paymentTemplateMode;
@@ -1907,7 +2000,9 @@ async function sendToKesisBirhanu(data, btn) {
     message = message.replace(/\\n/g, '\n');
 
     // Update button to show sending status
-    const agentLabel = data.assigned_agent_name || 'Kesis Birhanu';
+    const agentLabel = routing.assignedName || KESIS_BIRHANU_NAME;
+    btn.innerHTML = '<i class="fas fa-info-circle"></i> Assigned to ' + agentLabel;
+    await new Promise(resolve => setTimeout(resolve, 450));
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending to ' + agentLabel + '...';
 
     try {
@@ -1927,7 +2022,7 @@ async function sendToKesisBirhanu(data, btn) {
         const safeName = (d.name || 'donor').replace(/[^a-z0-9]/gi, '_');
         const filePrefix = isFullyPaid ? 'certificate_final' : 'certificate';
         formData.append('certificate', blob, `${filePrefix}_${safeName}.png`);
-        formData.append('phone', KESIS_BIRHANU_PHONE);
+        formData.append('phone', routing.destinationPhone);
         formData.append('donor_id', data.donor_id);
         formData.append('donor_name', d.name);
         formData.append('sqm_value', d.sqm_value);
@@ -1964,7 +2059,7 @@ async function sendToKesisBirhanu(data, btn) {
  * Show confirmation message for already-confirmed payments
  * Retrieves payment data from the card's data attributes
  */
-function showConfirmationMessage(paymentId) {
+function showConfirmationMessage(paymentId, btn = null) {
     // Find the payment card element
     const card = document.querySelector(`[data-payment-id="${paymentId}"]`);
     if (!card) {
@@ -1987,15 +2082,37 @@ function showConfirmationMessage(paymentId) {
         next_payment_date: card.dataset.nextPaymentDate || null,
         next_payment_amount: card.dataset.nextPaymentAmount || null,
         is_fully_paid: card.dataset.isFullyPaid === '1',
-        sqm_value: parseFloat(card.dataset.sqmValue || '0')
+        sqm_value: parseFloat(card.dataset.sqmValue || '0'),
+        assigned_agent_name: card.dataset.assignedAgentName || '',
+        assigned_agent_phone: card.dataset.assignedAgentPhone || '',
+        assigned_representative_name: card.dataset.assignedRepresentativeName || '',
+        assigned_representative_phone: card.dataset.assignedRepresentativePhone || ''
     };
-    
+
+    const routing = getRoutingTarget(data);
+
     // Validate required fields
-    if (!data.donor_phone) {
+    if (!routing.destinationPhone) {
         alert('No phone number available for this donor');
         return;
     }
-    
+
+    if (routing.routedToKesis && btn) {
+        const confirmed = confirm(
+            'This donor is assigned to ' + routing.assignedName + '.\n' +
+            'Notification and certificate will be sent to ' +
+            routing.assignedName + ' (' + routing.destinationPhone + ').\n\n' +
+            'Continue?'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        sendToKesisBirhanu(data, btn);
+        return;
+    }
+
     // Show the notification modal
     showNotificationModal(data);
 }
@@ -2015,6 +2132,7 @@ function showNotificationModal(data) {
     document.getElementById('notifyDonorPhone').textContent = data.donor_phone;
     document.getElementById('notifyAmount').textContent = '£' + data.payment_amount;
     document.getElementById('notifyBalance').textContent = '£' + data.outstanding_balance;
+    renderRoutingNotice(data, 'notifyRoutingNotice', 'notifyRoutingAgent', 'notifyRoutingPhone');
     
     // Respect template mode: sms => English, auto/whatsapp => Amharic.
     const lang = paymentTemplateMode === 'sms' ? 'en' : 'am';
@@ -2437,6 +2555,7 @@ sendNotification = async function() {
         const message = isEditMode
             ? document.getElementById('messageTextarea').value
             : currentNotificationData.message;
+        const routing = getRoutingTarget(currentNotificationData);
 
         // Step 1: Load canonical donor certificate data
         document.getElementById('sendBtnText').textContent = 'Generating certificate...';
@@ -2447,11 +2566,13 @@ sendNotification = async function() {
         const blob = await captureCertificateFromDonorView(currentNotificationData.donor_id);
 
         // Step 2: Send certificate image with template message via WhatsApp
-        document.getElementById('sendBtnText').textContent = 'Sending certificate...';
+        document.getElementById('sendBtnText').textContent = routing.routedToKesis
+            ? 'Sending certificate to ' + routing.assignedName + '...'
+            : 'Sending certificate...';
 
         const formData = new FormData();
         formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
-        formData.append('phone', currentNotificationData.donor_phone);
+        formData.append('phone', routing.destinationPhone);
         formData.append('donor_id', currentNotificationData.donor_id);
         formData.append('donor_name', d.name);
         formData.append('sqm_value', d.sqm_value);
@@ -2475,7 +2596,11 @@ sendNotification = async function() {
             throw new Error(certResult.error || 'Failed to send certificate');
         }
 
-        showSendSuccess('Certificate + Message Sent!');
+        showSendSuccess(
+            routing.routedToKesis
+                ? 'Sent to ' + routing.assignedName + '!'
+                : 'Certificate + Message Sent!'
+        );
 
     } catch (err) {
         console.error('Send error:', err);
@@ -2513,6 +2638,7 @@ function showFullyPaidModal(data) {
     document.getElementById('fpPaid').textContent = '£' + data.total_paid;
     document.getElementById('fpThisPayment').textContent = '£' + data.payment_amount;
     document.getElementById('fpArea').textContent = (data.sqm_value || '0') + ' m²';
+    renderRoutingNotice(data, 'fpRoutingNotice', 'fpRoutingAgent', 'fpRoutingPhone');
 
     // Build message from fully_paid_confirmation template
     // Respect template mode: sms => English, auto/whatsapp => Amharic.
@@ -2630,6 +2756,7 @@ async function sendFullyPaidNotification() {
     const message = fpEditMode
         ? document.getElementById('fpMessageEdit').value
         : currentNotificationData.fullyPaidMessage;
+    const routing = getRoutingTarget(currentNotificationData);
 
     // SMS-only mode: send text notification only (no WhatsApp certificate media flow).
     if ((currentNotificationData.fully_paid_template_mode || fullyPaidTemplateMode) === 'sms') {
@@ -2643,11 +2770,13 @@ async function sendFullyPaidNotification() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     donor_id: currentNotificationData.donor_id,
-                    phone: currentNotificationData.donor_phone,
+                    phone: routing.destinationPhone,
                     message: message,
                     language: 'en',
                     template_mode: 'sms',
-                    template_key: 'fully_paid_confirmation'
+                    template_key: 'fully_paid_confirmation',
+                    routed_via_agent: routing.routedToKesis,
+                    agent_name: routing.routedToKesis ? routing.assignedName : null
                 })
             });
             const textJson = await textRes.json();
@@ -2685,11 +2814,13 @@ async function sendFullyPaidNotification() {
         const blob = await captureCertificateFromDonorView(currentNotificationData.donor_id, 'completed');
 
         setFpStep(1);
-        sendText.textContent = 'Sending certificate...';
+        sendText.textContent = routing.routedToKesis
+            ? 'Sending certificate to ' + routing.assignedName + '...'
+            : 'Sending certificate...';
 
         const formData = new FormData();
         formData.append('certificate', blob, `certificate_final_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
-        formData.append('phone', currentNotificationData.donor_phone);
+        formData.append('phone', routing.destinationPhone);
         formData.append('donor_id', currentNotificationData.donor_id);
         formData.append('donor_name', d.name);
         formData.append('sqm_value', d.sqm_value);
@@ -2718,7 +2849,9 @@ async function sendFullyPaidNotification() {
         const steps = document.querySelectorAll('#fpSteps .step');
         steps.forEach(s => s.className = 'step done');
 
-        sendText.textContent = 'Certificate + Message Sent!';
+        sendText.textContent = routing.routedToKesis
+            ? 'Sent to ' + routing.assignedName + '!'
+            : 'Certificate + Message Sent!';
         btn.querySelector('.btn-icon').className = 'fas fa-check btn-icon';
         btn.querySelector('.btn-icon').style.display = '';
 
@@ -2738,17 +2871,20 @@ async function sendFullyPaidNotification() {
 // Text-only fallback (SMS)
 async function sendTextFallback() {
     const message = currentNotificationData.message;
+    const routing = getRoutingTarget(currentNotificationData);
 
     const res = await fetch('send-payment-notification.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             donor_id: currentNotificationData.donor_id,
-            phone: currentNotificationData.donor_phone,
+            phone: routing.destinationPhone,
             message: message,
             language: paymentTemplateMode === 'sms' ? 'en' : 'am',
             template_mode: currentNotificationData.template_mode || paymentTemplateMode,
-            template_key: 'payment_confirmed'
+            template_key: 'payment_confirmed',
+            routed_via_agent: routing.routedToKesis,
+            agent_name: routing.routedToKesis ? routing.assignedName : null
         })
     });
 

@@ -273,6 +273,11 @@ try {
             $message .= '. Payment plan updated.';
         }
     }
+
+    $hasUserPhoneNumberCol = $db->query("SHOW COLUMNS FROM users LIKE 'phone_number'")->num_rows > 0;
+    $assignedAgentPhoneExpr = $hasUserPhoneNumberCol
+        ? "COALESCE(NULLIF(agent.phone_number, ''), NULLIF(agent.phone, ''))"
+        : "NULLIF(agent.phone, '')";
     
     // Fetch updated donor data for notification (including assigned agent info)
     $updatedDonorStmt = $db->prepare("
@@ -283,11 +288,15 @@ try {
                dpp.status as plan_status,
                agent.id as assigned_agent_id,
                agent.name as assigned_agent_name,
-               agent.phone as assigned_agent_phone
+               {$assignedAgentPhoneExpr} as assigned_agent_phone,
+               rep.id as assigned_representative_id,
+               rep.name as assigned_representative_name,
+               rep.phone as assigned_representative_phone
         FROM donors d
         LEFT JOIN pledges p ON d.id = p.donor_id
         LEFT JOIN donor_payment_plans dpp ON d.active_payment_plan_id = dpp.id
         LEFT JOIN users agent ON d.agent_id = agent.id
+        LEFT JOIN church_representatives rep ON d.representative_id = rep.id
         WHERE d.id = ?
         ORDER BY p.created_at DESC
         LIMIT 1
@@ -329,7 +338,10 @@ try {
         // Assigned agent info for message routing
         'assigned_agent_id' => $updatedDonor['assigned_agent_id'] ?? null,
         'assigned_agent_name' => $updatedDonor['assigned_agent_name'] ?? null,
-        'assigned_agent_phone' => $updatedDonor['assigned_agent_phone'] ?? null
+        'assigned_agent_phone' => $updatedDonor['assigned_agent_phone'] ?? null,
+        'assigned_representative_id' => $updatedDonor['assigned_representative_id'] ?? null,
+        'assigned_representative_name' => $updatedDonor['assigned_representative_name'] ?? null,
+        'assigned_representative_phone' => $updatedDonor['assigned_representative_phone'] ?? null
     ];
     
     echo json_encode([
