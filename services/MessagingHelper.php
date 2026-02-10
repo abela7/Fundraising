@@ -456,12 +456,27 @@ class MessagingHelper
             return $this->error("Donor #$donorId not found");
         }
         
-        // WhatsApp: ALWAYS use Amharic (am)
-        $language = 'am'; // Force Amharic for WhatsApp
-        $message = $template["message_am"] ?? $template['message_en'] ?? '';
-        
-        if (empty($message)) {
-            return $this->error("Template '$templateKey' has no message content");
+        // WhatsApp policy: ONLY use Amharic template content.
+        // If Amharic is missing, do NOT send English on WhatsApp; use SMS fallback in English.
+        $language = 'am';
+        $message = trim((string)($template['message_am'] ?? ''));
+        if ($message === '') {
+            $smsResult = $this->smsHelper->sendFromTemplate(
+                $templateKey,
+                $donorId,
+                $variables,
+                $sourceType,
+                $queue,
+                $forceImmediate,
+                'en'
+            );
+            if (isset($smsResult['success']) && $smsResult['success']) {
+                $smsResult['is_fallback'] = true;
+                $smsResult['fallback_reason'] = 'whatsapp_amharic_template_missing';
+                $smsResult['original_channel'] = 'whatsapp';
+                $smsResult['language'] = 'en';
+            }
+            return $smsResult;
         }
         
         // Process variables

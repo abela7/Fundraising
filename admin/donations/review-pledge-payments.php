@@ -1831,9 +1831,9 @@ function sendToKesisBirhanu(data, btn) {
         else baseTemplate = dbTemplates.message_en;
     }
     
-    // Fallback if no template found
+    // Fallback if no template found (Amharic by policy)
     if (!baseTemplate) {
-        baseTemplate = "Dear {name}, Thank you for your payment of £{amount}. Your balance is £{outstanding_balance}. {next_payment_info}";
+        baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
     }
 
     // Get the appropriate next_payment_info sub-template
@@ -1964,9 +1964,9 @@ function showNotificationModal(data) {
         else baseTemplate = dbTemplates.message_en;
     }
     
-    // Fallback if no template found
+    // Fallback if no template found (Amharic by policy)
     if (!baseTemplate) {
-        baseTemplate = "Dear {name}, Thank you for your payment of £{amount}. Your balance is £{outstanding_balance}. {next_payment_info}";
+        baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
     }
 
     // Get the appropriate next_payment_info sub-template
@@ -2397,9 +2397,9 @@ function showFullyPaidModal(data) {
         }
     }
 
-    // Fallback if no template in database
+    // Fallback if no template in database (Amharic by policy)
     if (!message) {
-        message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment!\n\nPayment received today ({date}): £{payment_amount}\n\nYour Pledge Summary:\n→ Total Pledge: {total_pledged_sqm} sqm, £{total_pledged}\n→ Total Paid: £{total_paid}\n→ Remaining: £{remaining}\n\nMay God bless you abundantly!\n\n- Liverpool Abune Teklehaymanot EOTC';
+        message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
     }
 
     // Replace variables

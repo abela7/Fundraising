@@ -1581,28 +1581,409 @@ function formatDateTime($date) {
             }
         }
 
-        /* ===== Certificate Preview Styles - Fully Responsive ===== */
+        /* ===== Certificate Preview Styles - Premium Responsive Design ===== */
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;600;800;900&display=swap');
 
-        /* Wrapper with dark background */
-        .cert-preview-wrapper {
-            background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%);
-            border-radius: 0.5rem;
-            padding: 0.5rem;
-            overflow: hidden;
+        /* ---------- Action Buttons Bar ---------- */
+        .cert-actions-bar {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+            border-bottom: 1px solid rgba(10, 98, 134, 0.1);
         }
 
-        /* Aspect ratio container - maintains 16:10 ratio (1200:750) */
+        .cert-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            flex: 1;
+            justify-content: center;
+        }
+
+        @media (min-width: 576px) {
+            .cert-action-btn { flex: 0 0 auto; }
+        }
+
+        .cert-btn-download {
+            background: linear-gradient(135deg, #0a6286 0%, #075985 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(10, 98, 134, 0.3);
+        }
+        .cert-btn-download:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(10, 98, 134, 0.4);
+            color: #fff;
+        }
+
+        .cert-btn-whatsapp {
+            background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+        }
+        .cert-btn-whatsapp:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(37, 211, 102, 0.4);
+            color: #fff;
+        }
+
+        .cert-btn-fullview {
+            background: #fff;
+            color: var(--primary-color);
+            border: 2px solid rgba(10, 98, 134, 0.2);
+        }
+        .cert-btn-fullview:hover {
+            background: rgba(10, 98, 134, 0.06);
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            color: var(--primary-color);
+        }
+
+        /* ---------- Premium Donor Stats Cards ---------- */
+        .cert-donor-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 16px;
+            background: #fff;
+            border-bottom: 1px solid rgba(10, 98, 134, 0.08);
+        }
+
+        @media (max-width: 575.98px) {
+            .cert-donor-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                padding: 12px;
+            }
+        }
+
+        .cert-donor-stat-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: all 0.25s ease;
+        }
+
+        .cert-donor-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .cert-donor-stat-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 575.98px) {
+            .cert-donor-stat-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+        }
+
+        .cert-donor-stat-content {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .cert-donor-stat-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #8899a6;
+            line-height: 1;
+            margin-bottom: 3px;
+        }
+
+        .cert-donor-stat-val {
+            font-size: 0.95rem;
+            font-weight: 800;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 575.98px) {
+            .cert-donor-stat-val { font-size: 0.85rem; }
+            .cert-donor-stat-label { font-size: 0.62rem; }
+        }
+
+        /* Card color themes */
+        .cert-stat-ref {
+            background: rgba(10, 98, 134, 0.04);
+            border-color: rgba(10, 98, 134, 0.12);
+        }
+        .cert-stat-ref .cert-donor-stat-icon {
+            background: rgba(10, 98, 134, 0.1);
+            color: var(--primary-color);
+        }
+        .cert-stat-ref .cert-donor-stat-val { color: var(--primary-color); }
+
+        .cert-stat-pledged {
+            background: rgba(26, 115, 232, 0.04);
+            border-color: rgba(26, 115, 232, 0.12);
+        }
+        .cert-stat-pledged .cert-donor-stat-icon {
+            background: rgba(26, 115, 232, 0.1);
+            color: #1a73e8;
+        }
+        .cert-stat-pledged .cert-donor-stat-val { color: #1a73e8; }
+
+        .cert-stat-paid {
+            background: rgba(226, 202, 24, 0.06);
+            border-color: rgba(226, 202, 24, 0.2);
+        }
+        .cert-stat-paid .cert-donor-stat-icon {
+            background: rgba(226, 202, 24, 0.15);
+            color: #b8a000;
+        }
+        .cert-stat-paid .cert-donor-stat-val { color: #b8a000; }
+
+        .cert-stat-paid.cert-stat-paid-full {
+            background: rgba(16, 185, 129, 0.06);
+            border-color: rgba(16, 185, 129, 0.15);
+        }
+        .cert-stat-paid.cert-stat-paid-full .cert-donor-stat-icon {
+            background: rgba(16, 185, 129, 0.12);
+            color: #059669;
+        }
+        .cert-stat-paid.cert-stat-paid-full .cert-donor-stat-val { color: #059669; }
+
+        .cert-stat-area {
+            background: rgba(16, 185, 129, 0.04);
+            border-color: rgba(16, 185, 129, 0.12);
+        }
+        .cert-stat-area .cert-donor-stat-icon {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+        .cert-stat-area .cert-donor-stat-val { color: #059669; }
+
+        /* ---------- Enhanced Payment Progress ---------- */
+        .cert-payment-progress {
+            padding: 16px;
+            background: linear-gradient(135deg, #fefce8 0%, #fffbeb 50%, #fff 100%);
+            border-bottom: 1px solid rgba(226, 202, 24, 0.2);
+        }
+
+        .cert-payment-progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .cert-payment-progress-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cert-payment-progress-amount {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .cert-payment-progress-of {
+            font-weight: 400;
+            color: #999;
+            margin: 0 2px;
+        }
+
+        .cert-payment-track {
+            width: 100%;
+            height: 28px;
+            background: #e5e7eb;
+            border-radius: 14px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .cert-payment-fill {
+            height: 100%;
+            border-radius: 14px;
+            background: linear-gradient(90deg, #e2ca18 0%, #f0b400 50%, #d4a000 100%);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 12px;
+            min-width: 60px;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(226, 202, 24, 0.4);
+        }
+
+        .cert-payment-fill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255,255,255,0.3) 50%,
+                transparent 100%
+            );
+            animation: cert-shimmer 2.5s ease-in-out infinite;
+        }
+
+        @keyframes cert-shimmer {
+            0% { left: -150%; }
+            100% { left: 150%; }
+        }
+
+        .cert-payment-fill.cert-payment-complete {
+            background: linear-gradient(90deg, #10b981 0%, #059669 50%, #047857 100%);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+        }
+
+        .cert-payment-pct {
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
+
+        .cert-payment-remaining {
+            margin-top: 8px;
+            font-size: 0.78rem;
+            color: #92400e;
+            font-weight: 500;
+        }
+
+        /* ---------- Status Banners ---------- */
+        .cert-status-banner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 16px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            border: 1px solid transparent;
+        }
+
+        .cert-status-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .cert-status-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .cert-status-text strong {
+            font-size: 0.88rem;
+            line-height: 1.3;
+        }
+
+        .cert-status-text span {
+            font-size: 0.78rem;
+            opacity: 0.8;
+        }
+
+        .cert-status-info {
+            background: rgba(10, 98, 134, 0.04);
+            border-color: rgba(10, 98, 134, 0.12);
+            color: var(--primary-color);
+        }
+        .cert-status-info .cert-status-icon {
+            background: rgba(10, 98, 134, 0.1);
+            color: var(--primary-color);
+        }
+
+        .cert-status-progress {
+            background: linear-gradient(135deg, rgba(226, 202, 24, 0.08) 0%, rgba(245, 158, 11, 0.06) 100%);
+            border-color: rgba(226, 202, 24, 0.25);
+            color: #92400e;
+        }
+        .cert-status-progress .cert-status-icon {
+            background: rgba(226, 202, 24, 0.15);
+            color: #d97706;
+        }
+
+        .cert-status-complete {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(5, 150, 105, 0.04) 100%);
+            border-color: rgba(16, 185, 129, 0.2);
+            color: #065f46;
+        }
+        .cert-status-complete .cert-status-icon {
+            background: rgba(16, 185, 129, 0.12);
+            color: #059669;
+        }
+
+        /* ---------- Certificate Preview Wrapper ---------- */
+        .cert-preview-wrapper {
+            background: linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            border-radius: 0;
+            padding: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cert-preview-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(226, 202, 24, 0.4), transparent);
+        }
+
+        /* Aspect ratio container */
         .cert-aspect-ratio {
             position: relative;
             width: 100%;
-            padding-bottom: 72.5%; /* 870/1200 = 0.725 = 72.5% */
+            padding-bottom: 72.5%; /* 870/1200 */
             overflow: hidden;
-            border-radius: 0.25rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border-radius: 8px;
+            box-shadow:
+                0 0 0 1px rgba(226, 202, 24, 0.15),
+                0 8px 32px rgba(0,0,0,0.5),
+                0 2px 8px rgba(0,0,0,0.3);
         }
 
-        /* Capture wrapper - this is what html2canvas captures (cert + stats) */
+        /* Capture wrapper */
         .cert-capture-wrapper {
             position: absolute;
             top: 0;
@@ -1612,7 +1993,7 @@ function formatDateTime($date) {
             transform-origin: top left;
         }
 
-        /* The actual certificate - original 750px design untouched */
+        /* The actual certificate */
         .donor-certificate {
             position: relative;
             width: 1200px;
@@ -1626,7 +2007,7 @@ function formatDateTime($date) {
             transform-origin: top left;
         }
 
-        /* All internal elements use fixed pixels - they scale with the transform */
+        /* All internal elements use fixed pixels */
         .cert-church-overlay {
             position: absolute;
             top: 0;
@@ -1802,13 +2183,14 @@ function formatDateTime($date) {
             font-family: 'Courier New', monospace;
         }
 
-        /* Certificate Stats Strip - white bar below the certificate */
+        /* ---- Certificate Stats Strip (inside the image) - Enhanced ---- */
         .cert-stats-strip {
             width: 1200px;
             height: 120px;
-            background: #ffffff;
-            padding: 16px 50px 12px;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            padding: 14px 40px 10px;
             box-sizing: border-box;
+            border-top: 3px solid var(--accent-color, #e2ca18);
         }
 
         .cert-stats-row {
@@ -1819,7 +2201,7 @@ function formatDateTime($date) {
         }
 
         .cert-stats-row.cert-has-progress {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .cert-stat-item {
@@ -1828,39 +2210,39 @@ function formatDateTime($date) {
         }
 
         .cert-stat-label {
-            font-size: 16px;
-            font-weight: 600;
-            color: #999;
+            font-size: 15px;
+            font-weight: 700;
+            color: #8899a6;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
+            letter-spacing: 2px;
             margin-bottom: 2px;
         }
 
         .cert-stat-value {
-            font-size: 30px;
+            font-size: 28px;
             font-weight: 800;
             color: #333;
             line-height: 1.2;
         }
 
         .cert-stat-value.cert-val-pledged { color: #1a73e8; }
-        .cert-stat-value.cert-val-paid-full { color: #2e7d32; }
-        .cert-stat-value.cert-val-paid-partial { color: #e65100; }
-        .cert-stat-value.cert-val-area { color: #2e7d32; }
+        .cert-stat-value.cert-val-paid-full { color: #059669; }
+        .cert-stat-value.cert-val-paid-partial { color: #d97706; }
+        .cert-stat-value.cert-val-area { color: #059669; }
         .cert-stat-value.cert-val-ref {
             font-family: 'Courier New', monospace;
             letter-spacing: 2px;
-            color: #333;
+            color: var(--primary-color, #0a6286);
         }
 
         .cert-stat-divider {
-            width: 1px;
-            height: 36px;
-            background: #e0e0e0;
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(180deg, transparent, #d1d5db, transparent);
             flex-shrink: 0;
         }
 
-        /* Progress bar on certificate */
+        /* Progress bar inside certificate image */
         .cert-progress-wrap {
             margin-top: 0;
         }
@@ -1869,41 +2251,44 @@ function formatDateTime($date) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
 
         .cert-progress-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #999;
+            font-size: 13px;
+            font-weight: 700;
+            color: #8899a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .cert-progress-pct {
             font-size: 14px;
-            font-weight: 700;
+            font-weight: 800;
             color: #333;
         }
 
         .cert-progress-bar {
             width: 100%;
-            height: 10px;
-            background: #e8e8e8;
-            border-radius: 5px;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 6px;
             overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
         }
 
         .cert-progress-fill {
             height: 100%;
-            border-radius: 5px;
+            border-radius: 6px;
             transition: width 0.3s ease;
         }
 
         .cert-progress-fill.cert-fill-full {
-            background: linear-gradient(90deg, #43a047, #2e7d32);
+            background: linear-gradient(90deg, #10b981, #059669);
         }
 
         .cert-progress-fill.cert-fill-partial {
-            background: linear-gradient(90deg, #fb8c00, #e65100);
+            background: linear-gradient(90deg, #e2ca18, #d4a000);
         }
     </style>
 </head>
@@ -2801,56 +3186,76 @@ function formatDateTime($date) {
                         <div id="collapseCertificate" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
                             <div class="accordion-body p-0">
                                 <!-- Certificate Actions -->
-                                <div class="d-flex flex-wrap gap-2 p-3 border-bottom bg-light">
-                                    <button type="button" class="btn btn-success btn-sm rounded-pill px-3 flex-fill flex-sm-grow-0" onclick="downloadDonorCertificate()">
-                                        <i class="fas fa-download me-1"></i> Download
+                                <div class="cert-actions-bar">
+                                    <button type="button" class="cert-action-btn cert-btn-download" onclick="downloadDonorCertificate()">
+                                        <i class="fas fa-download"></i> <span>Download</span>
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 flex-fill flex-sm-grow-0" onclick="sendCertificateWhatsApp()">
-                                        <i class="fab fa-whatsapp me-1"></i> Send WhatsApp
+                                    <button type="button" class="cert-action-btn cert-btn-whatsapp" onclick="sendCertificateWhatsApp()">
+                                        <i class="fab fa-whatsapp"></i> <span>WhatsApp</span>
                                     </button>
-                                    <a href="../certificates/?search=<?= urlencode($donor['phone']) ?>&donor_id=<?= $donor_id ?>" class="btn btn-outline-primary btn-sm rounded-pill px-3 flex-fill flex-sm-grow-0">
-                                        <i class="fas fa-external-link-alt me-1"></i> Full View
+                                    <a href="../certificates/?search=<?= urlencode($donor['phone']) ?>&donor_id=<?= $donor_id ?>" class="cert-action-btn cert-btn-fullview">
+                                        <i class="fas fa-expand-alt"></i> <span>Full View</span>
                                     </a>
                                 </div>
-                                
-                                <!-- Donor Stats Row -->
-                                <div class="row g-2 p-3 border-bottom">
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Ref</div>
-                                            <div class="fw-bold font-monospace small"><?= htmlspecialchars($donor_reference) ?></div>
+
+                                <!-- Premium Donor Stats Cards -->
+                                <div class="cert-donor-stats">
+                                    <div class="cert-donor-stat-card cert-stat-ref">
+                                        <div class="cert-donor-stat-icon"><i class="fas fa-hashtag"></i></div>
+                                        <div class="cert-donor-stat-content">
+                                            <span class="cert-donor-stat-label">Reference</span>
+                                            <span class="cert-donor-stat-val font-monospace"><?= htmlspecialchars($donor_reference) ?></span>
                                         </div>
                                     </div>
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Pledged</div>
-                                            <div class="fw-bold text-primary"><?= $currency . number_format($totalPledged, 0) ?></div>
+                                    <div class="cert-donor-stat-card cert-stat-pledged">
+                                        <div class="cert-donor-stat-icon"><i class="fas fa-hand-holding-heart"></i></div>
+                                        <div class="cert-donor-stat-content">
+                                            <span class="cert-donor-stat-label">Pledged</span>
+                                            <span class="cert-donor-stat-val"><?= $currency . number_format($totalPledged, 0) ?></span>
                                         </div>
                                     </div>
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Paid</div>
-                                            <div class="fw-bold <?= $isFullyPaid ? 'text-success' : 'text-warning' ?>"><?= $currency . number_format($totalPaid, 0) ?></div>
+                                    <div class="cert-donor-stat-card cert-stat-paid <?= $isFullyPaid ? 'cert-stat-paid-full' : '' ?>">
+                                        <div class="cert-donor-stat-icon"><i class="fas fa-coins"></i></div>
+                                        <div class="cert-donor-stat-content">
+                                            <span class="cert-donor-stat-label">Paid</span>
+                                            <span class="cert-donor-stat-val"><?= $currency . number_format($totalPaid, 0) ?></span>
                                         </div>
                                     </div>
-                                    <div class="col-3">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Area</div>
-                                            <div class="fw-bold text-success"><?= $sqmValue ?> m²</div>
+                                    <div class="cert-donor-stat-card cert-stat-area">
+                                        <div class="cert-donor-stat-icon"><i class="fas fa-vector-square"></i></div>
+                                        <div class="cert-donor-stat-content">
+                                            <span class="cert-donor-stat-label">Your Area</span>
+                                            <span class="cert-donor-stat-val"><?= $sqmValue ?> m²</span>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <?php if ($hasPledge && !$isFullyPaid): ?>
-                                <!-- Payment Progress Bar -->
-                                <div class="px-3 py-2 border-bottom bg-light">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <small class="text-muted">Payment Progress</small>
-                                        <small class="fw-bold"><?= $paymentProgress ?>%</small>
+                                <!-- Enhanced Payment Progress -->
+                                <div class="cert-payment-progress">
+                                    <div class="cert-payment-progress-header">
+                                        <div class="cert-payment-progress-title">
+                                            <i class="fas fa-chart-line me-2"></i>Payment Progress
+                                        </div>
+                                        <div class="cert-payment-progress-amount">
+                                            <?= $currency . number_format($totalPaid, 0) ?>
+                                            <span class="cert-payment-progress-of">of</span>
+                                            <?= $currency . number_format($totalPledged, 0) ?>
+                                        </div>
                                     </div>
-                                    <div class="progress" style="height: 6px;">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?= $paymentProgress ?>%"></div>
+                                    <div class="cert-payment-track">
+                                        <div class="cert-payment-fill <?= $paymentProgress >= 100 ? 'cert-payment-complete' : '' ?>" style="width: <?= $paymentProgress ?>%">
+                                            <span class="cert-payment-pct"><?= $paymentProgress ?>%</span>
+                                        </div>
                                     </div>
+                                    <?php
+                                    $remaining = $totalPledged - $totalPaid;
+                                    if ($remaining > 0): ?>
+                                    <div class="cert-payment-remaining">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <?= $currency . number_format($remaining, 0) ?> remaining to complete your pledge
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                                 <?php endif; ?>
                                 
@@ -2937,21 +3342,28 @@ function formatDateTime($date) {
                                 </div>
                                 
                                 <?php if (!$hasPledge): ?>
-                                <div class="alert alert-info m-3 mb-0 rounded-3">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>No pledge recorded.</strong> Once the donor makes a pledge, their certificate will show their allocated area.
+                                <div class="cert-status-banner cert-status-info">
+                                    <div class="cert-status-icon"><i class="fas fa-info-circle"></i></div>
+                                    <div class="cert-status-text">
+                                        <strong>No pledge recorded yet</strong>
+                                        <span>Once a pledge is made, the certificate will show the allocated area.</span>
+                                    </div>
                                 </div>
                                 <?php elseif (!$isFullyPaid): ?>
-                                <div class="alert alert-warning m-3 mb-0 rounded-3 d-flex align-items-center">
-                                    <i class="fas fa-clock me-2"></i>
-                                    <div>
-                                        <strong>Payment in progress</strong> — <?= $currency . number_format($totalPaid, 0) ?> of <?= $currency . number_format($totalPledged, 0) ?> paid (<?= $paymentProgress ?>%)
+                                <div class="cert-status-banner cert-status-progress">
+                                    <div class="cert-status-icon"><i class="fas fa-hourglass-half"></i></div>
+                                    <div class="cert-status-text">
+                                        <strong>Payment in progress</strong>
+                                        <span><?= $currency . number_format($totalPaid, 0) ?> of <?= $currency . number_format($totalPledged, 0) ?> paid — <?= $paymentProgress ?>% complete</span>
                                     </div>
                                 </div>
                                 <?php else: ?>
-                                <div class="alert alert-success m-3 mb-0 rounded-3 d-flex align-items-center">
-                                    <i class="fas fa-check-circle me-2"></i>
-                                    <strong>Fully paid</strong> — Certificate ready for printing
+                                <div class="cert-status-banner cert-status-complete">
+                                    <div class="cert-status-icon"><i class="fas fa-award"></i></div>
+                                    <div class="cert-status-text">
+                                        <strong>Fully Paid — Certificate Ready!</strong>
+                                        <span>This certificate is ready for download and printing.</span>
+                                    </div>
                                 </div>
                                 <?php endif; ?>
                             </div>
