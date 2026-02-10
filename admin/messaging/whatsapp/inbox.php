@@ -738,6 +738,63 @@ if ($selected_id && $tables_exist) {
             min-height: 60px;
         }
         
+        /* Chat header delete action */
+        .chat-header-actions {
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+        .cha-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--wa-text-secondary, #8696a0);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .85rem;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .cha-btn:hover {
+            background: rgba(220,53,69,.1);
+            color: #dc3545;
+        }
+        
+        /* Conversation item context menu (long-press / right-click) */
+        .conv-ctx-menu {
+            position: fixed;
+            z-index: 9999;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+            padding: 6px 0;
+            min-width: 170px;
+            display: none;
+            animation: ctxFadeIn .15s ease;
+        }
+        .conv-ctx-menu.show { display: block; }
+        @keyframes ctxFadeIn { from { opacity:0; transform:scale(.95); } to { opacity:1; transform:scale(1); } }
+        .conv-ctx-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            font-size: .875rem;
+            color: #333;
+            cursor: pointer;
+            transition: background .12s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .conv-ctx-item:hover { background: #f0f2f5; }
+        .conv-ctx-item.danger { color: #dc3545; }
+        .conv-ctx-item.danger:hover { background: #fef2f2; }
+        .conv-ctx-item i { width: 18px; text-align: center; font-size: .8rem; }
+        
         .chat-header-avatar {
             width: 40px;
             height: 40px;
@@ -3049,6 +3106,12 @@ if ($selected_id && $tables_exist) {
                             <div class="chat-header-status"><?php echo $chatStatus; ?></div>
                         </div>
                         <?php endif; ?>
+                        <!-- Chat header actions -->
+                        <div class="chat-header-actions">
+                            <button type="button" class="cha-btn" title="Delete conversation" onclick="event.stopPropagation(); deleteConversation(<?php echo $selected_id; ?>);">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="chat-messages" id="chatMessages">
@@ -4880,6 +4943,91 @@ function deleteConversation(conversationId) {
     openDeleteModal('conversation', conversationId, null);
 }
 
+// ============================================
+// CONVERSATION CONTEXT MENU (right-click / long-press)
+// ============================================
+let ctxConvId = null;
+let ctxConvFilter = '<?php echo htmlspecialchars($filter); ?>';
+let longPressTimer = null;
+
+const ctxMenu = document.getElementById('convCtxMenu');
+
+function showCtxMenu(x, y, convId) {
+    ctxConvId = convId;
+    ctxMenu.style.left = Math.min(x, window.innerWidth - 190) + 'px';
+    ctxMenu.style.top = Math.min(y, window.innerHeight - 150) + 'px';
+    ctxMenu.classList.add('show');
+}
+
+function hideCtxMenu() {
+    ctxMenu.classList.remove('show');
+    ctxConvId = null;
+}
+
+function ctxOpenChat() {
+    hideCtxMenu();
+    if (ctxConvId) window.location.href = '?id=' + ctxConvId + '&filter=' + ctxConvFilter;
+}
+
+function ctxMarkRead() {
+    hideCtxMenu();
+    if (!ctxConvId) return;
+    const fd = new FormData();
+    fd.append('csrf_token', '<?php echo csrf_token(); ?>');
+    fd.append('conversation_ids', JSON.stringify([ctxConvId]));
+    fetch('api/bulk-mark-read.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => { if (d.success) { const el = document.querySelector('.conversation-item[data-conversation-id="' + ctxConvId + '"]'); if (el) { el.classList.remove('unread'); const badge = el.querySelector('.conv-unread-badge'); if (badge) badge.remove(); } } });
+}
+
+function ctxDeleteConversation() {
+    hideCtxMenu();
+    if (ctxConvId) deleteConversation(ctxConvId);
+}
+
+// Right-click on conversation items
+document.addEventListener('contextmenu', function(e) {
+    const item = e.target.closest('.conversation-item');
+    if (item) {
+        e.preventDefault();
+        showCtxMenu(e.clientX, e.clientY, parseInt(item.dataset.conversationId));
+    }
+});
+
+// Long-press on mobile
+document.addEventListener('touchstart', function(e) {
+    const item = e.target.closest('.conversation-item');
+    if (!item) return;
+    const convId = parseInt(item.dataset.conversationId);
+    longPressTimer = setTimeout(function() {
+        const touch = e.touches[0];
+        showCtxMenu(touch.clientX, touch.clientY, convId);
+        // prevent the link navigation
+        item.dataset.longPressed = '1';
+    }, 500);
+}, { passive: true });
+
+document.addEventListener('touchend', function(e) {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    const item = e.target.closest('.conversation-item');
+    if (item && item.dataset.longPressed === '1') {
+        e.preventDefault();
+        delete item.dataset.longPressed;
+    }
+});
+
+document.addEventListener('touchmove', function() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}, { passive: true });
+
+// Close context menu on click anywhere else
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.conv-ctx-menu')) hideCtxMenu();
+});
+
+// Close context menu on scroll
+document.addEventListener('scroll', hideCtxMenu, true);
+
 // Keyboard shortcut to close modals
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -5229,6 +5377,13 @@ async function bulkDelete() {
 </div>
 
 <!-- Delete Confirmation Modal -->
+<!-- Conversation Context Menu -->
+<div class="conv-ctx-menu" id="convCtxMenu">
+    <button class="conv-ctx-item" onclick="ctxOpenChat()"><i class="fas fa-comment"></i> Open Chat</button>
+    <button class="conv-ctx-item" onclick="ctxMarkRead()"><i class="fas fa-check-double"></i> Mark as Read</button>
+    <button class="conv-ctx-item danger" onclick="ctxDeleteConversation()"><i class="fas fa-trash-alt"></i> Delete Chat</button>
+</div>
+
 <div class="delete-modal" id="deleteModal" onclick="if(event.target === this) closeDeleteModal()">
     <div class="delete-modal-content">
         <div class="delete-modal-icon">
