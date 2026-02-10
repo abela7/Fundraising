@@ -126,8 +126,7 @@ class SMSHelper
         array $variables = [], 
         string $sourceType = 'system',
         bool $queue = false,
-        bool $forceImmediate = false,
-        ?string $languageOverride = null
+        bool $forceImmediate = false
     ): array {
         // Get template
         $template = $this->getTemplate($templateKey);
@@ -147,9 +146,8 @@ class SMSHelper
             return $canReceive;
         }
         
-        // Get message in specified language (override) or donor's preferred language
-        $language = $languageOverride ?? ($donor['preferred_language'] ?? 'en');
-        $message = $this->getLocalizedMessage($template, $language);
+        // Get message in donor's preferred language
+        $message = $this->getLocalizedMessage($template, $donor['preferred_language'] ?? 'en');
         
         // Add donor name to variables if not provided
         if (!isset($variables['name'])) {
