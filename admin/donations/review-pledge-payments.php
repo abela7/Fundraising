@@ -2253,6 +2253,109 @@ function undoPayment(id) {
 </div>
 
 <script>
+async function ensureHtml2CanvasLoaded() {
+    if (typeof html2canvas !== 'undefined') return;
+
+    await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Failed to load html2canvas'));
+        document.head.appendChild(script);
+    });
+}
+
+async function fetchDonorCertificateData(donorId) {
+    const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${donorId}`);
+    const dataJson = await dataRes.json();
+    if (!dataJson.success) {
+        throw new Error(dataJson.error || 'Failed to load certificate data');
+    }
+    return dataJson.donor;
+}
+
+async function captureCertificateFromDonorView(donorId) {
+    await ensureHtml2CanvasLoaded();
+
+    return new Promise((resolve, reject) => {
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-99999px';
+        iframe.style.top = '0';
+        iframe.style.width = '1400px';
+        iframe.style.height = '2200px';
+        iframe.style.border = '0';
+        iframe.style.opacity = '0';
+        iframe.src = `../donor-management/view-donor.php?id=${encodeURIComponent(donorId)}`;
+
+        let timeoutId = null;
+        const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        };
+
+        timeoutId = setTimeout(() => {
+            cleanup();
+            reject(new Error('Timed out loading donor certificate view'));
+        }, 25000);
+
+        iframe.onload = async () => {
+            try {
+                const doc = iframe.contentDocument;
+                if (!doc) throw new Error('Unable to load donor certificate document');
+
+                const certSection = doc.getElementById('collapseCertificate');
+                if (certSection) {
+                    certSection.classList.add('show');
+                    certSection.style.display = 'block';
+                    certSection.style.height = 'auto';
+                }
+
+                const certElement = doc.getElementById('donor-certificate');
+                if (!certElement) {
+                    const bodyText = (doc.body?.innerText || '').toLowerCase();
+                    if (bodyText.includes('access denied') || bodyText.includes('unauthorized')) {
+                        throw new Error('Current user cannot access donor certificate view');
+                    }
+                    throw new Error('Donor certificate element not found');
+                }
+
+                const originalTransform = certElement.style.transform;
+                certElement.style.transform = 'none';
+
+                await new Promise(r => setTimeout(r, 350));
+
+                const canvas = await html2canvas(certElement, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: null,
+                    width: 1200,
+                    height: 970
+                });
+
+                certElement.style.transform = originalTransform;
+
+                const blob = await new Promise(resolveBlob => canvas.toBlob(resolveBlob, 'image/png'));
+                if (!blob) throw new Error('Failed to generate certificate image');
+
+                cleanup();
+                resolve(blob);
+            } catch (err) {
+                cleanup();
+                reject(err);
+            }
+        };
+
+        iframe.onerror = () => {
+            cleanup();
+            reject(new Error('Failed to load donor view for certificate capture'));
+        };
+
+        document.body.appendChild(iframe);
+    });
+}
+
 // Override sendNotification — sends certificate image with template message
 sendNotification = async function() {
     if (!currentNotificationData) return;
@@ -2268,79 +2371,13 @@ sendNotification = async function() {
             ? document.getElementById('messageTextarea').value
             : currentNotificationData.message;
 
-        // Step 1: Generate certificate
+        // Step 1: Load canonical donor certificate data
         document.getElementById('sendBtnText').textContent = 'Generating certificate...';
+        const d = await fetchDonorCertificateData(currentNotificationData.donor_id);
 
-        const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
-        const dataJson = await dataRes.json();
-
-        if (!dataJson.success) {
-            // Can't get cert data - show error
-            console.warn('Could not load donor cert data:', dataJson.error);
-            throw new Error('Failed to load certificate data: ' + dataJson.error);
-        }
-
-        const d = dataJson.donor;
-
-        // Populate hidden certificate
-        document.getElementById('certDonorName').textContent = d.name;
-        document.getElementById('certContribution').textContent = d.currency + parseFloat(d.allocation_base).toFixed(2);
-        document.getElementById('certSqmPill').textContent = d.sqm_value + 'm\u00B2';
-        document.getElementById('certRefBottom').textContent = d.reference;
-        document.getElementById('certStatRef').textContent = d.reference;
-        document.getElementById('certStatPledged').textContent = d.currency + Math.round(d.total_pledged).toLocaleString();
-
-        const paidEl = document.getElementById('certStatPaid');
-        paidEl.textContent = d.currency + Math.round(d.total_paid).toLocaleString();
-        paidEl.style.color = d.is_fully_paid ? '#2e7d32' : '#e65100';
-
-        document.getElementById('certStatArea').textContent = d.sqm_value + ' m\u00B2';
-
-        // Progress bar
-        const progressWrap = document.getElementById('certProgressWrap');
-        const statsRow = document.getElementById('certStatsRow');
-        if (d.has_pledge) {
-            progressWrap.style.display = '';
-            statsRow.style.marginBottom = '10px';
-            document.getElementById('certProgressPct').textContent = d.payment_progress + '%';
-            const fill = document.getElementById('certProgressFill');
-            fill.style.width = d.payment_progress + '%';
-            fill.style.background = d.is_fully_paid
-                ? 'linear-gradient(90deg, #43a047, #2e7d32)'
-                : 'linear-gradient(90deg, #fb8c00, #e65100)';
-        } else {
-            progressWrap.style.display = 'none';
-            statsRow.style.marginBottom = '0';
-        }
-
-        // Capture certificate image
+        // Step 2: Capture the SAME certificate as donor-management/view-donor.php
         document.getElementById('sendBtnText').textContent = 'Capturing certificate...';
-
-        if (typeof html2canvas === 'undefined') {
-            await new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                script.onload = resolve;
-                script.onerror = () => reject(new Error('Failed to load html2canvas'));
-                document.head.appendChild(script);
-            });
-        }
-
-        const captureEl = document.getElementById('certCaptureWrapper');
-        const canvas = await html2canvas(captureEl, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: null,
-            width: 1200,
-            height: 870
-        });
-
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (!blob) {
-            console.warn('Failed to generate certificate image blob');
-            throw new Error('Failed to generate certificate image');
-        }
+        const blob = await captureCertificateFromDonorView(currentNotificationData.donor_id);
 
         // Step 2: Send certificate image with template message via WhatsApp
         document.getElementById('sendBtnText').textContent = 'Sending certificate...';
@@ -2575,64 +2612,10 @@ async function sendFullyPaidNotification() {
         setFpStep(0);
         sendText.textContent = 'Generating certificate...';
 
-        // Fetch fresh donor data
-        const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${currentNotificationData.donor_id}`);
-        const dataJson = await dataRes.json();
-        if (!dataJson.success) {
-            throw new Error(dataJson.error || 'Failed to load donor data');
-        }
-
-        const d = dataJson.donor;
-
-        // Populate hidden certificate
-        document.getElementById('certDonorName').textContent = d.name;
-        document.getElementById('certContribution').textContent = d.currency + parseFloat(d.allocation_base).toFixed(2);
-        document.getElementById('certSqmPill').textContent = d.sqm_value + 'm\u00B2';
-        document.getElementById('certRefBottom').textContent = d.reference;
-        document.getElementById('certStatRef').textContent = d.reference;
-        document.getElementById('certStatPledged').textContent = d.currency + Math.round(d.total_pledged).toLocaleString();
-
-        const paidEl = document.getElementById('certStatPaid');
-        paidEl.textContent = d.currency + Math.round(d.total_paid).toLocaleString();
-        paidEl.style.color = '#2e7d32'; // Always green for fully paid
-
-        document.getElementById('certStatArea').textContent = d.sqm_value + ' m\u00B2';
-
-        // Progress bar - always 100% for fully paid
-        const progressWrap = document.getElementById('certProgressWrap');
-        const statsRow = document.getElementById('certStatsRow');
-        progressWrap.style.display = '';
-        statsRow.style.marginBottom = '10px';
-        document.getElementById('certProgressPct').textContent = '100%';
-        const fill = document.getElementById('certProgressFill');
-        fill.style.width = '100%';
-        fill.style.background = 'linear-gradient(90deg, #43a047, #2e7d32)';
+        const d = await fetchDonorCertificateData(currentNotificationData.donor_id);
 
         sendText.textContent = 'Capturing certificate...';
-
-        // Load html2canvas
-        if (typeof html2canvas === 'undefined') {
-            await new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                script.onload = resolve;
-                script.onerror = () => reject(new Error('Failed to load html2canvas'));
-                document.head.appendChild(script);
-            });
-        }
-
-        const captureEl = document.getElementById('certCaptureWrapper');
-        const canvas = await html2canvas(captureEl, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: null,
-            width: 1200,
-            height: 870
-        });
-
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (!blob) throw new Error('Failed to generate certificate image');
+        const blob = await captureCertificateFromDonorView(currentNotificationData.donor_id);
 
         setFpStep(1);
         sendText.textContent = 'Sending certificate...';
