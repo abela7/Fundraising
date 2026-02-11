@@ -504,57 +504,6 @@ try {
         $pledges[] = $p;
     }
     
-    // Extract 4-digit reference number from pledge notes OR payment reference fields.
-    // We track which record it came from so edits target the right row.
-    $donor_reference = null;
-    $donor_reference_source_type = null; // 'pledge' or 'payment'
-    $donor_reference_source_id = null;   // pledge.id or payment.id
-    $donor_reference_is_fallback = true;
-    
-    // First, search pledges (check notes field)
-    if (!empty($pledges)) {
-        foreach ($pledges as $p_ref) {
-            if (!empty($p_ref['notes']) && preg_match('/\b(\d{4})\b/', $p_ref['notes'], $matches)) {
-                $donor_reference = $matches[1];
-                $donor_reference_source_type = 'pledge';
-                $donor_reference_source_id = (int)$p_ref['id'];
-                $donor_reference_is_fallback = false;
-                break;
-            }
-        }
-    }
-    
-    // If not found in pledges, search instant payments (check reference field)
-    if (!$donor_reference && !empty($payments)) {
-        foreach ($payments as $pay_ref) {
-            if ($pay_ref['payment_type'] === 'instant' && !empty($pay_ref['reference'])) {
-                if (preg_match('/\b(\d{4})\b/', $pay_ref['reference'], $matches)) {
-                    $donor_reference = $matches[1];
-                    $donor_reference_source_type = 'payment';
-                    $donor_reference_source_id = (int)$pay_ref['id'];
-                    $donor_reference_is_fallback = false;
-                    break;
-                }
-            }
-        }
-    }
-    
-    // Fallback to donor ID if no reference found anywhere
-    if (!$donor_reference) {
-        $donor_reference = str_pad((string)$donor['id'], 4, '0', STR_PAD_LEFT);
-        // Use the most recent pledge OR payment as the target for creating a reference
-        if (!empty($pledges)) {
-            $donor_reference_source_type = 'pledge';
-            $donor_reference_source_id = (int)$pledges[0]['id'];
-        } elseif (!empty($payments)) {
-            $donor_reference_source_type = 'payment';
-            $donor_reference_source_id = (int)$payments[0]['id'];
-        } else {
-            $donor_reference_source_type = null;
-            $donor_reference_source_id = null;
-        }
-    }
-
     // 3. Payments (includes both instant payments and pledge payments)
     $payments = [];
     
@@ -623,6 +572,7 @@ try {
             $pay['display_date'] = $pay['payment_date'];
             $pay['display_method'] = $pay['payment_method'];
             $pay['display_ref'] = $pay['reference'];
+            // 'reference' is already set from the SELECT
             $payments[] = $pay;
         }
     } else {
@@ -643,8 +593,62 @@ try {
             $pay['display_date'] = $pay[$date_col];
             $pay['display_method'] = $pay[$method_col];
             $pay['display_ref'] = $pay[$ref_col];
+            $pay['reference'] = $pay[$ref_col]; // Add consistent 'reference' key
             $pay['payment_type'] = 'instant';
             $payments[] = $pay;
+        }
+    }
+
+    // Extract 4-digit reference number from pledge notes OR payment reference fields.
+    // We track which record it came from so edits target the right row.
+    $donor_reference = null;
+    $donor_reference_source_type = null; // 'pledge' or 'payment'
+    $donor_reference_source_id = null;   // pledge.id or payment.id
+    $donor_reference_is_fallback = true;
+    
+    // First, search pledges (check notes field)
+    if (!empty($pledges)) {
+        foreach ($pledges as $p_ref) {
+            if (!empty($p_ref['notes']) && preg_match('/\b(\d{4})\b/', $p_ref['notes'], $matches)) {
+                $donor_reference = $matches[1];
+                $donor_reference_source_type = 'pledge';
+                $donor_reference_source_id = (int)$p_ref['id'];
+                $donor_reference_is_fallback = false;
+                break;
+            }
+        }
+    }
+    
+    // If not found in pledges, search instant payments (check reference/display_ref field)
+    if (!$donor_reference && !empty($payments)) {
+        foreach ($payments as $pay_ref) {
+            // Check both 'reference' and 'display_ref' fields
+            $ref_value = $pay_ref['reference'] ?? $pay_ref['display_ref'] ?? '';
+            if ($pay_ref['payment_type'] === 'instant' && !empty($ref_value)) {
+                if (preg_match('/\b(\d{4})\b/', $ref_value, $matches)) {
+                    $donor_reference = $matches[1];
+                    $donor_reference_source_type = 'payment';
+                    $donor_reference_source_id = (int)$pay_ref['id'];
+                    $donor_reference_is_fallback = false;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Fallback to donor ID if no reference found anywhere
+    if (!$donor_reference) {
+        $donor_reference = str_pad((string)$donor['id'], 4, '0', STR_PAD_LEFT);
+        // Use the most recent pledge OR payment as the target for creating a reference
+        if (!empty($pledges)) {
+            $donor_reference_source_type = 'pledge';
+            $donor_reference_source_id = (int)$pledges[0]['id'];
+        } elseif (!empty($payments)) {
+            $donor_reference_source_type = 'payment';
+            $donor_reference_source_id = (int)$payments[0]['id'];
+        } else {
+            $donor_reference_source_type = null;
+            $donor_reference_source_id = null;
         }
     }
 
