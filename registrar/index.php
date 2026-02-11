@@ -109,11 +109,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'A unique submission ID is required. Please refresh and try again.';
     }
 
-    // Validation for donor details (always required)
-    if ($name === '') {
-        $error = 'Full name is required.';
-    } elseif ($phone === '') {
-        $error = 'Phone number is required.';
+    // Validation for donor details (required unless anonymous)
+    if (!$anonymous) {
+        if ($name === '') {
+            $error = 'Full name is required.';
+        } elseif ($phone === '') {
+            $error = 'Phone number is required.';
+        }
     }
 
     // Normalize and validate UK mobile phone for pledges and non-anonymous paid
@@ -648,26 +650,24 @@ if (isset($_SESSION['success_message'])) {
         });
     });
     
-    // Anonymous toggle
-    document.getElementById('anonymous').addEventListener('change', function() {
+    // Anonymous toggle: name and phone are optional when anonymous
+    function applyAnonymousState() {
+        const anonEl = document.getElementById('anonymous');
         const nameField = document.getElementById('name');
         const phoneField = document.getElementById('phone');
-        
-        if (this.checked) {
-            nameField.required = false;
-            phoneField.required = false;
-            nameField.placeholder = 'Anonymous';
-            phoneField.placeholder = 'Anonymous';
-            // Clear validation classes when anonymous
+        if (!anonEl || !nameField || !phoneField) return;
+        const isAnon = anonEl.checked;
+        nameField.required = !isAnon;
+        phoneField.required = !isAnon;
+        nameField.placeholder = isAnon ? 'Anonymous' : 'Enter full name';
+        phoneField.placeholder = isAnon ? 'Anonymous' : 'Enter phone number';
+        if (isAnon) {
             nameField.classList.remove('is-valid', 'is-invalid');
             phoneField.classList.remove('is-valid', 'is-invalid');
-        } else {
-            nameField.required = true;
-            phoneField.required = true;
-            nameField.placeholder = 'Enter full name';
-            phoneField.placeholder = 'Enter phone number';
         }
-    });
+    }
+    document.getElementById('anonymous').addEventListener('change', applyAnonymousState);
+    applyAnonymousState(); // Run on load in case anonymous is pre-checked (e.g. form re-display)
     </script>
 </body>
 </html>
