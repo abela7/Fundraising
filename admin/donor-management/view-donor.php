@@ -542,7 +542,7 @@ try {
                 pay.{$date_col} as sort_date
             FROM payments pay
             LEFT JOIN users u ON pay.{$approver_col} = u.id
-            WHERE pay.donor_phone = ?
+            WHERE pay.donor_phone = ? OR pay.donor_id = ?
             
             UNION ALL
             
@@ -564,7 +564,7 @@ try {
             ORDER BY sort_date DESC
         ";
         $stmt = $db->prepare($payment_query);
-        $stmt->bind_param('si', $donor['phone'], $donor_id);
+        $stmt->bind_param('sii', $donor['phone'], $donor_id, $donor_id);
         $stmt->execute();
         $payment_result = $stmt->get_result();
         while ($pay = $payment_result->fetch_assoc()) {
@@ -581,11 +581,11 @@ try {
             SELECT pay.*, u.name as approver_name 
             FROM payments pay
             LEFT JOIN users u ON pay.{$approver_col} = u.id
-            WHERE pay.donor_phone = ? 
+            WHERE pay.donor_phone = ? OR pay.donor_id = ?
             ORDER BY pay.{$date_col} DESC
         ";
         $stmt = $db->prepare($payment_query);
-        $stmt->bind_param('s', $donor['phone']);
+        $stmt->bind_param('si', $donor['phone'], $donor_id);
         $stmt->execute();
         $payment_result = $stmt->get_result();
         while ($pay = $payment_result->fetch_assoc()) {
@@ -619,12 +619,14 @@ try {
         }
     }
     
-    // If not found in pledges, search instant payments (check reference/display_ref field)
+    // If not found in pledges, search payments (check reference/display_ref field)
     if (!$donor_reference && !empty($payments)) {
         foreach ($payments as $pay_ref) {
             // Check both 'reference' and 'display_ref' fields
             $ref_value = $pay_ref['reference'] ?? $pay_ref['display_ref'] ?? '';
-            if ($pay_ref['payment_type'] === 'instant' && !empty($ref_value)) {
+            
+            // Search ALL payments (not just instant) for a 4-digit reference
+            if (!empty($ref_value)) {
                 if (preg_match('/\b(\d{4})\b/', $ref_value, $matches)) {
                     $donor_reference = $matches[1];
                     $donor_reference_source_type = 'payment';
