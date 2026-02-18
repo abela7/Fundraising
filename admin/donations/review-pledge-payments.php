@@ -1590,11 +1590,10 @@ function build_url($params) {
                         <span class="value" id="notifyBalance">£0.00</span>
                     </div>
                 </div>
-                <div id="notifyRoutingNotice" class="alert alert-warning py-2 px-3 mt-2 mb-3 d-none">
+                <div id="notifyRoutingNotice" class="alert alert-warning py-2 px-3 mt-2 mb-3">
                     <i class="fas fa-user-shield me-1"></i>
-                    Assigned to <strong id="notifyRoutingAgent">Kesis Birhanu</strong>.
-                    This message and certificate will be sent to
-                    <strong id="notifyRoutingPhone">07473822244</strong>.
+                    Notification will be sent to <strong id="notifyRoutingAgent">-</strong>
+                    (<strong id="notifyRoutingPhone">-</strong>)
                 </div>
                 
                 <!-- Certificate Info -->
@@ -1687,11 +1686,10 @@ function build_url($params) {
                         <span>100% Payment Complete</span>
                     </div>
                 </div>
-                <div id="fpRoutingNotice" class="alert alert-warning py-2 px-3 mb-3 d-none">
+                <div id="fpRoutingNotice" class="alert alert-warning py-2 px-3 mb-3">
                     <i class="fas fa-user-shield me-1"></i>
-                    Assigned to <strong id="fpRoutingAgent">Kesis Birhanu</strong>.
-                    This message and certificate will be sent to
-                    <strong id="fpRoutingPhone">07473822244</strong>.
+                    Notification will be sent to <strong id="fpRoutingAgent">-</strong>
+                    (<strong id="fpRoutingPhone">-</strong>)
                 </div>
 
                 <!-- Certificate Info -->
@@ -1834,15 +1832,13 @@ function renderRoutingNotice(data, noticeId, agentId, phoneId) {
     if (!noticeEl) return;
 
     const routing = getRoutingTarget(data);
-    if (!routing.routedToKesis) {
-        noticeEl.classList.add('d-none');
-        return;
-    }
-
+    const recipientName = routing.routedToKesis
+        ? routing.assignedName || KESIS_BIRHANU_NAME
+        : (data?.donor_name || 'Donor');
     const agentEl = document.getElementById(agentId);
     const phoneEl = document.getElementById(phoneId);
-    if (agentEl) agentEl.textContent = routing.assignedName;
-    if (phoneEl) phoneEl.textContent = routing.destinationPhone;
+    if (agentEl) agentEl.textContent = recipientName;
+    if (phoneEl) phoneEl.textContent = routing.destinationPhone || '';
     noticeEl.classList.remove('d-none');
 }
 
