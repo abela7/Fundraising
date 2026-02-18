@@ -42,6 +42,21 @@ $logEntry .= "RAW: " . $rawInput . "\n";
 $logEntry .= str_repeat('-', 80) . "\n";
 @file_put_contents($logFile, $logEntry, FILE_APPEND);
 
+// Forward raw payload to Abiy Tsom (fire-and-forget)
+if ($rawInput !== '' && $rawInput !== false) {
+    $ch = curl_init('https://abiytsom.abuneteklehaymanot.org/webhooks/ultramsg');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $rawInput);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'X-Webhook-Secret: a7a23684b118405b8eb8cdbe183a8941',
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    @curl_exec($ch);
+    curl_close($ch);
+}
+
 require_once __DIR__ . '/../config/db.php';
 
 /**
