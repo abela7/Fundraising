@@ -1812,39 +1812,15 @@ function phonesMatch(phoneA, phoneB) {
     return a.replace(/^0/, '') === b.replace(/^0/, '');
 }
 
-function normalizeNameForComparison(name) {
-    return String(name || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
-        .trim();
-}
-
-function isNameKesisBirhanu(name) {
-    const normalized = normalizeNameForComparison(name);
-    return normalized.includes('kesis') && normalized.includes('birhanu');
-}
-
 function isAssignedToKesisBirhanu(data) {
     if (!data) return false;
 
-    const candidatePhones = [
-        data.assigned_agent_phone,
-        data.assigned_representative_phone
-    ];
-
-    const hasMatchingPhone = candidatePhones.some(phone => phonesMatch(phone, KESIS_BIRHANU_PHONE));
-    const hasMatchingName =
-        isNameKesisBirhanu(data.assigned_agent_name) ||
-        isNameKesisBirhanu(data.assigned_representative_name);
-
-    return hasMatchingPhone || hasMatchingName;
+    return phonesMatch(data.assigned_agent_phone, KESIS_BIRHANU_PHONE);
 }
 
 function getRoutingTarget(data) {
     const routedToKesis = isAssignedToKesisBirhanu(data);
-    const assignedName = data?.assigned_agent_name ||
-        data?.assigned_representative_name ||
-        KESIS_BIRHANU_NAME;
+    const assignedName = data?.assigned_agent_name || KESIS_BIRHANU_NAME;
 
     return {
         routedToKesis,
@@ -2085,8 +2061,6 @@ function showConfirmationMessage(paymentId, btn = null) {
         sqm_value: parseFloat(card.dataset.sqmValue || '0'),
         assigned_agent_name: card.dataset.assignedAgentName || '',
         assigned_agent_phone: card.dataset.assignedAgentPhone || '',
-        assigned_representative_name: card.dataset.assignedRepresentativeName || '',
-        assigned_representative_phone: card.dataset.assignedRepresentativePhone || ''
     };
 
     const routing = getRoutingTarget(data);
