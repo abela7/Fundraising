@@ -42,6 +42,7 @@ try {
             -- Pledge Details
             p.id as pledge_id,
             p.amount as pledge_amount,
+            p.notes as pledge_notes,
             p.created_at as pledge_date,
             p.status as pledge_status,
             
@@ -106,6 +107,21 @@ try {
     if (!$summary) {
         header('Location: index.php');
         exit;
+    }
+
+    // Communication context
+    $is_one_time_payment = ((int)$summary->total_payments === 1);
+    $plan_confirmation_template_key = $is_one_time_payment ? 'one_time_payment_confirmation' : 'payment_plan_created';
+    $bank_details = "Account Name: LMKATH\nAccount Number: 85455687\nSort Code: 53-70-44";
+    $payment_day_label = $summary->plan_start_date
+        ? date('M j, Y', strtotime($summary->plan_start_date))
+        : 'your agreed payment date';
+    $reference_number = '';
+    if (!empty($summary->pledge_notes)) {
+        $reference_number = preg_replace('/\D+/', '', (string)$summary->pledge_notes);
+    }
+    if ($reference_number === '') {
+        $reference_number = str_pad((string)$summary->donor_id, 4, '0', STR_PAD_LEFT);
     }
     
     // Format duration
@@ -197,7 +213,7 @@ try {
         $sms_helper = new SMSHelper($db);
         $sms_available = $sms_helper->isReady();
         if ($sms_available) {
-            $sms_template = $sms_helper->getTemplate('payment_plan_created');
+            $sms_template = $sms_helper->getTemplate($plan_confirmation_template_key);
         }
     } catch (Throwable $e) {
         // SMS not available
@@ -216,6 +232,7 @@ try {
         try {
             if ($sms_available && $sms_template) {
                 $firstName = getFirstName($summary->donor_name);
+                $fullName = $summary->donor_name;
                 $amount = '£' . number_format((float)$summary->plan_monthly_amount, 0);
                 $startDate = date('M j, Y', strtotime($summary->plan_start_date));
                 $nextPaymentDate = $summary->next_payment_due ? date('M j, Y', strtotime($summary->next_payment_due)) : $startDate;
@@ -227,24 +244,36 @@ try {
                     $paymentMethodText = "Cash (Rep: {$repFirstName})";
                 }
                 
-                $variables = [
+                if ($is_one_time_payment) {
+                    $variables = [
+                        'donor_name' => $fullName,
+                        'name' => $firstName,
+                        'amount' => 'Â£' . number_format((float)$summary->plan_total_amount, 0),
+                        'payment_day' => $payment_day_label,
+                        'bank_details' => $bank_details,
+                        'reference_number' => $reference_number,
+                        'total_payments' => 1,
+                    ];
+                } else {
+                    $variables = [
                         'name' => $firstName,
                         'amount' => $amount,
                         'frequency' => $frequency_sms,
-                    'frequency_am' => $frequency_am,
+                        'frequency_am' => $frequency_am,
                         'total_payments' => $summary->total_payments,
                         'start_date' => $startDate,
                         'payment_method' => $paymentMethodText,
-                    'next_payment_due' => $nextPaymentDate,
+                        'next_payment_due' => $nextPaymentDate,
                         'representative' => $representative_name ? getFirstName($representative_name) : '',
                         'portal_link' => 'https://bit.ly/4p0J1gf'
-                ];
+                    ];
+                }
 
                 // Use template delivery mode (default: WhatsApp -> SMS fallback)
                 $msg_helper = new MessagingHelper($db);
 
                 $result = $msg_helper->sendFromTemplate(
-                    'payment_plan_created',
+                    $plan_confirmation_template_key,
                     $donor_id,
                     $variables,
                     MessagingHelper::CHANNEL_AUTO,
@@ -728,11 +757,22 @@ $page_title = 'Payment Plan Summary';
                         ? 'Send Plan Confirmation (WhatsApp / Amharic)'
                         : 'Send Plan Confirmation (Default Mode)');
                 
-                $previewMessage = str_replace(
-                    ['{name}', '{amount}', '{frequency}', '{frequency_am}', '{total_payments}', '{start_date}', '{payment_method}', '{next_payment_due}', '{portal_link}'],
-                    [$firstName, $amount, $frequency_sms, $frequency_am, $summary->total_payments, $startDate, $paymentMethodText, $nextPaymentDate, 'https://bit.ly/4p0J1gf'],
-                    $templateMessage
-                );
+                $templateVariablesForPreview = [
+                    '{donor_name}' => $summary->donor_name,
+                    '{name}' => $firstName,
+                    '{amount}' => $amount,
+                    '{frequency}' => $frequency_sms,
+                    '{frequency_am}' => $frequency_am,
+                    '{total_payments}' => $summary->total_payments,
+                    '{start_date}' => $startDate,
+                    '{payment_method}' => $paymentMethodText,
+                    '{next_payment_due}' => $nextPaymentDate,
+                    '{portal_link}' => 'https://bit.ly/4p0J1gf',
+                    '{payment_day}' => $payment_day_label,
+                    '{bank_details}' => $bank_details,
+                    '{reference_number}' => $reference_number
+                ];
+                $previewMessage = strtr($templateMessage, $templateVariablesForPreview);
                 // Remove unused variables
                 $previewMessage = preg_replace('/\{[a-z_]+\}/', '', $previewMessage);
                 $previewMessage = trim($previewMessage);
@@ -774,7 +814,7 @@ $page_title = 'Payment Plan Summary';
                 <div class="alert alert-warning mb-4">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>SMS Template Not Found!</strong><br>
-                    <small>Please create a template with key <code>payment_plan_created</code> in 
+                    <small>Please create a template with key <code><?php echo htmlspecialchars($plan_confirmation_template_key); ?></code> in 
                     <a href="../donor-management/sms/templates.php?action=new" target="_blank">SMS Templates</a></small>
                 </div>
                 <?php endif; ?>
