@@ -26,6 +26,10 @@ try {
     $phone = trim((string)($_POST['phone'] ?? ''));
     $channel = strtolower(trim((string)($_POST['channel'] ?? 'whatsapp')));
     $reference = trim((string)($_POST['reference_number'] ?? ''));
+    $planId = trim((string)($_POST['plan_id'] ?? ''));
+    $planDuration = (int)($_POST['plan_duration'] ?? 0);
+    $paymentDay = trim((string)($_POST['payment_day'] ?? ''));
+    $isOneTimePayment = ($planId === 'def_0' || $planDuration === 1);
 
     if (!in_array($channel, ['whatsapp', 'sms'], true)) {
         $channel = 'whatsapp';
@@ -82,16 +86,47 @@ try {
         $reference = 'N/A';
     }
     
-    $message = "Account Name: LMKATH\n";
-    $message .= "Account Number: 85455687\n";
-    $message .= "Sort Code: 53-70-44\n";
-    $message .= "Reference number: {$reference}";
-    if ($donor_name !== '') {
-        $message = "Hi {$donor_name},\n\n" . $message;
-    }
-    
+    $bankDetails = "Account Name: LMKATH\nAccount Number: 85455687\nSort Code: 53-70-44";
     $messaging = new MessagingHelper($db);
-    $result = $messaging->sendDirect($phone, $message, $channel, $donor_id, 'call_center', false);
+    $message = '';
+    $result = null;
+
+    if ($isOneTimePayment) {
+        $templateKey = 'one_time_payment_confirmation';
+        $templateVariables = [
+            'donor_name' => $donor_name,
+            'payment_day' => $paymentDay !== '' ? $paymentDay : 'your scheduled payment date',
+            'bank_details' => $bankDetails,
+            'reference_number' => $reference
+        ];
+
+        $result = $messaging->sendFromTemplate(
+            $templateKey,
+            $donor_id,
+            $templateVariables,
+            $channel,
+            'call_center',
+            false,
+            true
+        );
+
+        // Fallback to direct message if template is missing or sends fail.
+        if (!($result['success'] ?? false) && isset($result['error']) && stripos((string)$result['error'], 'not found') !== false) {
+            $message = "Hi {$donor_name},\n\n";
+            $message .= "Thanks for taking your time to speak to us.\n";
+            $message .= "We also would like to thank you for confirming to pay in full at this " . ($paymentDay !== '' ? $paymentDay : 'scheduled date') . ".\n\n";
+            $message .= "{$bankDetails}\n";
+            $message .= "Reference number: {$reference}";
+            $result = $messaging->sendDirect($phone, $message, $channel, $donor_id, 'call_center', false);
+        }
+    } else {
+        $message = "Hi {$donor_name},\n\n";
+        $message .= "Account Name: LMKATH\n";
+        $message .= "Account Number: 85455687\n";
+        $message .= "Sort Code: 53-70-44\n";
+        $message .= "Reference number: {$reference}";
+        $result = $messaging->sendDirect($phone, $message, $channel, $donor_id, 'call_center', false);
+    }
     
     if (!($result['success'] ?? false)) {
         throw new Exception($result['error'] ?? 'Failed to send message');

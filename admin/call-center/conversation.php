@@ -1627,6 +1627,9 @@ $page_title = 'Live Call';
         const donorId = <?php echo (int)$donor_id; ?>;
         const donorPhone = document.getElementById('donorPhone').value || '';
         const referenceNumber = document.getElementById('donorReferenceNumber').value || '';
+        const planId = document.getElementById('selectedPlanId').value || '';
+        const planDuration = document.getElementById('selectedDuration').value || '';
+        const paymentDay = getPaymentDayForBankMessage();
         
         if (!donorId) {
             alert('Missing donor information. Please refresh the page and try again.');
@@ -1647,7 +1650,10 @@ $page_title = 'Live Call';
             donor_id: donorId.toString(),
             phone: donorPhone,
             reference_number: referenceNumber,
-            channel: channel
+            channel: channel,
+            plan_id: planId,
+            plan_duration: planDuration,
+            payment_day: paymentDay
         });
         
         fetch('api/send-bank-details.php', {
@@ -1658,11 +1664,11 @@ $page_title = 'Live Call';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    statusEl.className = 'small text-success';
-                    statusEl.textContent = 'Bank details sent successfully to ' + (channel === 'whatsapp' ? 'WhatsApp' : 'SMS') + '.';
-                } else {
-                    throw new Error(data.error || 'Failed to send bank details.');
-                }
+                statusEl.className = 'small text-success';
+                statusEl.textContent = 'Bank details sent successfully to ' + (channel === 'whatsapp' ? 'WhatsApp' : 'SMS') + '.';
+            } else {
+                throw new Error(data.error || 'Failed to send bank details.');
+            }
             })
             .catch(error => {
                 console.error('Bank details send error:', error);
@@ -1670,9 +1676,32 @@ $page_title = 'Live Call';
                 statusEl.textContent = error.message;
             })
             .finally(() => {
-                btnWhatsapp.disabled = false;
-                btnSms.disabled = false;
-            });
+            btnWhatsapp.disabled = false;
+            btnSms.disabled = false;
+        });
+    }
+
+    function getPaymentDayForBankMessage() {
+        const planId = document.getElementById('selectedPlanId').value || '';
+        const startDateInput = document.getElementById('startDate');
+        let paymentDay = '';
+        
+        if (startDateInput && startDateInput.value) {
+            const parsedDate = new Date(startDateInput.value);
+            if (!Number.isNaN(parsedDate.getTime())) {
+                const options = { day: 'numeric', month: 'short', year: 'numeric' };
+                paymentDay = parsedDate.toLocaleDateString('en-GB', options);
+            }
+        }
+        
+        if (planId === 'custom') {
+            const customDay = (document.getElementById('customPaymentDay')?.value || '').trim();
+            if (customDay) {
+                paymentDay = `Day ${customDay} of each month`;
+            }
+        }
+        
+        return paymentDay;
     }
     
     // Validate cash selection
