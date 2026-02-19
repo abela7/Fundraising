@@ -1973,12 +1973,15 @@ if ($selected_id && $tables_exist) {
         }
         
         .template-item {
-            padding: 0.75rem;
+            padding: 0.8rem 0.9rem;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
             border: 1px solid transparent;
             margin-bottom: 0.25rem;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
         }
         
         .template-item:hover {
@@ -1988,20 +1991,12 @@ if ($selected_id && $tables_exist) {
         
         .template-name {
             font-weight: 600;
-            font-size: 0.875rem;
+            font-size: 0.9375rem;
             color: var(--wa-text);
-            margin-bottom: 0.25rem;
+            margin: 0;
         }
         
-        .template-preview {
-            font-size: 0.8125rem;
-            color: var(--wa-text-secondary);
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
+        
         
         .templates-empty {
             text-align: center;
@@ -2020,8 +2015,17 @@ if ($selected_id && $tables_exist) {
             .templates-menu {
                 left: 0;
                 right: 0;
-                max-height: 60vh;
+                max-height: 65vh;
                 border-radius: 12px 12px 0 0;
+            }
+            
+            .template-item {
+                min-height: 48px;
+                padding: 1rem;
+            }
+
+            .template-name {
+                font-size: 1rem;
             }
         }
         
@@ -3861,26 +3865,18 @@ function displayTemplates(grouped) {
     
     let html = '';
     
-    for (const [category, templates] of Object.entries(grouped)) {
-        html += `<div class="templates-category">`;
-        html += `<div class="templates-category-title">${escapeHtml(category)}</div>`;
-        
-        templates.forEach(template => {
-            const preview = template.content.length > 80 
-                ? template.content.substring(0, 80) + '...' 
-                : template.content;
-            
-            // Use data attribute to store template ID safely
-            html += `
-                <div class="template-item" data-template-id="${template.id}">
-                    <div class="template-name">${escapeHtml(template.name)}</div>
-                    <div class="template-preview">${escapeHtml(preview)}</div>
-                </div>
-            `;
-        });
-        
-        html += `</div>`;
+    const flatTemplates = [];
+    for (const templates of Object.values(grouped)) {
+        templates.forEach(template => flatTemplates.push(template));
     }
+    
+    flatTemplates.forEach(template => {
+        html += `
+            <div class="template-item" data-template-id="${template.id}">
+                <div class="template-name">${escapeHtml(template.name)}</div>
+            </div>
+        `;
+    });
     
     content.innerHTML = html;
     
@@ -5403,4 +5399,3 @@ async function bulkDelete() {
 
 </body>
 </html>
-
