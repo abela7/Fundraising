@@ -221,11 +221,41 @@ if ($selected_id && $tables_exist) {
             // Prepare donor data for template variable replacement
             $donor_name = $selected_conversation['donor_name'] ?? $selected_conversation['contact_name'] ?? 'Donor';
             $first_name = explode(' ', trim($donor_name))[0];
-            
-            // Get latest payment plan if exists
+            $donor_id = (int)($selected_conversation['donor_id'] ?? 0);
+            $bank_account_name = 'LMKATH';
+            $bank_account_number = '85455687';
+            $sort_code = '53-70-44';
+            $amount = (float)($selected_conversation['donor_balance'] ?? 0);
             $payment_plan = null;
-            if ($selected_conversation['donor_id']) {
-                // Check if payment_plans table exists
+            $payment_day = '';
+            $due_date = '';
+
+            // Resolve reference number from latest approved pledge notes
+            $reference_number = '';
+            if ($donor_id > 0) {
+                $referenceStmt = $db->prepare("
+                    SELECT notes
+                    FROM pledges
+                    WHERE donor_id = ? AND status = 'approved'
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ");
+                if ($referenceStmt) {
+                    $referenceStmt->bind_param('i', $donor_id);
+                    $referenceStmt->execute();
+                    $refRow = $referenceStmt->get_result()->fetch_assoc();
+                    if (!empty($refRow['notes'])) {
+                        $reference_number = preg_replace('/\\D+/', '', (string)$refRow['notes']);
+                    }
+                    $referenceStmt->close();
+                }
+            }
+            if ($reference_number === '') {
+                $reference_number = str_pad((string)$donor_id, 4, '0', STR_PAD_LEFT);
+            }
+            
+            if ($donor_id > 0) {
+                // Get latest payment plan if exists
                 $tableCheck = $db->query("SHOW TABLES LIKE 'payment_plans'");
                 if ($tableCheck && $tableCheck->num_rows > 0) {
                     $plan_stmt = $db->prepare("
@@ -237,12 +267,45 @@ if ($selected_id && $tables_exist) {
                         LIMIT 1
                     ");
                     if ($plan_stmt) {
-                        $plan_stmt->bind_param('i', $selected_conversation['donor_id']);
+                        $plan_stmt->bind_param('i', $donor_id);
                         $plan_stmt->execute();
                         $plan_result = $plan_stmt->get_result();
                         $payment_plan = $plan_result ? $plan_result->fetch_assoc() : null;
+                        if ($payment_plan) {
+                            if (isset($payment_plan['amount'])) {
+                                $amount = (float)$payment_plan['amount'];
+                            }
+                            if (!empty($payment_plan['payment_day'])) {
+                                $payment_day = (string)$payment_plan['payment_day'];
+                            }
+                            if (!empty($payment_plan['next_due_date'])) {
+                                $due_date = date('j M Y', strtotime((string)$payment_plan['next_due_date']));
+                            } elseif (!empty($payment_plan['start_date'])) {
+                                $due_date = date('j M Y', strtotime((string)$payment_plan['start_date']));
+                            }
+                        }
                     }
                 }
+            }
+            
+            if ($payment_day === '') {
+                $payment_day = date('j');
+            }
+            $payment_day_num = (int)$payment_day;
+            $suffix = 'th';
+            if (!in_array($payment_day_num % 100, [11, 12, 13], true)) {
+                $last = $payment_day_num % 10;
+                if ($last === 1) {
+                    $suffix = 'st';
+                } elseif ($last === 2) {
+                    $suffix = 'nd';
+                } elseif ($last === 3) {
+                    $suffix = 'rd';
+                }
+            }
+            $payment_day_label = $payment_day_num > 0 ? ($payment_day_num . $suffix) : $payment_day;
+            if ($due_date === '') {
+                $due_date = date('j M Y');
             }
             
             // Build template data
@@ -256,6 +319,7 @@ if ($selected_id && $tables_exist) {
             
             $donor_template_data = [
                 'name' => $donor_name,
+                'donor_name' => $donor_name,
                 'first_name' => $first_name,
                 'phone' => $selected_conversation['donor_phone'] ?? $selected_conversation['phone_number'] ?? '',
                 'balance' => '£' . number_format((float)($selected_conversation['donor_balance'] ?? 0), 2),
@@ -268,6 +332,18 @@ if ($selected_id && $tables_exist) {
                 'callback_date' => date('l, j M'),
                 'callback_time' => date('g:i A'),
             ];
+            $donor_template_data['balance'] = '£' . number_format((float)($selected_conversation['donor_balance'] ?? 0), 2);
+            $donor_template_data['amount'] = '£' . number_format($amount, 2);
+            $donor_template_data['donor_id'] = (string)$donor_id;
+            $donor_template_data['due_date'] = $due_date;
+            $donor_template_data['payment_day'] = $payment_day_label;
+            $donor_template_data['reference_number'] = $reference_number;
+            $donor_template_data['reference'] = $reference_number;
+            $donor_template_data['bank_account_name'] = $bank_account_name;
+            $donor_template_data['bank_account_number'] = $bank_account_number;
+            $donor_template_data['sort_code'] = $sort_code;
+            $donor_template_data['balance'] = chr(163) . number_format((float)($selected_conversation['donor_balance'] ?? 0), 2);
+            $donor_template_data['amount'] = chr(163) . number_format($amount, 2);
         }
     } catch (Throwable $e) {
         $error_message = "Error loading conversation: " . $e->getMessage();
