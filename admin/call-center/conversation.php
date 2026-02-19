@@ -1115,35 +1115,26 @@ $page_title = 'Live Call';
                                     <div class="step-split-left">
                                         <h6 class="mb-3 text-muted small fw-bold text-uppercase">Available Plans</h6>
                                         <div class="plan-cards-grid">
-                                            <?php if (!$has_one_time_template): ?>
-                                                <div class="plan-card" onclick="selectPlan('def_0', 1)">
-                                                    <div class="plan-name">Pay Full Balance Now</div>
-                                                    <div class="plan-duration">One-Time Payment</div>
-                                                    <div class="plan-check">
-                                                        <i class="fas fa-bolt"></i>
-                                                    </div>
+                                            <div class="plan-card" onclick="selectPlan('def_0', 1)">
+                                                <div class="plan-name">Pay Full Balance Now</div>
+                                                <div class="plan-duration">One-Time Payment</div>
+                                                <div class="plan-check">
+                                                    <i class="fas fa-bolt"></i>
                                                 </div>
-                                            <?php endif; ?>
+                                            </div>
 
                                             <?php foreach ($templates as $template): ?>
-                                            <div class="plan-card" onclick="selectPlan('<?php echo $template['id']; ?>', <?php echo $template['duration_months']; ?>)">
-                                                <div class="plan-name"><?php echo htmlspecialchars($template['name']); ?></div>
-                                                <div class="plan-duration">
-                                                    <?php echo $template['duration_months'] > 1 ? $template['duration_months'] . ' Months' : 'One-time'; ?>
+                                                <?php if ((int)($template['duration_months'] ?? 0) === 1) { continue; } ?>
+                                                <div class="plan-card" onclick="selectPlan('<?php echo $template['id']; ?>', <?php echo $template['duration_months']; ?>)">
+                                                    <div class="plan-name"><?php echo htmlspecialchars($template['name']); ?></div>
+                                                    <div class="plan-duration">
+                                                        <?php echo $template['duration_months'] > 1 ? $template['duration_months'] . ' Months' : 'One-time'; ?>
+                                                    </div>
+                                                    <div class="plan-check">
+                                                        <i class="fas fa-check"></i>
+                                                    </div>
                                                 </div>
-                                                <div class="plan-check">
-                                                    <i class="fas fa-check"></i>
-                                                </div>
-                                            </div>
                                             <?php endforeach; ?>
-                                            
-                                            <div class="plan-card" onclick="selectPlan('custom', 0)">
-                                                <div class="plan-name">Custom Plan</div>
-                                                <div class="plan-duration">Set parameters</div>
-                                                <div class="plan-check">
-                                                    <i class="fas fa-cog"></i>
-                                                </div>
-                                            </div>
                                         </div>
                                         
                                         <!-- Back Button for Desktop (Left Column) -->
