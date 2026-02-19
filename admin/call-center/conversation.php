@@ -768,6 +768,8 @@ $page_title = 'Live Call';
                     <input type="hidden" name="pledge_id" value="<?php echo $donor->pledge_id; ?>">
                     <input type="hidden" name="plan_template_id" id="selectedPlanId">
                     <input type="hidden" name="plan_duration" id="selectedDuration">
+                    <input type="hidden" id="donorReferenceNumber" value="<?php echo htmlspecialchars((string)($reference_number ?? '')); ?>">
+                    <input type="hidden" id="donorPhone" value="<?php echo htmlspecialchars((string)($donor->phone ?? '')); ?>">
                     
                     <!-- Step 1: Verification -->
                     <div class="step-container active" id="step1">
@@ -1316,7 +1318,17 @@ $page_title = 'Live Call';
                                 </div>
                                 
                                 <!-- Bank Transfer / Card Details (shown when selected) -->
-                                <div id="bankDetailsSection" style="display: none;">
+                                    <div id="bankDetailsSection" style="display: none;">
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            <button type="button" class="btn btn-success btn-sm" id="sendBankWhatsAppBtn" onclick="sendBankDetails('whatsapp')">
+                                                <i class="fab fa-whatsapp me-1"></i>Send bank details to WhatsApp
+                                            </button>
+                                            <button type="button" class="btn btn-primary btn-sm" id="sendBankSmsBtn" onclick="sendBankDetails('sms')">
+                                                <i class="fas fa-sms me-1"></i>Send bank details to SMS
+                                            </button>
+                                        </div>
+                                        <div id="bankSendStatus" class="small text-muted mb-3">Choose a channel to send the bank details directly to the donor.</div>
+                                        
                                     <div class="alert alert-info">
                                         <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Bank Account Details</h6>
                                         <p class="mb-2"><strong>For immediate transfers and payments:</strong></p>
@@ -1550,10 +1562,69 @@ $page_title = 'Live Call';
             
             // Validate cash selection
             validateCashSelection();
-        } else {
+        } else if (method === 'bank_transfer') {
             document.getElementById('bankDetailsSection').style.display = 'block';
             document.getElementById('cashSection').style.display = 'none';
+        } else {
+            document.getElementById('bankDetailsSection').style.display = 'none';
+            document.getElementById('cashSection').style.display = 'none';
         }
+    }
+
+    // Send bank details to donor via selected channel
+    function sendBankDetails(channel) {
+        const btnWhatsapp = document.getElementById('sendBankWhatsAppBtn');
+        const btnSms = document.getElementById('sendBankSmsBtn');
+        const statusEl = document.getElementById('bankSendStatus');
+        const donorId = <?php echo (int)$donor_id; ?>;
+        const donorPhone = document.getElementById('donorPhone').value || '';
+        const referenceNumber = document.getElementById('donorReferenceNumber').value || '';
+        
+        if (!donorId) {
+            alert('Missing donor information. Please refresh the page and try again.');
+            return;
+        }
+        
+        if (!donorPhone) {
+            alert('No phone number is available for this donor.');
+            return;
+        }
+
+        btnWhatsapp.disabled = true;
+        btnSms.disabled = true;
+        statusEl.className = 'small text-info';
+        statusEl.textContent = 'Sending bank details...';
+        
+        const payload = new URLSearchParams({
+            donor_id: donorId.toString(),
+            phone: donorPhone,
+            reference_number: referenceNumber,
+            channel: channel
+        });
+        
+        fetch('api/send-bank-details.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: payload.toString()
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusEl.className = 'small text-success';
+                    statusEl.textContent = 'Bank details sent successfully to ' + (channel === 'whatsapp' ? 'WhatsApp' : 'SMS') + '.';
+                } else {
+                    throw new Error(data.error || 'Failed to send bank details.');
+                }
+            })
+            .catch(error => {
+                console.error('Bank details send error:', error);
+                statusEl.className = 'small text-danger';
+                statusEl.textContent = error.message;
+            })
+            .finally(() => {
+                btnWhatsapp.disabled = false;
+                btnSms.disabled = false;
+            });
     }
     
     // Validate cash selection
