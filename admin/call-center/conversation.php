@@ -960,11 +960,12 @@ $page_title = 'Live Call';
                                                     if ($city === '') {
                                                         $city = '__unknown__';
                                                     }
+                                                    $searchText = strtolower(trim((string)$church['name'] . ' ' . ($church['city'] ?? '')));
                                                 ?>
                                                 <option value="<?php echo $church['id']; ?>" 
                                                         class="church-option"
                                                         data-city="<?php echo htmlspecialchars($city); ?>"
-                                                        data-search="<?php echo htmlspecialchars(strtolower(trim((string)$church['name'] . ' ' . ($church['city'] ?? ''))); ?>"
+                                                        data-search="<?php echo htmlspecialchars($searchText); ?>"
                                                         <?php echo (isset($donor->church_id) && $donor->church_id == $church['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($church['name']); ?> 
                                                     <?php if ($church['city']): ?>
