@@ -351,6 +351,15 @@ if ($selected_id && $tables_exist) {
         error_log("WhatsApp Conversation Error: " . $e->getMessage());
     }
 }
+
+// Safe JSON payload for client-side template replacement
+$donor_template_data_json = json_encode(
+    $donor_template_data,
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT
+);
+if ($donor_template_data_json === false) {
+    $donor_template_data_json = '{}';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -3850,7 +3859,7 @@ let selectedFile = null;
 // DONOR DATA FOR TEMPLATE VARIABLES
 // ============================================
 
-const donorTemplateData = <?php echo json_encode($donor_template_data); ?>;
+const donorTemplateData = <?php echo $donor_template_data_json; ?>;
 
 // ============================================
 // TEMPLATES MENU
