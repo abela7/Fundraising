@@ -240,6 +240,14 @@ try {
             ['id' => 'def_12', 'name' => '12 Months Plan', 'duration_months' => 12],
         ];
     }
+
+    $has_one_time_template = false;
+    foreach ($templates as $template) {
+        if ((int)($template['duration_months'] ?? 0) === 1) {
+            $has_one_time_template = true;
+            break;
+        }
+    }
     
 } catch (Exception $e) {
     error_log("Conversation Error: " . $e->getMessage());
@@ -1057,6 +1065,16 @@ $page_title = 'Live Call';
                                     <div class="step-split-left">
                                         <h6 class="mb-3 text-muted small fw-bold text-uppercase">Available Plans</h6>
                                         <div class="plan-cards-grid">
+                                            <?php if (!$has_one_time_template): ?>
+                                                <div class="plan-card" onclick="selectPlan('def_0', 1)">
+                                                    <div class="plan-name">Pay Full Balance Now</div>
+                                                    <div class="plan-duration">One-Time Payment</div>
+                                                    <div class="plan-check">
+                                                        <i class="fas fa-bolt"></i>
+                                                    </div>
+                                                </div>
+                                            <?php endif; ?>
+
                                             <?php foreach ($templates as $template): ?>
                                             <div class="plan-card" onclick="selectPlan('<?php echo $template['id']; ?>', <?php echo $template['duration_months']; ?>)">
                                                 <div class="plan-name"><?php echo htmlspecialchars($template['name']); ?></div>
@@ -1804,8 +1822,13 @@ $page_title = 'Live Call';
         frequency: 'Monthly',
         count: 0,
         start: '',
-        end: ''
+        end: '',
+        is_one_time: false
     };
+
+    function isOneTimePlan(planId) {
+        return planId === 'def_0';
+    }
     
     function selectPlan(id, duration) {
         // Update UI
@@ -1831,8 +1854,12 @@ $page_title = 'Live Call';
         } else {
             customOptions.style.display = 'none';
             selectedDuration = duration;
+            if (isOneTimePlan(id)) {
+                selectedDuration = 1;
+            }
             // Standard logic for fixed plans
             document.getElementById('selectedDuration').value = selectedDuration;
+            planDetails.is_one_time = isOneTimePlan(id);
             calculatePreview(true); // true = use selectedDuration
         }
         
@@ -1884,6 +1911,8 @@ $page_title = 'Live Call';
         let frequencyNum = 1;
         let count = selectedDuration; // Default for standard
         let amountLabel = 'Monthly';
+        const selectedPlanId = document.getElementById('selectedPlanId').value;
+        const isOneTime = isOneTimePlan(selectedPlanId);
         
         if (!isStandard && document.getElementById('selectedPlanId').value === 'custom') {
             frequencyUnit = document.getElementById('customFreqUnit').value;
@@ -1900,6 +1929,9 @@ $page_title = 'Live Call';
         } else {
             // Standard plan is always monthly
             amountLabel = 'Monthly';
+            if (isOneTime) {
+                amountLabel = 'One-time';
+            }
         }
         
         document.getElementById('previewAmountLabel').textContent = amountLabel;
@@ -1911,6 +1943,7 @@ $page_title = 'Live Call';
         planDetails.amount = installment;
         planDetails.frequency = amountLabel;
         planDetails.count = count;
+        planDetails.is_one_time = isOneTime;
         
         // Update UI
         document.getElementById('previewMonthly').textContent = '£' + installment.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -1966,6 +1999,8 @@ $page_title = 'Live Call';
             const paymentDayInput = document.getElementById('customPaymentDay');
             const paymentDay = paymentDayInput ? paymentDayInput.value : '';
             confPaymentDayEl.textContent = paymentDay ? 'Day ' + paymentDay + ' of each month' : 'Same as start date';
+        } else if (selectedPlanId === 'def_0') {
+            confPaymentDayEl.textContent = 'One-time payment';
         } else {
             // Standard plan: extract day from start date
             const startDateInput = document.getElementById('startDate');
@@ -1980,7 +2015,7 @@ $page_title = 'Live Call';
         
         // Update text
         document.getElementById('confTextAmount').textContent = '£' + planDetails.amount.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('confTextFreq').textContent = planDetails.frequency.toLowerCase();
+        document.getElementById('confTextFreq').textContent = planDetails.is_one_time ? 'once' : planDetails.frequency.toLowerCase();
         document.getElementById('confTextDate').textContent = planDetails.start;
     }
     
@@ -2052,4 +2087,3 @@ $page_title = 'Live Call';
 </script>
 </body>
 </html>
-
