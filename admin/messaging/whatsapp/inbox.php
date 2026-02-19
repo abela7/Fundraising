@@ -5065,39 +5065,54 @@ let ctxConvId = null;
 let ctxConvFilter = '<?php echo htmlspecialchars($filter); ?>';
 let longPressTimer = null;
 
-const ctxMenu = document.getElementById('convCtxMenu');
+let ctxMenu = null;
+
+function getCtxMenu() {
+    if (!ctxMenu) {
+        ctxMenu = document.getElementById('convCtxMenu');
+    }
+    return ctxMenu;
+}
 
 function showCtxMenu(x, y, convId) {
+    const menu = getCtxMenu();
+    if (!menu) return;
     ctxConvId = convId;
-    ctxMenu.style.left = Math.min(x, window.innerWidth - 190) + 'px';
-    ctxMenu.style.top = Math.min(y, window.innerHeight - 150) + 'px';
-    ctxMenu.classList.add('show');
+    menu.style.left = Math.min(x, window.innerWidth - 190) + 'px';
+    menu.style.top = Math.min(y, window.innerHeight - 150) + 'px';
+    menu.classList.add('show');
 }
 
 function hideCtxMenu() {
-    ctxMenu.classList.remove('show');
+    const menu = getCtxMenu();
+    if (menu) {
+        menu.classList.remove('show');
+    }
     ctxConvId = null;
 }
 
 function ctxOpenChat() {
+    const selectedConvId = ctxConvId;
     hideCtxMenu();
-    if (ctxConvId) window.location.href = '?id=' + ctxConvId + '&filter=' + ctxConvFilter;
+    if (selectedConvId) window.location.href = '?id=' + selectedConvId + '&filter=' + ctxConvFilter;
 }
 
 function ctxMarkRead() {
+    const selectedConvId = ctxConvId;
     hideCtxMenu();
-    if (!ctxConvId) return;
+    if (!selectedConvId) return;
     const fd = new FormData();
     fd.append('csrf_token', '<?php echo csrf_token(); ?>');
-    fd.append('conversation_ids', JSON.stringify([ctxConvId]));
+    fd.append('conversation_ids', JSON.stringify([selectedConvId]));
     fetch('api/bulk-mark-read.php', { method: 'POST', body: fd })
         .then(r => r.json())
-        .then(d => { if (d.success) { const el = document.querySelector('.conversation-item[data-conversation-id="' + ctxConvId + '"]'); if (el) { el.classList.remove('unread'); const badge = el.querySelector('.conv-unread-badge'); if (badge) badge.remove(); } } });
+        .then(d => { if (d.success) { const el = document.querySelector('.conversation-item[data-conversation-id="' + selectedConvId + '"]'); if (el) { el.classList.remove('unread'); const badge = el.querySelector('.conv-unread-badge'); if (badge) badge.remove(); } } });
 }
 
 function ctxDeleteConversation() {
+    const selectedConvId = ctxConvId;
     hideCtxMenu();
-    if (ctxConvId) deleteConversation(ctxConvId);
+    if (selectedConvId) deleteConversation(selectedConvId);
 }
 
 // Right-click on conversation items
