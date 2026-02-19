@@ -184,12 +184,18 @@ try {
     
     // Get churches list for dropdown
     $churches = [];
+    $church_cities = [];
     $churches_query = $db->query("SELECT id, name, city FROM churches WHERE is_active = 1 ORDER BY city, name");
     if ($churches_query) {
         while ($row = $churches_query->fetch_assoc()) {
             $churches[] = $row;
+            $city = trim((string)($row['city'] ?? ''));
+            if ($city !== '') {
+                $church_cities[strtolower($city)] = $city;
+            }
         }
     }
+    ksort($church_cities, SORT_NATURAL | SORT_FLAG_CASE);
     
     // Get representatives for donor's current church (will be updated from Step 2 if changed)
     // Use donor's existing church_id, or it will be set in Step 2
@@ -902,6 +908,38 @@ $page_title = 'Live Call';
                                     </div>
                                     
                                     <!-- Church -->
+                                    <div class="col-12">
+                                        <div class="row g-2">
+                                            <div class="col-md-5">
+                                                <label for="church_city_filter" class="form-label small text-muted">Filter by City</label>
+                                                <select class="form-select" id="church_city_filter" onchange="filterChurchOptions()">
+                                                    <option value="">All Cities</option>
+                                                    <?php foreach ($church_cities as $cityValue => $cityName): ?>
+                                                        <option value="<?php echo htmlspecialchars(strtolower((string)$cityValue)); ?>">
+                                                            <?php echo htmlspecialchars($cityName); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-7">
+                                                <label for="church_search" class="form-label small text-muted">Search Church</label>
+                                                <div class="input-group">
+                                                    <input type="text"
+                                                           class="form-control"
+                                                           id="church_search"
+                                                           placeholder="Type church name"
+                                                           oninput="filterChurchOptions()">
+                                                    <button type="button" class="btn btn-outline-secondary" onclick="clearChurchFilters()">
+                                                        Clear
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <div id="churchFilterCount" class="form-text text-muted">Type or filter to narrow churches</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div class="col-md-6">
                                         <label for="church_id" class="form-label">
                                             <i class="fas fa-church me-2 text-primary"></i>Which Church Attending Regularly
@@ -917,7 +955,16 @@ $page_title = 'Live Call';
                                                 onchange="updateFieldBadge('church', this.value)">
                                             <option value="">-- Select Church --</option>
                                             <?php foreach ($churches as $church): ?>
+                                                <?php
+                                                    $city = strtolower(trim((string)($church['city'] ?? '')));
+                                                    if ($city === '') {
+                                                        $city = '__unknown__';
+                                                    }
+                                                ?>
                                                 <option value="<?php echo $church['id']; ?>" 
+                                                        class="church-option"
+                                                        data-city="<?php echo htmlspecialchars($city); ?>"
+                                                        data-search="<?php echo htmlspecialchars(strtolower(trim((string)$church['name'] . ' ' . ($church['city'] ?? ''))); ?>"
                                                         <?php echo (isset($donor->church_id) && $donor->church_id == $church['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($church['name']); ?> 
                                                     <?php if ($church['city']): ?>
@@ -1755,6 +1802,55 @@ $page_title = 'Live Call';
         }
     }
     
+    // Filter church dropdown by city and search text
+    function filterChurchOptions() {
+        const churchSelect = document.getElementById('church_id');
+        if (!churchSelect) {
+            return;
+        }
+        
+        const cityFilter = (document.getElementById('church_city_filter')?.value || '').toLowerCase();
+        const searchFilter = (document.getElementById('church_search')?.value || '').trim().toLowerCase();
+        const selectedValue = churchSelect.value;
+        const countEl = document.getElementById('churchFilterCount');
+        let visibleCount = 0;
+        
+        churchSelect.querySelectorAll('option.church-option').forEach(option => {
+            const optionCity = ((option.getAttribute('data-city') || '').toLowerCase());
+            const searchText = ((option.getAttribute('data-search') || '').toLowerCase());
+            const matchesCity = !cityFilter || optionCity === cityFilter;
+            const matchesSearch = !searchFilter || searchText.includes(searchFilter);
+            const isSelected = option.value === selectedValue;
+            const visible = (matchesCity && matchesSearch) || isSelected;
+            
+            option.hidden = !visible;
+            if (visible) {
+                visibleCount++;
+            }
+        });
+        
+        if (countEl) {
+            countEl.textContent = visibleCount > 0
+                ? `${visibleCount} churches shown`
+                : 'No churches match your filters';
+        }
+    }
+    
+    // Clear church search filters
+    function clearChurchFilters() {
+        const cityFilter = document.getElementById('church_city_filter');
+        const searchFilter = document.getElementById('church_search');
+        
+        if (cityFilter) {
+            cityFilter.value = '';
+        }
+        if (searchFilter) {
+            searchFilter.value = '';
+        }
+        
+        filterChurchOptions();
+    }
+    
     // Watch Step 2 church_id changes and update Step 6 display
     document.addEventListener('DOMContentLoaded', function() {
         const step2Church = document.getElementById('church_id');
@@ -1767,6 +1863,17 @@ $page_title = 'Live Call';
                     loadCashRepresentatives();
                 }
             });
+        }
+        
+        filterChurchOptions();
+        
+        const cityFilter = document.getElementById('church_city_filter');
+        const searchFilter = document.getElementById('church_search');
+        if (cityFilter) {
+            cityFilter.addEventListener('change', filterChurchOptions);
+        }
+        if (searchFilter) {
+            searchFilter.addEventListener('input', filterChurchOptions);
         }
     });
     
