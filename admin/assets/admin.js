@@ -418,8 +418,11 @@ function executeCommand(command) {
 // Load message notifications script
 (function() {
     if (!window.location.pathname.includes('/messages/')) {
+        const adminMarker = '/admin/';
+        const markerIndex = window.location.pathname.indexOf(adminMarker);
+        const appBase = markerIndex >= 0 ? window.location.pathname.substring(0, markerIndex) : '';
         const script = document.createElement('script');
-        script.src = '../../shared/js/message-notifications.js?v=' + Date.now();
+        script.src = appBase + '/shared/js/message-notifications.js?v=' + Date.now();
         script.async = true;
         document.head.appendChild(script);
     }

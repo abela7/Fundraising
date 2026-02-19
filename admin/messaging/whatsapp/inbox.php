@@ -342,8 +342,9 @@ if ($selected_id && $tables_exist) {
             $donor_template_data['bank_account_name'] = $bank_account_name;
             $donor_template_data['bank_account_number'] = $bank_account_number;
             $donor_template_data['sort_code'] = $sort_code;
-            $donor_template_data['balance'] = chr(163) . number_format((float)($selected_conversation['donor_balance'] ?? 0), 2);
-            $donor_template_data['amount'] = chr(163) . number_format($amount, 2);
+            // Use explicit UTF-8 bytes for GBP symbol to keep json_encode valid.
+            $donor_template_data['balance'] = "\xC2\xA3" . number_format((float)($selected_conversation['donor_balance'] ?? 0), 2);
+            $donor_template_data['amount'] = "\xC2\xA3" . number_format($amount, 2);
         }
     } catch (Throwable $e) {
         $error_message = "Error loading conversation: " . $e->getMessage();
@@ -353,9 +354,13 @@ if ($selected_id && $tables_exist) {
 }
 
 // Safe JSON payload for client-side template replacement
+$json_flags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT;
+if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+    $json_flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+}
 $donor_template_data_json = json_encode(
     $donor_template_data,
-    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT
+    $json_flags
 );
 if ($donor_template_data_json === false) {
     $donor_template_data_json = '{}';
