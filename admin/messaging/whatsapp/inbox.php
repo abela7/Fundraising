@@ -3320,7 +3320,7 @@ if ($selected_id && $tables_exist) {
                         <div class="templates-menu" id="templatesMenu">
                             <div class="templates-header">
                                 <h5><i class="fas fa-file-alt me-2"></i>Message Templates</h5>
-                                <button type="button" class="templates-close" onclick="toggleTemplatesMenu()">
+                                <button type="button" class="templates-close" id="templatesCloseBtn">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
@@ -3348,7 +3348,7 @@ if ($selected_id && $tables_exist) {
                         </div>
                         
                         <!-- Templates Button -->
-                        <button type="button" class="chat-input-btn templates" id="templatesBtn" onclick="toggleTemplatesMenu()">
+                        <button type="button" class="chat-input-btn templates" id="templatesBtn">
                             <i class="fas fa-plus"></i>
                         </button>
                         
@@ -3879,6 +3879,40 @@ function toggleTemplatesMenu() {
             loadTemplates();
         }
     }
+}
+
+// Ensure inline handlers and dynamic bindings can always find this function
+window.toggleTemplatesMenu = toggleTemplatesMenu;
+if (typeof window.toggleTemplatesMenu !== 'function') {
+    window.toggleTemplatesMenu = function () {
+        return toggleTemplatesMenu();
+    };
+}
+
+function bindTemplateToggleControls() {
+    const templatesBtn = document.getElementById('templatesBtn');
+    const templatesCloseBtn = document.getElementById('templatesCloseBtn');
+    const templatesCloseHandler = (event) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        window.toggleTemplatesMenu();
+    };
+    
+    if (templatesBtn) {
+        templatesBtn.addEventListener('click', templatesCloseHandler);
+    }
+    
+    if (templatesCloseBtn) {
+        templatesCloseBtn.addEventListener('click', templatesCloseHandler);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindTemplateToggleControls);
+} else {
+    bindTemplateToggleControls();
 }
 
 // Close templates menu when clicking outside
