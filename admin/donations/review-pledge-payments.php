@@ -2366,7 +2366,7 @@ function undoPayment(id) {
                     </div>
                     <div style="font-size:38px;font-weight:800;line-height:1.3;max-width:650px;">
                         <div style="display:flex;gap:15px;"><span style="color:#fff;white-space:nowrap;">Name -</span><span id="certDonorName" style="color:#ffcc33;word-break:break-word;"></span></div>
-                        <div style="display:flex;gap:15px;margin-top:15px;"><span style="color:#fff;white-space:nowrap;">Contribution -</span><span id="certContribution" style="color:#ffcc33;word-break:break-word;"></span></div>
+                        <div style="display:flex;gap:15px;margin-top:15px;"><span style="color:#fff;white-space:nowrap;">Pledge -</span><span id="certContribution" style="color:#ffcc33;word-break:break-word;"></span></div>
                     </div>
                 </div>
                 <div style="display:flex;flex-direction:column;align-items:center;gap:15px;">

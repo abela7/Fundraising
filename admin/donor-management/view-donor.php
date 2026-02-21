@@ -3870,7 +3870,7 @@ function formatDateTime($date) {
                                                                     <span class="cert-bank-val"><?= htmlspecialchars($donor['name']) ?></span>
                                                                 </div>
                                                                 <div class="cert-bank-row" style="margin-top: 15px;">
-                                                                    <span class="cert-bank-label">Contribution -</span>
+                                                                    <span class="cert-bank-label">Pledge -</span>
                                                                     <span class="cert-bank-val"><?= $currency . number_format($allocationBase, 2) ?></span>
                                                                 </div>
                                                             </div>
@@ -4023,7 +4023,7 @@ function formatDateTime($date) {
                                                                 <div class="fc-detail-row">
                                                                     <div class="fc-detail-icon"><i class="fas fa-pound-sign"></i></div>
                                                                     <div class="fc-detail-text">
-                                                                        <span class="fc-detail-label">Contribution:</span><span class="fc-detail-highlight"><?= $currency . number_format($allocationBase, 2) ?></span>
+                                                                        <span class="fc-detail-label">Pledge:</span><span class="fc-detail-highlight"><?= $currency . number_format($allocationBase, 2) ?></span>
                                                                     </div>
                                                                 </div>
                                                                 <div class="fc-detail-row">
