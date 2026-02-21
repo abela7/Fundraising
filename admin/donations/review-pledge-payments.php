@@ -187,6 +187,43 @@ function build_url($params) {
     }
     return '?' . http_build_query($current);
 }
+
+function parse_ini_size_to_bytes($value) {
+    if ($value === null) return 0;
+    $value = trim((string)$value);
+    if ($value === '') return 0;
+
+    $unit = strtolower(substr($value, -1));
+    $number = (float)$value;
+
+    switch ($unit) {
+        case 'g':
+            return (int)round($number * 1024 * 1024 * 1024);
+        case 'm':
+            return (int)round($number * 1024 * 1024);
+        case 'k':
+            return (int)round($number * 1024);
+        default:
+            return (int)round((float)$value);
+    }
+}
+
+$uploadMaxBytes = parse_ini_size_to_bytes(ini_get('upload_max_filesize'));
+$postMaxBytes = parse_ini_size_to_bytes(ini_get('post_max_size'));
+$serverBodyLimitBytes = 0;
+if ($uploadMaxBytes > 0 && $postMaxBytes > 0) {
+    $serverBodyLimitBytes = min($uploadMaxBytes, $postMaxBytes);
+} elseif ($uploadMaxBytes > 0) {
+    $serverBodyLimitBytes = $uploadMaxBytes;
+} elseif ($postMaxBytes > 0) {
+    $serverBodyLimitBytes = $postMaxBytes;
+}
+
+// Keep a safe margin for multipart/form-data overhead and proxy limits.
+$clientCertUploadTargetBytes = $serverBodyLimitBytes > 0
+    ? (int)floor($serverBodyLimitBytes * 0.70)
+    : (int)floor(1.8 * 1024 * 1024);
+$clientCertUploadTargetBytes = max(350 * 1024, min($clientCertUploadTargetBytes, (int)floor(1.8 * 1024 * 1024)));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -2398,7 +2435,8 @@ async function fetchDonorCertificateData(donorId) {
     return dataJson.donor;
 }
 
-const CERT_UPLOAD_LIMIT_BYTES = 7 * 1024 * 1024;
+// Derived from server limits with safety margin; capped for consistent quality.
+const CERT_UPLOAD_LIMIT_BYTES = <?php echo (int)$clientCertUploadTargetBytes; ?>;
 
 function canvasToBlobAsync(canvas, type, quality) {
     return new Promise((resolve, reject) => {

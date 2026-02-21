@@ -78,11 +78,14 @@ if (empty($phone)) {
 if (!isset($_FILES['certificate']) || $_FILES['certificate']['error'] !== UPLOAD_ERR_OK) {
     http_response_code(400);
     $errorMsg = 'No certificate image received';
+    $uploadErrCode = isset($_FILES['certificate']) ? (int)$_FILES['certificate']['error'] : -1;
     if (isset($_FILES['certificate'])) {
         switch ($_FILES['certificate']['error']) {
             case UPLOAD_ERR_INI_SIZE:
             case UPLOAD_ERR_FORM_SIZE:
-                $errorMsg = 'Certificate image too large';
+                $errorMsg = 'Certificate image too large for server upload limits'
+                    . ' (upload_max_filesize=' . ini_get('upload_max_filesize')
+                    . ', post_max_size=' . ini_get('post_max_size') . ')';
                 break;
             case UPLOAD_ERR_NO_FILE:
                 $errorMsg = 'No certificate image selected';
@@ -91,6 +94,11 @@ if (!isset($_FILES['certificate']) || $_FILES['certificate']['error'] !== UPLOAD
                 $errorMsg = 'Upload error code: ' . $_FILES['certificate']['error'];
         }
     }
+    error_log(
+        'WhatsApp Certificate Upload Error: code=' . $uploadErrCode
+        . ', upload_max_filesize=' . ini_get('upload_max_filesize')
+        . ', post_max_size=' . ini_get('post_max_size')
+    );
     echo json_encode(['success' => false, 'error' => $errorMsg]);
     exit;
 }
@@ -99,6 +107,7 @@ $file = $_FILES['certificate'];
 $fileTmpPath = $file['tmp_name'];
 $fileSize = $file['size'];
 $fileMimeType = $file['type'];
+error_log('WhatsApp Certificate Upload: size=' . $fileSize . ', mime=' . $fileMimeType);
 
 // Validate supported image formats
 if (!in_array($fileMimeType, ['image/png', 'image/jpeg', 'image/webp'])) {
