@@ -415,6 +415,42 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
         </div>
       </div>
 
+      <!-- Filter Bar -->
+      <div class="card mb-3 members-filter-bar">
+        <div class="card-body py-3">
+          <div class="row g-2 g-md-3 align-items-end">
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+              <label for="filterSearch" class="form-label small text-muted mb-1">Search</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="filterSearch" class="form-control" placeholder="Name, phone, email...">
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3 col-lg-2">
+              <label for="filterRole" class="form-label small text-muted mb-1">Role</label>
+              <select id="filterRole" class="form-select form-select-sm">
+                <option value="">All roles</option>
+                <option value="admin">Admin</option>
+                <option value="registrar">Registrar</option>
+              </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3 col-lg-2">
+              <label for="filterStatus" class="form-label small text-muted mb-1">Status</label>
+              <select id="filterStatus" class="form-select form-select-sm">
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="filterClear">
+                <i class="fas fa-times me-1"></i>Clear filters
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Members Table -->
       <div class="card animate-fade-in">
         <div class="card-body p-0">

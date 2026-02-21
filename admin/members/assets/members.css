@@ -1,5 +1,36 @@
 /* Members Page Specific Styles */
 
+/* Prevent flex overflow on small screens */
+.admin-wrapper .admin-content .main-content {
+  min-width: 0;
+}
+
+/* Filter Bar */
+.members-filter-bar .card-body {
+  padding: 0.75rem 1rem;
+}
+
+/* DataTables wrapper responsiveness */
+.dataTables_wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+  padding: 0.5rem 0;
+}
+
+.dataTables_wrapper .row:first-child {
+  margin-bottom: 0.75rem;
+}
+
+.dataTables_wrapper .row:last-child {
+  margin-top: 0.75rem;
+}
+
 /* Avatar Circle */
 .avatar-circle {
   width: 40px;
@@ -183,6 +214,61 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
   border-color: var(--primary);
 }
 
+/* Filter bar responsive */
+@media (max-width: 767.98px) {
+  .members-filter-bar .card-body {
+    padding: 0.75rem 1rem;
+  }
+
+  .members-filter-bar .form-label {
+    font-size: 0.75rem;
+  }
+
+  .members-filter-bar .form-control,
+  .members-filter-bar .form-select {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .members-filter-bar .row {
+    --bs-gutter-y: 0.75rem;
+  }
+
+  .members-filter-bar .col-12 {
+    padding-bottom: 0.25rem;
+  }
+}
+
+/* DataTables responsive controls */
+@media (max-width: 767.98px) {
+  .dataTables_wrapper .dataTables_length,
+  .dataTables_wrapper .dataTables_info {
+    text-align: center;
+  }
+
+  .dataTables_wrapper .dataTables_paginate {
+    margin-top: 0.5rem;
+    justify-content: center;
+  }
+
+  .dataTables_wrapper .dataTables_length select {
+    margin: 0 0.25rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .dataTables_wrapper .row:first-child {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .dataTables_wrapper .dataTables_length {
+    text-align: left;
+  }
+}
+
 /* Tablet Responsive */
 @media (max-width: 991.98px) and (min-width: 768px) {
   .table th,
@@ -336,20 +422,15 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
     padding: 0.4rem 0.6rem;
   }
   
-  /* Button group mobile */
+  /* Button group mobile - wrap horizontally for compact actions */
   .btn-group {
-    flex-direction: column;
-    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
   
   .btn-group .btn {
-    width: 100%;
-    margin-bottom: 0.25rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 6px !important;
-  }
-  
-  .btn-group .btn:last-child {
-    margin-bottom: 0;
   }
   
   /* Header mobile */
@@ -445,19 +526,16 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
     border-radius: 8px;
   }
   
-  /* Button group stack vertically */
+  /* Button group compact wrap on very small screens */
   .btn-group {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
   
   .btn-group .btn {
     border-radius: 6px !important;
-    margin-bottom: 0.25rem;
-  }
-  
-  .btn-group .btn:last-child {
-    margin-bottom: 0;
+    padding: 0.35rem 0.5rem;
   }
   
   /* Table card mobile */

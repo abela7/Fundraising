@@ -1,23 +1,61 @@
 // Members Page JavaScript
 
+/** @type {DataTables.Api|null} */
+let membersDataTable = null;
+
 // Initialize tooltips and DataTable
 $(document).ready(function() {
-  // Initialize DataTable
-  const table = $('#membersTable').DataTable({
-    order: [[4, 'desc']], // Default sort by Joined date descending
+  // Initialize DataTable (hide default search - we use custom filter bar)
+  membersDataTable = $('#membersTable').DataTable({
+    order: [[5, 'desc']], // Default sort by Joined (col 5) descending
     pageLength: 25,
     lengthMenu: [[25, 50, 100, 250, 500, -1], [25, 50, 100, 250, 500, "All"]],
+    dom: 'lrtip',
     language: {
-      search: "Search members:",
-      lengthMenu: "Show _MENU_ members per page"
+      lengthMenu: "Show _MENU_ members per page",
+      info: "Showing _START_ to _END_ of _TOTAL_ members",
+      infoEmpty: "No members to show",
+      infoFiltered: "(filtered from _MAX_ total)"
     },
     columnDefs: [
-      {
-        targets: 5, // Actions column
-        orderable: false,
-        searchable: false
-      }
+      { targets: 0, orderable: false, searchable: false },
+      { targets: 6, orderable: false, searchable: false }
     ]
+  });
+
+  // Wire filter inputs to DataTable
+  const $search = $('#filterSearch');
+  const $role = $('#filterRole');
+  const $status = $('#filterStatus');
+  const $clear = $('#filterClear');
+
+  function applyFilters() {
+    const searchVal = ($search.val() || '').trim();
+    const roleVal = ($role.val() || '').toLowerCase();
+    const statusVal = ($status.val() || '').toLowerCase();
+
+    membersDataTable.search(searchVal);
+
+    const roleSearch = roleVal === 'admin' ? 'Admin' : roleVal === 'registrar' ? 'Registrar' : '';
+    const statusSearch = statusVal === 'active' ? 'Active' : statusVal === 'inactive' ? 'Inactive' : '';
+
+    membersDataTable.columns(3).search(roleSearch);
+    membersDataTable.columns(4).search(statusSearch);
+    membersDataTable.draw();
+  }
+
+  $search.on('keyup', function() {
+    clearTimeout(window.membersSearchTimeout);
+    window.membersSearchTimeout = setTimeout(applyFilters, 300);
+  });
+  $role.on('change', applyFilters);
+  $status.on('change', applyFilters);
+
+  $clear.on('click', function() {
+    $search.val('');
+    $role.val('');
+    $status.val('');
+    applyFilters();
   });
 
   // Bootstrap tooltips
@@ -95,34 +133,3 @@ document.querySelectorAll('form').forEach(form => {
   });
 });
 
-// Search functionality (optional enhancement)
-function addSearchFunctionality() {
-  const searchInput = document.createElement('input');
-  searchInput.type = 'text';
-  searchInput.className = 'form-control form-control-sm';
-  searchInput.placeholder = 'Search members...';
-  searchInput.style.maxWidth = '300px';
-  
-  // Add search to header if space available
-  const headerRight = document.querySelector('.main-content > div:first-child');
-  if (headerRight) {
-    const searchWrapper = document.createElement('div');
-    searchWrapper.className = 'd-none d-md-block';
-    searchWrapper.appendChild(searchInput);
-    headerRight.insertBefore(searchWrapper, headerRight.lastElementChild);
-    
-    // Implement search
-    searchInput.addEventListener('keyup', function() {
-      const searchTerm = this.value.toLowerCase();
-      const rows = document.querySelectorAll('tbody tr');
-      
-      rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-      });
-    });
-  }
-}
-
-// Add search on page load
-document.addEventListener('DOMContentLoaded', addSearchFunctionality);
