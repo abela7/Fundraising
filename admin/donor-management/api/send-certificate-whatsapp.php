@@ -100,18 +100,18 @@ $fileTmpPath = $file['tmp_name'];
 $fileSize = $file['size'];
 $fileMimeType = $file['type'];
 
-// Validate it's a PNG image
+// Validate supported image formats
 if (!in_array($fileMimeType, ['image/png', 'image/jpeg', 'image/webp'])) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid image format. Expected PNG.']);
+    echo json_encode(['success' => false, 'error' => 'Invalid image format. Expected PNG, JPEG, or WEBP.']);
     exit;
 }
 
-// Validate file size (max 5MB for certificate)
-$maxSize = 5 * 1024 * 1024;
+// Validate file size (max 7MB for certificate; stays under UltraMsg base64 payload limit)
+$maxSize = 7 * 1024 * 1024;
 if ($fileSize > $maxSize) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Certificate image too large (max 5MB)']);
+    echo json_encode(['success' => false, 'error' => 'Certificate image too large (max 7MB)']);
     exit;
 }
 

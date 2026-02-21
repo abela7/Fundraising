@@ -1991,9 +1991,8 @@ async function sendToKesisBirhanu(data, btn) {
 
         // Send certificate + message to Kesis Birhanu's phone
         const formData = new FormData();
-        const safeName = (d.name || 'donor').replace(/[^a-z0-9]/gi, '_');
         const filePrefix = isFullyPaid ? 'certificate_final' : 'certificate';
-        formData.append('certificate', blob, `${filePrefix}_${safeName}.png`);
+        formData.append('certificate', blob, getCertificateFileName(filePrefix, d.name, blob));
         formData.append('phone', routing.destinationPhone);
         formData.append('donor_id', data.donor_id);
         formData.append('donor_name', d.name);
@@ -2399,6 +2398,71 @@ async function fetchDonorCertificateData(donorId) {
     return dataJson.donor;
 }
 
+const CERT_UPLOAD_LIMIT_BYTES = 7 * 1024 * 1024;
+
+function canvasToBlobAsync(canvas, type, quality) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                reject(new Error('Failed to generate certificate image'));
+                return;
+            }
+            resolve(blob);
+        }, type, quality);
+    });
+}
+
+async function optimizeCertificateBlob(canvas) {
+    let smallestBlob = null;
+
+    const keepSmallest = (blob) => {
+        if (!smallestBlob || blob.size < smallestBlob.size) smallestBlob = blob;
+    };
+
+    // Keep PNG when possible for best text clarity.
+    const pngBlob = await canvasToBlobAsync(canvas, 'image/png');
+    keepSmallest(pngBlob);
+    if (pngBlob.size <= CERT_UPLOAD_LIMIT_BYTES) return pngBlob;
+
+    // Fall back to JPEG with progressive quality reduction to stay under API limit.
+    const jpegQualities = [0.92, 0.86, 0.8, 0.74];
+    for (const quality of jpegQualities) {
+        const jpegBlob = await canvasToBlobAsync(canvas, 'image/jpeg', quality);
+        keepSmallest(jpegBlob);
+        if (jpegBlob.size <= CERT_UPLOAD_LIMIT_BYTES) return jpegBlob;
+    }
+
+    // Last resort: downscale and compress harder.
+    const reducedWidth = 1000;
+    if (canvas.width > reducedWidth) {
+        const ratio = reducedWidth / canvas.width;
+        const reducedCanvas = document.createElement('canvas');
+        reducedCanvas.width = reducedWidth;
+        reducedCanvas.height = Math.round(canvas.height * ratio);
+        const ctx = reducedCanvas.getContext('2d');
+        if (ctx) {
+            ctx.drawImage(canvas, 0, 0, reducedCanvas.width, reducedCanvas.height);
+            const reducedQualities = [0.82, 0.75, 0.68];
+            for (const quality of reducedQualities) {
+                const reducedBlob = await canvasToBlobAsync(reducedCanvas, 'image/jpeg', quality);
+                keepSmallest(reducedBlob);
+                if (reducedBlob.size <= CERT_UPLOAD_LIMIT_BYTES) return reducedBlob;
+            }
+        }
+    }
+
+    const sizeMb = smallestBlob ? (smallestBlob.size / (1024 * 1024)).toFixed(2) : 'unknown';
+    throw new Error('Certificate image too large (' + sizeMb + 'MB) after optimization');
+}
+
+function getCertificateFileName(prefix, donorName, blob) {
+    const safeName = (donorName || 'donor').replace(/[^a-z0-9]/gi, '_');
+    let ext = 'png';
+    if (blob && blob.type === 'image/jpeg') ext = 'jpg';
+    else if (blob && blob.type === 'image/webp') ext = 'webp';
+    return `${prefix}_${safeName}.${ext}`;
+}
+
 /**
  * Capture a certificate from the donor view page via hidden iframe.
  * @param {number|string} donorId - The donor ID
@@ -2406,7 +2470,7 @@ async function fetchDonorCertificateData(donorId) {
  *                            (with stats strip, 1200x970) or 'completed'
  *                            for the premium final certificate (1200x850).
  *                            Defaults to 'progress'.
- * @returns {Promise<Blob>} PNG blob of the captured certificate
+ * @returns {Promise<Blob>} Optimized image blob of the captured certificate
  */
 async function captureCertificateFromDonorView(donorId, certType = 'progress') {
     await ensureHtml2CanvasLoaded();
@@ -2491,8 +2555,7 @@ async function captureCertificateFromDonorView(donorId, certType = 'progress') {
 
                 certElement.style.transform = originalTransform;
 
-                const blob = await new Promise(resolveBlob => canvas.toBlob(resolveBlob, 'image/png'));
-                if (!blob) throw new Error('Failed to generate certificate image');
+                const blob = await optimizeCertificateBlob(canvas);
 
                 cleanup();
                 resolve(blob);
@@ -2541,7 +2604,7 @@ sendNotification = async function() {
             : 'Sending certificate...';
 
         const formData = new FormData();
-        formData.append('certificate', blob, `certificate_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
+        formData.append('certificate', blob, getCertificateFileName('certificate', d.name, blob));
         formData.append('phone', routing.destinationPhone);
         formData.append('donor_id', currentNotificationData.donor_id);
         formData.append('donor_name', d.name);
@@ -2789,7 +2852,7 @@ async function sendFullyPaidNotification() {
             : 'Sending certificate...';
 
         const formData = new FormData();
-        formData.append('certificate', blob, `certificate_final_${d.name.replace(/[^a-z0-9]/gi, '_')}.png`);
+        formData.append('certificate', blob, getCertificateFileName('certificate_final', d.name, blob));
         formData.append('phone', routing.destinationPhone);
         formData.append('donor_id', currentNotificationData.donor_id);
         formData.append('donor_name', d.name);
