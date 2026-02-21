@@ -34,6 +34,8 @@ try {
 }
 
 $db = db();
+$current_user = current_user();
+$is_admin = ($current_user['role'] ?? '') === 'admin';
 
 // Get conversation ID
 $conversationId = isset($_POST['conversation_id']) ? (int)$_POST['conversation_id'] : 0;
@@ -45,6 +47,28 @@ if ($conversationId <= 0) {
 }
 
 try {
+    if (!$is_admin) {
+        $userId = (int)($current_user['id'] ?? 0);
+        $accessStmt = $db->prepare("
+            SELECT wc.id
+            FROM whatsapp_conversations wc
+            LEFT JOIN donors d ON wc.donor_id = d.id
+            WHERE wc.id = ?
+              AND (wc.assigned_agent_id = ? OR d.agent_id = ?)
+            LIMIT 1
+        ");
+        $accessStmt->bind_param('iii', $conversationId, $userId, $userId);
+        $accessStmt->execute();
+        $allowed = $accessStmt->get_result()->fetch_assoc();
+        $accessStmt->close();
+
+        if (!$allowed) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            exit;
+        }
+    }
+
     // Delete all messages first
     $deleteMsg = $db->prepare("DELETE FROM whatsapp_messages WHERE conversation_id = ?");
     if ($deleteMsg) {

@@ -60,6 +60,7 @@ try {
 
 $db = db();
 $current_user = current_user();
+$is_admin = ($current_user['role'] ?? '') === 'admin';
 
 // Get input
 $conversationId = isset($_POST['conversation_id']) ? (int)$_POST['conversation_id'] : 0;
@@ -167,6 +168,70 @@ try {
     if (!$service) {
         throw new Exception('WhatsApp provider not configured');
     }
+
+    // Resolve conversation and enforce role-based access before sending media
+    $userId = (int)($current_user['id'] ?? 0);
+    $normalizedPhone = normalizePhoneForDb($phone);
+    $donorId = null;
+
+    if ($conversationId === 0) {
+        $stmt = $db->prepare("SELECT id, donor_id FROM whatsapp_conversations WHERE phone_number = ? LIMIT 1");
+        $stmt->bind_param('s', $normalizedPhone);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($row) {
+            $conversationId = (int)$row['id'];
+            $donorId = $row['donor_id'] ? (int)$row['donor_id'] : null;
+            if (!$is_admin && !userCanAccessConversation($db, $conversationId, $userId, false)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied to this conversation']);
+                exit;
+            }
+        } else {
+            $donor = findDonorForPhone($db, $normalizedPhone);
+            if (!$is_admin) {
+                if (!$donor || (int)($donor['agent_id'] ?? 0) !== $userId) {
+                    http_response_code(403);
+                    echo json_encode(['success' => false, 'error' => 'You can only chat with your assigned donors']);
+                    exit;
+                }
+            }
+
+            if ($donor) {
+                $donorId = (int)$donor['id'];
+            }
+
+            if (!$is_admin) {
+                $stmt = $db->prepare("
+                    INSERT INTO whatsapp_conversations (phone_number, donor_id, is_unknown, assigned_agent_id, created_at)
+                    VALUES (?, ?, 0, ?, NOW())
+                ");
+                $stmt->bind_param('sii', $normalizedPhone, $donorId, $userId);
+            } elseif ($donorId) {
+                $isUnknown = 0;
+                $stmt = $db->prepare("
+                    INSERT INTO whatsapp_conversations (phone_number, donor_id, is_unknown, created_at)
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $stmt->bind_param('sii', $normalizedPhone, $donorId, $isUnknown);
+            } else {
+                $stmt = $db->prepare("INSERT INTO whatsapp_conversations (phone_number, is_unknown, created_at) VALUES (?, 1, NOW())");
+                $stmt->bind_param('s', $normalizedPhone);
+            }
+
+            $stmt->execute();
+            $conversationId = (int)$db->insert_id;
+            $stmt->close();
+        }
+    } else {
+        if (!$is_admin && !userCanAccessConversation($db, $conversationId, $userId, false)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied to this conversation']);
+            exit;
+        }
+    }
     
     // Send media via UltraMsg based on type
     $result = $service->sendMedia($phone, $publicUrl, $mediaType, $caption, $fileName);
@@ -185,24 +250,6 @@ try {
             }
         }
         throw new Exception($errorMsg);
-    }
-    
-    // Get or create conversation
-    if ($conversationId === 0) {
-        $normalizedPhone = normalizePhoneForDb($phone);
-        $stmt = $db->prepare("SELECT id FROM whatsapp_conversations WHERE phone_number = ?");
-        $stmt->bind_param('s', $normalizedPhone);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        
-        if ($row) {
-            $conversationId = (int)$row['id'];
-        } else {
-            $stmt = $db->prepare("INSERT INTO whatsapp_conversations (phone_number, is_unknown, created_at) VALUES (?, 1, NOW())");
-            $stmt->bind_param('s', $normalizedPhone);
-            $stmt->execute();
-            $conversationId = (int)$db->insert_id;
-        }
     }
     
     // Save message to database
@@ -260,6 +307,40 @@ try {
     error_log("WhatsApp Media Send Error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+}
+
+function userCanAccessConversation(mysqli $db, int $conversationId, int $userId, bool $isAdmin): bool
+{
+    if ($isAdmin) {
+        return true;
+    }
+
+    $stmt = $db->prepare("
+        SELECT wc.id
+        FROM whatsapp_conversations wc
+        LEFT JOIN donors d ON wc.donor_id = d.id
+        WHERE wc.id = ?
+          AND (wc.assigned_agent_id = ? OR d.agent_id = ?)
+        LIMIT 1
+    ");
+    $stmt->bind_param('iii', $conversationId, $userId, $userId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return !empty($row);
+}
+
+function findDonorForPhone(mysqli $db, string $normalizedPhone): ?array
+{
+    $stmt = $db->prepare("SELECT id, agent_id FROM donors WHERE phone = ? OR phone = ? LIMIT 1");
+    $phoneWithoutPlus = ltrim($normalizedPhone, '+');
+    $stmt->bind_param('ss', $normalizedPhone, $phoneWithoutPlus);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return $row ?: null;
 }
 
 function normalizePhoneForDb(string $phone): string

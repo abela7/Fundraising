@@ -70,14 +70,25 @@ $stats = ['total' => 0, 'unread' => 0, 'unknown' => 0];
 if ($tables_exist) {
     try {
         // Get stats
-        $stats_query = $db->query("
+        $statsSql = "
             SELECT 
                 COUNT(*) as total,
-                COALESCE(SUM(CASE WHEN unread_count > 0 THEN 1 ELSE 0 END), 0) as unread,
-                COALESCE(SUM(CASE WHEN is_unknown = 1 THEN 1 ELSE 0 END), 0) as unknown
-            FROM whatsapp_conversations
-            WHERE status = 'active'
-        ");
+                COALESCE(SUM(CASE WHEN wc.unread_count > 0 THEN 1 ELSE 0 END), 0) as unread,
+                COALESCE(SUM(CASE WHEN wc.is_unknown = 1 THEN 1 ELSE 0 END), 0) as unknown
+            FROM whatsapp_conversations wc
+            LEFT JOIN donors d ON wc.donor_id = d.id
+            WHERE wc.status = 'active'
+        ";
+        if (!$is_admin) {
+            $statsSql .= " AND (wc.assigned_agent_id = ? OR d.agent_id = ?)";
+            $statsStmt = $db->prepare($statsSql);
+            $userId = (int)($current_user['id'] ?? 0);
+            $statsStmt->bind_param('ii', $userId, $userId);
+            $statsStmt->execute();
+            $stats_query = $statsStmt->get_result();
+        } else {
+            $stats_query = $db->query($statsSql);
+        }
         if ($stats_query) {
             $row = $stats_query->fetch_assoc();
             if ($row) {
@@ -175,19 +186,30 @@ $donor_template_data = [];
 if ($selected_id && $tables_exist) {
     try {
         // Get conversation details with donor info
+        $conversationWhere = "wc.id = ?";
+        $conversationTypes = 'i';
+        $conversationParams = [$selected_id];
+        if (!$is_admin) {
+            $conversationWhere .= " AND (wc.assigned_agent_id = ? OR d.agent_id = ?)";
+            $userId = (int)($current_user['id'] ?? 0);
+            $conversationTypes .= 'ii';
+            $conversationParams[] = $userId;
+            $conversationParams[] = $userId;
+        }
+
         $stmt = $db->prepare("
             SELECT wc.*, d.name as donor_name, d.phone as donor_phone, d.balance as donor_balance, 
                    d.id as donor_id
             FROM whatsapp_conversations wc
             LEFT JOIN donors d ON wc.donor_id = d.id
-            WHERE wc.id = ?
+            WHERE {$conversationWhere}
         ");
         
         if (!$stmt) {
             throw new Exception("Failed to prepare conversation query: " . $db->error);
         }
         
-        $stmt->bind_param('i', $selected_id);
+        $stmt->bind_param($conversationTypes, ...$conversationParams);
         $stmt->execute();
         $result = $stmt->get_result();
         $selected_conversation = $result ? $result->fetch_assoc() : null;

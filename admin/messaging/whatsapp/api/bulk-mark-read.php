@@ -33,6 +33,8 @@ try {
 }
 
 $db = db();
+$current_user = current_user();
+$is_admin = ($current_user['role'] ?? '') === 'admin';
 
 // Get conversation IDs
 $idsJson = $_POST['conversation_ids'] ?? '[]';
@@ -55,6 +57,40 @@ try {
     
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $types = str_repeat('i', count($ids));
+
+    // Restrict non-admin to their own conversations only
+    if (!$is_admin) {
+        $userId = (int)($current_user['id'] ?? 0);
+        $accessSql = "
+            SELECT wc.id
+            FROM whatsapp_conversations wc
+            LEFT JOIN donors d ON wc.donor_id = d.id
+            WHERE wc.id IN ($placeholders)
+              AND (wc.assigned_agent_id = ? OR d.agent_id = ?)
+        ";
+        $accessTypes = $types . 'ii';
+        $accessParams = array_merge($ids, [$userId, $userId]);
+        $accessStmt = $db->prepare($accessSql);
+        $accessStmt->bind_param($accessTypes, ...$accessParams);
+        $accessStmt->execute();
+        $accessResult = $accessStmt->get_result();
+
+        $allowedIds = [];
+        while ($row = $accessResult->fetch_assoc()) {
+            $allowedIds[] = (int)$row['id'];
+        }
+        $accessStmt->close();
+
+        if (empty($allowedIds)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            exit;
+        }
+
+        $ids = $allowedIds;
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $types = str_repeat('i', count($ids));
+    }
     
     // Mark as read
     $stmt = $db->prepare("UPDATE whatsapp_conversations SET unread_count = 0 WHERE id IN ($placeholders)");

@@ -21,6 +21,7 @@ try {
 
 $db = db();
 $current_user = current_user();
+$is_admin = ($current_user['role'] ?? '') === 'admin';
 
 // Get parameters
 $conversation_id = isset($_GET['conversation_id']) ? (int)$_GET['conversation_id'] : 0;
@@ -33,6 +34,29 @@ if (!$conversation_id) {
 }
 
 try {
+    // Enforce conversation access control for non-admin users
+    if (!$is_admin) {
+        $userId = (int)($current_user['id'] ?? 0);
+        $accessStmt = $db->prepare("
+            SELECT wc.id
+            FROM whatsapp_conversations wc
+            LEFT JOIN donors d ON wc.donor_id = d.id
+            WHERE wc.id = ?
+              AND (wc.assigned_agent_id = ? OR d.agent_id = ?)
+            LIMIT 1
+        ");
+        $accessStmt->bind_param('iii', $conversation_id, $userId, $userId);
+        $accessStmt->execute();
+        $accessRow = $accessStmt->get_result()->fetch_assoc();
+        $accessStmt->close();
+
+        if (!$accessRow) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            exit;
+        }
+    }
+
     // Get new messages since last_message_id
     $query = "
         SELECT 

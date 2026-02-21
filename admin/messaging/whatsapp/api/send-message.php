@@ -37,6 +37,7 @@ try {
 
 $db = db();
 $current_user = current_user();
+$is_admin = ($current_user['role'] ?? '') === 'admin';
 
 // Get input
 $conversationId = isset($_POST['conversation_id']) ? (int)$_POST['conversation_id'] : 0;
@@ -57,50 +58,94 @@ try {
         throw new Exception('WhatsApp provider not configured. Please set up UltraMsg first.');
     }
     
-    // Get or create conversation if not provided - do this FIRST to get donor_id
+    // Resolve conversation and enforce role-based access
     $donorId = null;
     $normalizedPhone = normalizePhoneForDb($phone);
-    
+    $userId = (int)($current_user['id'] ?? 0);
+
     if ($conversationId === 0) {
-        // Find conversation by phone
-        $stmt = $db->prepare("SELECT id, donor_id FROM whatsapp_conversations WHERE phone_number = ?");
+        // Find existing conversation by phone first
+        $stmt = $db->prepare("SELECT id, donor_id FROM whatsapp_conversations WHERE phone_number = ? LIMIT 1");
         $stmt->bind_param('s', $normalizedPhone);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
-        
+        $stmt->close();
+
         if ($row) {
             $conversationId = (int)$row['id'];
             $donorId = $row['donor_id'] ? (int)$row['donor_id'] : null;
+
+            if (!$is_admin && !userCanAccessConversation($db, $conversationId, $userId, false)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied to this conversation']);
+                exit;
+            }
         } else {
-            // Create new conversation
-            $stmt = $db->prepare("
-                INSERT INTO whatsapp_conversations (phone_number, is_unknown, created_at)
-                VALUES (?, 1, NOW())
-            ");
-            $stmt->bind_param('s', $normalizedPhone);
+            // No conversation exists: non-admin can only start chats for their assigned donor.
+            $donor = findDonorForPhone($db, $normalizedPhone);
+            if (!$is_admin) {
+                if (!$donor || (int)($donor['agent_id'] ?? 0) !== $userId) {
+                    http_response_code(403);
+                    echo json_encode(['success' => false, 'error' => 'You can only chat with your assigned donors']);
+                    exit;
+                }
+            }
+
+            if ($donor) {
+                $donorId = (int)$donor['id'];
+            }
+
+            if (!$is_admin) {
+                $stmt = $db->prepare("
+                    INSERT INTO whatsapp_conversations (phone_number, donor_id, is_unknown, assigned_agent_id, created_at)
+                    VALUES (?, ?, 0, ?, NOW())
+                ");
+                $stmt->bind_param('sii', $normalizedPhone, $donorId, $userId);
+            } elseif ($donorId) {
+                $isUnknown = 0;
+                $stmt = $db->prepare("
+                    INSERT INTO whatsapp_conversations (phone_number, donor_id, is_unknown, created_at)
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $stmt->bind_param('sii', $normalizedPhone, $donorId, $isUnknown);
+            } else {
+                $stmt = $db->prepare("
+                    INSERT INTO whatsapp_conversations (phone_number, is_unknown, created_at)
+                    VALUES (?, 1, NOW())
+                ");
+                $stmt->bind_param('s', $normalizedPhone);
+            }
+
             $stmt->execute();
             $conversationId = (int)$db->insert_id;
+            $stmt->close();
         }
     } else {
+        if (!$is_admin && !userCanAccessConversation($db, $conversationId, $userId, false)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied to this conversation']);
+            exit;
+        }
+
         // Get donor_id from existing conversation
         $stmt = $db->prepare("SELECT donor_id FROM whatsapp_conversations WHERE id = ?");
         $stmt->bind_param('i', $conversationId);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
         if ($row) {
             $donorId = $row['donor_id'] ? (int)$row['donor_id'] : null;
         }
     }
-    
+
     // If no donor_id from conversation, try to find by phone
     if (!$donorId) {
-        $stmt = $db->prepare("SELECT id FROM donors WHERE phone = ? OR phone = ? LIMIT 1");
-        $phoneWithoutPlus = ltrim($normalizedPhone, '+');
-        $stmt->bind_param('ss', $normalizedPhone, $phoneWithoutPlus);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        if ($row) {
-            $donorId = (int)$row['id'];
+        $donor = findDonorForPhone($db, $normalizedPhone);
+        if ($donor) {
+            $donorAgentId = (int)($donor['agent_id'] ?? 0);
+            if ($is_admin || $donorAgentId === $userId) {
+                $donorId = (int)$donor['id'];
+            }
         }
     }
     
@@ -154,6 +199,40 @@ try {
     error_log("WhatsApp Send Error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+}
+
+function userCanAccessConversation(mysqli $db, int $conversationId, int $userId, bool $isAdmin): bool
+{
+    if ($isAdmin) {
+        return true;
+    }
+
+    $stmt = $db->prepare("
+        SELECT wc.id
+        FROM whatsapp_conversations wc
+        LEFT JOIN donors d ON wc.donor_id = d.id
+        WHERE wc.id = ?
+          AND (wc.assigned_agent_id = ? OR d.agent_id = ?)
+        LIMIT 1
+    ");
+    $stmt->bind_param('iii', $conversationId, $userId, $userId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return !empty($row);
+}
+
+function findDonorForPhone(mysqli $db, string $normalizedPhone): ?array
+{
+    $stmt = $db->prepare("SELECT id, agent_id FROM donors WHERE phone = ? OR phone = ? LIMIT 1");
+    $phoneWithoutPlus = ltrim($normalizedPhone, '+');
+    $stmt->bind_param('ss', $normalizedPhone, $phoneWithoutPlus);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return $row ?: null;
 }
 
 /**
