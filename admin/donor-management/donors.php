@@ -680,8 +680,8 @@ unset($donor); // Break reference
                 
 
                 <!-- Stats Cards -->
-                <div class="row g-4 mb-4">
-                    <div class="col-12 col-sm-6 col-lg-3">
+                <div class="row g-2 g-md-3 mb-2 mb-md-3">
+                    <div class="col-6 col-lg-3">
                         <div class="stat-card" style="color: #0a6286;">
                             <div class="stat-icon bg-primary">
                                 <i class="fas fa-users"></i>
@@ -696,7 +696,7 @@ unset($donor); // Break reference
                         </div>
                     </div>
                     
-                    <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="col-6 col-lg-3">
                         <div class="stat-card" style="color: #b88a1a;">
                             <div class="stat-icon bg-warning">
                                 <i class="fas fa-handshake"></i>
@@ -711,7 +711,7 @@ unset($donor); // Break reference
                         </div>
                     </div>
                     
-                    <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="col-6 col-lg-3">
                         <div class="stat-card" style="color: #0d7f4d;">
                             <div class="stat-icon bg-success">
                                 <i class="fas fa-check-double"></i>
@@ -726,7 +726,7 @@ unset($donor); // Break reference
                         </div>
                     </div>
                     
-                    <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="col-6 col-lg-3">
                         <div class="stat-card" style="color: #b91c1c;">
                             <div class="stat-icon bg-danger">
                                 <i class="fas fa-phone"></i>
@@ -743,43 +743,26 @@ unset($donor); // Break reference
                 </div>
 
                 <!-- Donors Table -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <h5 class="mb-0">
-                                <i class="fas fa-table me-2 text-primary"></i>
+                <div class="card border-0 shadow-sm mb-2 mb-md-3">
+                    <div class="card-header bg-white border-bottom px-2 px-md-3 py-2">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <h6 class="mb-0 text-truncate" style="font-size: clamp(0.8rem, 2.5vw, 1rem);">
+                                <i class="fas fa-table me-1 text-primary"></i>
                                 <?php 
                                 if ($is_admin_user) {
                                     if ($filter_agent_id !== null) {
                                         $selected_agent = array_filter($agents, fn($a) => $a['id'] == $filter_agent_id);
                                         $selected_agent = reset($selected_agent);
-                                        echo 'Donors Assigned to ' . htmlspecialchars($selected_agent['name'] ?? 'Agent');
+                                        echo 'Donors — ' . htmlspecialchars($selected_agent['name'] ?? 'Agent');
                                     } else {
                                         echo 'All Donors';
                                     }
                                 } else {
-                                    echo 'My Assigned Donors';
+                                    echo 'My Donors';
                                 }
                                 ?>
-                            </h5>
-                            <div class="d-flex gap-2">
-                                <form method="GET" action="donors.php" class="d-flex gap-2">
-                                    <?php if ($show_all): ?>
-                                        <input type="hidden" name="show_all" value="1">
-                                    <?php endif; ?>
-                                    <?php if ($filter_agent_id): ?>
-                                        <input type="hidden" name="filter_agent" value="<?php echo $filter_agent_id; ?>">
-                                    <?php endif; ?>
-                                    <div class="input-group input-group-sm" style="width: 250px;">
-                                        <input type="text" class="form-control" name="search" id="header_search_input"
-                                               value="<?php echo htmlspecialchars($search_term); ?>" 
-                                               placeholder="Search donors..." 
-                                               aria-label="Search donors">
-                                        <button class="btn btn-outline-primary" type="submit">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    </div>
-                                </form>
+                            </h6>
+                            <div class="d-flex gap-1 flex-shrink-0">
                                 <div class="btn-group btn-group-sm" role="group" aria-label="View toggle">
                                     <button type="button" class="btn btn-outline-secondary active" id="btnGridView" title="Grid View">
                                         <i class="fas fa-th-large"></i>
@@ -789,11 +772,28 @@ unset($donor); // Break reference
                                     </button>
                                 </div>
                                 <button class="btn btn-sm btn-outline-secondary" id="toggleFilter" type="button">
-                                <i class="fas fa-filter me-1"></i>Filters
-                                <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
-                            </button>
+                                    <i class="fas fa-filter"></i><span class="d-none d-sm-inline ms-1">Filters</span>
+                                    <i class="fas fa-chevron-down ms-1 d-none d-sm-inline" id="filterIcon"></i>
+                                </button>
                             </div>
                         </div>
+                        <form method="GET" action="donors.php">
+                            <?php if ($show_all): ?>
+                                <input type="hidden" name="show_all" value="1">
+                            <?php endif; ?>
+                            <?php if ($filter_agent_id): ?>
+                                <input type="hidden" name="filter_agent" value="<?php echo $filter_agent_id; ?>">
+                            <?php endif; ?>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" name="search" id="header_search_input"
+                                       value="<?php echo htmlspecialchars($search_term); ?>" 
+                                       placeholder="Search by name, phone, reference..." 
+                                       aria-label="Search donors">
+                                <button class="btn btn-outline-primary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                     
                     <!-- Filter Panel -->
@@ -944,7 +944,7 @@ unset($donor); // Break reference
                         </div>
                     </div>
                     
-                    <div class="card-body p-2 p-md-3">
+                    <div class="card-body p-1 p-sm-2 p-md-3">
                         <div class="table-responsive donors-grid-view" id="donorsTableContainer">
                             <table id="donorsTable" class="table table-hover align-middle">
                                 <thead>
