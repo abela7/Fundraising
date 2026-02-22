@@ -16,8 +16,36 @@ try {
 
 $db = db();
 $current_user = current_user();
+$is_admin = ($current_user['role'] ?? '') === 'admin';
+$user_id = (int)($current_user['id'] ?? 0);
 $success_message = '';
 $error_message = '';
+$has_assigned_agent_col = false;
+
+$assigned_col_check = $db->query("SHOW COLUMNS FROM whatsapp_conversations LIKE 'assigned_agent_id'");
+if ($assigned_col_check && $assigned_col_check->num_rows > 0) {
+    $has_assigned_agent_col = true;
+}
+
+$assigned_donors = [];
+if (!$is_admin) {
+    $assigned_stmt = $db->prepare("
+        SELECT id, name, phone, balance
+        FROM donors
+        WHERE agent_id = ? AND phone IS NOT NULL AND phone <> ''
+        ORDER BY name ASC
+        LIMIT 200
+    ");
+    if ($assigned_stmt) {
+        $assigned_stmt->bind_param('i', $user_id);
+        $assigned_stmt->execute();
+        $assigned_result = $assigned_stmt->get_result();
+        while ($row = $assigned_result->fetch_assoc()) {
+            $assigned_donors[] = $row;
+        }
+        $assigned_stmt->close();
+    }
+}
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -30,6 +58,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (empty($phone) || empty($message)) {
             throw new Exception('Phone number and message are required.');
+        }
+
+        // Restrict registrar/agent users to only their assigned donors.
+        if (!$is_admin) {
+            if ($donor_id <= 0) {
+                throw new Exception('Please select one of your assigned donors.');
+            }
+
+            $agent_donor_stmt = $db->prepare("
+                SELECT id, phone
+                FROM donors
+                WHERE id = ? AND agent_id = ?
+                LIMIT 1
+            ");
+            $agent_donor_stmt->bind_param('ii', $donor_id, $user_id);
+            $agent_donor_stmt->execute();
+            $agent_donor = $agent_donor_stmt->get_result()->fetch_assoc();
+            $agent_donor_stmt->close();
+
+            if (!$agent_donor) {
+                throw new Exception('You can only start chats with your assigned donors.');
+            }
+
+            if (!empty($agent_donor['phone'])) {
+                $phone = (string)$agent_donor['phone'];
+            }
         }
         
         // Get UltraMsg service
@@ -53,20 +107,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param('s', $normalizedPhone);
         $stmt->execute();
         $existing = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
         
         if ($existing) {
             $conversationId = (int)$existing['id'];
+
+            // Non-admin users can only continue conversations in their own scope.
+            if (!$is_admin) {
+                $access_stmt = $db->prepare("
+                    SELECT wc.id
+                    FROM whatsapp_conversations wc
+                    LEFT JOIN donors d ON wc.donor_id = d.id
+                    WHERE wc.id = ?
+                      AND (wc.assigned_agent_id = ? OR d.agent_id = ?)
+                    LIMIT 1
+                ");
+                $access_stmt->bind_param('iii', $conversationId, $user_id, $user_id);
+                $access_stmt->execute();
+                $allowed = $access_stmt->get_result()->fetch_assoc();
+                $access_stmt->close();
+
+                if (!$allowed) {
+                    throw new Exception('Access denied for this conversation.');
+                }
+            }
         } else {
             // Create conversation
             $isUnknown = $donor_id ? 0 : 1;
-            $stmt = $db->prepare("
-                INSERT INTO whatsapp_conversations 
-                (phone_number, donor_id, is_unknown, created_at)
-                VALUES (?, ?, ?, NOW())
-            ");
-            $stmt->bind_param('sii', $normalizedPhone, $donor_id, $isUnknown);
+            if (!$is_admin && $has_assigned_agent_col) {
+                $stmt = $db->prepare("
+                    INSERT INTO whatsapp_conversations 
+                    (phone_number, donor_id, is_unknown, assigned_agent_id, created_at)
+                    VALUES (?, ?, ?, ?, NOW())
+                ");
+                $stmt->bind_param('siii', $normalizedPhone, $donor_id, $isUnknown, $user_id);
+            } else {
+                $stmt = $db->prepare("
+                    INSERT INTO whatsapp_conversations 
+                    (phone_number, donor_id, is_unknown, created_at)
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $stmt->bind_param('sii', $normalizedPhone, $donor_id, $isUnknown);
+            }
             $stmt->execute();
             $conversationId = (int)$db->insert_id;
+            $stmt->close();
         }
         
         // Save message
@@ -80,6 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->bind_param('issi', $conversationId, $messageId, $message, $senderId);
         $stmt->execute();
+        $stmt->close();
         
         // Update conversation
         $preview = mb_substr($message, 0, 255);
@@ -90,6 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->bind_param('si', $preview, $conversationId);
         $stmt->execute();
+        $stmt->close();
         
         // Redirect to conversation
         header("Location: inbox.php?id=$conversationId");
@@ -104,13 +191,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $donors = [];
 if (isset($_GET['search']) && !empty($_GET['search'])) {
     $search = '%' . $_GET['search'] . '%';
-    $stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE name LIKE ? OR phone LIKE ? LIMIT 20");
-    $stmt->bind_param('ss', $search, $search);
+    if ($is_admin) {
+        $stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE name LIKE ? OR phone LIKE ? LIMIT 20");
+        $stmt->bind_param('ss', $search, $search);
+    } else {
+        $stmt = $db->prepare("
+            SELECT id, name, phone
+            FROM donors
+            WHERE agent_id = ? AND (name LIKE ? OR phone LIKE ?)
+            LIMIT 20
+        ");
+        $stmt->bind_param('iss', $user_id, $search, $search);
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
         $donors[] = $row;
     }
+    $stmt->close();
     
     if (isset($_GET['ajax'])) {
         header('Content-Type: application/json');
@@ -153,9 +251,9 @@ function normalizePhone(string $phone): string
         .new-chat-card {
             background: #ffffff;
             border-radius: 12px;
-            padding: 2rem;
-            max-width: 600px;
-            margin: 2rem auto;
+            padding: 1rem;
+            max-width: 1000px;
+            margin: 0.75rem auto;
             color: var(--wa-text);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
@@ -191,22 +289,86 @@ function normalizePhone(string $phone): string
         .donor-result:hover {
             background: #f5f6f6;
         }
+        .donor-pick-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+        .donor-panel {
+            border: 1px solid #e9edef;
+            border-radius: 10px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .donor-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.65rem 0.85rem;
+            border-bottom: 1px solid #e9edef;
+            background: #f8fbfa;
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #3b4a54;
+        }
+        .assigned-list {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .assigned-item {
+            width: 100%;
+            border: 0;
+            background: #fff;
+            text-align: left;
+            border-bottom: 1px solid #f0f2f4;
+            padding: 0.7rem 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .assigned-item:active,
+        .assigned-item:hover {
+            background: #f5f9f8;
+        }
+        .assigned-name {
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: #1b2a32;
+        }
+        .assigned-meta {
+            font-size: 0.8rem;
+            color: #667781;
+        }
+        .assigned-empty {
+            padding: 0.8rem;
+            color: #667781;
+            font-size: 0.9rem;
+        }
         
         /* Mobile responsive */
         @media (max-width: 768px) {
             .new-chat-card {
-                margin: 1rem;
-                padding: 1.25rem;
+                margin: 0.5rem;
+                padding: 0.9rem;
             }
             .new-chat-card h2 {
-                font-size: 1.25rem;
+                font-size: 1.1rem;
             }
         }
         
+        @media (min-width: 992px) {
+            .new-chat-card {
+                padding: 1.2rem;
+            }
+            .donor-pick-grid {
+                grid-template-columns: 1fr 1fr;
+                align-items: start;
+            }
+        }
+
         @media (max-width: 480px) {
             .new-chat-card {
-                margin: 0.5rem;
-                padding: 1rem;
                 border-radius: 8px;
             }
         }
@@ -235,11 +397,41 @@ function normalizePhone(string $phone): string
                 <form method="POST">
                     <?php echo csrf_input(); ?>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Search Donor</label>
-                        <input type="text" id="donorSearch" class="form-control" 
-                               placeholder="Type donor name or phone..." autocomplete="off">
-                        <div id="donorResults" style="background:#ffffff;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;border:1px solid #e9edef;border-top:none;"></div>
+                    <div class="mb-3 donor-pick-grid">
+                        <div class="donor-panel">
+                            <div class="donor-panel-header">
+                                <span><i class="fas fa-search me-1"></i><?php echo $is_admin ? 'Search Donor' : 'Search Assigned Donor'; ?></span>
+                            </div>
+                            <div class="p-2">
+                                <input type="text" id="donorSearch" class="form-control" 
+                                       placeholder="<?php echo $is_admin ? 'Type donor name or phone...' : 'Type assigned donor name or phone...'; ?>" autocomplete="off">
+                                <div id="donorResults" style="background:#ffffff;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;border:1px solid #e9edef;border-top:none;"></div>
+                            </div>
+                        </div>
+                        <div class="donor-panel">
+                            <div class="donor-panel-header">
+                                <span><i class="fas fa-users me-1"></i><?php echo $is_admin ? 'Quick Donors' : 'My Assigned Donors'; ?></span>
+                                <span class="text-muted"><?php echo !$is_admin ? count($assigned_donors) : 0; ?></span>
+                            </div>
+                            <div class="assigned-list" id="assignedDonorList">
+                                <?php if (!$is_admin && !empty($assigned_donors)): ?>
+                                    <?php foreach ($assigned_donors as $d): ?>
+                                        <button type="button" class="assigned-item"
+                                                onclick="selectDonor(<?php echo (int)$d['id']; ?>, <?php echo json_encode((string)$d['name']); ?>, <?php echo json_encode((string)$d['phone']); ?>)">
+                                            <span>
+                                                <span class="assigned-name"><?php echo htmlspecialchars((string)$d['name']); ?></span><br>
+                                                <span class="assigned-meta"><?php echo htmlspecialchars((string)$d['phone']); ?></span>
+                                            </span>
+                                            <i class="fas fa-arrow-right text-muted"></i>
+                                        </button>
+                                    <?php endforeach; ?>
+                                <?php elseif (!$is_admin): ?>
+                                    <div class="assigned-empty">No donors are currently assigned to you.</div>
+                                <?php else: ?>
+                                    <div class="assigned-empty">Use search to find a donor.</div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                     
                     <input type="hidden" name="donor_id" id="donorId" value="<?php echo isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : ''; ?>">
@@ -278,9 +470,14 @@ const phoneNumber = document.getElementById('phoneNumber');
 <?php 
 if (isset($_GET['donor_id']) && !empty($_GET['donor_id'])): 
     $prefill_donor_id = (int)$_GET['donor_id'];
-    // Fetch donor info
-    $prefill_stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ?");
-    $prefill_stmt->bind_param('i', $prefill_donor_id);
+    // Fetch donor info in user scope
+    if ($is_admin) {
+        $prefill_stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ?");
+        $prefill_stmt->bind_param('i', $prefill_donor_id);
+    } else {
+        $prefill_stmt = $db->prepare("SELECT id, name, phone FROM donors WHERE id = ? AND agent_id = ?");
+        $prefill_stmt->bind_param('ii', $prefill_donor_id, $user_id);
+    }
     $prefill_stmt->execute();
     $prefill_donor = $prefill_stmt->get_result()->fetch_assoc();
     $prefill_stmt->close();
