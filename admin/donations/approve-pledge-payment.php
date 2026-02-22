@@ -43,7 +43,8 @@ try {
                d.preferred_language AS donor_language,
                d.balance AS donor_balance,
                d.total_paid AS donor_total_paid,
-               d.active_payment_plan_id AS donor_plan_id
+               d.active_payment_plan_id AS donor_plan_id,
+               d.agent_id AS donor_agent_id
         FROM pledge_payments pp
         LEFT JOIN pledges p ON pp.pledge_id = p.id
         LEFT JOIN donors d ON pp.donor_id = d.id
@@ -60,6 +61,14 @@ try {
     
     if (!$payment) {
         throw new Exception('Payment not found');
+    }
+
+    // Registrar can approve only donors assigned to them.
+    if ($user_role === 'registrar') {
+        $assignedAgentId = (int)($payment['donor_agent_id'] ?? 0);
+        if ($assignedAgentId !== $user_id) {
+            throw new Exception('Access denied. You can only approve payments for your assigned donors.');
+        }
     }
     
     if ($payment['status'] !== 'pending') {

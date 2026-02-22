@@ -11,6 +11,8 @@ if (!in_array($current_user['role'] ?? '', ['admin', 'registrar'])) {
     header('Location: ' . url_for('index.php'));
     exit;
 }
+$is_admin = (($current_user['role'] ?? '') === 'admin');
+$current_user_id = (int)($current_user['id'] ?? 0);
 
 $db = db();
 
@@ -39,6 +41,13 @@ $search = trim($_GET['search'] ?? '');
 $where_conditions = [];
 $params = [];
 $types = '';
+
+// Registrar scope: only donors assigned to the logged-in registrar.
+if (!$is_admin) {
+    $where_conditions[] = "d.agent_id = ?";
+    $params[] = $current_user_id;
+    $types .= 'i';
+}
 
 if ($filter === 'pending') {
     $where_conditions[] = "pp.status = 'pending'";
@@ -159,11 +168,30 @@ if (!empty($params)) {
 }
 
 // Count statistics
-$stats = [
-    'pending' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='pending'")->fetch_assoc()['c'],
-    'confirmed' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='confirmed'")->fetch_assoc()['c'],
-    'voided' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='voided'")->fetch_assoc()['c']
-];
+$stats = ['pending' => 0, 'confirmed' => 0, 'voided' => 0];
+if ($is_admin) {
+    $stats = [
+        'pending' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='pending'")->fetch_assoc()['c'],
+        'confirmed' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='confirmed'")->fetch_assoc()['c'],
+        'voided' => $db->query("SELECT COUNT(*) as c FROM pledge_payments WHERE status='voided'")->fetch_assoc()['c']
+    ];
+} else {
+    $stat_stmt = $db->prepare("
+        SELECT COUNT(*) as c
+        FROM pledge_payments pp
+        LEFT JOIN donors d ON pp.donor_id = d.id
+        WHERE pp.status = ? AND d.agent_id = ?
+    ");
+    if ($stat_stmt) {
+        foreach (['pending', 'confirmed', 'voided'] as $status_key) {
+            $stat_stmt->bind_param('si', $status_key, $current_user_id);
+            $stat_stmt->execute();
+            $row = $stat_stmt->get_result()->fetch_assoc();
+            $stats[$status_key] = (int)($row['c'] ?? 0);
+        }
+        $stat_stmt->close();
+    }
+}
 $stats['all'] = $stats['pending'] + $stats['confirmed'] + $stats['voided'];
 
 // Page titles based on filter
