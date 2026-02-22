@@ -777,23 +777,32 @@ unset($donor); // Break reference
                                 </button>
                             </div>
                         </div>
-                        <form method="GET" action="donors.php">
-                            <?php if ($show_all): ?>
-                                <input type="hidden" name="show_all" value="1">
-                            <?php endif; ?>
-                            <?php if ($filter_agent_id): ?>
-                                <input type="hidden" name="filter_agent" value="<?php echo $filter_agent_id; ?>">
-                            <?php endif; ?>
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" name="search" id="header_search_input"
-                                       value="<?php echo htmlspecialchars($search_term); ?>" 
-                                       placeholder="Search by name, phone, reference..." 
-                                       aria-label="Search donors">
-                                <button class="btn btn-outline-primary" type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                        </form>
+                        <div class="d-flex gap-2 align-items-center">
+                            <form method="GET" action="donors.php" class="flex-grow-1">
+                                <?php if ($show_all): ?>
+                                    <input type="hidden" name="show_all" value="1">
+                                <?php endif; ?>
+                                <?php if ($filter_agent_id): ?>
+                                    <input type="hidden" name="filter_agent" value="<?php echo $filter_agent_id; ?>">
+                                <?php endif; ?>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" name="search" id="header_search_input"
+                                           value="<?php echo htmlspecialchars($search_term); ?>" 
+                                           placeholder="Search by name, phone, reference..." 
+                                           aria-label="Search donors">
+                                    <button class="btn btn-outline-primary" type="submit">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </form>
+                            <select id="perPageSelect" class="form-select form-select-sm flex-shrink-0" style="width: auto; min-width: 4.5rem;" aria-label="Donors per page">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="250">250</option>
+                                <option value="-1">All</option>
+                            </select>
+                        </div>
                     </div>
                     
                     <!-- Filter Panel -->
@@ -1419,17 +1428,19 @@ $(document).ready(function() {
     const table = $('#donorsTable').DataTable({
         order: [[1, 'asc']],
         pageLength: 25,
-        lengthMenu: [[25, 50, 100, 250, 500, -1], [25, 50, 100, 250, 500, "All"]],
+        lengthMenu: [[25, 50, 100, 250, -1], [25, 50, 100, 250, "All"]],
         language: {
             search: "",
-            lengthMenu: "Show _MENU_ donors per page"
+            info: "_START_–_END_ of _TOTAL_",
+            infoEmpty: "0 donors",
+            infoFiltered: "(filtered from _MAX_)",
+            emptyTable: "No donors found"
         },
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip', // Custom layout without default search
-        // Hide the default search box since we use server-side search
-        initComplete: function() {
-            // Hide DataTables default search box
-            $('.dataTables_filter').hide();
-        }
+        dom: '<"d-none"f>tip'
+    });
+
+    $('#perPageSelect').on('change', function() {
+        table.page.len(parseInt(this.value, 10)).draw();
     });
     
     // Toggle Filter Panel

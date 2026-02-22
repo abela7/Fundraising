@@ -396,28 +396,37 @@
     margin-right: 0;
 }
 
-.dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_info {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
+    color: #6b7280;
     text-align: center;
-    padding: 0.25rem 0;
+    padding: 0.5rem 0 0.25rem;
 }
 
 .dataTables_wrapper .dataTables_paginate {
-    margin-top: 0.5rem;
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
+    gap: 0.125rem;
+    padding: 0.25rem 0 0.5rem;
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 0.25rem 0.5rem !important;
-    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem !important;
+    font-size: 0.6875rem;
+    border-radius: 0.25rem;
+    min-width: 1.75rem;
+    text-align: center;
 }
 
-.dataTables_wrapper .dataTables_length select {
-    padding: 0.2rem 0.4rem;
+/* Per-page dropdown in header */
+#perPageSelect {
     font-size: 0.75rem;
+    padding: 0.25rem 1.5rem 0.25rem 0.4rem;
+    border-color: #dee2e6;
+    border-radius: 0.25rem;
+    color: #495057;
+    cursor: pointer;
 }
 
 /* ========== FILTER PANEL ========== */
