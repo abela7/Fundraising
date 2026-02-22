@@ -21,6 +21,10 @@ $user_id = (int)($current_user['id'] ?? 0);
 $success_message = '';
 $error_message = '';
 $has_assigned_agent_col = false;
+$assigned_page = max(1, (int)($_GET['assigned_page'] ?? 1));
+$assigned_per_page = 20;
+$assigned_total = 0;
+$assigned_total_pages = 1;
 
 $assigned_col_check = $db->query("SHOW COLUMNS FROM whatsapp_conversations LIKE 'assigned_agent_id'");
 if ($assigned_col_check && $assigned_col_check->num_rows > 0) {
@@ -29,15 +33,34 @@ if ($assigned_col_check && $assigned_col_check->num_rows > 0) {
 
 $assigned_donors = [];
 if (!$is_admin) {
+    $assigned_count_stmt = $db->prepare("
+        SELECT COUNT(*) AS total
+        FROM donors
+        WHERE agent_id = ? AND phone IS NOT NULL AND phone <> ''
+    ");
+    if ($assigned_count_stmt) {
+        $assigned_count_stmt->bind_param('i', $user_id);
+        $assigned_count_stmt->execute();
+        $assigned_count_row = $assigned_count_stmt->get_result()->fetch_assoc();
+        $assigned_total = (int)($assigned_count_row['total'] ?? 0);
+        $assigned_count_stmt->close();
+    }
+
+    $assigned_total_pages = max(1, (int)ceil($assigned_total / $assigned_per_page));
+    if ($assigned_page > $assigned_total_pages) {
+        $assigned_page = $assigned_total_pages;
+    }
+    $assigned_offset = ($assigned_page - 1) * $assigned_per_page;
+
     $assigned_stmt = $db->prepare("
         SELECT id, name, phone, balance
         FROM donors
         WHERE agent_id = ? AND phone IS NOT NULL AND phone <> ''
         ORDER BY name ASC
-        LIMIT 200
+        LIMIT ? OFFSET ?
     ");
     if ($assigned_stmt) {
-        $assigned_stmt->bind_param('i', $user_id);
+        $assigned_stmt->bind_param('iii', $user_id, $assigned_per_page, $assigned_offset);
         $assigned_stmt->execute();
         $assigned_result = $assigned_stmt->get_result();
         while ($row = $assigned_result->fetch_assoc()) {
@@ -231,6 +254,14 @@ function normalizePhone(string $phone): string
     }
     return $phone;
 }
+
+function buildAssignedPageUrl(int $page): string
+{
+    $params = $_GET;
+    unset($params['ajax'], $params['search']);
+    $params['assigned_page'] = max(1, $page);
+    return 'new-chat.php?' . http_build_query($params);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -315,6 +346,21 @@ function normalizePhone(string $phone): string
             max-height: 260px;
             overflow-y: auto;
         }
+        .assigned-accordion .accordion-button {
+            padding: 0.65rem 0.85rem;
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #3b4a54;
+            background: #f8fbfa;
+            box-shadow: none;
+        }
+        .assigned-accordion .accordion-button:not(.collapsed) {
+            background: #eef7f5;
+            color: #1f3b34;
+        }
+        .assigned-accordion .accordion-body {
+            padding: 0;
+        }
         .assigned-item {
             width: 100%;
             border: 0;
@@ -344,6 +390,28 @@ function normalizePhone(string $phone): string
             padding: 0.8rem;
             color: #667781;
             font-size: 0.9rem;
+        }
+        .assigned-pagination-wrap {
+            border-top: 1px solid #e9edef;
+            padding: 0.6rem 0.75rem;
+            background: #fff;
+        }
+        .assigned-pagination-wrap .pagination {
+            margin-bottom: 0;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        .assigned-pagination-wrap .page-link {
+            border-radius: 8px;
+            border-color: #d9e0e4;
+            color: #3b4a54;
+            padding: 0.3rem 0.55rem;
+            font-size: 0.82rem;
+        }
+        .assigned-pagination-wrap .page-item.active .page-link {
+            background: #00a884;
+            border-color: #00a884;
+            color: #fff;
         }
         
         /* Mobile responsive */
@@ -409,27 +477,58 @@ function normalizePhone(string $phone): string
                             </div>
                         </div>
                         <div class="donor-panel">
-                            <div class="donor-panel-header">
-                                <span><i class="fas fa-users me-1"></i><?php echo $is_admin ? 'Quick Donors' : 'My Assigned Donors'; ?></span>
-                                <span class="text-muted"><?php echo !$is_admin ? count($assigned_donors) : 0; ?></span>
-                            </div>
-                            <div class="assigned-list" id="assignedDonorList">
-                                <?php if (!$is_admin && !empty($assigned_donors)): ?>
-                                    <?php foreach ($assigned_donors as $d): ?>
-                                        <button type="button" class="assigned-item"
-                                                onclick="selectDonor(<?php echo (int)$d['id']; ?>, <?php echo json_encode((string)$d['name']); ?>, <?php echo json_encode((string)$d['phone']); ?>)">
-                                            <span>
-                                                <span class="assigned-name"><?php echo htmlspecialchars((string)$d['name']); ?></span><br>
-                                                <span class="assigned-meta"><?php echo htmlspecialchars((string)$d['phone']); ?></span>
-                                            </span>
-                                            <i class="fas fa-arrow-right text-muted"></i>
+                            <div class="accordion assigned-accordion" id="assignedDonorAccordion">
+                                <div class="accordion-item border-0">
+                                    <h2 class="accordion-header" id="assignedDonorHeading">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#assignedDonorCollapse" aria-expanded="false" aria-controls="assignedDonorCollapse">
+                                            <span><i class="fas fa-users me-1"></i><?php echo $is_admin ? 'Quick Donors' : 'My Assigned Donors'; ?></span>
+                                            <span class="text-muted ms-2"><?php echo !$is_admin ? $assigned_total : 0; ?></span>
                                         </button>
-                                    <?php endforeach; ?>
-                                <?php elseif (!$is_admin): ?>
-                                    <div class="assigned-empty">No donors are currently assigned to you.</div>
-                                <?php else: ?>
-                                    <div class="assigned-empty">Use search to find a donor.</div>
-                                <?php endif; ?>
+                                    </h2>
+                                    <div id="assignedDonorCollapse" class="accordion-collapse collapse" aria-labelledby="assignedDonorHeading" data-bs-parent="#assignedDonorAccordion">
+                                        <div class="accordion-body">
+                                            <div class="assigned-list" id="assignedDonorList">
+                                                <?php if (!$is_admin && !empty($assigned_donors)): ?>
+                                                    <?php foreach ($assigned_donors as $d): ?>
+                                                        <button type="button" class="assigned-item"
+                                                                onclick="selectDonor(<?php echo (int)$d['id']; ?>, <?php echo json_encode((string)$d['name']); ?>, <?php echo json_encode((string)$d['phone']); ?>)">
+                                                            <span>
+                                                                <span class="assigned-name"><?php echo htmlspecialchars((string)$d['name']); ?></span><br>
+                                                                <span class="assigned-meta"><?php echo htmlspecialchars((string)$d['phone']); ?></span>
+                                                            </span>
+                                                            <i class="fas fa-arrow-right text-muted"></i>
+                                                        </button>
+                                                    <?php endforeach; ?>
+                                                <?php elseif (!$is_admin): ?>
+                                                    <div class="assigned-empty">No donors are currently assigned to you.</div>
+                                                <?php else: ?>
+                                                    <div class="assigned-empty">Use search to find a donor.</div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if (!$is_admin && $assigned_total_pages > 1): ?>
+                                                <div class="assigned-pagination-wrap">
+                                                    <nav aria-label="Assigned donor pages">
+                                                        <ul class="pagination justify-content-center">
+                                                            <li class="page-item <?php echo $assigned_page <= 1 ? 'disabled' : ''; ?>">
+                                                                <a class="page-link" href="<?php echo htmlspecialchars(buildAssignedPageUrl($assigned_page - 1)); ?>">Prev</a>
+                                                            </li>
+                                                            <?php for ($p = 1; $p <= $assigned_total_pages; $p++): ?>
+                                                                <?php if ($p === 1 || $p === $assigned_total_pages || abs($p - $assigned_page) <= 1): ?>
+                                                                    <li class="page-item <?php echo $p === $assigned_page ? 'active' : ''; ?>">
+                                                                        <a class="page-link" href="<?php echo htmlspecialchars(buildAssignedPageUrl($p)); ?>"><?php echo $p; ?></a>
+                                                                    </li>
+                                                                <?php endif; ?>
+                                                            <?php endfor; ?>
+                                                            <li class="page-item <?php echo $assigned_page >= $assigned_total_pages ? 'disabled' : ''; ?>">
+                                                                <a class="page-link" href="<?php echo htmlspecialchars(buildAssignedPageUrl($assigned_page + 1)); ?>">Next</a>
+                                                            </li>
+                                                        </ul>
+                                                    </nav>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
