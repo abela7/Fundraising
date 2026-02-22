@@ -373,12 +373,12 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
       <?php endif; ?>
 
       <!-- Members Header -->
-      <div class="members-header">
+      <div class="members-header mb-4">
         <div class="members-header-title">
           <h1 class="h3 mb-1">Members Management</h1>
           <p class="text-muted mb-0">Manage admin and registrar users</p>
         </div>
-        <div class="members-header-actions d-flex gap-2">
+        <div class="members-header-actions">
           <a href="report.php" class="btn btn-outline-primary">
             <i class="fas fa-chart-bar me-1"></i><span class="d-none d-sm-inline">Registrar Report</span><span class="d-inline d-sm-none">Report</span>
           </a>

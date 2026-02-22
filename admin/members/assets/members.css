@@ -160,6 +160,8 @@
 }
 
 .members-page .btn-group .btn-light:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
   background: var(--gray-100);
   border-color: var(--gray-300);
 }
@@ -302,11 +304,15 @@
   #bulkActionsBar .btn {
     width: 100%;
   }
+
+  .members-page {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
 }
 
 /* ========== Mobile - Card Layout (≤767px) ========== */
 @media (max-width: 767.98px) {
-
   .members-page .members-header {
     margin-bottom: 1.25rem;
   }
@@ -322,6 +328,15 @@
 
   .members-filter-bar .row > [class*="col-"]:last-child {
     margin-bottom: 0;
+  }
+
+  #bulkActionsBar .btn {
+    width: 100%;
+  }
+  
+  #bulkActionsBar .text-muted {
+    font-size: 0.875rem;
+    white-space: nowrap;
   }
 
   /* DataTables controls stack */
@@ -341,6 +356,7 @@
   .members-page .dataTables_wrapper .dataTables_paginate {
     justify-content: center;
     flex-wrap: wrap;
+    margin-top: 0.5rem;
   }
 
   /* Table → Card layout */
@@ -387,6 +403,7 @@
     border: none;
     border-bottom: 1px solid var(--gray-100);
     gap: 0.75rem;
+    font-size: 0.875rem;
   }
 
   .members-page .table tbody td:last-child {
@@ -409,7 +426,7 @@
     letter-spacing: 0.05em;
     color: var(--gray-500);
     flex-shrink: 0;
-    width: 40%;
+    width: 30%;
   }
 
   .members-page .table tbody td:first-child::before {
@@ -418,26 +435,25 @@
 
   .members-page .table tbody td:last-child::before {
     content: "Actions";
+    width: 100%;
+    margin-bottom: 0.5rem;
   }
 
   /* Card content layout */
   .members-page .table tbody td > div {
     flex: 1;
     min-width: 0;
-  }
-
-  .members-page .table tbody td .d-flex.align-items-center {
-    flex-wrap: wrap;
+    text-align: right;
   }
 
   .members-page .table tbody td[data-label="User"] .d-flex {
     flex-direction: row;
     align-items: center;
+    justify-content: flex-end;
   }
 
-  .members-page .table tbody td[data-label="Contact"] > div {
+  .members-page .table tbody td[data-label="User"] .d-flex > div {
     text-align: right;
-    min-width: 0;
   }
 
   .members-page .table tbody td[data-label="Joined"] > small {
@@ -446,11 +462,7 @@
 
   .members-page .table tbody td[data-label="Actions"] {
     flex-direction: column;
-    align-items: stretch;
-  }
-
-  .members-page .table tbody td[data-label="Actions"]::before {
-    width: auto;
+    align-items: flex-start;
   }
 
   .members-page .table tbody td[data-label="Actions"] .btn-group {
@@ -458,49 +470,42 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     justify-content: flex-start;
+    width: 100%;
   }
 
   /* Touch targets for action buttons */
   .members-page .table tbody .btn-group .btn {
     min-height: 44px;
-    min-width: 44px;
-    padding: 0.5rem;
-    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    border-radius: 8px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 calc(50% - 0.5rem); /* two buttons per row */
   }
 
   .members-page .table tbody .btn-group .btn i {
     font-size: 1rem;
   }
 
-  .avatar-circle {
-    width: 40px;
-    height: 40px;
-    font-size: 1.125rem;
-  }
-
   .members-page .badge {
-    font-size: 0.625rem;
-    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
   }
 
-  /* Long text wrap */
   .members-page .table tbody td {
     word-break: break-word;
-  }
-
-  .members-page .table tbody td .fw-semibold {
-    font-size: 0.9375rem;
   }
 }
 
 /* ========== Small Mobile (≤575px) ========== */
 @media (max-width: 575.98px) {
   .members-page .members-header-title h1 {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
   }
 
   .members-page .members-header-title p {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
 
   .members-page .members-header-actions {
@@ -521,38 +526,18 @@
     min-height: 44px;
   }
 
-  .members-page .table tbody tr {
-    padding: 0.875rem;
-  }
-
-  .members-page .table tbody td {
-    font-size: 0.8125rem;
-  }
-
   .members-page .table tbody td::before {
     font-size: 0.625rem;
   }
 
-  .avatar-circle {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
-  }
-
-  #bulkActionsBar .card-body {
-    padding: 0.75rem;
-  }
-
   /* Modal full bleed */
   .members-page .modal-dialog {
-    margin: 0;
-    max-width: 100%;
-    min-height: 100vh;
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
   }
 
   .members-page .modal-content {
-    border-radius: 0;
-    min-height: 100vh;
+    border-radius: 12px;
   }
 
   .members-page .modal-header {
@@ -572,6 +557,7 @@
   .members-page .modal-footer .btn {
     width: 100%;
     min-height: 44px;
+    margin: 0;
   }
 
   /* Pagination compact */
@@ -589,13 +575,7 @@
   }
 
   .members-page .table tbody .btn-group .btn {
-    min-width: 40px;
-    min-height: 40px;
-    padding: 0.4rem;
-  }
-
-  .members-page .table tbody .btn-group {
-    gap: 0.375rem;
+    flex: 1 1 100%; /* one button per row */
   }
 }
 
@@ -603,8 +583,8 @@
 @supports (padding: max(0px)) {
   @media (max-width: 575.98px) {
     .members-page {
-      padding-left: max(1rem, env(safe-area-inset-left, 0px));
-      padding-right: max(1rem, env(safe-area-inset-right, 0px));
+      padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+      padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
     }
   }
 }
