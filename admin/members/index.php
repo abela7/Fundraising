@@ -363,7 +363,7 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
   <div class="admin-content">
     <?php include '../includes/topbar.php'; ?>
     
-    <main class="main-content">
+    <main class="main-content members-page">
       <?php if ($msg): ?>
         <div class="alert alert-info alert-dismissible fade show animate-fade-in" role="alert">
           <i class="fas fa-info-circle me-2"></i>
@@ -373,12 +373,12 @@ $rows = $db->query("SELECT id, name, phone, email, role, active, created_at FROM
       <?php endif; ?>
 
       <!-- Members Header -->
-      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-        <div>
+      <div class="members-header">
+        <div class="members-header-title">
           <h1 class="h3 mb-1">Members Management</h1>
           <p class="text-muted mb-0">Manage admin and registrar users</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="members-header-actions d-flex gap-2">
           <a href="report.php" class="btn btn-outline-primary">
             <i class="fas fa-chart-bar me-1"></i><span class="d-none d-sm-inline">Registrar Report</span><span class="d-inline d-sm-none">Report</span>
           </a>

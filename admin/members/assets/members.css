@@ -1,189 +1,75 @@
-/* Members Page Specific Styles */
+/**
+ * Members Management Page - Professional Responsive Design
+ * Breakpoints: 1400, 1200, 992, 768, 576, 400
+ */
 
-/* Prevent flex overflow on small screens */
-.admin-wrapper .admin-content .main-content {
+/* ========== Base Layout ========== */
+.members-page {
   min-width: 0;
+  overflow-x: hidden;
 }
 
-/* Filter Bar */
-.members-filter-bar .card-body {
-  padding: 0.75rem 1rem;
-}
-
-/* DataTables wrapper responsiveness */
-.dataTables_wrapper {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.dataTables_wrapper .dataTables_length,
-.dataTables_wrapper .dataTables_filter,
-.dataTables_wrapper .dataTables_info,
-.dataTables_wrapper .dataTables_paginate {
-  padding: 0.5rem 0;
-}
-
-.dataTables_wrapper .row:first-child {
-  margin-bottom: 0.75rem;
-}
-
-.dataTables_wrapper .row:last-child {
-  margin-top: 0.75rem;
-}
-
-/* Avatar Circle */
-.avatar-circle {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  border-radius: 50%;
+/* ========== Page Header ========== */
+.members-page .members-header {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--white);
-  font-weight: 600;
-  font-size: 1.125rem;
-  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-/* Enhanced Table */
-.table {
-  margin-bottom: 0;
+.members-page .members-header-title h1 {
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
 }
 
-.table th {
-  font-weight: 600;
-  text-transform: uppercase;
+.members-page .members-header-title p {
+  font-size: clamp(0.813rem, 1.5vw, 0.875rem);
+  margin: 0;
+}
+
+.members-page .members-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.members-page .members-header-actions .btn {
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  white-space: nowrap;
+}
+
+/* ========== Filter Bar ========== */
+.members-filter-bar .card-body {
+  padding: 1rem 1.25rem;
+}
+
+.members-filter-bar .form-label {
   font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  color: var(--gray-600);
-  border-bottom: 2px solid var(--gray-200);
-  padding: 1rem 1.5rem;
-}
-
-.table td {
-  padding: 1rem 1.5rem;
-  vertical-align: middle;
-}
-
-.table tbody tr {
-  transition: all var(--transition-fast);
-  border-bottom: 1px solid var(--gray-100);
-}
-
-.table tbody tr:hover {
-  background-color: var(--gray-50);
-}
-
-/* Status Badges */
-.badge {
-  padding: 0.5rem 0.75rem;
   font-weight: 500;
   text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.05em;
-  border-radius: 6px;
+  letter-spacing: 0.04em;
 }
 
-/* Action Buttons */
-.btn-group .btn-light {
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  color: var(--gray-700);
-  padding: 0.375rem 0.625rem;
-  transition: all var(--transition-fast);
+.members-filter-bar .form-control,
+.members-filter-bar .form-select {
+  min-height: 44px;
+  font-size: 0.9375rem;
 }
 
-.btn-group .btn-light:hover {
-  background: var(--gray-100);
-  border-color: var(--gray-300);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+.members-filter-bar .input-group-sm .form-control,
+.members-filter-bar .input-group-sm .input-group-text {
+  min-height: 38px;
 }
 
-.btn-group .btn-light.text-danger:hover {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: var(--white);
+.members-filter-bar #filterClear {
+  min-height: 44px;
 }
 
-.btn-group .btn-light.text-success:hover {
-  background: var(--success);
-  border-color: var(--success);
-  color: var(--white);
-}
-
-/* Delete Button Specific Styling */
-.btn-group .btn-light:last-child.text-danger {
-  border-left: 1px solid var(--danger-light);
-  margin-left: 2px;
-  position: relative;
-}
-
-.btn-group .btn-light:last-child.text-danger::before {
-  content: '';
-  position: absolute;
-  left: -1px;
-  top: 20%;
-  bottom: 20%;
-  width: 1px;
-  background: var(--danger-light);
-}
-
-/* Modal Enhancements */
-.modal-content {
-  border: none;
-  border-radius: 16px;
-  box-shadow: var(--shadow-xl);
-}
-
-.modal-header {
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--gray-200);
-  border-radius: 16px 16px 0 0;
-  padding: 1.25rem 1.5rem;
-}
-
-.modal-header.bg-danger {
-  background: var(--danger) !important;
-  border-bottom-color: rgba(255, 255, 255, 0.2);
-}
-
-.modal-title {
-  font-weight: 600;
-  color: var(--gray-900);
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
-.modal-footer {
-  background: var(--gray-50);
-  border-top: 1px solid var(--gray-200);
-  border-radius: 0 0 16px 16px;
-  padding: 1rem 1.5rem;
-}
-
-/* Inline Delete Form Styling */
-form[onsubmit*="PERMANENT DELETE"] {
-  display: inline-block !important;
-  margin: 0;
-  padding: 0;
-}
-
-form[onsubmit*="PERMANENT DELETE"] .btn {
-  margin-left: 2px;
-  border-left: 1px solid var(--danger-light);
-}
-
-/* Edit Form Row */
-.edit-form-row {
-  background: var(--gray-50);
-  border: 2px solid var(--primary);
-}
-
-/* Bulk Actions Bar */
+/* ========== Bulk Actions Bar ========== */
 #bulkActionsBar {
   background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
   border-left: 4px solid var(--primary);
@@ -203,10 +89,98 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
 
 #bulkActionsBar .form-select-sm {
   min-width: 180px;
+  min-height: 38px;
 }
 
+#bulkActionsBar .btn {
+  min-height: 38px;
+  padding: 0.375rem 0.75rem;
+}
+
+/* ========== Table Base ========== */
+.members-page .table {
+  margin-bottom: 0;
+}
+
+.members-page .table th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--gray-600);
+  border-bottom: 2px solid var(--gray-200);
+  padding: 0.875rem 1rem;
+}
+
+.members-page .table td {
+  padding: 0.875rem 1rem;
+  vertical-align: middle;
+}
+
+.members-page .table tbody tr {
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.members-page .table tbody tr:hover {
+  background-color: var(--gray-50);
+}
+
+/* ========== Avatar ========== */
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-weight: 600;
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+/* ========== Badges ========== */
+.members-page .badge {
+  padding: 0.35rem 0.6rem;
+  font-weight: 500;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ========== Action Buttons (Desktop) ========== */
+.members-page .btn-group .btn-light {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  color: var(--gray-700);
+  padding: 0.375rem 0.625rem;
+  transition: all 0.15s ease;
+}
+
+.members-page .btn-group .btn-light:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-300);
+}
+
+.members-page .btn-group .btn-light.text-danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--white);
+}
+
+.members-page .btn-group .btn-light.text-success:hover {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--white);
+}
+
+/* ========== Checkbox ========== */
 .member-checkbox {
   cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .member-checkbox:checked {
@@ -214,404 +188,423 @@ form[onsubmit*="PERMANENT DELETE"] .btn {
   border-color: var(--primary);
 }
 
-/* Filter bar responsive */
-@media (max-width: 767.98px) {
-  .members-filter-bar .card-body {
-    padding: 0.75rem 1rem;
-  }
-
-  .members-filter-bar .form-label {
-    font-size: 0.75rem;
-  }
-
-  .members-filter-bar .form-control,
-  .members-filter-bar .form-select {
-    font-size: 0.875rem;
-  }
+/* ========== DataTables Wrapper ========== */
+.members-page .dataTables_wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 575.98px) {
-  .members-filter-bar .row {
-    --bs-gutter-y: 0.75rem;
-  }
-
-  .members-filter-bar .col-12 {
-    padding-bottom: 0.25rem;
-  }
+.members-page .dataTables_wrapper .dataTables_length,
+.members-page .dataTables_wrapper .dataTables_info,
+.members-page .dataTables_wrapper .dataTables_paginate {
+  padding: 0.75rem 0;
 }
 
-/* DataTables responsive controls */
-@media (max-width: 767.98px) {
-  .dataTables_wrapper .dataTables_length,
-  .dataTables_wrapper .dataTables_info {
-    text-align: center;
-  }
-
-  .dataTables_wrapper .dataTables_paginate {
-    margin-top: 0.5rem;
-    justify-content: center;
-  }
-
-  .dataTables_wrapper .dataTables_length select {
-    margin: 0 0.25rem;
-  }
+.members-page .dataTables_wrapper .dataTables_length label,
+.members-page .dataTables_wrapper .dataTables_info {
+  font-size: 0.875rem;
+  margin: 0;
 }
 
-@media (max-width: 575.98px) {
-  .dataTables_wrapper .row:first-child {
+.members-page .dataTables_wrapper .dataTables_length select {
+  min-height: 38px;
+  padding: 0.25rem 2rem;
+  margin: 0 0.25rem;
+}
+
+.members-page .dataTables_wrapper .dataTables_paginate {
+  padding: 0.5rem 0;
+}
+
+.members-page .dataTables_wrapper .dataTables_paginate .paginate_button {
+  min-height: 38px;
+  min-width: 38px;
+  padding: 0.5rem 0.75rem;
+  margin: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ========== Modals ========== */
+.members-page .modal-dialog {
+  margin: 1rem;
+  max-width: calc(100vw - 2rem);
+}
+
+.members-page .modal-content {
+  border: none;
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
+}
+
+.members-page .modal-body .form-control,
+.members-page .modal-body .form-select {
+  min-height: 44px;
+}
+
+/* Inline delete form in table */
+.members-page form[onsubmit*="PERMANENT DELETE"] {
+  display: inline-block;
+  margin: 0;
+}
+
+.members-page form[onsubmit*="PERMANENT DELETE"] .btn {
+  margin-left: 2px;
+}
+
+/* ========== Tablet (≤991px) ========== */
+@media (max-width: 991.98px) {
+  .members-page .members-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.5rem;
-  }
-
-  .dataTables_wrapper .dataTables_length {
-    text-align: left;
-  }
-}
-
-/* Tablet Responsive */
-@media (max-width: 991.98px) and (min-width: 768px) {
-  .table th,
-  .table td {
-    padding: 0.75rem 1rem;
-    font-size: 0.9rem;
-  }
-  
-  .btn-group .btn {
-    padding: 0.35rem 0.5rem;
-    font-size: 0.8rem;
-  }
-  
-  .avatar-circle {
-    width: 38px;
-    height: 38px;
-    font-size: 1.1rem;
-  }
-}
-
-/* Mobile Responsive */
-@media (max-width: 991.98px) {
-  .table-responsive {
-    border: none;
-  }
-  
-  .action-buttons {
-    justify-content: center;
-  }
-  
-  .btn-icon {
-    width: 44px;
-    height: 44px;
-  }
-  
-  /* Header adjustments */
-  .d-flex.justify-content-between {
-    flex-direction: column;
-    align-items: flex-start !important;
     gap: 1rem;
   }
-  
-  .d-flex.justify-content-between .btn {
+
+  .members-page .members-header-actions {
     width: 100%;
+    justify-content: stretch;
   }
-  
-  /* Bulk actions bar mobile */
-  #bulkActionsBar {
-    margin-bottom: 1rem;
+
+  .members-page .members-header-actions .btn {
+    flex: 1;
+    min-width: 0;
   }
-  
+
+  .members-page .table th,
+  .members-page .table td {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  .avatar-circle {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
   #bulkActionsBar .card-body {
-    padding: 0.75rem;
+    padding: 0.875rem 1rem;
   }
-  
+
   #bulkActionsBar .d-flex {
     flex-direction: column;
+    align-items: stretch;
     gap: 0.75rem;
-    align-items: stretch !important;
   }
-  
-  #bulkActionsBar .d-flex > div:first-child {
-    text-align: center;
-  }
-  
+
   #bulkActionsBar .form-select-sm {
-    width: 100% !important;
+    width: 100%;
     min-width: auto;
   }
-  
+
   #bulkActionsBar .btn {
     width: 100%;
   }
-  
-  #bulkActionsBar .text-muted {
-    font-size: 0.875rem;
-    white-space: nowrap;
-  }
 }
 
+/* ========== Mobile - Card Layout (≤767px) ========== */
 @media (max-width: 767.98px) {
-  .table {
-    font-size: 0.875rem;
+
+  .members-page .members-header {
+    margin-bottom: 1.25rem;
   }
-  
-  .table thead {
+
+  /* Filter bar stack */
+  .members-filter-bar .card-body {
+    padding: 0.875rem 1rem;
+  }
+
+  .members-filter-bar .row > [class*="col-"] {
+    margin-bottom: 0.5rem;
+  }
+
+  .members-filter-bar .row > [class*="col-"]:last-child {
+    margin-bottom: 0;
+  }
+
+  /* DataTables controls stack */
+  .members-page .dataTables_wrapper .row:first-child,
+  .members-page .dataTables_wrapper .row:last-child {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin: 0;
+  }
+
+  .members-page .dataTables_wrapper .dataTables_length,
+  .members-page .dataTables_wrapper .dataTables_info {
+    text-align: center;
+  }
+
+  .members-page .dataTables_wrapper .dataTables_paginate {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* Table → Card layout */
+  .members-page .card .table-responsive {
+    overflow-x: visible;
+    border: none;
+  }
+
+  .members-page .table thead {
     display: none;
   }
-  
-  .table tbody tr {
+
+  .members-page .table tbody tr {
     display: block;
     margin-bottom: 1rem;
-    border: 1px solid var(--gray-200);
-    border-radius: 8px;
     padding: 1rem;
-    background: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    background: var(--white);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
-  
-  .table tbody td {
+
+  .members-page .table tbody tr:last-child {
+    margin-bottom: 0.5rem;
+  }
+
+  /* DataTables empty state */
+  .members-page .table tbody tr.dataTables_empty td {
+    display: block;
+    text-align: center;
+    padding: 2rem 1rem;
+    border: none;
+  }
+
+  .members-page .table tbody tr.dataTables_empty td::before {
+    display: none;
+  }
+
+  .members-page .table tbody td {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 0;
     border: none;
     border-bottom: 1px solid var(--gray-100);
+    gap: 0.75rem;
   }
-  
-  .table tbody td:last-child {
+
+  .members-page .table tbody td:last-child {
     border-bottom: none;
+    padding-top: 0.875rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid var(--gray-200);
   }
-  
-  .table tbody td:first-child {
-    border-bottom: 2px solid var(--gray-300);
+
+  .members-page .table tbody td:first-child {
+    padding-top: 0;
     padding-bottom: 0.75rem;
-    margin-bottom: 0.5rem;
   }
-  
-  .table tbody td:first-child::before {
-    content: 'Select';
-    font-weight: 600;
-    color: var(--gray-600);
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-    margin-right: 1rem;
-    flex-shrink: 0;
-  }
-  
-  .table tbody td:not(:first-child)::before {
+
+  .members-page .table tbody td::before {
     content: attr(data-label);
     font-weight: 600;
-    color: var(--gray-600);
+    font-size: 0.6875rem;
     text-transform: uppercase;
-    font-size: 0.7rem;
     letter-spacing: 0.05em;
-    margin-right: 1rem;
+    color: var(--gray-500);
     flex-shrink: 0;
+    width: 40%;
   }
-  
-  /* Avatar adjustments */
-  .avatar-circle {
-    width: 35px;
-    height: 35px;
+
+  .members-page .table tbody td:first-child::before {
+    content: "Select";
+  }
+
+  .members-page .table tbody td:last-child::before {
+    content: "Actions";
+  }
+
+  /* Card content layout */
+  .members-page .table tbody td > div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .members-page .table tbody td .d-flex.align-items-center {
+    flex-wrap: wrap;
+  }
+
+  .members-page .table tbody td[data-label="User"] .d-flex {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .members-page .table tbody td[data-label="Contact"] > div {
+    text-align: right;
+    min-width: 0;
+  }
+
+  .members-page .table tbody td[data-label="Joined"] > small {
+    font-size: 0.8125rem;
+  }
+
+  .members-page .table tbody td[data-label="Actions"] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .members-page .table tbody td[data-label="Actions"]::before {
+    width: auto;
+  }
+
+  .members-page .table tbody td[data-label="Actions"] .btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-start;
+  }
+
+  /* Touch targets for action buttons */
+  .members-page .table tbody .btn-group .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem;
+    border-radius: 8px;
+  }
+
+  .members-page .table tbody .btn-group .btn i {
     font-size: 1rem;
   }
-  
-  /* Badge adjustments */
-  .badge {
-    font-size: 0.65rem;
-    padding: 0.4rem 0.6rem;
+
+  .avatar-circle {
+    width: 40px;
+    height: 40px;
+    font-size: 1.125rem;
   }
-  
-  /* Button group mobile - wrap horizontally for compact actions */
-  .btn-group {
-    flex-wrap: wrap;
-    gap: 0.25rem;
+
+  .members-page .badge {
+    font-size: 0.625rem;
+    padding: 0.3rem 0.5rem;
   }
-  
-  .btn-group .btn {
-    padding: 0.35rem 0.5rem;
-    border-radius: 6px !important;
+
+  /* Long text wrap */
+  .members-page .table tbody td {
+    word-break: break-word;
   }
-  
-  /* Header mobile */
-  h1.h3 {
-    font-size: 1.25rem;
-  }
-  
-  /* Card padding mobile */
-  .card-body {
-    padding: 1rem !important;
-  }
-  
-  /* Modal mobile */
-  .modal-dialog {
-    margin: 0.5rem;
-  }
-  
-  .modal-body {
-    padding: 1rem;
+
+  .members-page .table tbody td .fw-semibold {
+    font-size: 0.9375rem;
   }
 }
 
+/* ========== Small Mobile (≤575px) ========== */
 @media (max-width: 575.98px) {
-  .table tbody td {
+  .members-page .members-header-title h1 {
+    font-size: 1.125rem;
+  }
+
+  .members-page .members-header-title p {
+    font-size: 0.8125rem;
+  }
+
+  .members-page .members-header-actions {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
   }
-  
-  .table tbody td::before {
-    margin-right: 0;
-  }
-  
-  .table tbody td.text-end {
-    text-align: left !important;
-  }
-  
-  /* Contact info mobile */
-  .table tbody td > div {
+
+  .members-page .members-header-actions .btn {
     width: 100%;
   }
-  
-  /* Bulk actions mobile */
-  #bulkActionsBar {
-    margin-bottom: 0.75rem;
+
+  .members-filter-bar .card-body {
+    padding: 0.75rem;
   }
-  
+
+  .members-filter-bar .form-control,
+  .members-filter-bar .form-select,
+  .members-filter-bar #filterClear {
+    min-height: 44px;
+  }
+
+  .members-page .table tbody tr {
+    padding: 0.875rem;
+  }
+
+  .members-page .table tbody td {
+    font-size: 0.8125rem;
+  }
+
+  .members-page .table tbody td::before {
+    font-size: 0.625rem;
+  }
+
+  .avatar-circle {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
   #bulkActionsBar .card-body {
     padding: 0.75rem;
   }
-  
-  #bulkActionsBar .d-flex {
+
+  /* Modal full bleed */
+  .members-page .modal-dialog {
+    margin: 0;
+    max-width: 100%;
+    min-height: 100vh;
+  }
+
+  .members-page .modal-content {
+    border-radius: 0;
+    min-height: 100vh;
+  }
+
+  .members-page .modal-header {
+    padding: 1rem;
+  }
+
+  .members-page .modal-body {
+    padding: 1rem;
+  }
+
+  .members-page .modal-footer {
+    padding: 0.875rem 1rem;
+    flex-direction: column;
     gap: 0.5rem;
   }
-  
-  #bulkActionsBar .btn-sm {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-  
-  #bulkActionsBar .form-select-sm {
-    font-size: 0.875rem;
-    padding: 0.5rem;
-  }
-  
-  /* Avatar smaller on very small screens */
-  .avatar-circle {
-    width: 30px;
-    height: 30px;
-    font-size: 0.875rem;
-  }
-  
-  /* Smaller text */
-  .table tbody td {
-    font-size: 0.8rem;
-  }
-  
-  small {
-    font-size: 0.7rem;
-  }
-  
-  /* Header mobile */
-  .d-flex.justify-content-between h1 {
-    font-size: 1.1rem;
-  }
-  
-  .d-flex.justify-content-between p {
-    font-size: 0.85rem;
-  }
-  
-  /* Card mobile */
-  .card {
-    border-radius: 8px;
-  }
-  
-  /* Button group compact wrap on very small screens */
-  .btn-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-  
-  .btn-group .btn {
-    border-radius: 6px !important;
-    padding: 0.35rem 0.5rem;
-  }
-  
-  /* Table card mobile */
-  .table-responsive {
-    overflow-x: visible;
-  }
-  
-  /* Checkbox mobile */
-  .form-check-input {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-  
-  /* User info mobile */
-  .table tbody td .d-flex {
-    flex-wrap: wrap;
-  }
-  
-  .table tbody td .d-flex .avatar-circle {
-    margin-right: 0.75rem !important;
-  }
-  
-  /* Actions column mobile */
-  .table tbody td[data-label="Actions"] {
+
+  .members-page .modal-footer .btn {
     width: 100%;
-    padding-top: 1rem;
+    min-height: 44px;
   }
-  
-  .table tbody td[data-label="Actions"] .btn-group {
-    width: 100%;
+
+  /* Pagination compact */
+  .members-page .dataTables_wrapper .dataTables_paginate .paginate_button {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0.375rem 0.5rem;
   }
-  
-  /* Status badges mobile */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
+}
+
+/* ========== Extra Small (≤399px) ========== */
+@media (max-width: 399.98px) {
+  .members-page .table tbody tr {
+    padding: 0.75rem;
   }
-  
-  /* Contact info mobile layout */
-  .table tbody td[data-label="Contact"] > div > div {
-    margin-bottom: 0.25rem;
+
+  .members-page .table tbody .btn-group .btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0.4rem;
   }
-  
-  .table tbody td[data-label="Contact"] > div > div:last-child {
-    margin-bottom: 0;
+
+  .members-page .table tbody .btn-group {
+    gap: 0.375rem;
   }
-  
-  /* Modal mobile */
-  .modal-dialog {
-    margin: 0.25rem;
-  }
-  
-  .modal-content {
-    border-radius: 12px;
-  }
-  
-  .modal-header {
-    padding: 1rem;
-  }
-  
-  .modal-body {
-    padding: 1rem;
-  }
-  
-  .modal-footer {
-    padding: 0.75rem 1rem;
-    flex-direction: column;
-  }
-  
-  .modal-footer .btn {
-    width: 100%;
-    margin-bottom: 0.5rem;
-  }
-  
-  .modal-footer .btn:last-child {
-    margin-bottom: 0;
+}
+
+/* ========== Safe area for notched devices ========== */
+@supports (padding: max(0px)) {
+  @media (max-width: 575.98px) {
+    .members-page {
+      padding-left: max(1rem, env(safe-area-inset-left, 0px));
+      padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    }
   }
 }
