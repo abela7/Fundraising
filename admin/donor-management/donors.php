@@ -780,6 +780,14 @@ unset($donor); // Break reference
                                         </button>
                                     </div>
                                 </form>
+                                <div class="btn-group btn-group-sm d-none d-md-flex" role="group" aria-label="View toggle">
+                                    <button type="button" class="btn btn-outline-secondary active" id="btnGridView" title="Grid View">
+                                        <i class="fas fa-th-large"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="btnListView" title="List View">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                </div>
                                 <button class="btn btn-sm btn-outline-secondary" id="toggleFilter" type="button">
                                 <i class="fas fa-filter me-1"></i>Filters
                                 <i class="fas fa-chevron-down ms-1" id="filterIcon"></i>
@@ -937,7 +945,7 @@ unset($donor); // Break reference
                     </div>
                     
                     <div class="card-body">
-                        <div class="table-responsive">
+                        <div class="table-responsive donors-grid-view" id="donorsTableContainer">
                             <table id="donorsTable" class="table table-hover align-middle">
                                 <thead>
                                     <tr>
@@ -955,16 +963,16 @@ unset($donor); // Break reference
                                 <tbody>
                                     <?php $counter = 1; foreach ($donors as $donor): ?>
                                     <tr class="donor-row" style="cursor: pointer;" data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>' title="Click to view details">
-                                        <td class="text-muted fw-bold"><?php echo $counter++; ?></td>
-                                        <td class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></td>
-                                        <td>
+                                        <td data-label="#" class="text-muted fw-bold"><?php echo $counter++; ?></td>
+                                        <td data-label="Name" class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></td>
+                                        <td data-label="Type">
                                             <?php if ($donor['donor_type'] === 'pledge'): ?>
                                                 <span class="badge bg-warning text-dark">Pledge</span>
                                             <?php else: ?>
                                                 <span class="badge bg-success">Immediate</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
+                                        <td data-label="Status">
                                             <span class="badge bg-<?php 
                                                 echo match($donor['payment_status'] ?? 'no_pledge') {
                                                     'completed' => 'success',
@@ -977,7 +985,7 @@ unset($donor); // Break reference
                                                 <?php echo ucwords(str_replace('_', ' ', $donor['payment_status'] ?? 'no_pledge')); ?>
                                             </span>
                                         </td>
-                                        <td>
+                                        <td data-label="Assigned To">
                                             <?php if (!empty($donor['agent_name'])): ?>
                                                 <span class="badge bg-primary">
                                                     <i class="fas fa-user me-1"></i><?php echo htmlspecialchars($donor['agent_name']); ?>
@@ -988,10 +996,10 @@ unset($donor); // Break reference
                                                 </span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
-                                        <td>£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
-                                        <td>£<?php echo number_format((float)$donor['balance'], 2); ?></td>
-                                        <td>
+                                        <td data-label="Pledged">£<?php echo number_format((float)$donor['total_pledged'], 2); ?></td>
+                                        <td data-label="Paid">£<?php echo number_format((float)$donor['total_paid'], 2); ?></td>
+                                        <td data-label="Balance">£<?php echo number_format((float)$donor['balance'], 2); ?></td>
+                                        <td data-label="Action">
                                             <?php if (!empty($donor['phone'])): ?>
                                             <a href="../call-center/make-call.php?donor_id=<?php echo $donor['id']; ?>" 
                                                class="btn btn-sm btn-success" 

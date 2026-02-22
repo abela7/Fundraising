@@ -254,9 +254,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
         }
         
-        // Get donor phone
-        $stmt = $db->prepare("SELECT phone, name, preferred_language FROM donors WHERE id = ?");
-        $stmt->bind_param('i', $donor_id);
+        // Get donor phone (scoped for registrars)
+        if ($isAdmin) {
+            $stmt = $db->prepare("SELECT phone, name, preferred_language FROM donors WHERE id = ?");
+            $stmt->bind_param('i', $donor_id);
+        } else {
+            $stmt = $db->prepare("SELECT phone, name, preferred_language FROM donors WHERE id = ? AND agent_id = ?");
+            $stmt->bind_param('ii', $donor_id, $userId);
+        }
         $stmt->execute();
         $donor = $stmt->get_result()->fetch_assoc();
         

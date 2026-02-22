@@ -401,3 +401,138 @@ a.text-decoration-none:hover .card-title {
     }
 }
 
+/* ========== GRID VIEW STYLES ========== */
+
+/* Default to Grid View on Mobile */
+@media (max-width: 991.98px) {
+    body:not(.force-list-view) .donors-grid-container {
+        --is-grid: 1;
+    }
+}
+
+/* Explicit Grid View Class */
+.donors-grid-view,
+body:not(.force-list-view) .donors-grid-container {
+    overflow-x: visible !important;
+}
+
+.donors-grid-view table,
+body:not(.force-list-view) .donors-grid-container table {
+    display: block;
+    width: 100% !important;
+    border: none;
+}
+
+.donors-grid-view thead,
+body:not(.force-list-view) .donors-grid-container thead {
+    display: none;
+}
+
+.donors-grid-view tbody,
+body:not(.force-list-view) .donors-grid-container tbody {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    width: 100%;
+}
+
+.donors-grid-view tbody tr,
+body:not(.force-list-view) .donors-grid-container tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    padding: 1rem;
+    margin: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.donors-grid-view tbody tr:hover,
+body:not(.force-list-view) .donors-grid-container tbody tr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: #fff !important;
+}
+
+.donors-grid-view tbody td,
+body:not(.force-list-view) .donors-grid-container tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border: none;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.875rem;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.donors-grid-view tbody td:last-child,
+body:not(.force-list-view) .donors-grid-container tbody td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.donors-grid-view tbody td::before,
+body:not(.force-list-view) .donors-grid-container tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    margin-right: 1rem;
+}
+
+.donors-grid-view tbody td[data-label="Name"],
+body:not(.force-list-view) .donors-grid-container tbody td[data-label="Name"] {
+    font-size: 1.1rem;
+    color: #111827;
+    border-bottom: 2px solid #f3f4f6;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.donors-grid-view tbody td[data-label="Name"]::before,
+body:not(.force-list-view) .donors-grid-container tbody td[data-label="Name"]::before {
+    display: none;
+}
+
+.donors-grid-view tbody td[data-label="Action"],
+body:not(.force-list-view) .donors-grid-container tbody td[data-label="Action"] {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.donors-grid-view tbody td[data-label="Action"]::before,
+body:not(.force-list-view) .donors-grid-container tbody td[data-label="Action"]::before {
+    display: none;
+}
+
+.donors-grid-view tbody td[data-label="Action"] .btn,
+body:not(.force-list-view) .donors-grid-container tbody td[data-label="Action"] .btn {
+    width: 100%;
+}
+
+/* DataTables pagination adjustments for Grid View */
+.dataTables_wrapper .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+.dataTables_wrapper .dataTables_paginate {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.dataTables_wrapper .dataTables_info {
+    text-align: center;
+    padding-top: 0.5rem;
+}
+
+
