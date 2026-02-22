@@ -780,7 +780,7 @@ unset($donor); // Break reference
                                         </button>
                                     </div>
                                 </form>
-                                <div class="btn-group btn-group-sm d-none d-md-flex" role="group" aria-label="View toggle">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="View toggle">
                                     <button type="button" class="btn btn-outline-secondary active" id="btnGridView" title="Grid View">
                                         <i class="fas fa-th-large"></i>
                                     </button>
@@ -944,7 +944,7 @@ unset($donor); // Break reference
                         </div>
                     </div>
                     
-                    <div class="card-body">
+                    <div class="card-body p-2 p-md-3">
                         <div class="table-responsive donors-grid-view" id="donorsTableContainer">
                             <table id="donorsTable" class="table table-hover align-middle">
                                 <thead>
