@@ -241,6 +241,14 @@ $page_title = 'Dashboard';
                   </a>
                 </div>
                 <div class="col-6 col-md-4">
+                  <a href="../donor-management/payments.php" class="quick-action-btn">
+                    <div class="quick-action-icon" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">
+                      <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <span>Payment Management</span>
+                  </a>
+                </div>
+                <div class="col-6 col-md-4">
                   <a href="../settings/" class="quick-action-btn">
                     <div class="quick-action-icon bg-secondary">
                       <i class="fas fa-cog"></i>

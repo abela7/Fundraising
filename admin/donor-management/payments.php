@@ -20,6 +20,7 @@ $page_title = 'Payment Management';
 $current_user = current_user();
 $db = db();
 $is_admin = ($current_user['role'] ?? '') === 'admin';
+$current_user_id = (int)($current_user['id'] ?? 0);
 
 // Handle UPDATE payment request (admin only)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_payment' && $is_admin) {
@@ -293,18 +294,37 @@ $filtered_stats = [
 if (empty($error_message)) {
     try {
         // Get OVERALL statistics (for filter pills)
-        $overall_stats_query = "
-            SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
-                SUM(CASE WHEN status = 'voided' THEN 1 ELSE 0 END) as voided,
-                COALESCE(SUM(amount), 0) as total_amount,
-                COALESCE(SUM(CASE WHEN status = 'confirmed' THEN amount ELSE 0 END), 0) as confirmed_amount,
-                COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
-            FROM pledge_payments
-        ";
-        $overall_stats_result = $db->query($overall_stats_query);
+        if ($is_admin) {
+            $overall_stats_query = "
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+                    SUM(CASE WHEN status = 'voided' THEN 1 ELSE 0 END) as voided,
+                    COALESCE(SUM(amount), 0) as total_amount,
+                    COALESCE(SUM(CASE WHEN status = 'confirmed' THEN amount ELSE 0 END), 0) as confirmed_amount,
+                    COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
+                FROM pledge_payments
+            ";
+            $overall_stats_result = $db->query($overall_stats_query);
+        } else {
+            $overall_stats_stmt = $db->prepare("
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN pp.status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN pp.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+                    SUM(CASE WHEN pp.status = 'voided' THEN 1 ELSE 0 END) as voided,
+                    COALESCE(SUM(pp.amount), 0) as total_amount,
+                    COALESCE(SUM(CASE WHEN pp.status = 'confirmed' THEN pp.amount ELSE 0 END), 0) as confirmed_amount,
+                    COALESCE(SUM(CASE WHEN pp.status = 'pending' THEN pp.amount ELSE 0 END), 0) as pending_amount
+                FROM pledge_payments pp
+                LEFT JOIN donors d ON pp.donor_id = d.id
+                WHERE d.agent_id = ?
+            ");
+            $overall_stats_stmt->bind_param('i', $current_user_id);
+            $overall_stats_stmt->execute();
+            $overall_stats_result = $overall_stats_stmt->get_result();
+        }
         if ($overall_stats_result) {
             $overall_stats = $overall_stats_result->fetch_assoc();
         }
@@ -313,6 +333,13 @@ if (empty($error_message)) {
         $where_conditions = [];
         $params = [];
         $types = '';
+
+        // Registrar scope: only donors assigned to this registrar.
+        if (!$is_admin) {
+            $where_conditions[] = "d.agent_id = ?";
+            $params[] = $current_user_id;
+            $types .= 'i';
+        }
         
         if ($filter_status !== 'all') {
             $where_conditions[] = "pp.status = ?";
