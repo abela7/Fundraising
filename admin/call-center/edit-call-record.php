@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get Agents
-$agents = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+$agents = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
 
 // Calculate current duration parts
 $curr_min = floor(($call->duration_seconds ?? 0) / 60);

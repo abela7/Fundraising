@@ -14,7 +14,7 @@ $currency = '£';
 // LOAD ALL REGISTRARS / ADMINS
 // ══════════════════════════════════════════════════════════════════
 $users = [];
-$uRes = $db->query("SELECT id, name, phone, email, role, active, created_at FROM users WHERE role IN ('admin','registrar') ORDER BY name");
+$uRes = $db->query("SELECT id, name, phone, email, role, active, created_at FROM users WHERE role IN ('admin','registrar') AND active = 1 ORDER BY name");
 if ($uRes) { while ($r = $uRes->fetch_assoc()) $users[] = $r; }
 
 // ══════════════════════════════════════════════════════════════════

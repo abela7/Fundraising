@@ -28,7 +28,7 @@ if ($column_exists) {
 }
 
 // Get agents list
-$agents = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+$agents = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
 ?>
 <!DOCTYPE html>
 <html lang="en">

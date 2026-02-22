@@ -119,7 +119,7 @@ try {
     if (isset($_POST['received_by_user_id']) && $_POST['received_by_user_id'] !== '' && in_array('received_by_user_id', $columns)) {
         $new_registrar_id = (int)$_POST['received_by_user_id'];
         // Verify the user exists and is admin or registrar
-        $user_check = $db->prepare("SELECT id, name, role FROM users WHERE id = ? AND role IN ('admin', 'registrar')");
+        $user_check = $db->prepare("SELECT id, name, role FROM users WHERE id = ? AND role IN ('admin', 'registrar') AND active = 1");
         $user_check->bind_param('i', $new_registrar_id);
         $user_check->execute();
         $registrar_user = $user_check->get_result()->fetch_assoc();

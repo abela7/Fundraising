@@ -84,7 +84,7 @@ try {
     
     // Verify agent exists (if provided)
     if ($agent_id !== null && $agent_id > 0) {
-        $agent_stmt = $db->prepare("SELECT id, name FROM users WHERE id = ? AND role IN ('admin', 'registrar')");
+        $agent_stmt = $db->prepare("SELECT id, name FROM users WHERE id = ? AND role IN ('admin', 'registrar') AND active = 1");
         $agent_stmt->bind_param("i", $agent_id);
         $agent_stmt->execute();
         $agent = $agent_stmt->get_result()->fetch_assoc();

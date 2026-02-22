@@ -322,7 +322,7 @@ $is_admin_user = ($user_role === 'admin');
 $agents = [];
 if ($is_admin_user) {
     try {
-        $agents_result = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+        $agents_result = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
         if ($agents_result) {
             while ($agent = $agents_result->fetch_assoc()) {
                 $agents[] = $agent;
@@ -337,7 +337,7 @@ if ($is_admin_user) {
 $registrars = [];
 if ($is_admin_user) {
     try {
-        $registrars_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+        $registrars_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
         if ($registrars_result) {
             while ($reg = $registrars_result->fetch_assoc()) {
                 $registrars[] = $reg;
@@ -1824,4 +1824,3 @@ if (typeof window.toggleSidebar !== 'function') {
 </script>
 </body>
 </html>
-

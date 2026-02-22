@@ -20,7 +20,7 @@ $cities = [];
 
 try {
     // Agents
-    $result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+    $result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
     if ($result) $agents = $result->fetch_all(MYSQLI_ASSOC);
 
     // Registrars (distinct from donors table)

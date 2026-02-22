@@ -478,7 +478,7 @@ if (empty($error_message)) {
 // Get list of users (for approved_by dropdown in edit modal)
 $users_list = [];
 if ($is_admin && empty($error_message)) {
-    $users_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC");
+    $users_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name ASC");
     if ($users_query) {
         while ($user_row = $users_query->fetch_assoc()) {
             $users_list[] = $user_row;

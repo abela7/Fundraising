@@ -174,7 +174,7 @@ $stmt->execute();
 $history_result = $stmt->get_result();
 
 // Get agents for filter (if admin)
-$agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+$agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
 
 // Get unique outcomes for filter
 $outcomes = [

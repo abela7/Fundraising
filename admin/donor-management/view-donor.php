@@ -4318,7 +4318,7 @@ function formatDateTime($date) {
                         <select class="form-select" name="created_by_user_id" id="editPledgeRegistrar">
                             <option value="">-- Select Registrar --</option>
                             <?php
-                            $registrar_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC");
+                            $registrar_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name ASC");
                             while ($reg = $registrar_query->fetch_assoc()):
                             ?>
                             <option value="<?php echo (int)$reg['id']; ?>">
@@ -4384,7 +4384,7 @@ function formatDateTime($date) {
                         <select class="form-select" name="received_by_user_id" id="editPaymentRegistrar">
                             <option value="">-- Select Registrar --</option>
                             <?php
-                            $pay_registrar_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC");
+                            $pay_registrar_query = $db->query("SELECT id, name, role FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name ASC");
                             while ($preg = $pay_registrar_query->fetch_assoc()):
                             ?>
                             <option value="<?php echo (int)$preg['id']; ?>">
@@ -4473,7 +4473,7 @@ function formatDateTime($date) {
                         <select class="form-select" name="agent_id" id="editCallAgentId">
                             <option value="">-- Select Agent --</option>
                             <?php
-                            $agents_query = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name");
+                            $agents_query = $db->query("SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name");
                             while ($agent = $agents_query->fetch_assoc()):
                             ?>
                             <option value="<?php echo $agent['id']; ?>"><?php echo htmlspecialchars($agent['name']); ?></option>
@@ -4565,7 +4565,7 @@ function formatDateTime($date) {
                                 <option value="">-- No Agent (Unassign) --</option>
                                 <?php
                                 // Fetch all agents (admins and registrars)
-                                $agents_query = "SELECT id, name FROM users WHERE role IN ('admin', 'registrar') ORDER BY name ASC";
+                                $agents_query = "SELECT id, name FROM users WHERE role IN ('admin', 'registrar') AND active = 1 ORDER BY name ASC";
                                 $agents_result = $db->query($agents_query);
                                 while ($agent = $agents_result->fetch_assoc()):
                                 ?>

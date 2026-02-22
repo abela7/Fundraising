@@ -21,7 +21,7 @@ function jres($data, int $code = 200): void {
 if (isset($_GET['action'])) {
 	$action = (string)$_GET['action'];
 	if ($action === 'recipients') {
-		$rs = $db->prepare("SELECT id, name, role FROM users WHERE id<>? AND role IN ('admin','registrar') ORDER BY role DESC, name ASC");
+		$rs = $db->prepare("SELECT id, name, role FROM users WHERE id<>? AND role IN ('admin','registrar') AND active = 1 ORDER BY role DESC, name ASC");
 		$rs->bind_param('i', $meId);
 		$rs->execute();
 		$out = [];

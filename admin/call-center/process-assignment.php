@@ -35,7 +35,7 @@ try {
     
     // Verify agent exists if assigning
     if ($action === 'assign') {
-        $agent_check = $db->prepare("SELECT id, name FROM users WHERE id = ? AND role IN ('admin', 'registrar')");
+        $agent_check = $db->prepare("SELECT id, name FROM users WHERE id = ? AND role IN ('admin', 'registrar') AND active = 1");
         $agent_check->bind_param('i', $agent_id);
         $agent_check->execute();
         $agent = $agent_check->get_result()->fetch_assoc();
