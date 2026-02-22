@@ -70,6 +70,72 @@ if (!$is_admin) {
     }
 }
 
+// Quick-open chat when an assigned donor is tapped.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !isset($_GET['ajax']) && isset($_GET['open_donor_id'])) {
+    try {
+        $open_donor_id = (int)$_GET['open_donor_id'];
+        if ($open_donor_id > 0) {
+            if ($is_admin) {
+                $open_stmt = $db->prepare("SELECT id, phone FROM donors WHERE id = ? LIMIT 1");
+                $open_stmt->bind_param('i', $open_donor_id);
+            } else {
+                $open_stmt = $db->prepare("SELECT id, phone FROM donors WHERE id = ? AND agent_id = ? LIMIT 1");
+                $open_stmt->bind_param('ii', $open_donor_id, $user_id);
+            }
+            $open_stmt->execute();
+            $open_donor = $open_stmt->get_result()->fetch_assoc();
+            $open_stmt->close();
+
+            if (!$open_donor || empty($open_donor['phone'])) {
+                throw new Exception('Assigned donor not found or missing phone number.');
+            }
+
+            $normalized_phone = normalizePhone((string)$open_donor['phone']);
+
+            $conv_stmt = $db->prepare("
+                SELECT id
+                FROM whatsapp_conversations
+                WHERE donor_id = ?
+                ORDER BY last_message_at DESC, id DESC
+                LIMIT 1
+            ");
+            $conv_stmt->bind_param('i', $open_donor_id);
+            $conv_stmt->execute();
+            $conv = $conv_stmt->get_result()->fetch_assoc();
+            $conv_stmt->close();
+
+            if ($conv) {
+                $conversationId = (int)$conv['id'];
+            } else {
+                $isUnknown = 0;
+                if (!$is_admin && $has_assigned_agent_col) {
+                    $create_stmt = $db->prepare("
+                        INSERT INTO whatsapp_conversations
+                        (phone_number, donor_id, is_unknown, assigned_agent_id, created_at)
+                        VALUES (?, ?, ?, ?, NOW())
+                    ");
+                    $create_stmt->bind_param('siii', $normalized_phone, $open_donor_id, $isUnknown, $user_id);
+                } else {
+                    $create_stmt = $db->prepare("
+                        INSERT INTO whatsapp_conversations
+                        (phone_number, donor_id, is_unknown, created_at)
+                        VALUES (?, ?, ?, NOW())
+                    ");
+                    $create_stmt->bind_param('sii', $normalized_phone, $open_donor_id, $isUnknown);
+                }
+                $create_stmt->execute();
+                $conversationId = (int)$db->insert_id;
+                $create_stmt->close();
+            }
+
+            header("Location: inbox.php?id=$conversationId");
+            exit;
+        }
+    } catch (Throwable $e) {
+        $error_message = $e->getMessage();
+    }
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -316,6 +382,12 @@ function buildAssignedPageUrl(int $page): string
             padding: 0.75rem 1rem;
             border-bottom: 1px solid #e9edef;
             cursor: pointer;
+            width: 100%;
+            text-align: left;
+            background: #fff;
+            border-left: 0;
+            border-right: 0;
+            border-top: 0;
         }
         .donor-result:hover {
             background: #f5f6f6;
@@ -490,14 +562,14 @@ function buildAssignedPageUrl(int $page): string
                                             <div class="assigned-list" id="assignedDonorList">
                                                 <?php if (!$is_admin && !empty($assigned_donors)): ?>
                                                     <?php foreach ($assigned_donors as $d): ?>
-                                                        <button type="button" class="assigned-item"
-                                                                onclick="selectDonor(<?php echo (int)$d['id']; ?>, <?php echo json_encode((string)$d['name']); ?>, <?php echo json_encode((string)$d['phone']); ?>)">
+                                                        <a class="assigned-item text-decoration-none"
+                                                           href="<?php echo htmlspecialchars('new-chat.php?open_donor_id=' . (int)$d['id'] . '&assigned_page=' . $assigned_page); ?>">
                                                             <span>
                                                                 <span class="assigned-name"><?php echo htmlspecialchars((string)$d['name']); ?></span><br>
                                                                 <span class="assigned-meta"><?php echo htmlspecialchars((string)$d['phone']); ?></span>
                                                             </span>
                                                             <i class="fas fa-arrow-right text-muted"></i>
-                                                        </button>
+                                                        </a>
                                                     <?php endforeach; ?>
                                                 <?php elseif (!$is_admin): ?>
                                                     <div class="assigned-empty">No donors are currently assigned to you.</div>
@@ -606,16 +678,28 @@ donorSearch.addEventListener('input', function() {
             const donors = await response.json();
             
             donorResults.innerHTML = donors.map(d => `
-                <div class="donor-result" onclick="selectDonor(${d.id}, '${escapeHtml(d.name)}', '${escapeHtml(d.phone)}')">
+                <button type="button" class="donor-result donor-result-btn"
+                        data-id="${Number(d.id) || 0}"
+                        data-name="${encodeURIComponent(d.name || '')}"
+                        data-phone="${encodeURIComponent(d.phone || '')}">
                     <strong>${escapeHtml(d.name)}</strong>
                     <span class="text-muted ms-2">${escapeHtml(d.phone)}</span>
-                </div>
+                </button>
             `).join('') || '<div class="donor-result text-muted">No donors found</div>';
             
         } catch (err) {
             console.error(err);
         }
     }, 300);
+});
+
+donorResults.addEventListener('click', function(e) {
+    const item = e.target.closest('.donor-result-btn');
+    if (!item) return;
+    const id = parseInt(item.dataset.id || '0', 10);
+    const name = decodeURIComponent(item.dataset.name || '');
+    const phone = decodeURIComponent(item.dataset.phone || '');
+    selectDonor(id, name, phone);
 });
 
 function selectDonor(id, name, phone) {
