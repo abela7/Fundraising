@@ -17,6 +17,11 @@ $page_title = 'WhatsApp Templates';
 $current_user = current_user();
 $db = db();
 
+if (($current_user['role'] ?? '') !== 'admin') {
+    header('Location: inbox.php');
+    exit;
+}
+
 $templates = [];
 $error_message = null;
 $success_message = $_SESSION['success_message'] ?? null;

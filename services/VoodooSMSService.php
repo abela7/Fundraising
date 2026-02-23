@@ -220,20 +220,20 @@ class VoodooSMSService
             ];
         }
         
-        $data = json_decode($response, true);
+        $parsed = $this->parseResponse($response);
         
-        if (isset($data['credit'])) {
+        if (!$parsed['success']) {
             return [
-                'success' => true,
-                'credits' => (int)$data['credit'],
-                'error' => null
+                'success' => false,
+                'credits' => 0,
+                'error' => $parsed['error'] ?? 'Unknown error'
             ];
         }
         
         return [
-            'success' => false,
-            'credits' => 0,
-            'error' => $data['error'] ?? 'Unknown error'
+            'success' => true,
+            'credits' => (int)round((float)($parsed['credits'] ?? 0)),
+            'error' => null
         ];
     }
     
@@ -341,7 +341,9 @@ class VoodooSMSService
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 30,
             CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/x-www-form-urlencoded',
                 'Accept: application/json'
@@ -359,8 +361,8 @@ class VoodooSMSService
             return false;
         }
         
-        if ($httpCode >= 400) {
-            error_log("VoodooSMS HTTP error: $httpCode - $response");
+        if ($response === false || $response === '') {
+            error_log("VoodooSMS request failed. HTTP code: $httpCode");
             return false;
         }
         
@@ -386,6 +388,32 @@ class VoodooSMSService
         $data = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
+            // Try XML response
+            $xml = @simplexml_load_string($response);
+            if ($xml !== false) {
+                $parsedXml = json_decode(json_encode($xml), true);
+                
+                if (is_array($parsedXml)) {
+                    $resultRaw = (string)($parsedXml['result'] ?? '');
+                    $resultCode = (int)$this->extractResultCode($resultRaw);
+                    
+                    if ($resultCode === 200) {
+                        return [
+                            'success' => true,
+                            'credits' => isset($parsedXml['credit']) ? (float)$parsedXml['credit'] : null,
+                            'message_id' => $parsedXml['messageId'] ?? $parsedXml['reference_number'] ?? null,
+                            'error' => null
+                        ];
+                    }
+                    
+                    return [
+                        'success' => false,
+                        'error' => $parsedXml['resultText'] ?? $resultRaw ?: 'Request failed',
+                        'error_code' => $resultRaw ?: 'UNKNOWN'
+                    ];
+                }
+            }
+            
             // Try to parse as plain text response
             if (strpos($response, 'OK') === 0) {
                 // Success response format: OK {reference_number}
@@ -405,11 +433,23 @@ class VoodooSMSService
         }
         
         // JSON response
-        if (isset($data['result']) && $data['result'] === 200) {
+        if (isset($data['result'])) {
+            $resultCode = (int)$this->extractResultCode((string)$data['result']);
+            
+            if ($resultCode === 200) {
+                return [
+                    'success' => true,
+                    'message_id' => $data['reference_number'] ?? $data['resultText'] ?? null,
+                    'credits' => isset($data['credit']) ? (float)$data['credit'] : null,
+                    'error' => null
+                ];
+            }
+
             return [
-                'success' => true,
-                'message_id' => $data['reference_number'] ?? $data['resultText'] ?? null,
-                'error' => null
+                'success' => false,
+                'message_id' => null,
+                'error' => $data['resultText'] ?? 'Request failed',
+                'error_code' => $data['result'] ?? 'UNKNOWN'
             ];
         }
         
@@ -419,6 +459,19 @@ class VoodooSMSService
             'error' => $data['resultText'] ?? $data['error'] ?? 'Unknown error',
             'error_code' => $data['result'] ?? 'UNKNOWN'
         ];
+    }
+    
+    /**
+     * Extract numeric HTTP/API result code from mixed result strings
+     */
+    private function extractResultCode(string $resultRaw): int
+    {
+        $matches = [];
+        if (preg_match('/^\s*(\d{3})\b/', trim($resultRaw), $matches)) {
+            return (int)$matches[1];
+        }
+        
+        return 0;
     }
     
     /**
