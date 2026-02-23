@@ -556,26 +556,338 @@ if ((int)($call_stats['total_calls'] ?? 0) > 0) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../assets/admin.css">
     <style>
-        .agent-stat-card {
-            border-left: 4px solid #0d6efd;
-            border-radius: 8px;
+        /* === Agent Profile Header === */
+        .vp-profile-header {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
         }
-        .agent-stat-card .stat-value {
-            font-size: 1.35rem;
+
+        .vp-profile-top {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .vp-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: 700;
-            margin-bottom: 0.1rem;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(10, 98, 134, 0.3);
         }
-        .agent-stat-card .stat-label {
-            font-size: 0.8rem;
-            color: #6c757d;
+
+        .vp-profile-info { flex: 1; min-width: 200px; }
+
+        .vp-profile-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 6px;
+        }
+
+        .vp-profile-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .vp-badge {
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .vp-badge-admin { background: rgba(10, 98, 134, 0.1); color: var(--primary); }
+        .vp-badge-registrar { background: rgba(59, 130, 246, 0.1); color: var(--info); }
+        .vp-badge-active { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .vp-badge-inactive { background: rgba(107, 114, 128, 0.1); color: var(--gray-500); }
+        .vp-badge-id { background: var(--gray-100); color: var(--gray-600); }
+
+        .vp-contact-row {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+
+        .vp-contact-row i {
+            width: 16px;
+            text-align: center;
+            margin-right: 6px;
+            color: var(--gray-400);
+        }
+
+        .vp-profile-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-self: flex-start;
+        }
+
+        .vp-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            text-decoration: none;
+            border: 1px solid var(--gray-200);
+            color: var(--gray-700);
+            background: var(--white);
+        }
+
+        .vp-action-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .vp-profile-meta {
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+            padding-top: 16px;
+            margin-top: 16px;
+            border-top: 1px solid var(--gray-100);
+            font-size: 0.8125rem;
+        }
+
+        .vp-meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .vp-meta-label {
+            color: var(--gray-400);
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .vp-meta-value {
+            color: var(--gray-700);
+            font-weight: 500;
+        }
+
+        /* === Stat Cards Grid === */
+        .vp-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .vp-stat-card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--primary);
+        }
+
+        .vp-stat-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .vp-stat-card.accent  { border-left-color: var(--accent-dark); }
+        .vp-stat-card.success { border-left-color: var(--success); }
+        .vp-stat-card.info    { border-left-color: var(--info); }
+        .vp-stat-card.warning { border-left-color: var(--warning); }
+        .vp-stat-card.danger  { border-left-color: var(--danger); }
+
+        .vp-stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 2px;
+        }
+
+        .vp-stat-label {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 6px;
+        }
+
+        .vp-stat-detail {
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            line-height: 1.5;
+        }
+
+        /* === Section Headers === */
+        .vp-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--gray-400);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .table tbody tr td {
-            vertical-align: middle;
+
+        .vp-section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--gray-200);
         }
-        .table thead th {
+
+        /* === Table Cards === */
+        .vp-table-card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .vp-table-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .vp-table-header {
+            padding: 14px 20px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .vp-table-header h6 {
+            font-weight: 600;
+            color: var(--gray-800);
+            margin: 0;
+            font-size: 0.9375rem;
+        }
+
+        .vp-table-header small {
+            color: var(--gray-400);
+            font-size: 0.75rem;
+        }
+
+        .vp-table-card .table {
+            margin: 0;
+        }
+
+        .vp-table-card .table thead th {
+            background: var(--white);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid var(--gray-100);
+            padding: 10px 16px;
             white-space: nowrap;
+        }
+
+        .vp-table-card .table tbody td {
+            padding: 10px 16px;
+            vertical-align: middle;
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--gray-50);
+        }
+
+        .vp-table-card .table tbody tr:hover {
+            background: var(--gray-50);
+        }
+
+        .vp-table-card .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .vp-table-empty {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--gray-400);
+            font-size: 0.875rem;
+        }
+
+        .vp-table-empty i {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 8px;
+            opacity: 0.4;
+        }
+
+        /* Status pills in tables */
+        .vp-pill {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .vp-pill-primary { background: rgba(10, 98, 134, 0.1); color: var(--primary); }
+        .vp-pill-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .vp-pill-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        .vp-pill-danger  { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .vp-pill-info    { background: rgba(59, 130, 246, 0.1); color: var(--info); }
+        .vp-pill-muted   { background: var(--gray-100); color: var(--gray-500); }
+
+        /* Responsive */
+        @media (max-width: 991px) {
+            .vp-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .vp-profile-top {
+                flex-direction: column;
+            }
+
+            .vp-profile-actions {
+                align-self: stretch;
+            }
+
+            .vp-action-btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .vp-stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .vp-profile-header {
+                padding: 16px;
+            }
+
+            .vp-stat-card {
+                padding: 12px;
+            }
         }
     </style>
 </head>
@@ -594,387 +906,434 @@ if ((int)($call_stats['total_calls'] ?? 0) > 0) {
             <?php endif; ?>
 
             <?php if (!empty($warning_messages)): ?>
-                <div class="alert alert-warning" role="alert">
+                <div class="alert alert-warning mb-3" role="alert">
                     <i class="fas fa-triangle-exclamation me-2"></i>
                     <strong>Data warnings:</strong>
-                    <ul class="mb-0 mt-2">
+                    <ul class="mb-0 mt-1">
                         <?php foreach ($warning_messages as $warning): ?>
-                            <li><?php echo htmlspecialchars($warning); ?></li>
+                            <li class="small"><?php echo htmlspecialchars($warning); ?></li>
                         <?php endforeach; ?>
                     </ul>
                 </div>
             <?php endif; ?>
 
-            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
-                <div>
-                    <a href="index.php" class="btn btn-sm btn-outline-secondary mb-2">
-                        <i class="fas fa-arrow-left me-1"></i>Back to Agents
-                    </a>
-                    <h1 class="h3 mb-0"><?php echo htmlspecialchars((string)($agent['name'] ?? 'Agent')); ?></h1>
-                    <div class="text-muted mt-1">
-                        <?php if (($agent['role'] ?? '') === 'admin'): ?>
-                            <span class="badge bg-primary">Admin</span>
+            <!-- Back link -->
+            <div class="mb-3">
+                <a href="index.php" class="vp-action-btn" style="display: inline-flex;">
+                    <i class="fas fa-arrow-left"></i>Back to Agents
+                </a>
+            </div>
+
+            <!-- Profile Header Card -->
+            <?php
+            $is_active = (int)($agent['active'] ?? 0) === 1;
+            $initials = strtoupper(substr((string)($agent['name'] ?? 'A'), 0, 1));
+            ?>
+            <div class="vp-profile-header">
+                <div class="vp-profile-top">
+                    <div class="vp-avatar"><?php echo $initials; ?></div>
+                    <div class="vp-profile-info">
+                        <div class="vp-profile-name"><?php echo htmlspecialchars((string)($agent['name'] ?? 'Agent')); ?></div>
+                        <div class="vp-profile-badges">
+                            <span class="vp-badge <?php echo ($agent['role'] ?? '') === 'admin' ? 'vp-badge-admin' : 'vp-badge-registrar'; ?>">
+                                <?php echo htmlspecialchars((string)($agent['role'] ?? 'registrar')); ?>
+                            </span>
+                            <span class="vp-badge <?php echo $is_active ? 'vp-badge-active' : 'vp-badge-inactive'; ?>">
+                                <?php echo $is_active ? 'Active' : 'Inactive'; ?>
+                            </span>
+                            <span class="vp-badge vp-badge-id">#<?php echo (int)$agent['id']; ?></span>
+                        </div>
+                        <div class="vp-contact-row">
+                            <span><i class="fas fa-envelope"></i><?php echo htmlspecialchars((string)($agent['email'] ?: 'No email')); ?></span>
+                            <span><i class="fas fa-phone"></i><?php echo htmlspecialchars((string)($agent['phone'] ?: $agent['phone_number'] ?: 'No phone')); ?></span>
+                        </div>
+                    </div>
+                    <div class="vp-profile-actions">
+                        <a href="../donor-management/donors.php?filter_agent=<?php echo (int)$agent['id']; ?>" class="vp-action-btn">
+                            <i class="fas fa-users"></i>Donors
+                        </a>
+                        <a href="../call-center/call-history.php?agent=<?php echo (int)$agent['id']; ?>" class="vp-action-btn">
+                            <i class="fas fa-phone"></i>Calls
+                        </a>
+                        <a href="../messaging/whatsapp/inbox.php" class="vp-action-btn">
+                            <i class="fab fa-whatsapp"></i>WhatsApp
+                        </a>
+                    </div>
+                </div>
+                <div class="vp-profile-meta">
+                    <div class="vp-meta-item">
+                        <span class="vp-meta-label">Last Login</span>
+                        <span class="vp-meta-value"><?php echo htmlspecialchars($formatDateTime($agent['last_login_at'] ?? null)); ?></span>
+                    </div>
+                    <div class="vp-meta-item">
+                        <span class="vp-meta-label">Joined</span>
+                        <span class="vp-meta-value"><?php echo htmlspecialchars($formatDateTime($agent['created_at'] ?? null)); ?></span>
+                    </div>
+                    <div class="vp-meta-item">
+                        <span class="vp-meta-label">First Call</span>
+                        <span class="vp-meta-value"><?php echo htmlspecialchars($formatDateTime($call_stats['first_call_at'] ?? null)); ?></span>
+                    </div>
+                    <div class="vp-meta-item">
+                        <span class="vp-meta-label">Last Call</span>
+                        <span class="vp-meta-value"><?php echo htmlspecialchars($formatDateTime($call_stats['last_call_at'] ?? null)); ?></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Portfolio Stats -->
+            <div class="vp-section-title"><i class="fas fa-wallet"></i> Portfolio</div>
+            <div class="vp-stats-grid">
+                <div class="vp-stat-card">
+                    <div class="vp-stat-value"><?php echo (int)$portfolio['total_donors']; ?></div>
+                    <div class="vp-stat-label">Total Donors</div>
+                    <div class="vp-stat-detail">
+                        Assigned <?php echo (int)$portfolio['assigned_only_donors']; ?> &middot;
+                        Registered <?php echo (int)$portfolio['registered_only_donors']; ?> &middot;
+                        Overlap <?php echo (int)$portfolio['overlapping_donors']; ?>
+                    </div>
+                </div>
+                <div class="vp-stat-card success">
+                    <div class="vp-stat-value"><?php echo $formatMoney($portfolio['total_pledged']); ?></div>
+                    <div class="vp-stat-label">Total Pledged</div>
+                    <div class="vp-stat-detail">Completed: <?php echo (int)$portfolio['completed_donors']; ?> donors</div>
+                </div>
+                <div class="vp-stat-card info">
+                    <div class="vp-stat-value"><?php echo $formatMoney($portfolio['total_paid']); ?></div>
+                    <div class="vp-stat-label">Total Paid</div>
+                    <div class="vp-stat-detail">
+                        Paying: <?php echo (int)$portfolio['paying_donors']; ?> &middot;
+                        Overdue: <?php echo (int)$portfolio['overdue_donors']; ?>
+                    </div>
+                </div>
+                <div class="vp-stat-card warning">
+                    <div class="vp-stat-value"><?php echo $formatMoney($portfolio['total_balance']); ?></div>
+                    <div class="vp-stat-label">Outstanding</div>
+                    <div class="vp-stat-detail">Not started: <?php echo (int)$portfolio['not_started_donors']; ?></div>
+                </div>
+            </div>
+
+            <!-- Call & Communication Stats -->
+            <div class="vp-section-title"><i class="fas fa-headset"></i> Calls & Communication</div>
+            <div class="vp-stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="vp-stat-card">
+                    <div class="vp-stat-value"><?php echo (int)$call_stats['total_calls']; ?></div>
+                    <div class="vp-stat-label">Calls Logged</div>
+                    <div class="vp-stat-detail">
+                        Successful: <?php echo (int)$call_stats['successful_calls']; ?> (<?php echo $call_success_rate; ?>%)<br>
+                        Callbacks: <?php echo (int)$call_stats['callbacks_scheduled']; ?>
+                    </div>
+                </div>
+                <div class="vp-stat-card accent">
+                    <div class="vp-stat-value"><?php echo $formatDuration((float)$call_stats['total_talk_seconds']); ?></div>
+                    <div class="vp-stat-label">Total Talk Time</div>
+                    <div class="vp-stat-detail">Avg/Call: <?php echo $formatDuration($avg_talk_time); ?></div>
+                </div>
+                <div class="vp-stat-card success">
+                    <div class="vp-stat-value"><?php echo (int)$whatsapp_stats['total_conversations']; ?></div>
+                    <div class="vp-stat-label">WhatsApp Conversations</div>
+                    <div class="vp-stat-detail">
+                        Unread: <?php echo (int)$whatsapp_stats['unread_conversations']; ?> &middot;
+                        Unknown: <?php echo (int)$whatsapp_stats['unknown_conversations']; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages & Pledges Stats -->
+            <div class="vp-stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="vp-stat-card info">
+                    <div class="vp-stat-value"><?php echo (int)$message_stats['total_messages']; ?></div>
+                    <div class="vp-stat-label">Messages Sent</div>
+                    <div class="vp-stat-detail">
+                        WhatsApp: <?php echo (int)$message_stats['whatsapp_messages']; ?> &middot;
+                        SMS: <?php echo (int)$message_stats['sms_messages']; ?>
+                    </div>
+                </div>
+                <div class="vp-stat-card">
+                    <div class="vp-stat-value"><?php echo (int)$pledge_stats['total_pledges']; ?></div>
+                    <div class="vp-stat-label">Pledges</div>
+                    <div class="vp-stat-detail">
+                        Approved: <?php echo (int)$pledge_stats['approved_pledges']; ?><br>
+                        Amount: <?php echo $formatMoney($pledge_stats['approved_pledge_amount']); ?>
+                    </div>
+                </div>
+                <div class="vp-stat-card accent">
+                    <div class="vp-stat-value"><?php echo $formatMoney($pledge_stats['total_pledge_amount']); ?></div>
+                    <div class="vp-stat-label">Total Pledge Amount</div>
+                    <div class="vp-stat-detail">
+                        Last msg: <?php echo htmlspecialchars($formatDateTime($message_stats['last_message_at'])); ?><br>
+                        Last WA: <?php echo htmlspecialchars($formatDateTime($whatsapp_stats['last_message_at'])); ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tables Section -->
+            <div class="vp-section-title"><i class="fas fa-table"></i> Detailed Activity</div>
+
+            <div class="row g-3">
+                <!-- Recent Donor Portfolio -->
+                <div class="col-12 col-xl-6">
+                    <div class="vp-table-card">
+                        <div class="vp-table-header">
+                            <div>
+                                <h6><i class="fas fa-users me-2" style="color: var(--primary);"></i>Donor Portfolio</h6>
+                                <small>Latest 50 donors assigned or registered</small>
+                            </div>
+                        </div>
+                        <?php if (!$recent_donors): ?>
+                            <div class="vp-table-empty">
+                                <i class="fas fa-inbox"></i>
+                                No donors matched this agent.
+                            </div>
                         <?php else: ?>
-                            <span class="badge bg-info text-dark">Registrar</span>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle">
+                                    <thead>
+                                    <tr>
+                                        <th>Donor</th>
+                                        <th>Pledged</th>
+                                        <th>Balance</th>
+                                        <th>Status</th>
+                                        <th>Source</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php foreach ($recent_donors as $donor): ?>
+                                        <tr>
+                                            <td>
+                                                <div class="fw-semibold"><?php echo htmlspecialchars((string)$donor['name']); ?></div>
+                                                <div class="small" style="color: var(--gray-400);"><?php echo htmlspecialchars((string)($donor['phone'] ?: 'No phone')); ?></div>
+                                            </td>
+                                            <td><?php echo $formatMoney((float)$donor['total_pledged']); ?></td>
+                                            <td>
+                                                <?php
+                                                $bal = (float)$donor['balance'];
+                                                $bal_class = $bal > 0 ? 'vp-pill-warning' : 'vp-pill-success';
+                                                ?>
+                                                <span class="vp-pill <?php echo $bal_class; ?>"><?php echo $formatMoney($bal); ?></span>
+                                            </td>
+                                            <td>
+                                                <?php
+                                                $ps = (string)$donor['payment_status'];
+                                                $ps_map = ['completed' => 'vp-pill-success', 'paying' => 'vp-pill-info', 'overdue' => 'vp-pill-danger', 'not_started' => 'vp-pill-muted'];
+                                                $ps_class = $ps_map[$ps] ?? 'vp-pill-muted';
+                                                ?>
+                                                <span class="vp-pill <?php echo $ps_class; ?>"><?php echo htmlspecialchars($ps); ?></span>
+                                            </td>
+                                            <td>
+                                                <?php if ((int)$donor['agent_id'] === (int)$agent['id'] && (int)$donor['registered_by_user_id'] === (int)$agent['id']): ?>
+                                                    <span class="vp-pill vp-pill-primary">Both</span>
+                                                <?php elseif ((int)$donor['agent_id'] === (int)$agent['id']): ?>
+                                                    <span class="vp-pill vp-pill-info">Assigned</span>
+                                                <?php else: ?>
+                                                    <span class="vp-pill vp-pill-muted">Registered</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
                         <?php endif; ?>
-                        <span class="badge bg-<?php echo ((int)($agent['active'] ?? 0) === 1 ? 'success' : 'secondary'); ?> ms-1">
-                            <?php echo ((int)($agent['active'] ?? 0) === 1 ? 'Active' : 'Inactive'); ?>
-                        </span>
-                        <span class="badge bg-dark ms-1">User #<?php echo (int)$agent['id']; ?></span>
                     </div>
                 </div>
-                <div class="text-muted">
-                    <a href="../donor-management/donors.php?filter_agent=<?php echo (int)$agent['id']; ?>" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-users me-1"></i>View Donors
-                    </a>
-                    <a href="../call-center/call-history.php?agent=<?php echo (int)$agent['id']; ?>" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-phone me-1"></i>Call History
-                    </a>
-                    <a href="../messaging/whatsapp/inbox.php" class="btn btn-sm btn-outline-success">
-                        <i class="fab fa-whatsapp me-1"></i>WhatsApp Inbox
-                    </a>
-                </div>
-            </div>
 
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="row gy-2">
-                        <div class="col-12 col-md-6 col-lg-4">
-                            <div class="small text-muted">Email / Phone</div>
-                            <div><?php echo htmlspecialchars((string)($agent['email'] ?: 'No email')); ?></div>
-                            <div class="text-muted small"><?php echo htmlspecialchars((string)($agent['phone'] ?: $agent['phone_number'] ?: 'No phone')); ?></div>
+                <!-- Recent Call Sessions -->
+                <div class="col-12 col-xl-6">
+                    <div class="vp-table-card">
+                        <div class="vp-table-header">
+                            <div>
+                                <h6><i class="fas fa-phone me-2" style="color: var(--success);"></i>Recent Calls</h6>
+                                <small>Last 20 calls handled</small>
+                            </div>
                         </div>
-                        <div class="col-12 col-md-6 col-lg-4">
-                            <div class="small text-muted">Last Login</div>
-                            <div><?php echo htmlspecialchars($formatDateTime($agent['last_login_at'] ?? null)); ?></div>
-                        </div>
-                        <div class="col-12 col-md-6 col-lg-4">
-                            <div class="small text-muted">Joined</div>
-                            <div><?php echo htmlspecialchars($formatDateTime($agent['created_at'] ?? null)); ?></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo (int)$portfolio['total_donors']; ?></div>
-                        <div class="stat-label">Total Donors</div>
-                        <div class="text-muted small mt-2">
-                            Assigned <?php echo (int)$portfolio['assigned_only_donors']; ?> |
-                            Registered <?php echo (int)$portfolio['registered_only_donors']; ?> |
-                            Overlap <?php echo (int)$portfolio['overlapping_donors']; ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo $formatMoney($portfolio['total_pledged']); ?></div>
-                        <div class="stat-label">Total Pledged</div>
-                        <div class="text-muted small mt-2">
-                            Completed donors: <?php echo (int)$portfolio['completed_donors']; ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo $formatMoney($portfolio['total_paid']); ?></div>
-                        <div class="stat-label">Total Paid</div>
-                        <div class="text-muted small mt-2">
-                            Paying: <?php echo (int)$portfolio['paying_donors']; ?> |
-                            Overdue: <?php echo (int)$portfolio['overdue_donors']; ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo $formatMoney($portfolio['total_balance']); ?></div>
-                        <div class="stat-label">Outstanding Balance</div>
-                        <div class="text-muted small mt-2">
-                            Not started: <?php echo (int)$portfolio['not_started_donors']; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-12 col-md-4">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo (int)$call_stats['total_calls']; ?></div>
-                        <div class="stat-label">Calls Logged</div>
-                        <div class="text-muted small mt-2">
-                            Successful: <?php echo (int)$call_stats['successful_calls']; ?> (<?php echo $call_success_rate; ?>%)
-                        </div>
-                        <div class="text-muted small">Callbacks: <?php echo (int)$call_stats['callbacks_scheduled']; ?></div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo $formatDuration((float)$call_stats['total_talk_seconds']); ?></div>
-                        <div class="stat-label">Total Talk Time</div>
-                        <div class="text-muted small mt-2">Avg / Call: <?php echo $formatDuration($avg_talk_time); ?></div>
-                        <div class="text-muted small">First call: <?php echo htmlspecialchars($formatDateTime($call_stats['first_call_at'] ?? null)); ?></div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo (int)$whatsapp_stats['total_conversations']; ?></div>
-                        <div class="stat-label">WhatsApp Conversations</div>
-                        <div class="text-muted small mt-2">
-                            Unread: <?php echo (int)$whatsapp_stats['unread_conversations']; ?> |
-                            Unknown: <?php echo (int)$whatsapp_stats['unknown_conversations']; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-12 col-md-4">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo (int)$message_stats['total_messages']; ?></div>
-                        <div class="stat-label">Messages Sent</div>
-                        <div class="text-muted small mt-2">
-                            WhatsApp: <?php echo (int)$message_stats['whatsapp_messages']; ?> |
-                            SMS: <?php echo (int)$message_stats['sms_messages']; ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo (int)$pledge_stats['total_pledges']; ?></div>
-                        <div class="stat-label">Pledges (created/linked)</div>
-                        <div class="text-muted small mt-2">Approved: <?php echo (int)$pledge_stats['approved_pledges']; ?></div>
-                        <div class="text-muted small">Approved Amount: <?php echo $formatMoney($pledge_stats['approved_pledge_amount']); ?></div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="card p-3 h-100 agent-stat-card">
-                        <div class="stat-value"><?php echo $formatMoney($pledge_stats['total_pledge_amount']); ?></div>
-                        <div class="stat-label">Total Pledge Amount</div>
-                        <div class="text-muted small mt-2">Last message: <?php echo htmlspecialchars($formatDateTime($message_stats['last_message_at'])); ?></div>
-                        <div class="text-muted small">Last WhatsApp: <?php echo htmlspecialchars($formatDateTime($whatsapp_stats['last_message_at'])); ?></div>
+                        <?php if (!$recent_calls): ?>
+                            <div class="vp-table-empty">
+                                <i class="fas fa-phone-slash"></i>
+                                No calls found.
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle">
+                                    <thead>
+                                    <tr>
+                                        <th>Donor</th>
+                                        <th>Started</th>
+                                        <th>Duration</th>
+                                        <th>Outcome</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php foreach ($recent_calls as $call): ?>
+                                        <tr>
+                                            <td>
+                                                <div class="fw-semibold"><?php echo htmlspecialchars((string)($call['donor_name'] ?? 'Unknown')); ?></div>
+                                                <div class="small" style="color: var(--gray-400);"><?php echo htmlspecialchars((string)($call['donor_phone'] ?? '')); ?></div>
+                                            </td>
+                                            <td class="small"><?php echo htmlspecialchars($formatDateTime($call['call_started_at'] ?? null)); ?></td>
+                                            <td class="small"><?php echo $formatDuration((float)($call['duration_seconds'] ?? 0)); ?></td>
+                                            <td><span class="vp-pill vp-pill-muted"><?php echo htmlspecialchars((string)($call['outcome'] ?? '-')); ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
 
             <div class="row g-3">
+                <!-- Outcome Breakdown -->
                 <div class="col-12 col-xl-6">
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <strong>Recent Donor Portfolio</strong>
-                            <span class="text-muted small d-block">Latest donors assigned or registered by this agent.</span>
+                    <div class="vp-table-card">
+                        <div class="vp-table-header">
+                            <div>
+                                <h6><i class="fas fa-chart-pie me-2" style="color: var(--accent-dark);"></i>Outcome Breakdown</h6>
+                            </div>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="table-light">
-                                <tr>
-                                    <th>Donor</th>
-                                    <th>Pledged</th>
-                                    <th>Paid</th>
-                                    <th>Balance</th>
-                                    <th>Payment Status</th>
-                                    <th>Source</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <?php foreach ($recent_donors as $donor): ?>
+                        <?php if (!$call_outcomes): ?>
+                            <div class="vp-table-empty">
+                                <i class="fas fa-chart-bar"></i>
+                                No outcome data yet.
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table mb-0">
+                                    <thead>
                                     <tr>
-                                        <td>
-                                            <div class="fw-semibold"><?php echo htmlspecialchars((string)$donor['name']); ?></div>
-                                            <div class="small text-muted"><?php echo htmlspecialchars((string)($donor['phone'] ?: 'No phone')); ?></div>
-                                        </td>
-                                        <td><?php echo $formatMoney((float)$donor['total_pledged']); ?></td>
-                                        <td><?php echo $formatMoney((float)$donor['total_paid']); ?></td>
-                                        <td><?php echo $formatMoney((float)$donor['balance']); ?></td>
-                                        <td><?php echo htmlspecialchars((string)$donor['payment_status']); ?></td>
-                                        <td>
-                                            <?php if ((int)$donor['agent_id'] === (int)$agent['id'] && (int)$donor['registered_by_user_id'] === (int)$agent['id']): ?>
-                                                <span class="badge bg-primary-subtle text-primary">Assigned + Registered</span>
-                                            <?php elseif ((int)$donor['agent_id'] === (int)$agent['id']): ?>
-                                                <span class="badge bg-info-subtle text-info">Assigned</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-secondary-subtle text-secondary">Registered</span>
-                                            <?php endif; ?>
-                                        </td>
+                                        <th>Outcome</th>
+                                        <th>Count</th>
                                     </tr>
-                                <?php endforeach; ?>
-                                <?php if (!$recent_donors): ?>
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted py-3">No donors matched this agent.</td>
-                                    </tr>
-                                <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-xl-6">
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <strong>Recent Call Sessions</strong>
-                            <span class="text-muted small d-block">Last 20 calls handled by this agent.</span>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="table-light">
-                                <tr>
-                                    <th>Donor</th>
-                                    <th>Started</th>
-                                    <th>Duration</th>
-                                    <th>Outcome</th>
-                                    <th>Stage</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <?php foreach ($recent_calls as $call): ?>
-                                    <tr>
-                                        <td>
-                                            <div class="fw-semibold"><?php echo htmlspecialchars((string)($call['donor_name'] ?? 'Unknown Donor')); ?></div>
-                                            <div class="small text-muted"><?php echo htmlspecialchars((string)($call['donor_phone'] ?? 'No phone')); ?></div>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($formatDateTime($call['call_started_at'] ?? null)); ?></td>
-                                        <td><?php echo $formatDuration((float)($call['duration_seconds'] ?? 0)); ?></td>
-                                        <td><?php echo htmlspecialchars((string)($call['outcome'] ?? '-')); ?></td>
-                                        <td><?php echo htmlspecialchars((string)($call['conversation_stage'] ?? '-')); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                                <?php if (!$recent_calls): ?>
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-3">No calls found.</td>
-                                    </tr>
-                                <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3 mt-1">
-                <div class="col-12 col-xl-6">
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <strong>Outcome Breakdown</strong>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table mb-0">
-                                <thead class="table-light">
-                                <tr>
-                                    <th>Outcome</th>
-                                    <th>Count</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <?php if (!$call_outcomes): ?>
-                                    <tr>
-                                        <td colspan="2" class="text-center text-muted py-3">No outcome data yet.</td>
-                                    </tr>
-                                <?php else: ?>
+                                    </thead>
+                                    <tbody>
                                     <?php foreach ($call_outcomes as $outcome): ?>
                                         <tr>
                                             <td><?php echo htmlspecialchars((string)$outcome['outcome']); ?></td>
-                                            <td><?php echo (int)$outcome['total_count']; ?></td>
+                                            <td><span class="fw-semibold"><?php echo (int)$outcome['total_count']; ?></span></td>
                                         </tr>
                                     <?php endforeach; ?>
-                                <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
+
+                <!-- Recent WhatsApp Conversations -->
                 <div class="col-12 col-xl-6">
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <strong>Recent WhatsApp Conversations</strong>
+                    <div class="vp-table-card">
+                        <div class="vp-table-header">
+                            <div>
+                                <h6><i class="fab fa-whatsapp me-2" style="color: var(--success);"></i>WhatsApp Conversations</h6>
+                            </div>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="table-light">
-                                <tr>
-                                    <th>Contact</th>
-                                    <th>Last Message</th>
-                                    <th>Status</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <?php if (!$recent_conversations): ?>
+                        <?php if (!$recent_conversations): ?>
+                            <div class="vp-table-empty">
+                                <i class="fab fa-whatsapp"></i>
+                                No conversations found.
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle">
+                                    <thead>
                                     <tr>
-                                        <td colspan="3" class="text-center text-muted py-3">No conversations found.</td>
+                                        <th>Contact</th>
+                                        <th>Last Message</th>
+                                        <th>Status</th>
                                     </tr>
-                                <?php else: ?>
+                                    </thead>
+                                    <tbody>
                                     <?php foreach ($recent_conversations as $conversation): ?>
                                         <tr>
                                             <td>
                                                 <div class="fw-semibold"><?php echo htmlspecialchars((string)($conversation['donor_name'] ?: ($conversation['contact_name'] ?? $conversation['phone_number'] ?? 'Unknown'))); ?></div>
-                                                <div class="small text-muted"><?php echo htmlspecialchars((string)($conversation['donor_phone'] ?: 'Unknown donor')); ?></div>
+                                                <div class="small" style="color: var(--gray-400);"><?php echo htmlspecialchars((string)($conversation['donor_phone'] ?: 'Unknown')); ?></div>
                                             </td>
-                                            <td><?php echo htmlspecialchars($formatDateTime($conversation['last_message_at'] ?? null)); ?></td>
+                                            <td class="small"><?php echo htmlspecialchars($formatDateTime($conversation['last_message_at'] ?? null)); ?></td>
                                             <td>
                                                 <?php if (array_key_exists('status', $conversation)): ?>
-                                                    <span class="badge bg-secondary-subtle text-secondary"><?php echo htmlspecialchars((string)($conversation['status'])); ?></span>
+                                                    <span class="vp-pill vp-pill-muted"><?php echo htmlspecialchars((string)($conversation['status'])); ?></span>
                                                 <?php endif; ?>
                                                 <?php if (!empty($conversation['unread_count'])): ?>
-                                                    <span class="badge bg-danger-subtle text-danger">Unread: <?php echo (int)$conversation['unread_count']; ?></span>
+                                                    <span class="vp-pill vp-pill-danger">Unread: <?php echo (int)$conversation['unread_count']; ?></span>
                                                 <?php endif; ?>
                                                 <?php if (!empty($conversation['is_unknown'])): ?>
-                                                    <span class="badge bg-warning-subtle text-warning">Unknown</span>
+                                                    <span class="vp-pill vp-pill-warning">Unknown</span>
                                                 <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
-                                <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
 
-            <div class="card mt-3">
-                <div class="card-header bg-white">
-                    <strong>Recent Messages Sent</strong>
-                    <span class="text-muted small d-block">Last 25 messages sent by this agent.</span>
+            <!-- Recent Messages -->
+            <div class="vp-table-card">
+                <div class="vp-table-header">
+                    <div>
+                        <h6><i class="fas fa-paper-plane me-2" style="color: var(--info);"></i>Recent Messages Sent</h6>
+                        <small>Last 25 messages sent by this agent</small>
+                    </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table mb-0 align-middle">
-                        <thead class="table-light">
-                        <tr>
-                            <th>Recipient</th>
-                            <th>Channel</th>
-                            <th>Status</th>
-                            <th>Sent At</th>
-                            <th>Message</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <?php if (!$recent_messages): ?>
+                <?php if (!$recent_messages): ?>
+                    <div class="vp-table-empty">
+                        <i class="fas fa-envelope-open"></i>
+                        No message logs found.
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle">
+                            <thead>
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-3">No message logs found.</td>
+                                <th>Recipient</th>
+                                <th>Channel</th>
+                                <th>Status</th>
+                                <th>Sent At</th>
+                                <th>Message</th>
                             </tr>
-                        <?php else: ?>
+                            </thead>
+                            <tbody>
                             <?php foreach ($recent_messages as $message): ?>
                                 <tr>
                                     <td>
                                         <div class="fw-semibold"><?php echo htmlspecialchars((string)($message['donor_name'] ?: ($message['recipient_name'] ?? ($message['phone_number'] ?? 'Unknown')))); ?></div>
-                                        <div class="small text-muted"><?php echo htmlspecialchars((string)($message['donor_phone'] ?? '')); ?></div>
+                                        <div class="small" style="color: var(--gray-400);"><?php echo htmlspecialchars((string)($message['donor_phone'] ?? '')); ?></div>
                                     </td>
-                                    <td><?php echo htmlspecialchars((string)($message['channel'] ?? 'unknown')); ?></td>
-                                    <td><?php echo htmlspecialchars((string)($message['status'] ?? '-')); ?></td>
-                                    <td><?php echo htmlspecialchars($formatDateTime($message['sent_at'] ?? null)); ?></td>
-                                    <td><?php echo htmlspecialchars(mb_substr((string)($message['message_content'] ?? ''), 0, 90)); ?></td>
+                                    <td>
+                                        <?php
+                                        $ch = strtolower((string)($message['channel'] ?? 'unknown'));
+                                        $ch_class = $ch === 'whatsapp' ? 'vp-pill-success' : ($ch === 'sms' ? 'vp-pill-info' : 'vp-pill-muted');
+                                        ?>
+                                        <span class="vp-pill <?php echo $ch_class; ?>"><?php echo htmlspecialchars($ch); ?></span>
+                                    </td>
+                                    <td>
+                                        <?php
+                                        $st = strtolower((string)($message['status'] ?? '-'));
+                                        $st_class = in_array($st, ['failed', 'error']) ? 'vp-pill-danger' : ($st === 'delivered' || $st === 'sent' ? 'vp-pill-success' : 'vp-pill-muted');
+                                        ?>
+                                        <span class="vp-pill <?php echo $st_class; ?>"><?php echo htmlspecialchars($st); ?></span>
+                                    </td>
+                                    <td class="small"><?php echo htmlspecialchars($formatDateTime($message['sent_at'] ?? null)); ?></td>
+                                    <td class="small" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        <?php echo htmlspecialchars(mb_substr((string)($message['message_content'] ?? ''), 0, 90)); ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
-                        <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
+
         </main>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
 </body>
 </html>
