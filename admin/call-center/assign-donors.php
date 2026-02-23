@@ -1094,6 +1094,248 @@ $params = [];
             opacity: 0.3;
             margin-bottom: 16px;
         }
+
+        /* === Random Assignment Step Cards === */
+        .random-step-card {
+            background: var(--white, #ffffff);
+            border: 1px solid var(--gray-200, #e5e7eb);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
+            overflow: hidden;
+        }
+
+        .random-step-card:hover {
+            box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1));
+        }
+
+        .random-step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: var(--gray-50, #f9fafb);
+            border-bottom: 1px solid var(--gray-200, #e5e7eb);
+        }
+
+        .random-step-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary, #0a6286), var(--primary-light, #0ea5e9));
+            color: var(--white, #fff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(10, 98, 134, 0.3);
+        }
+
+        .random-step-badge-action {
+            background: linear-gradient(135deg, var(--accent-dark, #d97706), var(--accent, #e2ca18));
+            box-shadow: 0 2px 8px rgba(226, 202, 24, 0.35);
+        }
+
+        .random-step-header h6 {
+            font-weight: 600;
+            color: var(--gray-800, #1f2937);
+        }
+
+        .random-step-body {
+            padding: 20px;
+        }
+
+        .random-step-body .form-label {
+            font-weight: 500;
+            color: var(--gray-600, #4b5563);
+            font-size: 0.8125rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .random-step-body .form-label i {
+            color: var(--gray-400, #9ca3af);
+            font-size: 0.75rem;
+        }
+
+        .random-step-body .form-select,
+        .random-step-body .form-control {
+            border: 1px solid var(--gray-200, #e5e7eb);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            padding: 8px 12px;
+        }
+
+        .random-step-body .form-select:focus,
+        .random-step-body .form-control:focus {
+            border-color: var(--primary, #0a6286);
+            box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
+        }
+
+        /* Agent Selection Cards */
+        .random-agent-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-200, #e5e7eb);
+            border-radius: 8px;
+            cursor: pointer;
+            background: var(--white, #fff);
+            width: 100%;
+            height: 100%;
+        }
+
+        .random-agent-card:hover {
+            border-color: var(--primary-light, #0ea5e9);
+            background: rgba(10, 98, 134, 0.03);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .random-agent-card:has(input:checked) {
+            border-color: var(--primary, #0a6286);
+            background: rgba(10, 98, 134, 0.06);
+            box-shadow: 0 0 0 2px rgba(10, 98, 134, 0.15);
+        }
+
+        .random-agent-card .form-check-input {
+            flex-shrink: 0;
+            margin: 0;
+        }
+
+        .random-agent-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary, #0a6286), var(--primary-light, #0ea5e9));
+            color: var(--white, #fff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .random-agent-name {
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--gray-700, #374151);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Summary Panel */
+        .random-summary-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            background: var(--gray-50, #f9fafb);
+            border: 1px solid var(--gray-200, #e5e7eb);
+            border-radius: 10px;
+            padding: 12px 20px;
+        }
+
+        .random-summary-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .random-summary-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .random-summary-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary, #0a6286);
+            line-height: 1.2;
+        }
+
+        .random-summary-label {
+            font-size: 0.6875rem;
+            font-weight: 500;
+            color: var(--gray-500, #6b7280);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .random-summary-divider {
+            width: 1px;
+            height: 36px;
+            background: var(--gray-300, #d1d5db);
+        }
+
+        .random-run-btn {
+            background: linear-gradient(135deg, var(--accent-dark, #d97706), var(--accent, #e2ca18));
+            color: var(--gray-900, #111827);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 24px;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            white-space: nowrap;
+        }
+
+        .random-run-btn:hover {
+            color: var(--gray-900, #111827);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(226, 202, 24, 0.4);
+        }
+
+        .random-run-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Advanced filters toggle */
+        .random-advanced-chevron {
+            transition: transform 0.2s;
+        }
+
+        [aria-expanded="true"] .random-advanced-chevron {
+            transform: rotate(180deg);
+        }
+
+        /* Responsive adjustments for random tab */
+        @media (max-width: 768px) {
+            .random-step-header {
+                padding: 12px 16px;
+            }
+
+            .random-step-body {
+                padding: 16px;
+            }
+
+            .random-summary-panel {
+                flex-direction: column;
+                text-align: center;
+                gap: 12px;
+                padding: 16px;
+            }
+
+            .random-run-btn {
+                width: 100%;
+            }
+
+            .random-agent-card {
+                padding: 8px 10px;
+            }
+
+            .random-agent-avatar {
+                width: 26px;
+                height: 26px;
+                font-size: 0.6875rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1693,49 +1935,46 @@ $params = [];
 
             <!-- Fair Random Assignment Tab -->
             <div class="tab-pane fade <?php echo $active_tab === 'random' ? 'show active' : ''; ?>" id="random" role="tabpanel">
-                <div class="modern-card">
-                    <div class="card-header">
-                        <i class="fas fa-shuffle me-2"></i>Fair Random Assignment
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" id="randomAssignForm" onsubmit="return submitRandomAssignment();">
-                            <input type="hidden" name="random_assign" value="1">
+                <form method="POST" id="randomAssignForm" onsubmit="return submitRandomAssignment();">
+                    <input type="hidden" name="random_assign" value="1">
 
+                    <!-- Step 1: Donor Pool Filters -->
+                    <div class="random-step-card">
+                        <div class="random-step-header">
+                            <div class="random-step-badge">1</div>
+                            <div>
+                                <h6 class="mb-0">Build Donor Pool</h6>
+                                <small class="text-muted">Define which donors are eligible for random assignment</small>
+                            </div>
+                        </div>
+                        <div class="random-step-body">
                             <div class="row g-3">
-                                <div class="col-12">
-                                    <h6 class="mb-1 text-primary">Step 1: Build donor pool filters</h6>
-                                    <small class="text-muted">Set the donor criteria that should enter the random pool.</small>
-                                </div>
-
                                 <div class="col-md-4">
-                                    <label class="form-label">Assignment Scope</label>
+                                    <label class="form-label"><i class="fas fa-users-between-lines me-1"></i>Assignment Scope</label>
                                     <select name="random_assignment_scope" class="form-select">
                                         <option value="unassigned">Unassigned only</option>
                                         <option value="assigned">Assigned only</option>
                                         <option value="all">Assigned + Unassigned</option>
                                     </select>
                                 </div>
-
                                 <div class="col-md-4">
-                                    <label class="form-label">Donation Activity</label>
+                                    <label class="form-label"><i class="fas fa-hand-holding-usd me-1"></i>Donation Activity</label>
                                     <select name="random_donation_type" class="form-select">
                                         <option value="all">All</option>
                                         <option value="pledge">Pledges only</option>
                                         <option value="payment">Payments only</option>
                                     </select>
                                 </div>
-
                                 <div class="col-md-4">
-                                    <label class="form-label">Donor Type</label>
+                                    <label class="form-label"><i class="fas fa-user-tag me-1"></i>Donor Type</label>
                                     <select name="random_donor_type" class="form-select">
                                         <option value="all">All</option>
                                         <option value="pledge">Pledge donor</option>
                                         <option value="immediate_payment">Immediate payment donor</option>
                                     </select>
                                 </div>
-
                                 <div class="col-md-4">
-                                    <label class="form-label">Amount Bucket (Balance)</label>
+                                    <label class="form-label"><i class="fas fa-layer-group me-1"></i>Amount Bucket (Balance)</label>
                                     <select name="random_amount_bucket" class="form-select">
                                         <option value="all">All balances</option>
                                         <option value="under_100">Under 100</option>
@@ -1743,9 +1982,8 @@ $params = [];
                                         <option value="above_400">Above 400</option>
                                     </select>
                                 </div>
-
                                 <div class="col-md-4">
-                                    <label class="form-label">Payment Status</label>
+                                    <label class="form-label"><i class="fas fa-clock-rotate-left me-1"></i>Payment Status</label>
                                     <select name="random_payment_status" class="form-select">
                                         <option value="all">All statuses</option>
                                         <option value="completed">Completed donors</option>
@@ -1756,9 +1994,8 @@ $params = [];
                                         <option value="no_pledge">No pledge</option>
                                     </select>
                                 </div>
-
                                 <div class="col-md-4">
-                                    <label class="form-label">Registered By (Optional)</label>
+                                    <label class="form-label"><i class="fas fa-user-tie me-1"></i>Registered By</label>
                                     <select name="random_registrar" class="form-select">
                                         <option value="">All registrars/admins</option>
                                         <?php if (!empty($registrars)): ?>
@@ -1771,92 +2008,124 @@ $params = [];
                                     </select>
                                 </div>
 
-                                <div class="col-md-6">
-                                    <label class="form-label">Search Name/Phone (Optional)</label>
-                                    <input type="text" name="random_search" class="form-control" value="<?php echo htmlspecialchars($filter_search); ?>" placeholder="Name or phone">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label class="form-label">Min Pledge</label>
-                                    <input type="number" name="random_min_pledge" class="form-control" step="0.01" min="0" value="<?php echo $filter_min_pledge !== null ? htmlspecialchars((string)$filter_min_pledge) : ''; ?>">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label class="form-label">Max Pledge</label>
-                                    <input type="number" name="random_max_pledge" class="form-control" step="0.01" min="0" value="<?php echo $filter_max_pledge !== null ? htmlspecialchars((string)$filter_max_pledge) : ''; ?>">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label class="form-label">Min Balance</label>
-                                    <input type="number" name="random_min_balance" class="form-control" step="0.01" min="0" value="<?php echo $filter_min_balance !== null ? htmlspecialchars((string)$filter_min_balance) : ''; ?>">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label class="form-label">Max Balance</label>
-                                    <input type="number" name="random_max_balance" class="form-control" step="0.01" min="0" value="<?php echo $filter_max_balance !== null ? htmlspecialchars((string)$filter_max_balance) : ''; ?>">
-                                </div>
-
-                                <div class="col-12 pt-2">
-                                    <h6 class="mb-1 text-primary">Step 2: Select target agents</h6>
-                                    <small class="text-muted">Choose which active registrars/admins should receive donors.</small>
-                                </div>
-
+                                <!-- Collapsible advanced filters -->
                                 <div class="col-12">
-                                    <?php if (!empty($agents)): ?>
-                                        <div class="d-flex align-items-center gap-2 mb-2">
-                                            <input type="checkbox" class="form-check-input mt-0" id="randomSelectAllAgents" onchange="toggleRandomSelectAll(this)">
-                                            <label class="form-check-label" for="randomSelectAllAgents">Select all agents</label>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#randomAdvancedFilters" aria-expanded="false">
+                                        <i class="fas fa-sliders me-1"></i>Advanced Filters
+                                        <i class="fas fa-chevron-down ms-1 random-advanced-chevron" style="font-size: 0.7rem;"></i>
+                                    </button>
+                                </div>
+                                <div class="collapse" id="randomAdvancedFilters">
+                                    <div class="row g-3 pt-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label"><i class="fas fa-search me-1"></i>Search Name/Phone</label>
+                                            <input type="text" name="random_search" class="form-control" value="<?php echo htmlspecialchars($filter_search); ?>" placeholder="Enter name or phone number">
                                         </div>
-                                        <div class="row g-2">
-                                            <?php foreach ($agents as $agent): ?>
-                                                <div class="col-sm-6 col-md-4 col-lg-3">
-                                                    <div class="form-check border rounded p-2 h-100">
-                                                        <input
-                                                            class="form-check-input random-agent-checkbox"
-                                                            type="checkbox"
-                                                            name="random_agent_ids[]"
-                                                            value="<?php echo $agent['id']; ?>"
-                                                            id="randomAgent<?php echo $agent['id']; ?>"
-                                                            onchange="updateRandomPlan()">
-                                                        <label class="form-check-label ms-1" for="randomAgent<?php echo $agent['id']; ?>">
-                                                            <?php echo htmlspecialchars($agent['name']); ?>
-                                                        </label>
-                                                    </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label"><i class="fas fa-pound-sign me-1"></i>Min Pledge</label>
+                                            <input type="number" name="random_min_pledge" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_min_pledge !== null ? htmlspecialchars((string)$filter_min_pledge) : ''; ?>">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label"><i class="fas fa-pound-sign me-1"></i>Max Pledge</label>
+                                            <input type="number" name="random_max_pledge" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_max_pledge !== null ? htmlspecialchars((string)$filter_max_pledge) : ''; ?>">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label"><i class="fas fa-coins me-1"></i>Min Balance</label>
+                                            <input type="number" name="random_min_balance" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_min_balance !== null ? htmlspecialchars((string)$filter_min_balance) : ''; ?>">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label"><i class="fas fa-coins me-1"></i>Max Balance</label>
+                                            <input type="number" name="random_max_balance" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_max_balance !== null ? htmlspecialchars((string)$filter_max_balance) : ''; ?>">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Select Agents -->
+                    <div class="random-step-card">
+                        <div class="random-step-header">
+                            <div class="random-step-badge">2</div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0">Select Target Agents</h6>
+                                <small class="text-muted">Choose which active registrars/admins should receive donors</small>
+                            </div>
+                            <?php if (!empty($agents)): ?>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="checkbox" class="form-check-input mt-0" id="randomSelectAllAgents" onchange="toggleRandomSelectAll(this)">
+                                <label class="form-check-label small fw-medium" for="randomSelectAllAgents">Select all</label>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="random-step-body">
+                            <?php if (!empty($agents)): ?>
+                                <div class="row g-2">
+                                    <?php foreach ($agents as $agent): ?>
+                                        <div class="col-sm-6 col-md-4 col-lg-3">
+                                            <label class="random-agent-card" for="randomAgent<?php echo $agent['id']; ?>">
+                                                <input
+                                                    class="form-check-input random-agent-checkbox"
+                                                    type="checkbox"
+                                                    name="random_agent_ids[]"
+                                                    value="<?php echo $agent['id']; ?>"
+                                                    id="randomAgent<?php echo $agent['id']; ?>"
+                                                    onchange="updateRandomPlan()">
+                                                <div class="random-agent-avatar">
+                                                    <?php echo strtoupper(substr($agent['name'], 0, 1)); ?>
                                                 </div>
-                                            <?php endforeach; ?>
+                                                <span class="random-agent-name"><?php echo htmlspecialchars($agent['name']); ?></span>
+                                            </label>
                                         </div>
-                                    <?php else: ?>
-                                        <div class="alert alert-warning mb-0">
-                                            No active agents are available for random assignment.
-                                        </div>
-                                    <?php endif; ?>
+                                    <?php endforeach; ?>
                                 </div>
-
-                                <div class="col-12 pt-2">
-                                    <h6 class="mb-1 text-primary">Step 3: Set equal load and run</h6>
-                                    <small class="text-muted">Define donors per agent and execute random assignment.</small>
+                            <?php else: ?>
+                                <div class="empty-state py-4">
+                                    <i class="fas fa-user-slash"></i>
+                                    <p class="mt-2 mb-0">No active agents are available for random assignment.</p>
                                 </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
 
+                    <!-- Step 3: Configure & Run -->
+                    <div class="random-step-card">
+                        <div class="random-step-header">
+                            <div class="random-step-badge random-step-badge-action">3</div>
+                            <div>
+                                <h6 class="mb-0">Set Load & Execute</h6>
+                                <small class="text-muted">Define donors per agent and run the random assignment</small>
+                            </div>
+                        </div>
+                        <div class="random-step-body">
+                            <div class="row g-3 align-items-end">
                                 <div class="col-md-4">
-                                    <label class="form-label">Donors per agent</label>
-                                    <input type="number" name="random_per_agent" id="randomPerAgent" class="form-control" min="1" max="200" value="3" oninput="updateRandomPlan()">
+                                    <label class="form-label fw-medium"><i class="fas fa-hashtag me-1"></i>Donors per agent</label>
+                                    <input type="number" name="random_per_agent" id="randomPerAgent" class="form-control form-control-lg" min="1" max="200" value="3" oninput="updateRandomPlan()">
                                 </div>
-
-                                <div class="col-md-8 d-flex align-items-end">
-                                    <div class="w-100 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                        <div class="small text-muted">
-                                            Planned: <strong id="randomPlanCount">0</strong> donor(s) for
-                                            <strong id="randomSelectedAgentsCount">0</strong> selected agent(s).
+                                <div class="col-md-8">
+                                    <div class="random-summary-panel">
+                                        <div class="random-summary-stats">
+                                            <div class="random-summary-stat">
+                                                <span class="random-summary-number" id="randomSelectedAgentsCount">0</span>
+                                                <span class="random-summary-label">Agents</span>
+                                            </div>
+                                            <div class="random-summary-divider"></div>
+                                            <div class="random-summary-stat">
+                                                <span class="random-summary-number" id="randomPlanCount">0</span>
+                                                <span class="random-summary-label">Total Donors</span>
+                                            </div>
                                         </div>
-                                        <button type="submit" class="btn btn-warning btn-modern">
-                                            <i class="fas fa-random me-1"></i>Run Fair Random Assignment
+                                        <button type="submit" class="btn random-run-btn">
+                                            <i class="fas fa-shuffle me-2"></i>Run Assignment
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
-                </div>
+
+                </form>
             </div>
             </div>
         </main>
@@ -2063,17 +2332,31 @@ function submitRandomAssignment() {
 // Toggle filter chevron icon
 const filterPanel = document.getElementById('filterPanel');
 const filterChevron = document.getElementById('filterChevron');
-    
+
 if (filterPanel && filterChevron) {
     filterPanel.addEventListener('show.bs.collapse', function () {
         filterChevron.classList.remove('fa-chevron-down');
         filterChevron.classList.add('fa-chevron-up');
     });
-    
+
     filterPanel.addEventListener('hide.bs.collapse', function () {
         filterChevron.classList.remove('fa-chevron-up');
         filterChevron.classList.add('fa-chevron-down');
     });
+}
+
+// Toggle advanced filters chevron in random tab
+const advancedFilters = document.getElementById('randomAdvancedFilters');
+if (advancedFilters) {
+    const advancedBtn = advancedFilters.previousElementSibling?.querySelector('[data-bs-toggle="collapse"]');
+    if (advancedBtn) {
+        advancedFilters.addEventListener('show.bs.collapse', function () {
+            advancedBtn.setAttribute('aria-expanded', 'true');
+        });
+        advancedFilters.addEventListener('hide.bs.collapse', function () {
+            advancedBtn.setAttribute('aria-expanded', 'false');
+        });
+    }
 }
 
 const tabButtons = document.querySelectorAll('#myTab button[data-bs-toggle="tab"]');
