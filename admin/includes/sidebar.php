@@ -205,6 +205,13 @@ try {
         </span>
         <span class="nav-label">Donor Management</span>
       </a>
+      <a href="<?php echo url_for('admin/agents-management/'); ?>" 
+         class="nav-link <?php echo $current_dir === 'agents-management' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-user-tie"></i>
+        </span>
+        <span class="nav-label">Agents Management</span>
+      </a>
       <a href="<?php echo url_for('admin/church-management/'); ?>" 
          class="nav-link <?php echo $current_dir === 'church-management' ? 'active' : ''; ?>">
         <span class="nav-icon">
