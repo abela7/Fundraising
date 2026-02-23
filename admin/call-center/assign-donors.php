@@ -71,6 +71,265 @@ function redirectAssignDonorsWithMessage(string $message, string $type = 'info',
     exit;
 }
 
+function getRandomAmountBucketOptions(): array {
+    $options = [
+        ['value' => 'all', 'label' => 'All balances']
+    ];
+
+    for ($start = 0; $start < 1000; $start += 100) {
+        $end = $start + 100;
+        $options[] = [
+            'value' => "bucket_{$start}_{$end}",
+            'label' => "{$start} - {$end}"
+        ];
+    }
+
+    $options[] = ['value' => 'bucket_1000_plus', 'label' => '1000+'];
+    $options[] = ['value' => 'bucket_400_plus', 'label' => '400+'];
+
+    return $options;
+}
+
+function normalizeRandomAmountBucket(string $bucket): string {
+    $legacy_map = [
+        'under_100' => 'bucket_0_100',
+        'between_100_400' => 'bucket_100_400',
+        'above_400' => 'bucket_400_plus'
+    ];
+
+    return $legacy_map[$bucket] ?? $bucket;
+}
+
+function parseRandomFilterNumeric(array $source, string $key): ?float {
+    if (!array_key_exists($key, $source) || $source[$key] === '') {
+        return null;
+    }
+
+    $value = is_scalar($source[$key]) ? trim((string)$source[$key]) : '';
+    if ($value === '' || !is_numeric($value)) {
+        return null;
+    }
+
+    $parsed = (float)$value;
+    return max(0.0, $parsed);
+}
+
+function parseRandomAssignmentInput(array $source): array {
+    $selected_agent_ids = $source['random_agent_ids'] ?? [];
+    if (!is_array($selected_agent_ids)) {
+        $selected_agent_ids = [];
+    }
+
+    $selected_agent_ids = array_values(array_unique(array_filter(array_map('intval', $selected_agent_ids), static function (int $id): bool {
+        return $id > 0;
+    })));
+
+    $allowed_buckets = array_column(getRandomAmountBucketOptions(), 'value');
+    $amount_bucket = normalizeRandomAmountBucket((string)($source['random_amount_bucket'] ?? 'all'));
+    if (!in_array($amount_bucket, $allowed_buckets, true)) {
+        $amount_bucket = 'all';
+    }
+
+    $random_registrar = isset($source['random_registrar']) && (string)$source['random_registrar'] !== '' ? (int)$source['random_registrar'] : null;
+    if ($random_registrar !== null && $random_registrar <= 0) {
+        $random_registrar = null;
+    }
+
+    return [
+        'selected_agent_ids' => $selected_agent_ids,
+        'donors_per_agent' => isset($source['random_per_agent']) ? (int)$source['random_per_agent'] : 3,
+        'assignment_scope' => in_array((string)($source['random_assignment_scope'] ?? 'unassigned'), ['all', 'assigned', 'unassigned'], true)
+            ? (string)($source['random_assignment_scope'] ?? 'unassigned')
+            : 'unassigned',
+        'donation_type_filter' => in_array((string)($source['random_donation_type'] ?? 'all'), ['all', 'pledge', 'payment'], true)
+            ? (string)($source['random_donation_type'] ?? 'all')
+            : 'all',
+        'donor_type_filter' => in_array((string)($source['random_donor_type'] ?? 'all'), ['all', 'pledge', 'immediate_payment'], true)
+            ? (string)($source['random_donor_type'] ?? 'all')
+            : 'all',
+        'amount_bucket' => $amount_bucket,
+        'payment_status_filter' => in_array((string)($source['random_payment_status'] ?? 'all'), ['all', 'completed', 'paying', 'not_started', 'overdue', 'defaulted', 'no_pledge'], true)
+            ? (string)($source['random_payment_status'] ?? 'all')
+            : 'all',
+        'random_search' => trim((string)($source['random_search'] ?? '')),
+        'random_registrar' => $random_registrar,
+        'random_min_pledge' => parseRandomFilterNumeric($source, 'random_min_pledge'),
+        'random_max_pledge' => parseRandomFilterNumeric($source, 'random_max_pledge'),
+        'random_min_balance' => parseRandomFilterNumeric($source, 'random_min_balance'),
+        'random_max_balance' => parseRandomFilterNumeric($source, 'random_max_balance'),
+    ];
+}
+
+function buildRandomCandidateFilterClause(array $random_input): array {
+    $balance_expression = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0))";
+    $random_where = [];
+    $random_params = [];
+    $random_types = '';
+
+    if ($random_input['assignment_scope'] === 'assigned') {
+        $random_where[] = 'd.agent_id IS NOT NULL';
+    } elseif ($random_input['assignment_scope'] === 'unassigned') {
+        $random_where[] = 'd.agent_id IS NULL';
+    }
+
+    if (!empty($random_input['random_search'])) {
+        $random_where[] = '(d.name LIKE ? OR d.phone LIKE ?)';
+        $search_param = '%' . $random_input['random_search'] . '%';
+        $random_params[] = $search_param;
+        $random_params[] = $search_param;
+        $random_types .= 'ss';
+    }
+
+    if ($random_input['donation_type_filter'] === 'pledge') {
+        $random_where[] = "d.id IN (
+            SELECT DISTINCT donor_id
+            FROM pledges
+            WHERE donor_id IS NOT NULL
+              AND status IN ('pending', 'approved')
+        )";
+    } elseif ($random_input['donation_type_filter'] === 'payment') {
+        $random_where[] = "d.id IN (
+            SELECT DISTINCT donor_id
+            FROM payments
+            WHERE donor_id IS NOT NULL
+              AND status IN ('pending', 'approved')
+        )";
+    }
+
+    if ($random_input['donor_type_filter'] === 'pledge') {
+        $random_where[] = "(d.donor_type = 'pledge' OR COALESCE(d.total_pledged, 0) > 0)";
+    } elseif ($random_input['donor_type_filter'] === 'immediate_payment') {
+        $random_where[] = "(
+            d.donor_type = 'immediate_payment'
+            OR (COALESCE(d.total_pledged, 0) <= 0 AND COALESCE(d.total_paid, 0) > 0)
+        )";
+    }
+
+    if ($random_input['amount_bucket'] === 'bucket_400_plus') {
+        $random_where[] = "{$balance_expression} >= ?";
+        $random_params[] = 400.0;
+        $random_types .= 'd';
+    } elseif (preg_match('/^bucket_(\\d+)_(\\d+)$/', (string)$random_input['amount_bucket'], $matches)) {
+        $bucket_min = (float)$matches[1];
+        $bucket_max = (float)$matches[2];
+
+        if ($bucket_max > $bucket_min) {
+            $random_where[] = "{$balance_expression} >= ? AND {$balance_expression} < ?";
+            $random_params[] = $bucket_min;
+            $random_params[] = $bucket_max;
+            $random_types .= 'dd';
+        }
+    } elseif ($random_input['amount_bucket'] === 'bucket_1000_plus') {
+        $random_where[] = "{$balance_expression} >= ?";
+        $random_params[] = 1000.0;
+        $random_types .= 'd';
+    }
+
+    if ($random_input['payment_status_filter'] === 'completed') {
+        $random_where[] = "(d.payment_status = 'completed' OR {$balance_expression} <= 0)";
+    } elseif ($random_input['payment_status_filter'] === 'paying') {
+        $random_where[] = "(
+            d.payment_status = 'paying'
+            OR (
+                COALESCE(d.total_pledged, 0) > COALESCE(d.total_paid, 0)
+                AND COALESCE(d.total_paid, 0) > 0
+            )
+        )";
+    } elseif ($random_input['payment_status_filter'] === 'not_started') {
+        $random_where[] = "(
+            d.payment_status = 'not_started'
+            OR (
+                COALESCE(d.total_pledged, 0) > 0
+                AND COALESCE(d.total_paid, 0) <= 0
+            )
+        )";
+    } elseif ($random_input['payment_status_filter'] === 'no_pledge') {
+        $random_where[] = "(d.payment_status = 'no_pledge' OR COALESCE(d.total_pledged, 0) <= 0)";
+    } elseif ($random_input['payment_status_filter'] === 'overdue') {
+        $random_where[] = "(
+            d.payment_status = 'overdue'
+            OR (
+                d.has_active_plan = 1
+                AND d.active_payment_plan_id IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM donor_payment_plans pp
+                    WHERE pp.id = d.active_payment_plan_id
+                      AND pp.status = 'active'
+                      AND pp.next_payment_due IS NOT NULL
+                      AND pp.next_payment_due < CURDATE()
+                )
+            )
+        )";
+    } elseif ($random_input['payment_status_filter'] === 'defaulted') {
+        $random_where[] = "(
+            d.payment_status = 'defaulted'
+            OR (
+                d.has_active_plan = 1
+                AND d.active_payment_plan_id IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM donor_payment_plans pp
+                    WHERE pp.id = d.active_payment_plan_id
+                        AND pp.status = 'defaulted'
+                )
+            )
+        )";
+    }
+
+    if ($random_input['random_registrar'] !== null) {
+        $random_where[] = "(
+            d.registered_by_user_id = ?
+            OR d.id IN (
+                SELECT DISTINCT donor_id
+                FROM pledges
+                WHERE created_by_user_id = ? AND donor_id IS NOT NULL
+            )
+            OR d.id IN (
+                SELECT DISTINCT donor_id
+                FROM payments
+                WHERE received_by_user_id = ? AND donor_id IS NOT NULL
+            )
+        )";
+        $random_params[] = $random_input['random_registrar'];
+        $random_params[] = $random_input['random_registrar'];
+        $random_params[] = $random_input['random_registrar'];
+        $random_types .= 'iii';
+    }
+
+    if ($random_input['random_min_pledge'] !== null) {
+        $random_where[] = 'COALESCE(d.total_pledged, 0) >= ?';
+        $random_params[] = $random_input['random_min_pledge'];
+        $random_types .= 'd';
+    }
+
+    if ($random_input['random_max_pledge'] !== null) {
+        $random_where[] = 'COALESCE(d.total_pledged, 0) <= ?';
+        $random_params[] = $random_input['random_max_pledge'];
+        $random_types .= 'd';
+    }
+
+    if ($random_input['random_min_balance'] !== null) {
+        $random_where[] = "{$balance_expression} >= ?";
+        $random_params[] = $random_input['random_min_balance'];
+        $random_types .= 'd';
+    }
+
+    if ($random_input['random_max_balance'] !== null) {
+        $random_where[] = "{$balance_expression} <= ?";
+        $random_params[] = $random_input['random_max_balance'];
+        $random_types .= 'd';
+    }
+
+    $random_where_clause = !empty($random_where) ? ' WHERE ' . implode(' AND ', $random_where) : '';
+
+    return [
+        'where_clause' => $random_where_clause,
+        'params' => $random_params,
+        'types' => $random_types
+    ];
+}
+
 // Handle bulk assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
     $donor_ids = $_POST['donor_ids'] ?? [];
@@ -130,70 +389,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign']) && !isset($
     }
 }
 
-// Handle fair random assignment
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
+// Handle fair random assignment preview
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_preview'])) {
+    header('Content-Type: application/json; charset=utf-8');
+
     try {
-        $selected_agent_ids = $_POST['random_agent_ids'] ?? [];
-        if (!is_array($selected_agent_ids)) {
-            $selected_agent_ids = [];
-        }
-        $selected_agent_ids = array_values(array_unique(array_filter(array_map('intval', $selected_agent_ids), static function ($id) {
-            return $id > 0;
-        })));
+        $random = parseRandomAssignmentInput($_POST);
 
-        if (empty($selected_agent_ids)) {
-            redirectAssignDonorsWithMessage('Select at least one agent for random assignment.', 'warning', 'random');
+        if ($random['random_min_pledge'] !== null && $random['random_max_pledge'] !== null && $random['random_min_pledge'] > $random['random_max_pledge']) {
+            echo json_encode(['ok' => false, 'message' => 'Min pledge cannot be greater than max pledge.']);
+            exit;
         }
 
-        $donors_per_agent = isset($_POST['random_per_agent']) ? (int)$_POST['random_per_agent'] : 0;
-        if ($donors_per_agent < 1 || $donors_per_agent > 200) {
-            redirectAssignDonorsWithMessage('Donors per agent must be between 1 and 200.', 'warning', 'random');
+        if ($random['random_min_balance'] !== null && $random['random_max_balance'] !== null && $random['random_min_balance'] > $random['random_max_balance']) {
+            echo json_encode(['ok' => false, 'message' => 'Min balance cannot be greater than max balance.']);
+            exit;
         }
 
-        $assignment_scope = (string)($_POST['random_assignment_scope'] ?? 'unassigned');
-        if (!in_array($assignment_scope, ['all', 'assigned', 'unassigned'], true)) {
-            $assignment_scope = 'unassigned';
-        }
-
-        $donation_type_filter = (string)($_POST['random_donation_type'] ?? 'all');
-        if (!in_array($donation_type_filter, ['all', 'pledge', 'payment'], true)) {
-            $donation_type_filter = 'all';
-        }
-
-        $donor_type_filter = (string)($_POST['random_donor_type'] ?? 'all');
-        if (!in_array($donor_type_filter, ['all', 'pledge', 'immediate_payment'], true)) {
-            $donor_type_filter = 'all';
-        }
-
-        $amount_bucket = (string)($_POST['random_amount_bucket'] ?? 'all');
-        if (!in_array($amount_bucket, ['all', 'under_100', 'between_100_400', 'above_400'], true)) {
-            $amount_bucket = 'all';
-        }
-
-        $payment_status_filter = (string)($_POST['random_payment_status'] ?? 'all');
-        if (!in_array($payment_status_filter, ['all', 'completed', 'paying', 'not_started', 'overdue', 'defaulted', 'no_pledge'], true)) {
-            $payment_status_filter = 'all';
-        }
-
-        $random_search = trim((string)($_POST['random_search'] ?? ''));
-        $random_registrar = isset($_POST['random_registrar']) && $_POST['random_registrar'] !== '' ? (int)$_POST['random_registrar'] : null;
-        if ($random_registrar !== null && $random_registrar <= 0) {
-            $random_registrar = null;
-        }
-
-        $random_min_pledge = isset($_POST['random_min_pledge']) && $_POST['random_min_pledge'] !== '' ? max(0.0, (float)$_POST['random_min_pledge']) : null;
-        $random_max_pledge = isset($_POST['random_max_pledge']) && $_POST['random_max_pledge'] !== '' ? max(0.0, (float)$_POST['random_max_pledge']) : null;
-        $random_min_balance = isset($_POST['random_min_balance']) && $_POST['random_min_balance'] !== '' ? max(0.0, (float)$_POST['random_min_balance']) : null;
-        $random_max_balance = isset($_POST['random_max_balance']) && $_POST['random_max_balance'] !== '' ? max(0.0, (float)$_POST['random_max_balance']) : null;
-
-        if ($random_min_pledge !== null && $random_max_pledge !== null && $random_min_pledge > $random_max_pledge) {
-            redirectAssignDonorsWithMessage('Min pledge cannot be greater than max pledge.', 'warning', 'random');
-        }
-        if ($random_min_balance !== null && $random_max_balance !== null && $random_min_balance > $random_max_balance) {
-            redirectAssignDonorsWithMessage('Min balance cannot be greater than max balance.', 'warning', 'random');
-        }
-
-        if ($random_registrar !== null) {
+        if ($random['random_registrar'] !== null) {
             $registrar_check_stmt = $db->prepare("
                 SELECT id
                 FROM users
@@ -205,7 +418,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
             if (!$registrar_check_stmt) {
                 throw new Exception('Failed to validate registrar filter.');
             }
-            $registrar_check_stmt->bind_param('i', $random_registrar);
+            $registrar_check_stmt->bind_param('i', $random['random_registrar']);
+            $registrar_check_stmt->execute();
+            $registrar_check_result = $registrar_check_stmt->get_result()->fetch_assoc();
+            $registrar_check_stmt->close();
+            if (!$registrar_check_result) {
+                echo json_encode(['ok' => false, 'message' => 'Selected registrar is not active or not allowed.']);
+                exit;
+            }
+        }
+
+        $candidate_filter = buildRandomCandidateFilterClause($random);
+        $candidate_where_clause = $candidate_filter['where_clause'];
+        $candidate_params = $candidate_filter['params'];
+        $candidate_types = $candidate_filter['types'];
+
+        $candidate_count_query = "SELECT COUNT(*) AS total FROM donors d{$candidate_where_clause}";
+        $candidate_count_stmt = $db->prepare($candidate_count_query);
+        if (!$candidate_count_stmt) {
+            throw new Exception('Failed to prepare donor preview count query.');
+        }
+        if (!empty($candidate_params)) {
+            $candidate_count_stmt->bind_param($candidate_types, ...$candidate_params);
+        }
+        $candidate_count_stmt->execute();
+        $candidate_count_result = $candidate_count_stmt->get_result()->fetch_assoc();
+        $candidate_count_stmt->close();
+        $candidate_count = (int)($candidate_count_result['total'] ?? 0);
+
+        echo json_encode([
+            'ok' => true,
+            'count' => $candidate_count,
+            'message' => $candidate_count . ' donors match your step 1 filters.'
+        ]);
+    } catch (Exception $e) {
+        error_log('Random assignment preview error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'message' => 'Unable to calculate matching donor count.']);
+    }
+    exit;
+}
+
+// Handle fair random assignment
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
+    try {
+        $random = parseRandomAssignmentInput($_POST);
+        $selected_agent_ids = $random['selected_agent_ids'];
+
+        if (empty($selected_agent_ids)) {
+            redirectAssignDonorsWithMessage('Select at least one agent for random assignment.', 'warning', 'random');
+        }
+
+        $donors_per_agent = $random['donors_per_agent'];
+        if ($donors_per_agent < 1 || $donors_per_agent > 200) {
+            redirectAssignDonorsWithMessage('Donors per agent must be between 1 and 200.', 'warning', 'random');
+        }
+
+        if ($random['random_min_pledge'] !== null && $random['random_max_pledge'] !== null && $random['random_min_pledge'] > $random['random_max_pledge']) {
+            redirectAssignDonorsWithMessage('Min pledge cannot be greater than max pledge.', 'warning', 'random');
+        }
+        if ($random['random_min_balance'] !== null && $random['random_max_balance'] !== null && $random['random_min_balance'] > $random['random_max_balance']) {
+            redirectAssignDonorsWithMessage('Min balance cannot be greater than max balance.', 'warning', 'random');
+        }
+
+        if ($random['random_registrar'] !== null) {
+            $registrar_check_stmt = $db->prepare("
+                SELECT id
+                FROM users
+                WHERE id = ?
+                  AND active = 1
+                  AND role IN ('registrar', 'admin')
+                LIMIT 1
+            ");
+            if (!$registrar_check_stmt) {
+                throw new Exception('Failed to validate registrar filter.');
+            }
+            $registrar_check_stmt->bind_param('i', $random['random_registrar']);
             $registrar_check_stmt->execute();
             $registrar_check_result = $registrar_check_stmt->get_result()->fetch_assoc();
             $registrar_check_stmt->close();
@@ -236,155 +524,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
             redirectAssignDonorsWithMessage('No valid active agents were selected.', 'warning', 'random');
         }
 
-        $balance_expression = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0))";
-        $random_where = [];
-        $random_params = [];
-        $random_types = '';
-
-        if ($assignment_scope === 'assigned') {
-            $random_where[] = 'd.agent_id IS NOT NULL';
-        } elseif ($assignment_scope === 'unassigned') {
-            $random_where[] = 'd.agent_id IS NULL';
-        }
-
-        if (!empty($random_search)) {
-            $random_where[] = '(d.name LIKE ? OR d.phone LIKE ?)';
-            $search_param = '%' . $random_search . '%';
-            $random_params[] = $search_param;
-            $random_params[] = $search_param;
-            $random_types .= 'ss';
-        }
-
-        if ($donation_type_filter === 'pledge') {
-            $random_where[] = "d.id IN (
-                SELECT DISTINCT donor_id
-                FROM pledges
-                WHERE donor_id IS NOT NULL
-                  AND status IN ('pending', 'approved')
-            )";
-        } elseif ($donation_type_filter === 'payment') {
-            $random_where[] = "d.id IN (
-                SELECT DISTINCT donor_id
-                FROM payments
-                WHERE donor_id IS NOT NULL
-                  AND status IN ('pending', 'approved')
-            )";
-        }
-
-        if ($donor_type_filter === 'pledge') {
-            $random_where[] = "(d.donor_type = 'pledge' OR COALESCE(d.total_pledged, 0) > 0)";
-        } elseif ($donor_type_filter === 'immediate_payment') {
-            $random_where[] = "(
-                d.donor_type = 'immediate_payment'
-                OR (COALESCE(d.total_pledged, 0) <= 0 AND COALESCE(d.total_paid, 0) > 0)
-            )";
-        }
-
-        if ($amount_bucket === 'under_100') {
-            $random_where[] = "{$balance_expression} > 0 AND {$balance_expression} < 100";
-        } elseif ($amount_bucket === 'between_100_400') {
-            $random_where[] = "{$balance_expression} >= 100 AND {$balance_expression} <= 400";
-        } elseif ($amount_bucket === 'above_400') {
-            $random_where[] = "{$balance_expression} > 400";
-        }
-
-        if ($payment_status_filter === 'completed') {
-            $random_where[] = "(d.payment_status = 'completed' OR {$balance_expression} <= 0)";
-        } elseif ($payment_status_filter === 'paying') {
-            $random_where[] = "(
-                d.payment_status = 'paying'
-                OR (
-                    COALESCE(d.total_pledged, 0) > COALESCE(d.total_paid, 0)
-                    AND COALESCE(d.total_paid, 0) > 0
-                )
-            )";
-        } elseif ($payment_status_filter === 'not_started') {
-            $random_where[] = "(
-                d.payment_status = 'not_started'
-                OR (
-                    COALESCE(d.total_pledged, 0) > 0
-                    AND COALESCE(d.total_paid, 0) <= 0
-                )
-            )";
-        } elseif ($payment_status_filter === 'no_pledge') {
-            $random_where[] = "(d.payment_status = 'no_pledge' OR COALESCE(d.total_pledged, 0) <= 0)";
-        } elseif ($payment_status_filter === 'overdue') {
-            $random_where[] = "(
-                d.payment_status = 'overdue'
-                OR (
-                    d.has_active_plan = 1
-                    AND d.active_payment_plan_id IS NOT NULL
-                    AND EXISTS (
-                        SELECT 1
-                        FROM donor_payment_plans pp
-                        WHERE pp.id = d.active_payment_plan_id
-                          AND pp.status = 'active'
-                          AND pp.next_payment_due IS NOT NULL
-                          AND pp.next_payment_due < CURDATE()
-                    )
-                )
-            )";
-        } elseif ($payment_status_filter === 'defaulted') {
-            $random_where[] = "(
-                d.payment_status = 'defaulted'
-                OR (
-                    d.has_active_plan = 1
-                    AND d.active_payment_plan_id IS NOT NULL
-                    AND EXISTS (
-                        SELECT 1
-                        FROM donor_payment_plans pp
-                        WHERE pp.id = d.active_payment_plan_id
-                          AND pp.status = 'defaulted'
-                    )
-                )
-            )";
-        }
-
-        if ($random_registrar !== null) {
-            $random_where[] = "(
-                d.registered_by_user_id = ?
-                OR d.id IN (
-                    SELECT DISTINCT donor_id
-                    FROM pledges
-                    WHERE created_by_user_id = ? AND donor_id IS NOT NULL
-                )
-                OR d.id IN (
-                    SELECT DISTINCT donor_id
-                    FROM payments
-                    WHERE received_by_user_id = ? AND donor_id IS NOT NULL
-                )
-            )";
-            $random_params[] = $random_registrar;
-            $random_params[] = $random_registrar;
-            $random_params[] = $random_registrar;
-            $random_types .= 'iii';
-        }
-
-        if ($random_min_pledge !== null) {
-            $random_where[] = 'COALESCE(d.total_pledged, 0) >= ?';
-            $random_params[] = $random_min_pledge;
-            $random_types .= 'd';
-        }
-
-        if ($random_max_pledge !== null) {
-            $random_where[] = 'COALESCE(d.total_pledged, 0) <= ?';
-            $random_params[] = $random_max_pledge;
-            $random_types .= 'd';
-        }
-
-        if ($random_min_balance !== null) {
-            $random_where[] = "{$balance_expression} >= ?";
-            $random_params[] = $random_min_balance;
-            $random_types .= 'd';
-        }
-
-        if ($random_max_balance !== null) {
-            $random_where[] = "{$balance_expression} <= ?";
-            $random_params[] = $random_max_balance;
-            $random_types .= 'd';
-        }
-
-        $random_where_clause = !empty($random_where) ? ' WHERE ' . implode(' AND ', $random_where) : '';
+        $candidate_filter = buildRandomCandidateFilterClause($random);
+        $random_where_clause = $candidate_filter['where_clause'];
+        $random_params = $candidate_filter['params'];
+        $random_types = $candidate_filter['types'];
 
         $candidate_count_query = "SELECT COUNT(*) AS total FROM donors d{$random_where_clause}";
         $candidate_count_stmt = $db->prepare($candidate_count_query);
@@ -467,6 +610,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
         redirectAssignDonorsWithMessage('Random assignment failed: ' . $e->getMessage(), 'danger', 'random');
     }
 }
+
+$random_form_defaults = parseRandomAssignmentInput($_POST);
 
 // Function to generate sort URL
 function getSortUrl($column, $current_sort_by, $current_sort_order) {
@@ -1242,6 +1387,11 @@ $params = [];
             padding: 12px 20px;
         }
 
+        .random-step-summary {
+            border-color: var(--gray-300, #d1d5db) !important;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+        }
+
         .random-summary-stats {
             display: flex;
             align-items: center;
@@ -1741,8 +1891,8 @@ $params = [];
                                         echo "<td><input type='checkbox' class='donor-checkbox' name='donor_ids[]' value='" . $row['id'] . "' onchange='updateBulkBar()'></td>";
                                         echo "<td><span class='text-muted'>#" . $row['id'] . "</span></td>";
                                         echo "<td><strong>" . htmlspecialchars($row['name']) . "</strong></td>";
-                                        echo "<td><span class='fw-semibold'>£" . number_format($pledge, 2) . "</span></td>";
-                                        echo "<td><span class='badge badge-modern bg-" . ($balance > 0 ? 'warning' : 'success') . "'>£" . number_format($balance, 2) . "</span></td>";
+                                        echo "<td><span class='fw-semibold'>Â£" . number_format($pledge, 2) . "</span></td>";
+                                        echo "<td><span class='badge badge-modern bg-" . ($balance > 0 ? 'warning' : 'success') . "'>Â£" . number_format($balance, 2) . "</span></td>";
                                         echo "<td>" . ($row['agent_name'] ? '<span class="badge badge-modern bg-primary"><i class="fas fa-user me-1"></i>' . htmlspecialchars($row['agent_name']) . '</span>' : '<span class="text-muted"><i class="fas fa-user-slash me-1"></i>Unassigned</span>') . "</td>";
                                         echo "<td>";
                                         
@@ -1839,8 +1989,8 @@ $params = [];
                                                         <td><input type="checkbox" class="donor-checkbox" name="donor_ids[]" value="<?php echo $donor['id']; ?>" onchange="updateBulkBar()"></td>
                                                         <td><span class="text-muted">#<?php echo $donor['id']; ?></span></td>
                                                         <td><strong><?php echo htmlspecialchars($donor['name']); ?></strong></td>
-                                                        <td><span class="fw-semibold">£<?php echo number_format((float)$donor['total_pledged'], 2); ?></span></td>
-                                                        <td><span class="badge badge-modern bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
+                                                        <td><span class="fw-semibold">Â£<?php echo number_format((float)$donor['total_pledged'], 2); ?></span></td>
+                                                        <td><span class="badge badge-modern bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">Â£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
                                                         <td>
                                                             <form method="POST" style="display: inline;">
                                                                 <input type="hidden" name="donor_id" value="<?php echo $donor['id']; ?>">
@@ -1903,8 +2053,8 @@ $params = [];
                                                     <td><input type="checkbox" class="donor-checkbox" name="donor_ids[]" value="<?php echo $donor['id']; ?>" onchange="updateBulkBar()"></td>
                                                     <td><span class="text-muted">#<?php echo $donor['id']; ?></span></td>
                                                     <td><strong><?php echo htmlspecialchars($donor['name']); ?></strong></td>
-                                                    <td><span class="fw-semibold">£<?php echo number_format((float)$donor['total_pledged'], 2); ?></span></td>
-                                                    <td><span class="badge badge-modern bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
+                                                    <td><span class="fw-semibold">Â£<?php echo number_format((float)$donor['total_pledged'], 2); ?></span></td>
+                                                    <td><span class="badge badge-modern bg-<?php echo $donor['balance'] > 0 ? 'warning' : 'success'; ?>">Â£<?php echo number_format((float)$donor['balance'], 2); ?></span></td>
                                                     <td>
                                                         <form method="POST" class="d-flex gap-2 align-items-center">
                                                             <input type="hidden" name="donor_id" value="<?php echo $donor['id']; ?>">
@@ -1952,46 +2102,48 @@ $params = [];
                                 <div class="col-md-4">
                                     <label class="form-label"><i class="fas fa-users-between-lines me-1"></i>Assignment Scope</label>
                                     <select name="random_assignment_scope" class="form-select">
-                                        <option value="unassigned">Unassigned only</option>
-                                        <option value="assigned">Assigned only</option>
-                                        <option value="all">Assigned + Unassigned</option>
+                                        <option value="unassigned" <?php echo $random_form_defaults['assignment_scope'] === 'unassigned' ? 'selected' : ''; ?>>Unassigned only</option>
+                                        <option value="assigned" <?php echo $random_form_defaults['assignment_scope'] === 'assigned' ? 'selected' : ''; ?>>Assigned only</option>
+                                        <option value="all" <?php echo $random_form_defaults['assignment_scope'] === 'all' ? 'selected' : ''; ?>>Assigned + Unassigned</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label"><i class="fas fa-hand-holding-usd me-1"></i>Donation Activity</label>
                                     <select name="random_donation_type" class="form-select">
-                                        <option value="all">All</option>
-                                        <option value="pledge">Pledges only</option>
-                                        <option value="payment">Payments only</option>
+                                        <option value="all" <?php echo $random_form_defaults['donation_type_filter'] === 'all' ? 'selected' : ''; ?>>All</option>
+                                        <option value="pledge" <?php echo $random_form_defaults['donation_type_filter'] === 'pledge' ? 'selected' : ''; ?>>Pledges only</option>
+                                        <option value="payment" <?php echo $random_form_defaults['donation_type_filter'] === 'payment' ? 'selected' : ''; ?>>Payments only</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label"><i class="fas fa-user-tag me-1"></i>Donor Type</label>
                                     <select name="random_donor_type" class="form-select">
-                                        <option value="all">All</option>
-                                        <option value="pledge">Pledge donor</option>
-                                        <option value="immediate_payment">Immediate payment donor</option>
+                                        <option value="all" <?php echo $random_form_defaults['donor_type_filter'] === 'all' ? 'selected' : ''; ?>>All</option>
+                                        <option value="pledge" <?php echo $random_form_defaults['donor_type_filter'] === 'pledge' ? 'selected' : ''; ?>>Pledge donor</option>
+                                        <option value="immediate_payment" <?php echo $random_form_defaults['donor_type_filter'] === 'immediate_payment' ? 'selected' : ''; ?>>Immediate payment donor</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label"><i class="fas fa-layer-group me-1"></i>Amount Bucket (Balance)</label>
                                     <select name="random_amount_bucket" class="form-select">
-                                        <option value="all">All balances</option>
-                                        <option value="under_100">Under 100</option>
-                                        <option value="between_100_400">100 to 400</option>
-                                        <option value="above_400">Above 400</option>
+                                        <?php foreach (getRandomAmountBucketOptions() as $bucket): ?>
+                                            <?php if ($bucket['value'] === 'bucket_400_plus') continue; ?>
+                                            <option value="<?php echo htmlspecialchars($bucket['value']); ?>" <?php echo $random_form_defaults['amount_bucket'] === $bucket['value'] ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($bucket['label']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label"><i class="fas fa-clock-rotate-left me-1"></i>Payment Status</label>
                                     <select name="random_payment_status" class="form-select">
-                                        <option value="all">All statuses</option>
-                                        <option value="completed">Completed donors</option>
-                                        <option value="paying">Paying</option>
-                                        <option value="not_started">Not started</option>
-                                        <option value="overdue">Overdue</option>
-                                        <option value="defaulted">Defaulted</option>
-                                        <option value="no_pledge">No pledge</option>
+                                        <option value="all" <?php echo $random_form_defaults['payment_status_filter'] === 'all' ? 'selected' : ''; ?>>All statuses</option>
+                                        <option value="completed" <?php echo $random_form_defaults['payment_status_filter'] === 'completed' ? 'selected' : ''; ?>>Completed donors</option>
+                                        <option value="paying" <?php echo $random_form_defaults['payment_status_filter'] === 'paying' ? 'selected' : ''; ?>>Paying</option>
+                                        <option value="not_started" <?php echo $random_form_defaults['payment_status_filter'] === 'not_started' ? 'selected' : ''; ?>>Not started</option>
+                                        <option value="overdue" <?php echo $random_form_defaults['payment_status_filter'] === 'overdue' ? 'selected' : ''; ?>>Overdue</option>
+                                        <option value="defaulted" <?php echo $random_form_defaults['payment_status_filter'] === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
+                                        <option value="no_pledge" <?php echo $random_form_defaults['payment_status_filter'] === 'no_pledge' ? 'selected' : ''; ?>>No pledge</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
@@ -2000,7 +2152,7 @@ $params = [];
                                         <option value="">All registrars/admins</option>
                                         <?php if (!empty($registrars)): ?>
                                             <?php foreach ($registrars as $registrar): ?>
-                                                <option value="<?php echo $registrar['id']; ?>">
+                                                <option value="<?php echo $registrar['id']; ?>" <?php echo (int)$random_form_defaults['random_registrar'] === (int)$registrar['id'] ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($registrar['name']); ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -2019,23 +2171,35 @@ $params = [];
                                     <div class="row g-3 pt-2">
                                         <div class="col-md-6">
                                             <label class="form-label"><i class="fas fa-search me-1"></i>Search Name/Phone</label>
-                                            <input type="text" name="random_search" class="form-control" value="<?php echo htmlspecialchars($filter_search); ?>" placeholder="Enter name or phone number">
+                                            <input type="text" name="random_search" class="form-control" value="<?php echo htmlspecialchars($random_form_defaults['random_search']); ?>" placeholder="Enter name or phone number">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label"><i class="fas fa-pound-sign me-1"></i>Min Pledge</label>
-                                            <input type="number" name="random_min_pledge" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_min_pledge !== null ? htmlspecialchars((string)$filter_min_pledge) : ''; ?>">
+                                            <input type="number" name="random_min_pledge" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $random_form_defaults['random_min_pledge'] !== null ? htmlspecialchars((string)$random_form_defaults['random_min_pledge']) : ''; ?>">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label"><i class="fas fa-pound-sign me-1"></i>Max Pledge</label>
-                                            <input type="number" name="random_max_pledge" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_max_pledge !== null ? htmlspecialchars((string)$filter_max_pledge) : ''; ?>">
+                                            <input type="number" name="random_max_pledge" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $random_form_defaults['random_max_pledge'] !== null ? htmlspecialchars((string)$random_form_defaults['random_max_pledge']) : ''; ?>">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label"><i class="fas fa-coins me-1"></i>Min Balance</label>
-                                            <input type="number" name="random_min_balance" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_min_balance !== null ? htmlspecialchars((string)$filter_min_balance) : ''; ?>">
+                                            <input type="number" name="random_min_balance" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $random_form_defaults['random_min_balance'] !== null ? htmlspecialchars((string)$random_form_defaults['random_min_balance']) : ''; ?>">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label"><i class="fas fa-coins me-1"></i>Max Balance</label>
-                                            <input type="number" name="random_max_balance" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $filter_max_balance !== null ? htmlspecialchars((string)$filter_max_balance) : ''; ?>">
+                                            <input type="number" name="random_max_balance" class="form-control" step="0.01" min="0" placeholder="0.00" value="<?php echo $random_form_defaults['random_max_balance'] !== null ? htmlspecialchars((string)$random_form_defaults['random_max_balance']) : ''; ?>">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="p-3 border rounded bg-light mt-2 random-step-summary" id="randomMatchSummary">
+                                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                                            <div class="fw-semibold">
+                                                Matching Donors:
+                                                <span id="randomMatchingDonorCount" class="ms-1">0</span>
+                                            </div>
+                                            <small id="randomMatchStatus" class="text-muted">Live count will update as you change filters.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -2101,7 +2265,7 @@ $params = [];
                             <div class="row g-3 align-items-end">
                                 <div class="col-md-4">
                                     <label class="form-label fw-medium"><i class="fas fa-hashtag me-1"></i>Donors per agent</label>
-                                    <input type="number" name="random_per_agent" id="randomPerAgent" class="form-control form-control-lg" min="1" max="200" value="3" oninput="updateRandomPlan()">
+                                    <input type="number" name="random_per_agent" id="randomPerAgent" class="form-control form-control-lg" min="1" max="200" value="<?php echo (int)$random_form_defaults['donors_per_agent']; ?>" oninput="updateRandomPlan()">
                                 </div>
                                 <div class="col-md-8">
                                     <div class="random-summary-panel">
@@ -2273,6 +2437,87 @@ function toggleRandomSelectAll(source) {
     updateRandomPlan();
 }
 
+let randomMatchCountDebounceTimer = null;
+
+function getRandomMatchFilters() {
+    const form = document.getElementById('randomAssignForm');
+    if (!form) {
+        return {};
+    }
+
+    const values = {};
+    values.random_assignment_scope = form.querySelector('[name="random_assignment_scope"]')?.value || 'unassigned';
+    values.random_donation_type = form.querySelector('[name="random_donation_type"]')?.value || 'all';
+    values.random_donor_type = form.querySelector('[name="random_donor_type"]')?.value || 'all';
+    values.random_amount_bucket = form.querySelector('[name="random_amount_bucket"]')?.value || 'all';
+    values.random_payment_status = form.querySelector('[name="random_payment_status"]')?.value || 'all';
+    values.random_registrar = form.querySelector('[name="random_registrar"]')?.value || '';
+    values.random_search = form.querySelector('[name="random_search"]')?.value || '';
+    values.random_min_pledge = form.querySelector('[name="random_min_pledge"]')?.value || '';
+    values.random_max_pledge = form.querySelector('[name="random_max_pledge"]')?.value || '';
+    values.random_min_balance = form.querySelector('[name="random_min_balance"]')?.value || '';
+    values.random_max_balance = form.querySelector('[name="random_max_balance"]')?.value || '';
+    return values;
+}
+
+function refreshRandomMatchCount() {
+    const countEl = document.getElementById('randomMatchingDonorCount');
+    const statusEl = document.getElementById('randomMatchStatus');
+    if (!countEl || !statusEl) {
+        return;
+    }
+
+    if (randomMatchCountDebounceTimer) {
+        clearTimeout(randomMatchCountDebounceTimer);
+    }
+
+    randomMatchCountDebounceTimer = setTimeout(async () => {
+        const payload = getRandomMatchFilters();
+        payload.random_preview = '1';
+
+        const data = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+            if (value !== '') {
+                data.append(key, String(value));
+            }
+        });
+
+        statusEl.textContent = 'Refreshing match count...';
+        statusEl.classList.remove('text-danger');
+        statusEl.classList.add('text-muted');
+        try {
+            const response = await fetch('assign-donors.php?tab=random', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: data
+            });
+            const result = await response.json();
+            if (!result || result.ok === undefined) {
+                throw new Error('Invalid response');
+            }
+
+            if (result.ok) {
+                countEl.textContent = Number(result.count).toLocaleString();
+                statusEl.textContent = result.message || 'Matching donors are available.';
+                statusEl.classList.remove('text-danger');
+                statusEl.classList.add('text-muted');
+            } else {
+                countEl.textContent = '0';
+                statusEl.textContent = result.message || 'Unable to calculate matching donors.';
+                statusEl.classList.remove('text-muted');
+                statusEl.classList.add('text-danger');
+            }
+        } catch (error) {
+            countEl.textContent = '0';
+            statusEl.textContent = 'Could not refresh matching donor count.';
+            statusEl.classList.remove('text-muted');
+            statusEl.classList.add('text-danger');
+        }
+    }, 250);
+}
+
 function updateRandomPlan() {
     const agentCheckboxes = document.querySelectorAll('.random-agent-checkbox');
     const selectedAgents = Array.from(agentCheckboxes).filter(cb => cb.checked).length;
@@ -2308,6 +2553,10 @@ function submitRandomAssignment() {
     const selectedAgents = Array.from(document.querySelectorAll('.random-agent-checkbox')).filter(cb => cb.checked).length;
     const perAgentInput = document.getElementById('randomPerAgent');
     const perAgent = perAgentInput ? parseInt(perAgentInput.value || '0', 10) : 0;
+    const minBalance = parseFloat((document.getElementById('randomAssignForm')?.querySelector('[name="random_min_balance"]')?.value) || '0');
+    const maxBalance = parseFloat((document.getElementById('randomAssignForm')?.querySelector('[name="random_max_balance"]')?.value) || '0');
+    const minPledge = parseFloat((document.getElementById('randomAssignForm')?.querySelector('[name="random_min_pledge"]')?.value) || '0');
+    const maxPledge = parseFloat((document.getElementById('randomAssignForm')?.querySelector('[name="random_max_pledge"]')?.value) || '0');
 
     if (selectedAgents === 0) {
         alert('Please select at least one agent for random assignment.');
@@ -2316,6 +2565,21 @@ function submitRandomAssignment() {
 
     if (!Number.isInteger(perAgent) || perAgent < 1) {
         alert('Please enter a valid donors-per-agent number (minimum 1).');
+        return false;
+    }
+
+    const minBalanceInput = document.querySelector('[name="random_min_balance"]');
+    const maxBalanceInput = document.querySelector('[name="random_max_balance"]');
+    const minPledgeInput = document.querySelector('[name="random_min_pledge"]');
+    const maxPledgeInput = document.querySelector('[name="random_max_pledge"]');
+
+    if (minPledgeInput && maxPledgeInput && minPledgeInput.value !== '' && maxPledgeInput.value !== '' && minPledge > maxPledge) {
+        alert('Min pledge cannot be greater than max pledge.');
+        return false;
+    }
+
+    if (minBalanceInput && maxBalanceInput && minBalanceInput.value !== '' && maxBalanceInput.value !== '' && minBalance > maxBalance) {
+        alert('Min balance cannot be greater than max balance.');
         return false;
     }
 
@@ -2373,8 +2637,42 @@ tabButtons.forEach((button) => {
     });
 });
 
+function bindRandomMatchEvents() {
+    const form = document.getElementById('randomAssignForm');
+    if (!form) {
+        return;
+    }
+
+    const watchedInputs = [
+        'random_assignment_scope',
+        'random_donation_type',
+        'random_donor_type',
+        'random_amount_bucket',
+        'random_payment_status',
+        'random_registrar',
+        'random_search',
+        'random_min_pledge',
+        'random_max_pledge',
+        'random_min_balance',
+        'random_max_balance'
+    ];
+
+    watchedInputs.forEach((name) => {
+        const input = form.querySelector(`[name="${name}"]`);
+        if (!input) {
+            return;
+        }
+        const eventType = input.tagName === 'SELECT' ? 'change' : 'input';
+        input.addEventListener(eventType, refreshRandomMatchCount);
+    });
+
+    refreshRandomMatchCount();
+}
+
+bindRandomMatchEvents();
 updateRandomPlan();
 
 </script>
 </body>
 </html>
+
