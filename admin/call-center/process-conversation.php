@@ -135,6 +135,12 @@ try {
     error_log("Cash Representative ID: " . ($cash_representative_id ?? 'null'));
     error_log("Cash Church ID: " . ($cash_church_id ?? 'null'));
     error_log("Step 2 Church ID: " . ($church_id ?? 'null'));
+
+    $session_has_claimed_paid_column = false;
+    $claimed_paid_column_check = $db->query("SHOW COLUMNS FROM call_center_sessions LIKE 'donor_claimed_already_paid'");
+    if ($claimed_paid_column_check && $claimed_paid_column_check->num_rows > 0) {
+        $session_has_claimed_paid_column = true;
+    }
     
     // Build update query dynamically based on what's provided
     $donor_updates = [];
@@ -269,16 +275,22 @@ try {
         
         // 1a. Update session outcome and close call
         if ($session_id > 0) {
-            $update_session = $db->prepare("
+            $session_update_sql = "
                 UPDATE call_center_sessions
                 SET outcome = ?,
                     conversation_stage = 'success_pledged',
                     payment_plan_id = NULL,
                     duration_seconds = COALESCE(duration_seconds, 0) + ?,
                     notes = CONCAT(COALESCE(notes, ''), ?),
-                    call_ended_at = NOW()
+                    call_ended_at = NOW()";
+            if ($session_has_claimed_paid_column) {
+                $session_update_sql .= ",
+                    donor_claimed_already_paid = 1";
+            }
+            $session_update_sql .= "
                 WHERE id = ?
-            ");
+            ";
+            $update_session = $db->prepare($session_update_sql);
             $call_outcome = 'agreed_to_pay_full';
             $update_session->bind_param('sisi', $call_outcome, $duration_seconds, $session_notes, $session_id);
             $update_session->execute();

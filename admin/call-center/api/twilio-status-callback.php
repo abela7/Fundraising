@@ -44,6 +44,27 @@ try {
         exit;
     }
 
+    // Load current session state first so terminal outcomes are not overwritten by late webhooks.
+    $currentSessionStmt = $db->prepare("
+        SELECT conversation_stage, outcome, call_ended_at
+        FROM call_center_sessions
+        WHERE id = ?
+        LIMIT 1
+    ");
+    if (!$currentSessionStmt) {
+        throw new Exception('Failed to load current session state');
+    }
+    $currentSessionStmt->bind_param('i', $sessionId);
+    $currentSessionStmt->execute();
+    $currentSession = $currentSessionStmt->get_result()->fetch_assoc();
+    $currentSessionStmt->close();
+
+    if (!$currentSession) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Session not found']);
+        exit;
+    }
+
     // Get Twilio callback data
     $callSid = $_POST['CallSid'] ?? '';
     $accountSid = $_POST['AccountSid'] ?? '';
@@ -223,6 +244,33 @@ try {
                 $updateFields['call_ended_at'] = 'NOW()';
                 $updateFields['outcome'] = 'agent_unavailable';
                 $updateFields['twilio_error_message'] = 'Call to agent was canceled';
+            }
+        }
+
+        // Do not overwrite terminal business outcomes/stages with technical webhook events.
+        $terminalStages = ['success_pledged', 'closed_refused', 'invalid_data'];
+        $terminalOutcomes = [
+            'payment_plan_created',
+            'agreed_to_pay_full',
+            'agreed_reduced_amount',
+            'agreed_cash_collection',
+            'not_interested',
+            'financial_hardship',
+            'never_pledged_denies',
+            'already_paid_claims',
+            'donor_deceased',
+            'moved_abroad'
+        ];
+        $isTerminalSession =
+            in_array((string)($currentSession['conversation_stage'] ?? ''), $terminalStages, true) ||
+            in_array((string)($currentSession['outcome'] ?? ''), $terminalOutcomes, true);
+
+        if ($isTerminalSession) {
+            unset($updateFields['conversation_stage'], $updateFields['outcome'], $updateFields['duration_seconds']);
+
+            // Preserve an existing ended timestamp; only set if currently empty.
+            if (!empty($currentSession['call_ended_at'])) {
+                unset($updateFields['call_ended_at']);
             }
         }
 

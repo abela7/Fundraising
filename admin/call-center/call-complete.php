@@ -14,11 +14,18 @@ if (!$session_id || !$donor_id) {
 }
 
 $db = db();
+$has_claimed_paid_column = false;
+$claimed_paid_column_check = $db->query("SHOW COLUMNS FROM call_center_sessions LIKE 'donor_claimed_already_paid'");
+if ($claimed_paid_column_check && $claimed_paid_column_check->num_rows > 0) {
+    $has_claimed_paid_column = true;
+}
+$claimed_paid_select = $has_claimed_paid_column ? ", s.donor_claimed_already_paid" : ", 0 AS donor_claimed_already_paid";
 
 // Fetch Session and Donor Info
 $query = "
     SELECT 
-        s.outcome, s.conversation_stage, s.duration_seconds, s.call_started_at, s.call_ended_at, s.notes,
+        s.outcome, s.conversation_stage, s.duration_seconds, s.call_started_at, s.call_ended_at, s.notes
+        {$claimed_paid_select},
         d.name as donor_name, d.phone as donor_phone,
         u.name as agent_name
     FROM call_center_sessions s
@@ -37,6 +44,13 @@ if (!$result) {
 }
 
 $duration_formatted = gmdate("H:i:s", (int)$result->duration_seconds);
+$notes_text = (string)($result->notes ?? '');
+$is_already_paid = ((int)($result->donor_claimed_already_paid ?? 0) === 1) ||
+    (stripos($notes_text, 'already paid the full pledge') !== false);
+$outcome_display = !empty($result->outcome) ? ucfirst(str_replace('_', ' ', (string)$result->outcome)) : 'Completed';
+if ($is_already_paid) {
+    $outcome_display = 'Already Paid (Proof Requested)';
+}
 $page_title = 'Call Completed';
 ?>
 <!DOCTYPE html>
@@ -92,7 +106,11 @@ $page_title = 'Call Completed';
                 $color = 'text-secondary';
                 $title = 'Call Ended';
                 
-                if ($result->conversation_stage === 'success_pledged') {
+                if ($is_already_paid) {
+                    $icon = 'fa-circle-check';
+                    $color = 'success';
+                    $title = 'Already Paid Confirmed';
+                } elseif ($result->conversation_stage === 'success_pledged') {
                     $icon = 'fa-check-circle';
                     $color = 'success';
                     $title = 'Success!';
@@ -120,7 +138,7 @@ $page_title = 'Call Completed';
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Outcome</span>
-                        <span class="detail-value"><?php echo ucfirst(str_replace('_', ' ', $result->outcome)); ?></span>
+                        <span class="detail-value"><?php echo htmlspecialchars($outcome_display); ?></span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Duration</span>
