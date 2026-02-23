@@ -847,7 +847,7 @@ $page_title = 'Live Call';
                                     <div class="choice-card" onclick="selectPaymentStatus('yes', this)">
                                         <div class="choice-icon"><i class="fas fa-check-circle text-success"></i></div>
                                         <div class="choice-label">Yes, already paid</div>
-                                        <p class="text-muted mt-2 mb-0">Collect payment method + proof details</p>
+                                        <p class="text-muted mt-2 mb-0">Collect donor information first, then confirm payment method.</p>
                                     </div>
                                     
                                     <div class="choice-card" onclick="selectPaymentStatus('no', this)">
@@ -904,7 +904,7 @@ $page_title = 'Live Call';
                                 </div>
                                 
                                 <div class="alert alert-info">
-                                    <p class="mb-2"><strong>Ask donor:</strong> Thanks for paying the full amount, in order to confirm your payment please send us any screenshot or reference or payment day.</p>
+                                    <p class="mb-2"><strong>Send donor:</strong> Sorry for the earlier confusion. Since you already paid, ask them to send any screenshot, transfer reference, or payment day so we can confirm your payment. May God bless you.</p>
                                     <button type="button" class="btn btn-success btn-sm" id="sendPaidWhatsAppBtn" onclick="sendPaidWhatsAppRequest()">
                                         <i class="fab fa-whatsapp me-1"></i>Send WhatsApp Request to Donor
                                     </button>
@@ -918,11 +918,11 @@ $page_title = 'Live Call';
                                 </div>
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(4)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-lg" id="btnStep3Next" onclick="goToStep(4)" disabled>
-                                        Next Step <i class="fas fa-arrow-right ms-2"></i>
+                                    <button type="button" class="btn btn-success btn-lg" id="btnStep3Next" onclick="submitForm()" disabled>
+                                        Complete Call <i class="fas fa-check-double ms-2"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1656,7 +1656,7 @@ $page_title = 'Live Call';
         let stage = '';
         if (stepNum === 1) stage = 'connected';
         else if (stepNum === 2) stage = 'identity_verified';
-        else if (stepNum === 3) stage = 'pledge_discussed';
+        else if (stepNum === 3) stage = 'payment_verification';
         else if (stepNum === 4) stage = 'donor_info';
         else if (stepNum === 5) stage = 'readiness_check';
         else if (stepNum === 6) stage = 'payment_plan_selection';
@@ -1714,7 +1714,7 @@ $page_title = 'Live Call';
             if (paidWhatsAppInput) paidWhatsAppInput.value = '0';
             if (paidWhatsappStatus) paidWhatsappStatus.textContent = 'No request sent yet.';
             if (paidMethodInput) paidMethodInput.value = '';
-            goToStep(3);
+            goToStep(4);
         } else {
             paidEvidenceInput.value = '';
             if (paidMethodInput) paidMethodInput.value = '';
@@ -1818,29 +1818,16 @@ function sendPaidWhatsAppRequest() {
 function proceedFromDonorInfo() {
     const donorAlreadyPaid = document.getElementById('donorAlreadyPaidInput').value === 'yes';
     if (donorAlreadyPaid) {
-        const paidMethodInput = document.getElementById('paidPaymentMethodInput');
-        const paidWhsInput = document.getElementById('paidWhatsappSentInput');
-        if (!paidMethodInput || !paidMethodInput.value) {
-            alert('Please choose a payment method before continuing.');
-            goToStep(3);
-            return;
-        }
-        if (!paidWhsInput || paidWhsInput.value !== '1') {
-            alert('Please send the WhatsApp request for proof before continuing.');
-            goToStep(3);
-            return;
-        }
-        submitForm();
+        goToStep(3);
         return;
     }
     
     goToStep(5);
 }
     
-    function goToDonorInfoBack() {
-        const donorAlreadyPaid = document.getElementById('donorAlreadyPaidInput').value === 'yes';
-        goToStep(donorAlreadyPaid ? 3 : 2);
-    }
+function goToDonorInfoBack() {
+    goToStep(2);
+}
     
     // Payment Method Selection
 function selectPaymentMethod(method, clickedElement) {

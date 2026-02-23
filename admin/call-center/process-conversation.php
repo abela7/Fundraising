@@ -253,7 +253,7 @@ try {
             throw new Exception('Please send the WhatsApp proof request before completing a paid-claim call.');
         }
 
-        // Ensure proof evidence is not empty and record it for follow-up.
+        // Record paid claim details and evidence notes for follow-up.
         $proof_method = $payment_method !== '' ? ucfirst(str_replace('_', ' ', $payment_method)) : 'Unknown';
         $notes_parts = [
             'Donor reported that they already paid the full pledge.',

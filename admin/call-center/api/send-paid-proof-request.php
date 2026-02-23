@@ -68,8 +68,10 @@ try {
 
     $method_label = str_replace('_', ' ', $payment_method);
     $message = "Hi {$donor_name},\n\n";
-    $message .= "Thanks for paying the full amount, in order to confirm your payment please send us any screenshot or reference or payment day.\n\n";
-    $message .= "You told us you paid via: {$method_label}.";
+    $message .= "Sorry for the confusion in our earlier approach.\n\n";
+    $message .= "Since you already paid the full amount, please send us any payment screenshot, bank reference, or payment day so we can confirm your payment.\n\n";
+    $message .= "You told us you paid via: {$method_label}.\n\n";
+    $message .= "May God bless you.";
 
     if ($evidence !== '') {
         $message .= "\nPrevious details: {$evidence}";
@@ -110,7 +112,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'WhatsApp request sent. Please ask the donor to share screenshot or reference.',
+        'message' => 'WhatsApp request sent. Ask the donor to share payment screenshot, reference, or payment day.',
         'channel' => 'whatsapp',
         'provider_response' => $result['message_id'] ?? null
     ]);
