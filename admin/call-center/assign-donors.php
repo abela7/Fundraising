@@ -138,9 +138,9 @@ try {
         }
     }
     
-    // Get all registrars for filter dropdown (active registrars only)
+    // Get users for "Registered By" filter (active registrars + active admins)
     $registrars = [];
-    $registrars_result = $db->query("SELECT id, name FROM users WHERE role = 'registrar' AND active = 1 ORDER BY name");
+    $registrars_result = $db->query("SELECT id, name FROM users WHERE role IN ('registrar', 'admin') AND active = 1 ORDER BY name");
     if ($registrars_result) {
         while ($registrar = $registrars_result->fetch_assoc()) {
             $registrars[] = $registrar;
