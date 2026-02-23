@@ -185,14 +185,23 @@ $params = [];
 }
 
     if ($filter_registrar !== null) {
-        $where_conditions[] = "(d.id IN (
-            SELECT DISTINCT donor_id FROM pledges WHERE created_by_user_id = ? AND donor_id IS NOT NULL
-            UNION
-            SELECT DISTINCT donor_id FROM payments WHERE received_by_user_id = ? AND donor_id IS NOT NULL
-        ))";
+        $where_conditions[] = "(
+            d.registered_by_user_id = ?
+            OR d.id IN (
+                SELECT DISTINCT donor_id
+                FROM pledges
+                WHERE created_by_user_id = ? AND donor_id IS NOT NULL
+            )
+            OR d.id IN (
+                SELECT DISTINCT donor_id
+                FROM payments
+                WHERE received_by_user_id = ? AND donor_id IS NOT NULL
+            )
+        )";
         $params[] = $filter_registrar;
         $params[] = $filter_registrar;
-        $types .= 'ii';
+        $params[] = $filter_registrar;
+        $types .= 'iii';
 }
 
     if ($filter_donation_type === 'pledge') {
