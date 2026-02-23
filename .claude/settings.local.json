@@ -3,7 +3,9 @@
     "allow": [
       "Bash(php -l:*)",
       "WebFetch(domain:docs.ultramsg.com)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(dir:*)",
+      "Bash(ls:*)"
     ]
   }
 }
