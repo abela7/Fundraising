@@ -905,6 +905,20 @@ $page_title = 'Live Call';
                                 
                                 <div class="alert alert-info">
                                     <p class="mb-2"><strong>Send donor:</strong> Sorry for the earlier confusion. Since you already paid, ask them to send any screenshot, transfer reference, or payment day so we can confirm your payment. May God bless you.</p>
+                                    <div class="form-check mb-3">
+                                        <input type="checkbox" class="form-check-input" id="paidWhatsappDifferentNumber" onchange="togglePaidWhatsappNumberInput(this)">
+                                        <label class="form-check-label" for="paidWhatsappDifferentNumber">Use a different WhatsApp number</label>
+                                    </div>
+                                    <div id="paidWhatsappNumberWrap" style="display:none;" class="mb-3">
+                                        <label for="paidWhatsappNumberInput" class="form-label">WhatsApp number to contact donor</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="paidWhatsappNumberInput"
+                                            placeholder="+44 7xx xxx xxxx"
+                                            oninput="syncPaidWhatsappNumber()">
+                                        <small class="text-muted">Enter the number currently used by the donor on WhatsApp.</small>
+                                    </div>
                                     <button type="button" class="btn btn-success btn-sm" id="sendPaidWhatsAppBtn" onclick="sendPaidWhatsAppRequest()">
                                         <i class="fab fa-whatsapp me-1"></i>Send WhatsApp Request to Donor
                                     </button>
@@ -1678,6 +1692,57 @@ $page_title = 'Live Call';
         document.getElementById('step' + stepNum).classList.add('active');
         window.scrollTo(0, 0);
     }
+
+    function getPaidWhatsappPhone() {
+        const donorPhone = document.getElementById('donorPhone').value || '';
+        const useDifferent = document.getElementById('paidWhatsappDifferentNumber');
+        const overrideInput = document.getElementById('paidWhatsappNumberInput');
+        const overridePhone = overrideInput ? (overrideInput.value || '').trim() : '';
+
+        if (useDifferent && useDifferent.checked && overridePhone !== '') {
+            return overridePhone;
+        }
+
+        return donorPhone;
+    }
+
+    function togglePaidWhatsappNumberInput(checkbox) {
+        const wrap = document.getElementById('paidWhatsappNumberWrap');
+        const overrideInput = document.getElementById('paidWhatsappNumberInput');
+        const statusEl = document.getElementById('paidWhatsappStatus');
+        if (!wrap || !overrideInput || !statusEl) {
+            return;
+        }
+
+        wrap.style.display = checkbox && checkbox.checked ? 'block' : 'none';
+        overrideInput.value = checkbox && checkbox.checked ? overrideInput.value : '';
+        statusEl.className = 'small text-muted mt-2';
+        statusEl.textContent = 'No request sent yet.';
+        document.getElementById('paidWhatsappSentInput').value = '0';
+        const nextBtn = document.getElementById('btnStep3Next');
+        if (nextBtn) {
+            nextBtn.disabled = true;
+        }
+    }
+
+    function syncPaidWhatsappNumber() {
+        const useDifferent = document.getElementById('paidWhatsappDifferentNumber');
+        if (!useDifferent || !useDifferent.checked) {
+            return;
+        }
+        const nextBtn = document.getElementById('btnStep3Next');
+        const statusEl = document.getElementById('paidWhatsappStatus');
+        if (statusEl && !document.getElementById('paidWhatsappNumberInput').value.trim()) {
+            statusEl.className = 'small text-warning mt-2';
+            statusEl.textContent = 'Please enter a WhatsApp number before sending.';
+        } else if (statusEl) {
+            statusEl.className = 'small text-muted mt-2';
+            statusEl.textContent = 'No request sent yet.';
+        }
+        if (nextBtn) {
+            nextBtn.disabled = true;
+        }
+    }
     
     function setActiveChoice(stepId, clickedElement) {
         const container = document.getElementById(stepId);
@@ -1714,9 +1779,33 @@ $page_title = 'Live Call';
             if (paidWhatsAppInput) paidWhatsAppInput.value = '0';
             if (paidWhatsappStatus) paidWhatsappStatus.textContent = 'No request sent yet.';
             if (paidMethodInput) paidMethodInput.value = '';
+            const diffWaCheckbox = document.getElementById('paidWhatsappDifferentNumber');
+            const waNumberWrap = document.getElementById('paidWhatsappNumberWrap');
+            const waNumberInput = document.getElementById('paidWhatsappNumberInput');
+            if (diffWaCheckbox) {
+                diffWaCheckbox.checked = false;
+            }
+            if (waNumberWrap) {
+                waNumberWrap.style.display = 'none';
+            }
+            if (waNumberInput) {
+                waNumberInput.value = '';
+            }
             goToStep(4);
         } else {
             paidEvidenceInput.value = '';
+            const diffWaCheckbox = document.getElementById('paidWhatsappDifferentNumber');
+            const waNumberWrap = document.getElementById('paidWhatsappNumberWrap');
+            const waNumberInput = document.getElementById('paidWhatsappNumberInput');
+            if (diffWaCheckbox) {
+                diffWaCheckbox.checked = false;
+            }
+            if (waNumberWrap) {
+                waNumberWrap.style.display = 'none';
+            }
+            if (waNumberInput) {
+                waNumberInput.value = '';
+            }
             if (paidMethodInput) paidMethodInput.value = '';
             if (paidWhatsAppInput) paidWhatsAppInput.value = '0';
             if (paidEvidenceText) paidEvidenceText.value = '';
@@ -1742,7 +1831,7 @@ $page_title = 'Live Call';
     }
     
 function sendPaidWhatsAppRequest() {
-        const phone = document.getElementById('donorPhone').value || '';
+        const phone = getPaidWhatsappPhone();
         const donorId = <?php echo (int)$donor_id; ?>;
         const method = document.getElementById('paidPaymentMethodInput').value || '';
         const btn = document.getElementById('sendPaidWhatsAppBtn');
@@ -1752,13 +1841,18 @@ function sendPaidWhatsAppRequest() {
         const sessionInput = document.querySelector('input[name="session_id"]');
         const sessionId = sessionInput ? sessionInput.value : '';
         
-        if (!donorId || !phone) {
-            alert('Missing donor phone number. Please check donor profile.');
+        if (!donorId) {
+            alert('Missing donor information. Please reopen the call.');
             return;
         }
         
         if (!method) {
             alert('Please choose how they paid before sending WhatsApp request.');
+            return;
+        }
+
+        if (!phone) {
+            alert('Please provide a WhatsApp number.');
             return;
         }
         

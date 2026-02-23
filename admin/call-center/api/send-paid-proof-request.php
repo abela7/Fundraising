@@ -61,6 +61,7 @@ try {
     if ($phone === '') {
         $phone = (string)($donor['phone'] ?? '');
     }
+    $used_override_phone = $phone !== '' && $phone !== (string)($donor['phone'] ?? '');
 
     if ($phone === '') {
         throw new Exception('Donor phone number is missing');
@@ -89,6 +90,9 @@ try {
             $payment_method !== '' ? $payment_method : 'unspecified',
             date('Y-m-d H:i:s')
         );
+        if ($used_override_phone) {
+            $note .= ' Sent to alternate WhatsApp number.';
+        }
 
         if ($evidence !== '') {
             $note .= ' Donor evidence note: ' . $evidence . '.';
