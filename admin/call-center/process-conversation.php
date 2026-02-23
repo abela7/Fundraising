@@ -115,8 +115,23 @@ try {
     $payment_method = trim($_POST['payment_method'] ?? '');
     $cash_representative_id = isset($_POST['cash_representative_id']) && $_POST['cash_representative_id'] !== '' ? (int)$_POST['cash_representative_id'] : null;
     $cash_church_id = isset($_POST['cash_church_id']) && $_POST['cash_church_id'] !== '' ? (int)$_POST['cash_church_id'] : null;
+    $donor_already_paid = isset($_POST['donor_already_paid']) && strtolower(trim((string)$_POST['donor_already_paid'])) === 'yes';
+    $paid_payment_method = trim((string)($_POST['paid_payment_method'] ?? ''));
+    $paid_payment_evidence = trim((string)($_POST['paid_payment_evidence'] ?? ''));
+    $paid_whatsapp_sent = ((int)($_POST['paid_whatsapp_sent'] ?? 0)) === 1;
+    $conversation_stage_input = trim((string)($_POST['conversation_stage_input'] ?? ''));
+    
+    // Use paid flow method if step 6 was not reached.
+    $fallback_methods = ['bank_transfer', 'card', 'cash', 'other'];
+    if ($donor_already_paid && in_array($paid_payment_method, $fallback_methods, true) && empty($payment_method)) {
+        $payment_method = $paid_payment_method;
+    }
     
     error_log("Payment Method: " . $payment_method);
+    error_log("Donor already paid: " . ($donor_already_paid ? 'yes' : 'no'));
+    error_log("Paid flow method: " . ($paid_payment_method ?: 'none'));
+    error_log("Paid WhatsApp sent: " . ($paid_whatsapp_sent ? 'yes' : 'no'));
+    error_log("Conversation Stage Input: " . ($conversation_stage_input !== '' ? $conversation_stage_input : 'empty'));
     error_log("Cash Representative ID: " . ($cash_representative_id ?? 'null'));
     error_log("Cash Church ID: " . ($cash_church_id ?? 'null'));
     error_log("Step 2 Church ID: " . ($church_id ?? 'null'));
@@ -228,7 +243,87 @@ try {
         error_log("No donor updates to perform");
     }
     
-    // 1. Create Payment Plan
+    // 1. Handle "already paid" donor flow before creating plans.
+    if ($donor_already_paid) {
+        if (empty($payment_method)) {
+            throw new Exception('Please select how the donor paid before completing a paid-claim call.');
+        }
+
+        if (!$paid_whatsapp_sent) {
+            throw new Exception('Please send the WhatsApp proof request before completing a paid-claim call.');
+        }
+
+        // Ensure proof evidence is not empty and record it for follow-up.
+        $proof_method = $payment_method !== '' ? ucfirst(str_replace('_', ' ', $payment_method)) : 'Unknown';
+        $notes_parts = [
+            'Donor reported that they already paid the full pledge.',
+            "Payment method: {$proof_method}."
+        ];
+        
+        if ($paid_payment_evidence !== '') {
+            $notes_parts[] = "Evidence notes: {$paid_payment_evidence}.";
+        }
+        
+        $notes_parts[] = 'Proof request sent via WhatsApp: ' . ($paid_whatsapp_sent ? 'Yes' : 'No');
+        $session_notes = ' ' . implode(' ', $notes_parts);
+        
+        // 1a. Update session outcome and close call
+        if ($session_id > 0) {
+            $update_session = $db->prepare("
+                UPDATE call_center_sessions
+                SET outcome = ?,
+                    conversation_stage = 'success_pledged',
+                    payment_plan_id = NULL,
+                    duration_seconds = COALESCE(duration_seconds, 0) + ?,
+                    notes = CONCAT(COALESCE(notes, ''), ?),
+                    call_ended_at = NOW()
+                WHERE id = ?
+            ");
+            $call_outcome = 'agreed_to_pay_full';
+            $update_session->bind_param('sisi', $call_outcome, $duration_seconds, $session_notes, $session_id);
+            $update_session->execute();
+            $update_session->close();
+        }
+        
+        // 1b. Update queue outcome for reporting/analytics
+        if ($queue_id > 0) {
+            $update_queue = $db->prepare("
+                UPDATE call_center_queues
+                SET status = 'completed',
+                    completed_at = NOW(),
+                    last_attempt_outcome = 'agreed_to_pay_full'
+                WHERE id = ?
+            ");
+            $update_queue->bind_param('i', $queue_id);
+            $update_queue->execute();
+            $update_queue->close();
+        }
+        
+        // 1c. Log conversation outcome
+        log_audit(
+            $db,
+            'update',
+            'call_center_conversation',
+            $session_id,
+            null,
+            [
+                'donor_id' => $donor_id,
+                'queue_id' => $queue_id,
+                'donor_already_paid' => true,
+                'proof_method' => $proof_method,
+                'proof_sent' => $paid_whatsapp_sent ? 'yes' : 'no',
+                'proof_evidence' => $paid_payment_evidence
+            ],
+            'admin_portal',
+            $user_id
+        );
+        
+        $db->commit();
+        header("Location: call-complete.php?session_id={$session_id}&donor_id={$donor_id}");
+        exit;
+    }
+
+    // 2. Create Payment Plan
     // Using simplified INSERT based on table knowledge. 
     // Note: 'monthly_amount' column is often used for installment amount regardless of frequency.
     $plan_payment_method = !empty($payment_method) ? $payment_method : 'bank_transfer';

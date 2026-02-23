@@ -258,9 +258,20 @@ class VoodooSMSService
             $errorCode = $parsed['error_code'] ?? 'UNKNOWN';
             $errorMessage = $parsed['error'] ?? 'Unknown error';
             $httpCode = $this->lastRequestDebug['transport']['http_status'] ?? 0;
+            $resultText = strtoupper((string)($parsed['error'] ?? ''));
+            $serverIp = $this->lastRequestDebug['transport']['local_ip']
+                ?? $this->lastRequestDebug['transport']['remote_ip']
+                ?? null;
 
             if ($httpCode === 401) {
-                $errorMessage = 'Invalid credentials (HTTP 401). ' . $errorMessage;
+                if (str_contains($resultText, 'UNAUTHORIZED IP')) {
+                    $errorMessage = 'IP verification failed (HTTP 401). ' . $errorMessage;
+                    if ($serverIp) {
+                        $errorMessage .= ' Current server IP: ' . $serverIp . '. Add this IP in VoodooSMS API allowlist.';
+                    }
+                } else {
+                    $errorMessage = 'Invalid credentials (HTTP 401). ' . $errorMessage;
+                }
             } elseif ($errorCode === '400') {
                 $errorMessage = 'Authentication failed. ' . $errorMessage;
             }

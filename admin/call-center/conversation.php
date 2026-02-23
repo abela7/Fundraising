@@ -776,6 +776,11 @@ $page_title = 'Live Call';
                     <input type="hidden" name="plan_duration" id="selectedDuration">
                     <input type="hidden" id="donorReferenceNumber" value="<?php echo htmlspecialchars((string)($reference_number ?? '')); ?>">
                     <input type="hidden" id="donorPhone" value="<?php echo htmlspecialchars((string)($donor->phone ?? '')); ?>">
+                    <input type="hidden" name="conversation_stage_input" id="conversation_stage_input" value="connected">
+                    <input type="hidden" name="donor_already_paid" id="donorAlreadyPaidInput" value="no">
+                    <input type="hidden" name="paid_payment_method" id="paidPaymentMethodInput">
+                    <input type="hidden" name="paid_payment_evidence" id="paidEvidenceInput" value="">
+                    <input type="hidden" name="paid_whatsapp_sent" id="paidWhatsappSentInput" value="0">
                     
                     <!-- Step 1: Verification -->
                     <div class="step-container active" id="step1">
@@ -826,13 +831,110 @@ $page_title = 'Live Call';
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Step 2: Collect Donor Information -->
+
+                    <!-- Step 2: Payment Status -->
                     <div class="step-container" id="step2">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
                                     <span class="step-number">2</span>
+                                    Payment Status
+                                </div>
+                                <p class="text-muted mb-0">Ask the donor whether they have already paid the full pledge amount.</p>
+                            </div>
+                            <div class="step-body">
+                                <div class="choice-grid">
+                                    <div class="choice-card" onclick="selectPaymentStatus('yes', this)">
+                                        <div class="choice-icon"><i class="fas fa-check-circle text-success"></i></div>
+                                        <div class="choice-label">Yes, already paid</div>
+                                        <p class="text-muted mt-2 mb-0">Collect payment method + proof details</p>
+                                    </div>
+                                    
+                                    <div class="choice-card" onclick="selectPaymentStatus('no', this)">
+                                        <div class="choice-icon"><i class="fas fa-hourglass-half text-warning"></i></div>
+                                        <div class="choice-label">No, have made a pledge but not paid</div>
+                                        <p class="text-muted mt-2 mb-0">Continue with the payment plan flow</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)">
+                                        <i class="fas fa-arrow-left me-2"></i>Back
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: Payment Verification (Already Paid) -->
+                    <div class="step-container" id="step3">
+                        <div class="step-card">
+                            <div class="step-header">
+                                <div class="step-title">
+                                    <span class="step-number">3</span>
+                                    Already Paid Confirmation
+                                </div>
+                                <p class="text-muted mb-0">Ask if they can remember the payment method and request proof by screenshot/reference/payment day.</p>
+                            </div>
+                            <div class="step-body">
+                                <div class="mb-4">
+                                    <label class="form-label">How did they pay?</label>
+                                    <div class="choice-grid">
+                                    <div class="choice-card" onclick="selectPaidPaymentMethod('bank_transfer', this)">
+                                            <div class="choice-icon"><i class="fas fa-university text-primary"></i></div>
+                                            <div class="choice-label">Bank Transfer</div>
+                                        </div>
+                                        
+                                    <div class="choice-card" onclick="selectPaidPaymentMethod('card', this)">
+                                            <div class="choice-icon"><i class="fas fa-credit-card text-info"></i></div>
+                                            <div class="choice-label">Card / Direct Debit</div>
+                                        </div>
+                                        
+                                    <div class="choice-card" onclick="selectPaidPaymentMethod('cash', this)">
+                                            <div class="choice-icon"><i class="fas fa-money-bill-wave text-success"></i></div>
+                                            <div class="choice-label">Cash</div>
+                                        </div>
+                                        
+                                    <div class="choice-card" onclick="selectPaidPaymentMethod('other', this)">
+                                            <div class="choice-icon"><i class="fas fa-ellipsis-h text-secondary"></i></div>
+                                            <div class="choice-label">Other / Not sure</div>
+                                        </div>
+                                    </div>
+                                    <!-- selected payment method for already paid flow is stored in the top-level paidPaymentMethodInput field -->
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <p class="mb-2"><strong>Ask donor:</strong> Thanks for paying the full amount, in order to confirm your payment please send us any screenshot or reference or payment day.</p>
+                                    <button type="button" class="btn btn-success btn-sm" id="sendPaidWhatsAppBtn" onclick="sendPaidWhatsAppRequest()">
+                                        <i class="fab fa-whatsapp me-1"></i>Send WhatsApp Request to Donor
+                                    </button>
+                                    <div id="paidWhatsappStatus" class="small text-muted mt-2">No request sent yet.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="paidEvidenceText" class="form-label">Evidence details (optional)</label>
+                                    <textarea id="paidEvidenceText" class="form-control" rows="3" placeholder="Any reference, transaction ID, screenshot note, or payment day details." oninput="updatePaidEvidence(this.value)"></textarea>
+                                    <small class="text-muted">If they already shared proof details, you can paste them here.</small>
+                                </div>
+                                
+                                <div class="mt-4 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
+                                        <i class="fas fa-arrow-left me-2"></i>Back
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-lg" id="btnStep3Next" onclick="goToStep(4)" disabled>
+                                        Next Step <i class="fas fa-arrow-right ms-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 4: Collect Donor Information -->
+                    <div class="step-container" id="step4">
+                        <div class="step-card">
+                            <div class="step-header">
+                                <div class="step-title">
+                                    <span class="step-number">4</span>
                                     Collect Donor Information
                                 </div>
                                 <p class="text-muted mb-0">
@@ -1048,10 +1150,10 @@ $page_title = 'Live Call';
                                 </div>
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToDonorInfoBack()">
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-lg" id="btnStep2Next" onclick="goToStep(3)">
+                                    <button type="button" class="btn btn-primary btn-lg" id="btnStep4Next" onclick="proceedFromDonorInfo()">
                                         Next Step <i class="fas fa-arrow-right ms-2"></i>
                                     </button>
                                 </div>
@@ -1059,12 +1161,12 @@ $page_title = 'Live Call';
                         </div>
                     </div>
                     
-                    <!-- Step 3: Payment Readiness -->
-                    <div class="step-container" id="step3">
+                    <!-- Step 5: Payment Readiness -->
+                    <div class="step-container" id="step5">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
-                                    <span class="step-number">3</span>
+                                    <span class="step-number">5</span>
                                     Payment Readiness
                                 </div>
                                 <p class="text-muted mb-0">Is the donor ready to start paying today?</p>
@@ -1092,7 +1194,7 @@ $page_title = 'Live Call';
                                 <input type="hidden" name="ready_to_pay" id="readyToPayInput">
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(4)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
                                 </div>
@@ -1100,12 +1202,12 @@ $page_title = 'Live Call';
                         </div>
                     </div>
                     
-                    <!-- Step 4: Payment Plan -->
-                    <div class="step-container" id="step4">
+                    <!-- Step 6: Payment Plan -->
+                    <div class="step-container" id="step6">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
-                                    <span class="step-number">4</span>
+                                    <span class="step-number">6</span>
                                     Select Payment Plan
                                 </div>
                                 <p class="text-muted mb-0">How would they like to clear the balance?</p>
@@ -1138,7 +1240,7 @@ $page_title = 'Live Call';
                                         </div>
                                         
                                         <!-- Back Button for Desktop (Left Column) -->
-                                        <button type="button" class="btn btn-outline-secondary d-none d-lg-inline-block" onclick="goToStep(3)">
+                                        <button type="button" class="btn btn-outline-secondary d-none d-lg-inline-block" onclick="goToStep(5)">
                                             <i class="fas fa-arrow-left me-2"></i>Back
                                         </button>
                                     </div>
@@ -1226,7 +1328,7 @@ $page_title = 'Live Call';
                                                 </div>
                                                 
                                                 <div class="mt-3">
-                                                    <button type="button" class="btn btn-primary w-100" id="btnReview" disabled onclick="goToStep(5)">
+                                                    <button type="button" class="btn btn-primary w-100" id="btnReview" disabled onclick="goToStep(7)">
                                                         Review Plan <i class="fas fa-arrow-right ms-2"></i>
                                                     </button>
                                                 </div>
@@ -1243,7 +1345,7 @@ $page_title = 'Live Call';
                                 
                                 <!-- Mobile Back Button -->
                                 <div class="mt-4 d-lg-none">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(2)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(5)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
                                 </div>
@@ -1251,12 +1353,12 @@ $page_title = 'Live Call';
                         </div>
                     </div>
                     
-                    <!-- Step 5: Review & Confirm -->
-                    <div class="step-container" id="step5">
+                    <!-- Step 7: Review & Confirm -->
+                    <div class="step-container" id="step7">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
-                                    <span class="step-number">5</span>
+                                    <span class="step-number">7</span>
                                     Confirm & Save
                                 </div>
                                 <p class="text-muted mb-0">Review the plan details with the donor before saving.</p>
@@ -1311,10 +1413,10 @@ $page_title = 'Live Call';
                                 </div>
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(4)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(6)">
                                         <i class="fas fa-arrow-left me-2"></i>Edit Plan
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-lg" onclick="goToStep(6)">
+                                    <button type="button" class="btn btn-primary btn-lg" onclick="goToStep(8)">
                                         Next: Payment Method <i class="fas fa-arrow-right ms-2"></i>
                                     </button>
                                 </div>
@@ -1322,12 +1424,12 @@ $page_title = 'Live Call';
                         </div>
                     </div>
                     
-                    <!-- Step 6: Payment Method -->
-                    <div class="step-container" id="step6">
+                    <!-- Step 8: Payment Method -->
+                    <div class="step-container" id="step8">
                         <div class="step-card">
                             <div class="step-header">
                                 <div class="step-title">
-                                    <span class="step-number">6</span>
+                                    <span class="step-number">8</span>
                                     Payment Method
                                 </div>
                                 <p class="text-muted mb-0">How would the donor like to make payments?</p>
@@ -1337,19 +1439,19 @@ $page_title = 'Live Call';
                                 
                                 <!-- Payment Method Selection -->
                                 <div class="choice-grid mb-4">
-                                    <div class="choice-card" onclick="selectPaymentMethod('bank_transfer')">
+                                    <div class="choice-card" onclick="selectPaymentMethod('bank_transfer', this)">
                                         <div class="choice-icon"><i class="fas fa-university text-primary"></i></div>
                                         <div class="choice-label">Bank Transfer</div>
                                         <p class="text-muted mt-2 mb-0">Transfer the amount directly</p>
                                     </div>
                                     
-                                    <div class="choice-card" onclick="selectPaymentMethod('card')">
+                                    <div class="choice-card" onclick="selectPaymentMethod('card', this)">
                                         <div class="choice-icon"><i class="fas fa-credit-card text-info"></i></div>
                                         <div class="choice-label">Direct Debit / Card</div>
                                         <p class="text-muted mt-2 mb-0">Set up automatic payments</p>
                                     </div>
                                     
-                                    <div class="choice-card" onclick="selectPaymentMethod('cash')">
+                                    <div class="choice-card" onclick="selectPaymentMethod('cash', this)">
                                         <div class="choice-icon"><i class="fas fa-money-bill-wave text-success"></i></div>
                                         <div class="choice-label">Cash</div>
                                         <p class="text-muted mt-2 mb-0">Pay cash to representative</p>
@@ -1464,7 +1566,7 @@ $page_title = 'Live Call';
                                 </div>
                                 
                                 <div class="mt-4 d-flex justify-content-between">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(5)">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="goToStep(7)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
                                     <button type="button" class="btn btn-success btn-lg" id="btnStep6Next" onclick="submitForm()" disabled>
@@ -1555,9 +1657,11 @@ $page_title = 'Live Call';
         if (stepNum === 1) stage = 'connected';
         else if (stepNum === 2) stage = 'identity_verified';
         else if (stepNum === 3) stage = 'pledge_discussed';
-        else if (stepNum === 4) stage = 'payment_options_discussed';
-        else if (stepNum === 5) stage = 'agreement_reached';
-        else if (stepNum === 6) stage = 'payment_method_selected';
+        else if (stepNum === 4) stage = 'donor_info';
+        else if (stepNum === 5) stage = 'readiness_check';
+        else if (stepNum === 6) stage = 'payment_plan_selection';
+        else if (stepNum === 7) stage = 'agreement_reached';
+        else if (stepNum === 8) stage = 'payment_method_selected';
         
         if (stage) {
             const stageInput = document.getElementById('conversation_stage_input');
@@ -1566,7 +1670,7 @@ $page_title = 'Live Call';
             }
         }
         
-        if (stepNum === 5) {
+        if (stepNum === 7) {
             updateConfirmation();
         }
         
@@ -1575,18 +1679,190 @@ $page_title = 'Live Call';
         window.scrollTo(0, 0);
     }
     
-    // Payment Method Selection
-    function selectPaymentMethod(method) {
-        document.getElementById('paymentMethodInput').value = method;
-        document.getElementById('btnStep6Next').disabled = false;
+    function setActiveChoice(stepId, clickedElement) {
+        const container = document.getElementById(stepId);
+        if (!container) {
+            return;
+        }
         
-        // Remove selected class from all cards
-        document.querySelectorAll('#step6 .choice-card').forEach(card => {
+        container.querySelectorAll('.choice-card').forEach(card => {
             card.classList.remove('selected');
         });
         
+        if (clickedElement) {
+            clickedElement.classList.add('selected');
+        }
+    }
+    
+    function selectPaymentStatus(choice, clickedElement) {
+        const isPaid = choice === 'yes';
+        const donorAlreadyPaidInput = document.getElementById('donorAlreadyPaidInput');
+        const paidBtn = document.getElementById('btnStep3Next');
+        const paidEvidenceInput = document.getElementById('paidEvidenceInput');
+        const paidWhatsAppInput = document.getElementById('paidWhatsappSentInput');
+        const paidEvidenceText = document.getElementById('paidEvidenceText');
+        const paidWhatsappStatus = document.getElementById('paidWhatsappStatus');
+        const paidMethodInput = document.getElementById('paidPaymentMethodInput');
+        
+        donorAlreadyPaidInput.value = isPaid ? 'yes' : 'no';
+        setActiveChoice('step2', clickedElement);
+        
+        if (isPaid) {
+            if (paidBtn) paidBtn.disabled = true;
+            if (paidEvidenceText) paidEvidenceText.value = '';
+            paidEvidenceInput.value = '';
+            if (paidWhatsAppInput) paidWhatsAppInput.value = '0';
+            if (paidWhatsappStatus) paidWhatsappStatus.textContent = 'No request sent yet.';
+            if (paidMethodInput) paidMethodInput.value = '';
+            goToStep(3);
+        } else {
+            paidEvidenceInput.value = '';
+            if (paidMethodInput) paidMethodInput.value = '';
+            if (paidWhatsAppInput) paidWhatsAppInput.value = '0';
+            if (paidEvidenceText) paidEvidenceText.value = '';
+            if (paidWhatsappStatus) paidWhatsappStatus.textContent = 'No request sent yet.';
+            goToStep(4);
+        }
+    }
+    
+    function selectPaidPaymentMethod(method, clickedElement) {
+        const paidMethodInput = document.getElementById('paidPaymentMethodInput');
+        const nextBtn = document.getElementById('btnStep3Next');
+        const paidWhsInput = document.getElementById('paidWhatsappSentInput');
+        
+        if (paidMethodInput) {
+            paidMethodInput.value = method;
+        }
+        setActiveChoice('step3', clickedElement);
+        
+        if (nextBtn) {
+            const sent = paidWhsInput && paidWhsInput.value === '1';
+            nextBtn.disabled = !(method && sent);
+        }
+    }
+    
+function sendPaidWhatsAppRequest() {
+        const phone = document.getElementById('donorPhone').value || '';
+        const donorId = <?php echo (int)$donor_id; ?>;
+        const method = document.getElementById('paidPaymentMethodInput').value || '';
+        const btn = document.getElementById('sendPaidWhatsAppBtn');
+        const statusEl = document.getElementById('paidWhatsappStatus');
+        const paidWhsInput = document.getElementById('paidWhatsappSentInput');
+        const evidenceText = document.getElementById('paidEvidenceText').value || '';
+        const sessionInput = document.querySelector('input[name="session_id"]');
+        const sessionId = sessionInput ? sessionInput.value : '';
+        
+        if (!donorId || !phone) {
+            alert('Missing donor phone number. Please check donor profile.');
+            return;
+        }
+        
+        if (!method) {
+            alert('Please choose how they paid before sending WhatsApp request.');
+            return;
+        }
+        
+        if (!btn || !statusEl) {
+            alert('UI components are not ready. Please refresh and try again.');
+            return;
+        }
+        
+        btn.disabled = true;
+        statusEl.className = 'small text-info';
+        statusEl.textContent = 'Sending WhatsApp request...';
+        
+        const payload = new URLSearchParams({
+            donor_id: donorId.toString(),
+            phone: phone,
+            payment_method: method,
+            evidence: evidenceText,
+            session_id: sessionId.toString()
+        });
+        
+        fetch('api/send-paid-proof-request.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: payload.toString()
+        })
+            .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusEl.className = 'small text-success';
+                statusEl.textContent = data.message || 'WhatsApp request sent.';
+                paidWhsInput.value = '1';
+                const nextBtn = document.getElementById('btnStep3Next');
+                if (nextBtn) {
+                    nextBtn.disabled = false;
+                }
+            } else {
+                throw new Error(data.error || 'Failed to send WhatsApp request.');
+            }
+        })
+            .catch(error => {
+                console.error('Paid proof WhatsApp request failed:', error);
+                statusEl.className = 'small text-danger';
+                statusEl.textContent = error.message || 'Failed to send WhatsApp request.';
+            })
+            .finally(() => {
+                btn.disabled = false;
+            });
+    }
+    
+    function updatePaidEvidence(value) {
+        const paidEvidenceInput = document.getElementById('paidEvidenceInput');
+        if (paidEvidenceInput) {
+            paidEvidenceInput.value = (value || '').trim();
+        }
+    }
+    
+function proceedFromDonorInfo() {
+    const donorAlreadyPaid = document.getElementById('donorAlreadyPaidInput').value === 'yes';
+    if (donorAlreadyPaid) {
+        const paidMethodInput = document.getElementById('paidPaymentMethodInput');
+        const paidWhsInput = document.getElementById('paidWhatsappSentInput');
+        if (!paidMethodInput || !paidMethodInput.value) {
+            alert('Please choose a payment method before continuing.');
+            goToStep(3);
+            return;
+        }
+        if (!paidWhsInput || paidWhsInput.value !== '1') {
+            alert('Please send the WhatsApp request for proof before continuing.');
+            goToStep(3);
+            return;
+        }
+        submitForm();
+        return;
+    }
+    
+    goToStep(5);
+}
+    
+    function goToDonorInfoBack() {
+        const donorAlreadyPaid = document.getElementById('donorAlreadyPaidInput').value === 'yes';
+        goToStep(donorAlreadyPaid ? 3 : 2);
+    }
+    
+    // Payment Method Selection
+function selectPaymentMethod(method, clickedElement) {
+    const paymentMethodInput = document.getElementById('paymentMethodInput');
+    if (paymentMethodInput) {
+        paymentMethodInput.value = method;
+    }
+
+    const nextBtn = document.getElementById('btnStep6Next');
+    if (nextBtn) {
+        nextBtn.disabled = false;
+    }
+
+    // Remove selected class from all cards
+    document.querySelectorAll('#step6 .choice-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+        
         // Add selected class to clicked card
-        event.currentTarget.classList.add('selected');
+        if (clickedElement) {
+            clickedElement.classList.add('selected');
+        }
         
         // Show/hide relevant sections
         if (method === 'cash') {
@@ -1994,7 +2270,7 @@ $page_title = 'Live Call';
     function selectReadiness(choice) {
         document.getElementById('readyToPayInput').value = choice;
         if (choice === 'yes') {
-            goToStep(4);
+            goToStep(8);
         } else if (choice === 'refused') {
             // Capture duration
             let duration = 0;
@@ -2218,24 +2494,28 @@ $page_title = 'Live Call';
         document.getElementById('confTextDate').textContent = planDetails.start;
     }
     
-    function submitForm() {
-        console.log('submitForm called');
-        
-        // Validate payment method is selected
+function submitForm() {
+    console.log('submitForm called');
+    const donorAlreadyPaid = document.getElementById('donorAlreadyPaidInput')?.value === 'yes';
+    
+    // Validate payment method is selected
+    if (!donorAlreadyPaid) {
         const paymentMethod = document.getElementById('paymentMethodInput').value;
         if (!paymentMethod) {
             alert('Please select a payment method before completing the call.');
             goToStep(6);
             return;
         }
+    }
+    
+    // If cash is selected, validate representative
+    const paymentMethod = donorAlreadyPaid ? 'already_paid' : document.getElementById('paymentMethodInput').value;
+    if (paymentMethod === 'cash') {
+        const repId = document.getElementById('cash_representative_id').value;
         
-        // If cash is selected, validate representative
-        if (paymentMethod === 'cash') {
-            const repId = document.getElementById('cash_representative_id').value;
-            
-            if (!repId) {
-                alert('Please select a representative for cash payments.');
-                goToStep(6);
+        if (!repId) {
+            alert('Please select a representative for cash payments.');
+            goToStep(8);
                 return;
             }
         }
