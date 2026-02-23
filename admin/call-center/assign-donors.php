@@ -186,6 +186,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
         $random_min_balance = isset($_POST['random_min_balance']) && $_POST['random_min_balance'] !== '' ? max(0.0, (float)$_POST['random_min_balance']) : null;
         $random_max_balance = isset($_POST['random_max_balance']) && $_POST['random_max_balance'] !== '' ? max(0.0, (float)$_POST['random_max_balance']) : null;
 
+        if ($random_min_pledge !== null && $random_max_pledge !== null && $random_min_pledge > $random_max_pledge) {
+            redirectAssignDonorsWithMessage('Min pledge cannot be greater than max pledge.', 'warning', 'random');
+        }
+        if ($random_min_balance !== null && $random_max_balance !== null && $random_min_balance > $random_max_balance) {
+            redirectAssignDonorsWithMessage('Min balance cannot be greater than max balance.', 'warning', 'random');
+        }
+
+        if ($random_registrar !== null) {
+            $registrar_check_stmt = $db->prepare("
+                SELECT id
+                FROM users
+                WHERE id = ?
+                  AND active = 1
+                  AND role IN ('registrar', 'admin')
+                LIMIT 1
+            ");
+            if (!$registrar_check_stmt) {
+                throw new Exception('Failed to validate registrar filter.');
+            }
+            $registrar_check_stmt->bind_param('i', $random_registrar);
+            $registrar_check_stmt->execute();
+            $registrar_check_result = $registrar_check_stmt->get_result()->fetch_assoc();
+            $registrar_check_stmt->close();
+            if (!$registrar_check_result) {
+                redirectAssignDonorsWithMessage('Selected registrar is not active or not allowed.', 'warning', 'random');
+            }
+        }
+
         // Validate selected agents against active registrar/admin users only.
         $agent_id_csv = implode(',', $selected_agent_ids);
         $selected_agents = [];
@@ -228,15 +256,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
         }
 
         if ($donation_type_filter === 'pledge') {
-            $random_where[] = 'd.id IN (SELECT DISTINCT donor_id FROM pledges WHERE donor_id IS NOT NULL)';
+            $random_where[] = "d.id IN (
+                SELECT DISTINCT donor_id
+                FROM pledges
+                WHERE donor_id IS NOT NULL
+                  AND status IN ('pending', 'approved')
+            )";
         } elseif ($donation_type_filter === 'payment') {
-            $random_where[] = 'd.id IN (SELECT DISTINCT donor_id FROM payments WHERE donor_id IS NOT NULL)';
+            $random_where[] = "d.id IN (
+                SELECT DISTINCT donor_id
+                FROM payments
+                WHERE donor_id IS NOT NULL
+                  AND status IN ('pending', 'approved')
+            )";
         }
 
-        if ($donor_type_filter !== 'all') {
-            $random_where[] = 'd.donor_type = ?';
-            $random_params[] = $donor_type_filter;
-            $random_types .= 's';
+        if ($donor_type_filter === 'pledge') {
+            $random_where[] = "(d.donor_type = 'pledge' OR COALESCE(d.total_pledged, 0) > 0)";
+        } elseif ($donor_type_filter === 'immediate_payment') {
+            $random_where[] = "(
+                d.donor_type = 'immediate_payment'
+                OR (COALESCE(d.total_pledged, 0) <= 0 AND COALESCE(d.total_paid, 0) > 0)
+            )";
         }
 
         if ($amount_bucket === 'under_100') {
@@ -249,10 +290,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
 
         if ($payment_status_filter === 'completed') {
             $random_where[] = "(d.payment_status = 'completed' OR {$balance_expression} <= 0)";
-        } elseif ($payment_status_filter !== 'all') {
-            $random_where[] = 'd.payment_status = ?';
-            $random_params[] = $payment_status_filter;
-            $random_types .= 's';
+        } elseif ($payment_status_filter === 'paying') {
+            $random_where[] = "(
+                d.payment_status = 'paying'
+                OR (
+                    COALESCE(d.total_pledged, 0) > COALESCE(d.total_paid, 0)
+                    AND COALESCE(d.total_paid, 0) > 0
+                )
+            )";
+        } elseif ($payment_status_filter === 'not_started') {
+            $random_where[] = "(
+                d.payment_status = 'not_started'
+                OR (
+                    COALESCE(d.total_pledged, 0) > 0
+                    AND COALESCE(d.total_paid, 0) <= 0
+                )
+            )";
+        } elseif ($payment_status_filter === 'no_pledge') {
+            $random_where[] = "(d.payment_status = 'no_pledge' OR COALESCE(d.total_pledged, 0) <= 0)";
+        } elseif ($payment_status_filter === 'overdue') {
+            $random_where[] = "(
+                d.payment_status = 'overdue'
+                OR (
+                    d.has_active_plan = 1
+                    AND d.active_payment_plan_id IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM donor_payment_plans pp
+                        WHERE pp.id = d.active_payment_plan_id
+                          AND pp.status = 'active'
+                          AND pp.next_payment_due IS NOT NULL
+                          AND pp.next_payment_due < CURDATE()
+                    )
+                )
+            )";
+        } elseif ($payment_status_filter === 'defaulted') {
+            $random_where[] = "(
+                d.payment_status = 'defaulted'
+                OR (
+                    d.has_active_plan = 1
+                    AND d.active_payment_plan_id IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM donor_payment_plans pp
+                        WHERE pp.id = d.active_payment_plan_id
+                          AND pp.status = 'defaulted'
+                    )
+                )
+            )";
         }
 
         if ($random_registrar !== null) {
