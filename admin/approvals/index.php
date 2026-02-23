@@ -1268,6 +1268,18 @@ if ($cntRes) {
       border-color: #ffb300;
       color: #664d03;
     }
+
+    /* Public Donations Button - Blue*/
+    .btn-public-donations {
+      background: #dbeafe;
+      border-color: #2563eb;
+      color: #1d4ed8;
+    }
+    .btn-public-donations:hover {
+      background: #bfdbfe;
+      border-color: #1d4ed8;
+      color: #1e3a8a;
+    }
     
     /* Manual Refresh Button - Blue */
     .btn-refresh {
@@ -1457,6 +1469,9 @@ if ($cntRes) {
                     </a>
                     <a href="../donations/review-pledge-payments.php" class="btn btn-sm btn-action btn-payments">
                       <i class="fas fa-file-invoice-dollar"></i> <span class="btn-text">Payments</span>
+                    </a>
+                    <a href="public-donations.php" class="btn btn-sm btn-action btn-public-donations">
+                      <i class="fas fa-envelope-open-text"></i> <span class="btn-text">Public Donations</span>
                     </a>
                     <button class="btn btn-sm btn-action btn-refresh" onclick="location.reload()">
                       <i class="fas fa-sync-alt"></i> <span class="btn-text">Manual Refresh</span>

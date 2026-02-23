@@ -221,6 +221,14 @@
             </a>
         </li>
 
+        <!-- Public Donations -->
+        <li class="fab-item">
+            <span class="fab-label">Public Donations</span>
+            <a href="<?php echo url_for('admin/approvals/public-donations.php'); ?>" class="fab-btn bg-orange">
+                <i class="fas fa-envelope-open-text"></i>
+            </a>
+        </li>
+
         <!-- 5. Approve Payment -->
         <li class="fab-item">
             <span class="fab-label">Approve Payment</span>
