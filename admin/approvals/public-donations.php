@@ -24,6 +24,28 @@ function bind_query_params(mysqli_stmt $stmt, string $types, array $params): voi
     call_user_func_array([$stmt, 'bind_param'], $bind);
 }
 
+$normalizeRequestPhone = static function (string $rawPhone): string {
+    $clean = preg_replace('/\D/', '', trim($rawPhone));
+    return $clean === null ? '' : $clean;
+};
+
+$buildPhoneLookupList = static function (string $normalizedPhone): array {
+    $clean = preg_replace('/\D/', '', $normalizedPhone) ?: '';
+    if ($clean === '') {
+        return [];
+    }
+
+    $candidates = [$clean];
+    if (str_starts_with($clean, '44') && strlen($clean) > 2) {
+        $candidates[] = '0' . substr($clean, 2);
+    }
+    if (str_starts_with($clean, '0') && strlen($clean) > 1) {
+        $candidates[] = '44' . substr($clean, 1);
+    }
+
+    return array_values(array_unique($candidates));
+};
+
 $allowedStatuses = ['new', 'contacted', 'resolved', 'spam'];
 $statusLabels = [
     'new' => ['label' => 'New', 'class' => 'bg-primary'],
@@ -198,6 +220,58 @@ if ($requestsTableExists) {
         $listStmt->execute();
         $requestRows = $listStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $listStmt->close();
+    }
+
+    if (!empty($requestRows)) {
+        $donorMatchCache = [];
+        $cleanColumn = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(%s, '+', ''), ' ', ''), '-', ''), '(', ''), ')', '')";
+
+        foreach ($requestRows as &$requestRow) {
+            $lookupPhones = $buildPhoneLookupList($normalizeRequestPhone((string)($requestRow['phone_number'] ?? '')));
+            $cacheKey = implode('|', $lookupPhones);
+
+            if ($cacheKey === '') {
+                $requestRow['donor_match'] = null;
+                continue;
+            }
+
+            if (array_key_exists($cacheKey, $donorMatchCache)) {
+                $requestRow['donor_match'] = $donorMatchCache[$cacheKey];
+                continue;
+            }
+
+            $conditions = [];
+            $matchTypes = '';
+            $matchValues = [];
+            foreach ($lookupPhones as $lookupPhone) {
+                $conditions[] = '(' . sprintf($cleanColumn, '`phone`') . ' = ? OR ' . sprintf($cleanColumn, '`phone_number`') . ' = ?)';
+                $matchValues[] = $lookupPhone;
+                $matchValues[] = $lookupPhone;
+                $matchTypes .= 'ss';
+            }
+
+            $matchSql = 'SELECT id, name, phone, phone_number FROM donors WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
+            $matchStmt = $db->prepare($matchSql);
+            if (!$matchStmt) {
+                $requestRow['donor_match'] = null;
+                $donorMatchCache[$cacheKey] = null;
+                continue;
+            }
+
+            $matchBind = [$matchTypes];
+            foreach ($matchValues as $index => $value) {
+                $matchBind[] = &$matchValues[$index];
+            }
+            call_user_func_array([$matchStmt, 'bind_param'], $matchBind);
+            $matchStmt->execute();
+            $donorMatch = $matchStmt->get_result()->fetch_assoc();
+            $matchStmt->close();
+
+            $donorMatch = $donorMatch ?: null;
+            $requestRow['donor_match'] = $donorMatch;
+            $donorMatchCache[$cacheKey] = $donorMatch;
+        }
+        unset($requestRow);
     }
 }
 
@@ -441,6 +515,7 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                         <th>Phone</th>
                                         <th>Message</th>
                                         <th>Where</th>
+                                        <th>Existing Donor</th>
                                         <th>Status</th>
                                         <th>Submitted</th>
                                         <th>IP</th>
@@ -450,7 +525,7 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                 <tbody>
                                     <?php if (empty($requestRows)): ?>
                                         <tr>
-                                            <td colspan="9" class="text-center py-4">No matching requests found.</td>
+                                            <td colspan="10" class="text-center py-4">No matching requests found.</td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($requestRows as $req): ?>
@@ -487,6 +562,23 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                                             <?php echo htmlspecialchars((string)($req['referrer_url'] ?? 'Direct'), ENT_QUOTES, 'UTF-8'); ?>
                                                         </span>
                                                     </div>
+                                                </td>
+                                                <td>
+                                                    <?php $donorMatch = $req['donor_match'] ?? null; ?>
+                                                    <?php if (!empty($donorMatch) && !empty($donorMatch['id'])): ?>
+                                                        <div class="fw-semibold">
+                                                            <a href="../donor-management/view-donor.php?id=<?php echo (int)$donorMatch['id']; ?>">
+                                                                <i class="fas fa-user-check me-1"></i>
+                                                                <?php echo htmlspecialchars((string)($donorMatch['name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                                            </a>
+                                                        </div>
+                                                        <div class="meta-small">
+                                                            Donor phone:
+                                                            <span class="text-monospace"><?php echo htmlspecialchars((string)($donorMatch['phone'] ?: $donorMatch['phone_number']), ENT_QUOTES, 'UTF-8'); ?></span>
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <span class="text-muted">No donor match</span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
                                                     <?php
