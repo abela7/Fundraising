@@ -130,8 +130,8 @@ $donors_by_agent = [];
 $unassigned_donors = [];
 
 try {
-    // Get agents (active registrars only)
-    $agents_result = $db->query("SELECT id, name FROM users WHERE role = 'registrar' AND active = 1 ORDER BY name");
+    // Get assignable agents (active registrars + active admins)
+    $agents_result = $db->query("SELECT id, name FROM users WHERE role IN ('registrar', 'admin') AND active = 1 ORDER BY name");
     if ($agents_result) {
         while ($agent = $agents_result->fetch_assoc()) {
             $agents[] = $agent;
