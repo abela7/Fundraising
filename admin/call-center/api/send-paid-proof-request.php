@@ -66,18 +66,15 @@ try {
         throw new Exception('Donor phone number is missing');
     }
 
-    $method_label = str_replace('_', ' ', $payment_method);
     $message = "Hi {$donor_name},\n\n";
     $message .= "Sorry for the confusion in our earlier approach.\n\n";
     $message .= "Since you already paid the full amount, please send us any payment screenshot, bank reference, or payment day so we can confirm your payment.\n\n";
-    $message .= "You told us you paid via: {$method_label}.\n\n";
     $message .= "May God bless you.";
 
     if ($evidence !== '') {
         $message .= "\nPrevious details: {$evidence}";
     }
 
-    $message .= "\n\nSorry for our previous approach. Thank you.";
 
     $messaging = new MessagingHelper($db);
     $result = $messaging->sendDirect($phone, $message, MessagingHelper::CHANNEL_WHATSAPP, $donor_id, 'call_center', false);
