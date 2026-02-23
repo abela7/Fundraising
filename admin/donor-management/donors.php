@@ -16,6 +16,40 @@ $db = db();
 $success_message = '';
 $error_message = '';
 
+/**
+ * Parse float filters safely for numeric GET/POST values.
+ */
+function parseDonorFilterFloat(array $source, string $key): ?float {
+    if (!array_key_exists($key, $source) || $source[$key] === null) {
+        return null;
+    }
+
+    $value = is_scalar($source[$key]) ? trim((string) $source[$key]) : '';
+    if ($value === '' || !is_numeric($value)) {
+        return null;
+    }
+
+    $number = (float) $value;
+    return $number >= 0.0 ? $number : null;
+}
+
+/**
+ * Parse integer IDs from GET/POST safely.
+ */
+function parseDonorFilterInt(array $source, string $key): ?int {
+    if (!array_key_exists($key, $source) || $source[$key] === null) {
+        return null;
+    }
+
+    $value = is_scalar($source[$key]) ? trim((string) $source[$key]) : '';
+    if ($value === '' || !ctype_digit((string)$value)) {
+        return null;
+    }
+
+    $intValue = (int) $value;
+    return $intValue > 0 ? $intValue : null;
+}
+
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
     header('Content-Type: application/json');
@@ -318,6 +352,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
 $user_role = $current_user['role'] ?? '';
 $is_admin_user = ($user_role === 'admin');
 
+$filter_errors = [];
+
 // Get list of agents for filter (only for admins)
 $agents = [];
 if ($is_admin_user) {
@@ -349,14 +385,35 @@ if ($is_admin_user) {
 }
 
 // Get filter parameters
-$filter_agent_id = isset($_GET['filter_agent']) && $_GET['filter_agent'] !== '' ? (int)$_GET['filter_agent'] : null;
+$filter_agent_id = parseDonorFilterInt($_GET, 'filter_agent');
 $show_all = isset($_GET['show_all']) && $_GET['show_all'] === '1';
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 // New filter parameters
-$filter_payment_min = isset($_GET['payment_min']) && $_GET['payment_min'] !== '' ? (float)$_GET['payment_min'] : null;
-$filter_payment_max = isset($_GET['payment_max']) && $_GET['payment_max'] !== '' ? (float)$_GET['payment_max'] : null;
-$filter_registrar_id = isset($_GET['filter_registrar']) && $_GET['filter_registrar'] !== '' ? (int)$_GET['filter_registrar'] : null;
+$filter_payment_min = parseDonorFilterFloat($_GET, 'payment_min');
+$filter_payment_max = parseDonorFilterFloat($_GET, 'payment_max');
+$filter_pledge_min = parseDonorFilterFloat($_GET, 'pledge_min');
+$filter_pledge_max = parseDonorFilterFloat($_GET, 'pledge_max');
+$filter_balance_min = parseDonorFilterFloat($_GET, 'balance_min');
+$filter_balance_max = parseDonorFilterFloat($_GET, 'balance_max');
+$filter_registrar_id = parseDonorFilterInt($_GET, 'filter_registrar');
+
+$raw_donor_type = strtolower((string)($_GET['filter_donor_type'] ?? ''));
+if (in_array($raw_donor_type, ['pledge', 'immediate_payment', 'immediate'], true)) {
+    $filter_donor_type = $raw_donor_type === 'immediate' ? 'immediate_payment' : $raw_donor_type;
+} else {
+    $filter_donor_type = '';
+}
+
+$allowed_status_filters = ['no_pledge', 'not_started', 'paying', 'overdue', 'completed', 'defaulted'];
+$filter_payment_status = (string)($_GET['filter_payment_status'] ?? '');
+$filter_payment_status = strtolower(trim($filter_payment_status));
+$filter_payment_status = in_array($filter_payment_status, $allowed_status_filters, true) ? $filter_payment_status : '';
+
+$allowed_payment_methods = ['cash', 'bank_transfer', 'card'];
+$filter_payment_method = (string)($_GET['filter_payment_method'] ?? '');
+$filter_payment_method = strtolower(trim($filter_payment_method));
+$filter_payment_method = in_array($filter_payment_method, $allowed_payment_methods, true) ? $filter_payment_method : '';
 
 // Determine default behavior based on user role
 if ($is_admin_user) {
@@ -366,6 +423,25 @@ if ($is_admin_user) {
     // Registrars/agents ONLY see their assigned donors
     $show_all = false;
     $filter_agent_id = null; // Will use current user's ID as agent filter
+}
+
+if ($filter_payment_min !== null && $filter_payment_max !== null && $filter_payment_min > $filter_payment_max) {
+    $filter_errors[] = 'Payment minimum cannot be greater than payment maximum.';
+    $filter_payment_min = null;
+    $filter_payment_max = null;
+}
+if ($filter_pledge_min !== null && $filter_pledge_max !== null && $filter_pledge_min > $filter_pledge_max) {
+    $filter_errors[] = 'Pledge minimum cannot be greater than pledge maximum.';
+    $filter_pledge_min = null;
+    $filter_pledge_max = null;
+}
+if ($filter_balance_min !== null && $filter_balance_max !== null && $filter_balance_min > $filter_balance_max) {
+    $filter_errors[] = 'Balance minimum cannot be greater than balance maximum.';
+    $filter_balance_min = null;
+    $filter_balance_max = null;
+}
+if (!empty($filter_errors)) {
+    $error_message = implode(' ', $filter_errors);
 }
 
 // Get donors list with payment plan details
@@ -416,12 +492,61 @@ try {
         $params[] = $filter_payment_max;
         $types .= 'd';
     }
+
+    // Pledge amount filter (min)
+    if ($filter_pledge_min !== null) {
+        $where_conditions[] = "d.total_pledged >= ?";
+        $params[] = $filter_pledge_min;
+        $types .= 'd';
+    }
+
+    // Pledge amount filter (max)
+    if ($filter_pledge_max !== null) {
+        $where_conditions[] = "d.total_pledged <= ?";
+        $params[] = $filter_pledge_max;
+        $types .= 'd';
+    }
+
+    // Balance filter (min)
+    if ($filter_balance_min !== null) {
+        $where_conditions[] = "d.balance >= ?";
+        $params[] = $filter_balance_min;
+        $types .= 'd';
+    }
+
+    // Balance filter (max)
+    if ($filter_balance_max !== null) {
+        $where_conditions[] = "d.balance <= ?";
+        $params[] = $filter_balance_max;
+        $types .= 'd';
+    }
     
     // Registrar filter (who registered the donor)
     if ($is_admin_user && $filter_registrar_id !== null) {
         $where_conditions[] = "d.registered_by_user_id = ?";
         $params[] = $filter_registrar_id;
         $types .= 'i';
+    }
+
+    // Donor type filter
+    if ($filter_donor_type !== '') {
+        $where_conditions[] = "d.donor_type = ?";
+        $params[] = $filter_donor_type;
+        $types .= 's';
+    }
+
+    // Payment status filter
+    if ($filter_payment_status !== '') {
+        $where_conditions[] = "d.payment_status = ?";
+        $params[] = $filter_payment_status;
+        $types .= 's';
+    }
+
+    // Payment method filter
+    if ($filter_payment_method !== '') {
+        $where_conditions[] = "d.preferred_payment_method = ?";
+        $params[] = $filter_payment_method;
+        $types .= 's';
     }
     
     // Search filter - search in name, phone, and reference numbers from pledges/payments
@@ -678,6 +803,13 @@ unset($donor); // Break reference
             <div class="container-fluid">
                 <?php include '../includes/db_error_banner.php'; ?>
                 
+                <?php if ($error_message !== ''): ?>
+                    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+
 
                 <!-- Stats Cards -->
                 <div class="row g-2 g-md-3 mb-2 mb-md-3">
@@ -809,9 +941,7 @@ unset($donor); // Break reference
                     <div id="filterPanel" class="border-bottom" style="display: none;">
                         <div class="p-3 bg-light">
                             <form method="GET" action="donors.php" id="filterForm">
-                            <?php if (!empty($search_term)): ?>
-                                <input type="hidden" name="search" value="<?php echo htmlspecialchars($search_term); ?>">
-                            <?php endif; ?>
+                                <input type="hidden" name="search" id="filter_hidden_search" value="<?php echo htmlspecialchars($search_term); ?>">
                             <div class="row g-2">
                                     <?php if ($is_admin_user): ?>
                                     <!-- Agent Filter - Only visible to Admins -->
@@ -868,45 +998,77 @@ unset($donor); // Break reference
                                         </label>
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text">£</span>
-                                            <input type="number" class="form-control" name="payment_min" 
+                                            <input type="number" class="form-control" name="payment_min" id="filter_min"
                                                    placeholder="Min" step="0.01" min="0"
                                                    value="<?php echo $filter_payment_min !== null ? htmlspecialchars((string)$filter_payment_min) : ''; ?>">
                                             <span class="input-group-text">-</span>
-                                            <input type="number" class="form-control" name="payment_max" 
+                                            <input type="number" class="form-control" name="payment_max" id="filter_max"
                                                    placeholder="Max" step="0.01" min="0"
-                                                   value="<?php echo $filter_payment_max !== null ? htmlspecialchars((string)$filter_payment_max) : ''; ?>">
+                                                    value="<?php echo $filter_payment_max !== null ? htmlspecialchars((string)$filter_payment_max) : ''; ?>">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 col-sm-6 col-lg-3">
+                                        <label class="form-label small fw-bold mb-1">
+                                            <i class="fas fa-hand-holding-heart me-1"></i>Pledge Amount (Min - Max)
+                                        </label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">£</span>
+                                            <input type="number" class="form-control" name="pledge_min" id="filter_min_pledge"
+                                                   placeholder="Min" step="0.01" min="0"
+                                                   value="<?php echo $filter_pledge_min !== null ? htmlspecialchars((string)$filter_pledge_min) : ''; ?>">
+                                            <span class="input-group-text">-</span>
+                                            <input type="number" class="form-control" name="pledge_max" id="filter_max_pledge"
+                                                   placeholder="Max" step="0.01" min="0"
+                                                   value="<?php echo $filter_pledge_max !== null ? htmlspecialchars((string)$filter_pledge_max) : ''; ?>">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 col-sm-6 col-lg-3">
+                                        <label class="form-label small fw-bold mb-1">
+                                            <i class="fas fa-wallet me-1"></i>Balance (Min - Max)
+                                        </label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">£</span>
+                                            <input type="number" class="form-control" name="balance_min" id="filter_min_balance"
+                                                   placeholder="Min" step="0.01" min="0"
+                                                   value="<?php echo $filter_balance_min !== null ? htmlspecialchars((string)$filter_balance_min) : ''; ?>">
+                                            <span class="input-group-text">-</span>
+                                            <input type="number" class="form-control" name="balance_max" id="filter_max_balance"
+                                                   placeholder="Max" step="0.01" min="0"
+                                                   value="<?php echo $filter_balance_max !== null ? htmlspecialchars((string)$filter_balance_max) : ''; ?>">
                                         </div>
                                     </div>
                                     
                                 <div class="col-12 col-sm-6 col-lg-3">
                                     <label class="form-label small fw-bold mb-1">Donor Type</label>
-                                    <select class="form-select form-select-sm" id="filter_donor_type">
+                                    <select class="form-select form-select-sm" id="filter_donor_type" name="filter_donor_type">
                                         <option value="">All Types</option>
-                                        <option value="pledge">Pledge Donors</option>
-                                        <option value="immediate">Immediate Payers</option>
+                                        <option value="pledge" <?php echo $filter_donor_type === 'pledge' ? 'selected' : ''; ?>>Pledge Donors</option>
+                                        <option value="immediate" <?php echo $filter_donor_type === 'immediate_payment' ? 'selected' : ''; ?>>Immediate Payers</option>
                                     </select>
                                 </div>
                                 
                                 <div class="col-12 col-sm-6 col-lg-3">
                                     <label class="form-label small fw-bold mb-1">Payment Status</label>
-                                    <select class="form-select form-select-sm" id="filter_payment_status">
+                                    <select class="form-select form-select-sm" id="filter_payment_status" name="filter_payment_status">
                                         <option value="">All Statuses</option>
-                                        <option value="no_pledge">No Pledge</option>
-                                        <option value="not_started">Not Started</option>
-                                        <option value="paying">Paying</option>
-                                        <option value="overdue">Overdue</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="defaulted">Defaulted</option>
+                                        <option value="no_pledge" <?php echo $filter_payment_status === 'no_pledge' ? 'selected' : ''; ?>>No Pledge</option>
+                                        <option value="not_started" <?php echo $filter_payment_status === 'not_started' ? 'selected' : ''; ?>>Not Started</option>
+                                        <option value="paying" <?php echo $filter_payment_status === 'paying' ? 'selected' : ''; ?>>Paying</option>
+                                        <option value="overdue" <?php echo $filter_payment_status === 'overdue' ? 'selected' : ''; ?>>Overdue</option>
+                                        <option value="completed" <?php echo $filter_payment_status === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                        <option value="defaulted" <?php echo $filter_payment_status === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
                                     </select>
                                 </div>
                                 
                                 <div class="col-12 col-sm-6 col-lg-3">
                                     <label class="form-label small fw-bold mb-1">Payment Method</label>
-                                    <select class="form-select form-select-sm" id="filter_payment_method">
+                                    <select class="form-select form-select-sm" id="filter_payment_method" name="filter_payment_method">
                                         <option value="">All Methods</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="cash">Cash</option>
-                                        <option value="card">Card</option>
+                                        <option value="bank_transfer" <?php echo $filter_payment_method === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
+                                        <option value="cash" <?php echo $filter_payment_method === 'cash' ? 'selected' : ''; ?>>Cash</option>
+                                        <option value="card" <?php echo $filter_payment_method === 'card' ? 'selected' : ''; ?>>Card</option>
                                     </select>
                                 </div>
                                 
@@ -935,6 +1097,57 @@ unset($donor); // Break reference
                                                         echo '≤ £' . number_format($filter_payment_max, 2);
                                                     }
                                                 ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_pledge_min !== null || $filter_pledge_max !== null): ?>
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-hand-holding-heart me-1"></i>Pledge: 
+                                                <?php 
+                                                    if ($filter_pledge_min !== null && $filter_pledge_max !== null) {
+                                                        echo '£' . number_format($filter_pledge_min, 2) . ' - £' . number_format($filter_pledge_max, 2);
+                                                    } elseif ($filter_pledge_min !== null) {
+                                                        echo '≥ £' . number_format($filter_pledge_min, 2);
+                                                    } else {
+                                                        echo '≤ £' . number_format($filter_pledge_max, 2);
+                                                    }
+                                                ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_balance_min !== null || $filter_balance_max !== null): ?>
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-wallet me-1"></i>Balance: 
+                                                <?php 
+                                                    if ($filter_balance_min !== null && $filter_balance_max !== null) {
+                                                        echo '£' . number_format($filter_balance_min, 2) . ' - £' . number_format($filter_balance_max, 2);
+                                                    } elseif ($filter_balance_min !== null) {
+                                                        echo '≥ £' . number_format($filter_balance_min, 2);
+                                                    } else {
+                                                        echo '≤ £' . number_format($filter_balance_max, 2);
+                                                    }
+                                                ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_donor_type !== ''): ?>
+                                            <span class="badge bg-primary text-white">
+                                                <i class="fas fa-users me-1"></i>Type: <?php echo $filter_donor_type === 'pledge' ? 'Pledge Donors' : 'Immediate Payers'; ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_payment_status !== ''): ?>
+                                            <span class="badge bg-info text-dark">
+                                                <i class="fas fa-flag me-1"></i>Status: <?php echo ucwords(str_replace('_', ' ', $filter_payment_status)); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_payment_method !== ''): ?>
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-credit-card me-1"></i>Method: <?php echo ucwords(str_replace('_', ' ', $filter_payment_method)); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($is_admin_user && $filter_agent_id !== null): 
+                                            $selected_agent = array_filter($agents, fn($a) => $a['id'] == $filter_agent_id);
+                                            $selected_agent = reset($selected_agent);
+                                        ?>
+                                            <span class="badge bg-dark text-white">
+                                                <i class="fas fa-user-tie me-1"></i>Assigned: <?php echo htmlspecialchars($selected_agent['name'] ?? ('User #' . $filter_agent_id)); ?>
                                             </span>
                                         <?php endif; ?>
                                         <?php if ($filter_registrar_id !== null): 
@@ -1454,47 +1667,11 @@ $(document).ready(function() {
         }
     });
     
-    // Custom filter function
-    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-        const donorType = $('#filter_donor_type').val();
-        const paymentStatus = $('#filter_payment_status').val();
-        const paymentMethod = $('#filter_payment_method').val();
-        
-        // Get data from table columns
-        // Column indices: 0=#, 1=Name, 2=Type, 3=Status, 4=Assigned To, 5=Pledged, 6=Paid, 7=Balance, 8=Actions
-        const rowDonorType = data[2].toLowerCase(); // Type column
-        const rowPaymentStatus = data[3].toLowerCase(); // Status column
-        
-        // Get donor data from row to check payment method
-        const $row = $(settings.aoData[dataIndex].nTr);
-        const donorData = $row.data('donor');
-        const rowPaymentMethod = donorData && donorData.preferred_payment_method ? donorData.preferred_payment_method.toLowerCase() : '';
-        
-        // Apply filters
-        if (donorType && !rowDonorType.includes(donorType.toLowerCase())) {
-            return false;
-        }
-        
-        if (paymentStatus && !rowPaymentStatus.includes(paymentStatus.toLowerCase().replace('_', ' '))) {
-            return false;
-        }
-        
-        if (paymentMethod && !rowPaymentMethod.includes(paymentMethod.toLowerCase().replace('_', ' '))) {
-            return false;
-        }
-        
-        return true;
-    });
-    
-    // Filter change handlers (for client-side filters only)
-    $('#filter_donor_type, #filter_payment_status, #filter_payment_method').on('change', function() {
-        table.draw();
-        updateFilterCount();
-    });
+    // Server-side filters are applied in PHP via GET form submit.
     
     // Sync search input with hidden filter input
     $('#header_search_input').on('input', function() {
-        $('input[name="search"][type="hidden"]').val($(this).val());
+        $('#filter_hidden_search').val($(this).val());
     });
     
     // Handle filter form submission - remove empty inputs to keep URL clean
@@ -1507,36 +1684,6 @@ $(document).ready(function() {
         });
     });
 
-    // Assigned agent filter - server-side (reload page, preserve other filters)
-    $('#filter_assigned_agent').on('change', function() {
-        const value = $(this).val();
-        const url = new URL(window.location);
-        
-        // Remove previous agent filter param
-        url.searchParams.delete('filter_agent');
-        
-        // Add agent filter only if a specific agent is selected
-        if (value !== '') {
-            url.searchParams.set('filter_agent', value);
-        }
-        
-        window.location.href = url.toString();
-    });
-    
-    // Registrar filter - server-side
-    $('#filter_registrar').on('change', function() {
-        const value = $(this).val();
-        const url = new URL(window.location);
-        
-        url.searchParams.delete('filter_registrar');
-        
-        if (value !== '') {
-            url.searchParams.set('filter_registrar', value);
-        }
-        
-        window.location.href = url.toString();
-    });
-    
     // Update filter result count
     function updateFilterCount() {
         const info = table.page.info();
@@ -1545,6 +1692,11 @@ $(document).ready(function() {
         if ($('#filter_donor_type').val()) activeFilters.push('Type');
         if ($('#filter_payment_status').val()) activeFilters.push('Status');
         if ($('#filter_payment_method').val()) activeFilters.push('Payment Method');
+        if ($('#filter_assigned_agent').val()) activeFilters.push('Agent');
+        if ($('#filter_registrar').val()) activeFilters.push('Registered By');
+        if ($('#filter_min').val() || $('#filter_max').val()) activeFilters.push('Payment Amount');
+        if ($('#filter_min_pledge').val() || $('#filter_max_pledge').val()) activeFilters.push('Pledge Amount');
+        if ($('#filter_min_balance').val() || $('#filter_max_balance').val()) activeFilters.push('Balance');
         
         if (activeFilters.length > 0) {
             $('#filterResultCount').html(
