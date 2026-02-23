@@ -8,6 +8,11 @@ $db = db();
 $page_title = 'Assign Donors to Agents';
 $message = null;
 $message_type = 'info';
+$active_tab = isset($_GET['tab']) ? trim((string)$_GET['tab']) : 'all';
+$allowed_tabs = ['all', 'agents', 'random'];
+if (!in_array($active_tab, $allowed_tabs, true)) {
+    $active_tab = 'all';
+}
 
 if (isset($_GET['msg']) && $_GET['msg'] !== '') {
     $message = trim((string)$_GET['msg']);
@@ -52,12 +57,15 @@ $sort_column_map = [
 ];
 $order_by_clause = $sort_column_map[$sort_by] . ' ' . strtoupper($sort_order);
 
-function redirectAssignDonorsWithMessage(string $message, string $type = 'info'): void {
+function redirectAssignDonorsWithMessage(string $message, string $type = 'info', string $tab = 'all'): void {
     $allowed_types = ['success', 'warning', 'danger', 'info'];
     $safe_type = in_array($type, $allowed_types, true) ? $type : 'info';
+    $allowed_tabs = ['all', 'agents', 'random'];
+    $safe_tab = in_array($tab, $allowed_tabs, true) ? $tab : 'all';
     $params = [
         'msg' => $message,
-        'msg_type' => $safe_type
+        'msg_type' => $safe_type,
+        'tab' => $safe_tab
     ];
     header('Location: assign-donors.php?' . http_build_query($params));
     exit;
@@ -134,12 +142,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
         })));
 
         if (empty($selected_agent_ids)) {
-            redirectAssignDonorsWithMessage('Select at least one agent for random assignment.', 'warning');
+            redirectAssignDonorsWithMessage('Select at least one agent for random assignment.', 'warning', 'random');
         }
 
         $donors_per_agent = isset($_POST['random_per_agent']) ? (int)$_POST['random_per_agent'] : 0;
         if ($donors_per_agent < 1 || $donors_per_agent > 200) {
-            redirectAssignDonorsWithMessage('Donors per agent must be between 1 and 200.', 'warning');
+            redirectAssignDonorsWithMessage('Donors per agent must be between 1 and 200.', 'warning', 'random');
         }
 
         $assignment_scope = (string)($_POST['random_assignment_scope'] ?? 'unassigned');
@@ -197,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
         }
 
         if (empty($selected_agents)) {
-            redirectAssignDonorsWithMessage('No valid active agents were selected.', 'warning');
+            redirectAssignDonorsWithMessage('No valid active agents were selected.', 'warning', 'random');
         }
 
         $balance_expression = "(COALESCE(d.total_pledged, 0) - COALESCE(d.total_paid, 0))";
@@ -307,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
         $candidate_count = (int)($candidate_count_result['total'] ?? 0);
 
         if ($candidate_count === 0) {
-            redirectAssignDonorsWithMessage('No donors matched the selected random assignment filters.', 'warning');
+            redirectAssignDonorsWithMessage('No donors matched the selected random assignment filters.', 'warning', 'random');
         }
 
         $agent_ids = array_map('intval', array_column($selected_agents, 'id'));
@@ -332,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
         $candidate_stmt->close();
 
         if (empty($candidate_donor_ids)) {
-            redirectAssignDonorsWithMessage('No donors available to assign after applying random filters.', 'warning');
+            redirectAssignDonorsWithMessage('No donors available to assign after applying random filters.', 'warning', 'random');
         }
 
         shuffle($agent_ids);
@@ -363,7 +371,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
             $message .= " {$missing_total} donor slot(s) could not be filled because only {$candidate_count} donor(s) matched the filters.";
             $type = 'warning';
         }
-        redirectAssignDonorsWithMessage($message, $type);
+        redirectAssignDonorsWithMessage($message, $type, 'random');
     } catch (Exception $e) {
         try {
             $db->rollback();
@@ -371,7 +379,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['random_assign'])) {
             // Ignore rollback errors when no transaction is active.
         }
         error_log('Random assignment error: ' . $e->getMessage());
-        redirectAssignDonorsWithMessage('Random assignment failed: ' . $e->getMessage(), 'danger');
+        redirectAssignDonorsWithMessage('Random assignment failed: ' . $e->getMessage(), 'danger', 'random');
     }
 }
 
@@ -808,6 +816,10 @@ $params = [];
         .nav-tabs-modern {
             border-bottom: 2px solid #e9ecef;
             margin-bottom: 24px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
         }
 
         .nav-tabs-modern .nav-link {
@@ -818,6 +830,7 @@ $params = [];
             font-weight: 500;
             transition: all 0.2s;
             border-radius: 0;
+            white-space: nowrap;
         }
 
         .nav-tabs-modern .nav-link:hover {
@@ -1281,172 +1294,6 @@ $params = [];
                 </div>
             </div>
 
-            <!-- Fair Random Assignment -->
-            <div class="modern-card mb-3">
-                <div class="card-header">
-                    <i class="fas fa-shuffle me-2"></i>Fair Random Assignment
-                </div>
-                <div class="card-body">
-                    <form method="POST" id="randomAssignForm" onsubmit="return submitRandomAssignment();">
-                        <input type="hidden" name="random_assign" value="1">
-
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <h6 class="mb-1 text-primary">Step 1: Build donor pool filters</h6>
-                                <small class="text-muted">Set the donor criteria that should enter the random pool.</small>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label">Assignment Scope</label>
-                                <select name="random_assignment_scope" class="form-select">
-                                    <option value="unassigned">Unassigned only</option>
-                                    <option value="assigned">Assigned only</option>
-                                    <option value="all">Assigned + Unassigned</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label">Donation Activity</label>
-                                <select name="random_donation_type" class="form-select">
-                                    <option value="all">All</option>
-                                    <option value="pledge">Pledges only</option>
-                                    <option value="payment">Payments only</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label">Donor Type</label>
-                                <select name="random_donor_type" class="form-select">
-                                    <option value="all">All</option>
-                                    <option value="pledge">Pledge donor</option>
-                                    <option value="immediate_payment">Immediate payment donor</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label">Amount Bucket (Balance)</label>
-                                <select name="random_amount_bucket" class="form-select">
-                                    <option value="all">All balances</option>
-                                    <option value="under_100">Under 100</option>
-                                    <option value="between_100_400">100 to 400</option>
-                                    <option value="above_400">Above 400</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label">Payment Status</label>
-                                <select name="random_payment_status" class="form-select">
-                                    <option value="all">All statuses</option>
-                                    <option value="completed">Completed donors</option>
-                                    <option value="paying">Paying</option>
-                                    <option value="not_started">Not started</option>
-                                    <option value="overdue">Overdue</option>
-                                    <option value="defaulted">Defaulted</option>
-                                    <option value="no_pledge">No pledge</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label">Registered By (Optional)</label>
-                                <select name="random_registrar" class="form-select">
-                                    <option value="">All registrars/admins</option>
-                                    <?php if (!empty($registrars)): ?>
-                                        <?php foreach ($registrars as $registrar): ?>
-                                            <option value="<?php echo $registrar['id']; ?>">
-                                                <?php echo htmlspecialchars($registrar['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Search Name/Phone (Optional)</label>
-                                <input type="text" name="random_search" class="form-control" value="<?php echo htmlspecialchars($filter_search); ?>" placeholder="Name or phone">
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label">Min Pledge</label>
-                                <input type="number" name="random_min_pledge" class="form-control" step="0.01" min="0" value="<?php echo $filter_min_pledge !== null ? htmlspecialchars((string)$filter_min_pledge) : ''; ?>">
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label">Max Pledge</label>
-                                <input type="number" name="random_max_pledge" class="form-control" step="0.01" min="0" value="<?php echo $filter_max_pledge !== null ? htmlspecialchars((string)$filter_max_pledge) : ''; ?>">
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label">Min Balance</label>
-                                <input type="number" name="random_min_balance" class="form-control" step="0.01" min="0" value="<?php echo $filter_min_balance !== null ? htmlspecialchars((string)$filter_min_balance) : ''; ?>">
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label">Max Balance</label>
-                                <input type="number" name="random_max_balance" class="form-control" step="0.01" min="0" value="<?php echo $filter_max_balance !== null ? htmlspecialchars((string)$filter_max_balance) : ''; ?>">
-                            </div>
-
-                            <div class="col-12 pt-2">
-                                <h6 class="mb-1 text-primary">Step 2: Select target agents</h6>
-                                <small class="text-muted">Choose which active registrars/admins should receive donors.</small>
-                            </div>
-
-                            <div class="col-12">
-                                <?php if (!empty($agents)): ?>
-                                    <div class="d-flex align-items-center gap-2 mb-2">
-                                        <input type="checkbox" class="form-check-input mt-0" id="randomSelectAllAgents" onchange="toggleRandomSelectAll(this)">
-                                        <label class="form-check-label" for="randomSelectAllAgents">Select all agents</label>
-                                    </div>
-                                    <div class="row g-2">
-                                        <?php foreach ($agents as $agent): ?>
-                                            <div class="col-md-4 col-lg-3">
-                                                <div class="form-check border rounded p-2 h-100">
-                                                    <input
-                                                        class="form-check-input random-agent-checkbox"
-                                                        type="checkbox"
-                                                        name="random_agent_ids[]"
-                                                        value="<?php echo $agent['id']; ?>"
-                                                        id="randomAgent<?php echo $agent['id']; ?>"
-                                                        onchange="updateRandomPlan()">
-                                                    <label class="form-check-label ms-1" for="randomAgent<?php echo $agent['id']; ?>">
-                                                        <?php echo htmlspecialchars($agent['name']); ?>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="alert alert-warning mb-0">
-                                        No active agents are available for random assignment.
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="col-12 pt-2">
-                                <h6 class="mb-1 text-primary">Step 3: Set equal load and run</h6>
-                                <small class="text-muted">Define donors per agent and execute random assignment.</small>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label">Donors per agent</label>
-                                <input type="number" name="random_per_agent" id="randomPerAgent" class="form-control" min="1" max="200" value="3" oninput="updateRandomPlan()">
-                            </div>
-
-                            <div class="col-md-8 d-flex align-items-end">
-                                <div class="w-100 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                    <div class="small text-muted">
-                                        Planned: <strong id="randomPlanCount">0</strong> donor(s) for
-                                        <strong id="randomSelectedAgentsCount">0</strong> selected agent(s).
-                                    </div>
-                                    <button type="submit" class="btn btn-warning btn-modern">
-                                        <i class="fas fa-random me-1"></i>Run Fair Random Assignment
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
             <!-- Loading Overlay -->
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="loading-spinner"></div>
@@ -1486,20 +1333,25 @@ $params = [];
             <!-- Tabs -->
             <ul class="nav nav-tabs nav-tabs-modern" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
+                    <button class="nav-link <?php echo $active_tab === 'all' ? 'active' : ''; ?>" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-selected="<?php echo $active_tab === 'all' ? 'true' : 'false'; ?>">
                         <i class="fas fa-list me-2"></i>All Donors
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="agents-tab" data-bs-toggle="tab" data-bs-target="#agents" type="button" role="tab">
+                    <button class="nav-link <?php echo $active_tab === 'agents' ? 'active' : ''; ?>" id="agents-tab" data-bs-toggle="tab" data-bs-target="#agents" type="button" role="tab" aria-selected="<?php echo $active_tab === 'agents' ? 'true' : 'false'; ?>">
                         <i class="fas fa-users me-2"></i>By Agents
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link <?php echo $active_tab === 'random' ? 'active' : ''; ?>" id="random-tab" data-bs-toggle="tab" data-bs-target="#random" type="button" role="tab" aria-selected="<?php echo $active_tab === 'random' ? 'true' : 'false'; ?>">
+                        <i class="fas fa-shuffle me-2"></i>Fair Random Assignment
                     </button>
                 </li>
             </ul>
             
             <div class="tab-content" id="myTabContent">
                 <!-- All Donors Tab -->
-                <div class="tab-pane fade show active" id="all" role="tabpanel">
+                <div class="tab-pane fade <?php echo $active_tab === 'all' ? 'show active' : ''; ?>" id="all" role="tabpanel">
                     <div class="modern-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
@@ -1617,7 +1469,7 @@ $params = [];
                                 </div>
                 
                 <!-- By Agents Tab -->
-                <div class="tab-pane fade" id="agents" role="tabpanel">
+                <div class="tab-pane fade <?php echo $active_tab === 'agents' ? 'show active' : ''; ?>" id="agents" role="tabpanel">
                     <div class="accordion accordion-modern" id="agentsAccordion">
                         <?php
                         $accordion_index = 0;
@@ -1751,6 +1603,174 @@ $params = [];
 </div>
             </div>
                 <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Fair Random Assignment Tab -->
+            <div class="tab-pane fade <?php echo $active_tab === 'random' ? 'show active' : ''; ?>" id="random" role="tabpanel">
+                <div class="modern-card">
+                    <div class="card-header">
+                        <i class="fas fa-shuffle me-2"></i>Fair Random Assignment
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="randomAssignForm" onsubmit="return submitRandomAssignment();">
+                            <input type="hidden" name="random_assign" value="1">
+
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <h6 class="mb-1 text-primary">Step 1: Build donor pool filters</h6>
+                                    <small class="text-muted">Set the donor criteria that should enter the random pool.</small>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Assignment Scope</label>
+                                    <select name="random_assignment_scope" class="form-select">
+                                        <option value="unassigned">Unassigned only</option>
+                                        <option value="assigned">Assigned only</option>
+                                        <option value="all">Assigned + Unassigned</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Donation Activity</label>
+                                    <select name="random_donation_type" class="form-select">
+                                        <option value="all">All</option>
+                                        <option value="pledge">Pledges only</option>
+                                        <option value="payment">Payments only</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Donor Type</label>
+                                    <select name="random_donor_type" class="form-select">
+                                        <option value="all">All</option>
+                                        <option value="pledge">Pledge donor</option>
+                                        <option value="immediate_payment">Immediate payment donor</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Amount Bucket (Balance)</label>
+                                    <select name="random_amount_bucket" class="form-select">
+                                        <option value="all">All balances</option>
+                                        <option value="under_100">Under 100</option>
+                                        <option value="between_100_400">100 to 400</option>
+                                        <option value="above_400">Above 400</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Payment Status</label>
+                                    <select name="random_payment_status" class="form-select">
+                                        <option value="all">All statuses</option>
+                                        <option value="completed">Completed donors</option>
+                                        <option value="paying">Paying</option>
+                                        <option value="not_started">Not started</option>
+                                        <option value="overdue">Overdue</option>
+                                        <option value="defaulted">Defaulted</option>
+                                        <option value="no_pledge">No pledge</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Registered By (Optional)</label>
+                                    <select name="random_registrar" class="form-select">
+                                        <option value="">All registrars/admins</option>
+                                        <?php if (!empty($registrars)): ?>
+                                            <?php foreach ($registrars as $registrar): ?>
+                                                <option value="<?php echo $registrar['id']; ?>">
+                                                    <?php echo htmlspecialchars($registrar['name']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Search Name/Phone (Optional)</label>
+                                    <input type="text" name="random_search" class="form-control" value="<?php echo htmlspecialchars($filter_search); ?>" placeholder="Name or phone">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label">Min Pledge</label>
+                                    <input type="number" name="random_min_pledge" class="form-control" step="0.01" min="0" value="<?php echo $filter_min_pledge !== null ? htmlspecialchars((string)$filter_min_pledge) : ''; ?>">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label">Max Pledge</label>
+                                    <input type="number" name="random_max_pledge" class="form-control" step="0.01" min="0" value="<?php echo $filter_max_pledge !== null ? htmlspecialchars((string)$filter_max_pledge) : ''; ?>">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label">Min Balance</label>
+                                    <input type="number" name="random_min_balance" class="form-control" step="0.01" min="0" value="<?php echo $filter_min_balance !== null ? htmlspecialchars((string)$filter_min_balance) : ''; ?>">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label">Max Balance</label>
+                                    <input type="number" name="random_max_balance" class="form-control" step="0.01" min="0" value="<?php echo $filter_max_balance !== null ? htmlspecialchars((string)$filter_max_balance) : ''; ?>">
+                                </div>
+
+                                <div class="col-12 pt-2">
+                                    <h6 class="mb-1 text-primary">Step 2: Select target agents</h6>
+                                    <small class="text-muted">Choose which active registrars/admins should receive donors.</small>
+                                </div>
+
+                                <div class="col-12">
+                                    <?php if (!empty($agents)): ?>
+                                        <div class="d-flex align-items-center gap-2 mb-2">
+                                            <input type="checkbox" class="form-check-input mt-0" id="randomSelectAllAgents" onchange="toggleRandomSelectAll(this)">
+                                            <label class="form-check-label" for="randomSelectAllAgents">Select all agents</label>
+                                        </div>
+                                        <div class="row g-2">
+                                            <?php foreach ($agents as $agent): ?>
+                                                <div class="col-sm-6 col-md-4 col-lg-3">
+                                                    <div class="form-check border rounded p-2 h-100">
+                                                        <input
+                                                            class="form-check-input random-agent-checkbox"
+                                                            type="checkbox"
+                                                            name="random_agent_ids[]"
+                                                            value="<?php echo $agent['id']; ?>"
+                                                            id="randomAgent<?php echo $agent['id']; ?>"
+                                                            onchange="updateRandomPlan()">
+                                                        <label class="form-check-label ms-1" for="randomAgent<?php echo $agent['id']; ?>">
+                                                            <?php echo htmlspecialchars($agent['name']); ?>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="alert alert-warning mb-0">
+                                            No active agents are available for random assignment.
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="col-12 pt-2">
+                                    <h6 class="mb-1 text-primary">Step 3: Set equal load and run</h6>
+                                    <small class="text-muted">Define donors per agent and execute random assignment.</small>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Donors per agent</label>
+                                    <input type="number" name="random_per_agent" id="randomPerAgent" class="form-control" min="1" max="200" value="3" oninput="updateRandomPlan()">
+                                </div>
+
+                                <div class="col-md-8 d-flex align-items-end">
+                                    <div class="w-100 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                        <div class="small text-muted">
+                                            Planned: <strong id="randomPlanCount">0</strong> donor(s) for
+                                            <strong id="randomSelectedAgentsCount">0</strong> selected agent(s).
+                                        </div>
+                                        <button type="submit" class="btn btn-warning btn-modern">
+                                            <i class="fas fa-random me-1"></i>Run Fair Random Assignment
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
             </div>
@@ -1970,6 +1990,20 @@ if (filterPanel && filterChevron) {
         filterChevron.classList.add('fa-chevron-down');
     });
 }
+
+const tabButtons = document.querySelectorAll('#myTab button[data-bs-toggle="tab"]');
+tabButtons.forEach((button) => {
+    button.addEventListener('shown.bs.tab', (event) => {
+        const targetPane = event.target.getAttribute('data-bs-target');
+        if (!targetPane || !targetPane.startsWith('#')) {
+            return;
+        }
+        const tabName = targetPane.substring(1);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tabName);
+        window.history.replaceState({}, '', url);
+    });
+});
 
 updateRandomPlan();
 
