@@ -22,6 +22,7 @@ class VoodooSMSService
     private string $senderId;
     private ?int $providerId;
     private $db;
+    private ?array $lastRequestDebug = null;
     
     /**
      * Constructor
@@ -210,23 +211,65 @@ class VoodooSMSService
             'format' => 'json'
         ];
         
-        $response = $this->makeRequest(self::BALANCE_ENDPOINT, $params);
+        $this->lastRequestDebug = [
+            'request' => [
+                'method' => 'POST',
+                'url' => self::API_BASE_URL . self::BALANCE_ENDPOINT,
+                'params' => [
+                    'uid' => $this->apiKey,
+                    'pass' => '[REDACTED]',
+                    'format' => 'json'
+                ],
+            ],
+            'transport' => null,
+            'response' => null
+        ];
+        
+        $requestResult = $this->makeRequestWithDebug(self::BALANCE_ENDPOINT, $params);
+        $response = $requestResult['body'];
+        $this->lastRequestDebug['transport'] = $requestResult['transport'];
+        $this->lastRequestDebug['response'] = $requestResult['response'];
         
         if ($response === false) {
+            $transportError = $this->lastRequestDebug['transport']['curl_error'] ?? '';
+            $transportCode = $this->lastRequestDebug['transport']['curl_error_no'] ?? '';
+            $httpCode = $this->lastRequestDebug['transport']['http_status'] ?? 0;
+            
+            $errorMessage = 'Failed to connect to VoodooSMS API';
+            if ($transportError !== '') {
+                $errorMessage .= ': ' . $transportError;
+                if ($transportCode !== '') {
+                    $errorMessage .= ' (code ' . $transportCode . ')';
+                }
+            } elseif ($httpCode > 0) {
+                $errorMessage .= ': HTTP ' . $httpCode;
+            }
+            
             return [
                 'success' => false,
                 'credits' => 0,
-                'error' => 'Failed to connect to VoodooSMS API'
+                'error' => $errorMessage
             ];
         }
         
         $parsed = $this->parseResponse($response);
         
         if (!$parsed['success']) {
+            $errorCode = $parsed['error_code'] ?? 'UNKNOWN';
+            $errorMessage = $parsed['error'] ?? 'Unknown error';
+            $httpCode = $this->lastRequestDebug['transport']['http_status'] ?? 0;
+
+            if ($httpCode === 401) {
+                $errorMessage = 'Invalid credentials (HTTP 401). ' . $errorMessage;
+            } elseif ($errorCode === '400') {
+                $errorMessage = 'Authentication failed. ' . $errorMessage;
+            }
+            
             return [
                 'success' => false,
                 'credits' => 0,
-                'error' => $parsed['error'] ?? 'Unknown error'
+                'error' => $errorMessage,
+                'error_code' => $errorCode
             ];
         }
         
@@ -244,9 +287,42 @@ class VoodooSMSService
      */
     public function testConnection(): array
     {
+        return $this->testConnectionWithDetails(false);
+    }
+    
+    /**
+     * Test connection and credentials with transport diagnostics
+     * 
+     * @return array ['success' => bool, 'message' => string, 'credits' => int, 'debug' => array]
+     */
+    public function testConnectionWithDetails(bool $withDetails = true): array
+    {
         $balance = $this->getBalance();
+        $debug = [
+            'provider' => 'voodoosms',
+            'endpoint' => self::API_BASE_URL . self::BALANCE_ENDPOINT,
+            'tested_at' => gmdate('c'),
+            'php_version' => PHP_VERSION,
+            'curl_enabled' => function_exists('curl_version'),
+            'sender_id' => $this->senderId
+        ];
+        
+        if ($this->lastRequestDebug) {
+            $debug['request'] = $this->lastRequestDebug['request'] ?? [];
+            $debug['transport'] = $this->lastRequestDebug['transport'] ?? [];
+            $debug['response'] = $this->lastRequestDebug['response'] ?? null;
+        }
         
         if ($balance['success']) {
+            if ($withDetails) {
+                return [
+                    'success' => true,
+                    'message' => 'Connection successful! Credits available: ' . $balance['credits'],
+                    'credits' => $balance['credits'],
+                    'debug' => $debug
+                ];
+            }
+            
             return [
                 'success' => true,
                 'message' => 'Connection successful! Credits available: ' . $balance['credits'],
@@ -257,7 +333,8 @@ class VoodooSMSService
         return [
             'success' => false,
             'message' => 'Connection failed: ' . ($balance['error'] ?? 'Unknown error'),
-            'credits' => 0
+            'credits' => 0,
+            'debug' => $withDetails ? $debug : null
         ];
     }
     
@@ -330,7 +407,50 @@ class VoodooSMSService
      */
     private function makeRequest(string $endpoint, array $params)
     {
+        return $this->makeRequestWithDebug($endpoint, $params)['body'];
+    }
+    
+    /**
+     * Make HTTP request to VoodooSMS API and return transport metadata
+     * 
+     * @param string $endpoint API endpoint
+     * @param array $params Request parameters
+     * @return array {body: string|false, transport: array, response: ?string}
+     */
+    private function makeRequestWithDebug(string $endpoint, array $params): array
+    {
         $url = self::API_BASE_URL . $endpoint;
+        
+        if (!function_exists('curl_init')) {
+            return [
+                'body' => false,
+                'transport' => [
+                    'http_status' => 0,
+                    'curl_error' => 'cURL extension is not enabled in PHP',
+                    'curl_error_no' => -1,
+                    'url' => $url,
+                    'endpoint' => $endpoint,
+                    'response_status' => 0,
+                    'response_length' => 0,
+                    'response_preview' => null,
+                    'response_headers_preview' => null,
+                    'ssl_verify_result' => null,
+                    'dns_lookup_time_ms' => null,
+                    'connect_time_ms' => null,
+                    'total_time_ms' => null,
+                    'request_payload' => []
+                ],
+                'response' => null
+            ];
+        }
+        
+        $sanitizedPayload = $params;
+        if (isset($sanitizedPayload['pass'])) {
+            $sanitizedPayload['pass'] = '[REDACTED]';
+        }
+        if (isset($sanitizedPayload['uid'])) {
+            $sanitizedPayload['uid'] = '[REDACTED]';
+        }
         
         $ch = curl_init();
         
@@ -338,7 +458,9 @@ class VoodooSMSService
             CURLOPT_URL => $url,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($params),
+            CURLOPT_HEADER => true,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_USERAGENT => 'Fundraising-App/1.0',
             CURLOPT_TIMEOUT => 30,
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_FOLLOWLOCATION => true,
@@ -351,22 +473,74 @@ class VoodooSMSService
         ]);
         
         $response = curl_exec($ch);
+        $headerSize = is_int(curl_getinfo($ch, CURLINFO_HEADER_SIZE)) ? curl_getinfo($ch, CURLINFO_HEADER_SIZE) : 0;
+        $rawResponse = $response === false ? '' : (string)$response;
+        $headerText = is_string($rawResponse) && $headerSize > 0 ? substr($rawResponse, 0, $headerSize) : null;
+        $responseBody = is_string($rawResponse) && $headerSize > 0 ? substr($rawResponse, $headerSize) : $rawResponse;
+        if (!is_string($responseBody)) {
+            $responseBody = null;
+        }
+        
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        $info = curl_getinfo($ch);
+        $errorNo = curl_errno($ch);
         
         curl_close($ch);
         
+        $transport = [
+            'http_status' => (int)$httpCode,
+            'curl_error' => $error,
+            'curl_error_no' => $errorNo,
+            'url' => $url,
+            'endpoint' => $endpoint,
+            'response_status' => $info['http_code'] ?? null,
+            'response_length' => is_string($responseBody) ? strlen($responseBody) : 0,
+            'response_preview' => is_string($responseBody) ? substr($responseBody, 0, 400) : null,
+            'response_headers_preview' => $headerText,
+            'ssl_verify_result' => $info['ssl_verify_result'] ?? null,
+            'dns_lookup_time_ms' => isset($info['namelookup_time']) ? (int)round($info['namelookup_time'] * 1000) : null,
+            'connect_time_ms' => isset($info['connect_time']) ? (int)round($info['connect_time'] * 1000) : null,
+            'total_time_ms' => isset($info['total_time']) ? (int)round($info['total_time'] * 1000) : null,
+            'request_payload' => $sanitizedPayload,
+            'content_type' => $info['content_type'] ?? null,
+            'primary_ip' => $info['primary_ip'] ?? null,
+            'remote_ip' => $info['primary_ip'] ?? null,
+            'local_ip' => $info['local_ip'] ?? null
+        ];
+        
         if ($error) {
             error_log("VoodooSMS cURL error: $error");
-            return false;
+            return [
+                'body' => false,
+                'transport' => $transport,
+                'response' => null
+            ];
         }
         
-        if ($response === false || $response === '') {
+        if ($responseBody === '' || $responseBody === null) {
             error_log("VoodooSMS request failed. HTTP code: $httpCode");
-            return false;
+            return [
+                'body' => false,
+                'transport' => $transport,
+                'response' => null
+            ];
         }
         
-        return $response;
+        if ($httpCode >= 500 || $httpCode < 200 || $httpCode >= 300) {
+            error_log("VoodooSMS request returned non-success HTTP code: $httpCode");
+            return [
+                'body' => (string)$responseBody,
+                'transport' => $transport,
+                'response' => $responseBody
+            ];
+        }
+        
+        return [
+            'body' => $responseBody,
+            'transport' => $transport,
+            'response' => $responseBody
+        ];
     }
     
     /**

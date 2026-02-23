@@ -76,6 +76,10 @@ $settings = [];
 $error_message = null;
 $success_message = $_SESSION['success_message'] ?? null;
 unset($_SESSION['success_message']);
+$connection_diagnostic = $_SESSION['sms_connection_diagnostic'] ?? null;
+unset($_SESSION['sms_connection_diagnostic']);
+$connection_status = $_SESSION['sms_connection_status'] ?? null;
+unset($_SESSION['sms_connection_status']);
 $tables_missing = true;
 $providers_table_exists = false;
 $settings_table_exists = false;
@@ -120,26 +124,58 @@ if ($db) {
             $settings_table_exists = $check_result && $check_result->num_rows > 0;
             
             // Test VoodooSMS connection
-            if ($action === 'test_connection') {
+            if ($action === 'test_connection' || $action === 'test_connection_detailed') {
                 require_once __DIR__ . '/../../../services/VoodooSMSService.php';
                 
                 $api_key = trim($_POST['api_key'] ?? '');
                 $api_secret = trim($_POST['api_secret'] ?? '');
                 $sender_id = trim($_POST['sender_id'] ?? 'ATEOTC');
+
+                // Always clear prior diagnostic state when a new test starts
+                $connection_status = null;
+                $connection_diagnostic = null;
+                unset($_SESSION['sms_connection_status'], $_SESSION['sms_connection_diagnostic']);
                 
                 if (empty($api_key) || empty($api_secret)) {
                     throw new Exception('Username and Password are required to test connection.');
                 }
                 
                 $sms = new VoodooSMSService($api_key, $api_secret, $sender_id);
-                $result = $sms->testConnection();
-                
+                $isDetailedTest = ($action === 'test_connection_detailed');
+                $result = $isDetailedTest ? $sms->testConnectionWithDetails() : $sms->testConnection();
+
                 if ($result['success']) {
-                    $_SESSION['success_message'] = '✅ ' . $result['message'];
+                    $connection_status = [
+                        'result' => 'success',
+                        'message' => $result['message'],
+                        'debug' => $result['debug'] ?? null
+                    ];
+                    $_SESSION['success_message'] = 'Connection OK: ' . $result['message'];
+                    $_SESSION['sms_connection_status'] = $connection_status;
                 } else {
+                    $connection_status = [
+                        'result' => 'error',
+                        'message' => $result['message'],
+                        'debug' => $result['debug'] ?? null
+                    ];
+                    $_SESSION['sms_connection_status'] = $connection_status;
+                    if ($isDetailedTest) {
+                        $connection_diagnostic = $result['debug'] ?? null;
+                        $_SESSION['sms_connection_diagnostic'] = $connection_diagnostic;
+                    } else {
+                        unset($_SESSION['sms_connection_diagnostic']);
+                    }
                     throw new Exception($result['message']);
                 }
                 
+                if ($isDetailedTest) {
+                    $connection_diagnostic = $result['debug'] ?? null;
+                    $_SESSION['sms_connection_diagnostic'] = $connection_diagnostic;
+                } else {
+                    $connection_diagnostic = null;
+                    unset($_SESSION['sms_connection_diagnostic']);
+                }
+
                 header('Location: settings.php');
                 exit;
             }
@@ -406,6 +442,26 @@ $settings = array_merge([
                     </div>
                 <?php endif; ?>
                 
+                <?php if (is_array($connection_status)): ?>
+                <div class="alert alert-<?php echo $connection_status['result'] === 'success' ? 'info' : 'danger'; ?> alert-dismissible fade show">
+                    <i class="fas fa-<?php echo $connection_status['result'] === 'success' ? 'info-circle' : 'exclamation-triangle'; ?> me-2"></i>
+                    <?php echo htmlspecialchars($connection_status['message']); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+                
+                <?php if (is_array($connection_diagnostic)): ?>
+                <div class="card border-0 bg-light mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-stethoscope me-2"></i>VoodooSMS Test Diagnostics</h6>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="copyReportBtn">Copy Report</button>
+                    </div>
+                    <div class="card-body">
+                        <pre class="mb-0 small bg-dark text-light p-3 rounded" style="max-height: 320px; overflow: auto;"><?php echo htmlspecialchars(json_encode($connection_diagnostic, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)); ?></pre>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
                 <div class="row g-4">
                     <!-- Providers -->
                     <div class="col-12 col-lg-6">
@@ -628,12 +684,15 @@ $settings = array_merge([
                 <div class="modal-footer">
                     <?php if ($edit_provider): ?>
                         <button type="submit" name="action" value="delete_provider" class="btn btn-outline-danger me-auto"
-                                onclick="return confirm('Delete this provider?');">
+                                 onclick="return confirm('Delete this provider?');">
                             <i class="fas fa-trash"></i>
                         </button>
                     <?php endif; ?>
                     <button type="submit" name="action" value="test_connection" class="btn btn-outline-info">
                         <i class="fas fa-plug me-1"></i>Test Connection
+                    </button>
+                    <button type="submit" name="action" value="test_connection_detailed" class="btn btn-outline-warning">
+                        <i class="fas fa-microscope me-1"></i>Test Connection + Report
                     </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Provider</button>
@@ -645,6 +704,33 @@ $settings = array_merge([
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/admin.js"></script>
+<?php if (is_array($connection_diagnostic)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var copyBtn = document.getElementById('copyReportBtn');
+    if (!copyBtn) {
+        return;
+    }
+
+    copyBtn.addEventListener('click', async function () {
+        var report = <?php echo json_encode(json_encode($connection_diagnostic, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)); ?>;
+        try {
+            await navigator.clipboard.writeText(report);
+            copyBtn.textContent = 'Copied';
+            setTimeout(function () {
+                copyBtn.textContent = 'Copy Report';
+            }, 1200);
+        } catch (error) {
+            copyBtn.textContent = 'Copy failed';
+            setTimeout(function () {
+                copyBtn.textContent = 'Copy Report';
+            }, 1200);
+            alert('Copy failed. You can manually select the report text.');
+        }
+    });
+});
+</script>
+<?php endif; ?>
 <?php if ($edit_provider): ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
