@@ -255,22 +255,18 @@ try {
             throw new Exception('Please select how the donor paid before completing a paid-claim call.');
         }
 
-        if (!$paid_whatsapp_sent) {
-            throw new Exception('Please send the WhatsApp proof request before completing a paid-claim call.');
-        }
-
         // Record paid claim details and evidence notes for follow-up.
         $proof_method = $payment_method !== '' ? ucfirst(str_replace('_', ' ', $payment_method)) : 'Unknown';
         $notes_parts = [
             'Donor reported that they already paid the full pledge.',
             "Payment method: {$proof_method}."
         ];
-        
+
         if ($paid_payment_evidence !== '') {
             $notes_parts[] = "Evidence notes: {$paid_payment_evidence}.";
         }
-        
-        $notes_parts[] = 'Proof request sent via WhatsApp: ' . ($paid_whatsapp_sent ? 'Yes' : 'No');
+
+        $notes_parts[] = 'Proof request sent via WhatsApp: ' . ($paid_whatsapp_sent ? 'Yes' : 'No (skipped)');
         $session_notes = ' ' . implode(' ', $notes_parts);
         
         // 1a. Update session outcome and close call

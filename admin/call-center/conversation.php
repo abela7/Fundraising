@@ -903,8 +903,8 @@ $page_title = 'Live Call';
                                     <!-- selected payment method for already paid flow is stored in the top-level paidPaymentMethodInput field -->
                                 </div>
                                 
-                                <div class="alert alert-info">
-                                    <p class="mb-2"><strong>Send donor:</strong> Sorry for the earlier confusion. Since you already paid, ask them to send any screenshot, transfer reference, or payment day so we can confirm your payment. May God bless you.</p>
+                                <div class="alert alert-info mb-3">
+                                    <p class="mb-2"><strong>Request proof from donor:</strong> Ask them to send any screenshot, transfer reference, or payment day so we can confirm their payment.</p>
                                     <div class="form-check mb-3">
                                         <input type="checkbox" class="form-check-input" id="paidWhatsappDifferentNumber" onchange="togglePaidWhatsappNumberInput(this)">
                                         <label class="form-check-label" for="paidWhatsappDifferentNumber">Use a different WhatsApp number</label>
@@ -923,6 +923,10 @@ $page_title = 'Live Call';
                                         <i class="fab fa-whatsapp me-1"></i>Send WhatsApp Request to Donor
                                     </button>
                                     <div id="paidWhatsappStatus" class="small text-muted mt-2">No request sent yet.</div>
+                                </div>
+                                <div id="paidSkipNotice" class="alert alert-warning py-2 mb-3" style="font-size: 0.8125rem;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    WhatsApp proof request is <strong>optional</strong>. You can complete the call without sending it.
                                 </div>
                                 
                                 <div class="mb-3">
@@ -1817,16 +1821,16 @@ $page_title = 'Live Call';
     function selectPaidPaymentMethod(method, clickedElement) {
         const paidMethodInput = document.getElementById('paidPaymentMethodInput');
         const nextBtn = document.getElementById('btnStep3Next');
-        const paidWhsInput = document.getElementById('paidWhatsappSentInput');
-        
+
         if (paidMethodInput) {
             paidMethodInput.value = method;
         }
         setActiveChoice('step3', clickedElement);
-        
-        if (nextBtn) {
-            const sent = paidWhsInput && paidWhsInput.value === '1';
-            nextBtn.disabled = !(method && sent);
+
+        // Enable the Complete Call button as soon as a payment method is selected.
+        // WhatsApp proof request is recommended but not required.
+        if (nextBtn && method) {
+            nextBtn.disabled = false;
         }
     }
     
@@ -1882,12 +1886,11 @@ function sendPaidWhatsAppRequest() {
         .then(data => {
             if (data.success) {
                 statusEl.className = 'small text-success';
-                statusEl.textContent = data.message || 'WhatsApp request sent.';
+                statusEl.textContent = data.message || 'WhatsApp request sent successfully!';
                 paidWhsInput.value = '1';
-                const nextBtn = document.getElementById('btnStep3Next');
-                if (nextBtn) {
-                    nextBtn.disabled = false;
-                }
+                // Hide the skip notice if it was shown
+                const skipNotice = document.getElementById('paidSkipNotice');
+                if (skipNotice) skipNotice.classList.add('d-none');
             } else {
                 throw new Error(data.error || 'Failed to send WhatsApp request.');
             }
