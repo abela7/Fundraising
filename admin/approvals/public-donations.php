@@ -361,19 +361,14 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
     </style>
 </head>
 <body>
-<div class="dashboard-layout">
-    <div class="dashboard-main">
-        <?php include __DIR__ . '/../includes/topbar.php'; ?>
-        <?php
-        try {
-            include __DIR__ . '/../includes/sidebar.php';
-        } catch (Throwable $e) {
-            // Non-fatal if sidebar include has an issue in this environment
-        }
-        ?>
+<div class="admin-wrapper">
+    <?php include __DIR__ . '/../includes/sidebar.php'; ?>
 
-        <main class="dashboard-content">
-            <div class="container-fluid px-3 py-3">
+    <div class="admin-content">
+        <?php include __DIR__ . '/../includes/topbar.php'; ?>
+
+        <main class="main-content">
+            <div class="container-fluid">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
                     <div>
                         <h1 class="h4 mb-1">Public Donation Requests</h1>
@@ -682,6 +677,7 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const messages = document.querySelectorAll('.request-message span[title]');
