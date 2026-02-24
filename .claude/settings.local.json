@@ -5,7 +5,10 @@
       "WebFetch(domain:docs.ultramsg.com)",
       "Bash(find:*)",
       "Bash(dir:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(findstr:*)",
+      "Bash(grep:*)",
+      "Bash(test:*)"
     ]
   }
 }
