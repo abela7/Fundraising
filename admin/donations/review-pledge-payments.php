@@ -2690,16 +2690,12 @@ sendNotification = async function() {
 
         const certResult = await certRes.json();
 
-        if (!certResult.success) {
+        if (certResult.success) {
+            showSendSuccess('Certificate + Message Sent!');
+        } else {
             console.warn('Certificate send failed:', certResult.error);
             throw new Error(certResult.error || 'Failed to send certificate');
         }
-
-        showSendSuccess(
-            routing.routedToKesis
-                ? 'Sent to ' + routing.assignedName + '!'
-                : 'Certificate + Message Sent!'
-        );
 
     } catch (err) {
         console.error('Send error:', err);
