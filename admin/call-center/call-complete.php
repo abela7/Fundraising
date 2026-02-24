@@ -131,10 +131,10 @@ if (
     $lookup = $db->prepare("
         SELECT id, donor_id, outcome, conversation_stage, queue_id
         FROM call_center_sessions
-        WHERE id = ? AND donor_id = ?
+        WHERE id = ?
         LIMIT 1
     ");
-    $lookup->bind_param('ii', $post_session_id, $post_donor_id);
+    $lookup->bind_param('i', $post_session_id);
     $lookup->execute();
     $lookup_result = $lookup->get_result()->fetch_assoc();
     $lookup->close();
@@ -151,7 +151,21 @@ if (
     $db->begin_transaction();
 
     try {
-        $notes_append = "\nMarked as previously paid by agent on " . date('Y-m-d H:i:s') . '.';
+    $effective_donor_id = (int)($lookup_result['donor_id'] ?? 0);
+    if (!$effective_donor_id) {
+        $_SESSION['call_complete_flash'] = [
+            'type' => 'danger',
+            'message' => 'Session lookup returned no donor.'
+        ];
+        header("Location: call-complete.php?session_id={$post_session_id}");
+        exit;
+    }
+
+    if ($post_donor_id !== $effective_donor_id) {
+        $post_donor_id = $effective_donor_id;
+    }
+
+    $notes_append = "\nMarked as previously paid by agent on " . date('Y-m-d H:i:s') . '.';
         $session_update = "
             UPDATE call_center_sessions
             SET outcome = 'agreed_to_pay_full',
@@ -170,6 +184,9 @@ if (
         }
         $stmt->bind_param('sii', $notes_append, $post_session_id, $post_donor_id);
         $stmt->execute();
+        if (($stmt->affected_rows ?? 0) < 1) {
+            throw new Exception('Session record was not updated.');
+        }
         $stmt->close();
 
         if (!empty($lookup_result['queue_id'])) {
@@ -411,5 +428,26 @@ $page_title = 'Call Completed';
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+if (typeof window.toggleSidebar !== 'function') {
+    window.toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+        const body = document.body;
+
+        if (!sidebar || !sidebarOverlay) {
+            return;
+        }
+
+        if (window.innerWidth <= 991.98) {
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+            body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+        } else {
+            body.classList.toggle('sidebar-collapsed');
+        }
+    };
+}
+</script>
 </body>
 </html>
