@@ -2694,6 +2694,15 @@ sendNotification = async function() {
             showSendSuccess('Certificate + Message Sent!');
         } else {
             console.warn('Certificate send failed:', certResult.error);
+<<<<<<< HEAD
+        showSendSuccess(
+            routing.routedToKesis
+                ? 'Sent to ' + routing.assignedName + '!'
+                : 'Certificate + Message Sent!'
+        );
+
+=======
+>>>>>>> origin/laughing-roentgen
             throw new Error(certResult.error || 'Failed to send certificate');
         }
 
