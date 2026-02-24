@@ -107,6 +107,7 @@ if (!$session_record) {
 $donor_id = (int)$session_record['donor_id'];
 $session_id = (int)$session_record['id'];
 
+// ── Handle POST: Mark as Previously Paid ──
 if (
     $_SERVER['REQUEST_METHOD'] === 'POST'
     && ($_POST['action'] ?? '') === 'mark_previously_paid'
@@ -151,27 +152,28 @@ if (
     $db->begin_transaction();
 
     try {
-    $effective_donor_id = (int)($lookup_result['donor_id'] ?? 0);
-    if (!$effective_donor_id) {
-        $_SESSION['call_complete_flash'] = [
-            'type' => 'danger',
-            'message' => 'Session lookup returned no donor.'
-        ];
-        header("Location: call-complete.php?session_id={$post_session_id}");
-        exit;
-    }
+        $effective_donor_id = (int)($lookup_result['donor_id'] ?? 0);
+        if (!$effective_donor_id) {
+            $_SESSION['call_complete_flash'] = [
+                'type' => 'danger',
+                'message' => 'Session lookup returned no donor.'
+            ];
+            $db->rollback();
+            header("Location: call-complete.php?session_id={$post_session_id}");
+            exit;
+        }
 
-    if ($post_donor_id !== $effective_donor_id) {
-        $post_donor_id = $effective_donor_id;
-    }
+        if ($post_donor_id !== $effective_donor_id) {
+            $post_donor_id = $effective_donor_id;
+        }
 
-    $notes_append = "\nMarked as previously paid by agent on " . date('Y-m-d H:i:s') . '.';
+        $notes_append = "\nMarked as previously paid by agent on " . date('Y-m-d H:i:s') . '.';
         $session_update = "
             UPDATE call_center_sessions
             SET outcome = 'agreed_to_pay_full',
                 conversation_stage = 'success_pledged',
                 notes = CONCAT(COALESCE(notes, ''), ?),
-                call_ended_at = NOW()
+                call_ended_at = COALESCE(call_ended_at, NOW())
         ";
         if ($has_claimed_paid_column) {
             $session_update .= ", donor_claimed_already_paid = 1";
@@ -185,7 +187,7 @@ if (
         $stmt->bind_param('sii', $notes_append, $post_session_id, $post_donor_id);
         $stmt->execute();
         if (($stmt->affected_rows ?? 0) < 1) {
-            throw new Exception('Session record was not updated.');
+            throw new Exception('Session record was not updated — check session_id and donor_id match.');
         }
         $stmt->close();
 
@@ -242,11 +244,11 @@ if (
     exit;
 }
 
-// Fetch Session and Donor Info
+// ── Fetch Session + Donor for display ──
 $claimed_paid_select = $has_claimed_paid_column ? 's.donor_claimed_already_paid' : '0 AS donor_claimed_already_paid';
 
 $query = "
-    SELECT 
+    SELECT
         s.outcome, s.conversation_stage, s.duration_seconds, s.call_started_at, s.call_ended_at, s.notes,
         {$claimed_paid_select},
         d.total_pledged,
@@ -280,21 +282,31 @@ $total_paid = (float)($result->total_paid ?? 0);
 $balance = (float)($result->balance ?? ($total_pledged - $total_paid));
 $payment_status = (string)($result->payment_status ?? '');
 
-$financially_paid = ($payment_status === 'completed') || (($total_pledged > 0 && $balance <= 0) || ($total_pledged <= 0 && $total_paid > 0));
+// Determine "already paid" status — only flag as paid if there's genuine evidence:
+// 1. The donor_claimed_already_paid column is explicitly set, OR
+// 2. The donor's payment_status is 'completed', OR
+// 3. Pledged > 0 and balance <= 0 (fully paid off), OR
+// 4. Notes contain paid-claim keywords from the conversation flow.
+$financially_paid = ($payment_status === 'completed')
+    || ($total_pledged > 0 && $balance <= 0 && $total_paid > 0);
+
 $is_already_paid = ((int)($result->donor_claimed_already_paid ?? 0) === 1)
     || $financially_paid
     || str_contains($notes_lower, 'already paid the full pledge')
     || str_contains($notes_lower, 'marked as previously paid')
     || str_contains($notes_lower, 'already_paid_claims');
+
 $outcome_display = !empty($result->outcome) ? ucfirst(str_replace('_', ' ', (string)$result->outcome)) : 'Completed';
 if ($is_already_paid) {
     $outcome_display = 'Already Paid (Proof Requested)';
 }
+
 $ended_timestamp = false;
 if (!empty($result->call_ended_at)) {
     $ended_timestamp = strtotime((string)$result->call_ended_at);
 }
-$call_ended_at = $ended_timestamp ? date('d M Y, H:i', $ended_timestamp) : 'Not available';
+$call_ended_at = $ended_timestamp ? date('d M Y, H:i', $ended_timestamp) : 'Just now';
+
 $page_title = 'Call Completed';
 ?>
 <!DOCTYPE html>
@@ -309,33 +321,313 @@ $page_title = 'Call Completed';
     <link rel="stylesheet" href="../assets/admin.css">
     <link rel="stylesheet" href="assets/call-center.css">
     <style>
-        .complete-card {
-            max-width: 600px;
-            margin: 50px auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            padding: 2rem;
-            text-align: center;
+        /* === Call Complete Card === */
+        .cc-complete-wrapper {
+            max-width: 640px;
+            margin: 30px auto;
+            padding: 0 1rem;
         }
-        .status-icon {
-            font-size: 4rem;
-            margin-bottom: 1.5rem;
+
+        .cc-complete-card {
+            background: var(--white, #fff);
+            border: 1px solid var(--gray-200, #e5e7eb);
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        /* Status banner */
+        .cc-status-banner {
+            padding: 2rem 2rem 1.75rem;
+            text-align: center;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+            border-bottom: 1px solid var(--gray-100, #f3f4f6);
+        }
+
+        .cc-status-banner.refused {
+            background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%);
+        }
+
+        .cc-status-banner.callback {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+
+        .cc-status-banner.neutral {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+
+        .cc-status-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 2rem;
+        }
+
+        .cc-status-icon.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success, #10b981);
+        }
+
+        .cc-status-icon.refused {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--danger, #ef4444);
+        }
+
+        .cc-status-icon.callback {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--warning, #f59e0b);
+        }
+
+        .cc-status-icon.neutral {
+            background: rgba(100, 116, 139, 0.1);
             color: #64748b;
         }
-        .status-icon.success { color: #22c55e; }
-        .status-icon.refused { color: #ef4444; }
-        .status-icon.callback { color: #f59e0b; }
-        
-        .detail-row {
+
+        .cc-status-title {
+            font-size: 1.375rem;
+            font-weight: 700;
+            color: var(--gray-900, #111827);
+            margin: 0;
+        }
+
+        .cc-status-subtitle {
+            font-size: 0.875rem;
+            color: var(--gray-500, #6b7280);
+            margin-top: 0.375rem;
+        }
+
+        /* Details section */
+        .cc-details {
+            padding: 1.5rem 2rem;
+        }
+
+        .cc-detail-row {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 0.75rem 0;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--gray-100, #f3f4f6);
         }
-        .detail-row:last-child { border-bottom: none; }
-        .detail-label { color: #64748b; font-weight: 600; }
-        .detail-value { color: #1e293b; font-weight: 500; }
+
+        .cc-detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .cc-detail-label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--gray-500, #6b7280);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cc-detail-label i {
+            width: 16px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--gray-400, #9ca3af);
+        }
+
+        .cc-detail-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--gray-800, #1f2937);
+            text-align: right;
+        }
+
+        .cc-outcome-pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .cc-outcome-pill.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success, #10b981);
+        }
+
+        .cc-outcome-pill.refused {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger, #ef4444);
+        }
+
+        .cc-outcome-pill.callback {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning, #f59e0b);
+        }
+
+        .cc-outcome-pill.neutral {
+            background: var(--gray-100, #f3f4f6);
+            color: var(--gray-600, #4b5563);
+        }
+
+        /* Financial summary (for already-paid) */
+        .cc-finance-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 1rem 2rem;
+            background: var(--gray-50, #f9fafb);
+            border-top: 1px solid var(--gray-100, #f3f4f6);
+            border-bottom: 1px solid var(--gray-100, #f3f4f6);
+        }
+
+        .cc-finance-item {
+            text-align: center;
+        }
+
+        .cc-finance-amount {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--gray-800, #1f2937);
+        }
+
+        .cc-finance-label {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--gray-400, #9ca3af);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-top: 2px;
+        }
+
+        /* Actions */
+        .cc-actions {
+            padding: 1.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.625rem;
+        }
+
+        .cc-actions .btn {
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            padding: 0.75rem 1rem;
+        }
+
+        .cc-actions .btn-primary {
+            background: var(--primary, #0a6286);
+            border-color: var(--primary, #0a6286);
+        }
+
+        .cc-actions .btn-primary:hover {
+            background: var(--primary-light, #0ea5e9);
+            border-color: var(--primary-light, #0ea5e9);
+            box-shadow: 0 4px 12px rgba(10, 98, 134, 0.3);
+        }
+
+        .cc-actions .btn-outline-secondary {
+            border-color: var(--gray-300, #d1d5db);
+            color: var(--gray-600, #4b5563);
+        }
+
+        .cc-actions .btn-outline-secondary:hover {
+            background: var(--gray-50, #f9fafb);
+            border-color: var(--gray-400, #9ca3af);
+        }
+
+        .cc-actions .btn-outline-success {
+            border-color: var(--success, #10b981);
+            color: var(--success, #10b981);
+        }
+
+        .cc-actions .btn-outline-success:hover {
+            background: var(--success, #10b981);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .cc-mark-paid-form .btn {
+            width: 100%;
+        }
+
+        /* Notes preview */
+        .cc-notes-preview {
+            padding: 1rem 2rem;
+            border-top: 1px solid var(--gray-100, #f3f4f6);
+        }
+
+        .cc-notes-toggle {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--gray-500, #6b7280);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+
+        .cc-notes-toggle:hover {
+            color: var(--primary, #0a6286);
+        }
+
+        .cc-notes-body {
+            margin-top: 0.75rem;
+            font-size: 0.8125rem;
+            color: var(--gray-600, #4b5563);
+            line-height: 1.6;
+            background: var(--gray-50, #f9fafb);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Flash alert */
+        .cc-flash {
+            margin: 0 2rem 0;
+            padding-top: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 576px) {
+            .cc-complete-wrapper {
+                margin: 16px auto;
+            }
+
+            .cc-status-banner {
+                padding: 1.5rem 1.25rem 1.25rem;
+            }
+
+            .cc-details,
+            .cc-actions,
+            .cc-notes-preview {
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+
+            .cc-finance-row {
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+
+            .cc-flash {
+                margin: 0 1.25rem 0;
+            }
+
+            .cc-detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+
+            .cc-detail-value {
+                text-align: left;
+            }
+        }
     </style>
 </head>
 <body>
@@ -344,83 +636,154 @@ $page_title = 'Call Completed';
     <div class="admin-content">
         <?php include '../includes/topbar.php'; ?>
         <main class="main-content">
-            <div class="complete-card">
-                <?php 
-                $icon = 'fa-check-circle';
-                $color = 'text-secondary';
-                $title = 'Call Ended';
-                
-                if ($is_already_paid) {
-                    $icon = 'fa-circle-check';
-                    $color = 'success';
-                    $title = 'Already Paid Confirmed';
-                } elseif ($result->conversation_stage === 'success_pledged') {
+            <div class="cc-complete-wrapper">
+                <div class="cc-complete-card">
+                    <?php
+                    // Determine visual state
                     $icon = 'fa-check-circle';
-                    $color = 'success';
-                    $title = 'Success!';
-                } elseif ($result->conversation_stage === 'closed_refused') {
-                    $icon = 'fa-times-circle';
-                    $color = 'refused';
-                    $title = 'Call Closed (Refused)';
-                } elseif ($result->conversation_stage === 'callback_scheduled') {
-                    $icon = 'fa-calendar-check';
-                    $color = 'callback';
-                    $title = 'Callback Scheduled';
-                }
-                ?>
-                
-                <div class="status-icon <?php echo $color; ?>">
-                    <i class="fas <?php echo $icon; ?>"></i>
-                </div>
-                
-                <h2 class="mb-4"><?php echo $title; ?></h2>
+                    $banner_class = 'neutral';
+                    $icon_class = 'neutral';
+                    $title = 'Call Ended';
+                    $subtitle = 'The call session has been recorded.';
+                    $pill_class = 'neutral';
 
-                <?php if ($flash_message): ?>
-                    <div class="alert alert-<?php echo htmlspecialchars((string)$flash_type); ?> alert-dismissible fade show" role="alert">
-                        <?php echo htmlspecialchars((string)$flash_message); ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                <?php endif; ?>
-                
-                <div class="text-start mb-4">
-                    <div class="detail-row">
-                        <span class="detail-label">Donor</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($result->donor_name); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Outcome</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($outcome_display); ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Duration</span>
-                        <span class="detail-value"><?php echo $duration_formatted; ?></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Date</span>
-                        <span class="detail-value"><?php echo $call_ended_at; ?></span>
-                    </div>
-                </div>
-                
-                <div class="d-grid gap-2">
-                    <a href="index.php" class="btn btn-primary btn-lg">
-                        <i class="fas fa-list me-2"></i>Back to Queue
-                    </a>
-                    <a href="call-history.php?donor_id=<?php echo $donor_id; ?>" class="btn btn-outline-secondary">
-                        <i class="fas fa-history me-2"></i>View History
-                    </a>
+                    if ($is_already_paid) {
+                        $icon = 'fa-circle-check';
+                        $banner_class = '';
+                        $icon_class = 'success';
+                        $title = 'Already Paid Confirmed';
+                        $subtitle = 'Proof request has been sent to the donor.';
+                        $pill_class = 'success';
+                    } elseif (($result->conversation_stage ?? '') === 'success_pledged') {
+                        $icon = 'fa-check-circle';
+                        $banner_class = '';
+                        $icon_class = 'success';
+                        $title = 'Payment Plan Created';
+                        $subtitle = 'The donor has agreed to a payment plan.';
+                        $pill_class = 'success';
+                    } elseif (($result->conversation_stage ?? '') === 'closed_refused') {
+                        $icon = 'fa-times-circle';
+                        $banner_class = 'refused';
+                        $icon_class = 'refused';
+                        $title = 'Call Closed — Refused';
+                        $subtitle = 'The donor declined or the call could not proceed.';
+                        $pill_class = 'refused';
+                    } elseif (($result->conversation_stage ?? '') === 'callback_scheduled') {
+                        $icon = 'fa-calendar-check';
+                        $banner_class = 'callback';
+                        $icon_class = 'callback';
+                        $title = 'Callback Scheduled';
+                        $subtitle = 'A follow-up call has been arranged.';
+                        $pill_class = 'callback';
+                    }
+                    ?>
 
-                    <?php if (!$is_already_paid): ?>
-                        <form method="post" action="call-complete.php?session_id=<?php echo $session_id; ?>&donor_id=<?php echo $donor_id; ?>" 
-                              onsubmit="return confirm('Mark this donor as Previously Paid? This will close this call for follow-up as previously paid.')">
-                            <?php echo csrf_input(); ?>
-                            <input type="hidden" name="action" value="mark_previously_paid">
-                            <input type="hidden" name="session_id" value="<?php echo $session_id; ?>">
-                            <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
-                            <button type="submit" class="btn btn-outline-success">
-                                <i class="fas fa-check-circle me-2"></i>Mark as Previously Paid
-                            </button>
-                        </form>
+                    <!-- Status Banner -->
+                    <div class="cc-status-banner <?php echo $banner_class; ?>">
+                        <div class="cc-status-icon <?php echo $icon_class; ?>">
+                            <i class="fas <?php echo $icon; ?>"></i>
+                        </div>
+                        <h2 class="cc-status-title"><?php echo $title; ?></h2>
+                        <p class="cc-status-subtitle"><?php echo $subtitle; ?></p>
+                    </div>
+
+                    <?php if ($flash_message): ?>
+                        <div class="cc-flash">
+                            <div class="alert alert-<?php echo htmlspecialchars((string)$flash_type); ?> alert-dismissible fade show mb-0" role="alert">
+                                <i class="fas <?php echo $flash_type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'; ?> me-2"></i>
+                                <?php echo htmlspecialchars((string)$flash_message); ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
                     <?php endif; ?>
+
+                    <!-- Call Details -->
+                    <div class="cc-details">
+                        <div class="cc-detail-row">
+                            <span class="cc-detail-label"><i class="fas fa-user"></i>Donor</span>
+                            <span class="cc-detail-value"><?php echo htmlspecialchars((string)($result->donor_name ?? 'Unknown')); ?></span>
+                        </div>
+                        <div class="cc-detail-row">
+                            <span class="cc-detail-label"><i class="fas fa-phone"></i>Phone</span>
+                            <span class="cc-detail-value"><?php echo htmlspecialchars((string)($result->donor_phone ?? '')); ?></span>
+                        </div>
+                        <div class="cc-detail-row">
+                            <span class="cc-detail-label"><i class="fas fa-flag"></i>Outcome</span>
+                            <span class="cc-detail-value">
+                                <span class="cc-outcome-pill <?php echo $pill_class; ?>"><?php echo htmlspecialchars($outcome_display); ?></span>
+                            </span>
+                        </div>
+                        <div class="cc-detail-row">
+                            <span class="cc-detail-label"><i class="fas fa-stopwatch"></i>Duration</span>
+                            <span class="cc-detail-value"><?php echo $duration_formatted; ?></span>
+                        </div>
+                        <div class="cc-detail-row">
+                            <span class="cc-detail-label"><i class="fas fa-calendar"></i>Ended</span>
+                            <span class="cc-detail-value"><?php echo htmlspecialchars($call_ended_at); ?></span>
+                        </div>
+                        <?php if (!empty($result->agent_name)): ?>
+                            <div class="cc-detail-row">
+                                <span class="cc-detail-label"><i class="fas fa-headset"></i>Agent</span>
+                                <span class="cc-detail-value"><?php echo htmlspecialchars((string)$result->agent_name); ?></span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if ($total_pledged > 0 || $total_paid > 0): ?>
+                        <!-- Financial Summary -->
+                        <div class="cc-finance-row">
+                            <div class="cc-finance-item">
+                                <div class="cc-finance-amount">&pound;<?php echo number_format($total_pledged, 2); ?></div>
+                                <div class="cc-finance-label">Pledged</div>
+                            </div>
+                            <div class="cc-finance-item">
+                                <div class="cc-finance-amount">&pound;<?php echo number_format($total_paid, 2); ?></div>
+                                <div class="cc-finance-label">Paid</div>
+                            </div>
+                            <div class="cc-finance-item">
+                                <div class="cc-finance-amount" style="color: <?php echo $balance > 0 ? 'var(--warning, #f59e0b)' : 'var(--success, #10b981)'; ?>;">
+                                    &pound;<?php echo number_format($balance, 2); ?>
+                                </div>
+                                <div class="cc-finance-label">Balance</div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($notes_text)): ?>
+                        <!-- Notes Preview -->
+                        <div class="cc-notes-preview">
+                            <button class="cc-notes-toggle" onclick="document.getElementById('notesBody').classList.toggle('d-none'); this.querySelector('.chevron').classList.toggle('fa-chevron-down'); this.querySelector('.chevron').classList.toggle('fa-chevron-up');">
+                                <i class="fas fa-sticky-note"></i>
+                                Call Notes
+                                <i class="fas fa-chevron-down chevron" style="font-size: 0.625rem; margin-left: auto;"></i>
+                            </button>
+                            <div id="notesBody" class="cc-notes-body d-none"><?php echo htmlspecialchars($notes_text); ?></div>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Action Buttons -->
+                    <div class="cc-actions">
+                        <a href="index.php" class="btn btn-primary">
+                            <i class="fas fa-list me-2"></i>Back to Queue
+                        </a>
+                        <a href="call-history.php?donor_id=<?php echo $donor_id; ?>" class="btn btn-outline-secondary">
+                            <i class="fas fa-history me-2"></i>View Call History
+                        </a>
+
+                        <?php if (!$is_already_paid): ?>
+                            <form method="post" class="cc-mark-paid-form"
+                                  action="call-complete.php?session_id=<?php echo $session_id; ?>&donor_id=<?php echo $donor_id; ?>"
+                                  onsubmit="return confirm('Mark this donor as Previously Paid?\n\nThis will update the call outcome to show the donor has already paid. Use this if the donor confirmed payment during the call.')">
+                                <?php echo csrf_input(); ?>
+                                <input type="hidden" name="action" value="mark_previously_paid">
+                                <input type="hidden" name="session_id" value="<?php echo $session_id; ?>">
+                                <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
+                                <button type="submit" class="btn btn-outline-success">
+                                    <i class="fas fa-check-circle me-2"></i>Mark as Previously Paid
+                                </button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </main>
@@ -428,26 +791,5 @@ $page_title = 'Call Completed';
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
-<script>
-if (typeof window.toggleSidebar !== 'function') {
-    window.toggleSidebar = function() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.querySelector('.sidebar-overlay');
-        const body = document.body;
-
-        if (!sidebar || !sidebarOverlay) {
-            return;
-        }
-
-        if (window.innerWidth <= 991.98) {
-            sidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-        } else {
-            body.classList.toggle('sidebar-collapsed');
-        }
-    };
-}
-</script>
 </body>
 </html>
