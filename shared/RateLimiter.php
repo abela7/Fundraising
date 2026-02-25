@@ -9,16 +9,16 @@ class RateLimiter {
     private $db;
     private $tableName = 'rate_limits';
     
-    // Rate limits configuration
+    // Rate limits configuration (relaxed to allow donors to register multiple times)
     private $limits = [
-        // Per IP limits
-        'ip_per_minute' => 3,      // Max 3 submissions per minute per IP
-        'ip_per_hour' => 10,       // Max 10 submissions per hour per IP  
-        'ip_per_day' => 25,        // Max 25 submissions per day per IP
+        // Per IP limits (spam protection only; generous for legitimate repeat donors)
+        'ip_per_minute' => 10,     // Max 10 submissions per minute per IP
+        'ip_per_hour' => 50,        // Max 50 submissions per hour per IP
+        'ip_per_day' => 200,       // Max 200 submissions per day per IP
         
-        // Per phone limits (for non-anonymous)
-        'phone_per_hour' => 2,     // Max 2 submissions per hour per phone
-        'phone_per_day' => 5,      // Max 5 submissions per day per phone
+        // Per phone limits (allow multiple registrations; donors may submit many times)
+        'phone_per_hour' => 20,    // Max 20 submissions per hour per phone
+        'phone_per_day' => 100,    // Max 100 submissions per day per phone
         
         // Global limits (emergency brake)
         'global_per_minute' => 50, // Max 50 total submissions per minute
