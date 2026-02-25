@@ -195,22 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($type === 'paid') {
                 // Standalone PAYMENT (no pledge row). Status defaults to pending in DB.
                 // Insert with explicit pending status for clarity; link selected package if available
-                // Duplicate check for payments too: block if any existing pledge/payment is pending or approved for same phone
-                if ($donorPhone && !$additional_donation) {
-                    $q1 = $db->prepare("SELECT id FROM pledges WHERE donor_phone=? AND status IN ('pending','approved') LIMIT 1");
-                    $q1->bind_param('s', $donorPhone);
-                    $q1->execute();
-                    $existsPledge = (bool)$q1->get_result()->fetch_assoc();
-                    $q1->close();
-                    $q2 = $db->prepare("SELECT id FROM payments WHERE donor_phone=? AND status IN ('pending','approved') LIMIT 1");
-                    $q2->bind_param('s', $donorPhone);
-                    $q2->execute();
-                    $existsPayment = (bool)$q2->get_result()->fetch_assoc();
-                    $q2->close();
-                    if ($existsPledge || $existsPayment) {
-                        throw new Exception('This donor already has a registered pledge/payment. Please review existing records instead of creating duplicates.');
-                    }
-                }
+                // Allow multiple donations: no duplicate check - donors may donate as many times as they wish
                 $sql = "INSERT INTO payments (donor_name, donor_phone, donor_email, amount, method, package_id, reference, status, received_by_user_id, received_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())";
                 $pmt = $db->prepare($sql);
@@ -239,27 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $status = 'pending';
                 $typeNormalized = 'pledge';
-                // Duplicate check: avoid multiple active pledges/payments for the same phone
-                if ($donorPhone && !$additional_donation) {
-                    // Check pledges with status pending or approved
-                    $dup = $db->prepare("SELECT id FROM pledges WHERE donor_phone=? AND status IN ('pending','approved') LIMIT 1");
-                    $dup->bind_param('s', $donorPhone);
-                    $dup->execute();
-                    $hasPledge = (bool)$dup->get_result()->fetch_assoc();
-                    $dup->close();
-
-                    // Check payments with status pending or approved (to avoid double registration when already paid as donation)
-                    $hasPayment = false;
-                    $dp = $db->prepare("SELECT id FROM payments WHERE donor_phone=? AND status IN ('pending','approved') LIMIT 1");
-                    $dp->bind_param('s', $donorPhone);
-                    $dp->execute();
-                    $hasPayment = (bool)$dp->get_result()->fetch_assoc();
-                    $dp->close();
-
-                    if ($hasPledge || $hasPayment) {
-                        throw new Exception('This donor already has a registered pledge/payment. Please review existing records instead of creating duplicates.');
-                    }
-                }
+                // Allow multiple donations: no duplicate check - donors may donate as many times as they wish
 
                 $stmt = $db->prepare("
                     INSERT INTO pledges (

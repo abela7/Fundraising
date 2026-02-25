@@ -323,36 +323,7 @@ function initRegistrationForm() {
             return; // Exit early, don't run duplicate check
         }
 
-        // Duplicate check via API (only if we have a phone to check and checkbox is not already approved)
-        if (normalized) {
-            try {
-                const res = await fetch(`../../api/check_donor.php?phone=${encodeURIComponent(normalized)}`);
-                const data = await res.json();
-                const hasPreviousDonations = (data.pledges?.pending > 0 || data.pledges?.approved > 0 || data.payments?.pending > 0 || data.payments?.approved > 0);
-                
-                if (hasPreviousDonations) {
-                    // Show the repeat donor modal with their history
-                    showRepeatDonorModal(data);
-                    
-                    // Show the additional donation checkbox
-                    const additionalDonationDiv = document.getElementById('additionalDonationDiv');
-                    if (additionalDonationDiv) {
-                        additionalDonationDiv.classList.remove('d-none');
-                    }
-                    return; // Stop submission
-                } else {
-                    // No previous donations, hide the checkbox
-                    const additionalDonationDiv = document.getElementById('additionalDonationDiv');
-                    if (additionalDonationDiv) {
-                        additionalDonationDiv.classList.add('d-none');
-                        if (additionalDonationCheckbox) additionalDonationCheckbox.checked = false;
-                    }
-                }
-            } catch (err) {
-                // If API fails, still proceed; server will enforce duplicate rules
-                console.warn('Duplicate check error:', err);
-            }
-        }
+        // Allow multiple donations: no duplicate check - donors may donate as many times as they wish
 
         // Check if additional_donation checkbox is required but not checked
         if (additionalDonationCheckbox && !additionalDonationCheckbox.classList.contains('d-none')) {
