@@ -249,6 +249,7 @@ $claimed_paid_select = $has_claimed_paid_column ? 's.donor_claimed_already_paid'
 
 $query = "
     SELECT
+        s.donor_id,
         s.outcome, s.conversation_stage, s.duration_seconds, s.call_started_at, s.call_ended_at, s.notes,
         {$claimed_paid_select},
         d.total_pledged,
@@ -296,9 +297,30 @@ $is_already_paid = ((int)($result->donor_claimed_already_paid ?? 0) === 1)
     || str_contains($notes_lower, 'marked as previously paid')
     || str_contains($notes_lower, 'already_paid_claims');
 
+$proof_request_sent = str_contains($notes_lower, 'proof request sent via whatsapp: yes');
+$proof_request_skipped = str_contains($notes_lower, 'proof request sent via whatsapp: no');
+$already_paid_claim_only = ((int)($result->donor_claimed_already_paid ?? 0) === 1) && !$financially_paid;
+
 $outcome_display = !empty($result->outcome) ? ucfirst(str_replace('_', ' ', (string)$result->outcome)) : 'Completed';
 if ($is_already_paid) {
-    $outcome_display = 'Already Paid (Proof Requested)';
+    if ($already_paid_claim_only) {
+        $outcome_display = $proof_request_sent
+            ? 'Already Paid Claim (Proof Requested)'
+            : 'Already Paid Claim (Pending Verification)';
+    } else {
+        $outcome_display = 'Already Paid (Verified)';
+    }
+}
+
+$donor_name_raw = trim((string)($result->donor_name ?? ''));
+$donor_display_name = $donor_name_raw;
+if ($donor_display_name === '' || strtolower($donor_display_name) === 'unknown') {
+    $donor_phone_fallback = trim((string)($result->donor_phone ?? ''));
+    if ($donor_phone_fallback !== '') {
+        $donor_display_name = 'Donor (' . $donor_phone_fallback . ')';
+    } else {
+        $donor_display_name = 'Donor #' . (int)($result->donor_id ?? $donor_id);
+    }
 }
 
 $ended_timestamp = false;
@@ -651,8 +673,19 @@ $page_title = 'Call Completed';
                         $icon = 'fa-circle-check';
                         $banner_class = '';
                         $icon_class = 'success';
-                        $title = 'Already Paid Confirmed';
-                        $subtitle = 'Proof request has been sent to the donor.';
+                        if ($already_paid_claim_only) {
+                            $title = 'Already Paid Claim Recorded';
+                            if ($proof_request_sent) {
+                                $subtitle = 'Proof request was sent to the donor.';
+                            } elseif ($proof_request_skipped) {
+                                $subtitle = 'Proof request was skipped. Verification is pending.';
+                            } else {
+                                $subtitle = 'Verification is pending for this already-paid claim.';
+                            }
+                        } else {
+                            $title = 'Already Paid Confirmed';
+                            $subtitle = 'This donor is already completed in financial records.';
+                        }
                         $pill_class = 'success';
                     } elseif (($result->conversation_stage ?? '') === 'success_pledged') {
                         $icon = 'fa-check-circle';
@@ -701,7 +734,7 @@ $page_title = 'Call Completed';
                     <div class="cc-details">
                         <div class="cc-detail-row">
                             <span class="cc-detail-label"><i class="fas fa-user"></i>Donor</span>
-                            <span class="cc-detail-value"><?php echo htmlspecialchars((string)($result->donor_name ?? 'Unknown')); ?></span>
+                            <span class="cc-detail-value"><?php echo htmlspecialchars($donor_display_name); ?></span>
                         </div>
                         <div class="cc-detail-row">
                             <span class="cc-detail-label"><i class="fas fa-phone"></i>Phone</span>

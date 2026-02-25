@@ -268,6 +268,53 @@ try {
 
         $notes_parts[] = 'Proof request sent via WhatsApp: ' . ($paid_whatsapp_sent ? 'Yes' : 'No (skipped)');
         $session_notes = ' ' . implode(' ', $notes_parts);
+
+        // Mark donor for follow-up verification instead of forcing financial completion.
+        $donor_has_flagged_column = false;
+        $donor_has_notes_column = false;
+        $flag_col_check = $db->query("SHOW COLUMNS FROM donors LIKE 'flagged_for_followup'");
+        if ($flag_col_check && $flag_col_check->num_rows > 0) {
+            $donor_has_flagged_column = true;
+        }
+        $notes_col_check = $db->query("SHOW COLUMNS FROM donors LIKE 'admin_notes'");
+        if ($notes_col_check && $notes_col_check->num_rows > 0) {
+            $donor_has_notes_column = true;
+        }
+
+        if ($donor_has_flagged_column || $donor_has_notes_column) {
+            $donor_update_parts = [];
+            $donor_update_types = '';
+            $donor_update_values = [];
+
+            if ($donor_has_flagged_column) {
+                $donor_update_parts[] = 'flagged_for_followup = 1';
+            }
+
+            if ($donor_has_notes_column) {
+                $followup_note = sprintf(
+                    '[%s] Already-paid claim captured via call center. Method: %s. Proof request sent: %s.',
+                    date('Y-m-d H:i:s'),
+                    $proof_method,
+                    $paid_whatsapp_sent ? 'Yes' : 'No'
+                );
+                $donor_update_parts[] = "admin_notes = CONCAT(COALESCE(admin_notes, ''), CASE WHEN COALESCE(admin_notes, '') = '' THEN ? ELSE CONCAT('\\n', ?) END)";
+                $donor_update_types .= 'ss';
+                $donor_update_values[] = $followup_note;
+                $donor_update_values[] = $followup_note;
+            }
+
+            if (!empty($donor_update_parts)) {
+                $donor_update_sql = 'UPDATE donors SET ' . implode(', ', $donor_update_parts) . ' WHERE id = ?';
+                $donor_update_stmt = $db->prepare($donor_update_sql);
+                if ($donor_update_stmt) {
+                    $donor_update_types .= 'i';
+                    $donor_update_values[] = $donor_id;
+                    $donor_update_stmt->bind_param($donor_update_types, ...$donor_update_values);
+                    $donor_update_stmt->execute();
+                    $donor_update_stmt->close();
+                }
+            }
+        }
         
         // 1a. Update session outcome and close call
         if ($session_id > 0) {
