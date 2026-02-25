@@ -22,4 +22,7 @@ config/env.local.php
 .idea/
 .vscode/
 
+# Claude/Cursor worktrees (local dev branches)
+.claude/worktrees/
+
 
