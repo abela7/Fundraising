@@ -2972,7 +2972,7 @@ function formatDateTime($date) {
                 <div class="accordion" id="donorAccordion">
                     
                     <!-- 1. Personal Information -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePersonal">
                                 <i class="fas fa-user-circle me-3 text-primary"></i> Personal Information
@@ -3053,7 +3053,7 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- Contact Donor -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseContact">
                                 <i class="fas fa-address-book me-3 text-info"></i> Contact Donor
@@ -3099,7 +3099,7 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- 2. Pledges & Allocations -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePledges">
                                 <i class="fas fa-hand-holding-usd me-3 text-success"></i> Pledges & Allocations
@@ -3173,7 +3173,7 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- 3. Payment History -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePayments">
                                 <i class="fas fa-money-bill-wave me-3 text-warning"></i> Payment History
@@ -3293,7 +3293,7 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- 4. Payment Plans -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePlans">
                                 <i class="fas fa-calendar-alt me-3 text-info"></i> Payment Plans
@@ -3370,7 +3370,7 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- 5. Call History -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCalls">
                                 <i class="fas fa-headset me-3 text-secondary"></i> Call Center History
@@ -3441,7 +3441,7 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- 6. Assignment -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAssignment">
                                 <i class="fas fa-church me-3 text-primary"></i> Assignment
@@ -3536,7 +3536,7 @@ function formatDateTime($date) {
                     </div>
 
                     <!-- 7. System & Audit -->
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSystem">
                                 <i class="fas fa-server me-3 text-dark"></i> System Information
@@ -3744,7 +3744,7 @@ function formatDateTime($date) {
                     $isFullyPaid = $totalPledged > 0 && $totalPaid >= $totalPledged;
                     $hasPledge = $totalPledged > 0 || $totalPaid > 0;
                     ?>
-                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                    <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCertificate">
                                 <i class="fas fa-certificate me-3 text-warning"></i> Certificate
