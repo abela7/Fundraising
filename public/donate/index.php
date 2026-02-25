@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/csrf.php';
-require_once __DIR__ . '/../../shared/RateLimiter.php';
 
 $success = '';
 $error = '';
@@ -86,27 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($error === '') {
             $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-            $rateLimiter = new RateLimiter($db);
-            $isBlocked = $rateLimiter->isBlocked($clientIp);
-
-            if ($isBlocked['blocked']) {
-                $retry = (int)($isBlocked['retry_after'] ?? 0);
-                $wait = $retry > 0 ? sprintf(' in %d second(s)', $retry) : '';
-                $error = 'Submission is temporarily limited. Please try again' . $wait . '.';
-            }
-
-            if ($error === '') {
-                $rateLimit = $rateLimiter->checkSubmission($clientIp, $phone);
-                if (!$rateLimit['allowed']) {
-                    $error = $rateLimit['reason'];
-                    if (!empty($rateLimit['retry_after'])) {
-                        $retry = (int)$rateLimit['retry_after'];
-                        if ($retry > 0) {
-                            $error .= ' Please try again in ' . ((int)ceil($retry / 60)) . ' minute(s).';
-                        }
-                    }
-                }
-            }
 
             if ($error === '') {
                 $tableCheck = $db->query("SHOW TABLES LIKE 'public_donation_requests'");
@@ -136,12 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt->bind_param('ssssssss', $name, $phone, $message, $sourcePage, $sourceUrl, $referrer, $ipAddress, $userAgent);
                 $stmt->execute();
-
-                $rateLimiter->recordSubmission($clientIp, $phone, [
-                    'endpoint' => '/public/donate',
-                    'name' => $name,
-                    'status' => 'new'
-                ]);
 
                 $success = 'Thank you for reaching out. We have received your request and will call and reach you shortly.';
                 $name = '';
