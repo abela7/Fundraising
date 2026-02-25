@@ -140,6 +140,22 @@ $buildPhoneLookupList = static function (string $normalizedPhone): array {
     return array_values(array_unique($candidates));
 };
 
+$buildPhoneMatchConditions = static function (array $phoneColumns, string $cleanColumn, array $lookupPhones): array {
+    $conditions = [];
+    $types = '';
+    $values = [];
+
+    foreach ($lookupPhones as $lookupPhone) {
+        foreach ($phoneColumns as $phoneColumn) {
+            $conditions[] = sprintf($cleanColumn, '`' . $phoneColumn . '`') . ' = ?';
+            $values[] = $lookupPhone;
+            $types .= 's';
+        }
+    }
+
+    return [$conditions, $types, $values];
+};
+
 $allowedStatuses = ['new', 'contacted', 'resolved', 'spam'];
 $statusLabels = [
     'new' => ['label' => 'New', 'class' => 'bg-primary'],
@@ -150,6 +166,8 @@ $statusLabels = [
 
 $requestColumns = [];
 $donorColumns = [];
+$pledgeColumns = [];
+$paymentColumns = [];
 if ($dbConnected && $db instanceof mysqli) {
     try {
         $requestColumns = table_column_map($db, 'public_donation_requests');
@@ -165,6 +183,24 @@ if ($dbConnected && $db instanceof mysqli) {
     } catch (Throwable $e) {
         error_log('Admin Public Donations - Column lookup failed (donor table): ' . $e->getMessage());
         $donorColumns = [];
+    }
+}
+
+if ($dbConnected && $db instanceof mysqli) {
+    try {
+        $pledgeColumns = table_column_map($db, 'pledges');
+    } catch (Throwable $e) {
+        error_log('Admin Public Donations - Column lookup failed (pledges table): ' . $e->getMessage());
+        $pledgeColumns = [];
+    }
+}
+
+if ($dbConnected && $db instanceof mysqli) {
+    try {
+        $paymentColumns = table_column_map($db, 'payments');
+    } catch (Throwable $e) {
+        error_log('Admin Public Donations - Column lookup failed (payments table): ' . $e->getMessage());
+        $paymentColumns = [];
     }
 }
 
@@ -428,6 +464,16 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
                 $donorMatchColumns[] = 'phone_number';
             }
 
+            $pledgeMatchColumns = [];
+            if (isset($pledgeColumns['donor_phone'])) {
+                $pledgeMatchColumns[] = 'donor_phone';
+            }
+
+            $paymentMatchColumns = [];
+            if (isset($paymentColumns['donor_phone'])) {
+                $paymentMatchColumns[] = 'donor_phone';
+            }
+
             $donorSelectColumns = ['id', 'name'];
             if (isset($donorColumns['phone'])) {
                 $donorSelectColumns[] = 'phone';
@@ -435,6 +481,9 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
             if (isset($donorColumns['phone_number'])) {
                 $donorSelectColumns[] = 'phone_number';
             }
+
+            $pledgeSortColumn = isset($pledgeColumns['created_at']) ? 'created_at' : 'id';
+            $paymentSortColumn = isset($paymentColumns['created_at']) ? 'created_at' : 'id';
 
             foreach ($requestRows as &$requestRow) {
                 $lookupPhones = $buildPhoneLookupList($normalizeRequestPhone((string)($requestRow['phone_number'] ?? '')));
@@ -450,42 +499,106 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
                     continue;
                 }
 
-                $conditions = [];
-                $matchTypes = '';
-                $matchValues = [];
-                foreach ($lookupPhones as $lookupPhone) {
-                    foreach ($donorMatchColumns as $donorMatchColumn) {
-                        $conditions[] = sprintf($cleanColumn, '`' . $donorMatchColumn . '`') . ' = ?';
-                        $matchValues[] = $lookupPhone;
-                        $matchTypes .= 's';
-                    }
+                [$directConditions, $directMatchTypes, $directMatchValues] = $buildPhoneMatchConditions($donorMatchColumns, $cleanColumn, $lookupPhones);
+                [$pledgeConditions, $pledgeMatchTypes, $pledgeMatchValues] = $buildPhoneMatchConditions($pledgeMatchColumns, $cleanColumn, $lookupPhones);
+                [$paymentConditions, $paymentMatchTypes, $paymentMatchValues] = $buildPhoneMatchConditions($paymentMatchColumns, $cleanColumn, $lookupPhones);
+
+                $donorMatch = null;
+
+                $hasDonorTableMatch = !empty($directConditions) && isset($donorColumns['id']) && isset($donorColumns['name']);
+                if ($hasDonorTableMatch) {
+                    $matchSql = 'SELECT ' . implode(', ', $donorSelectColumns) . ' FROM donors WHERE ' . implode(' OR ', $directConditions) . ' LIMIT 1';
+                } else {
+                    $matchSql = '';
                 }
 
-                if (empty($conditions)) {
-                    $requestRow['donor_match'] = null;
-                    $donorMatchCache[$cacheKey] = null;
-                    continue;
-                }
-
-                $matchSql = 'SELECT ' . implode(', ', $donorSelectColumns) . ' FROM donors WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
                 try {
-                    $matchStmt = $db->prepare($matchSql);
-                    if (!$matchStmt) {
-                        $requestRow['donor_match'] = null;
-                        $donorMatchCache[$cacheKey] = null;
-                        continue;
+                    if ($matchSql !== '') {
+                        $matchStmt = $db->prepare($matchSql);
+                        if (!$matchStmt) {
+                            $requestRow['donor_match'] = null;
+                            $donorMatchCache[$cacheKey] = null;
+                            continue;
+                        }
+
+                        $matchBind = [$directMatchTypes];
+                        foreach ($directMatchValues as $index => $value) {
+                            $matchBind[] = &$directMatchValues[$index];
+                        }
+                        call_user_func_array([$matchStmt, 'bind_param'], $matchBind);
+                        $matchStmt->execute();
+                        $donorMatch = fetch_stmt_assoc($matchStmt);
+                        $matchStmt->close();
                     }
 
-                    $matchBind = [$matchTypes];
-                    foreach ($matchValues as $index => $value) {
-                        $matchBind[] = &$matchValues[$index];
-                    }
-                    call_user_func_array([$matchStmt, 'bind_param'], $matchBind);
-                    $matchStmt->execute();
-                    $donorMatch = fetch_stmt_assoc($matchStmt);
-                    $matchStmt->close();
+                    if ($donorMatch === null && (isset($pledgeColumns['donor_id']) || isset($paymentColumns['donor_id']))) {
+                        $relatedUnionSqlParts = [];
+                        $relatedTypes = '';
+                        $relatedValues = [];
 
-                    $donorMatch = $donorMatch ?: null;
+                        if (!empty($pledgeConditions) && isset($pledgeColumns['donor_id']) && !empty($lookupPhones)) {
+                            $relatedUnionSqlParts[] = '
+                                SELECT donor_id, ' . $pledgeSortColumn . ' AS matched_at
+                                FROM pledges
+                                WHERE donor_id IS NOT NULL
+                                  AND (' . implode(' OR ', $pledgeConditions) . ')
+                            ';
+                            $relatedTypes .= $pledgeMatchTypes;
+                            foreach ($pledgeMatchValues as $value) {
+                                $relatedValues[] = $value;
+                            }
+                        }
+
+                        if (!empty($paymentConditions) && isset($paymentColumns['donor_id']) && !empty($lookupPhones)) {
+                            $relatedUnionSqlParts[] = '
+                                SELECT donor_id, ' . $paymentSortColumn . ' AS matched_at
+                                FROM payments
+                                WHERE donor_id IS NOT NULL
+                                  AND (' . implode(' OR ', $paymentConditions) . ')
+                            ';
+                            $relatedTypes .= $paymentMatchTypes;
+                            foreach ($paymentMatchValues as $value) {
+                                $relatedValues[] = $value;
+                            }
+                        }
+
+                        if (!empty($relatedUnionSqlParts)) {
+                            $relatedDonorSql = '
+                                SELECT donor_id
+                                FROM (
+                                    ' . implode(' UNION ALL ', $relatedUnionSqlParts) . '
+                                ) AS donor_candidates
+                                ORDER BY matched_at DESC
+                                LIMIT 1
+                            ';
+                            $relatedStmt = $db->prepare($relatedDonorSql);
+                            if ($relatedStmt) {
+                                $relatedBind = [$relatedTypes];
+                                foreach ($relatedValues as $idx => $value) {
+                                    $relatedBind[] = &$relatedValues[$idx];
+                                }
+                                call_user_func_array([$relatedStmt, 'bind_param'], $relatedBind);
+                                $relatedStmt->execute();
+                                $relatedDonorRow = fetch_stmt_assoc($relatedStmt);
+                                $relatedStmt->close();
+
+                                $relatedDonorId = (int)($relatedDonorRow['donor_id'] ?? 0);
+                                if ($relatedDonorId > 0 && isset($donorColumns['id']) && !empty($donorSelectColumns)) {
+                                    $donorByIdSql = 'SELECT ' . implode(', ', $donorSelectColumns) . ' FROM donors WHERE id = ? LIMIT 1';
+                                    $donorByIdStmt = $db->prepare($donorByIdSql);
+                                    if ($donorByIdStmt) {
+                                        $donorId = $relatedDonorId;
+                                        $donorByIdStmt->bind_param('i', $donorId);
+                                        $donorByIdStmt->execute();
+                                        $donorMatch = fetch_stmt_assoc($donorByIdStmt);
+                                        $donorByIdStmt->close();
+                                        $donorMatch = $donorMatch ?: null;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     $requestRow['donor_match'] = $donorMatch;
                     $donorMatchCache[$cacheKey] = $donorMatch;
                 } catch (Throwable $e) {
