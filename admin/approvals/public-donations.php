@@ -8,8 +8,21 @@ require_once __DIR__ . '/../../config/db.php';
 require_admin();
 
 $page_title = 'Public Donation Requests';
-$db = db();
 $current_user = current_user();
+
+$actionMsg = '';
+$isError = false;
+
+$db = null;
+$dbConnected = false;
+try {
+    $db = db();
+    $dbConnected = true;
+} catch (Throwable $e) {
+    $isError = true;
+    $actionMsg = 'Unable to connect to the database.';
+    error_log('Admin Public Donations - DB connection failed: ' . $e->getMessage());
+}
 
 function bind_query_params(mysqli_stmt $stmt, string $types, array $params): void {
     if (empty($params)) {
@@ -36,10 +49,10 @@ $buildPhoneLookupList = static function (string $normalizedPhone): array {
     }
 
     $candidates = [$clean];
-    if (str_starts_with($clean, '44') && strlen($clean) > 2) {
+    if (strlen($clean) > 2 && substr($clean, 0, 2) === '44') {
         $candidates[] = '0' . substr($clean, 2);
     }
-    if (str_starts_with($clean, '0') && strlen($clean) > 1) {
+    if (strlen($clean) > 1 && substr($clean, 0, 1) === '0') {
         $candidates[] = '44' . substr($clean, 1);
     }
 
@@ -54,57 +67,70 @@ $statusLabels = [
     'spam' => ['label' => 'Spam', 'class' => 'bg-secondary'],
 ];
 
-$actionMsg = '';
-$isError = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConnected && $db instanceof mysqli) {
+    try {
+        verify_csrf();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
+        $action = (string)($_POST['action'] ?? '');
+        if ($action === 'update_status') {
+            $requestId = (int)($_POST['request_id'] ?? 0);
+            $status = (string)($_POST['status'] ?? '');
 
-    $action = (string)($_POST['action'] ?? '');
-    if ($action === 'update_status') {
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $status = (string)($_POST['status'] ?? '');
+            if ($requestId <= 0 || !in_array($status, $allowedStatuses, true)) {
+                $isError = true;
+                $actionMsg = 'Please provide a valid request and status.';
+            } else {
+                $stmt = $db->prepare('UPDATE public_donation_requests SET status = ?, updated_by_user_id = ?, updated_at = NOW() WHERE id = ?');
+                if ($stmt) {
+                    $adminId = (int)($current_user['id'] ?? 0);
+                    $stmt->bind_param('sii', $status, $adminId, $requestId);
+                    $stmt->execute();
 
-        if ($requestId <= 0 || !in_array($status, $allowedStatuses, true)) {
-            $isError = true;
-            $actionMsg = 'Please provide a valid request and status.';
-                } else {
-                    $stmt = $db->prepare('UPDATE public_donation_requests SET status = ?, updated_by_user_id = ?, updated_at = NOW() WHERE id = ?');
-                    if ($stmt) {
-                        $adminId = (int)($current_user['id'] ?? 0);
-                        $stmt->bind_param('sii', $status, $adminId, $requestId);
-                $stmt->execute();
+                    if ($stmt->affected_rows >= 0) {
+                        $actionMsg = 'Status updated successfully.';
+                    } else {
+                        $isError = true;
+                        $actionMsg = 'Unable to update status right now. Please retry.';
+                    }
+                    $stmt->close();
 
-                if ($stmt->affected_rows >= 0) {
-                    $actionMsg = 'Status updated successfully.';
+                    if (!$isError) {
+                        $returnParams = [];
+                        $returnKeys = ['search', 'filter_status', 'date_from', 'date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
+                        foreach ($returnKeys as $returnKey) {
+                            if (!empty($_POST[$returnKey])) {
+                                $returnParams[$returnKey] = (string)$_POST[$returnKey];
+                            }
+                        }
+                        $returnParams['msg'] = (string)$actionMsg;
+                        header('Location: public-donations.php' . ($returnParams ? ('?' . http_build_query($returnParams)) : ''));
+                        exit;
+                    }
                 } else {
                     $isError = true;
-                    $actionMsg = 'Unable to update status right now. Please retry.';
+                    $actionMsg = 'Database error while updating status.';
                 }
-                $stmt->close();
-
-                if (!$isError) {
-                    $returnParams = [];
-                    $returnKeys = ['search', 'filter_status', 'date_from', 'date_to', 'sort_by', 'sort_order', 'page', 'per_page'];
-                    foreach ($returnKeys as $returnKey) {
-                        if (!empty($_POST[$returnKey])) {
-                            $returnParams[$returnKey] = (string)$_POST[$returnKey];
-                        }
-                    }
-                    $returnParams['msg'] = (string)$actionMsg;
-                    header('Location: public-donations.php' . ($returnParams ? ('?' . http_build_query($returnParams)) : ''));
-                    exit;
-                }
-            } else {
-                $isError = true;
-                $actionMsg = 'Database error while updating status.';
             }
         }
+    } catch (Throwable $e) {
+        $isError = true;
+        $actionMsg = 'Unable to update status right now.';
+        error_log('Admin Public Donations - POST update failed: ' . $e->getMessage());
     }
 }
 
-$tableCheck = $db->query("SHOW TABLES LIKE 'public_donation_requests'");
-$requestsTableExists = (bool)($tableCheck && $tableCheck->num_rows > 0);
+$requestsTableExists = false;
+if ($dbConnected && $db instanceof mysqli) {
+    try {
+        $tableCheck = $db->query("SHOW TABLES LIKE 'public_donation_requests'");
+        $requestsTableExists = (bool)($tableCheck && $tableCheck->num_rows > 0);
+    } catch (Throwable $e) {
+        $isError = true;
+        $actionMsg = 'Unable to verify the request table status.';
+        error_log('Admin Public Donations - Failed table check: ' . $e->getMessage());
+        $requestsTableExists = false;
+    }
+}
 
 $search = trim((string)($_GET['search'] ?? ''));
 $statusFilter = trim((string)($_GET['status'] ?? $_GET['filter_status'] ?? ''));
@@ -163,115 +189,124 @@ $totalItems = 0;
 $totalPages = 0;
 $requestRows = [];
 
-if ($requestsTableExists) {
-    $countSql = "SELECT COUNT(*) AS total_items FROM public_donation_requests WHERE {$whereClause}";
-    $countStmt = $db->prepare($countSql);
-    if (!$countStmt) {
-        $isError = true;
-        $actionMsg = 'Failed to build request query.';
-    } else {
-        bind_query_params($countStmt, $types, $values);
-        $countStmt->execute();
-        $countResult = $countStmt->get_result()->fetch_assoc();
-        $totalItems = (int)($countResult['total_items'] ?? 0);
-        $countStmt->close();
-    }
-
-    $totalPages = (int)ceil($totalItems / $perPage);
-    if ($totalPages < 1) {
-        $totalPages = 1;
-    }
-    if ($page > $totalPages) {
-        $page = $totalPages;
-    }
-
-    $offset = max(0, ($page - 1) * $perPage);
-    $listSql = "
-        SELECT
-        id,
-          full_name,
-          phone_number,
-          message,
-          status,
-          source_page,
-          source_url,
-          referrer_url,
-          ip_address,
-          user_agent,
-          created_at,
-          updated_at,
-          updated_by_user_id
-        FROM public_donation_requests
-        WHERE {$whereClause}
-        ORDER BY {$sortBy} {$sortOrder}
-        LIMIT ? OFFSET ?
-    ";
-
-    $listStmt = $db->prepare($listSql);
-    if (!$listStmt) {
-        $isError = true;
-        $actionMsg = 'Failed to load request list.';
-    } else {
-        $listValues = $values;
-        $listTypes = $types . 'ii';
-        $listValues[] = $perPage;
-        $listValues[] = $offset;
-        bind_query_params($listStmt, $listTypes, $listValues);
-        $listStmt->execute();
-        $requestRows = $listStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $listStmt->close();
-    }
-
-    if (!empty($requestRows)) {
-        $donorMatchCache = [];
-        $cleanColumn = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(%s, '+', ''), ' ', ''), '-', ''), '(', ''), ')', '')";
-
-        foreach ($requestRows as &$requestRow) {
-            $lookupPhones = $buildPhoneLookupList($normalizeRequestPhone((string)($requestRow['phone_number'] ?? '')));
-            $cacheKey = implode('|', $lookupPhones);
-
-            if ($cacheKey === '') {
-                $requestRow['donor_match'] = null;
-                continue;
-            }
-
-            if (array_key_exists($cacheKey, $donorMatchCache)) {
-                $requestRow['donor_match'] = $donorMatchCache[$cacheKey];
-                continue;
-            }
-
-            $conditions = [];
-            $matchTypes = '';
-            $matchValues = [];
-            foreach ($lookupPhones as $lookupPhone) {
-                $conditions[] = '(' . sprintf($cleanColumn, '`phone`') . ' = ? OR ' . sprintf($cleanColumn, '`phone_number`') . ' = ?)';
-                $matchValues[] = $lookupPhone;
-                $matchValues[] = $lookupPhone;
-                $matchTypes .= 'ss';
-            }
-
-            $matchSql = 'SELECT id, name, phone, phone_number FROM donors WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
-            $matchStmt = $db->prepare($matchSql);
-            if (!$matchStmt) {
-                $requestRow['donor_match'] = null;
-                $donorMatchCache[$cacheKey] = null;
-                continue;
-            }
-
-            $matchBind = [$matchTypes];
-            foreach ($matchValues as $index => $value) {
-                $matchBind[] = &$matchValues[$index];
-            }
-            call_user_func_array([$matchStmt, 'bind_param'], $matchBind);
-            $matchStmt->execute();
-            $donorMatch = $matchStmt->get_result()->fetch_assoc();
-            $matchStmt->close();
-
-            $donorMatch = $donorMatch ?: null;
-            $requestRow['donor_match'] = $donorMatch;
-            $donorMatchCache[$cacheKey] = $donorMatch;
+if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
+    try {
+        $countSql = "SELECT COUNT(*) AS total_items FROM public_donation_requests WHERE {$whereClause}";
+        $countStmt = $db->prepare($countSql);
+        if (!$countStmt) {
+            $isError = true;
+            $actionMsg = 'Failed to build request query.';
+        } else {
+            bind_query_params($countStmt, $types, $values);
+            $countStmt->execute();
+            $countResult = $countStmt->get_result()->fetch_assoc();
+            $totalItems = (int)($countResult['total_items'] ?? 0);
+            $countStmt->close();
         }
-        unset($requestRow);
+
+        $totalPages = (int)ceil($totalItems / $perPage);
+        if ($totalPages < 1) {
+            $totalPages = 1;
+        }
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+
+        $offset = max(0, ($page - 1) * $perPage);
+        $listSql = "
+            SELECT
+            id,
+              full_name,
+              phone_number,
+              message,
+              status,
+              source_page,
+              source_url,
+              referrer_url,
+              ip_address,
+              user_agent,
+              created_at,
+              updated_at,
+              updated_by_user_id
+            FROM public_donation_requests
+            WHERE {$whereClause}
+            ORDER BY {$sortBy} {$sortOrder}
+            LIMIT ? OFFSET ?
+        ";
+
+        $listStmt = $db->prepare($listSql);
+        if (!$listStmt) {
+            $isError = true;
+            $actionMsg = 'Failed to load request list.';
+        } else {
+            $listValues = $values;
+            $listTypes = $types . 'ii';
+            $listValues[] = $perPage;
+            $listValues[] = $offset;
+            bind_query_params($listStmt, $listTypes, $listValues);
+            $listStmt->execute();
+            $requestRows = $listStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $listStmt->close();
+        }
+
+        if (!empty($requestRows)) {
+            $donorMatchCache = [];
+            $cleanColumn = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(%s, '+', ''), ' ', ''), '-', ''), '(', ''), ')', '')";
+
+            foreach ($requestRows as &$requestRow) {
+                $lookupPhones = $buildPhoneLookupList($normalizeRequestPhone((string)($requestRow['phone_number'] ?? '')));
+                $cacheKey = implode('|', $lookupPhones);
+
+                if ($cacheKey === '') {
+                    $requestRow['donor_match'] = null;
+                    continue;
+                }
+
+                if (array_key_exists($cacheKey, $donorMatchCache)) {
+                    $requestRow['donor_match'] = $donorMatchCache[$cacheKey];
+                    continue;
+                }
+
+                $conditions = [];
+                $matchTypes = '';
+                $matchValues = [];
+                foreach ($lookupPhones as $lookupPhone) {
+                    $conditions[] = '(' . sprintf($cleanColumn, '`phone`') . ' = ? OR ' . sprintf($cleanColumn, '`phone_number`') . ' = ?)';
+                    $matchValues[] = $lookupPhone;
+                    $matchValues[] = $lookupPhone;
+                    $matchTypes .= 'ss';
+                }
+
+                $matchSql = 'SELECT id, name, phone, phone_number FROM donors WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
+                $matchStmt = $db->prepare($matchSql);
+                if (!$matchStmt) {
+                    $requestRow['donor_match'] = null;
+                    $donorMatchCache[$cacheKey] = null;
+                    continue;
+                }
+
+                $matchBind = [$matchTypes];
+                foreach ($matchValues as $index => $value) {
+                    $matchBind[] = &$matchValues[$index];
+                }
+                call_user_func_array([$matchStmt, 'bind_param'], $matchBind);
+                $matchStmt->execute();
+                $donorMatch = $matchStmt->get_result()->fetch_assoc();
+                $matchStmt->close();
+
+                $donorMatch = $donorMatch ?: null;
+                $requestRow['donor_match'] = $donorMatch;
+                $donorMatchCache[$cacheKey] = $donorMatch;
+            }
+            unset($requestRow);
+        }
+    } catch (Throwable $e) {
+        $isError = true;
+        $actionMsg = 'Unable to load donation request records.';
+        error_log('Admin Public Donations - Query failed: ' . $e->getMessage());
+        $totalItems = 0;
+        $totalPages = 1;
+        $requestRows = [];
     }
 }
 
@@ -387,7 +422,18 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                     </div>
                 <?php endif; ?>
 
-                <?php if (!$requestsTableExists): ?>
+                <?php if (!$dbConnected): ?>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="alert alert-danger mb-3">
+                                <h5 class="mb-2">Database Connection Error</h5>
+                                <p class="mb-0">
+                                    <?php echo htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8'); ?>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                <?php elseif (!$requestsTableExists): ?>
                     <div class="card">
                         <div class="card-body">
                             <div class="alert alert-warning mb-3">

@@ -22,15 +22,15 @@ $normalizePhone = static function (string $rawPhone): string {
         return '';
     }
 
-    if (str_starts_with($clean, '00')) {
+    if (strlen($clean) > 1 && substr($clean, 0, 2) === '00') {
         $clean = '+' . substr($clean, 2);
     }
 
-    if ($clean !== '' && str_starts_with($clean, '0') && str_starts_with($clean, '07')) {
+    if ($clean !== '' && substr($clean, 0, 1) === '0' && strlen($clean) > 1 && substr($clean, 0, 2) === '07') {
         return $clean;
     }
 
-    if ($clean !== '' && str_starts_with($clean, '+')) {
+    if ($clean !== '' && substr($clean, 0, 1) === '+') {
         return $clean;
     }
 
@@ -43,7 +43,7 @@ $normalizeLoadTimestamp = static function (int $loadedAt): int {
     }
 
     // Accept both seconds and milliseconds input from clients.
-    return $loadedAt > 1_000_000_000_000 ? intdiv($loadedAt, 1000) : $loadedAt;
+    return $loadedAt > 1000000000000 ? intdiv($loadedAt, 1000) : $loadedAt;
 };
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
