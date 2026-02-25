@@ -37,6 +37,23 @@ function bind_query_params(mysqli_stmt $stmt, string $types, array $params): voi
     call_user_func_array([$stmt, 'bind_param'], $bind);
 }
 
+function table_column_map(mysqli $db, string $tableName): array {
+    $map = [];
+    $result = $db->query("SHOW COLUMNS FROM `{$tableName}`");
+    if (!$result) {
+        return $map;
+    }
+
+    while ($row = $result->fetch_assoc()) {
+        $field = (string)($row['Field'] ?? '');
+        if ($field !== '') {
+            $map[$field] = true;
+        }
+    }
+
+    return $map;
+}
+
 $normalizeRequestPhone = static function (string $rawPhone): string {
     $clean = preg_replace('/\D/', '', trim($rawPhone));
     return $clean === null ? '' : $clean;
@@ -67,6 +84,26 @@ $statusLabels = [
     'spam' => ['label' => 'Spam', 'class' => 'bg-secondary'],
 ];
 
+$requestColumns = [];
+$donorColumns = [];
+if ($dbConnected && $db instanceof mysqli) {
+    try {
+        $requestColumns = table_column_map($db, 'public_donation_requests');
+    } catch (Throwable $e) {
+        error_log('Admin Public Donations - Column lookup failed (request table): ' . $e->getMessage());
+        $requestColumns = [];
+    }
+}
+
+if ($dbConnected && $db instanceof mysqli) {
+    try {
+        $donorColumns = table_column_map($db, 'donors');
+    } catch (Throwable $e) {
+        error_log('Admin Public Donations - Column lookup failed (donor table): ' . $e->getMessage());
+        $donorColumns = [];
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConnected && $db instanceof mysqli) {
     try {
         verify_csrf();
@@ -80,10 +117,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConnected && $db instanceof mysq
                 $isError = true;
                 $actionMsg = 'Please provide a valid request and status.';
             } else {
-                $stmt = $db->prepare('UPDATE public_donation_requests SET status = ?, updated_by_user_id = ?, updated_at = NOW() WHERE id = ?');
-                if ($stmt) {
-                    $adminId = (int)($current_user['id'] ?? 0);
-                    $stmt->bind_param('sii', $status, $adminId, $requestId);
+                $adminId = (int)($current_user['id'] ?? 0);
+                $updateParts = ['status = ?'];
+                if (isset($requestColumns['updated_at'])) {
+                    $updateParts[] = 'updated_at = NOW()';
+                }
+                $updateValues = [$status];
+                $updateTypes = 's';
+
+                if (isset($requestColumns['updated_by_user_id'])) {
+                    $updateParts[] = 'updated_by_user_id = ?';
+                    $updateValues[] = $adminId;
+                    $updateTypes .= 'i';
+                }
+
+                $updateSql = 'UPDATE public_donation_requests SET ' . implode(', ', $updateParts);
+                if (isset($requestColumns['updated_at']) && strpos($updateSql, 'updated_at = NOW()') === false) {
+                    $updateSql .= ', updated_at = NOW()';
+                }
+                $updateSql .= ' WHERE id = ?';
+                $updateValues[] = $requestId;
+                $updateTypes .= 'i';
+
+                $stmt = $db->prepare($updateSql);
+                if (!$stmt) {
+                    $isError = true;
+                    $actionMsg = 'Database error while updating status.';
+                } else {
+                    bind_query_params($stmt, $updateTypes, $updateValues);
                     $stmt->execute();
 
                     if ($stmt->affected_rows >= 0) {
@@ -106,9 +167,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConnected && $db instanceof mysq
                         header('Location: public-donations.php' . ($returnParams ? ('?' . http_build_query($returnParams)) : ''));
                         exit;
                     }
-                } else {
-                    $isError = true;
-                    $actionMsg = 'Database error while updating status.';
                 }
             }
         }
@@ -144,40 +202,76 @@ if (!in_array($perPage, [10, 20, 50], true)) {
     $perPage = 20;
 }
 
-$sortOptions = ['created_at', 'updated_at', 'full_name', 'phone_number', 'status'];
-if (!in_array($sortBy, $sortOptions, true)) {
-    $sortBy = 'created_at';
+$sortLabels = [];
+if (isset($requestColumns['created_at'])) {
+    $sortLabels['created_at'] = 'Created';
+}
+if (isset($requestColumns['updated_at'])) {
+    $sortLabels['updated_at'] = 'Updated';
+}
+if (isset($requestColumns['full_name'])) {
+    $sortLabels['full_name'] = 'Name';
+}
+if (isset($requestColumns['phone_number'])) {
+    $sortLabels['phone_number'] = 'Phone';
+}
+if (isset($requestColumns['status'])) {
+    $sortLabels['status'] = 'Status';
+}
+if (!isset($sortLabels['created_at']) && isset($requestColumns['id'])) {
+    $sortLabels['id'] = 'ID';
+}
+if (empty($sortLabels) && isset($requestColumns['id'])) {
+    $sortLabels['id'] = 'ID';
+}
+
+if ($sortLabels === []) {
+    $sortLabels['1'] = 'Default';
+}
+
+if (!isset($sortLabels[$sortBy])) {
+    $sortBy = array_key_first($sortLabels) ?: 'created_at';
 }
 if ($sortOrder !== 'asc' && $sortOrder !== 'desc') {
     $sortOrder = 'desc';
 }
+$sortExpression = ($sortBy === '1') ? '1' : ('`' . $sortBy . '`');
 
 $filters = ['1 = 1'];
 $values = [];
 $types = '';
 
-if ($statusFilter !== '' && in_array($statusFilter, $allowedStatuses, true)) {
+if (isset($requestColumns['status']) && $statusFilter !== '' && in_array($statusFilter, $allowedStatuses, true)) {
     $filters[] = 'status = ?';
     $values[] = $statusFilter;
     $types .= 's';
 }
 
 if ($search !== '') {
-    $filters[] = '(full_name LIKE ? OR phone_number LIKE ? OR COALESCE(message, "") LIKE ? OR COALESCE(source_page, "") LIKE ? OR COALESCE(source_url, "") LIKE ? OR COALESCE(referrer_url, "") LIKE ?)';
-    $pattern = '%' . $search . '%';
-    $values = array_merge($values, [$pattern, $pattern, $pattern, $pattern, $pattern, $pattern]);
-    $types .= 'ssssss';
+    $searchableColumns = [];
+    foreach (['full_name', 'phone_number', 'message', 'source_page', 'source_url', 'referrer_url'] as $column) {
+        if (isset($requestColumns[$column])) {
+            $searchableColumns[] = "{$column} LIKE ?";
+        }
+    }
+
+    if (!empty($searchableColumns)) {
+        $filters[] = '(' . implode(' OR ', $searchableColumns) . ')';
+        $pattern = '%' . $search . '%';
+        $values = array_merge($values, array_fill(0, count($searchableColumns), $pattern));
+        $types .= str_repeat('s', count($searchableColumns));
+    }
 }
 
 $validatedDateFrom = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom) ? $dateFrom : '';
 $validatedDateTo = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo) ? $dateTo : '';
 
-if ($validatedDateFrom !== '') {
+if (isset($requestColumns['created_at']) && $validatedDateFrom !== '') {
     $filters[] = 'DATE(created_at) >= ?';
     $values[] = $validatedDateFrom;
     $types .= 's';
 }
-if ($validatedDateTo !== '') {
+if (isset($requestColumns['created_at']) && $validatedDateTo !== '') {
     $filters[] = 'DATE(created_at) <= ?';
     $values[] = $validatedDateTo;
     $types .= 's';
@@ -213,26 +307,30 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
         }
 
         $offset = max(0, ($page - 1) * $perPage);
-        $listSql = "
+        $listSelectColumns = [
+            'id' => isset($requestColumns['id']) ? '`id`' : '0 AS id',
+            'full_name' => isset($requestColumns['full_name']) ? '`full_name`' : "'' AS full_name",
+            'phone_number' => isset($requestColumns['phone_number']) ? '`phone_number`' : "'' AS phone_number",
+            'message' => isset($requestColumns['message']) ? '`message`' : 'NULL AS message',
+            'status' => isset($requestColumns['status']) ? '`status`' : "'new' AS status",
+            'source_page' => isset($requestColumns['source_page']) ? '`source_page`' : 'NULL AS source_page',
+            'source_url' => isset($requestColumns['source_url']) ? '`source_url`' : 'NULL AS source_url',
+            'referrer_url' => isset($requestColumns['referrer_url']) ? '`referrer_url`' : 'NULL AS referrer_url',
+            'ip_address' => isset($requestColumns['ip_address']) ? '`ip_address`' : 'NULL AS ip_address',
+            'user_agent' => isset($requestColumns['user_agent']) ? '`user_agent`' : 'NULL AS user_agent',
+            'created_at' => isset($requestColumns['created_at']) ? '`created_at`' : 'NOW() AS created_at',
+            'updated_at' => isset($requestColumns['updated_at']) ? '`updated_at`' : 'NOW() AS updated_at',
+            'updated_by_user_id' => isset($requestColumns['updated_by_user_id']) ? '`updated_by_user_id`' : 'NULL AS updated_by_user_id',
+        ];
+
+        $listSql = '
             SELECT
-            id,
-              full_name,
-              phone_number,
-              message,
-              status,
-              source_page,
-              source_url,
-              referrer_url,
-              ip_address,
-              user_agent,
-              created_at,
-              updated_at,
-              updated_by_user_id
+              ' . implode(",\n              ", $listSelectColumns) . '
             FROM public_donation_requests
-            WHERE {$whereClause}
-            ORDER BY {$sortBy} {$sortOrder}
+            WHERE ' . $whereClause . '
+            ORDER BY ' . $sortExpression . ' ' . $sortOrder . '
             LIMIT ? OFFSET ?
-        ";
+        ';
 
         $listStmt = $db->prepare($listSql);
         if (!$listStmt) {
@@ -252,6 +350,21 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
         if (!empty($requestRows)) {
             $donorMatchCache = [];
             $cleanColumn = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(%s, '+', ''), ' ', ''), '-', ''), '(', ''), ')', '')";
+            $donorMatchColumns = [];
+            if (isset($donorColumns['phone'])) {
+                $donorMatchColumns[] = 'phone';
+            }
+            if (isset($donorColumns['phone_number'])) {
+                $donorMatchColumns[] = 'phone_number';
+            }
+
+            $donorSelectColumns = ['id', 'name'];
+            if (isset($donorColumns['phone'])) {
+                $donorSelectColumns[] = 'phone';
+            }
+            if (isset($donorColumns['phone_number'])) {
+                $donorSelectColumns[] = 'phone_number';
+            }
 
             foreach ($requestRows as &$requestRow) {
                 $lookupPhones = $buildPhoneLookupList($normalizeRequestPhone((string)($requestRow['phone_number'] ?? '')));
@@ -271,13 +384,20 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
                 $matchTypes = '';
                 $matchValues = [];
                 foreach ($lookupPhones as $lookupPhone) {
-                    $conditions[] = '(' . sprintf($cleanColumn, '`phone`') . ' = ? OR ' . sprintf($cleanColumn, '`phone_number`') . ' = ?)';
-                    $matchValues[] = $lookupPhone;
-                    $matchValues[] = $lookupPhone;
-                    $matchTypes .= 'ss';
+                    foreach ($donorMatchColumns as $donorMatchColumn) {
+                        $conditions[] = sprintf($cleanColumn, '`' . $donorMatchColumn . '`') . ' = ?';
+                        $matchValues[] = $lookupPhone;
+                        $matchTypes .= 's';
+                    }
                 }
 
-                $matchSql = 'SELECT id, name, phone, phone_number FROM donors WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
+                if (empty($conditions)) {
+                    $requestRow['donor_match'] = null;
+                    $donorMatchCache[$cacheKey] = null;
+                    continue;
+                }
+
+                $matchSql = 'SELECT ' . implode(', ', $donorSelectColumns) . ' FROM donors WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
                 $matchStmt = $db->prepare($matchSql);
                 if (!$matchStmt) {
                     $requestRow['donor_match'] = null;
@@ -495,14 +615,7 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                     <div class="input-group input-group-sm">
                                         <select name="sort_by" class="form-select form-select-sm">
                                             <?php
-                                            $sortMap = [
-                                                'created_at' => 'Created',
-                                                'updated_at' => 'Updated',
-                                                'full_name' => 'Name',
-                                                'phone_number' => 'Phone',
-                                                'status' => 'Status',
-                                            ];
-                                            foreach ($sortMap as $key => $label):
+                                            foreach ($sortLabels as $key => $label):
                                             ?>
                                                 <option value="<?php echo $key; ?>" <?php echo $sortBy === $key ? 'selected' : ''; ?>>
                                                     <?php echo $label; ?>

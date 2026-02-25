@@ -86,11 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Message is too long. Keep it under 2,000 characters.';
             }
 
-            $now = time();
-            if ($formLoadedAt > 0 && $formLoadedAt <= $now && ($now - $formLoadedAt) < 2) {
-                // Lightweight anti-bot timing guard.
-                $error = 'Please take a moment to complete the form before sending.';
-            }
         }
 
         if ($error === '') {
