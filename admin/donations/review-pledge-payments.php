@@ -1882,8 +1882,12 @@ function isAssignedToKesisBirhanu(data) {
 }
 
 function getRoutingTarget(data) {
-    const routedToKesis = isAssignedToKesisBirhanu(data);
-    const assignedName = data?.assigned_agent_name || KESIS_BIRHANU_NAME;
+    const assignedAgentPhone = normalizePhoneForComparison(data?.assigned_agent_phone || '');
+    const hasAssignedAgent = assignedAgentPhone !== '';
+    const routedToKesis = isAssignedToKesisBirhanu(data) || !hasAssignedAgent;
+    const assignedName = routedToKesis
+        ? (data?.assigned_agent_name || KESIS_BIRHANU_NAME)
+        : (data?.assigned_agent_name || '');
 
     return {
         routedToKesis,
