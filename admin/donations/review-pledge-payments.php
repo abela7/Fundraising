@@ -1836,6 +1836,28 @@ function resolveTemplateMode(templateObj) {
 const paymentTemplateMode = resolveTemplateMode(dbTemplates);
 const fullyPaidTemplateMode = resolveTemplateMode(dbFullyPaidTemplate);
 
+// Guard helpers so older cached/partial deployments do not break send flow.
+if (typeof window.fetchDonorCertificateData !== 'function') {
+    window.fetchDonorCertificateData = async function(donorId) {
+        const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${donorId}`);
+        const dataJson = await dataRes.json();
+        if (!dataJson.success) {
+            throw new Error(dataJson.error || 'Failed to load certificate data');
+        }
+        return dataJson.donor;
+    };
+}
+
+if (typeof window.getCertificateFileName !== 'function') {
+    window.getCertificateFileName = function(prefix, donorName, blob) {
+        const safeName = (donorName || 'donor').replace(/[^a-z0-9]/gi, '_');
+        let ext = 'png';
+        if (blob && blob.type === 'image/jpeg') ext = 'jpg';
+        else if (blob && blob.type === 'image/webp') ext = 'webp';
+        return `${prefix}_${safeName}.${ext}`;
+    };
+}
+
 // Sub-templates for {next_payment_info} variable
 const nextPaymentTemplates = {
     en: {
@@ -2698,15 +2720,6 @@ sendNotification = async function() {
             showSendSuccess('Certificate + Message Sent!');
         } else {
             console.warn('Certificate send failed:', certResult.error);
-<<<<<<< HEAD
-        showSendSuccess(
-            routing.routedToKesis
-                ? 'Sent to ' + routing.assignedName + '!'
-                : 'Certificate + Message Sent!'
-        );
-
-=======
->>>>>>> origin/laughing-roentgen
             throw new Error(certResult.error || 'Failed to send certificate');
         }
 
