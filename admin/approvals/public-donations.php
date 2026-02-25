@@ -316,7 +316,7 @@ if (isset($requestColumns['status']) && $statusFilter !== '' && in_array($status
 
 if ($search !== '') {
     $searchableColumns = [];
-    foreach (['full_name', 'phone_number', 'message', 'source_page', 'source_url', 'referrer_url'] as $column) {
+    foreach (['full_name', 'phone_number', 'message'] as $column) {
         if (isset($requestColumns[$column])) {
             $searchableColumns[] = "{$column} LIKE ?";
         }
@@ -383,9 +383,6 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
             'phone_number' => isset($requestColumns['phone_number']) ? '`phone_number`' : "'' AS phone_number",
             'message' => isset($requestColumns['message']) ? '`message`' : 'NULL AS message',
             'status' => isset($requestColumns['status']) ? '`status`' : "'new' AS status",
-            'source_page' => isset($requestColumns['source_page']) ? '`source_page`' : 'NULL AS source_page',
-            'source_url' => isset($requestColumns['source_url']) ? '`source_url`' : 'NULL AS source_url',
-            'referrer_url' => isset($requestColumns['referrer_url']) ? '`referrer_url`' : 'NULL AS referrer_url',
             'ip_address' => isset($requestColumns['ip_address']) ? '`ip_address`' : 'NULL AS ip_address',
             'user_agent' => isset($requestColumns['user_agent']) ? '`user_agent`' : 'NULL AS user_agent',
             'created_at' => isset($requestColumns['created_at']) ? '`created_at`' : 'NOW() AS created_at',
@@ -671,7 +668,7 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                             <form method="GET" class="row g-2 align-items-end">
                                 <div class="col-md-4">
                                     <label class="form-label">Search</label>
-                                    <input type="text" class="form-control form-control-sm" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Name, phone, message, source, referrer">
+                                    <input type="text" class="form-control form-control-sm" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Name, phone, message">
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label">Status</label>
@@ -750,7 +747,6 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                         <th>Donor</th>
                                         <th>Phone</th>
                                         <th>Message</th>
-                                        <th>Where</th>
                                         <th>Existing Donor</th>
                                         <th>Status</th>
                                         <th>Submitted</th>
@@ -761,7 +757,7 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                 <tbody>
                                     <?php if (empty($requestRows)): ?>
                                         <tr>
-                                            <td colspan="10" class="text-center py-4">No matching requests found.</td>
+                                            <td colspan="9" class="text-center py-4">No matching requests found.</td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($requestRows as $req): ?>
@@ -784,19 +780,6 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                                         <?php else: ?>
                                                             <span title="<?php echo htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $shortMsg; ?></span>
                                                         <?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="text-wrap-anywhere meta-small">
-                                                        <?php echo htmlspecialchars((string)($req['source_page'] ?: 'public page'), ENT_QUOTES, 'UTF-8'); ?><br>
-                                                        <strong>URL:</strong>
-                                                        <span title="<?php echo htmlspecialchars((string)($req['source_url'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
-                                                            <?php echo htmlspecialchars((string)($req['source_url'] ?? 'N/A'), ENT_QUOTES, 'UTF-8'); ?>
-                                                        </span><br>
-                                                        <strong>Ref:</strong>
-                                                        <span title="<?php echo htmlspecialchars((string)($req['referrer_url'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
-                                                            <?php echo htmlspecialchars((string)($req['referrer_url'] ?? 'Direct'), ENT_QUOTES, 'UTF-8'); ?>
-                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td>
