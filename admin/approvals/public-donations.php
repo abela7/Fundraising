@@ -478,7 +478,7 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
 
         if (!empty($requestRows)) {
             $donorMatchCache = [];
-            $cleanColumn = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(%s, '+', ''), ' ', ''), '-', ''), '(', ''), ')', '')";
+            $cleanColumn = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(%s, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''), '.', '')";
             $donorMatchColumns = [];
             if (isset($donorColumns['phone'])) {
                 $donorMatchColumns[] = 'phone';
@@ -1303,44 +1303,57 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
 
         <main class="main-content">
             <div class="container-fluid">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-                    <div>
-                        <h1 class="h4 mb-1">Public Donation Requests</h1>
-                        <div class="text-muted">Incoming public contact requests from the donation page.</div>
+                <!-- Hero Header -->
+                <div class="page-hero animate-fade-in">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div>
+                            <h1><i class="fas fa-hand-holding-heart me-2" style="opacity:0.8"></i>Public Donation Requests</h1>
+                            <p>Manage and review incoming contact requests from the public donation page.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <a href="index.php" class="btn-hero">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Approvals
+                            </a>
+                        </div>
                     </div>
-                    <a href="index.php" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i> Back to Pending Approvals
-                    </a>
                 </div>
 
                 <?php if ($actionMsg !== ''): ?>
-                    <div id="actionMessage" class="alert <?php echo $isError ? 'alert-danger' : 'alert-success'; ?> alert-dismissible fade show" role="alert">
-                        <i class="fas fa-<?php echo $isError ? 'exclamation-triangle' : 'check-circle'; ?> me-2"></i>
+                    <div id="actionMessage" class="alert alert-enhanced <?php echo $isError ? 'alert-danger' : 'alert-success'; ?> alert-dismissible fade show mb-4" role="alert">
+                        <i class="fas fa-<?php echo $isError ? 'exclamation-triangle' : 'check-circle'; ?>"></i>
                         <?php echo htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8'); ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 <?php endif; ?>
 
                 <?php if (!$dbConnected): ?>
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="alert alert-danger mb-3">
-                                <h5 class="mb-2">Database Connection Error</h5>
-                                <p class="mb-0">
-                                    <?php echo htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8'); ?>
-                                </p>
+                    <div class="error-card">
+                        <div class="error-body">
+                            <div class="alert alert-danger error-alert mb-0">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size:1.5rem;opacity:0.7"><i class="fas fa-database"></i></div>
+                                    <div>
+                                        <h5 class="mb-1 fw-bold">Database Connection Error</h5>
+                                        <p class="mb-0"><?php echo htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8'); ?></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 <?php elseif (!$requestsTableExists): ?>
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="alert alert-warning mb-3">
-                                <h5 class="mb-2">Database table missing</h5>
-                                <p class="mb-1">The table <strong>public_donation_requests</strong> is not present.</p>
-                                <p class="mb-0">Run the SQL below in phpMyAdmin first:</p>
+                    <div class="error-card">
+                        <div class="error-body">
+                            <div class="alert alert-warning error-alert mb-3">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size:1.5rem;opacity:0.7"><i class="fas fa-table"></i></div>
+                                    <div>
+                                        <h5 class="mb-1 fw-bold">Database table missing</h5>
+                                        <p class="mb-1">The table <strong>public_donation_requests</strong> is not present.</p>
+                                        <p class="mb-0">Run the SQL below in phpMyAdmin first:</p>
+                                    </div>
+                                </div>
                             </div>
-                            <pre class="bg-light p-3 rounded text-wrap">CREATE TABLE `public_donation_requests` (
+                            <pre class="bg-light p-3 rounded text-wrap" style="font-size:0.8rem">CREATE TABLE `public_donation_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `full_name` varchar(120) NOT NULL,
   `phone_number` varchar(40) NOT NULL,
