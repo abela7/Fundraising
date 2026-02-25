@@ -1710,6 +1710,17 @@ $page_title = 'Live Call';
         return donorPhone;
     }
 
+    function updateStep3CompletionState() {
+        const nextBtn = document.getElementById('btnStep3Next');
+        const paidMethodInput = document.getElementById('paidPaymentMethodInput');
+        if (!nextBtn || !paidMethodInput) {
+            return;
+        }
+
+        // WhatsApp proof request is optional; only payment method is required.
+        nextBtn.disabled = !paidMethodInput.value;
+    }
+
     function togglePaidWhatsappNumberInput(checkbox) {
         const wrap = document.getElementById('paidWhatsappNumberWrap');
         const overrideInput = document.getElementById('paidWhatsappNumberInput');
@@ -1723,10 +1734,7 @@ $page_title = 'Live Call';
         statusEl.className = 'small text-muted mt-2';
         statusEl.textContent = 'No request sent yet.';
         document.getElementById('paidWhatsappSentInput').value = '0';
-        const nextBtn = document.getElementById('btnStep3Next');
-        if (nextBtn) {
-            nextBtn.disabled = true;
-        }
+        updateStep3CompletionState();
     }
 
     function syncPaidWhatsappNumber() {
@@ -1743,9 +1751,7 @@ $page_title = 'Live Call';
             statusEl.className = 'small text-muted mt-2';
             statusEl.textContent = 'No request sent yet.';
         }
-        if (nextBtn) {
-            nextBtn.disabled = true;
-        }
+        updateStep3CompletionState();
     }
     
     function setActiveChoice(stepId, clickedElement) {
@@ -1832,6 +1838,7 @@ $page_title = 'Live Call';
         if (nextBtn && method) {
             nextBtn.disabled = false;
         }
+        updateStep3CompletionState();
     }
     
 function sendPaidWhatsAppRequest() {
