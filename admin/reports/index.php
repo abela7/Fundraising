@@ -4,10 +4,19 @@ require_once '../../shared/auth.php';
 require_once '../../shared/csrf.php';
 require_once '../../shared/url.php';
 require_once '../../services/UltraMsgService.php';
-require_login();
-require_admin();
 
-$current_user = current_user();
+// Allow key-based cron execution for WhatsApp backup without admin session.
+$isCronBackupRequest = (
+    isset($_GET['report'], $_GET['cron_key']) &&
+    (string)$_GET['report'] === 'whatsapp_backup'
+);
+
+if (!$isCronBackupRequest) {
+    require_login();
+    require_admin();
+}
+
+$current_user = function_exists('current_user') ? current_user() : null;
 $db = db();
 
 // Settings and live stats (dynamic, no counters)
