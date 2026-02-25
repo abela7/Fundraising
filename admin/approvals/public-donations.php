@@ -1376,85 +1376,142 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                         </div>
                     </div>
                 <?php else: ?>
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <form method="GET" class="row g-2 align-items-end">
-                                <div class="col-md-4">
-                                    <label class="form-label">Search</label>
-                                    <input type="text" class="form-control form-control-sm" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Name, phone, message">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">Status</label>
-                                    <select name="status" class="form-select form-select-sm">
-                                        <option value="">All</option>
-                                        <?php foreach ($allowedStatuses as $status): ?>
-                                            <option value="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $statusFilter === $status ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($statusLabels[$status]['label'], ENT_QUOTES, 'UTF-8'); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">From</label>
-                                    <input type="date" class="form-control form-control-sm" name="date_from" value="<?php echo htmlspecialchars($validatedDateFrom, ENT_QUOTES, 'UTF-8'); ?>">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">To</label>
-                                    <input type="date" class="form-control form-control-sm" name="date_to" value="<?php echo htmlspecialchars($validatedDateTo, ENT_QUOTES, 'UTF-8'); ?>">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">Sort</label>
-                                    <div class="input-group input-group-sm">
-                                        <select name="sort_by" class="form-select form-select-sm">
-                                            <?php
-                                            foreach ($sortLabels as $key => $label):
-                                            ?>
-                                                <option value="<?php echo $key; ?>" <?php echo $sortBy === $key ? 'selected' : ''; ?>>
-                                                    <?php echo $label; ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <select name="sort_order" class="form-select form-select-sm">
-                                            <option value="desc" <?php echo $sortOrder === 'desc' ? 'selected' : ''; ?>>Desc</option>
-                                            <option value="asc" <?php echo $sortOrder === 'asc' ? 'selected' : ''; ?>>Asc</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-12 d-flex gap-2 mt-2">
-                                    <button class="btn btn-primary btn-filter" type="submit">
-                                        <i class="fas fa-search me-1"></i> Filter
-                                    </button>
-                                    <a href="public-donations.php" class="btn btn-outline-secondary btn-filter">Reset</a>
-                                </div>
-                            </form>
+
+                    <?php
+                    // Compute status counts for stats row
+                    $statusCounts = ['new' => 0, 'contacted' => 0, 'resolved' => 0, 'spam' => 0];
+                    if ($dbConnected && $db instanceof mysqli && isset($requestColumns['status'])) {
+                        try {
+                            $countsResult = $db->query("SELECT status, COUNT(*) AS cnt FROM public_donation_requests GROUP BY status");
+                            if ($countsResult) {
+                                while ($cRow = $countsResult->fetch_assoc()) {
+                                    $s = (string)($cRow['status'] ?? '');
+                                    if (isset($statusCounts[$s])) {
+                                        $statusCounts[$s] = (int)$cRow['cnt'];
+                                    }
+                                }
+                            }
+                        } catch (Throwable $e) {
+                            // Silently ignore stats count errors
+                        }
+                    }
+                    $statusCountTotal = array_sum($statusCounts);
+                    ?>
+
+                    <!-- Stats Row -->
+                    <div class="stats-row animate-fade-in" style="animation-delay:0.1s">
+                        <div class="stat-mini">
+                            <div class="stat-icon blue"><i class="fas fa-inbox"></i></div>
+                            <div>
+                                <div class="stat-value"><?php echo number_format($statusCountTotal); ?></div>
+                                <div class="stat-label">Total Requests</div>
+                            </div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-icon amber"><i class="fas fa-star"></i></div>
+                            <div>
+                                <div class="stat-value"><?php echo number_format($statusCounts['new']); ?></div>
+                                <div class="stat-label">New</div>
+                            </div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-icon blue"><i class="fas fa-phone"></i></div>
+                            <div>
+                                <div class="stat-value"><?php echo number_format($statusCounts['contacted']); ?></div>
+                                <div class="stat-label">Contacted</div>
+                            </div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                            <div>
+                                <div class="stat-value"><?php echo number_format($statusCounts['resolved']); ?></div>
+                                <div class="stat-label">Resolved</div>
+                            </div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-icon slate"><i class="fas fa-ban"></i></div>
+                            <div>
+                                <div class="stat-value"><?php echo number_format($statusCounts['spam']); ?></div>
+                                <div class="stat-label">Spam</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>Items:</strong> <?php echo number_format($totalItems); ?>
+                    <!-- Filter Card -->
+                    <div class="filter-card animate-fade-in" style="animation-delay:0.15s">
+                        <form method="GET" class="row g-2 align-items-end">
+                            <div class="col-lg-3 col-md-6">
+                                <label class="form-label">Search</label>
+                                <input type="text" class="form-control form-control-sm" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Name, phone, or message...">
                             </div>
-                            <div class="d-flex gap-2 align-items-center">
+                            <div class="col-lg-2 col-md-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="">All Statuses</option>
+                                        <?php foreach ($allowedStatuses as $status): ?>
+                                        <option value="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $statusFilter === $status ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($statusLabels[$status]['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-3">
+                                <label class="form-label">From Date</label>
+                                <input type="date" class="form-control form-control-sm" name="date_from" value="<?php echo htmlspecialchars($validatedDateFrom, ENT_QUOTES, 'UTF-8'); ?>">
+                            </div>
+                            <div class="col-lg-2 col-md-3">
+                                <label class="form-label">To Date</label>
+                                <input type="date" class="form-control form-control-sm" name="date_to" value="<?php echo htmlspecialchars($validatedDateTo, ENT_QUOTES, 'UTF-8'); ?>">
+                            </div>
+                            <div class="col-lg-3 col-md-6">
+                                <label class="form-label">Sort By</label>
+                                <div class="input-group input-group-sm">
+                                    <select name="sort_by" class="form-select form-select-sm">
+                                        <?php foreach ($sortLabels as $key => $label): ?>
+                                            <option value="<?php echo $key; ?>" <?php echo $sortBy === $key ? 'selected' : ''; ?>><?php echo $label; ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <select name="sort_order" class="form-select form-select-sm">
+                                        <option value="desc" <?php echo $sortOrder === 'desc' ? 'selected' : ''; ?>>Desc</option>
+                                        <option value="asc" <?php echo $sortOrder === 'asc' ? 'selected' : ''; ?>>Asc</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12 d-flex gap-2 mt-3">
+                                <button class="btn-filter-primary" type="submit"><i class="fas fa-search me-1"></i> Apply Filters</button>
+                                <a href="public-donations.php" class="btn-filter-reset"><i class="fas fa-undo me-1"></i> Reset</a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Data Table Card -->
+                    <div class="data-card animate-fade-in" style="animation-delay:0.2s">
+                        <div class="data-card-header">
+                            <div class="items-count">
+                                Showing <strong><?php echo number_format(count($requestRows)); ?></strong> of <strong><?php echo number_format($totalItems); ?></strong> requests
+                                <?php if ($statusFilter !== ''): ?>
+                                    &middot; Filtered by <span class="status-pill status-<?php echo htmlspecialchars($statusFilter, ENT_QUOTES, 'UTF-8'); ?>" style="font-size:0.68rem;padding:0.2rem 0.5rem"><span class="status-dot"></span><?php echo htmlspecialchars($statusLabels[$statusFilter]['label'] ?? ucfirst($statusFilter), ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="per-page-group">
+                                <span style="font-size:0.75rem;color:var(--gray-400);margin-right:0.25rem">Per page:</span>
                                 <?php
                                 $perPageMap = [10, 20, 50];
                                 foreach ($perPageMap as $itemCount):
-                                    $url = ($itemCount === $perPage)
-                                        ? '#'
-                                        : $buildUrl('public-donations.php', 1, ['per_page' => $itemCount]);
+                                    $ppUrl = ($itemCount === $perPage) ? '#' : $buildUrl('public-donations.php', 1, ['per_page' => $itemCount]);
                                 ?>
                                     <?php if ($itemCount === $perPage): ?>
-                                        <span class="badge bg-primary"><?php echo $itemCount; ?></span>
+                                        <span class="per-page-btn active"><?php echo $itemCount; ?></span>
                                     <?php else: ?>
-                                        <a href="<?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-secondary btn-sm"><?php echo $itemCount; ?></a>
+                                        <a href="<?php echo htmlspecialchars($ppUrl, ENT_QUOTES, 'UTF-8'); ?>" class="per-page-btn"><?php echo $itemCount; ?></a>
                                     <?php endif; ?>
                                 <?php endforeach; ?>
                             </div>
                         </div>
 
                         <div class="table-responsive table-wrapper">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="table-light">
+                            <table class="table enhanced-table mb-0">
+                                <thead>
                                     <tr>
                                         <th>ID</th>
                                         <th>Donor</th>
@@ -1463,85 +1520,86 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                         <th>Existing Donor</th>
                                         <th>Status</th>
                                         <th>Submitted</th>
-                                        <th>IP</th>
+                                        <th>IP / Agent</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php if (empty($requestRows)): ?>
                                         <tr>
-                                            <td colspan="9" class="text-center py-4">No matching requests found.</td>
+                                            <td colspan="9">
+                                                <div class="empty-state">
+                                                    <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                                                    <div class="empty-title">No requests found</div>
+                                                    <div class="empty-desc">Try adjusting your filters or check back later.</div>
+                                                </div>
+                                            </td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($requestRows as $req): ?>
                                             <tr>
-                                                <td>#<?php echo (int)$req['id']; ?></td>
-                                                <td>
-                                                    <div class="fw-semibold"><?php echo htmlspecialchars((string)$req['full_name'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-monospace"><?php echo htmlspecialchars((string)$req['phone_number'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                                </td>
+                                                <td><span class="row-id">#<?php echo (int)$req['id']; ?></span></td>
+                                                <td><div class="donor-name"><?php echo htmlspecialchars((string)$req['full_name'], ENT_QUOTES, 'UTF-8'); ?></div></td>
+                                                <td><span class="phone-cell"><?php echo htmlspecialchars((string)$req['phone_number'], ENT_QUOTES, 'UTF-8'); ?></span></td>
                                                 <td>
                                                     <div class="request-message text-wrap-anywhere">
                                                         <?php
                                                         $msg = (string)($req['message'] ?? '');
-                                                        $shortMsg = $msg === '' ? '<em class="text-muted">No message</em>' : mb_strimwidth(htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'), 0, 160, '...');
+                                                        $shortMsg = $msg === '' ? '' : mb_strimwidth(htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'), 0, 140, '...');
                                                         ?>
                                                         <?php if ($msg === ''): ?>
-                                                            <span class="text-muted"><em>No message</em></span>
+                                                            <span class="text-muted" style="font-size:0.8rem"><i class="fas fa-minus me-1"></i>No message</span>
                                                         <?php else: ?>
-                                                            <span title="<?php echo htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $shortMsg; ?></span>
+                                                            <span class="message-text" title="<?php echo htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $shortMsg; ?></span>
                                                         <?php endif; ?>
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <?php $donorMatch = $req['donor_match'] ?? null; ?>
                                                     <?php if (!empty($donorMatch) && !empty($donorMatch['id'])): ?>
-                                                        <div class="fw-semibold">
-                                                            <a href="../donor-management/view-donor.php?id=<?php echo (int)$donorMatch['id']; ?>">
-                                                                <i class="fas fa-user-check me-1"></i>
-                                                                <?php echo htmlspecialchars((string)($donorMatch['name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                                                            </a>
-                                                        </div>
-                                                        <div class="meta-small">
-                                                            Donor phone:
-                                                            <span class="text-monospace"><?php echo htmlspecialchars((string)($donorMatch['phone'] ?: $donorMatch['phone_number']), ENT_QUOTES, 'UTF-8'); ?></span>
+                                                        <div class="donor-match-found">
+                                                            <div class="match-avatar"><i class="fas fa-user-check"></i></div>
+                                                            <div class="match-info">
+                                                                <a href="../donor-management/view-donor.php?id=<?php echo (int)$donorMatch['id']; ?>"><?php echo htmlspecialchars((string)($donorMatch['name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></a>
+                                                                <div class="match-phone"><?php echo htmlspecialchars((string)($donorMatch['phone'] ?: $donorMatch['phone_number']), ENT_QUOTES, 'UTF-8'); ?></div>
+                                                            </div>
                                                         </div>
                                                     <?php else: ?>
-                                                        <span class="text-muted">No donor match</span>
+                                                        <span class="donor-no-match"><i class="fas fa-user-xmark"></i> No match</span>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <?php
-                                                    $status = (string)($req['status'] ?? 'new');
-                                                    $badge = $statusLabels[$status] ?? ['label' => ucfirst($status), 'class' => 'bg-secondary'];
-                                                    ?>
-                                                    <span class="status-pill <?php echo $badge['class']; ?>">
-                                                        <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                                    <?php $status = (string)($req['status'] ?? 'new'); ?>
+                                                    <span class="status-pill status-<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <span class="status-dot"></span>
+                                                        <?php echo htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8'); ?>
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <div class="meta-small">
-                                                        <?php echo date('Y-m-d H:i:s', strtotime((string)$req['created_at'])); ?><br>
-                                                        <span class="text-muted">Updated:</span>
-                                                        <?php echo date('Y-m-d H:i:s', strtotime((string)$req['updated_at'])); ?>
+                                                    <div class="timestamp-cell">
+                                                        <?php $createdTs = strtotime((string)$req['created_at']); $updatedTs = strtotime((string)$req['updated_at']); ?>
+                                                        <span class="ts-date"><?php echo date('d M Y', $createdTs); ?></span>
+                                                        <span class="ts-time"><?php echo date('H:i', $createdTs); ?></span><br>
+                                                        <span class="ts-label">Updated:</span>
+                                                        <span class="ts-time"><?php echo date('d M Y H:i', $updatedTs); ?></span>
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <span class="text-monospace small"><?php echo htmlspecialchars((string)$req['ip_address'], ENT_QUOTES, 'UTF-8'); ?></span><br>
-                                                    <?php $agent = (string)($req['user_agent'] ?? ''); ?>
-                                                    <span class="text-muted" title="<?php echo htmlspecialchars($agent, ENT_QUOTES, 'UTF-8'); ?>">
-                                                        <?php echo htmlspecialchars(substr($agent, 0, 40), ENT_QUOTES, 'UTF-8'); ?>
-                                                    </span>
+                                                    <div class="ip-cell">
+                                                        <?php echo htmlspecialchars((string)$req['ip_address'], ENT_QUOTES, 'UTF-8'); ?>
+                                                        <?php $agent = (string)($req['user_agent'] ?? ''); ?>
+                                                        <?php if ($agent !== ''): ?>
+                                                            <span class="ua-snippet" title="<?php echo htmlspecialchars($agent, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(substr($agent, 0, 35), ENT_QUOTES, 'UTF-8'); ?></span>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </td>
                                                 <td>
-                                                    <form method="POST" class="d-flex gap-2 action-form">
+                                                    <form method="POST" class="action-form">
                                                         <?php echo csrf_input(); ?>
                                                         <input type="hidden" name="action" value="update_status">
                                                         <input type="hidden" name="request_id" value="<?php echo (int)$req['id']; ?>">
-                                                          <input type="hidden" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
-                                                          <input type="hidden" name="filter_status" value="<?php echo htmlspecialchars($statusFilter, ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <input type="hidden" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <input type="hidden" name="filter_status" value="<?php echo htmlspecialchars($statusFilter, ENT_QUOTES, 'UTF-8'); ?>">
                                                         <input type="hidden" name="date_from" value="<?php echo htmlspecialchars($validatedDateFrom, ENT_QUOTES, 'UTF-8'); ?>">
                                                         <input type="hidden" name="date_to" value="<?php echo htmlspecialchars($validatedDateTo, ENT_QUOTES, 'UTF-8'); ?>">
                                                         <input type="hidden" name="sort_by" value="<?php echo htmlspecialchars($sortBy, ENT_QUOTES, 'UTF-8'); ?>">
@@ -1555,7 +1613,7 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                                                 </option>
                                                             <?php endforeach; ?>
                                                         </select>
-                                                        <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
+                                                        <button class="btn btn-save" type="submit"><i class="fas fa-check me-1"></i>Save</button>
                                                     </form>
                                                 </td>
                                             </tr>
@@ -1564,49 +1622,39 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
                                 </tbody>
                             </table>
                         </div>
+
+                        <?php if ($totalPages > 1): ?>
+                            <div class="pagination-wrapper">
+                                <nav aria-label="Public request pagination">
+                                    <ul class="pagination">
+                                        <?php if ($page > 1): ?>
+                                            <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', 1, []), ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-angles-left"></i></a></li>
+                                            <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $page - 1, []), ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-angle-left"></i></a></li>
+                                        <?php else: ?>
+                                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angles-left"></i></span></li>
+                                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-left"></i></span></li>
+                                        <?php endif; ?>
+
+                                        <?php $start = max(1, $page - 2); $end = min($totalPages, $page + 2); for ($i = $start; $i <= $end; $i++): ?>
+                                            <?php if ($i === $page): ?>
+                                                <li class="page-item active"><span class="page-link"><?php echo $i; ?></span></li>
+                                            <?php else: ?>
+                                                <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $i, []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $i; ?></a></li>
+                                            <?php endif; ?>
+                                        <?php endfor; ?>
+
+                                        <?php if ($page < $totalPages): ?>
+                                            <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $page + 1, []), ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-angle-right"></i></a></li>
+                                            <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $totalPages, []), ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-angles-right"></i></a></li>
+                                        <?php else: ?>
+                                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-right"></i></span></li>
+                                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angles-right"></i></span></li>
+                                        <?php endif; ?>
+                                    </ul>
+                                </nav>
+                            </div>
+                        <?php endif; ?>
                     </div>
-
-                    <?php if ($totalPages > 1): ?>
-                        <nav aria-label="Public request pagination" class="mt-3">
-                            <ul class="pagination justify-content-center">
-                                <?php if ($page > 1): ?>
-                                    <li class="page-item">
-                                        <a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', 1, []), ENT_QUOTES, 'UTF-8'); ?>">First</a>
-                                    </li>
-                                    <li class="page-item">
-                                        <a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $page - 1, []), ENT_QUOTES, 'UTF-8'); ?>">Prev</a>
-                                    </li>
-                                <?php else: ?>
-                                    <li class="page-item disabled"><span class="page-link">First</span></li>
-                                    <li class="page-item disabled"><span class="page-link">Prev</span></li>
-                                <?php endif; ?>
-
-                                <?php
-                                $start = max(1, $page - 2);
-                                $end = min($totalPages, $page + 2);
-                                for ($i = $start; $i <= $end; $i++):
-                                ?>
-                                    <?php if ($i === $page): ?>
-                                        <li class="page-item active"><span class="page-link"><?php echo $i; ?></span></li>
-                                    <?php else: ?>
-                                        <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $i, []), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $i; ?></a></li>
-                                    <?php endif; ?>
-                                <?php endfor; ?>
-
-                                <?php if ($page < $totalPages): ?>
-                                    <li class="page-item">
-                                        <a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $page + 1, []), ENT_QUOTES, 'UTF-8'); ?>">Next</a>
-                                    </li>
-                                    <li class="page-item">
-                                        <a class="page-link" href="<?php echo htmlspecialchars($buildUrl('public-donations.php', $totalPages, []), ENT_QUOTES, 'UTF-8'); ?>">Last</a>
-                                    </li>
-                                <?php else: ?>
-                                    <li class="page-item disabled"><span class="page-link">Next</span></li>
-                                    <li class="page-item disabled"><span class="page-link">Last</span></li>
-                                <?php endif; ?>
-                            </ul>
-                        </nav>
-                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </main>
@@ -1617,12 +1665,33 @@ if ($actionMsg === '' && isset($_GET['msg']) && trim((string)$_GET['msg']) !== '
 <script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const messages = document.querySelectorAll('.request-message span[title]');
-    messages.forEach((el) => {
-        el.addEventListener('dblclick', function() {
-            alert(this.getAttribute('title') || '');
+    // Expand/collapse message on click
+    document.querySelectorAll('.message-text').forEach(function(el) {
+        el.addEventListener('click', function() {
+            var full = this.getAttribute('title');
+            if (full) {
+                if (this.dataset.expanded === '1') {
+                    this.textContent = this.dataset.short;
+                    this.dataset.expanded = '0';
+                    this.style.webkitLineClamp = '2';
+                } else {
+                    this.dataset.short = this.textContent;
+                    this.textContent = full;
+                    this.dataset.expanded = '1';
+                    this.style.webkitLineClamp = 'unset';
+                }
+            }
         });
     });
+
+    // Auto-dismiss success alerts after 4 seconds
+    var alertEl = document.getElementById('actionMessage');
+    if (alertEl && alertEl.classList.contains('alert-success')) {
+        setTimeout(function() {
+            var bsAlert = bootstrap.Alert.getOrCreateInstance(alertEl);
+            if (bsAlert) bsAlert.close();
+        }, 4000);
+    }
 });
 </script>
 </body>
