@@ -12,6 +12,7 @@ $current_user = current_user();
 
 $actionMsg = '';
 $isError = false;
+$showDebug = (($_GET['debug'] ?? '') === '1');
 
 $db = null;
 $dbConnected = false;
@@ -52,6 +53,69 @@ function table_column_map(mysqli $db, string $tableName): array {
     }
 
     return $map;
+}
+
+function fetch_stmt_all(mysqli_stmt $stmt): array {
+    if (method_exists($stmt, 'get_result')) {
+        try {
+            $result = $stmt->get_result();
+            if ($result instanceof mysqli_result) {
+                if (method_exists($result, 'fetch_all')) {
+                    return $result->fetch_all(MYSQLI_ASSOC);
+                }
+
+                $rows = [];
+                while ($row = $result->fetch_assoc()) {
+                    $rows[] = $row;
+                }
+                return $rows;
+            }
+        } catch (Throwable $e) {
+            error_log('Admin Public Donations - get_result() fetch failed: ' . $e->getMessage());
+        }
+    }
+
+    try {
+        $meta = $stmt->result_metadata();
+        if ($meta === false) {
+            return [];
+        }
+
+        $row = [];
+        $bind = [];
+        $fields = [];
+        while ($field = $meta->fetch_field()) {
+            $fieldName = $field->name;
+            $fields[] = $fieldName;
+            $row[$fieldName] = null;
+            $bind[] = &$row[$fieldName];
+        }
+        $meta->close();
+
+        call_user_func_array([$stmt, 'bind_result'], $bind);
+        $rows = [];
+        while ($stmt->fetch()) {
+            $rowCopy = [];
+            foreach ($fields as $fieldName) {
+                $rowCopy[$fieldName] = $row[$fieldName];
+            }
+            $rows[] = $rowCopy;
+        }
+
+        return $rows;
+    } catch (Throwable $e) {
+        error_log('Admin Public Donations - fallback fetch failed: ' . $e->getMessage());
+        return [];
+    }
+}
+
+function fetch_stmt_assoc(mysqli_stmt $stmt): ?array {
+    $rows = fetch_stmt_all($stmt);
+    if ($rows === []) {
+        return null;
+    }
+
+    return $rows[0];
 }
 
 $normalizeRequestPhone = static function (string $rawPhone): string {
@@ -184,10 +248,13 @@ if ($dbConnected && $db instanceof mysqli) {
         $requestsTableExists = (bool)($tableCheck && $tableCheck->num_rows > 0);
     } catch (Throwable $e) {
         $isError = true;
-        $actionMsg = 'Unable to verify the request table status.';
-        error_log('Admin Public Donations - Failed table check: ' . $e->getMessage());
-        $requestsTableExists = false;
-    }
+            $actionMsg = 'Unable to verify the request table status.';
+            if ($showDebug) {
+                $actionMsg .= ' ' . $e->getMessage();
+            }
+            error_log('Admin Public Donations - Failed table check: ' . $e->getMessage());
+            $requestsTableExists = false;
+        }
 }
 
 $search = trim((string)($_GET['search'] ?? ''));
@@ -290,10 +357,13 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
         if (!$countStmt) {
             $isError = true;
             $actionMsg = 'Failed to build request query.';
+            if ($showDebug) {
+                $actionMsg .= ' ' . $db->error;
+            }
         } else {
             bind_query_params($countStmt, $types, $values);
             $countStmt->execute();
-            $countResult = $countStmt->get_result()->fetch_assoc();
+            $countResult = fetch_stmt_assoc($countStmt);
             $totalItems = (int)($countResult['total_items'] ?? 0);
             $countStmt->close();
         }
@@ -336,6 +406,9 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
         if (!$listStmt) {
             $isError = true;
             $actionMsg = 'Failed to load request list.';
+            if ($showDebug) {
+                $actionMsg .= ' ' . $db->error;
+            }
         } else {
             $listValues = $values;
             $listTypes = $types . 'ii';
@@ -343,7 +416,7 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
             $listValues[] = $offset;
             bind_query_params($listStmt, $listTypes, $listValues);
             $listStmt->execute();
-            $requestRows = $listStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $requestRows = fetch_stmt_all($listStmt);
             $listStmt->close();
         }
 
@@ -398,31 +471,40 @@ if ($requestsTableExists && $dbConnected && $db instanceof mysqli) {
                 }
 
                 $matchSql = 'SELECT ' . implode(', ', $donorSelectColumns) . ' FROM donors WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1';
-                $matchStmt = $db->prepare($matchSql);
-                if (!$matchStmt) {
+                try {
+                    $matchStmt = $db->prepare($matchSql);
+                    if (!$matchStmt) {
+                        $requestRow['donor_match'] = null;
+                        $donorMatchCache[$cacheKey] = null;
+                        continue;
+                    }
+
+                    $matchBind = [$matchTypes];
+                    foreach ($matchValues as $index => $value) {
+                        $matchBind[] = &$matchValues[$index];
+                    }
+                    call_user_func_array([$matchStmt, 'bind_param'], $matchBind);
+                    $matchStmt->execute();
+                    $donorMatch = fetch_stmt_assoc($matchStmt);
+                    $matchStmt->close();
+
+                    $donorMatch = $donorMatch ?: null;
+                    $requestRow['donor_match'] = $donorMatch;
+                    $donorMatchCache[$cacheKey] = $donorMatch;
+                } catch (Throwable $e) {
+                    error_log('Admin Public Donations - Donor match failed: ' . $e->getMessage());
                     $requestRow['donor_match'] = null;
                     $donorMatchCache[$cacheKey] = null;
-                    continue;
                 }
-
-                $matchBind = [$matchTypes];
-                foreach ($matchValues as $index => $value) {
-                    $matchBind[] = &$matchValues[$index];
-                }
-                call_user_func_array([$matchStmt, 'bind_param'], $matchBind);
-                $matchStmt->execute();
-                $donorMatch = $matchStmt->get_result()->fetch_assoc();
-                $matchStmt->close();
-
-                $donorMatch = $donorMatch ?: null;
-                $requestRow['donor_match'] = $donorMatch;
-                $donorMatchCache[$cacheKey] = $donorMatch;
             }
             unset($requestRow);
         }
     } catch (Throwable $e) {
         $isError = true;
         $actionMsg = 'Unable to load donation request records.';
+        if ($showDebug) {
+            $actionMsg .= ' ' . $e->getMessage();
+        }
         error_log('Admin Public Donations - Query failed: ' . $e->getMessage());
         $totalItems = 0;
         $totalPages = 1;

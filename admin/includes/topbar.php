@@ -4,6 +4,49 @@ require_once __DIR__ . '/../../config/db.php';
 $user = current_user();
 $page_title = $page_title ?? 'Dashboard';
 
+function topbar_fetch_stmt_assoc(mysqli_stmt $stmt): ?array {
+    if (method_exists($stmt, 'get_result')) {
+        try {
+            $result = $stmt->get_result();
+            if ($result instanceof mysqli_result) {
+                return $result->fetch_assoc();
+            }
+        } catch (Throwable $e) {
+            error_log('Topbar - get_result() failed: ' . $e->getMessage());
+        }
+    }
+
+    try {
+        $meta = $stmt->result_metadata();
+        if ($meta === false) {
+            return null;
+        }
+
+        $row = [];
+        $bind = [];
+        while ($field = $meta->fetch_field()) {
+            $row[$field->name] = null;
+            $bind[] = &$row[$field->name];
+        }
+        $meta->close();
+
+        call_user_func_array([$stmt, 'bind_result'], $bind);
+        if (!$stmt->fetch()) {
+            return null;
+        }
+
+        $rowCopy = [];
+        foreach ($row as $key => $value) {
+            $rowCopy[$key] = $value;
+        }
+
+        return $rowCopy;
+    } catch (Throwable $e) {
+        error_log('Topbar - statement fallback fetch failed: ' . $e->getMessage());
+        return null;
+    }
+}
+
 // Get unread message count
 $unread_count = 0;
 $current_user_id = $user['id'] ?? 0;
@@ -14,16 +57,21 @@ if ($current_user_id > 0) {
         $table_check = $db->query("SHOW TABLES LIKE 'user_messages'");
         if ($table_check && $table_check->num_rows > 0) {
             $stmt = $db->prepare('SELECT COUNT(*) as count FROM user_messages WHERE recipient_user_id = ? AND read_at IS NULL');
+            if (!$stmt) {
+                throw new RuntimeException('Unable to prepare unread message count query.');
+            }
             $stmt->bind_param('i', $current_user_id);
             $stmt->execute();
-            $result = $stmt->get_result()->fetch_assoc();
+            $result = topbar_fetch_stmt_assoc($stmt);
             $unread_count = (int)($result['count'] ?? 0);
             $stmt->close();
         }
+        $table_check->close();
     } catch (Exception $e) {
         // If the database connection fails (e.g., during setup), just default to 0.
         // This makes the UI resilient.
         $unread_count = 0;
+        error_log('Topbar unread count failed: ' . $e->getMessage());
     }
 }
 ?>
@@ -67,8 +115,8 @@ if ($current_user_id > 0) {
           <i class="fas fa-user"></i>
         </div>
         <div class="user-info d-none d-md-block">
-          <span class="user-name"><?php echo htmlspecialchars($user['name']); ?></span>
-          <span class="user-role"><?php echo ucfirst($user['role']); ?></span>
+          <span class="user-name"><?php echo htmlspecialchars((string)($user['name'] ?? 'User')); ?></span>
+          <span class="user-role"><?php echo ucfirst((string)($user['role'] ?? '')); ?></span>
         </div>
         <i class="fas fa-chevron-down ms-2"></i>
       </button>
@@ -78,8 +126,8 @@ if ($current_user_id > 0) {
             <i class="fas fa-user"></i>
           </div>
           <div>
-            <h6><?php echo htmlspecialchars($user['name']); ?></h6>
-            <small><?php echo htmlspecialchars($user['phone']); ?></small>
+            <h6><?php echo htmlspecialchars((string)($user['name'] ?? 'User')); ?></h6>
+            <small><?php echo htmlspecialchars((string)($user['phone'] ?? '')); ?></small>
           </div>
         </div>
         <div class="dropdown-divider"></div>
