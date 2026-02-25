@@ -1841,8 +1841,8 @@ if (typeof window.fetchDonorCertificateData !== 'function') {
     window.fetchDonorCertificateData = async function(donorId) {
         const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${donorId}`);
         const dataJson = await dataRes.json();
-        if (!dataJson.success) {
-            throw new Error(dataJson.error || 'Failed to load certificate data');
+        if (!dataJson || typeof dataJson !== 'object' || !dataJson.success) {
+            throw new Error((dataJson && dataJson.error) ? dataJson.error : 'Failed to load certificate data');
         }
         return dataJson.donor;
     };
@@ -2483,8 +2483,8 @@ async function ensureHtml2CanvasLoaded() {
 async function fetchDonorCertificateData(donorId) {
     const dataRes = await fetch(`api/get-donor-certificate-data.php?donor_id=${donorId}`);
     const dataJson = await dataRes.json();
-    if (!dataJson.success) {
-        throw new Error(dataJson.error || 'Failed to load certificate data');
+    if (!dataJson || typeof dataJson !== 'object' || !dataJson.success) {
+        throw new Error((dataJson && dataJson.error) ? dataJson.error : 'Failed to load certificate data');
     }
     return dataJson.donor;
 }

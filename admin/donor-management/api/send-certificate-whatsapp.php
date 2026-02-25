@@ -24,7 +24,7 @@ register_shutdown_function(function() {
         echo json_encode([
             'success' => false,
             'error' => 'Fatal error: ' . $error['message']
-        ]);
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 });
 
@@ -39,13 +39,13 @@ try {
 } catch (Throwable $e) {
     ob_end_clean();
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -53,7 +53,7 @@ try {
     verify_csrf();
 } catch (Throwable $e) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
+    echo json_encode(['success' => false, 'error' => 'Invalid CSRF token'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -63,14 +63,14 @@ $current_user = current_user();
 // Get input
 $phone = trim($_POST['phone'] ?? '');
 $donorId = isset($_POST['donor_id']) ? (int)$_POST['donor_id'] : 0;
-$donorName = trim($_POST['donor_name'] ?? '');
+$donorName = ensureUtf8(trim($_POST['donor_name'] ?? ''));
 $sqmValue = trim($_POST['sqm_value'] ?? '0');
 $totalPaid = trim($_POST['total_paid'] ?? '');
-$customMessage = trim($_POST['message'] ?? ''); // Accept custom message
+$customMessage = ensureUtf8(trim($_POST['message'] ?? '')); // Accept custom message
 
 if (empty($phone)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Donor phone number is missing']);
+    echo json_encode(['success' => false, 'error' => 'Donor phone number is missing'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -99,7 +99,7 @@ if (!isset($_FILES['certificate']) || $_FILES['certificate']['error'] !== UPLOAD
         . ', upload_max_filesize=' . ini_get('upload_max_filesize')
         . ', post_max_size=' . ini_get('post_max_size')
     );
-    echo json_encode(['success' => false, 'error' => $errorMsg]);
+    echo json_encode(['success' => false, 'error' => $errorMsg], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -112,7 +112,7 @@ error_log('WhatsApp Certificate Upload: size=' . $fileSize . ', mime=' . $fileMi
 // Validate supported image formats
 if (!in_array($fileMimeType, ['image/png', 'image/jpeg', 'image/webp'])) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid image format. Expected PNG, JPEG, or WEBP.']);
+    echo json_encode(['success' => false, 'error' => 'Invalid image format. Expected PNG, JPEG, or WEBP.'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -120,7 +120,7 @@ if (!in_array($fileMimeType, ['image/png', 'image/jpeg', 'image/webp'])) {
 $maxSize = 7 * 1024 * 1024;
 if ($fileSize > $maxSize) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Certificate image too large (max 7MB)']);
+    echo json_encode(['success' => false, 'error' => 'Certificate image too large (max 7MB)'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -132,7 +132,18 @@ try {
     }
 
     // Generate unique filename
-    $safeName = preg_replace('/[^a-z0-9]/i', '_', $donorName);
+    $asciiName = $donorName;
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $donorName);
+        if ($converted !== false && $converted !== '') {
+            $asciiName = $converted;
+        }
+    }
+    $safeName = preg_replace('/[^a-z0-9]+/i', '_', strtolower($asciiName));
+    $safeName = trim((string)$safeName, '_');
+    if ($safeName === '') {
+        $safeName = $donorId > 0 ? ('donor_' . $donorId) : 'donor';
+    }
     $uniqueName = 'cert_' . $safeName . '_' . date('Ymd_His') . '.png';
     $localPath = $uploadDir . '/' . $uniqueName;
     $relativePath = 'uploads/certificates/' . date('Y/m') . '/' . $uniqueName;
@@ -157,7 +168,7 @@ try {
 
     // Build caption message - use custom message if provided, otherwise use default
     if (!empty($customMessage)) {
-        $caption = $customMessage;
+        $caption = ensureUtf8($customMessage);
     } else {
         $caption = "Certificate of Contribution\n\n"
             . "Dear {$donorName},\n\n"
@@ -243,13 +254,13 @@ try {
         'message_id' => $dbMessageId,
         'ultramsg_id' => $messageId,
         'conversation_id' => $conversationId
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 
 } catch (Exception $e) {
     ob_end_clean();
     error_log("WhatsApp Certificate Send Error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 }
 
 /**
@@ -271,4 +282,31 @@ function normalizePhoneForDb(string $phone): string
         return '+44' . substr($phone, 1);
     }
     return '+' . $phone;
+}
+
+function ensureUtf8(string $value): string
+{
+    if ($value === '') {
+        return $value;
+    }
+
+    if (function_exists('mb_check_encoding') && mb_check_encoding($value, 'UTF-8')) {
+        return $value;
+    }
+
+    if (function_exists('mb_convert_encoding')) {
+        $converted = @mb_convert_encoding($value, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+        if ($converted !== false && $converted !== '') {
+            return $converted;
+        }
+    }
+
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+        if ($converted !== false) {
+            return $converted;
+        }
+    }
+
+    return $value;
 }

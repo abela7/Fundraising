@@ -363,7 +363,7 @@ try {
         'payment_id' => $payment_id,
         'plan_updated' => $plan ? true : false,
         'notification_data' => $notificationData
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     
 } catch (Throwable $e) {
     if (isset($db) && $db->in_transaction) {
@@ -375,7 +375,7 @@ try {
         'success' => false, 
         'message' => 'Error: ' . $e->getMessage(),
         'error' => $e->getMessage()
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 ?>

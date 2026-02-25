@@ -16,13 +16,13 @@ try {
     require_login();
 } catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -30,7 +30,7 @@ $donorId = isset($_GET['donor_id']) ? (int)$_GET['donor_id'] : 0;
 
 if ($donorId <= 0) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid donor ID']);
+    echo json_encode(['success' => false, 'error' => 'Invalid donor ID'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -50,7 +50,7 @@ try {
 
     if (!$donor) {
         http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Donor not found']);
+        echo json_encode(['success' => false, 'error' => 'Donor not found'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         exit;
     }
 
@@ -98,10 +98,10 @@ try {
             'has_pledge' => $hasPledge,
             'currency' => '£'
         ]
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 
 } catch (Exception $e) {
     error_log("Get donor certificate data error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 }

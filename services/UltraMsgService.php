@@ -639,9 +639,14 @@ class UltraMsgService
             curl_setopt($ch, CURLOPT_POST, true);
 
             if ($hasBase64) {
-                // Use JSON for base64 media to avoid URL-encoding overhead
-                // and prevent data corruption from encoding/decoding large payloads
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+                // Use JSON for base64 media to avoid URL-encoding overhead.
+                // Substitute invalid UTF-8 so donor names/messages never break payload encoding.
+                $jsonPayload = json_encode($params, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+                if ($jsonPayload === false) {
+                    error_log('UltraMsg JSON encode failed: ' . json_last_error_msg());
+                    return false;
+                }
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
                 $contentType = 'application/json';
             } else {
                 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
