@@ -37,6 +37,15 @@ $normalizePhone = static function (string $rawPhone): string {
     return preg_replace('/\D/', '', $clean) ?? '';
 };
 
+$normalizeLoadTimestamp = static function (int $loadedAt): int {
+    if ($loadedAt <= 0) {
+        return 0;
+    }
+
+    // Accept both seconds and milliseconds input from clients.
+    return $loadedAt > 1_000_000_000_000 ? intdiv($loadedAt, 1000) : $loadedAt;
+};
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db = db();
@@ -45,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string)($_POST['name'] ?? ''));
         $phone = trim((string)($_POST['phone'] ?? ''));
         $message = trim((string)($_POST['message'] ?? ''));
-        $formLoadedAt = (int)($_POST['form_loaded_at'] ?? 0);
+        $formLoadedAt = $normalizeLoadTimestamp((int)($_POST['form_loaded_at'] ?? 0));
 
         $honeypotFields = ['website', 'email_check', 'company', 'address_2'];
         foreach ($honeypotFields as $honeypot) {
@@ -77,7 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Message is too long. Keep it under 2,000 characters.';
             }
 
-            if ($formLoadedAt > 0 && (time() - $formLoadedAt) < 2) {
+            $now = time();
+            if ($formLoadedAt > 0 && $formLoadedAt <= $now && ($now - $formLoadedAt) < 2) {
                 // Lightweight anti-bot timing guard.
                 $error = 'Please take a moment to complete the form before sending.';
             }

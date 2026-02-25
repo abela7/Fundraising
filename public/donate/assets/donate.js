@@ -6,7 +6,7 @@
 
     const loadedAtInput = document.getElementById('form_loaded_at');
     if (loadedAtInput) {
-        loadedAtInput.value = String(Date.now());
+        loadedAtInput.value = String(Math.floor(Date.now() / 1000));
     }
 
     const submitBtn = form.querySelector('[data-submit-btn]');
