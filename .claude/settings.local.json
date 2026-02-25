@@ -8,7 +8,10 @@
       "Bash(ls:*)",
       "Bash(findstr:*)",
       "Bash(grep:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git -C \"C:\\\\xampp\\\\htdocs\\\\Fundraising\" diff --stat HEAD)"
     ]
   }
 }
