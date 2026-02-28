@@ -9,7 +9,6 @@ $error = '';
 
 $name = '';
 $phone = '';
-$message = '';
 $submissionTimestamp = (string)time();
 
 /**
@@ -53,7 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $name = trim((string)($_POST['name'] ?? ''));
         $phone = trim((string)($_POST['phone'] ?? ''));
-        $message = trim((string)($_POST['message'] ?? ''));
         $formLoadedAt = $normalizeLoadTimestamp((int)($_POST['form_loaded_at'] ?? 0));
 
         $honeypotFields = ['website', 'email_check', 'company', 'address_2'];
@@ -80,12 +78,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            if ($message === '') {
-                $message = null;
-            } elseif (mb_strlen($message) > 2000) {
-                $error = 'Message is too long. Keep it under 2,000 characters.';
-            }
-
         }
 
         if ($error === '') {
@@ -103,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sourceUrl = $_SERVER['REQUEST_URI'] ?? '';
                 $referrer = $_SERVER['HTTP_REFERER'] ?? null;
                 $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
+                $message = null;
 
                 $sourcePage = mb_substr($sourcePage, 0, 255);
                 $sourceUrl = mb_substr($sourceUrl, 0, 500);
@@ -154,10 +147,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <main class="main-content">
                 <div class="page-header">
                     <h1 class="page-title">
-                        <i class="fas fa-phone-alt me-2"></i>
-                        Contact Church Support
+                    <i class="fas fa-phone-alt me-2"></i>
+                        Thank You for Supporting Our Church
                     </h1>
-                    <p class="text-muted">Leave your details and we will call you shortly</p>
+                    <p class="text-muted">Share your contact details and we will call you as soon as possible.</p>
                 </div>
 
                 <div class="instructions-hero mb-4">
@@ -169,14 +162,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <div class="hero-icon">
                                             <i class="fas fa-headset"></i>
                                         </div>
-                                        <h2 class="hero-title">Need to Reach Out?</h2>
-                                        <p class="hero-subtitle">Send us your contact details and message and our team will call you.</p>
+                                        <h2 class="hero-title">Thanks for Your Interest</h2>
+                                        <p class="hero-subtitle">Enter your name and phone number so our team can call you back quickly.</p>
                                     </div>
 
                                     <div class="hero-footer">
                                         <div class="contact-notice">
                                             <i class="fas fa-clock"></i>
-                                            <span><strong>We'll contact you shortly</strong> after your request is submitted.</span>
+                                <span><strong>Thank you for your willingness to help</strong>. We'll call you shortly.</span>
                                         </div>
                                     </div>
                                 </div>
@@ -222,12 +215,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <label for="phone" class="form-label">Phone Number</label>
                                 <input type="tel" class="form-control" id="phone" name="phone" maxlength="25" required
                                        placeholder="e.g. +1234567890 or 0712345678" value="<?php echo htmlspecialchars($phone, ENT_QUOTES, 'UTF-8'); ?>">
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="message" class="form-label">Message (optional)</label>
-                                <textarea class="form-control" id="message" name="message" rows="5" maxlength="2000" placeholder="Share how we can help you."><?php echo htmlspecialchars((string)$message, ENT_QUOTES, 'UTF-8'); ?></textarea>
-                                <div class="form-text">You can include the amount you want to pledge or any additional note here.</div>
                             </div>
                         </div>
 
