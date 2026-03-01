@@ -1255,6 +1255,24 @@ if (isset($_GET['report'])) {
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
+                                            <div class="icon-circle bg-secondary mx-auto" style="width: 60px; height: 60px;">
+                                                <i class="fas fa-database text-white fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <h5 class="card-title">All Data Report</h5>
+                                        <p class="card-text text-muted">Backend-accurate financial dataset with totals, statuses, trends, and quality checks</p>
+                                        <div class="d-grid gap-2">
+                                            <a href="all-data.php?date=all" class="btn btn-secondary">
+                                                <i class="fas fa-table me-2"></i>Open All Data
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
