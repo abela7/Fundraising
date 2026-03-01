@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
+require_once __DIR__ . '/../shared/login_security.php';
+$db = db();
 
 // If already logged in, redirect to registration page
 if (current_user() && in_array(current_user()['role'], ['registrar', 'admin'], true)) {
@@ -21,22 +23,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Will exit with 400 if invalid
     verify_csrf();
 
-    $phone = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $clientIp = login_security_get_ip();
+    $phone = trim((string)($_POST['username'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+    $identifier = login_security_normalize_identifier($phone);
 
-    if ($phone === '' || $password === '') {
+    $rate = login_security_check($db, 'registrar_login', $identifier, $clientIp);
+    if ($rate['blocked']) {
+        $error = login_security_retry_message((int)($rate['retry_after'] ?? 0));
+    } elseif ($phone === '' || $password === '') {
+        login_security_record($db, 'registrar_login', $identifier, $clientIp, false);
         $error = 'Please enter both phone and password.';
+    } elseif (mb_strlen($phone) > 32 || mb_strlen($password) > 255) {
+        login_security_record($db, 'registrar_login', $identifier, $clientIp, false);
+        usleep(random_int(120000, 280000));
+        $error = 'Invalid phone or password.';
     } else {
         if (login_with_phone_password($phone, $password)) {
             // Only allow registrar or admin into this area
             if (!in_array(current_user()['role'] ?? '', ['registrar', 'admin'], true)) {
+                login_security_record($db, 'registrar_login', $identifier, $clientIp, false);
                 logout();
+                usleep(random_int(120000, 280000));
                 $error = 'Access denied. This area is for registrars only.';
             } else {
+                login_security_record($db, 'registrar_login', $identifier, $clientIp, true);
                 header('Location: index.php');
                 exit;
             }
         } else {
+            login_security_record($db, 'registrar_login', $identifier, $clientIp, false);
+            usleep(random_int(120000, 280000));
             $error = 'Invalid phone or password.';
         }
     }

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
+require_once __DIR__ . '/../shared/login_security.php';
 require_once __DIR__ . '/../config/db.php';
 
 $error = '';
@@ -10,16 +11,32 @@ $totalUsers = (int)$db->query('SELECT COUNT(*) AS c FROM users')->fetch_assoc()[
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
-    $phone = trim($_POST['phone'] ?? '');
-    $code = trim($_POST['code'] ?? '');
-    if (!$phone || !$code) {
+    $clientIp = login_security_get_ip();
+    $phone = trim((string)($_POST['phone'] ?? ''));
+    $code = trim((string)($_POST['code'] ?? ''));
+    $identifier = login_security_normalize_identifier($phone);
+
+    $rate = login_security_check($db, 'admin_login', $identifier, $clientIp);
+    if ($rate['blocked']) {
+        $error = login_security_retry_message((int)($rate['retry_after'] ?? 0));
+    } elseif ($phone === '' || $code === '') {
+        login_security_record($db, 'admin_login', $identifier, $clientIp, false);
         $error = 'Phone and 6-digit code are required';
+    } elseif (mb_strlen($phone) > 32 || mb_strlen($code) > 16) {
+        login_security_record($db, 'admin_login', $identifier, $clientIp, false);
+        usleep(random_int(120000, 280000));
+        $error = 'Invalid phone or code';
     } elseif (!preg_match('/^\d{6}$/', $code)) {
+        login_security_record($db, 'admin_login', $identifier, $clientIp, false);
+        usleep(random_int(120000, 280000));
         $error = 'Code must be 6 digits';
-    } else if (login_with_phone_password($phone, $code)) {
+    } elseif (login_with_phone_password($phone, $code)) {
+        login_security_record($db, 'admin_login', $identifier, $clientIp, true);
         header('Location: ./');
         exit;
     } else {
+        login_security_record($db, 'admin_login', $identifier, $clientIp, false);
+        usleep(random_int(120000, 280000));
         $error = 'Invalid phone or code';
     }
 }

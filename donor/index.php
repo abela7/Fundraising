@@ -11,10 +11,16 @@ require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 // Check if donor is logged in via token
 function current_donor(): ?array {
-    if (isset($_SESSION['donor'])) {
-        return $_SESSION['donor'];
+    if (!isset($_SESSION['donor']) || !is_array($_SESSION['donor'])) {
+        return null;
     }
-    return null;
+
+    $donor = $_SESSION['donor'];
+    if (!isset($donor['id']) || !is_numeric((string)$donor['id'])) {
+        return null;
+    }
+
+    return $donor;
 }
 
 function require_donor_login(): void {
@@ -29,6 +35,12 @@ function require_donor_login(): void {
 
 // Require donor login to access
 require_donor_login();
+
+// Ensure donor and staff sessions do not coexist in the same browser session.
+if (isset($_SESSION['user'])) {
+    unset($_SESSION['user']);
+}
+
 validate_donor_device(); // Check if device was revoked
 $donor = current_donor();
 
@@ -109,6 +121,8 @@ if ($db_connection_ok) {
         // Check which tables exist
         $has_payments = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
         $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+        $donor_id = (int)($donor['id'] ?? 0);
+        $escaped_phone = $db->real_escape_string((string)($donor['phone'] ?? ''));
         
         $union_parts = [];
         
@@ -118,7 +132,7 @@ if ($db_connection_ok) {
                        pp.status, pp.payment_date as received_at, pp.payment_date as created_at,
                        'pledge_payment' as source
                 FROM pledge_payments pp
-                WHERE pp.donor_id = {$donor['id']} AND pp.status = 'confirmed'
+                WHERE pp.donor_id = {$donor_id} AND pp.status = 'confirmed'
             ";
         }
         
@@ -127,7 +141,7 @@ if ($db_connection_ok) {
                 SELECT p.amount, p.method, p.reference, p.status, 
                        p.received_at, p.created_at, 'payment' as source
                 FROM payments p
-                WHERE p.donor_phone = '{$db->real_escape_string($donor['phone'])}' AND p.status = 'approved'
+                WHERE p.donor_phone = '{$escaped_phone}' AND p.status = 'approved'
             ";
         }
         
@@ -148,6 +162,8 @@ if ($db_connection_ok) {
     try {
         $has_payments = $db->query("SHOW TABLES LIKE 'payments'")->num_rows > 0;
         $has_pledge_payments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+        $donor_id = (int)($donor['id'] ?? 0);
+        $escaped_phone = $db->real_escape_string((string)($donor['phone'] ?? ''));
         
         $union_parts = [];
         
@@ -157,7 +173,7 @@ if ($db_connection_ok) {
                        pp.status, pp.payment_date as received_at, pp.payment_date as created_at,
                        'pledge_payment' as source
                 FROM pledge_payments pp
-                WHERE pp.donor_id = {$donor['id']}
+                WHERE pp.donor_id = {$donor_id}
             ";
         }
         
@@ -166,7 +182,7 @@ if ($db_connection_ok) {
                 SELECT p.id, p.amount, p.method, p.reference, p.status, 
                        p.received_at, p.created_at, 'payment' as source
                 FROM payments p
-                WHERE p.donor_phone = '{$db->real_escape_string($donor['phone'])}'
+                WHERE p.donor_phone = '{$escaped_phone}'
             ";
         }
         

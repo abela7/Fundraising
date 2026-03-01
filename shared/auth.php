@@ -72,16 +72,13 @@ function require_admin(): void {
     
     // Registrars can ONLY access donor-management and call-center pages
     if ($role === 'registrar') {
-        $script = $_SERVER['SCRIPT_NAME'] ?? '';
-        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-        
-        // Check if accessing allowed pages
-        $is_donor_management = strpos($script, '/admin/donor-management/') !== false || 
-                              strpos($request_uri, '/admin/donor-management/') !== false;
-        $is_call_center = strpos($script, '/admin/call-center/') !== false || 
-                         strpos($request_uri, '/admin/call-center/') !== false;
-        
-        if ($is_donor_management || $is_call_center) {
+        // Check only the URL path (never query string) to avoid bypass via crafted parameters.
+        $script_path = (string)parse_url((string)($_SERVER['SCRIPT_NAME'] ?? ''), PHP_URL_PATH);
+        $request_path = (string)parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+        $path_to_check = str_replace('\\', '/', $script_path !== '' ? $script_path : $request_path);
+        $is_allowed_registrar_path = preg_match('#/admin/(donor-management|call-center)(/|$)#', $path_to_check) === 1;
+
+        if ($is_allowed_registrar_path) {
             // Registrar can access these pages
             return;
         }
@@ -132,6 +129,10 @@ function login_with_phone_password(string $phone, string $password): bool {
     if (!password_verify($password, $user['password_hash'])) {
         return false;
     }
+
+    // Keep portal sessions isolated: staff login should not retain donor session state.
+    unset($_SESSION['donor'], $_SESSION['otp_phone']);
+
     $_SESSION['user'] = [
         'id' => (int)$user['id'],
         'name' => $user['name'],
@@ -201,6 +202,11 @@ function validate_donor_device(): bool {
     // Only check if donor is logged in
     if (!isset($_SESSION['donor']['id'])) {
         return true; // Not logged in, no device to validate
+    }
+
+    // Donor pages must not keep staff auth in the same session.
+    if (isset($_SESSION['user'])) {
+        unset($_SESSION['user']);
     }
     
     // Check if they have a device token cookie

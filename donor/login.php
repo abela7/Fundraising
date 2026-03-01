@@ -12,6 +12,7 @@
 require_once __DIR__ . '/../shared/auth.php';
 require_once __DIR__ . '/../shared/csrf.php';
 require_once __DIR__ . '/../shared/audit_helper.php';
+require_once __DIR__ . '/../shared/login_security.php';
 require_once __DIR__ . '/../admin/includes/resilient_db_loader.php';
 
 // Constants
@@ -378,72 +379,90 @@ function findOrCreateDonor($db, string $phone): ?array {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     verify_csrf();
+    $clientIp = login_security_get_ip();
     
     $action = $_POST['action'] ?? 'check_phone';
     
     if ($action === 'check_phone') {
         // Step 1: Check phone and send OTP
-        $phone = trim($_POST['phone'] ?? '');
-        $normalized_phone = preg_replace('/[^0-9]/', '', $phone);
-        
-        if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
-            $normalized_phone = '0' . substr($normalized_phone, 2);
-        }
-        
-        if (strlen($normalized_phone) !== 11 || substr($normalized_phone, 0, 2) !== '07') {
+        $phone = trim((string)($_POST['phone'] ?? ''));
+        if (mb_strlen($phone) > 32) {
+            login_security_record($db, 'donor_login_phone', 'invalid_phone', $clientIp, false);
+            usleep(random_int(120000, 280000));
             $error = 'Please enter a valid UK mobile number starting with 07.';
         } else {
-            // Check if donor exists
-            $donor = findOrCreateDonor($db, $normalized_phone);
-            
-            if (!$donor) {
-                $error = 'No account found with this phone number. Please contact the church office.';
+            $normalized_phone = preg_replace('/[^0-9]/', '', $phone);
+            if (substr($normalized_phone, 0, 2) === '44' && strlen($normalized_phone) === 12) {
+                $normalized_phone = '0' . substr($normalized_phone, 2);
+            }
+
+            $identifier = $normalized_phone !== '' ? $normalized_phone : 'empty_phone';
+            $rate = login_security_check($db, 'donor_login_phone', $identifier, $clientIp);
+            if ($rate['blocked']) {
+                $error = login_security_retry_message((int)($rate['retry_after'] ?? 0));
+            } elseif (strlen($normalized_phone) !== 11 || substr($normalized_phone, 0, 2) !== '07') {
+                login_security_record($db, 'donor_login_phone', $identifier, $clientIp, false);
+                usleep(random_int(120000, 280000));
+                $error = 'Please enter a valid UK mobile number starting with 07.';
             } else {
-                // Check for trusted device
-                $trusted = checkTrustedDevice($db, $normalized_phone);
+                // Check if donor exists
+                $donor = findOrCreateDonor($db, $normalized_phone);
                 
-                if ($trusted) {
-                    // Auto-login with trusted device
-                    $_SESSION['donor'] = [
-                        'id' => $trusted['donor_id'],
-                        'name' => $trusted['name'],
-                        'phone' => $trusted['phone'],
-                        'total_pledged' => $trusted['total_pledged'],
-                        'total_paid' => $trusted['total_paid'],
-                        'balance' => $trusted['balance'],
-                        'has_active_plan' => $trusted['has_active_plan'],
-                        'active_payment_plan_id' => $trusted['active_payment_plan_id'],
-                        'payment_status' => $trusted['payment_status'],
-                        'preferred_payment_method' => $trusted['preferred_payment_method'],
-                        'preferred_language' => $trusted['preferred_language']
-                    ];
-                    
-                    // Update login tracking
-                    $upd = $db->prepare("UPDATE donors SET last_login_at = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE id = ?");
-                    $upd->bind_param('i', $trusted['donor_id']);
-                    $upd->execute();
-                    $upd->close();
-                    
-                    // Audit log
-                    log_audit($db, 'login', 'donor', $trusted['donor_id'], null, ['method' => 'trusted_device'], 'donor_portal', null);
-                    
-                    session_regenerate_id(true);
-                    header('Location: index.php');
-                    exit;
-                }
-                
-                // Send OTP
-                $otp_result = sendOTP($db, $normalized_phone);
-                
-                if ($otp_result['success']) {
-                    $step = 'otp';
-                    $phone = $normalized_phone;
-                    $_SESSION['otp_phone'] = $normalized_phone;
-                    $success = $otp_result['message'];
+                if (!$donor) {
+                    login_security_record($db, 'donor_login_phone', $identifier, $clientIp, false);
+                    usleep(random_int(120000, 280000));
+                    $error = 'Unable to verify this phone number. Please contact the church office.';
                 } else {
-                    $error = $otp_result['error'];
-                    if (isset($otp_result['cooldown'])) {
-                        $show_resend = true;
+                    // Check for trusted device
+                    $trusted = checkTrustedDevice($db, $normalized_phone);
+                    
+                    if ($trusted) {
+                        // Auto-login with trusted device
+                        unset($_SESSION['user']);
+                        $_SESSION['donor'] = [
+                            'id' => $trusted['donor_id'],
+                            'name' => $trusted['name'],
+                            'phone' => $trusted['phone'],
+                            'total_pledged' => $trusted['total_pledged'],
+                            'total_paid' => $trusted['total_paid'],
+                            'balance' => $trusted['balance'],
+                            'has_active_plan' => $trusted['has_active_plan'],
+                            'active_payment_plan_id' => $trusted['active_payment_plan_id'],
+                            'payment_status' => $trusted['payment_status'],
+                            'preferred_payment_method' => $trusted['preferred_payment_method'],
+                            'preferred_language' => $trusted['preferred_language']
+                        ];
+                        
+                        // Update login tracking
+                        $upd = $db->prepare("UPDATE donors SET last_login_at = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE id = ?");
+                        $upd->bind_param('i', $trusted['donor_id']);
+                        $upd->execute();
+                        $upd->close();
+                        
+                        // Audit log
+                        log_audit($db, 'login', 'donor', $trusted['donor_id'], null, ['method' => 'trusted_device'], 'donor_portal', null);
+                        login_security_record($db, 'donor_login_phone', $identifier, $clientIp, true);
+                        
+                        session_regenerate_id(true);
+                        header('Location: index.php');
+                        exit;
+                    }
+                    
+                    // Send OTP
+                    $otp_result = sendOTP($db, $normalized_phone);
+                    
+                    if ($otp_result['success']) {
+                        login_security_record($db, 'donor_login_phone', $identifier, $clientIp, true);
+                        $step = 'otp';
+                        $phone = $normalized_phone;
+                        $_SESSION['otp_phone'] = $normalized_phone;
+                        $success = $otp_result['message'];
+                    } else {
+                        login_security_record($db, 'donor_login_phone', $identifier, $clientIp, false);
+                        $error = $otp_result['error'];
+                        if (isset($otp_result['cooldown'])) {
+                            $show_resend = true;
+                        }
                     }
                 }
             }
@@ -453,10 +472,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
         $phone = $_SESSION['otp_phone'] ?? '';
         $code = preg_replace('/[^0-9]/', '', trim($_POST['otp_code'] ?? ''));
         $remember = isset($_POST['remember_device']);
-        
-        if (empty($phone)) {
+        $identifier = $phone !== '' ? (string)$phone : 'empty_phone';
+        $rate = login_security_check($db, 'donor_login_otp', $identifier, $clientIp);
+        if ($rate['blocked']) {
+            $error = login_security_retry_message((int)($rate['retry_after'] ?? 0));
+            $step = 'otp';
+        } elseif (empty($phone)) {
+            login_security_record($db, 'donor_login_otp', $identifier, $clientIp, false);
             $error = 'Session expired. Please start again.';
         } elseif (strlen($code) !== OTP_LENGTH) {
+            login_security_record($db, 'donor_login_otp', $identifier, $clientIp, false);
+            usleep(random_int(120000, 280000));
             $error = 'Please enter all 6 digits of the verification code.';
             $step = 'otp';
         } else {
@@ -468,6 +494,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 
                 if ($donor) {
                     // Set session
+                    unset($_SESSION['user']);
                     $_SESSION['donor'] = $donor;
                     unset($_SESSION['otp_phone']);
                     
@@ -484,14 +511,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     
                     // Audit log
                     log_audit($db, 'login', 'donor', $donor['id'], null, ['method' => 'sms_otp', 'remember' => $remember], 'donor_portal', null);
+                    login_security_record($db, 'donor_login_otp', $identifier, $clientIp, true);
                     
                     session_regenerate_id(true);
                     header('Location: index.php');
                     exit;
                 } else {
+                    login_security_record($db, 'donor_login_otp', $identifier, $clientIp, false);
+                    usleep(random_int(120000, 280000));
                     $error = 'Account not found. Please contact the church office.';
                 }
             } else {
+                login_security_record($db, 'donor_login_otp', $identifier, $clientIp, false);
+                usleep(random_int(120000, 280000));
                 $error = $verify_result['error'];
                 $step = 'otp';
             }
@@ -499,16 +531,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     } elseif ($action === 'resend_otp') {
         // Resend OTP
         $phone = $_SESSION['otp_phone'] ?? '';
-        
-        if (empty($phone)) {
+        $identifier = $phone !== '' ? (string)$phone : 'empty_phone';
+        $rate = login_security_check($db, 'donor_login_phone', $identifier, $clientIp);
+
+        if ($rate['blocked']) {
+            $error = login_security_retry_message((int)($rate['retry_after'] ?? 0));
+            $step = 'otp';
+        } elseif (empty($phone)) {
+            login_security_record($db, 'donor_login_phone', $identifier, $clientIp, false);
             $error = 'Session expired. Please start again.';
         } else {
             $otp_result = sendOTP($db, $phone);
             
             if ($otp_result['success']) {
+                login_security_record($db, 'donor_login_phone', $identifier, $clientIp, true);
                 $success = 'New verification code sent!';
                 $step = 'otp';
             } else {
+                login_security_record($db, 'donor_login_phone', $identifier, $clientIp, false);
                 $error = $otp_result['error'];
                 $step = 'otp';
             }
