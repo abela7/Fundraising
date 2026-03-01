@@ -8,18 +8,21 @@ require_login();
 require_admin();
 
 function table_exists(mysqli $db, string $table): bool {
-    $stmt = $db->prepare("SHOW TABLES LIKE ?");
-    $stmt->bind_param('s', $table);
-    $stmt->execute();
-    $res = $stmt->get_result();
+    $safeTable = $db->real_escape_string($table);
+    $res = $db->query("SHOW TABLES LIKE '{$safeTable}'");
+    if ($res === false) {
+        throw new RuntimeException('Error checking table existence for ' . $table . ': ' . $db->error);
+    }
     return $res && $res->num_rows > 0;
 }
 
 function column_exists(mysqli $db, string $table, string $column): bool {
-    $stmt = $db->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
-    $stmt->bind_param('s', $column);
-    $stmt->execute();
-    $res = $stmt->get_result();
+    $safeTable = $db->real_escape_string($table);
+    $safeColumn = $db->real_escape_string($column);
+    $res = $db->query("SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+    if ($res === false) {
+        throw new RuntimeException('Error checking column existence for ' . $table . '.' . $column . ': ' . $db->error);
+    }
     return $res && $res->num_rows > 0;
 }
 
