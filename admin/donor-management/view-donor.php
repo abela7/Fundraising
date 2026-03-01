@@ -2781,10 +2781,14 @@ function formatDateTime($date) {
         }
 
         .fc-seal-sqm {
-            font-size: 42px;
+            font-size: 28px;
             font-weight: 900;
             color: #1a1a2e;
             line-height: 1;
+            max-width: 110px;
+            text-align: center;
+            word-break: break-all;
+            overflow-wrap: break-word;
         }
 
         .fc-seal-label {
@@ -4023,7 +4027,7 @@ function formatDateTime($date) {
                                                                 <div class="fc-detail-row">
                                                                     <div class="fc-detail-icon"><i class="fas fa-pound-sign"></i></div>
                                                                     <div class="fc-detail-text">
-                                                                        <span class="fc-detail-label">Pledge:</span><span class="fc-detail-highlight"><?= $currency . number_format($allocationBase, 2) ?></span>
+                                                                        <span class="fc-detail-label">Contribution:</span><span class="fc-detail-highlight"><?= $currency . number_format($allocationBase, 2) ?></span>
                                                                     </div>
                                                                 </div>
                                                                 <div class="fc-detail-row">
