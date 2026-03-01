@@ -494,6 +494,7 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
 }
 
 $currency = htmlspecialchars($currencyCode, ENT_QUOTES, 'UTF-8');
+$page_title = 'All Data Report';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1104,6 +1105,7 @@ $currency = htmlspecialchars($currencyCode, ENT_QUOTES, 'UTF-8');
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
 <script>
 window.ALL_DATA_REPORT = <?php echo json_encode($report, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 
