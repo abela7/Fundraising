@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../shared/url.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 // Get donor initials for avatar
 $donor_initials = '';
 $display_name = $current_donor['name'] ?? 'Donor';
@@ -10,6 +11,7 @@ foreach ($names as $name) {
     }
 }
 $donor_initials = substr($donor_initials ?: 'D', 0, 2);
+$logout_url = url_for('donor/logout.php') . '?csrf_token=' . rawurlencode(csrf_token());
 ?>
 
 <!-- Topbar -->
@@ -51,7 +53,7 @@ $donor_initials = substr($donor_initials ?: 'D', 0, 2);
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <a class="dropdown-item text-danger" href="<?php echo htmlspecialchars(url_for('donor/logout.php')); ?>">
+                        <a class="dropdown-item text-danger" href="<?php echo htmlspecialchars($logout_url); ?>">
                             <i class="fas fa-sign-out-alt me-2"></i>Logout
                         </a>
                     </li>

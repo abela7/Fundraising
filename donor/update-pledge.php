@@ -4,10 +4,10 @@
  * Allows donors to request an increase to their pledge amount
  */
 
-// Enable error reporting for debugging
+// Keep diagnostics in logs only for this public-facing page.
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -17,17 +17,15 @@ if (session_status() === PHP_SESSION_NONE) {
 // Set up error handler to catch fatal errors
 register_shutdown_function(function() {
     $error = error_get_last();
-    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         error_log("Donor update-pledge: FATAL ERROR - " . $error['message'] . " in " . $error['file'] . ":" . $error['line']);
         http_response_code(500);
         if (!headers_sent()) {
             header('Content-Type: text/html; charset=utf-8');
         }
         echo "<!DOCTYPE html><html><head><title>Error</title></head><body>";
-        echo "<h1>Fatal Error</h1>";
-        echo "<p><strong>Message:</strong> " . htmlspecialchars($error['message']) . "</p>";
-        echo "<p><strong>File:</strong> " . htmlspecialchars($error['file']) . "</p>";
-        echo "<p><strong>Line:</strong> " . $error['line'] . "</p>";
+        echo "<h1>Something went wrong</h1>";
+        echo "<p>Please refresh and try again.</p>";
         echo "</body></html>";
         exit;
     }
@@ -122,7 +120,7 @@ try {
     error_log("Donor update-pledge: Fatal error during initialization - " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
     error_log("Donor update-pledge: Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
-    die("An error occurred while loading the page: " . htmlspecialchars($e->getMessage()) . "<br>File: " . $e->getFile() . "<br>Line: " . $e->getLine() . "<br><pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>");
+    die("An unexpected error occurred while loading the page. Please try again later.");
 }
 
 $pkgByLabel = [];
@@ -218,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } catch (Throwable $validationError) {
             error_log("Donor pledge update: ERROR during validation - " . $validationError->getMessage() . " in " . $validationError->getFile() . ":" . $validationError->getLine());
-            $error = 'Validation error: ' . htmlspecialchars($validationError->getMessage());
+            $error = 'Invalid submission. Please check your entries and try again.';
         }
     }
 
@@ -628,15 +626,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error_msg = $e->getMessage() . " | SQL Error: " . (isset($db) && $db instanceof mysqli ? ($db->error ?? 'N/A') : 'DB not available') . " | Line: " . $e->getLine();
                 error_log("Donor pledge update SQL error: " . $error_msg);
                 
-                // Show detailed error - always show full details for debugging
-                $dbError = (isset($db) && $db instanceof mysqli) ? $db->error : 'N/A';
-                $dbErrno = (isset($db) && $db instanceof mysqli) ? $db->errno : 'N/A';
-                $error = 'Database error: ' . htmlspecialchars($e->getMessage()) . 
-                    '<br><strong>SQL Error:</strong> ' . htmlspecialchars($dbError) . 
-                    '<br><strong>Error Code:</strong> ' . $dbErrno . 
-                    '<br><strong>File:</strong> ' . $e->getFile() . 
-                    '<br><strong>Line:</strong> ' . $e->getLine() .
-                    '<br><strong>Trace:</strong> <pre style="background:#f5f5f5;padding:10px;overflow:auto;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+                $error = 'We could not submit your request right now. Please try again.';
             } catch (Exception $e) {
                 error_log("Donor pledge update: CATCH Exception");
                 error_log("Donor pledge update: Exception message: " . $e->getMessage());
@@ -657,12 +647,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error_msg = $e->getMessage() . " on line " . $e->getLine() . " | File: " . $e->getFile();
                 error_log("Donor pledge update error: " . $error_msg);
                 
-                // Show detailed error - always show full details for debugging
-                $error = 'Error saving request: ' . htmlspecialchars($e->getMessage()) . 
-                    '<br><strong>File:</strong> ' . $e->getFile() . 
-                    '<br><strong>Line:</strong> ' . $e->getLine() . 
-                    '<br><strong>Code:</strong> ' . $e->getCode() .
-                    '<br><strong>Trace:</strong> <pre style="background:#f5f5f5;padding:10px;overflow:auto;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+                $error = 'We could not submit your request right now. Please try again.';
             } catch (Throwable $e) {
                 error_log("Donor pledge update: CATCH Throwable (fatal error)");
                 error_log("Donor pledge update: Throwable message: " . $e->getMessage());
@@ -675,11 +660,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $db->autocommit(true);
                 }
                 
-                // Show detailed error - always show full details for debugging
-                $error = 'Fatal error: ' . htmlspecialchars($e->getMessage()) . 
-                    '<br><strong>File:</strong> ' . $e->getFile() . 
-                    '<br><strong>Line:</strong> ' . $e->getLine() . 
-                    '<br><strong>Trace:</strong> <pre style="background:#f5f5f5;padding:10px;overflow:auto;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+                $error = 'We could not submit your request right now. Please try again.';
             }
         }
     }
@@ -721,7 +702,7 @@ if (isset($_SESSION['success_message'])) {
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <i class="fas fa-exclamation-circle me-2"></i>
                 <div style="margin-top: 10px;">
-                    <?php echo $error; // Error already contains safe HTML ?>
+                    <?php echo htmlspecialchars((string)$error, ENT_QUOTES, 'UTF-8'); ?>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
@@ -1031,4 +1012,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
-

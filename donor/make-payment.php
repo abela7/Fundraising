@@ -148,23 +148,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Handle File Upload
         $payment_proof = null;
         if (isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK) {
-             $allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-             if (!in_array($_FILES['payment_proof']['type'], $allowed)) {
-                 $error_message = "Invalid file type.";
-             } elseif ($_FILES['payment_proof']['size'] > 5 * 1024 * 1024) {
-                 $error_message = "File too large (Max 5MB).";
-             } else {
-                 $dir = __DIR__ . '/../uploads/payment_proofs/';
-                 if (!is_dir($dir)) mkdir($dir, 0755, true);
-                 $fn = 'proof_donor_' . $donor['id'] . '_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
-                 if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $dir . $fn)) {
-                     $payment_proof = 'uploads/payment_proofs/' . $fn;
-                 } else {
-                     $error_message = "Upload failed.";
-                 }
-             }
+            $tmp_name = (string)($_FILES['payment_proof']['tmp_name'] ?? '');
+            $original_name = (string)($_FILES['payment_proof']['name'] ?? '');
+            $file_size = (int)($_FILES['payment_proof']['size'] ?? 0);
+            $extension = strtolower((string)pathinfo($original_name, PATHINFO_EXTENSION));
+
+            $allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf'];
+            $allowed_mime_map = [
+                'image/jpeg' => ['jpg', 'jpeg'],
+                'image/png' => ['png'],
+                'application/pdf' => ['pdf']
+            ];
+
+            if (!is_uploaded_file($tmp_name)) {
+                $error_message = "Invalid upload request.";
+            } elseif ($file_size <= 0 || $file_size > 5 * 1024 * 1024) {
+                $error_message = "File too large (Max 5MB).";
+            } elseif (!in_array($extension, $allowed_extensions, true)) {
+                $error_message = "Invalid file extension.";
+            } else {
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $detected_mime = (string)$finfo->file($tmp_name);
+                $allowed_for_mime = $allowed_mime_map[$detected_mime] ?? [];
+
+                if (empty($allowed_for_mime) || !in_array($extension, $allowed_for_mime, true)) {
+                    $error_message = "Invalid file type.";
+                } else {
+                    $dir = __DIR__ . '/../uploads/payment_proofs/';
+                    if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+                        $error_message = "Failed to prepare upload directory.";
+                    } else {
+                        try {
+                            $random_part = bin2hex(random_bytes(16));
+                        } catch (Throwable $e) {
+                            $random_part = uniqid('', true);
+                        }
+                        $fn = 'proof_donor_' . (int)$donor['id'] . '_' . $random_part . '.' . $extension;
+                        if (move_uploaded_file($tmp_name, $dir . $fn)) {
+                            $payment_proof = 'uploads/payment_proofs/' . $fn;
+                        } else {
+                            $error_message = "Upload failed.";
+                        }
+                    }
+                }
+            }
         } else {
-             $payment_proof = '';
+            $payment_proof = '';
         }
 
         if (empty($error_message) && $db_connection_ok) {
@@ -249,7 +278,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 
             } catch (Exception $e) {
                 $db->rollback();
-                $error_message = "System error: " . $e->getMessage();
+                error_log('Make payment submission error: ' . $e->getMessage());
+                $error_message = "We could not submit your payment right now. Please try again.";
             }
         }
     }
@@ -1885,6 +1915,10 @@ function assignRepresentative() {
     const fd = new FormData();
     fd.append('representative_id', repId);
     fd.append('church_id', churchId);
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    if (csrfInput && csrfInput.value) {
+        fd.append('csrf_token', csrfInput.value);
+    }
     
     fetch('api/location-data.php?action=assign_rep', { method: 'POST', body: fd })
         .then(r => r.json())

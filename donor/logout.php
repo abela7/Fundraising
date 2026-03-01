@@ -8,8 +8,24 @@
  */
 
 session_start();
+require_once __DIR__ . '/../shared/csrf.php';
 
-$forget_device = isset($_GET['forget']) && $_GET['forget'] === '1';
+$request_method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+$forget_device = false;
+$submitted_csrf = '';
+
+if ($request_method === 'POST') {
+    $forget_device = isset($_POST['forget']) && $_POST['forget'] === '1';
+    $submitted_csrf = (string)($_POST['csrf_token'] ?? '');
+} else {
+    $forget_device = isset($_GET['forget']) && $_GET['forget'] === '1';
+    $submitted_csrf = (string)($_GET['csrf_token'] ?? '');
+}
+
+if ($submitted_csrf === '' || !hash_equals((string)($_SESSION['csrf_token'] ?? ''), $submitted_csrf)) {
+    http_response_code(403);
+    exit('Invalid security token. Please refresh and try again.');
+}
 
 // Audit log and handle trusted device
 if (isset($_SESSION['donor']['id'])) {

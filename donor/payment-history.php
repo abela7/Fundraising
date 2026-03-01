@@ -215,7 +215,7 @@ if ($db_connection_ok) {
                 </div>
 
                 <!-- Debug Info (remove in production) -->
-                <?php if (isset($_GET['debug'])): ?>
+                <?php if (isset($_GET['debug']) && isset($_SESSION['user']) && (($_SESSION['user']['role'] ?? '') === 'admin')): ?>
                 <div class="alert alert-info mb-3">
                     <strong>Debug Info:</strong><br>
                     Donor ID: <?php echo $donor['id'] ?? 'NOT SET'; ?><br>

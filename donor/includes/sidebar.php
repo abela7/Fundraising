@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../../shared/url.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 // Get current page for active state
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+$logout_url = url_for('donor/logout.php') . '?csrf_token=' . rawurlencode(csrf_token());
 ?>
 
 <!-- Sidebar Overlay (Mobile) -->
@@ -86,7 +88,7 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
                 </a>
             </div>
             <div class="nav-item">
-                <a href="<?php echo htmlspecialchars(url_for('donor/logout.php')); ?>" class="nav-link">
+                <a href="<?php echo htmlspecialchars($logout_url); ?>" class="nav-link">
                     <i class="fas fa-sign-out-alt"></i>
                     <span class="nav-link-text">Logout</span>
                 </a>
@@ -94,4 +96,3 @@ $request_uri = $_SERVER['REQUEST_URI'] ?? '';
         </div>
     </nav>
 </aside>
-
