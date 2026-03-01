@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 
 // Only allow admin access
 require_login();
@@ -17,6 +18,7 @@ require_admin();
 
 set_time_limit(300); // 5 minutes max
 $db = db();
+$run_population = ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grid_import']));
 
 echo "<!DOCTYPE html>
 <html>
@@ -28,6 +30,25 @@ echo "<!DOCTYPE html>
 <div class=\"container mt-5\">
     <h2>📊 Populate Database from Grid JSON</h2>
 ";
+
+if (!$run_population) {
+    echo "<div class=\"alert alert-danger\">This operation will replace all records in floor_grid_cells. "
+        . "Use with caution and only after exporting current data.</div>";
+    echo "<form method=\"post\" class=\"mb-3\">";
+    echo csrf_input();
+    echo "<input type=\"hidden\" name=\"run_grid_import\" value=\"1\">";
+    echo "<button type=\"submit\" class=\"btn btn-danger\">Run Grid Population</button>";
+    echo " <a href=\"../\" class=\"btn btn-secondary\">â† Back to Admin Tools</a>";
+    echo "</form>";
+    echo "</div></body></html>";
+    exit;
+}
+
+if (!verify_csrf(false)) {
+    echo "<div class=\"alert alert-danger mt-4\">Invalid security token. Please refresh the page and try again.</div>";
+    echo "</div></body></html>";
+    exit;
+}
 
 try {
     // Check if JSON file exists

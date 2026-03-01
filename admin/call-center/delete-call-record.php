@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/audit_helper.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_login();
 
 $db = db();
@@ -41,12 +42,19 @@ if (!$is_admin && $call->agent_id != $user_id) {
 
 // Handle Confirmation POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf(false)) {
+        die('Invalid security token. Please refresh the page and try again.');
+    }
+
     $action = $_POST['action'] ?? ''; // 'delete_all', 'unlink_plan', 'simple_delete'
     
     $db->begin_transaction();
     try {
         // 1. Handle Appointment (Always delete linked appointment)
-        $db->query("DELETE FROM call_center_appointments WHERE session_id = $session_id");
+        $delete_appointment_query = "DELETE FROM call_center_appointments WHERE session_id = ?";
+        $delete_appointment_stmt = $db->prepare($delete_appointment_query);
+        $delete_appointment_stmt->bind_param('i', $session_id);
+        $delete_appointment_stmt->execute();
         
         // 2. Handle Payment Plan
         if ($call->linked_plan_id) {
@@ -56,10 +64,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $donor_id = $call->donor_id;
                 
                 // Reset Donor Status
-                $db->query("UPDATE donors SET active_payment_plan_id = NULL, payment_status = 'pending' WHERE id = $donor_id AND active_payment_plan_id = $plan_id");
+                $reset_donor_query = "UPDATE donors SET active_payment_plan_id = NULL, payment_status = 'pending' WHERE id = ? AND active_payment_plan_id = ?";
+                $reset_donor_stmt = $db->prepare($reset_donor_query);
+                $reset_donor_stmt->bind_param('ii', $donor_id, $plan_id);
+                $reset_donor_stmt->execute();
                 
                 // Delete Plan
-                $db->query("DELETE FROM donor_payment_plans WHERE id = $plan_id");
+                $delete_plan_query = "DELETE FROM donor_payment_plans WHERE id = ?";
+                $delete_plan_stmt = $db->prepare($delete_plan_query);
+                $delete_plan_stmt->bind_param('i', $plan_id);
+                $delete_plan_stmt->execute();
                 
             } elseif ($action === 'unlink_plan') {
                 // Just unlink from session (Plan stays active)
@@ -70,7 +84,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // 3. Delete Session
-        $db->query("DELETE FROM call_center_sessions WHERE id = $session_id");
+        $delete_session_query = "DELETE FROM call_center_sessions WHERE id = ?";
+        $delete_session_stmt = $db->prepare($delete_session_query);
+        $delete_session_stmt->bind_param('i', $session_id);
+        $delete_session_stmt->execute();
         
         // Audit log the deletion
         log_audit(
@@ -127,6 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 
                 <form method="POST">
+                    <?php echo csrf_input(); ?>
                     <p>How do you want to handle the payment plan?</p>
                     
                     <div class="d-grid gap-3">
@@ -144,6 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php else: ?>
                 <p>Are you sure you want to proceed? This cannot be undone.</p>
                 <form method="POST">
+                    <?php echo csrf_input(); ?>
                     <button type="submit" name="action" value="simple_delete" class="btn btn-danger">Yes, Delete Record</button>
                     <a href="call-details.php?id=<?php echo $session_id; ?>" class="btn btn-secondary">Cancel</a>
                 </form>

@@ -10,12 +10,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 
 // Only allow admin access
 require_login();
 require_admin();
 
 $db = db();
+$csrfField = csrf_input();
 
 echo "<!DOCTYPE html>
 <html>
@@ -125,7 +127,7 @@ extractGridCells();</code></pre>
         </div>
         <div class=\"card-body\">
             <p>If you prefer, you can manually paste the JSON data here to populate the database:</p>
-            <form method=\"post\">
+            <form method=\"post\">{$csrfField}
                 <div class=\"mb-3\">
                     <label for=\"grid_data\" class=\"form-label\">Grid Cells JSON Data</label>
                     <textarea class=\"form-control\" id=\"grid_data\" name=\"grid_data\" rows=\"10\" placeholder=\"Paste the JSON data from console here...\"></textarea>
@@ -149,6 +151,11 @@ extractGridCells();</code></pre>
 
 // Handle JSON data submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['populate_from_json'])) {
+    if (!verify_csrf(false)) {
+        echo "<div class=\"alert alert-danger mt-4\">Invalid security token. Please refresh the page and try again.</div>";
+        exit;
+    }
+
     $gridData = trim($_POST['grid_data'] ?? '');
     
     if ($gridData) {

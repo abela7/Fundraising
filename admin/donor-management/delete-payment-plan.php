@@ -32,6 +32,7 @@ try {
     require_once __DIR__ . '/../../shared/auth.php';
     require_once __DIR__ . '/../../shared/audit_helper.php';
     require_once __DIR__ . '/../../config/db.php';
+    require_once __DIR__ . '/../../shared/csrf.php';
     require_login();
 
     // Set timezone
@@ -130,6 +131,12 @@ try {
 
 // Handle deletion confirmation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $confirm === 'yes') {
+    if (!verify_csrf(false)) {
+        $error_msg = 'Invalid security token. Please refresh the page and try again.';
+        header('Location: view-donor.php?id=' . $donor_id . '&error=' . urlencode($error_msg));
+        exit;
+    }
+
     try {
         $conn->begin_transaction();
         
@@ -426,6 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $confirm === 'yes') {
             </div>
             
             <form method="POST" action="?id=<?php echo $plan_id; ?>&donor_id=<?php echo $donor_id; ?>&confirm=yes">
+                <?php echo csrf_input(); ?>
                 <input type="hidden" name="confirm" value="yes">
                 <input type="hidden" name="id" value="<?php echo $plan_id; ?>">
                 <input type="hidden" name="donor_id" value="<?php echo $donor_id; ?>">
