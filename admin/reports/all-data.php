@@ -503,6 +503,17 @@ $currency = htmlspecialchars($currencyCode, ENT_QUOTES, 'UTF-8');
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../assets/theme.css">
     <link rel="stylesheet" href="../assets/admin.css">
+    <style>
+        .metric-card { border-left: 4px solid #0d6efd; }
+        .metric-label { font-size: 0.82rem; color: #6c757d; text-transform: uppercase; letter-spacing: .03em; }
+        .metric-value { font-size: 1.5rem; font-weight: 700; }
+        .metric-sub { font-size: 0.82rem; color: #6c757d; }
+        .trend-cell { min-width: 210px; }
+        .trend-bar-wrap { height: 8px; background: #e9ecef; border-radius: 100px; overflow: hidden; }
+        .trend-bar { height: 100%; background: #198754; }
+        .section-title { font-size: 1rem; font-weight: 700; }
+        .code-block { max-height: 480px; overflow: auto; font-size: 0.8rem; background: #111827; color: #e5e7eb; padding: 1rem; border-radius: .5rem; }
+    </style>
 </head>
 <body>
 <div class="admin-wrapper">
@@ -511,56 +522,381 @@ $currency = htmlspecialchars($currencyCode, ENT_QUOTES, 'UTF-8');
         <?php include '../includes/topbar.php'; ?>
         <main class="main-content">
             <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0"><i class="fas fa-database text-primary me-2"></i>All Data Report</h4>
+                <?php
+                    $f = $report['financial'];
+                    $progressPct = max(0.0, min(100.0, (float)$f['progress_percent']));
+                    $rangeLabelMap = [
+                        'today' => 'Today',
+                        'week' => 'This Week',
+                        'month' => 'This Month',
+                        'quarter' => 'This Quarter',
+                        'year' => 'This Year',
+                        'custom' => 'Custom',
+                        'all' => 'All Time'
+                    ];
+                    $activeRangeLabel = $rangeLabelMap[$range['range']] ?? 'All Time';
+                    $campaignTarget = (float)$f['target_amount'];
+                    $targetRemaining = max(0.0, $campaignTarget - (float)$f['total_raised']);
+                    $maxTrend = 0.0;
+                    foreach ($report['monthly_trend_last_12_months'] as $trendRow) {
+                        $maxTrend = max($maxTrend, (float)$trendRow['campaign_value']);
+                    }
+                    $customFrom = htmlspecialchars((string)($_GET['from'] ?? ''), ENT_QUOTES, 'UTF-8');
+                    $customTo = htmlspecialchars((string)($_GET['to'] ?? ''), ENT_QUOTES, 'UTF-8');
+                ?>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h4 class="mb-1"><i class="fas fa-database text-primary me-2"></i>All Data Financial Report</h4>
+                        <div class="text-muted small">
+                            Scope: <strong><?php echo htmlspecialchars($activeRangeLabel, ENT_QUOTES, 'UTF-8'); ?></strong>
+                            (<?php echo htmlspecialchars($range['from'], ENT_QUOTES, 'UTF-8'); ?> to <?php echo htmlspecialchars($range['to'], ENT_QUOTES, 'UTF-8'); ?>)
+                        </div>
+                    </div>
                     <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary btn-sm" href="?date=all">All Time</a>
-                        <a class="btn btn-outline-secondary btn-sm" href="?date=month">This Month</a>
-                        <a class="btn btn-outline-secondary btn-sm" href="?date=year">This Year</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="?date=today">Today</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="?date=week">Week</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="?date=month">Month</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="?date=quarter">Quarter</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="?date=year">Year</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="?date=all">All</a>
                         <a class="btn btn-primary btn-sm" href="?date=<?php echo urlencode($range['range']); ?>&format=json" target="_blank">
                             <i class="fas fa-code me-1"></i>JSON
                         </a>
                     </div>
                 </div>
 
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <form class="row g-2 align-items-end" method="get">
+                            <input type="hidden" name="date" value="custom">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label mb-1">From</label>
+                                <input class="form-control form-control-sm" type="date" name="from" value="<?php echo $customFrom; ?>">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label mb-1">To</label>
+                                <input class="form-control form-control-sm" type="date" name="to" value="<?php echo $customTo; ?>">
+                            </div>
+                            <div class="col-12 col-md-4 d-grid">
+                                <button class="btn btn-sm btn-dark" type="submit"><i class="fas fa-filter me-1"></i>Apply Custom Range</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <?php if (!empty($report['health']['error'])): ?>
-                    <div class="alert alert-danger"><?php echo htmlspecialchars($report['health']['error']); ?></div>
+                    <div class="alert alert-danger"><?php echo htmlspecialchars($report['health']['error'], ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
 
                 <div class="row g-3 mb-3">
                     <div class="col-12 col-md-6 col-xl-3">
-                        <div class="card h-100"><div class="card-body">
-                            <div class="text-muted small">Total Raised</div>
-                            <div class="h4 mb-0"><?php echo $currency . ' ' . number_format((float)$report['financial']['total_raised'], 2); ?></div>
+                        <div class="card metric-card h-100"><div class="card-body">
+                            <div class="metric-label">Total Raised</div>
+                            <div class="metric-value"><?php echo $currency . ' ' . number_format((float)$f['total_raised'], 2); ?></div>
+                            <div class="metric-sub">Cash + outstanding pledged</div>
                         </div></div>
                     </div>
                     <div class="col-12 col-md-6 col-xl-3">
-                        <div class="card h-100"><div class="card-body">
-                            <div class="text-muted small">Cash Received</div>
-                            <div class="h4 mb-0"><?php echo $currency . ' ' . number_format((float)$report['financial']['cash_received_total'], 2); ?></div>
+                        <div class="card metric-card h-100"><div class="card-body">
+                            <div class="metric-label">Cash Received</div>
+                            <div class="metric-value"><?php echo $currency . ' ' . number_format((float)$f['cash_received_total'], 2); ?></div>
+                            <div class="metric-sub">Approved direct + confirmed pledge payments</div>
                         </div></div>
                     </div>
                     <div class="col-12 col-md-6 col-xl-3">
-                        <div class="card h-100"><div class="card-body">
-                            <div class="text-muted small">Outstanding Pledged</div>
-                            <div class="h4 mb-0"><?php echo $currency . ' ' . number_format((float)$report['financial']['outstanding_pledged_total'], 2); ?></div>
+                        <div class="card metric-card h-100"><div class="card-body">
+                            <div class="metric-label">Outstanding Pledged</div>
+                            <div class="metric-value"><?php echo $currency . ' ' . number_format((float)$f['outstanding_pledged_total'], 2); ?></div>
+                            <div class="metric-sub">Approved pledges not yet paid</div>
                         </div></div>
                     </div>
                     <div class="col-12 col-md-6 col-xl-3">
-                        <div class="card h-100"><div class="card-body">
-                            <div class="text-muted small">Campaign Value</div>
-                            <div class="h4 mb-0"><?php echo $currency . ' ' . number_format((float)$report['financial']['campaign_value_approved'], 2); ?></div>
+                        <div class="card metric-card h-100"><div class="card-body">
+                            <div class="metric-label">Campaign Value</div>
+                            <div class="metric-value"><?php echo $currency . ' ' . number_format((float)$f['campaign_value_approved'], 2); ?></div>
+                            <div class="metric-sub">Approved pledges + approved direct payments</div>
                         </div></div>
                     </div>
                 </div>
 
-                <div class="card mb-3">
-                    <div class="card-header">Backend Data Payload</div>
-                    <div class="card-body">
-                        <p class="text-muted mb-2">Use <code>window.ALL_DATA_REPORT</code> for frontend rendering.</p>
-                        <pre class="mb-0" style="max-height: 480px; overflow: auto;"><?php echo htmlspecialchars(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?></pre>
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-lg-7">
+                        <div class="card h-100">
+                            <div class="card-header section-title">Financial Reconciliation</div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <tbody>
+                                        <tr><th>Approved Pledges</th><td class="text-end"><?php echo $currency . ' ' . number_format((float)$f['approved_pledges_amount'], 2); ?></td></tr>
+                                        <tr><th>Approved Direct Payments</th><td class="text-end"><?php echo $currency . ' ' . number_format((float)$f['approved_direct_payments_amount'], 2); ?></td></tr>
+                                        <tr><th>Confirmed Pledge Payments</th><td class="text-end"><?php echo $currency . ' ' . number_format((float)$f['confirmed_pledge_payments_amount'], 2); ?></td></tr>
+                                        <tr class="table-light"><th>Cash Received Total</th><td class="text-end fw-bold"><?php echo $currency . ' ' . number_format((float)$f['cash_received_total'], 2); ?></td></tr>
+                                        <tr class="table-light"><th>Outstanding Pledged Total</th><td class="text-end fw-bold"><?php echo $currency . ' ' . number_format((float)$f['outstanding_pledged_total'], 2); ?></td></tr>
+                                        <tr class="table-primary"><th>Total Raised</th><td class="text-end fw-bold"><?php echo $currency . ' ' . number_format((float)$f['total_raised'], 2); ?></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-3 small text-muted">Formula: <code>Total Raised = Cash Received + Outstanding Pledged</code></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-5">
+                        <div class="card h-100">
+                            <div class="card-header section-title">Target Progress</div>
+                            <div class="card-body">
+                                <div class="mb-2 d-flex justify-content-between">
+                                    <span class="text-muted">Progress</span>
+                                    <strong><?php echo number_format($progressPct, 2); ?>%</strong>
+                                </div>
+                                <div class="progress mb-3" role="progressbar" aria-valuenow="<?php echo (int)$progressPct; ?>" aria-valuemin="0" aria-valuemax="100" style="height: 14px;">
+                                    <div class="progress-bar bg-success" style="width: <?php echo $progressPct; ?>%"></div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <tbody>
+                                        <tr><th>Target</th><td class="text-end"><?php echo $currency . ' ' . number_format($campaignTarget, 2); ?></td></tr>
+                                        <tr><th>Raised</th><td class="text-end"><?php echo $currency . ' ' . number_format((float)$f['total_raised'], 2); ?></td></tr>
+                                        <tr><th>Remaining</th><td class="text-end"><?php echo $currency . ' ' . number_format($targetRemaining, 2); ?></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header section-title">Payment Status Breakdown</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead><tr><th>Status</th><th class="text-end">Count</th><th class="text-end">Amount</th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($report['status_breakdown']['payments'] as $row): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars((string)$row['status'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="text-end"><?php echo number_format((int)$row['count']); ?></td>
+                                                <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['amount'], 2); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header section-title">Pledge Status Breakdown</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead><tr><th>Status</th><th class="text-end">Count</th><th class="text-end">Amount</th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($report['status_breakdown']['pledges'] as $row): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars((string)$row['status'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="text-end"><?php echo number_format((int)$row['count']); ?></td>
+                                                <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['amount'], 2); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header section-title">Package Mix (Campaign Value)</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead><tr><th>Package</th><th class="text-end">Amount</th><th class="text-end">Share</th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($report['package_mix'] as $row): ?>
+                                            <?php $share = ((float)$f['campaign_value_approved'] > 0) ? (((float)$row['amount'] / (float)$f['campaign_value_approved']) * 100.0) : 0.0; ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars((string)$row['label'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['amount'], 2); ?></td>
+                                                <td class="text-end"><?php echo number_format($share, 1); ?>%</td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header section-title">Monthly Trend (Last 12 Months)</div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-end">Direct Paid</th>
+                                        <th class="text-end">Pledge Paid</th>
+                                        <th class="text-end">Cash Received</th>
+                                        <th class="text-end">Approved Pledges</th>
+                                        <th class="trend-cell">Campaign Value Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($report['monthly_trend_last_12_months'] as $row): ?>
+                                    <?php
+                                        $campaignValue = (float)$row['campaign_value'];
+                                        $w = ($maxTrend > 0) ? round(($campaignValue / $maxTrend) * 100, 2) : 0;
+                                    ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars((string)$row['month'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['approved_direct_payments'], 2); ?></td>
+                                        <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['confirmed_pledge_payments'], 2); ?></td>
+                                        <td class="text-end fw-semibold"><?php echo $currency . ' ' . number_format((float)$row['cash_received'], 2); ?></td>
+                                        <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['approved_pledges'], 2); ?></td>
+                                        <td class="trend-cell">
+                                            <div class="trend-bar-wrap">
+                                                <div class="trend-bar" style="width: <?php echo $w; ?>%"></div>
+                                            </div>
+                                            <div class="small text-muted mt-1"><?php echo $currency . ' ' . number_format($campaignValue, 2); ?></div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-xl-8">
+                        <div class="card h-100">
+                            <div class="card-header section-title">Top Donors (By Approved Commitment)</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead>
+                                        <tr>
+                                            <th>Donor</th>
+                                            <th>Phone</th>
+                                            <th class="text-end">Approved Pledged</th>
+                                            <th class="text-end">Cash Received</th>
+                                            <th class="text-end">Outstanding</th>
+                                            <th class="text-end">Campaign Value</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <?php foreach (array_slice($report['top_donors'], 0, 20) as $row): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars((string)$row['name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td><?php echo htmlspecialchars((string)$row['phone'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['approved_pledged'], 2); ?></td>
+                                                <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['cash_received'], 2); ?></td>
+                                                <td class="text-end"><?php echo $currency . ' ' . number_format((float)$row['outstanding_pledged'], 2); ?></td>
+                                                <td class="text-end fw-semibold"><?php echo $currency . ' ' . number_format((float)$row['campaign_value'], 2); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-4">
+                        <div class="card h-100">
+                            <div class="card-header section-title">Data Quality</div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Approved payments missing donor_id
+                                        <span class="badge bg-warning text-dark"><?php echo number_format((int)$report['data_quality']['approved_payments_missing_donor_id_count']); ?></span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Approved pledges missing donor_id
+                                        <span class="badge bg-warning text-dark"><?php echo number_format((int)$report['data_quality']['approved_pledges_missing_donor_id_count']); ?></span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Payments without contact
+                                        <span class="badge bg-danger"><?php echo number_format((int)$report['data_quality']['payments_without_contact_count']); ?></span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Pledges without contact
+                                        <span class="badge bg-danger"><?php echo number_format((int)$report['data_quality']['pledges_without_contact_count']); ?></span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Duplicate phone groups
+                                        <span class="badge bg-secondary"><?php echo number_format(count($report['data_quality']['duplicate_phone_groups'])); ?></span>
+                                    </li>
+                                </ul>
+                                <?php if (!empty($report['data_quality']['duplicate_phone_groups'])): ?>
+                                    <div class="mt-3">
+                                        <div class="small fw-semibold mb-1">Top duplicate phones</div>
+                                        <?php foreach (array_slice($report['data_quality']['duplicate_phone_groups'], 0, 8) as $dup): ?>
+                                            <div class="d-flex justify-content-between small border-bottom py-1">
+                                                <span><?php echo htmlspecialchars((string)$dup['phone'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                                <span class="text-muted"><?php echo (int)$dup['count']; ?> records</span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header section-title">System Health</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-lg-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead><tr><th>Table</th><th class="text-end">Status</th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($report['health']['tables'] as $table => $ok): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars((string)$table, ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="text-end">
+                                                    <?php if ($ok): ?><span class="badge bg-success">OK</span><?php else: ?><span class="badge bg-danger">Missing</span><?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead><tr><th>Check</th><th class="text-end">Value</th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($report['health']['columns'] as $k => $v): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars((string)$k, ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="text-end"><?php echo htmlspecialchars(is_bool($v) ? ($v ? 'true' : 'false') : (string)$v, ENT_QUOTES, 'UTF-8'); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <details class="card mb-3">
+                    <summary class="card-header section-title" style="cursor: pointer;">Raw Backend Data Payload</summary>
+                    <div class="card-body">
+                        <p class="text-muted mb-2">Use <code>window.ALL_DATA_REPORT</code> or <code>?format=json</code> for frontend integration.</p>
+                        <pre class="code-block mb-0"><?php echo htmlspecialchars(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?></pre>
+                    </div>
+                </details>
             </div>
         </main>
     </div>
@@ -571,4 +907,3 @@ window.ALL_DATA_REPORT = <?php echo json_encode($report, JSON_UNESCAPED_UNICODE 
 </script>
 </body>
 </html>
-
