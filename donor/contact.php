@@ -12,8 +12,8 @@ require_once __DIR__ . '/../services/UltraMsgService.php';
 require_once __DIR__ . '/../services/TwilioService.php';
 require_once __DIR__ . '/../services/SMSHelper.php';
 
-// Admin notification phone number
-define('ADMIN_NOTIFICATION_PHONE', '07360436171');
+// Default fallback if no phone is configured via env/settings.
+define('DEFAULT_ADMIN_NOTIFICATION_PHONE', '07360436171');
 
 function current_donor(): ?array {
     if (isset($_SESSION['donor'])) {
@@ -29,11 +29,134 @@ function require_donor_login(): void {
     }
 }
 
+function normalize_phone_for_notification(string $phone): string {
+    $phone = trim($phone);
+    if ($phone === '') {
+        return '';
+    }
+    // Keep leading + if present, strip other non-digits.
+    if (strpos($phone, '+') === 0) {
+        return '+' . preg_replace('/\D+/', '', substr($phone, 1));
+    }
+    return preg_replace('/\D+/', '', $phone);
+}
+
+function resolve_admin_notification_phone(array $settings): string {
+    $candidates = [
+        (string)($_ENV['ADMIN_NOTIFICATION_PHONE'] ?? ''),
+        (string)getenv('ADMIN_NOTIFICATION_PHONE'),
+        (string)($settings['admin_notification_phone'] ?? ''),
+        (string)($settings['support_notification_phone'] ?? ''),
+        DEFAULT_ADMIN_NOTIFICATION_PHONE
+    ];
+
+    foreach ($candidates as $candidate) {
+        $normalized = normalize_phone_for_notification($candidate);
+        if ($normalized !== '') {
+            return $normalized;
+        }
+    }
+
+    return DEFAULT_ADMIN_NOTIFICATION_PHONE;
+}
+
+function resolve_public_origin(array $settings): string {
+    $candidates = [
+        (string)($_ENV['APP_URL'] ?? ''),
+        (string)getenv('APP_URL'),
+        (string)($settings['app_url'] ?? ''),
+        (string)($settings['site_url'] ?? ''),
+        (string)($settings['public_base_url'] ?? '')
+    ];
+
+    foreach ($candidates as $candidate) {
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            continue;
+        }
+        $parts = parse_url($candidate);
+        if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+            continue;
+        }
+        $scheme = strtolower((string)$parts['scheme']);
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            continue;
+        }
+        $host = (string)$parts['host'];
+        $port = isset($parts['port']) ? (':' . (int)$parts['port']) : '';
+        return $scheme . '://' . $host . $port;
+    }
+
+    // Safe fallback for production. For local development allow localhost host:port.
+    $raw_host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    if (preg_match('/^(localhost|127\.0\.0\.1)(:\d{1,5})?$/', $raw_host) === 1) {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        return $scheme . '://' . $raw_host;
+    }
+
+    return 'https://donate.abuneteklehaymanot.org';
+}
+
+function build_absolute_url(string $origin, string $path): string {
+    return rtrim($origin, '/') . '/' . ltrim($path, '/');
+}
+
+function get_support_rate_limit_message(mysqli $db, int $donor_id, string $action): string {
+    $checks = [];
+
+    if ($action === 'submit_request') {
+        $checks = [
+            [
+                'sql' => "SELECT COUNT(*) AS cnt FROM donor_support_requests WHERE donor_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)",
+                'max' => 3,
+                'message' => 'Please wait a few minutes before sending another request.'
+            ],
+            [
+                'sql' => "SELECT COUNT(*) AS cnt FROM donor_support_requests WHERE donor_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)",
+                'max' => 20,
+                'message' => 'Daily request limit reached. Please try again tomorrow or call support.'
+            ]
+        ];
+    } elseif ($action === 'add_reply') {
+        $checks = [
+            [
+                'sql' => "SELECT COUNT(*) AS cnt FROM donor_support_replies WHERE donor_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)",
+                'max' => 8,
+                'message' => 'Please slow down. You are sending replies too quickly.'
+            ],
+            [
+                'sql' => "SELECT COUNT(*) AS cnt FROM donor_support_replies WHERE donor_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)",
+                'max' => 60,
+                'message' => 'Daily reply limit reached. Please continue later.'
+            ]
+        ];
+    }
+
+    foreach ($checks as $check) {
+        $stmt = $db->prepare($check['sql']);
+        if (!$stmt) {
+            continue;
+        }
+        $stmt->bind_param('i', $donor_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        $count = (int)($row['cnt'] ?? 0);
+        if ($count >= (int)$check['max']) {
+            return (string)$check['message'];
+        }
+    }
+
+    return '';
+}
+
 require_donor_login();
 validate_donor_device(); // Check if device was revoked
 $donor = current_donor();
 $page_title = 'Contact Support';
 $current_donor = $donor;
+$admin_notification_phone = resolve_admin_notification_phone($settings ?? []);
+$public_origin = resolve_public_origin($settings ?? []);
 
 $success_message = '';
 $error_message = '';
@@ -48,17 +171,29 @@ if ($db_connection_ok) {
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
     verify_csrf();
-    $action = $_POST['action'] ?? '';
+    $action = (string)($_POST['action'] ?? '');
+    $rate_limit_message = get_support_rate_limit_message($db, (int)$donor['id'], $action);
+    if ($rate_limit_message !== '') {
+        $error_message = $rate_limit_message;
+    }
     
-    if ($action === 'submit_request' && $tables_exist) {
+    if ($error_message === '' && $action === 'submit_request' && $tables_exist) {
         $subject = trim($_POST['subject'] ?? '');
         $message = trim($_POST['message'] ?? '');
         $category = trim($_POST['category'] ?? 'general');
+        $allowed_categories = ['payment', 'plan', 'account', 'general', 'other'];
+        if (!in_array($category, $allowed_categories, true)) {
+            $category = 'general';
+        }
         
         if (empty($subject) || empty($message)) {
             $error_message = 'Please fill in all required fields.';
         } elseif (strlen($subject) > 255) {
             $error_message = 'Subject is too long (max 255 characters).';
+        } elseif (strlen($subject) < 3) {
+            $error_message = 'Subject is too short.';
+        } elseif (strlen($message) > 5000) {
+            $error_message = 'Message is too long (max 5000 characters).';
         } else {
             try {
                 $stmt = $db->prepare("
@@ -106,9 +241,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         $wa_message .= "*Subject:* {$subject}\n\n";
                         $wa_message .= "*Message:*\n{$message}\n\n";
                         $wa_message .= "━━━━━━━━━━━━━━━\n";
-                        $wa_message .= "View: " . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . "://{$_SERVER['HTTP_HOST']}/admin/donor-management/support-requests.php?view={$request_id}";
+                        $view_url = build_absolute_url($public_origin, url_for('admin/donor-management/support-requests.php')) . '?view=' . urlencode((string)$request_id);
+                        $wa_message .= "View: {$view_url}";
                         
-                        $wa_result = $whatsapp->send(ADMIN_NOTIFICATION_PHONE, $wa_message);
+                        $wa_result = $whatsapp->send($admin_notification_phone, $wa_message);
                         
                         if ($wa_result['success']) {
                             $notification_sent = true;
@@ -131,12 +267,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                         $twilio = TwilioService::fromDatabase($db);
                         if ($twilio) {
                             // Build TwiML URL for the notification message
-                            $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . "://{$_SERVER['HTTP_HOST']}";
-                            $twiml_url = $base_url . '/admin/call-center/api/twilio-support-notification.php';
+                            $twiml_url = build_absolute_url($public_origin, url_for('admin/call-center/api/twilio-support-notification.php'));
                             $twiml_url .= '?request_id=' . urlencode((string)$request_id);
                             $twiml_url .= '&donor_name=' . urlencode($donor['name']);
                             
-                            $call_result = $twilio->makeNotificationCall(ADMIN_NOTIFICATION_PHONE, $twiml_url);
+                            $call_result = $twilio->makeNotificationCall($admin_notification_phone, $twiml_url);
                             
                             if ($call_result['success']) {
                                 $notification_sent = true;
@@ -165,7 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                             $sms_message .= "Subject: {$subject}\n";
                             $sms_message .= "Please check the donor portal.";
                             
-                            $sms_result = $sms->sendDirect(ADMIN_NOTIFICATION_PHONE, $sms_message);
+                            $sms_result = $sms->sendDirect($admin_notification_phone, $sms_message);
                             
                             if ($sms_result['success']) {
                                 $notification_sent = true;
@@ -197,12 +332,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                 $error_message = 'An error occurred. Please try again later.';
             }
         }
-    } elseif ($action === 'add_reply' && $tables_exist) {
+    } elseif ($error_message === '' && $action === 'add_reply' && $tables_exist) {
         $request_id = (int)($_POST['request_id'] ?? 0);
         $message = trim($_POST['reply_message'] ?? '');
         
         if ($request_id <= 0 || empty($message)) {
             $error_message = 'Please enter a message.';
+        } elseif (strlen($message) > 3000) {
+            $error_message = 'Reply is too long (max 3000 characters).';
         } else {
             // Verify request belongs to donor
             $check = $db->prepare("SELECT id, status FROM donor_support_requests WHERE id = ? AND donor_id = ?");
@@ -224,7 +361,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_connection_ok) {
                     
                     // Update request status if it was resolved
                     if ($request['status'] === 'resolved') {
-                        $db->query("UPDATE donor_support_requests SET status = 'open' WHERE id = $request_id");
+                        $reopen_stmt = $db->prepare("UPDATE donor_support_requests SET status = 'open' WHERE id = ?");
+                        if ($reopen_stmt) {
+                            $reopen_stmt->bind_param('i', $request_id);
+                            $reopen_stmt->execute();
+                            $reopen_stmt->close();
+                        }
                     }
                     
                     $success_message = 'Your reply has been added.';
@@ -314,6 +456,19 @@ $statuses = [
     'resolved' => ['label' => 'Resolved', 'color' => 'success'],
     'closed' => ['label' => 'Closed', 'color' => 'secondary']
 ];
+
+$view_category_key = 'other';
+$view_status_key = 'open';
+if (is_array($view_request)) {
+    $raw_view_category = (string)($view_request['category'] ?? '');
+    $raw_view_status = (string)($view_request['status'] ?? '');
+    if (array_key_exists($raw_view_category, $categories)) {
+        $view_category_key = $raw_view_category;
+    }
+    if (array_key_exists($raw_view_status, $statuses)) {
+        $view_status_key = $raw_view_status;
+    }
+}
 
 function h($v) { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
 function timeAgo($datetime) {
@@ -462,15 +617,15 @@ function timeAgo($datetime) {
                                 <h5 class="card-title mb-0">
                                     <i class="fas fa-ticket-alt me-2"></i>Request #<?php echo $view_request['id']; ?>
                                 </h5>
-                                <span class="badge bg-<?php echo $statuses[$view_request['status']]['color']; ?>">
-                                    <?php echo $statuses[$view_request['status']]['label']; ?>
+                                <span class="badge bg-<?php echo h($statuses[$view_status_key]['color']); ?>">
+                                    <?php echo h($statuses[$view_status_key]['label']); ?>
                                 </span>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <span class="badge bg-<?php echo $categories[$view_request['category']]['color']; ?>">
-                                        <i class="fas <?php echo $categories[$view_request['category']]['icon']; ?> me-1"></i>
-                                        <?php echo $categories[$view_request['category']]['label']; ?>
+                                    <span class="badge bg-<?php echo h($categories[$view_category_key]['color']); ?>">
+                                        <i class="fas <?php echo h($categories[$view_category_key]['icon']); ?> me-1"></i>
+                                        <?php echo h($categories[$view_category_key]['label']); ?>
                                     </span>
                                     <small class="text-muted ms-2">
                                         <i class="fas fa-clock me-1"></i><?php echo timeAgo($view_request['created_at']); ?>
@@ -543,12 +698,12 @@ function timeAgo($datetime) {
                                 <dl class="row mb-0">
                                     <dt class="col-5 text-muted">Status</dt>
                                     <dd class="col-7">
-                                        <span class="badge bg-<?php echo $statuses[$view_request['status']]['color']; ?>">
-                                            <?php echo $statuses[$view_request['status']]['label']; ?>
+                                        <span class="badge bg-<?php echo h($statuses[$view_status_key]['color']); ?>">
+                                            <?php echo h($statuses[$view_status_key]['label']); ?>
                                         </span>
                                     </dd>
                                     <dt class="col-5 text-muted">Category</dt>
-                                    <dd class="col-7"><?php echo $categories[$view_request['category']]['label']; ?></dd>
+                                    <dd class="col-7"><?php echo h($categories[$view_category_key]['label']); ?></dd>
                                     <dt class="col-5 text-muted">Created</dt>
                                     <dd class="col-7"><?php echo date('M j, Y g:i A', strtotime($view_request['created_at'])); ?></dd>
                                     <?php if ($view_request['assigned_name']): ?>
@@ -638,15 +793,19 @@ function timeAgo($datetime) {
                                 </div>
                                 <?php else: ?>
                                 <?php foreach ($requests as $req): ?>
+                                <?php
+                                $req_category_key = array_key_exists((string)($req['category'] ?? ''), $categories) ? (string)$req['category'] : 'other';
+                                $req_status_key = array_key_exists((string)($req['status'] ?? ''), $statuses) ? (string)$req['status'] : 'open';
+                                ?>
                                 <a href="contact.php?view=<?php echo $req['id']; ?>" 
-                                   class="request-card status-<?php echo $req['status']; ?>">
+                                   class="request-card status-<?php echo h($req_status_key); ?>">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <span class="badge bg-<?php echo $categories[$req['category']]['color']; ?> bg-opacity-75">
-                                            <i class="fas <?php echo $categories[$req['category']]['icon']; ?> me-1"></i>
-                                            <?php echo $categories[$req['category']]['label']; ?>
+                                        <span class="badge bg-<?php echo h($categories[$req_category_key]['color']); ?> bg-opacity-75">
+                                            <i class="fas <?php echo h($categories[$req_category_key]['icon']); ?> me-1"></i>
+                                            <?php echo h($categories[$req_category_key]['label']); ?>
                                         </span>
-                                        <span class="badge bg-<?php echo $statuses[$req['status']]['color']; ?>">
-                                            <?php echo $statuses[$req['status']]['label']; ?>
+                                        <span class="badge bg-<?php echo h($statuses[$req_status_key]['color']); ?>">
+                                            <?php echo h($statuses[$req_status_key]['label']); ?>
                                         </span>
                                     </div>
                                     <h6 class="mb-1"><?php echo h($req['subject']); ?></h6>
