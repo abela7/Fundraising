@@ -316,6 +316,14 @@ $page_title = 'Paid Towards Pledges - Detail';
                                 <option value="other">Other</option>
                             </select>
                         </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label">Amount (Min – Max)</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" id="filterAmountMin" placeholder="Min" step="0.01" min="0">
+                                <span class="input-group-text">–</span>
+                                <input type="number" class="form-control" id="filterAmountMax" placeholder="Max" step="0.01" min="0">
+                            </div>
+                        </div>
                         <div class="col-12 col-md-2 d-flex gap-2">
                             <button class="btn btn-primary btn-sm flex-fill" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
                             <button class="btn btn-outline-secondary btn-sm" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
@@ -429,10 +437,14 @@ $page_title = 'Paid Towards Pledges - Detail';
     const dt = document.getElementById('filterDateTo').value;
     const donor = document.getElementById('filterDonor').value.trim();
     const method = document.getElementById('filterMethod').value;
+    const amMin = document.getElementById('filterAmountMin').value.trim();
+    const amMax = document.getElementById('filterAmountMax').value.trim();
     if (df) params.set('date_from', df);
     if (dt) params.set('date_to', dt);
     if (donor) params.set('donor', donor);
     if (method) params.set('payment_method', method);
+    if (amMin && !isNaN(parseFloat(amMin))) params.set('amount_min', amMin);
+    if (amMax && !isNaN(parseFloat(amMax))) params.set('amount_max', amMax);
     return 'api/paid-towards-pledges.php?' + params.toString();
   }
 
@@ -575,10 +587,14 @@ $page_title = 'Paid Towards Pledges - Detail';
     const dt = document.getElementById('filterDateTo').value;
     const donor = document.getElementById('filterDonor').value.trim();
     const method = document.getElementById('filterMethod').value;
+    const amMin = document.getElementById('filterAmountMin').value.trim();
+    const amMax = document.getElementById('filterAmountMax').value.trim();
     if (df) params.set('date_from', df);
     if (dt) params.set('date_to', dt);
     if (donor) params.set('donor', donor);
     if (method) params.set('payment_method', method);
+    if (amMin && !isNaN(parseFloat(amMin))) params.set('amount_min', amMin);
+    if (amMax && !isNaN(parseFloat(amMax))) params.set('amount_max', amMax);
 
     fetch('api/paid-towards-pledges.php?' + params.toString(), { method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
       .then(r => r.json())
@@ -615,13 +631,15 @@ $page_title = 'Paid Towards Pledges - Detail';
     document.getElementById('filterDateTo').value = '';
     document.getElementById('filterDonor').value = '';
     document.getElementById('filterMethod').value = '';
+    document.getElementById('filterAmountMin').value = '';
+    document.getElementById('filterAmountMax').value = '';
     load(1);
   });
   document.getElementById('perPage').addEventListener('change', () => load(1));
   document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
 
   // Apply on Enter in filter inputs
-  ['filterDonor', 'filterDateFrom', 'filterDateTo'].forEach(id => {
+  ['filterDonor', 'filterDateFrom', 'filterDateTo', 'filterAmountMin', 'filterAmountMax'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') load(1); });
   });

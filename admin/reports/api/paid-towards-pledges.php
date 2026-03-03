@@ -20,11 +20,22 @@ try {
         exit;
     }
 
+    // Parse float filter safely
+    $parseFloat = static function (string $key): ?float {
+        if (!isset($_GET[$key]) || $_GET[$key] === null) return null;
+        $v = is_scalar($_GET[$key]) ? trim((string)$_GET[$key]) : '';
+        if ($v === '' || !is_numeric($v)) return null;
+        $n = (float)$v;
+        return $n >= 0 ? $n : null;
+    };
+
     // Filters
     $dateFrom = trim($_GET['date_from'] ?? '');
     $dateTo = trim($_GET['date_to'] ?? '');
     $donorSearch = trim($_GET['donor'] ?? '');
     $paymentMethod = trim($_GET['payment_method'] ?? '');
+    $amountMin = $parseFloat('amount_min');
+    $amountMax = $parseFloat('amount_max');
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 25)));
     $offset = ($page - 1) * $perPage;
@@ -58,6 +69,16 @@ try {
             $params[] = $paymentMethod;
             $types .= 's';
         }
+    }
+    if ($amountMin !== null) {
+        $where[] = "pp.amount >= ?";
+        $params[] = $amountMin;
+        $types .= 'd';
+    }
+    if ($amountMax !== null) {
+        $where[] = "pp.amount <= ?";
+        $params[] = $amountMax;
+        $types .= 'd';
     }
 
     $whereClause = 'WHERE ' . implode(' AND ', $where);
@@ -201,6 +222,8 @@ try {
             'date_to' => $dateTo,
             'donor' => $donorSearch,
             'payment_method' => $paymentMethod,
+            'amount_min' => $amountMin,
+            'amount_max' => $amountMax,
         ],
     ]);
 
